@@ -1,0 +1,72 @@
+version: '3'
+services:
+  cmake:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.cmake
+    image: aztecprotocol/cmake:3.16.5
+
+  crosstool-ng:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.crosstool-ng
+    image: aztecprotocol/crosstool-ng:1.24.0
+
+  crosstool-ng-arm64:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.crosstool-ng-arm64
+    image: aztecprotocol/crosstool-ng-arm64:latest
+
+  gcc:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.gcc
+    image: aztecprotocol/gcc:9
+
+  clang:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.clang
+    image: aztecprotocol/clang:9.0.0
+
+  mingw:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.mingw
+    image: aztecprotocol/mingw:latest
+
+  x86_64-linux-gcc:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.x86_64-linux-gcc
+    image: aztecprotocol/barretenberg:x86_64-linux-gcc
+    tty: true
+
+  x86_64-linux-clang:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang
+    image: aztecprotocol/barretenberg:x86_64-linux-clang
+    tty: true
+
+  x86_64-win32-mingw:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.x86_64-win32-mingw
+    image: aztecprotocol/barretenberg:x86_64-win32-mingw
+    tty: true
+
+  arm64-linux-gcc:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.arm64-linux-gcc
+    image: aztecprotocol/barretenberg:arm64-linux-gcc
+    tty: true
+
+  wasm-linux-clang:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.wasm-linux-clang
+    image: aztecprotocol/barretenberg:wasm-linux-clang
+    tty: true

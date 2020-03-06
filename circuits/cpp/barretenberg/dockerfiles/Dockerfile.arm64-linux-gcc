@@ -1,0 +1,6 @@
+FROM aztecprotocol/crosstool-ng-arm64:latest
+WORKDIR /usr/src/barretenberg
+COPY . .
+RUN mkdir build && cd build && cmake -DARM=ON .. && make -j$(nproc)
+RUN cd build && qemu-aarch64 ./test/barretenberg_tests
+ENTRYPOINT /bin/bash

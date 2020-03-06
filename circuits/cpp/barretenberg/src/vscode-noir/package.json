@@ -1,0 +1,25 @@
+{
+    "name": "noir",
+    "displayName": "Noir",
+    "description": "Noir language support.",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.40.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "noir",
+            "aliases": ["Noir", "noir"],
+            "extensions": [".noir"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "noir",
+            "scopeName": "source.noir",
+            "path": "./syntaxes/noir.tmLanguage.json"
+        }]
+    }
+}

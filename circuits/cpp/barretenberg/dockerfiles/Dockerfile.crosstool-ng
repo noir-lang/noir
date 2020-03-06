@@ -1,0 +1,14 @@
+FROM aztecprotocol/cmake:3.15.4
+
+RUN apt-get update && apt-get install -y autoconf flex texinfo unzip help2man file gawk libtool-bin ncurses-dev bison python-dev
+
+# Download and install the "crosstool-ng" source.
+ENV REV 1.24.0
+RUN wget https://github.com/crosstool-ng/crosstool-ng/archive/crosstool-ng-${REV}.tar.gz \
+  && tar -xf "crosstool-ng-${REV}.tar.gz" \
+  && cd crosstool-ng-crosstool-ng-${REV} \
+  && ./bootstrap \
+  && ./configure --prefix=/usr/local \
+  && make -j$(nproc) \
+  && make install \
+  && rm -rf /crosstool-*

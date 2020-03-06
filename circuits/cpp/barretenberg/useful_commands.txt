@@ -1,0 +1,106 @@
+objdump -drwCS -Mintel ./barretenberg.a > some_file_name.txt
+
+# valgrind/callgrind
+valgrind --tool=callgrind ./test/barretengerg_test
+
+# create .dot file from callgrind output 
+gprof2dot --format=callgrind --output=out.dot ./callgrind.out.23668(replace with .out filename)
+
+# create .png from .dot file
+dot -Tpng out.dot -o graph.png
+
+# profile cache misses
+valgrind --tool=cachegrind ./test/barretenberg_profiling
+
+valgrind --tool=callgrind --dump-instr=yes --instr-atstart=no ./test/barretenberg_profiling
+
+cmake --build . --parallel --target barretenberg_tests
+
+regex scrapboook
+
+(grumpkin::)?g(1|2)::dbl\(([^,\s]*), \3\);
+$3.self_dbl();
+
+(grumpkin::)?g(1|2)::dbl\(([^,\s]*), ([^,\s]*)\);
+$4 = $3.dbl();
+
+(grumpkin::)?g(1|2)::mixed_add_or_sub\(([^,\s]*), ([^,\s]*), \3, ([^\s]*)\);
+
+barretenberg::fq::__mul(q1,q2, q1);
+fq::__mul_with_coarse_reduction(q1, q2,   q1);
+
+// regex captures for when output parameter = input parameter
+// these need to be replaced first, as the latter captures will also match against these strings
+(barretenberg::|grumpkin::)?f(q|r)::__(mul|add|sub)(_with_coarse_reduction|without_reduction)?\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*,[\s]*\5[\s]*\);
+$5.self_$3$4($6);
+
+(barretenberg::|grumpkin::)?f(q|r)::__sqr(_with_coarse_reduction|without_reduction)?\([\s]*([^\s]*)[\s]*,[\s]*\4[\s]*\);
+$4.self_sqr$3();
+
+// regex captures for when output parameter != input parameter
+(barretenberg::|grumpkin::)?f(q|r)::__(mul|add|sub)(_with_coarse_reduction|without_reduction)\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$7 = $5.$3$4($6);
+
+(barretenberg::|grumpkin::)?f(q|r)::__sqr(_with_coarse_reduction|without_reduction)?\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$5 = $4.sqr();
+
+(barretenberg::|grumpkin::)?f(q|r)::__mul\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$5 = $3 * $4;
+
+(barretenberg::|grumpkin::)?f(q|r)::__add\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$5 = $3 + $4;
+
+(barretenberg::|grumpkin::)?f(q|r)::__sub\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$5 = $3 - $4;
+
+([^\s]*) = (barretenberg::|grumpkin::)?f(q|r)::mul\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$1 = $4 * $5;
+
+([^\s]*) = (barretenberg::|grumpkin::)?f(q|r)::add\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$1 = $4 + $5;
+
+([^\s]*) = (barretenberg::|grumpkin::)?f(q|r)::sub\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)[\s]*\);
+$1 = $4 - $5;
+
+fr::__to_montgomery_form(foo, foo);
+
+(barretenberg::|grumpkin::)?f(q|r)::__(to_montgomery_form|from_montgomery_form|reduce_once)?\([\s]*([^\s]*)[\s]*,[\s]*\4[\s]*\);
+$4.self_$3();
+
+(barretenberg::|grumpkin::)?f(q|r)::(reduce_once)\([\s]*([^\s]*)[\s]*,[\s]*\4[\s]*\);
+$4.self_reduce_once();
+
+([^\s]*) = (barretenberg::|grumpkin::)?f(q|r)::(to_montgomery_form|from_montgomery_form)?\([\s]*([^\s]*)[\s]*\);
+$1 = $5.$4();
+
+(barretenberg::|grumpkin::)?f(q|r)::eq\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)\)
+($3 == $4)
+
+(barretenberg::|grumpkin::)?f(q|r)::get_bit\([\s]*([^\s]*)[\s]*,[\s]*([^\s]*)\)
+$3.get_bit($4)
+
+(barretenberg::|grumpkin::)?f(q|r)::([^_:\(\)]*)\([\s]*([^\(\)]*)(\(\))?[\s]*,[\s]*([^_\(\)\s]*)(\(\))?\)
+$4.$3($6)
+
+(barretenberg::|grumpkin::)?f(q|r)::([^_:\(\)]*)\([\s]*([^_:\(\)\s]*)[\s]*\)
+$4.$3()
+
+([^_:\(\)\s]*)\.add\(([^_\s][^\s]*)\)
+$1 + $2
+
+([^_:\(\)\s]*)\.mul\(([^_\s][^\s]*)\)
+$1 * $2
+
+([^_:\(\)\s]*)\.sub\(([^_\s][^\s]*)\)
+$1 - $2
+
+f(q|r)::__invert\((.*), (.*)\)
+$3 = $2.invert()
+
+(barretenberg::|grumpkin::)?f(q|r)::__neg\((.*), \3\)
+$3.neg_self()
+
+(barretenberg::|grumpkin::)?f(q|r)::__neg\((.*), (.*)\)
+$4 = $3.neg()
+
+(barretenberg::|grumpkin::)?f(q|r)::add\((.*), (.*)\)

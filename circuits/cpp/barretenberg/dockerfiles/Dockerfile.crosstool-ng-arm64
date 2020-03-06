@@ -1,0 +1,26 @@
+FROM aztecprotocol/crosstool-ng:1.24.0
+
+# Build toolchain.
+ENV CT_PREFIX /usr/xcc
+WORKDIR /usr/src/toolchain
+COPY ./crosstool/arm64-linux.config .config
+RUN CT_ALLOW_BUILD_AS_ROOT_SURE=1 ct-ng build && cd / && rm -rf /usr/src/toolchain
+
+# The cross-compiling emulator.
+RUN apt-get update \
+&& apt-get install -y \
+  qemu-user \
+  qemu-user-static \
+&& apt-get clean --yes
+
+ENV CROSS_TRIPLE aarch64-unknown-linux-gnu
+ENV CROSS_ROOT ${CT_PREFIX}/${CROSS_TRIPLE}
+ENV AS=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-as \
+    AR=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-ar \
+    CC=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-gcc \
+    CPP=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-cpp \
+    CXX=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-g++ \
+    LD=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-ld \
+    FC=${CROSS_ROOT}/bin/${CROSS_TRIPLE}-gfortran
+ENV QEMU_LD_PREFIX "${CROSS_ROOT}/${CROSS_TRIPLE}/sysroot"
+ENV QEMU_SET_ENV "LD_LIBRARY_PATH=${CROSS_ROOT}/lib:${QEMU_LD_PREFIX}"

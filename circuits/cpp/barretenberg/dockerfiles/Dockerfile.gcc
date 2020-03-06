@@ -1,0 +1,11 @@
+FROM aztecprotocol/cmake:3.16.5
+RUN apt-get install -y software-properties-common \
+  && add-apt-repository ppa:ubuntu-toolchain-r/test \
+  && apt-get update \
+  && apt-get install -y \
+    xz-utils \
+    make \
+    gcc-9 \
+    g++-9 \
+    curl \
+  && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60 --slave /usr/bin/g++ g++ /usr/bin/g++-9

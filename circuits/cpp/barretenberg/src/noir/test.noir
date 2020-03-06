@@ -1,0 +1,6 @@
+uint32[8] main(uint32[] i) {
+    uint32 a = i[0];
+    uint32 b = i[1];
+    uint32 maj = b-a;
+    return maj;
+}
