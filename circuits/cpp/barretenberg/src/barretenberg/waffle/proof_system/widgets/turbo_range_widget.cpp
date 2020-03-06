@@ -106,7 +106,7 @@ ProverTurboRangeWidget& ProverTurboRangeWidget::operator=(ProverTurboRangeWidget
  *
  **/
 fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                                  const transcript::Transcript& transcript)
+                                                         const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -189,8 +189,8 @@ fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr&
 void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript&) {}
 
 fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                const transcript::Transcript& transcript,
-                                                                barretenberg::polynomial& r)
+                                                       const transcript::Transcript& transcript,
+                                                       barretenberg::polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -267,10 +267,7 @@ fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_d * alpha;
 }
 
-fr ProverTurboRangeWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                      const transcript::Transcript&,
-                                                                      fr*,
-                                                                      fr*)
+fr ProverTurboRangeWidget::compute_opening_poly_contribution(const fr& nu_base, const transcript::Transcript&, fr*, fr*)
 {
     return nu_base;
 }
@@ -289,11 +286,10 @@ barretenberg::fr VerifierTurboRangeWidget::compute_quotient_evaluation_contribut
     return alpha_base * alpha.sqr().sqr();
 }
 
-barretenberg::fr VerifierTurboRangeWidget::compute_batch_evaluation_contribution(
-    verification_key*,
-    barretenberg::fr&,
-    const barretenberg::fr& nu_base,
-    const transcript::Transcript&)
+barretenberg::fr VerifierTurboRangeWidget::compute_batch_evaluation_contribution(verification_key*,
+                                                                                 barretenberg::fr&,
+                                                                                 const barretenberg::fr& nu_base,
+                                                                                 const transcript::Transcript&)
 {
     return nu_base;
 }

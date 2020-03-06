@@ -305,7 +305,7 @@ TEST(uint512, greater_than_or_equal)
 
 TEST(uint512, invmod)
 {
-    uint256_t prime_lo =fr::modulus;
+    uint256_t prime_lo = fr::modulus;
     // uint256_t prime_lo(fr::modulus.data[0],
     //                    fr::modulus.data[1],
     //                    fr::modulus.data[2],
@@ -320,7 +320,7 @@ TEST(uint512, invmod)
 
 TEST(uint512, r_squared)
 {
-    uint256_t prime_256 =fr::modulus;
+    uint256_t prime_256 = fr::modulus;
     // uint256_t prime_256(fr::modulus.data[0],
     //                     fr::modulus.data[1],
     //                     fr::modulus.data[2],

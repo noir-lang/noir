@@ -165,7 +165,7 @@ ProverTurboLogicWidget& ProverTurboLogicWidget::operator=(ProverTurboLogicWidget
  *
  **/
 fr ProverTurboLogicWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                                  const transcript::Transcript& transcript)
+                                                         const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -335,8 +335,8 @@ fr ProverTurboLogicWidget::compute_quotient_contribution(const barretenberg::fr&
 void ProverTurboLogicWidget::compute_transcript_elements(transcript::Transcript&) {}
 
 fr ProverTurboLogicWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                const transcript::Transcript& transcript,
-                                                                barretenberg::polynomial& r)
+                                                       const transcript::Transcript& transcript,
+                                                       barretenberg::polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -496,10 +496,7 @@ fr ProverTurboLogicWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_d * alpha;
 }
 
-fr ProverTurboLogicWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                      const transcript::Transcript&,
-                                                                      fr*,
-                                                                      fr*)
+fr ProverTurboLogicWidget::compute_opening_poly_contribution(const fr& nu_base, const transcript::Transcript&, fr*, fr*)
 {
     return nu_base;
 }
@@ -517,11 +514,10 @@ barretenberg::fr VerifierTurboLogicWidget::compute_quotient_evaluation_contribut
     return alpha_base * alpha.sqr().sqr();
 }
 
-barretenberg::fr VerifierTurboLogicWidget::compute_batch_evaluation_contribution(
-    verification_key*,
-    barretenberg::fr&,
-    const barretenberg::fr& nu_base,
-    const transcript::Transcript&)
+barretenberg::fr VerifierTurboLogicWidget::compute_batch_evaluation_contribution(verification_key*,
+                                                                                 barretenberg::fr&,
+                                                                                 const barretenberg::fr& nu_base,
+                                                                                 const transcript::Transcript&)
 {
     return nu_base;
 }

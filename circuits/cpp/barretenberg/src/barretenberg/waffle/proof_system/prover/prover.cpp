@@ -188,8 +188,7 @@ template <typename settings> void ProverBase<settings>::compute_z_coefficients()
 #pragma omp for
 #endif
         for (size_t j = 0; j < key->small_domain.num_threads; ++j) {
-            fr thread_root =
-                key->small_domain.root.pow(static_cast<uint64_t>(j * key->small_domain.thread_size));
+            fr thread_root = key->small_domain.root.pow(static_cast<uint64_t>(j * key->small_domain.thread_size));
             fr work_root = thread_root * beta;
             fr T0;
             fr wire_plus_gamma;

@@ -47,8 +47,7 @@ void StandardComposer::create_big_add_gate(const add_quad& in)
     fr temp = t0 + t1;
     uint32_t temp_idx = add_variable(temp);
 
-    create_add_gate(
-        add_triple{ in.a, in.b, temp_idx, in.a_scaling, in.b_scaling, fr::neg_one(), fr::zero() });
+    create_add_gate(add_triple{ in.a, in.b, temp_idx, in.a_scaling, in.b_scaling, fr::neg_one(), fr::zero() });
 
     create_add_gate(add_triple{ in.c, in.d, temp_idx, in.c_scaling, in.d_scaling, fr::one(), in.const_scaling });
 }
@@ -154,16 +153,14 @@ void StandardComposer::create_big_add_gate_with_bit_extraction(const add_quad& i
 
     uint32_t delta_idx = add_variable(delta);
     constexpr fr neg_four = -(fr(4));
-    create_add_gate(
-        add_triple{ in.c, in.d, delta_idx, fr::one(), neg_four, fr::neg_one(), fr::zero() });
+    create_add_gate(add_triple{ in.c, in.d, delta_idx, fr::one(), neg_four, fr::neg_one(), fr::zero() });
 
     constexpr fr two = fr(2);
     constexpr fr seven = fr(7);
     constexpr fr nine = fr(9);
     const fr r_0 = (delta * nine) - ((delta.sqr() * two) + seven);
     uint32_t r_0_idx = add_variable(r_0);
-    create_poly_gate(
-        poly_triple{ delta_idx, delta_idx, r_0_idx, -two, nine, fr::zero(), fr::neg_one(), -seven });
+    create_poly_gate(poly_triple{ delta_idx, delta_idx, r_0_idx, -two, nine, fr::zero(), fr::neg_one(), -seven });
 
     fr r_1 = r_0 * delta;
     uint32_t r_1_idx = add_variable(r_1);
@@ -180,22 +177,20 @@ void StandardComposer::create_big_add_gate_with_bit_extraction(const add_quad& i
 
     fr r_2 = (r_1 + (variables[in.d] * in.d_scaling));
     uint32_t r_2_idx = add_variable(r_2);
-    create_add_gate(
-        add_triple{ in.d, r_1_idx, r_2_idx, in.d_scaling, fr::one(), fr::neg_one(), fr::zero() });
+    create_add_gate(add_triple{ in.d, r_1_idx, r_2_idx, in.d_scaling, fr::one(), fr::neg_one(), fr::zero() });
 
-    create_big_add_gate(add_quad{
-        in.a, in.b, in.c, r_2_idx, in.a_scaling, in.b_scaling, in.c_scaling, fr::one(), in.const_scaling });
+    create_big_add_gate(
+        add_quad{ in.a, in.b, in.c, r_2_idx, in.a_scaling, in.b_scaling, in.c_scaling, fr::one(), in.const_scaling });
 }
 
 void StandardComposer::create_big_mul_gate(const mul_quad& in)
 {
     fr temp = ((variables[in.c] * in.c_scaling) + (variables[in.d] * in.d_scaling));
     uint32_t temp_idx = add_variable(temp);
-    create_add_gate(
-        add_triple{ in.c, in.d, temp_idx, in.c_scaling, in.d_scaling, fr::neg_one(), fr::zero() });
+    create_add_gate(add_triple{ in.c, in.d, temp_idx, in.c_scaling, in.d_scaling, fr::neg_one(), fr::zero() });
 
-    create_poly_gate(poly_triple{
-        in.a, in.b, temp_idx, in.mul_scaling, in.a_scaling, in.b_scaling, fr::one(), in.const_scaling });
+    create_poly_gate(
+        poly_triple{ in.a, in.b, temp_idx, in.mul_scaling, in.a_scaling, in.b_scaling, fr::one(), in.const_scaling });
 }
 
 void StandardComposer::create_mul_gate(const mul_triple& in)
@@ -296,13 +291,8 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
         uint64_t quad = (lo ? 1U : 0U) + (hi ? 2U : 0U);
         uint32_t quad_idx = add_variable(fr{ quad, 0, 0, 0 }.to_montgomery_form());
 
-        create_add_gate(add_triple{ lo_idx,
-                                    hi_idx,
-                                    quad_idx,
-                                    fr::one(),
-                                    fr::one() + fr::one(),
-                                    fr::neg_one(),
-                                    fr::zero() });
+        create_add_gate(
+            add_triple{ lo_idx, hi_idx, quad_idx, fr::one(), fr::one() + fr::one(), fr::neg_one(), fr::zero() });
 
         if (i == num_bits - 1) {
             accumulators.push_back(quad_idx);
@@ -313,13 +303,8 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
             new_accumulator = new_accumulator + new_accumulator;
             new_accumulator = new_accumulator + variables[quad_idx];
             uint32_t new_accumulator_idx = add_variable(new_accumulator);
-            create_add_gate(add_triple{ accumulator_idx,
-                                        quad_idx,
-                                        new_accumulator_idx,
-                                        four,
-                                        fr::one(),
-                                        fr::neg_one(),
-                                        fr::zero() });
+            create_add_gate(add_triple{
+                accumulator_idx, quad_idx, new_accumulator_idx, four, fr::one(), fr::neg_one(), fr::zero() });
             accumulators.push_back(new_accumulator_idx);
             accumulator = new_accumulator;
             accumulator_idx = new_accumulator_idx;
@@ -431,13 +416,8 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
         new_out_accumulator = new_out_accumulator + out_quad;
         uint32_t new_out_accumulator_idx = add_variable(new_out_accumulator);
 
-        create_add_gate(add_triple{ out_accumulator_idx,
-                                    out_quad_idx,
-                                    new_out_accumulator_idx,
-                                    four,
-                                    fr::one(),
-                                    fr::neg_one(),
-                                    fr::zero() });
+        create_add_gate(add_triple{
+            out_accumulator_idx, out_quad_idx, new_out_accumulator_idx, four, fr::one(), fr::neg_one(), fr::zero() });
 
         accumulators.left.emplace_back(new_left_accumulator_idx);
         accumulators.right.emplace_back(new_right_accumulator_idx);

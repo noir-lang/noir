@@ -529,4 +529,4 @@ TEST(stdlib_uint32, test_hash_rounds)
     EXPECT_EQ(result, true);
 }
 
-}
+} // namespace test_stdlib_uint32

@@ -120,7 +120,7 @@ ProverTurboArithmeticWidget& ProverTurboArithmeticWidget::operator=(ProverTurboA
 }
 
 fr ProverTurboArithmeticWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                                       const transcript::Transcript& transcript)
+                                                              const transcript::Transcript& transcript)
 {
     const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -223,8 +223,8 @@ void ProverTurboArithmeticWidget::compute_transcript_elements(transcript::Transc
 }
 
 fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                     const transcript::Transcript& transcript,
-                                                                     barretenberg::polynomial& r)
+                                                            const transcript::Transcript& transcript,
+                                                            barretenberg::polynomial& r)
 {
 
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -251,9 +251,9 @@ fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base
 }
 
 fr ProverTurboArithmeticWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                           const transcript::Transcript& transcript,
-                                                                           fr* poly,
-                                                                           fr*)
+                                                                  const transcript::Transcript& transcript,
+                                                                  fr* poly,
+                                                                  fr*)
 {
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
 
@@ -270,8 +270,10 @@ VerifierTurboArithmeticWidget::VerifierTurboArithmeticWidget()
     : VerifierBaseWidget()
 {}
 
-fr VerifierTurboArithmeticWidget::compute_quotient_evaluation_contribution(
-    verification_key*, const fr& alpha_base, const transcript::Transcript& transcript, fr& t_eval)
+fr VerifierTurboArithmeticWidget::compute_quotient_evaluation_contribution(verification_key*,
+                                                                           const fr& alpha_base,
+                                                                           const transcript::Transcript& transcript,
+                                                                           fr& t_eval)
 {
     const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     const fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
@@ -365,8 +367,8 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboArithmeticWidget::append
     }
 
     constexpr fr minus_two = -fr(2);
-    fr q_5_term = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
-                           challenge.alpha_step * challenge.linear_nu * q_arith_eval;
+    fr q_5_term = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base * challenge.alpha_step *
+                  challenge.linear_nu * q_arith_eval;
     if (key->constraint_selectors.at("Q_5").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_5"));
         scalars.push_back(q_5_term);

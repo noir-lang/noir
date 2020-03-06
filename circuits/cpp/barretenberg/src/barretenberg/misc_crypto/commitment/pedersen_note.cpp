@@ -7,8 +7,7 @@ namespace crypto {
 namespace pedersen_note {
 grumpkin::g1::affine_element encrypt_note(const private_note& plaintext)
 {
-    grumpkin::g1::element p_1 =
-        pedersen::fixed_base_scalar_mul<32>(uint256_t(plaintext.value, 0, 0, 0), 0);
+    grumpkin::g1::element p_1 = pedersen::fixed_base_scalar_mul<32>(uint256_t(plaintext.value, 0, 0, 0), 0);
     grumpkin::g1::element p_2 = pedersen::fixed_base_scalar_mul<250>(plaintext.secret, 1);
 
     grumpkin::g1::element sum;

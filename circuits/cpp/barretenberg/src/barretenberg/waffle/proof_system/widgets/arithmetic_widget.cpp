@@ -88,8 +88,7 @@ ProverArithmeticWidget& ProverArithmeticWidget::operator=(ProverArithmeticWidget
     return *this;
 }
 
-fr ProverArithmeticWidget::compute_quotient_contribution(const fr& alpha_base,
-                                                                  const transcript::Transcript& transcript)
+fr ProverArithmeticWidget::compute_quotient_contribution(const fr& alpha_base, const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -111,8 +110,8 @@ fr ProverArithmeticWidget::compute_quotient_contribution(const fr& alpha_base,
 }
 
 fr ProverArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                const transcript::Transcript& transcript,
-                                                                polynomial& r)
+                                                       const transcript::Transcript& transcript,
+                                                       polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
@@ -131,9 +130,9 @@ fr ProverArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
 }
 
 fr ProverArithmeticWidget::compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                      const transcript::Transcript&,
-                                                                      barretenberg::fr*,
-                                                                      barretenberg::fr*)
+                                                             const transcript::Transcript&,
+                                                             barretenberg::fr*,
+                                                             barretenberg::fr*)
 {
     return nu_base;
 }
@@ -145,17 +144,17 @@ VerifierArithmeticWidget::VerifierArithmeticWidget()
 {}
 
 fr VerifierArithmeticWidget::compute_quotient_evaluation_contribution(verification_key*,
-                                                                               const fr& alpha_base,
-                                                                               const transcript::Transcript& transcript,
-                                                                               fr&)
+                                                                      const fr& alpha_base,
+                                                                      const transcript::Transcript& transcript,
+                                                                      fr&)
 {
     return alpha_base * fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 }
 
 fr VerifierArithmeticWidget::compute_batch_evaluation_contribution(verification_key*,
-                                                                            fr&,
-                                                                            const fr& nu_base,
-                                                                            const transcript::Transcript&)
+                                                                   fr&,
+                                                                   const fr& nu_base,
+                                                                   const transcript::Transcript&)
 {
     return nu_base;
 };

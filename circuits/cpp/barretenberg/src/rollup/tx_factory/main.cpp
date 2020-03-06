@@ -60,7 +60,7 @@ int main(int argc, char** argv)
         batch.batch_num = 0;
         batch.txs.reserve(num_txs);
         batch.txs.push_back(create_join_split_tx({ "0", "0", "-", "-", "50", "50", "100", "0" }, user));
-        for (size_t i=0; i<num_txs-1; ++i) {
+        for (size_t i = 0; i < num_txs - 1; ++i) {
             auto index1 = std::to_string(i * 2);
             auto index2 = std::to_string(i * 2 + 1);
             batch.txs.push_back(create_join_split_tx({ index1, index2, "50", "50", "50", "50", "0", "0" }, user));

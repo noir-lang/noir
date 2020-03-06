@@ -1,6 +1,6 @@
 #include <barretenberg/curves/grumpkin/grumpkin.hpp>
-#include <barretenberg/misc_crypto/schnorr/schnorr.hpp>
 #include <barretenberg/io/streams.hpp>
+#include <barretenberg/misc_crypto/schnorr/schnorr.hpp>
 
 #include <gtest/gtest.h>
 
@@ -15,12 +15,10 @@ TEST(schnorr, verify_signature_keccak256)
     account.public_key = grumpkin::g1::one * account.private_key;
 
     crypto::schnorr::signature signature =
-        crypto::schnorr::construct_signature<KeccakHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
-            message, account);
+        crypto::schnorr::construct_signature<KeccakHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, account);
 
-    bool result =
-        crypto::schnorr::verify_signature<KeccakHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
-            message, account.public_key, signature);
+    bool result = crypto::schnorr::verify_signature<KeccakHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message, account.public_key, signature);
 
     EXPECT_EQ(result, true);
 }
@@ -34,12 +32,10 @@ TEST(schnorr, verify_signature_sha256)
     account.public_key = grumpkin::g1::one * account.private_key;
 
     crypto::schnorr::signature signature =
-        crypto::schnorr::construct_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
-            message, account);
+        crypto::schnorr::construct_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, account);
 
-    bool result =
-        crypto::schnorr::verify_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
-            message, account.public_key, signature);
+    bool result = crypto::schnorr::verify_signature<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message, account.public_key, signature);
 
     EXPECT_EQ(result, true);
 }
@@ -53,9 +49,11 @@ TEST(schnorr, verify_signature_blake2s)
     account.private_key = { 0x55555555, 0x55555555, 0x55555555, 0x55555555 };
     account.public_key = grumpkin::g1::one * account.private_key;
 
-    crypto::schnorr::signature signature = crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, account);
+    crypto::schnorr::signature signature =
+        crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, account);
 
-    bool result = crypto::schnorr::verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, account.public_key, signature);
+    bool result = crypto::schnorr::verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        message, account.public_key, signature);
 
     EXPECT_EQ(result, true);
 }
@@ -68,13 +66,12 @@ TEST(schnorr, verify_ecrecover)
     account.private_key = grumpkin::fr::random_element();
     account.public_key = grumpkin::g1::one * account.private_key;
 
-    crypto::schnorr::signature_b signature = crypto::schnorr::
-        construct_signature_b<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message,
-                                                                                                        account);
+    crypto::schnorr::signature_b signature =
+        crypto::schnorr::construct_signature_b<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message,
+                                                                                                       account);
 
     grumpkin::g1::affine_element recovered_key =
-        crypto::schnorr::ecrecover<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message,
-                                                                                                             signature);
+        crypto::schnorr::ecrecover<Sha256Hasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message, signature);
 
     EXPECT_EQ(recovered_key, account.public_key);
 }

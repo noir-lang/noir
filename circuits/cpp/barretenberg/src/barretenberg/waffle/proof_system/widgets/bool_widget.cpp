@@ -68,8 +68,7 @@ ProverBoolWidget& ProverBoolWidget::operator=(ProverBoolWidget&& other)
     return *this;
 }
 
-fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha_base,
-                                                            const transcript::Transcript& transcript)
+fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha_base, const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -93,8 +92,8 @@ fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha_base,
 }
 
 fr ProverBoolWidget::compute_linear_contribution(const fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          polynomial& r)
+                                                 const transcript::Transcript& transcript,
+                                                 polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
@@ -112,10 +111,7 @@ fr ProverBoolWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base * alpha.sqr() * alpha;
 }
 
-fr ProverBoolWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                const transcript::Transcript&,
-                                                                fr*,
-                                                                fr*)
+fr ProverBoolWidget::compute_opening_poly_contribution(const fr& nu_base, const transcript::Transcript&, fr*, fr*)
 {
     return nu_base;
 }
@@ -127,17 +123,17 @@ VerifierBoolWidget::VerifierBoolWidget()
 {}
 
 fr VerifierBoolWidget::compute_quotient_evaluation_contribution(verification_key*,
-                                                                         const fr& alpha_base,
-                                                                         const transcript::Transcript& transcript,
-                                                                         fr&)
+                                                                const fr& alpha_base,
+                                                                const transcript::Transcript& transcript,
+                                                                fr&)
 {
     return alpha_base * fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 }
 
 fr VerifierBoolWidget::compute_batch_evaluation_contribution(verification_key*,
-                                                                      fr&,
-                                                                      const fr& nu_base,
-                                                                      const transcript::Transcript&)
+                                                             fr&,
+                                                             const fr& nu_base,
+                                                             const transcript::Transcript&)
 {
     return nu_base;
 };

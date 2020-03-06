@@ -1,8 +1,8 @@
 #include "./pedersen_note.hpp"
-#include "../hash/pedersen.hpp"
+#include "../../../composer/turbo_composer.hpp"
 #include "../../bool/bool.hpp"
 #include "../../field/field.hpp"
-#include "../../../composer/turbo_composer.hpp"
+#include "../hash/pedersen.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -45,12 +45,10 @@ note_triple fixed_base_scalar_mul(const field_t<waffle::TurboComposer>& in, cons
 
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
-    barretenberg::fr accumulator_offset = (barretenberg::fr::one() + barretenberg::fr::one())
-                                                       .pow(static_cast<uint64_t>(initial_exponent))
-                                                       .invert();
+    barretenberg::fr accumulator_offset =
+        (barretenberg::fr::one() + barretenberg::fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
 
-    barretenberg::fr origin_accumulators[2]{ barretenberg::fr::one(),
-                                                      accumulator_offset + barretenberg::fr::one() };
+    barretenberg::fr origin_accumulators[2]{ barretenberg::fr::one(), accumulator_offset + barretenberg::fr::one() };
 
     grumpkin::g1::element* multiplication_transcript =
         static_cast<grumpkin::g1::element*>(aligned_alloc(64, sizeof(grumpkin::g1::element) * (num_quads + 1)));

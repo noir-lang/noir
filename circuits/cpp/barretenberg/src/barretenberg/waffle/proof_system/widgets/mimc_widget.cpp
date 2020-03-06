@@ -61,7 +61,7 @@ ProverMiMCWidget& ProverMiMCWidget::operator=(ProverMiMCWidget&& other)
 }
 
 fr ProverMiMCWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                            const transcript::Transcript& transcript)
+                                                   const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -91,8 +91,8 @@ void ProverMiMCWidget::compute_transcript_elements(transcript::Transcript& trans
 }
 
 fr ProverMiMCWidget::compute_linear_contribution(const fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          polynomial& r)
+                                                 const transcript::Transcript& transcript,
+                                                 polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);
     fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
@@ -112,9 +112,9 @@ fr ProverMiMCWidget::compute_linear_contribution(const fr& alpha_base,
 }
 
 fr ProverMiMCWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                const transcript::Transcript& transcript,
-                                                                fr* poly,
-                                                                fr*)
+                                                       const transcript::Transcript& transcript,
+                                                       fr* poly,
+                                                       fr*)
 {
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
     ITERATE_OVER_DOMAIN_START(key->small_domain);
@@ -130,11 +130,10 @@ VerifierMiMCWidget::VerifierMiMCWidget()
     : VerifierBaseWidget()
 {}
 
-barretenberg::fr VerifierMiMCWidget::compute_batch_evaluation_contribution(
-    verification_key*,
-    barretenberg::fr& batch_eval,
-    const barretenberg::fr& nu_base,
-    const transcript::Transcript& transcript)
+barretenberg::fr VerifierMiMCWidget::compute_batch_evaluation_contribution(verification_key*,
+                                                                           barretenberg::fr& batch_eval,
+                                                                           const barretenberg::fr& nu_base,
+                                                                           const transcript::Transcript& transcript)
 {
     fr q_mimc_coefficient_eval = fr::serialize_from_buffer(&transcript.get_element("q_mimc_coefficient")[0]);
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);

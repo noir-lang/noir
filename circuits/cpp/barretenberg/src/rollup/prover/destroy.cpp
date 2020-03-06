@@ -89,4 +89,4 @@ bool destroy(rollup_context& ctx, uint32_t const index, tx_note const& note)
     return true;
 }
 
-}
+} // namespace rollup

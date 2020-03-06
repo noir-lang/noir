@@ -1,7 +1,7 @@
-#include "split.hpp"
-#include "note.hpp"
 #include "create.hpp"
 #include "destroy.hpp"
+#include "note.hpp"
+#include "split.hpp"
 
 namespace rollup {
 
@@ -38,4 +38,4 @@ bool join(rollup_context& ctx,
     return true;
 }
 
-}
+} // namespace rollup

@@ -44,8 +44,14 @@ uint<Composer, Native> uint<Composer, Native>::operator+(const uint& other) cons
     const uint256_t remainder = sum & MASK;
 
     const waffle::add_quad gate{
-        witness_index,      other.witness_index, ctx->add_variable(remainder), ctx->add_variable(overflow),
-        fr::one(), fr::one(),  fr::neg_one(),       -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
+        witness_index,
+        other.witness_index,
+        ctx->add_variable(remainder),
+        ctx->add_variable(overflow),
+        fr::one(),
+        fr::one(),
+        fr::neg_one(),
+        -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
         constants,
     };
 
@@ -236,16 +242,16 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
     const uint32_t remainder_idx = ctx->add_variable(r);
 
     const waffle::mul_quad division_gate{
-        quotient_idx,                   // q
-        divisor_idx,                    // b
-        dividend_idx,                   // a
-        remainder_idx,                  // r
-        fr::one(),             // q_m.w_1.w_2 = q.b
-        other.additive_constant,        // q_l.w_1 = q.b if b const
-        fr::zero(),            // q_2.w_2 = 0
-        fr::neg_one(),         // q_3.w_3 = -a
-        fr::one(),             // q_4.w_4 = r
-        -fr(additive_constant) // q_c = -a if a const
+        quotient_idx,            // q
+        divisor_idx,             // b
+        dividend_idx,            // a
+        remainder_idx,           // r
+        fr::one(),               // q_m.w_1.w_2 = q.b
+        other.additive_constant, // q_l.w_1 = q.b if b const
+        fr::zero(),              // q_2.w_2 = 0
+        fr::neg_one(),           // q_3.w_3 = -a
+        fr::one(),               // q_4.w_4 = r
+        -fr(additive_constant)   // q_c = -a if a const
     };
     ctx->create_big_mul_gate(division_gate);
 
@@ -257,9 +263,9 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
         divisor_idx,             // b
         remainder_idx,           // r
         delta_idx,               // d
-        fr::one(),      // q_l = 1
-        fr::neg_one(),  // q_r = -1
-        fr::neg_one(),  // q_o = -1
+        fr::one(),               // q_l = 1
+        fr::neg_one(),           // q_r = -1
+        fr::neg_one(),           // q_o = -1
         other.additive_constant, // q_c = d if const
     };
     ctx->create_add_gate(delta_gate);

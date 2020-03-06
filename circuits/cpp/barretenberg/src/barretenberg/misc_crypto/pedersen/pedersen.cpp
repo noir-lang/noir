@@ -192,9 +192,7 @@ grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
     return r.x;
 }
 
-grumpkin::fq compress_native(const grumpkin::fq& left,
-                                      const grumpkin::fq& right,
-                                      const size_t hash_index)
+grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index)
 {
 #ifndef NO_MULTITHREADING
     grumpkin::fq in[2] = { left, right };

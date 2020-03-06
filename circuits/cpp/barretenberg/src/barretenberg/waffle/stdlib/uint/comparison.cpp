@@ -63,9 +63,16 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
 
     const bool_t<Composer> result = witness_t(ctx, lhs > rhs);
 
-    const waffle::mul_quad gate_b{ diff_idx,          result.witness_index, ctx->add_variable(delta), ctx->zero_idx,
-                                   -fr(2),   fr::one(),     fr::one(),         fr::one(),
-                                   fr::zero(), fr::zero() };
+    const waffle::mul_quad gate_b{ diff_idx,
+                                   result.witness_index,
+                                   ctx->add_variable(delta),
+                                   ctx->zero_idx,
+                                   -fr(2),
+                                   fr::one(),
+                                   fr::one(),
+                                   fr::one(),
+                                   fr::zero(),
+                                   fr::zero() };
     ctx->create_big_mul_gate(gate_b);
 
     return result;

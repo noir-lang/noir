@@ -57,4 +57,4 @@ bool create(rollup_context& ctx, tx_note const& note)
     return true;
 }
 
-}
+} // namespace rollup

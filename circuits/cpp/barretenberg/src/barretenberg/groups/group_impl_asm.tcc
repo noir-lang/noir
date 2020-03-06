@@ -92,10 +92,10 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
                              : "r"(src),
                                "r"(dest),
                                "r"(predicate),
-                               [modulus_0] "i"(twice_modulus.data[0]),
-                               [modulus_1] "i"(twice_modulus.data[1]),
-                               [modulus_2] "i"(twice_modulus.data[2]),
-                               [modulus_3] "i"(twice_modulus.data[3])
+                               [ modulus_0 ] "i"(twice_modulus.data[0]),
+                               [ modulus_1 ] "i"(twice_modulus.data[1]),
+                               [ modulus_2 ] "i"(twice_modulus.data[2]),
+                               [ modulus_3 ] "i"(twice_modulus.data[3])
                              : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "%ymm0", "memory", "cc");
 #else
         __asm__ __volatile__("xorq %%r8, %%r8                              \n\t"
@@ -132,10 +132,10 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
                              : "r"(src),
                                "r"(dest),
                                "r"(predicate),
-                               [modulus_0] "i"(twice_modulus.data[0]),
-                               [modulus_1] "i"(twice_modulus.data[1]),
-                               [modulus_2] "i"(twice_modulus.data[2]),
-                               [modulus_3] "i"(twice_modulus.data[3])
+                               [ modulus_0 ] "i"(twice_modulus.data[0]),
+                               [ modulus_1 ] "i"(twice_modulus.data[1]),
+                               [ modulus_2 ] "i"(twice_modulus.data[2]),
+                               [ modulus_3 ] "i"(twice_modulus.data[3])
                              : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "memory", "cc");
 #endif
     } else {

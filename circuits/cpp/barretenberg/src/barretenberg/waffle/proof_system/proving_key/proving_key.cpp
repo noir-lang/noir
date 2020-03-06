@@ -81,7 +81,8 @@ proving_key::proving_key(const size_t num_gates, const size_t num_inputs, std::s
     // printf("proving key allocated memory = %lu \n", memory / (1024UL * 1024UL));
 }
 
-void proving_key::reset() {
+void proving_key::reset()
+{
     wire_ffts.clear();
 
     barretenberg::polynomial w_1_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);

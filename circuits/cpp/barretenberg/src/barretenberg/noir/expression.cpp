@@ -1,4 +1,3 @@
-// clang-format off
 #include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
 #include <boost/fusion/include/io.hpp>
 #include "config.hpp"

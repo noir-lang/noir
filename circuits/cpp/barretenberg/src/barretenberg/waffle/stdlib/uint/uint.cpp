@@ -173,7 +173,7 @@ template <typename Context, typename Native> uint<Context, Native>::operator byt
         waffle::add_quad gate{ lo.witness_index, hi.witness_index,
                                accumulator_idx,  context->add_variable(next_accumulator),
                                scale_factor,     scale_factor + scale_factor,
-                               fr::one(), fr::neg_one(),
+                               fr::one(),        fr::neg_one(),
                                fr::zero() };
 
         context->create_big_add_gate(gate);
@@ -292,11 +292,11 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
             context->zero_idx,             // no explicit need to add high bit - extract gate does that for us
             right_idx,                     // large accumulator
             left_idx,                      // small accumulator
-            fr(3),                // 3 * lo_bit + 6 * hi_bit = 3 * a[pivot] - 12 * a[pivot - 1]
-            fr::zero(),             // 0
-            -fr(3),               // -3 * a[pivot]
-            fr(12),               // 12 * a[pivot - 1]
-            fr::zero()              // 0
+            fr(3),                         // 3 * lo_bit + 6 * hi_bit = 3 * a[pivot] - 12 * a[pivot - 1]
+            fr::zero(),                    // 0
+            -fr(3),                        // -3 * a[pivot]
+            fr(12),                        // 12 * a[pivot - 1]
+            fr::zero()                     // 0
         };
         context->create_big_add_gate_with_bit_extraction(gate);
         bool_t<Composer> result;
@@ -313,11 +313,11 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
         context->add_variable(hi_bit), // our extracted bit
         right_idx,                     // large accumlator
         left_idx,                      // small accumulator
-        fr::zero(),             // 0
-        -fr(6),               // extracted bit is scaled by 6, so apply -6 to our high bit
-        fr::zero(),             // 0
-        fr::zero(),             // 0
-        fr::zero()              // 0
+        fr::zero(),                    // 0
+        -fr(6),                        // extracted bit is scaled by 6, so apply -6 to our high bit
+        fr::zero(),                    // 0
+        fr::zero(),                    // 0
+        fr::zero()                     // 0
     };
     context->create_big_add_gate_with_bit_extraction(gate);
     bool_t<Composer> result;

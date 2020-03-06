@@ -1,8 +1,8 @@
 #include "join_split.hpp"
 #include "create.hpp"
 #include "destroy.hpp"
-#include "note.hpp"
 #include "io.hpp"
+#include "note.hpp"
 #include <barretenberg/waffle/stdlib/crypto/schnorr/schnorr.hpp>
 
 namespace rollup {

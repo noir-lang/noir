@@ -5,7 +5,7 @@ namespace rollup {
 
 using namespace barretenberg;
 
-typedef crypto::pedersen_note::private_note  tx_note;
+typedef crypto::pedersen_note::private_note tx_note;
 
 fr generate_random_secret()
 {
@@ -81,7 +81,8 @@ join_split_tx create_join_split_tx(std::vector<std::string> const& args, user_co
     };
 }
 
-join_split_tx hton(join_split_tx const& tx) {
+join_split_tx hton(join_split_tx const& tx)
+{
     join_split_tx be_tx;
     be_tx.owner_pub_key = hton(tx.owner_pub_key);
     be_tx.public_input = htonl(tx.public_input);
@@ -97,7 +98,8 @@ join_split_tx hton(join_split_tx const& tx) {
     return be_tx;
 }
 
-join_split_tx ntoh(join_split_tx const& be_tx) {
+join_split_tx ntoh(join_split_tx const& be_tx)
+{
     join_split_tx tx;
     tx.owner_pub_key = ntoh(be_tx.owner_pub_key);
     tx.public_input = ntohl(be_tx.public_input);
@@ -113,13 +115,14 @@ join_split_tx ntoh(join_split_tx const& be_tx) {
     return tx;
 }
 
-std::ostream& write(std::ostream& os, join_split_tx const& be_tx) {
+std::ostream& write(std::ostream& os, join_split_tx const& be_tx)
+{
     os.write(reinterpret_cast<char const*>(&be_tx.owner_pub_key), sizeof(be_tx.owner_pub_key));
     os.write(reinterpret_cast<char const*>(&be_tx.public_input), sizeof(be_tx.public_input));
     os.write(reinterpret_cast<char const*>(&be_tx.public_output), sizeof(be_tx.public_output));
     os.write(reinterpret_cast<char const*>(&be_tx.num_input_notes), sizeof(be_tx.num_input_notes));
     os.write(reinterpret_cast<char const*>(&be_tx.input_note_index), sizeof(be_tx.input_note_index));
-    for (auto n : {be_tx.input_note[0], be_tx.input_note[1], be_tx.output_note[0], be_tx.output_note[1]}) {
+    for (auto n : { be_tx.input_note[0], be_tx.input_note[1], be_tx.output_note[0], be_tx.output_note[1] }) {
         os.write(reinterpret_cast<char*>(&n.owner.x), sizeof(n.owner.x));
         os.write(reinterpret_cast<char*>(&n.owner.y), sizeof(n.owner.y));
         os.write(reinterpret_cast<char*>(&n.value), sizeof(n.value));
@@ -130,20 +133,21 @@ std::ostream& write(std::ostream& os, join_split_tx const& be_tx) {
     return os;
 }
 
-std::istream& read(std::istream& is, join_split_tx& be_tx) {
+std::istream& read(std::istream& is, join_split_tx& be_tx)
+{
     is.read(reinterpret_cast<char*>(&be_tx.owner_pub_key), sizeof(be_tx.owner_pub_key));
     is.read(reinterpret_cast<char*>(&be_tx.public_input), sizeof(be_tx.public_input));
     is.read(reinterpret_cast<char*>(&be_tx.public_output), sizeof(be_tx.public_output));
     is.read(reinterpret_cast<char*>(&be_tx.num_input_notes), sizeof(be_tx.num_input_notes));
     is.read(reinterpret_cast<char*>(&be_tx.input_note_index), sizeof(be_tx.input_note_index));
-    for (size_t i=0; i<2; ++i) {
+    for (size_t i = 0; i < 2; ++i) {
         auto& n = be_tx.input_note[i];
         is.read(reinterpret_cast<char*>(&n.owner.x), sizeof(n.owner.x));
         is.read(reinterpret_cast<char*>(&n.owner.y), sizeof(n.owner.y));
         is.read(reinterpret_cast<char*>(&n.value), sizeof(n.value));
         is.read(reinterpret_cast<char*>(&n.secret), sizeof(n.secret));
     }
-    for (size_t i=0; i<2; ++i) {
+    for (size_t i = 0; i < 2; ++i) {
         auto& n = be_tx.output_note[i];
         is.read(reinterpret_cast<char*>(&n.owner.x), sizeof(n.owner.x));
         is.read(reinterpret_cast<char*>(&n.owner.y), sizeof(n.owner.y));

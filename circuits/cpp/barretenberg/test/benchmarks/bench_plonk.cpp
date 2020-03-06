@@ -25,8 +25,7 @@ void generate_test_plonk_circuit(waffle::StandardComposer& composer, size_t num_
     plonk::stdlib::field_t a(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
     plonk::stdlib::field_t b(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));
     plonk::stdlib::field_t c(&composer);
-    for (size_t i = 0; i < (num_gates / 4) - 4; ++i)
-    {
+    for (size_t i = 0; i < (num_gates / 4) - 4; ++i) {
         c = a + b;
         c = a * c;
         a = b * b;
@@ -40,8 +39,7 @@ waffle::plonk_proof proofs[NUM_CIRCUITS];
 
 void construct_witnesses_bench(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         composer.compute_witness();
@@ -49,10 +47,9 @@ void construct_witnesses_bench(State& state) noexcept
 }
 BENCHMARK(construct_witnesses_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
 
-void construct_proving_keys_bench(State &state) noexcept
+void construct_proving_keys_bench(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
         size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
@@ -66,8 +63,7 @@ BENCHMARK(construct_proving_keys_bench)->RangeMultiplier(2)->Range(START, MAX_GA
 
 void construct_instances_bench(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         state.PauseTiming();
         waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
@@ -81,8 +77,7 @@ BENCHMARK(construct_instances_bench)->RangeMultiplier(2)->Range(START, MAX_GATES
 
 void construct_proofs_bench(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
         // provers[idx].reset();
         proofs[idx] = provers[idx].construct_proof();
@@ -95,8 +90,7 @@ BENCHMARK(construct_proofs_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
 
 void verify_proofs_bench(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
         verifiers[idx].verify_proof(proofs[idx]);
         state.PauseTiming();
@@ -109,11 +103,9 @@ void verify_proofs_bench(State& state) noexcept
 }
 BENCHMARK(verify_proofs_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
 
-
 void compute_wire_coefficients(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
         provers[idx].reset();
         provers[idx].init_quotient_polynomials();
@@ -124,8 +116,7 @@ BENCHMARK(compute_wire_coefficients)->RangeMultiplier(2)->Range(START, MAX_GATES
 
 void compute_wire_commitments(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
         provers[idx].reset();
         provers[idx].compute_wire_commitments();
@@ -135,8 +126,7 @@ BENCHMARK(compute_wire_commitments)->RangeMultiplier(2)->Range(START, MAX_GATES)
 
 void compute_z_coefficients(State& state) noexcept
 {
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
         provers[idx].compute_z_coefficients();
     }

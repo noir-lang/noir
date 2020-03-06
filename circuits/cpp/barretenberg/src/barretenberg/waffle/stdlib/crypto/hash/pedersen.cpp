@@ -60,15 +60,13 @@ point hash_single(const field_t& in, const size_t hash_index)
 
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
-    fr accumulator_offset =
-        (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
 
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
 
     grumpkin::g1::element* multiplication_transcript =
         static_cast<grumpkin::g1::element*>(aligned_alloc(64, sizeof(grumpkin::g1::element) * (num_quads + 1)));
-    fr* accumulator_transcript =
-        static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
+    fr* accumulator_transcript = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
 
     if (skew) {
         multiplication_transcript[0] = origin_points[1];

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <barretenberg/waffle/proof_system/widgets/turbo_arithmetic_widget.hpp>
 #include <barretenberg/waffle/composer/standard_composer.hpp>
+#include <barretenberg/waffle/proof_system/widgets/turbo_arithmetic_widget.hpp>
 
 #include <iostream>
 #include <memory>
@@ -32,8 +32,7 @@ TEST(turbo_arithmetic_widget, quotient_polynomial_satisfiability)
     polynomial q_c(num_gates);
     polynomial q_arith(num_gates);
 
-    for (size_t i = 0; i < num_gates; ++i)
-    {
+    for (size_t i = 0; i < num_gates; ++i) {
         w_1[i] = (fr::random_element());
         w_2[i] = (fr::random_element());
         w_3[i] = (fr::random_element());
@@ -66,7 +65,6 @@ TEST(turbo_arithmetic_widget, quotient_polynomial_satisfiability)
         T0.self_neg();
         q_c[i] = (T0);
         q_arith[i] = fr::one();
-
     }
 
     polynomial& w_1_fft = key->wire_ffts.at("w_1_fft");
@@ -110,7 +108,6 @@ TEST(turbo_arithmetic_widget, quotient_polynomial_satisfiability)
     witness->wires.insert({ "w_2", std::move(w_2) });
     witness->wires.insert({ "w_3", std::move(w_3) });
     witness->wires.insert({ "w_4", std::move(w_4) });
-
 
     polynomial q_1_fft(q_1, 4 * num_gates);
     polynomial q_2_fft(q_2, 4 * num_gates);
@@ -157,23 +154,19 @@ TEST(turbo_arithmetic_widget, quotient_polynomial_satisfiability)
     key->constraint_selector_ffts.insert({ "q_c_fft", std::move(q_c_fft) });
     key->constraint_selector_ffts.insert({ "q_arith_fft", std::move(q_arith_fft) });
 
-
     waffle::ProverTurboArithmeticWidget widget(key.get(), witness.get());
-
 
     transcript::Transcript transcript = test_helpers::create_dummy_standard_transcript();
 
     key->quotient_large = polynomial(num_gates * 4);
-    for (size_t i = 0; i < num_gates * 4; ++i)
-    {
+    for (size_t i = 0; i < num_gates * 4; ++i) {
         key->quotient_large[i] = fr::zero();
     }
     widget.compute_quotient_contribution(fr::one(), transcript);
 
     key->quotient_large.coset_ifft(key->large_domain);
     key->quotient_large.fft(key->large_domain);
-    for (size_t i = 0; i < num_gates; ++i)
-    {
+    for (size_t i = 0; i < num_gates; ++i) {
         EXPECT_EQ(key->quotient_large[i * 4] == fr::zero(), true);
     }
 }

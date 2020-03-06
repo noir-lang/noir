@@ -39,4 +39,4 @@ std::string create_note_db_element(stdlib::pedersen_note::public_note const& not
     return new_element;
 }
 
-}
+} // namespace rollup

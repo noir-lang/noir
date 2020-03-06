@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <barretenberg/curves/grumpkin/grumpkin.hpp>
+#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
 #include <barretenberg/uint256/uint256.hpp>
 #include <barretenberg/waffle/composer/turbo_composer.hpp>
 #include <barretenberg/waffle/proof_system/preprocess.hpp>
 #include <barretenberg/waffle/proof_system/prover/prover.hpp>
 #include <barretenberg/waffle/proof_system/verifier/verifier.hpp>
 #include <barretenberg/waffle/proof_system/widgets/arithmetic_widget.hpp>
-#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
 
 #include <barretenberg/polynomials/polynomial_arithmetic.hpp>
 #include <memory>
@@ -47,86 +47,46 @@ TEST(turbo_composer, test_add_gate_proofs)
     uint32_t c_idx = composer.add_variable(c);
     uint32_t d_idx = composer.add_variable(d);
 
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ b_idx, a_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
-    composer.create_add_gate(
-        { a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 
     // TODO: proof fails if one wire contains all zeros. Should we support this?
     uint32_t zero_idx = composer.add_variable(fr::zero());
 
-    composer.create_big_add_gate({ zero_idx,
-                                   zero_idx,
-                                   zero_idx,
-                                   a_idx,
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::neg_one() });
+    composer.create_big_add_gate(
+        { zero_idx, zero_idx, zero_idx, a_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -141,9 +101,8 @@ TEST(turbo_composer, test_add_gate_proofs)
 TEST(turbo_composer, test_mul_gate_proofs)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
-    fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(),
-                      fr::random_element(), fr::random_element(), fr::random_element(),
-                      fr::random_element() };
+    fr q[7]{ fr::random_element(), fr::random_element(), fr::random_element(), fr::random_element(),
+             fr::random_element(), fr::random_element(), fr::random_element() };
     fr q_inv[7]{
         q[0].invert(), q[1].invert(), q[2].invert(), q[3].invert(), q[4].invert(), q[5].invert(), q[6].invert(),
     };
@@ -210,15 +169,8 @@ TEST(turbo_composer, test_mul_gate_proofs)
 
     uint32_t zero_idx = composer.add_variable(fr::zero());
     uint32_t one_idx = composer.add_variable(fr::one());
-    composer.create_big_add_gate({ zero_idx,
-                                   zero_idx,
-                                   zero_idx,
-                                   one_idx,
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::neg_one() });
+    composer.create_big_add_gate(
+        { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
     uint32_t e_idx = composer.add_variable(a - fr::one());
     composer.create_add_gate({ e_idx, b_idx, c_idx, q[0], q[1], q[2], (q[3] + q[0]) });
@@ -262,14 +214,12 @@ TEST(turbo_composer, small_scalar_multipliers)
     bool skew = false;
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
-    fr accumulator_offset =
-        (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
 
     grumpkin::g1::element* multiplication_transcript =
         static_cast<grumpkin::g1::element*>(aligned_alloc(64, sizeof(grumpkin::g1::element) * (num_quads + 1)));
-    fr* accumulator_transcript =
-        static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
+    fr* accumulator_transcript = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
 
     if (skew) {
         multiplication_transcript[0] = origin_points[1];
@@ -396,14 +346,12 @@ TEST(turbo_composer, large_scalar_multipliers)
     bool skew = false;
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
-    fr accumulator_offset =
-        (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
 
     grumpkin::g1::element* multiplication_transcript =
         static_cast<grumpkin::g1::element*>(aligned_alloc(64, sizeof(grumpkin::g1::element) * (num_quads + 1)));
-    fr* accumulator_transcript =
-        static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
+    fr* accumulator_transcript = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
 
     if (skew) {
         multiplication_transcript[0] = origin_points[1];
@@ -480,11 +428,9 @@ TEST(turbo_composer, large_scalar_multipliers)
     EXPECT_EQ((multiplication_transcript[num_quads].y == expected_point.y), true);
 
     fr result_accumulator = (accumulator_transcript[num_quads]);
-    fr expected_accumulator = fr{ scalar_multiplier.data[0],
-                                                    scalar_multiplier.data[1],
-                                                    scalar_multiplier.data[2],
-                                                    scalar_multiplier.data[3] }
-                                           .to_montgomery_form();
+    fr expected_accumulator =
+        fr{ scalar_multiplier.data[0], scalar_multiplier.data[1], scalar_multiplier.data[2], scalar_multiplier.data[3] }
+            .to_montgomery_form();
     EXPECT_EQ((result_accumulator == expected_accumulator), true);
 
     waffle::TurboProver prover = composer.create_prover();
@@ -533,15 +479,8 @@ TEST(turbo_composer, range_constraint)
 
     uint32_t zero_idx = composer.add_variable(fr::zero());
     uint32_t one_idx = composer.add_variable(fr::one());
-    composer.create_big_add_gate({ zero_idx,
-                                   zero_idx,
-                                   zero_idx,
-                                   one_idx,
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::neg_one() });
+    composer.create_big_add_gate(
+        { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -581,16 +520,13 @@ TEST(turbo_composer, and_constraint)
             uint32_t right_expected = (right_value >> (30U - (2 * j)));
             uint32_t out_expected = left_expected & right_expected;
 
-            fr left_source =
-                composer.get_variable(accumulators.left[j + (extra_bits >> 1)]).from_montgomery_form();
+            fr left_source = composer.get_variable(accumulators.left[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t left_result = static_cast<uint32_t>(left_source.data[0]);
 
-            fr right_source =
-                composer.get_variable(accumulators.right[j + (extra_bits >> 1)]).from_montgomery_form();
+            fr right_source = composer.get_variable(accumulators.right[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t right_result = static_cast<uint32_t>(right_source.data[0]);
 
-            fr out_source =
-                composer.get_variable(accumulators.out[j + (extra_bits >> 1)]).from_montgomery_form();
+            fr out_source = composer.get_variable(accumulators.out[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t out_result = static_cast<uint32_t>(out_source.data[0]);
 
             EXPECT_EQ(left_result, left_expected);
@@ -614,15 +550,8 @@ TEST(turbo_composer, and_constraint)
 
     uint32_t zero_idx = composer.add_variable(fr::zero());
     uint32_t one_idx = composer.add_variable(fr::one());
-    composer.create_big_add_gate({ zero_idx,
-                                   zero_idx,
-                                   zero_idx,
-                                   one_idx,
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::neg_one() });
+    composer.create_big_add_gate(
+        { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -661,16 +590,13 @@ TEST(turbo_composer, xor_constraint)
             uint32_t right_expected = (right_value >> (30U - (2 * j)));
             uint32_t out_expected = left_expected ^ right_expected;
 
-            fr left_source =
-                composer.get_variable(accumulators.left[j + (extra_bits >> 1)]).from_montgomery_form();
+            fr left_source = composer.get_variable(accumulators.left[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t left_result = static_cast<uint32_t>(left_source.data[0]);
 
-            fr right_source =
-                composer.get_variable(accumulators.right[j + (extra_bits >> 1)]).from_montgomery_form();
+            fr right_source = composer.get_variable(accumulators.right[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t right_result = static_cast<uint32_t>(right_source.data[0]);
 
-            fr out_source =
-                composer.get_variable(accumulators.out[j + (extra_bits >> 1)]).from_montgomery_form();
+            fr out_source = composer.get_variable(accumulators.out[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t out_result = static_cast<uint32_t>(out_source.data[0]);
 
             EXPECT_EQ(left_result, left_expected);
@@ -694,15 +620,8 @@ TEST(turbo_composer, xor_constraint)
 
     uint32_t zero_idx = composer.add_variable(fr::zero());
     uint32_t one_idx = composer.add_variable(fr::one());
-    composer.create_big_add_gate({ zero_idx,
-                                   zero_idx,
-                                   zero_idx,
-                                   one_idx,
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::neg_one() });
+    composer.create_big_add_gate(
+        { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
     waffle::TurboProver prover = composer.create_prover();
 

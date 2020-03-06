@@ -31,9 +31,7 @@ waffle::ProverTurboLogicWidget create_test_widget_circuit(const size_t num_gates
 
     fr four = (fr::one() + fr::one() + fr::one() + fr::one());
 
-    std::array<fr, 4> values{
-        fr::zero(), fr::one(), fr::one() + fr::one(), (fr::one() + fr::one() + fr::one())
-    };
+    std::array<fr, 4> values{ fr::zero(), fr::one(), fr::one() + fr::one(), (fr::one() + fr::one() + fr::one()) };
 
     w_4[0] = fr::zero();
     w_3[0] = fr::zero();
@@ -53,13 +51,11 @@ waffle::ProverTurboLogicWidget create_test_widget_circuit(const size_t num_gates
                 q_c[i - 1] = fr::one();
                 q_logic[i - 1] = fr::one();
             }
-        }
-        else if (xor_gates) {
+        } else if (xor_gates) {
             out = left ^ right;
             q_c[i - 1] = fr::neg_one();
             q_logic[i - 1] = fr::neg_one();
-        }
-        else {
+        } else {
             out = left & right;
             q_c[i - 1] = fr::one();
             q_logic[i - 1] = fr::one();
@@ -194,7 +190,6 @@ TEST(turbo_logic_widget, and_quotient_polynomial_satisfiability)
     }
 }
 
-
 TEST(turbo_logic_widget, and_xor_quotient_polynomial_satisfiability)
 {
     const size_t num_gates = 64;
@@ -245,8 +240,7 @@ TEST(turbo_logic_widget, xor_compute_linear_contribution)
     fr q_c_eval = q_c.evaluate(z_challenge, num_gates);
     transcript.add_element("q_c", transcript_helpers::convert_field_element(q_c_eval));
 
-    for (size_t i = 0; i < num_gates; ++i)
-    {
+    for (size_t i = 0; i < num_gates; ++i) {
         key->linear_poly[i] = fr::zero();
     }
     widget.compute_linear_contribution(fr::one(), transcript, key->linear_poly);

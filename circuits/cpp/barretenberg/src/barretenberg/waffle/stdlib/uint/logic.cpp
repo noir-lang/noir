@@ -137,8 +137,11 @@ uint<Composer, Native> uint<Composer, Native>::operator>>(const size_t shift) co
     const uint32_t left_index = shift == 31 ? context->zero_idx : accumulators[static_cast<size_t>(x - 1)];
 
     const waffle::add_quad gate{
-        context->zero_idx, context->add_variable(output), right_index,     left_index,          fr::zero(),
-        -fr(6),   fr::zero(),           fr(12), fr::zero(),
+        context->zero_idx, context->add_variable(output),
+        right_index,       left_index,
+        fr::zero(),        -fr(6),
+        fr::zero(),        fr(12),
+        fr::zero(),
     };
 
     context->create_big_add_gate_with_bit_extraction(gate);
@@ -179,13 +182,10 @@ uint<Composer, Native> uint<Composer, Native>::operator<<(const size_t shift) co
 
         const uint256_t output = (get_value() << shift) & MASK;
 
-        const waffle::add_triple gate{ base_idx,
-                                       right_idx,
-                                       context->add_variable(output),
-                                       base_shift_factor,
-                                       -fr(right_shift_factor),
-                                       fr::neg_one(),
-                                       fr::zero() };
+        const waffle::add_triple gate{
+            base_idx,      right_idx, context->add_variable(output), base_shift_factor, -fr(right_shift_factor),
+            fr::neg_one(), fr::zero()
+        };
 
         context->create_add_gate(gate);
 
@@ -221,8 +221,7 @@ uint<Composer, Native> uint<Composer, Native>::operator<<(const size_t shift) co
     q_3 *= denominator;
 
     const waffle::add_quad gate{
-        context->add_variable(output), base_index, left_index,          right_index, -q_1, q_2,
-        fr::zero(),           -q_3,       fr::zero(),
+        context->add_variable(output), base_index, left_index, right_index, -q_1, q_2, fr::zero(), -q_3, fr::zero(),
     };
 
     context->create_big_add_gate_with_bit_extraction(gate);
@@ -272,8 +271,8 @@ uint<Composer, Native> uint<Composer, Native>::ror(const size_t target_rotation)
         const fr left_shift_factor = fr::one() - t2;
         const fr base_shift_factor = t1;
 
-        const waffle::add_triple gate{ base_idx,           left_idx,          context->add_variable(output),
-                                       base_shift_factor,  left_shift_factor, fr::neg_one(),
+        const waffle::add_triple gate{ base_idx,          left_idx,          context->add_variable(output),
+                                       base_shift_factor, left_shift_factor, fr::neg_one(),
                                        fr::zero() };
 
         context->create_add_gate(gate);
@@ -310,8 +309,7 @@ uint<Composer, Native> uint<Composer, Native>::ror(const size_t target_rotation)
     q_3 *= denominator;
 
     const waffle::add_quad gate{
-        context->add_variable(output), base_idx, next_pivot_idx,      pivot_idx, q_1, q_2,
-        fr::zero(),           q_3,      fr::zero(),
+        context->add_variable(output), base_idx, next_pivot_idx, pivot_idx, q_1, q_2, fr::zero(), q_3, fr::zero(),
     };
 
     context->create_big_add_gate_with_bit_extraction(gate);
@@ -356,7 +354,8 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         out = lhs ^ rhs;
         break;
     }
-    default: {}
+    default: {
+    }
     }
 
     if (is_constant() && other.is_constant()) {
@@ -377,7 +376,8 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         logic_accumulators = ctx->create_xor_constraint(lhs_idx, rhs_idx, width);
         break;
     }
-    default: {}
+    default: {
+    }
     }
 
     if (is_constant()) {

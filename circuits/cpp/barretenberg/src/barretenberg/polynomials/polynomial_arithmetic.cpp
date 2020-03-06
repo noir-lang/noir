@@ -48,9 +48,7 @@ void copy_polynomial(fr* src, fr* dest, size_t num_src_coefficients, size_t num_
 
     if (num_target_coefficients > num_src_coefficients) {
         // fill out the polynomial coefficients with zeroes
-        memset((void*)(dest + num_src_coefficients),
-               0,
-               (num_target_coefficients - num_src_coefficients) * sizeof(fr));
+        memset((void*)(dest + num_src_coefficients), 0, (num_target_coefficients - num_src_coefficients) * sizeof(fr));
     }
 }
 
@@ -103,8 +101,7 @@ void scale_by_generator(fr* coeffs,
 #pragma omp parallel for
 #endif
     for (size_t j = 0; j < domain.num_threads; ++j) {
-        fr thread_shift =
-            generator_shift.pow(static_cast<uint64_t>(j * (generator_size / domain.num_threads)));
+        fr thread_shift = generator_shift.pow(static_cast<uint64_t>(j * (generator_size / domain.num_threads)));
         fr work_generator = generator_start * thread_shift;
         const size_t offset = j * (generator_size / domain.num_threads);
         const size_t end = offset + (generator_size / domain.num_threads);
@@ -136,10 +133,7 @@ void compute_multiplicative_subgroup(const size_t log2_subgroup_size,
     }
 }
 
-void fft_inner_parallel(fr* coeffs,
-                        const evaluation_domain& domain,
-                        const fr&,
-                        const std::vector<fr*>& root_table)
+void fft_inner_parallel(fr* coeffs, const evaluation_domain& domain, const fr&, const std::vector<fr*>& root_table)
 {
     // hmm  // fr* scratch_space = (fr*)aligned_alloc(64, sizeof(fr) * domain.size);
     fr* scratch_space = get_scratch_space(domain.size);
@@ -255,11 +249,8 @@ void fft_inner_parallel(fr* coeffs,
     }
 }
 
-void fft_inner_parallel(fr* coeffs,
-                        fr* target,
-                        const evaluation_domain& domain,
-                        const fr&,
-                        const std::vector<fr*>& root_table)
+void fft_inner_parallel(
+    fr* coeffs, fr* target, const evaluation_domain& domain, const fr&, const std::vector<fr*>& root_table)
 {
     // hmm  // fr* scratch_space = (fr*)aligned_alloc(64, sizeof(fr) * domain.size);
 #ifndef NO_MULTITHREADING
@@ -401,10 +392,7 @@ void coset_fft(fr* coeffs, const evaluation_domain& domain)
     fft(coeffs, domain);
 }
 
-void coset_fft(fr* coeffs,
-               const evaluation_domain& domain,
-               const evaluation_domain&,
-               const size_t domain_extension)
+void coset_fft(fr* coeffs, const evaluation_domain& domain, const evaluation_domain&, const size_t domain_extension)
 {
     const size_t log2_domain_extension = static_cast<size_t>(log2(domain_extension));
     fr primitive_root = fr::get_root_of_unity(domain.log2_size + log2_domain_extension);
@@ -422,8 +410,7 @@ void coset_fft(fr* coeffs,
         coset_generators[i] = coset_generators[i - 1] * primitive_root;
     }
     for (size_t i = domain_extension - 1; i < domain_extension; --i) {
-        scale_by_generator(
-            coeffs, coeffs + (i * domain.size), domain, fr::one(), coset_generators[i], domain.size);
+        scale_by_generator(coeffs, coeffs + (i * domain.size), domain, fr::one(), coset_generators[i], domain.size);
     }
 
     for (size_t i = 0; i < domain_extension; ++i) {
@@ -450,15 +437,13 @@ void coset_fft(fr* coeffs,
         }
         for (size_t i = 0; i < domain.size; ++i) {
             for (size_t j = 0; j < domain_extension; ++j) {
-                fr::__copy(scratch_space[i + (j << domain.log2_size)],
-                                    coeffs[(i << log2_domain_extension) + j]);
+                fr::__copy(scratch_space[i + (j << domain.log2_size)], coeffs[(i << log2_domain_extension) + j]);
             }
         }
     } else {
         for (size_t i = 0; i < domain.size; ++i) {
             for (size_t j = 0; j < domain_extension; ++j) {
-                fr::__copy(scratch_space[i + (j << domain.log2_size)],
-                                    coeffs[(i << log2_domain_extension) + j]);
+                fr::__copy(scratch_space[i + (j << domain.log2_size)], coeffs[(i << log2_domain_extension) + j]);
             }
         }
     }
@@ -486,20 +471,14 @@ void coset_ifft(fr* coeffs, const evaluation_domain& domain)
     scale_by_generator(coeffs, coeffs, domain, fr::one(), domain.generator_inverse, domain.size);
 }
 
-void add(const fr* a_coeffs,
-         const fr* b_coeffs,
-         fr* r_coeffs,
-         const evaluation_domain& domain)
+void add(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain)
 {
     ITERATE_OVER_DOMAIN_START(domain);
     r_coeffs[i] = a_coeffs[i] + b_coeffs[i];
     ITERATE_OVER_DOMAIN_END;
 }
 
-void mul(const fr* a_coeffs,
-         const fr* b_coeffs,
-         fr* r_coeffs,
-         const evaluation_domain& domain)
+void mul(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain)
 {
     ITERATE_OVER_DOMAIN_START(domain);
     r_coeffs[i] = a_coeffs[i] * b_coeffs[i];
@@ -696,10 +675,7 @@ void divide_by_pseudo_vanishing_polynomial(fr* coeffs,
     delete[] subgroup_roots;
 }
 
-fr compute_kate_opening_coefficients(const fr* src,
-                                              fr* dest,
-                                              const fr& z,
-                                              const size_t n)
+fr compute_kate_opening_coefficients(const fr* src, fr* dest, const fr& z, const size_t n)
 {
     // if `coeffs` represents F(X), we want to compute W(X)
     // where W(X) = F(X) - F(z) / (X - z)
@@ -752,10 +728,7 @@ barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluatio
 // computes r = \sum_{i=0}^{num_coeffs}(L_i(z).f_i)
 // start with L_1(z) = ((z^n - 1)/n).(1 / z - 1)
 // L_i(z) = L_1(z.w^{1-i}) = ((z^n - 1) / n).(1 / z.w^{1-i} - 1)
-fr compute_barycentric_evaluation(fr* coeffs,
-                                           const size_t num_coeffs,
-                                           const fr& z,
-                                           const evaluation_domain& domain)
+fr compute_barycentric_evaluation(fr* coeffs, const size_t num_coeffs, const fr& z, const evaluation_domain& domain)
 {
     fr* denominators = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * num_coeffs));
 

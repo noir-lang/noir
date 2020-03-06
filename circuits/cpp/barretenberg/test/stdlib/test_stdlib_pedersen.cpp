@@ -11,8 +11,8 @@
 #include <barretenberg/waffle/stdlib/common.hpp>
 #include <barretenberg/waffle/stdlib/field/field.hpp>
 
-#include <barretenberg/waffle/stdlib/crypto/hash/pedersen.hpp>
 #include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
+#include <barretenberg/waffle/stdlib/crypto/hash/pedersen.hpp>
 #include <iostream>
 #include <memory>
 
@@ -104,9 +104,9 @@ TEST(stdlib_pedersen, test_pedersen)
     };
 
     grumpkin::fr grumpkin_scalars[4]{ compute_split_scalar(&left_wnafs[0], 126),
-                                               compute_split_scalar(&left_wnafs[126], 2),
-                                               compute_split_scalar(&right_wnafs[0], 126),
-                                               compute_split_scalar(&right_wnafs[126], 2) };
+                                      compute_split_scalar(&left_wnafs[126], 2),
+                                      compute_split_scalar(&right_wnafs[0], 126),
+                                      compute_split_scalar(&right_wnafs[126], 2) };
     if (left_skew) {
         grumpkin_scalars[1] += grumpkin::fr::one();
     }

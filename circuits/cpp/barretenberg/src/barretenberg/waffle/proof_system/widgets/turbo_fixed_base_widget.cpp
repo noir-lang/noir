@@ -50,7 +50,7 @@ ProverTurboFixedBaseWidget& ProverTurboFixedBaseWidget::operator=(ProverTurboFix
 }
 
 fr ProverTurboFixedBaseWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                                      const transcript::Transcript& transcript)
+                                                             const transcript::Transcript& transcript)
 {
     fr new_alpha_base = ProverTurboArithmeticWidget::compute_quotient_contribution(alpha_base, transcript);
 
@@ -135,7 +135,7 @@ fr ProverTurboFixedBaseWidget::compute_quotient_contribution(const barretenberg:
 
     T1 = x_alpha_minus_x_1.sqr();
     fr T2 = w_1_fft[i + 4] + w_1_fft[i]; // T1 = (x_alpha - x_1)^2
-    T2 += w_3_fft[i + 4];                         // T2 = (x_2 + x_1 + x_alpha)
+    T2 += w_3_fft[i + 4];                // T2 = (x_2 + x_1 + x_alpha)
     T1 *= T2;
     T2 = w_2_fft[i].sqr(); // T1 = y_1^2
     T2 += grumpkin::g1::element::curve_b;
@@ -208,8 +208,8 @@ void ProverTurboFixedBaseWidget::compute_transcript_elements(transcript::Transcr
 }
 
 fr ProverTurboFixedBaseWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                    const transcript::Transcript& transcript,
-                                                                    barretenberg::polynomial& r)
+                                                           const transcript::Transcript& transcript,
+                                                           barretenberg::polynomial& r)
 {
     fr new_alpha_base = ProverTurboArithmeticWidget::compute_linear_contribution(alpha_base, transcript, r);
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -264,9 +264,9 @@ fr ProverTurboFixedBaseWidget::compute_linear_contribution(const fr& alpha_base,
 }
 
 fr ProverTurboFixedBaseWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                          const transcript::Transcript& transcript,
-                                                                          fr* poly,
-                                                                          fr* shifted_poly)
+                                                                 const transcript::Transcript& transcript,
+                                                                 fr* poly,
+                                                                 fr* shifted_poly)
 {
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
     fr new_nu_base =
@@ -476,7 +476,7 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboFixedBaseWidget::append_
 
     constexpr fr minus_two = -fr(2);
     fr q_5_term_arith = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
-                                 challenge.alpha_step * q_arith_eval;
+                        challenge.alpha_step * q_arith_eval;
 
     fr q_5_term = (q_5_term_ecc + q_5_term_arith) * challenge.linear_nu;
     if (key->constraint_selectors.at("Q_5").on_curve()) {

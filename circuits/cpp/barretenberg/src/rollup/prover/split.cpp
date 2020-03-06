@@ -1,7 +1,7 @@
 #include "split.hpp"
-#include "note.hpp"
 #include "create.hpp"
 #include "destroy.hpp"
+#include "note.hpp"
 
 namespace rollup {
 
@@ -34,5 +34,4 @@ bool split(
     return true;
 }
 
-
-}
+} // namespace rollup

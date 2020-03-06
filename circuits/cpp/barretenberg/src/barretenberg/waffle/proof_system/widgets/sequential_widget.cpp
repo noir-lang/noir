@@ -51,7 +51,7 @@ ProverSequentialWidget& ProverSequentialWidget::operator=(ProverSequentialWidget
 }
 
 fr ProverSequentialWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                                  const transcript::Transcript& transcript)
+                                                         const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);
 
@@ -69,8 +69,8 @@ fr ProverSequentialWidget::compute_quotient_contribution(const barretenberg::fr&
 }
 
 fr ProverSequentialWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                const transcript::Transcript& transcript,
-                                                                polynomial& r)
+                                                       const transcript::Transcript& transcript,
+                                                       polynomial& r)
 {
     fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
     fr alpha = fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);

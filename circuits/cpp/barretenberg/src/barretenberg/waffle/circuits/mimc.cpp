@@ -1,36 +1,34 @@
 #include <cstdlib>
 
-#include "./mimc.hpp"
 #include "../../keccak/keccak.h"
+#include "./mimc.hpp"
 
 using namespace barretenberg;
 
-namespace
-{
-    constexpr size_t NUM_ROUNDS = 93;
-    static fr constants[NUM_ROUNDS];
-    auto foo = [](){
-        uint8_t input[32] = {
-            0, 0, 0, 0, (uint8_t)atoi("m"), (uint8_t)atoi("i"), (uint8_t)atoi("m"), (uint8_t)atoi("c"), 
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0
-        };
-        keccak256 c = hash_field_element((uint64_t*)&input[0]);
-        fr c_mont = *(fr*)&c.word64s[0];
-        for (size_t i = 1; i < NUM_ROUNDS; ++i)
-        {
-            c = hash_field_element((uint64_t*)&c_mont);
-            constants[i] = fr{ c.word64s[0], c.word64s[1], c.word64s[2], c.word64s[3] }.to_montgomery_form();
-        }
-        fr::__copy(fr::zero(), constants[0]);
-        return 0;
-    }();
-}
-namespace waffle
-{
-namespace mimc
-{
+namespace {
+constexpr size_t NUM_ROUNDS = 93;
+static fr constants[NUM_ROUNDS];
+auto foo = []() {
+    // clang-format off
+    uint8_t input[32] = {
+        0, 0, 0, 0, (uint8_t)atoi("m"), (uint8_t)atoi("i"), (uint8_t)atoi("m"), (uint8_t)atoi("c"),
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0
+    };
+    // clang-format on
+    keccak256 c = hash_field_element((uint64_t*)&input[0]);
+    fr c_mont = *(fr*)&c.word64s[0];
+    for (size_t i = 1; i < NUM_ROUNDS; ++i) {
+        c = hash_field_element((uint64_t*)&c_mont);
+        constants[i] = fr{ c.word64s[0], c.word64s[1], c.word64s[2], c.word64s[3] }.to_montgomery_form();
+    }
+    fr::__copy(fr::zero(), constants[0]);
+    return 0;
+}();
+} // namespace
+namespace waffle {
+namespace mimc {
 /*
     var c = [
         0,
@@ -142,35 +140,31 @@ namespace mimc
 //     return previous;
 // }
 
-size_t mimc_round(const uint32_t input_index, const uint32_t k_index, Composer *composer)
+size_t mimc_round(const uint32_t input_index, const uint32_t k_index, Composer* composer)
 {
     // fr input = composer->get_variable(input_index);
     fr k = composer->get_variable(k_index);
     size_t idx_a = input_index;
     // composer->set_variable_to_constant(idx_a, k);
-    for (size_t i = 0; i < NUM_ROUNDS; ++i)
-    {
+    for (size_t i = 0; i < NUM_ROUNDS; ++i) {
         fr t = composer->get_variable(idx_a);
         // t = constants[i] + t;
-        
+
         // if i == 0, t = t + k
         // else, t_out = t + k + c[i]
         size_t t_idx;
-        if (i == 0)
-        {
+        if (i == 0) {
             t = t + k;
             t_idx = composer->add_variable(t);
             composer->add_basic_add_gate(idx_a, k_index, t_idx);
-        }
-        else
-        {
+        } else {
             t = t + k;
             t = t + constants[i];
             t_idx = composer->add_variable(t);
-            composer->add_basic_add_gate(idx_a, k_index, t_idx, constants[i]); 
+            composer->add_basic_add_gate(idx_a, k_index, t_idx, constants[i]);
         }
         // idx_a = composer->add_variable(t);
-        
+
         fr tt = t.sqr();
         fr tttt = tt.sqr();
         fr ttttt = t * tttt;
@@ -201,5 +195,5 @@ size_t mimc_round(const uint32_t input_index, const uint32_t k_index, Composer *
     }
     return idx_a;
 }
-}
-}
+} // namespace mimc
+} // namespace waffle

@@ -7,10 +7,10 @@
 #include <barretenberg/waffle/proof_system/verifier/verifier.hpp>
 #include <barretenberg/waffle/proof_system/widgets/arithmetic_widget.hpp>
 
+#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
 #include <barretenberg/waffle/stdlib/bitarray/bitarray.hpp>
 #include <barretenberg/waffle/stdlib/common.hpp>
 #include <barretenberg/waffle/stdlib/crypto/commitment/pedersen_note.hpp>
-#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
 #include <iostream>
 #include <memory>
 

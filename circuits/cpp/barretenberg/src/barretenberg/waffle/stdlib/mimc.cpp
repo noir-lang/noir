@@ -43,9 +43,9 @@ const auto init_var = []() {
         keccak256 keccak256_hash = ethash_keccak256(&inputs[0], 32);
         memcpy((void*)&inputs[0], (void*)&keccak256_hash.word64s[0], 32);
         mimc_round_constants[i] = barretenberg::fr{ keccak256_hash.word64s[0],
-                                                             keccak256_hash.word64s[1],
-                                                             keccak256_hash.word64s[2],
-                                                             keccak256_hash.word64s[3] }
+                                                    keccak256_hash.word64s[1],
+                                                    keccak256_hash.word64s[2],
+                                                    keccak256_hash.word64s[3] }
                                       .to_montgomery_form();
     }
     return true;
@@ -63,7 +63,8 @@ field_t<waffle::MiMCComposer> mimc_block_cipher(field_t<waffle::MiMCComposer> me
         !(message.multiplicative_constant == barretenberg::fr::one())) {
         message = message.normalize();
     };
-    if (!(key.additive_constant == barretenberg::fr::zero()) || !(key.multiplicative_constant == barretenberg::fr::one())) {
+    if (!(key.additive_constant == barretenberg::fr::zero()) ||
+        !(key.multiplicative_constant == barretenberg::fr::one())) {
         key = key.normalize();
     }
 

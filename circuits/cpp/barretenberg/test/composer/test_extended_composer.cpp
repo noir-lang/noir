@@ -59,8 +59,8 @@
 //                               composer.add_variable(wires[2]), composer.add_variable(wires[3]),
 //                               composer.add_variable(wires[4]), composer.add_variable(wires[5]),
 //                               composer.add_variable(wires[6]) };
-//     composer.create_mul_gate({ wire_indices[0], wire_indices[1], wire_indices[2], fr::one(), fr::neg_one(), fr::zero() });
-//     composer.create_add_gate(
+//     composer.create_mul_gate({ wire_indices[0], wire_indices[1], wire_indices[2], fr::one(), fr::neg_one(),
+//     fr::zero() }); composer.create_add_gate(
 //         { wire_indices[2], wire_indices[3], wire_indices[4], fr::one(), fr::one(), fr::neg_one(), fr::zero() });
 //     composer.create_add_gate(
 //         { wire_indices[4], wire_indices[5], wire_indices[6], fr::one(), fr::one(), fr::neg_one(), fr::zero() });
@@ -140,7 +140,8 @@
 //     for (size_t i = 1; i < 15; ++i) {
 //         EXPECT_EQ(prover.witness->wires.at("w_1")[i]).data[0], 1UL.from_montgomery_form();
 //         EXPECT_EQ(prover.witness->wires.at("w_2")[i]).data[0], 1UL.from_montgomery_form();
-//         EXPECT_EQ(prover.witness->wires.at("w_3")[i]).data[0], (1U << static_cast<uint32_t>(2 * i + 1)) - 1.from_montgomery_form();
+//         EXPECT_EQ(prover.witness->wires.at("w_3")[i]).data[0], (1U << static_cast<uint32_t>(2 * i + 1))
+//         - 1.from_montgomery_form();
 //     }
 
 //     EXPECT_EQ(prover.witness->wires.at("w_2")[15]).data[0], 1UL.from_montgomery_form();
@@ -195,9 +196,10 @@
 //         EXPECT_EQ((extended_composer.q_3_next[i] == fr::zero()), true);
 //         EXPECT_EQ((extended_composer.q_left_bools[i] == fr::zero()), true);
 //         EXPECT_EQ((extended_composer.q_right_bools[i] == fr::zero()), true);
-//         EXPECT_EQ((standard_prover.witness->wires.at("w_1")[i] == extended_prover.witness->wires.at("w_1")[i]), true);
-//         EXPECT_EQ((standard_prover.witness->wires.at("w_2")[i] == extended_prover.witness->wires.at("w_2")[i]), true);
-//         EXPECT_EQ((standard_prover.witness->wires.at("w_3")[i] == extended_prover.witness->wires.at("w_3")[i]), true);
+//         EXPECT_EQ((standard_prover.witness->wires.at("w_1")[i] == extended_prover.witness->wires.at("w_1")[i]),
+//         true); EXPECT_EQ((standard_prover.witness->wires.at("w_2")[i] ==
+//         extended_prover.witness->wires.at("w_2")[i]), true); EXPECT_EQ((standard_prover.witness->wires.at("w_3")[i]
+//         == extended_prover.witness->wires.at("w_3")[i]), true);
 //         // EXPECT_EQ(standard_prover.sigma_1_mapping[i], extended_prover.sigma_1_mapping[i]);
 //         // EXPECT_EQ(standard_prover.sigma_2_mapping[i], extended_prover.sigma_2_mapping[i]);
 //         // EXPECT_EQ(standard_prover.sigma_3_mapping[i], extended_prover.sigma_3_mapping[i]);
