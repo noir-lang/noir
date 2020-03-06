@@ -1,7 +1,7 @@
-#include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
-#include <boost/fusion/include/io.hpp>
 #include "config.hpp"
 #include "expression_def.hpp"
+#include <boost/fusion/include/io.hpp>
+#include <boost/spirit/home/x3/support/ast/position_tagged.hpp>
 
 namespace noir {
 namespace parser {
