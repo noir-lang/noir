@@ -1,31 +1,36 @@
 #pragma once
 #include "join_split_tx.hpp"
+#include <arpa/inet.h>
 #include <sstream>
+#include <algorithm>
 
 namespace rollup {
 
 struct batch_tx {
-  uint32_t batch_num;
-  std::vector<join_split_tx> txs;
+    uint32_t batch_num;
+    std::vector<join_split_tx> txs;
 };
 
-batch_tx hton(batch_tx const& txs) {
+batch_tx hton(batch_tx const& txs)
+{
     batch_tx be_txs;
     be_txs.batch_num = htonl(txs.batch_num);
     be_txs.txs.resize(txs.txs.size());
-    std::transform(txs.txs.begin(), txs.txs.end(), be_txs.txs.begin(), [](auto& tx){ return hton(tx); });
+    std::transform(txs.txs.begin(), txs.txs.end(), be_txs.txs.begin(), [](auto& tx) { return hton(tx); });
     return be_txs;
 }
 
-batch_tx ntoh(batch_tx const& be_txs) {
+batch_tx ntoh(batch_tx const& be_txs)
+{
     batch_tx txs;
     txs.batch_num = ntohl(be_txs.batch_num);
     txs.txs.resize(be_txs.txs.size());
-    std::transform(be_txs.txs.begin(), be_txs.txs.end(), txs.txs.begin(), [](auto& tx){ return ntoh(tx); });
+    std::transform(be_txs.txs.begin(), be_txs.txs.end(), txs.txs.begin(), [](auto& tx) { return ntoh(tx); });
     return txs;
 }
 
-std::ostream& write(std::ostream& os, batch_tx const& be_txs) {
+std::ostream& write(std::ostream& os, batch_tx const& be_txs)
+{
     uint32_t size = static_cast<uint32_t>(be_txs.txs.size());
     uint32_t nsize = htonl(size);
     os.write(reinterpret_cast<char const*>(&be_txs.batch_num), sizeof(be_txs.batch_num));
@@ -36,21 +41,23 @@ std::ostream& write(std::ostream& os, batch_tx const& be_txs) {
     return os;
 }
 
-std::istream& read(std::istream& is, batch_tx& txs) {
+std::istream& read(std::istream& is, batch_tx& txs)
+{
     batch_tx be_txs;
     uint32_t size;
     is.read(reinterpret_cast<char*>(&be_txs.batch_num), sizeof(be_txs.batch_num));
     is.read(reinterpret_cast<char*>(&size), sizeof(size));
     size = ntohl(size);
     be_txs.txs.resize(size);
-    for (size_t i=0; i<size; ++i) {
+    for (size_t i = 0; i < size; ++i) {
         read(is, be_txs.txs[i]);
     }
     txs = ntoh(be_txs);
     return is;
 }
 
-std::ostream& write_json(std::ostream& os, crypto::pedersen_note::private_note const& tx, size_t indent=0) {
+std::ostream& write_json(std::ostream& os, crypto::pedersen_note::private_note const& tx, size_t indent = 0)
+{
     std::string i(indent, ' ');
     os << i << "{\n"
        << i << "  \"owner\": {\n"
@@ -73,8 +80,8 @@ std::string arr_to_hex_string(std::array<uint8_t, 32> const& arr)
     return os.str();
 }
 
-template<typename T>
-void delim_writer(std::ostream& os, T const& v, size_t indent=0) {
+template <typename T> void delim_writer(std::ostream& os, T const& v, size_t indent = 0)
+{
     auto actual_delim = ",\n";
     auto delim = "";
     for (auto note : v) {
@@ -84,7 +91,8 @@ void delim_writer(std::ostream& os, T const& v, size_t indent=0) {
     }
 }
 
-std::ostream& write_json(std::ostream& os, join_split_tx const& tx, size_t indent=0) {
+std::ostream& write_json(std::ostream& os, join_split_tx const& tx, size_t indent = 0)
+{
     std::string i(indent, ' ');
     os << i << "{\n"
        << i << "  \"owner\": {\n"
@@ -97,9 +105,7 @@ std::ostream& write_json(std::ostream& os, join_split_tx const& tx, size_t inden
        << i << "  \"input_note_index\": [" << tx.input_note_index[0] << ", " << tx.input_note_index[1] << "],\n"
        << i << "  \"input_notes\": [\n";
     delim_writer(os, tx.input_note, indent + 4);
-    os << "\n"
-       << i << "  ],\n"
-       << i << "  \"output_notes\": [\n";
+    os << "\n" << i << "  ],\n" << i << "  \"output_notes\": [\n";
     delim_writer(os, tx.output_note, indent + 4);
     os << "\n"
        << i << "  ],\n"
@@ -111,7 +117,8 @@ std::ostream& write_json(std::ostream& os, join_split_tx const& tx, size_t inden
     return os;
 }
 
-std::ostream& write_json(std::ostream& os, batch_tx const& txs) {
+std::ostream& write_json(std::ostream& os, batch_tx const& txs)
+{
     os << "{\n"
        << "  \"batch_num\": " << txs.batch_num << ",\n"
        << "  \"txs\": [\n";
@@ -123,4 +130,4 @@ std::ostream& write_json(std::ostream& os, batch_tx const& txs) {
     return os;
 }
 
-}
+} // namespace rollup

@@ -36,7 +36,6 @@ class uint256_t {
     explicit constexpr operator uint16_t() const { return static_cast<uint16_t>(data[0]); };
     explicit constexpr operator uint32_t() const { return static_cast<uint32_t>(data[0]); };
     explicit constexpr operator uint64_t() const { return static_cast<uint64_t>(data[0]); };
-    explicit constexpr operator size_t() const { return static_cast<size_t>(data[0]); };
 
     constexpr bool get_bit(const uint64_t bit_index) const;
     constexpr uint64_t get_msb() const;

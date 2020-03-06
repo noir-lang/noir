@@ -1,7 +1,9 @@
 #include "../../curves/grumpkin/grumpkin.hpp"
 #include "schnorr.hpp"
 
-#define WASM_EXPORT __attribute__((visibility("default"))) extern "C"
+#define WASM_EXPORT __attribute__((visibility("default")))
+
+extern "C" {
 
 WASM_EXPORT void compute_public_key(uint8_t const* private_key, uint8_t* public_key_buf)
 {
@@ -33,4 +35,6 @@ WASM_EXPORT bool verify_signature(uint8_t const* message,
     crypto::schnorr::signature sig = { s, e };
     return crypto::schnorr::verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
         std::string((char*)message, msg_len), pubk, sig);
+}
+
 }
