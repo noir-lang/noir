@@ -26,7 +26,7 @@ To run benchmarks, in the /build directory run
 test/barretenberg_bench
 ```
 
-To compile without tests and benchmarks, use `cmake .. -DBARRETENBERG_TESTING=OFF`
+To compile without tests and benchmarks, use `cmake .. -DTESTING=OFF -DBENCHMARKS=OFF`
 
 To select a test, run `./test/barretenberg_tests --gtest_filter=<test_filter>*`
 
@@ -42,7 +42,7 @@ To build without x64 assembly:
 
 ```
 mkdir build && cd build
-cmake .. -DDISABLE_SHENANIGANS=ON
+cmake .. -DDISABLE_ASM=ON
 cmake --build .
 ```
 

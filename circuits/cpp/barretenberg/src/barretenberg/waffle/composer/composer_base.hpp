@@ -9,6 +9,10 @@
 #include <memory>
 #include <vector>
 
+#ifndef BARRETENBERG_SRS_PATH
+#define BARRETENBERG_SRS_PATH "../srs_db"
+#endif
+
 namespace waffle {
 
 struct proving_key;
