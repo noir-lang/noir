@@ -30,8 +30,8 @@ TEST(stdlib_bitarray, test_uint32_input_output_consistency)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
 
-    uint32_t a_expected = test_helpers::get_pseudorandom_uint32();
-    uint32_t b_expected = test_helpers::get_pseudorandom_uint32();
+    uint32_t a_expected = engine.get_random_uint32();
+    uint32_t b_expected = engine.get_random_uint32();
 
     uint32 a = witness_t(&composer, a_expected);
     uint32 b = witness_t(&composer, b_expected);

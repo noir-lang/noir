@@ -256,8 +256,8 @@ bool and_identity(uint64_t a_x,
 TEST(test_logic_identities, quaternary_rol)
 {
     for (size_t i = 0; i < 100; ++i) {
-        size_t input = test_helpers::get_pseudorandom_uint32();
-        size_t rol = test_helpers::get_pseudorandom_uint32() & 31ULL;
+        size_t input = engine.get_random_uint32();
+        size_t rol = engine.get_random_uint32() & 31ULL;
         std::vector<uint64_t> accumulators;
         uint64_t accumulator = 0;
         for (uint64_t i = 0; i < 32; i += 2) {
@@ -280,8 +280,8 @@ TEST(test_logic_identities, quaternary_rol)
 TEST(test_logic_identities, quaternary_ror)
 {
     for (size_t i = 0; i < 100; ++i) {
-        uint64_t input = test_helpers::get_pseudorandom_uint32();
-        size_t ror = test_helpers::get_pseudorandom_uint32() & 31ULL;
+        uint64_t input = engine.get_random_uint32();
+        size_t ror = engine.get_random_uint32() & 31ULL;
         std::vector<uint64_t> accumulators;
         uint64_t accumulator = 0;
         for (uint64_t i = 0; i < 32; i += 2) {
@@ -304,8 +304,8 @@ TEST(test_logic_identities, quaternary_ror)
 TEST(test_logic_identities, quaternary_left_shift)
 {
     for (size_t i = 0; i < 100; ++i) {
-        size_t input = test_helpers::get_pseudorandom_uint32();
-        size_t shift = test_helpers::get_pseudorandom_uint32() & 31ULL;
+        size_t input = engine.get_random_uint32();
+        size_t shift = engine.get_random_uint32() & 31ULL;
         std::vector<uint64_t> accumulators;
         uint64_t accumulator = 0;
         for (uint64_t i = 0; i < 32; i += 2) {
@@ -328,8 +328,8 @@ TEST(test_logic_identities, quaternary_left_shift)
 TEST(test_logic_identities, quaternary_right_shift)
 {
     for (size_t i = 0; i < 100; ++i) {
-        size_t input = test_helpers::get_pseudorandom_uint32();
-        size_t shift = test_helpers::get_pseudorandom_uint32() & 31ULL;
+        size_t input = engine.get_random_uint32();
+        size_t shift = engine.get_random_uint32() & 31ULL;
         std::vector<uint64_t> accumulators;
         uint64_t accumulator = 0;
         for (uint64_t i = 0; i < 32; i += 2) {

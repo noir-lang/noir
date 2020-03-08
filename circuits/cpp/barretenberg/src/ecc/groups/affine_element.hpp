@@ -1,5 +1,5 @@
 #pragma once
-#include <bignum/uint256/uint256.hpp>
+#include <numeric/uint256/uint256.hpp>
 
 namespace barretenberg {
 namespace group_elements {
@@ -53,6 +53,14 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
         }
         return result;
     }
+
+    inline std::vector<uint8_t> to_buffer()
+    {
+        std::vector<uint8_t> buffer(sizeof(affine_element));
+        affine_element::serialize_to_buffer(*this, &buffer[0]);
+        return buffer;
+    }
+
     Fq x;
     Fq y;
 };

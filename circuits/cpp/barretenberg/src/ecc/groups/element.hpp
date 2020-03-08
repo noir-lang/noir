@@ -1,10 +1,11 @@
 #pragma once
 
-#include <bignum/uint256/uint256.hpp>
-#include "wnaf.hpp"
+#include <numeric/uint256/uint256.hpp>
+#include <common/inline.hpp>
 #include <array>
 #include <random>
-#include "./affine_element.hpp"
+#include "wnaf.hpp"
+#include "affine_element.hpp"
 
 namespace barretenberg {
 namespace group_elements {

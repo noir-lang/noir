@@ -1,5 +1,5 @@
 #pragma once
-#include <crypto/keccak/keccak.h>
+#include <crypto/keccak/keccak.hpp>
 
 namespace barretenberg {
 namespace group_elements {

@@ -2,7 +2,6 @@
 
 #include <random>
 
-#include "../../types.hpp"
 #include "./fq12.hpp"
 #include "./fq2.hpp"
 #include "./fq6.hpp"

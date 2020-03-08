@@ -3,16 +3,12 @@
 #include <cstdint>
 #include <iostream>
 #include <array>
-#include <bignum/uint256/uint256.hpp>
+#include <random>
+#include <numeric/uint256/uint256.hpp>
+#include <common/inline.hpp>
 
 #if defined(__SIZEOF_INT128__)
 __extension__ using uint128_t = unsigned __int128;
-#endif
-
-#ifdef _WIN32
-#define BBERG_INLINE __forceinline inline
-#else
-#define BBERG_INLINE __attribute__((always_inline)) inline
 #endif
 
 namespace barretenberg {
@@ -139,6 +135,34 @@ template <class Params> struct alignas(32) field {
             }
         }
         return result.to_montgomery_form();
+    }
+
+    inline std::vector<uint8_t> to_buffer()
+    {
+        std::vector<uint8_t> buffer(sizeof(field));
+        field::serialize_to_buffer(*this, &buffer[0]);
+        return buffer;
+    }
+
+    static inline std::vector<uint8_t> to_buffer(const std::vector<field>& ele)
+    {
+        std::vector<uint8_t> buffer(sizeof(field) * ele.size());
+        for (size_t i = 0; i < ele.size(); ++i)
+        {
+            field::serialize_to_buffer(ele[i], &buffer[i * sizeof(field)]);
+        }
+        return buffer;
+    }
+
+    static inline std::vector<field> from_buffer(const std::vector<uint8_t>& buffer)
+    {
+        const size_t num_elements = buffer.size() / sizeof(field);
+        std::vector<field> elements;
+        for (size_t i = 0; i < num_elements; ++i)
+        {
+            elements.push_back(field::serialize_from_buffer(&buffer[i * sizeof(field)]));
+        }
+        return elements;
     }
 
     struct wide_array {

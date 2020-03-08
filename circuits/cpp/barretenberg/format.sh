@@ -5,5 +5,5 @@ if [ "$1" == "staged" ]; then
     git add $FILE
   done
 else
-  gfind ./src ./test -path ./src/boost -prune -iname *.hpp -o -iname *.cpp -o -iname *.tcc | xargs clang-format -i
+  gfind ./src -iname *.hpp -o -iname *.cpp -o -iname *.tcc | grep -v src/boost | xargs clang-format -i
 fi

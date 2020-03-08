@@ -30,7 +30,7 @@ std::vector<uint32_t> get_random_ints(size_t num)
 {
     std::vector<uint32_t> result;
     for (size_t i = 0; i < num; ++i) {
-        result.emplace_back(test_helpers::get_pseudorandom_uint32());
+        result.emplace_back(engine.get_random_uint32());
     }
     return result;
 }

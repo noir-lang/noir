@@ -26,8 +26,8 @@ TEST(stdlib_turbo_uint32, test_add)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto add_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = engine.get_random_uint32();
         uint32_t expected = a_val + b_val;
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -60,9 +60,9 @@ TEST(stdlib_turbo_uint32, test_sub)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto sub_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_shift_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = engine.get_random_uint32();
+        uint32_t const_shift_val = engine.get_random_uint32();
         uint32_t expected = a_val - (b_val + const_shift_val);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -97,10 +97,10 @@ TEST(stdlib_turbo_uint32, test_mul)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto mul_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = engine.get_random_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
         uint32_t expected = (a_val + const_a) * (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -141,11 +141,11 @@ TEST(stdlib_turbo_uint32, test_divide)
                                              bool dividend_is_divisor = false,
                                              bool dividend_zero = false,
                                              bool divisor_zero = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = dividend_is_divisor ? a_val : test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = dividend_zero ? 0 - a_val : test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = dividend_is_divisor ? a_val : engine.get_random_uint32();
+        uint32_t const_a = dividend_zero ? 0 - a_val : engine.get_random_uint32();
         uint32_t const_b =
-            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : test_helpers::get_pseudorandom_uint32());
+            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
         uint32_t expected = (a_val + const_a) / (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -196,11 +196,11 @@ TEST(stdlib_turbo_uint32, test_modulo)
                                           bool dividend_is_divisor = false,
                                           bool dividend_zero = false,
                                           bool divisor_zero = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = dividend_is_divisor ? a_val : test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = dividend_zero ? 0 - a_val : test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = dividend_is_divisor ? a_val : engine.get_random_uint32();
+        uint32_t const_a = dividend_zero ? 0 - a_val : engine.get_random_uint32();
         uint32_t const_b =
-            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : test_helpers::get_pseudorandom_uint32());
+            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
         uint32_t expected = (a_val + const_a) % (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -252,11 +252,11 @@ TEST(stdlib_turbo_uint32, test_divide_by_zero_fails)
                                     bool divisor_zero = false) {
         waffle::TurboComposer composer = waffle::TurboComposer();
 
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = dividend_is_divisor ? a_val : test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = dividend_zero ? 0 - a_val : test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = dividend_is_divisor ? a_val : engine.get_random_uint32();
+        uint32_t const_a = dividend_zero ? 0 - a_val : engine.get_random_uint32();
         uint32_t const_b =
-            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : test_helpers::get_pseudorandom_uint32());
+            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -285,10 +285,10 @@ TEST(stdlib_turbo_uint32, test_and)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto and_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = engine.get_random_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
         uint32_t expected = (a_val + const_a) & (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -325,10 +325,10 @@ TEST(stdlib_turbo_uint32, test_xor)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto xor_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = engine.get_random_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
         uint32_t expected = (a_val + const_a) ^ (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -365,10 +365,10 @@ TEST(stdlib_turbo_uint32, test_or)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto or_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t b_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t b_val = engine.get_random_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
         uint32_t expected = (a_val + const_a) | (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -409,8 +409,8 @@ TEST(stdlib_turbo_uint32, test_not)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto not_integers = [&composer](bool lhs_constant = false, bool rhs_constant = false) {
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
+        uint32_t a_val = engine.get_random_uint32();
+        uint32_t const_a = engine.get_random_uint32();
         uint32_t expected = ~(a_val + const_a);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -444,9 +444,9 @@ TEST(stdlib_turbo_uint32, test_gt)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val;
         if (force_equal) {
             b_val = a_val + const_a - const_b;
@@ -456,7 +456,7 @@ TEST(stdlib_turbo_uint32, test_gt)
             b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
-            b_val = test_helpers::get_pseudorandom_uint32();
+            b_val = engine.get_random_uint32();
         }
         bool expected = (b_val + const_b) > (a_val + const_a);
         uint32 a = witness_t(&composer, a_val);
@@ -498,9 +498,9 @@ TEST(stdlib_turbo_uint32, test_lt)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val;
         if (force_equal) {
             b_val = a_val + const_a - const_b;
@@ -510,7 +510,7 @@ TEST(stdlib_turbo_uint32, test_lt)
             b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
-            b_val = test_helpers::get_pseudorandom_uint32();
+            b_val = engine.get_random_uint32();
         }
         bool expected = (b_val + const_b) < (a_val + const_a);
         uint32 a = witness_t(&composer, a_val);
@@ -552,9 +552,9 @@ TEST(stdlib_turbo_uint32, test_gte)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val;
         if (force_equal) {
             b_val = a_val + const_a - const_b;
@@ -564,7 +564,7 @@ TEST(stdlib_turbo_uint32, test_gte)
             b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
-            b_val = test_helpers::get_pseudorandom_uint32();
+            b_val = engine.get_random_uint32();
         }
         bool expected = (b_val + const_b) >= (a_val + const_a);
         uint32 a = witness_t(&composer, a_val);
@@ -605,9 +605,9 @@ TEST(stdlib_turbo_uint32, test_lte)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val;
         if (force_equal) {
             b_val = a_val + const_a - const_b;
@@ -617,7 +617,7 @@ TEST(stdlib_turbo_uint32, test_lte)
             b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
-            b_val = test_helpers::get_pseudorandom_uint32();
+            b_val = engine.get_random_uint32();
         }
         bool expected = (b_val + const_b) <= (a_val + const_a);
         uint32 a = witness_t(&composer, a_val);
@@ -659,9 +659,9 @@ TEST(stdlib_turbo_uint32, test_equality_operator)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val;
         if (force_equal) {
             b_val = a_val + const_a - const_b;
@@ -671,7 +671,7 @@ TEST(stdlib_turbo_uint32, test_equality_operator)
             b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
-            b_val = test_helpers::get_pseudorandom_uint32();
+            b_val = engine.get_random_uint32();
         }
         bool expected = (b_val + const_b) == (a_val + const_a);
         uint32 a = witness_t(&composer, a_val);
@@ -713,9 +713,9 @@ TEST(stdlib_turbo_uint32, test_not_equality_operator)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto compare_integers = [&composer](bool force_equal = false, bool force_gt = false, bool force_lt = false) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t const_b = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t const_b = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val;
         if (force_equal) {
             b_val = a_val + const_a - const_b;
@@ -725,7 +725,7 @@ TEST(stdlib_turbo_uint32, test_not_equality_operator)
             b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
-            b_val = test_helpers::get_pseudorandom_uint32();
+            b_val = engine.get_random_uint32();
         }
         bool expected = (b_val + const_b) != (a_val + const_a);
         uint32 a = witness_t(&composer, a_val);
@@ -767,8 +767,8 @@ TEST(stdlib_turbo_uint32, test_logical_not)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto not_integer = [&composer](bool force_zero) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = force_zero ? 0 - const_a : test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t a_val = force_zero ? 0 - const_a : engine.get_random_uint32();
         bool expected = !(const_a + a_val);
         uint32 a = witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -800,8 +800,8 @@ TEST(stdlib_turbo_uint32, test_right_shift)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto shift_integer = [&composer](const bool is_constant, const uint32_t shift) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t expected = (a_val + const_a) >> shift;
         uint32 a = is_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -833,8 +833,8 @@ TEST(stdlib_turbo_uint32, test_left_shift)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto shift_integer = [&composer](const bool is_constant, const uint32_t shift) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t expected = (a_val + const_a) << shift;
         uint32 a = is_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -871,8 +871,8 @@ TEST(stdlib_turbo_uint32, test_ror)
             return rval ? (in >> rval) | (in << (32 - rval)) : in;
         };
 
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t expected = ror(const_a + a_val, rotation);
         uint32 a = is_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -909,8 +909,8 @@ TEST(stdlib_turbo_uint32, test_rol)
             return rval ? (in << rval) | (in >> (32 - rval)) : in;
         };
 
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t expected = rol(const_a + a_val, rotation);
         uint32 a = is_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);
@@ -943,8 +943,8 @@ TEST(stdlib_turbo_uint32, test_at)
     waffle::TurboComposer composer = waffle::TurboComposer();
 
     const auto bit_test = [&composer](const bool is_constant) {
-        uint32_t const_a = test_helpers::get_pseudorandom_uint32();
-        uint32_t a_val = test_helpers::get_pseudorandom_uint32();
+        uint32_t const_a = engine.get_random_uint32();
+        uint32_t a_val = engine.get_random_uint32();
         uint32_t c_val = const_a + a_val;
         uint32 a = is_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 a_shift = uint32(&composer, const_a);

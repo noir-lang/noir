@@ -44,15 +44,10 @@ include(cmake/arch.cmake)
 include(cmake/threading.cmake)
 include(cmake/gtest.cmake)
 include(cmake/build.cmake)
+include(cmake/module.cmake)
 
 add_subdirectory(src)
 
-#if(TESTING)
-#    message(STATUS "Configuring tests and benchmarks")
-#    enable_testing()
-#    add_subdirectory(test)
-#endif()
-#
 #if(BENCHMARKS)
 #    add_subdirectory(test/benchmarks)
 #endif()

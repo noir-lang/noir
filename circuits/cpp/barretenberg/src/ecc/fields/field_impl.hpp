@@ -1,5 +1,5 @@
 #pragma once
-#include "../random/engine.hpp"
+#include <numeric/random/engine.hpp>
 
 #ifndef DISABLE_SHENANIGANS
 #ifdef __BMI2__
@@ -531,8 +531,8 @@ field<T> field<T>::random_element(std::mt19937_64* engine, std::uniform_int_dist
     std::mt19937_64* engine_ptr;
     std::uniform_int_distribution<uint64_t>* dist_ptr;
     if (engine == nullptr) {
-        engine_ptr = barretenberg::random::get_debug_engine();
-        dist_ptr = barretenberg::random::get_distribution();
+        engine_ptr = &barretenberg::random::get_debug_engine().engine;
+        dist_ptr = &barretenberg::random::get_debug_engine().dist;
     } else {
         engine_ptr = engine;
         dist_ptr = dist;

@@ -15,9 +15,12 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(bignum)
+add_subdirectory(numeric)
+add_subdirectory(srs)
 add_subdirectory(ecc)
 add_subdirectory(crypto)
+add_subdirectory(polynomials)
+add_subdirectory(plonk)
 #add_subdirectory(barretenberg)
 #add_subdirectory(noir)
 #add_subdirectory(rollup/prover)
