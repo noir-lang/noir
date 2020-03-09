@@ -11,14 +11,14 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
-class LevelDbStore {
+class leveldb_store {
   public:
     typedef uint128_t index_t;
     typedef std::string value_t;
 
-    LevelDbStore(std::string const& path, size_t depth);
-    LevelDbStore(LevelDbStore const& other) = delete;
-    LevelDbStore(LevelDbStore&& other) = default;
+    leveldb_store(std::string const& path, size_t depth);
+    leveldb_store(leveldb_store const& other) = delete;
+    leveldb_store(leveldb_store&& other) = default;
 
     fr_hash_path get_hash_path(index_t index);
 

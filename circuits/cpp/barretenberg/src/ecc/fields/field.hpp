@@ -22,6 +22,13 @@ template <class Params> struct alignas(32) field {
         self_to_montgomery_form();
     }
 
+
+    // static constexpr field from_uint128(uint128_t const input)
+    //     : data{ (uint64_t)input, (uint64_t)(input >> 64), 0, 0 }
+    // {
+    //     self_to_montgomery_form();
+    // }
+
     constexpr field(const uint64_t input) noexcept
         : data{ input, 0, 0, 0 }
     {
@@ -30,6 +37,14 @@ template <class Params> struct alignas(32) field {
 
     constexpr field(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t d) noexcept
         : data{ a, b, c, d } {};
+
+    constexpr explicit operator uint128_t()
+    {
+        field out = from_montgomery_form();
+        uint128_t lo = out.data[0];
+        uint128_t hi = out.data[1];
+        return (hi << 64) | lo;
+    }
 
     constexpr operator uint256_t() const noexcept
     {

@@ -86,7 +86,6 @@ TEST(scalar_multiplication, reduce_buckets_simple)
     transcript_points[62] = 0x7c;
     transcript_points[61] = 0x7e;
     transcript_points[63] = 0x7f;
-
     transcript_points[64] = 0x1;
     transcript_points[65] = 0x3;
     transcript_points[66] = 0x5;

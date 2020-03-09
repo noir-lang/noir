@@ -1,35 +1,16 @@
 #pragma once
-
+#include <numeric/bitop/get_msb.hpp>
 #include <cstdlib>
 #include <cstdint>
 #include <cstddef>
 #include <vector>
 #include <memory.h>
-
 #include <cstdio>
 
 namespace barretenberg
 {
 namespace wnaf
 {
-namespace internal
-{
-    // from http://supertech.csail.mit.edu/papers/debruijn.pdf
-constexpr size_t get_msb(const uint32_t v)
-{
-    constexpr uint32_t MultiplyDeBruijnBitPosition[32] = { 0,  9,  1,  10, 13, 21, 2,  29, 11, 14, 16,
-                                                              18, 22, 25, 3,  30, 8,  12, 20, 28, 15, 17,
-                                                              24, 7,  19, 27, 23, 6,  26, 5,  4,  31 };
-
-    const uint32_t v1 = v | (v >> 1); // v |= v >> 1; // first round down to one less than a power of 2
-    const uint32_t v2 = v1 | (v1 >> 2);
-    const uint32_t v3 = v2 | (v2 >> 4);
-    const uint32_t v4 = v3 | (v3 >> 8);
-    const uint32_t v5 = v4 | (v4 >> 16);
-
-    return MultiplyDeBruijnBitPosition[static_cast<uint32_t>(v5 * static_cast<uint32_t>(0x07C4ACDD)) >> static_cast<uint32_t>(27)];
-}
-}
 constexpr size_t SCALAR_BITS = 127;
 
 #define WNAF_SIZE(x) ((wnaf::SCALAR_BITS + x - 1) / (x))
@@ -71,7 +52,7 @@ template <size_t num_points, size_t wnaf_bits, size_t round_i>
 inline void wnaf_round(uint64_t* scalar, uint64_t* wnaf, const uint64_t point_index, const uint64_t previous) noexcept
 {
     constexpr size_t wnaf_entries = (SCALAR_BITS + wnaf_bits - 1) / wnaf_bits;
-    constexpr size_t log2_num_points = static_cast<uint64_t>(internal::get_msb(static_cast<uint32_t>(num_points)));
+    constexpr size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
 
     if constexpr (round_i  < wnaf_entries - 1)
     {
@@ -95,7 +76,7 @@ template <size_t scalar_bits, size_t num_points, size_t wnaf_bits, size_t round_
 inline void wnaf_round(uint64_t* scalar, uint64_t* wnaf, const uint64_t point_index, const uint64_t previous) noexcept
 {
     constexpr size_t wnaf_entries = (scalar_bits + wnaf_bits - 1) / wnaf_bits;
-    constexpr size_t log2_num_points = static_cast<uint64_t>(internal::get_msb(static_cast<uint32_t>(num_points)));
+    constexpr size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
 
     if constexpr (round_i  < wnaf_entries - 1)
     {

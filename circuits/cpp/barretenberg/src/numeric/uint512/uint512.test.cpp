@@ -301,7 +301,7 @@ TEST(uint512, greater_than_or_equal)
     EXPECT_EQ(a >= b, false);
 }
 
-//TODO: Move to field tests
+// TODO: Test can no longer depend on fr.
 // TEST(uint512, invmod)
 // {
 //     uint256_t prime_lo = fr::modulus;
@@ -317,24 +317,20 @@ TEST(uint512, greater_than_or_equal)
 //     EXPECT_EQ(inverse, expected);
 // }
 
-// TEST(uint512, r_squared)
-// {
-//     uint256_t prime_256 = fr::modulus;
-//     // uint256_t prime_256(fr::modulus.data[0],
-//     //                     fr::modulus.data[1],
-//     //                     fr::modulus.data[2],
-//     //                     fr::modulus.data[3]);
-//     uint256_t R = -prime_256;
-//     uint256_t R_mod_p = R % prime_256;
+TEST(uint512, r_squared)
+{
+    uint256_t prime_256(0x43E1F593F0000001UL, 0x2833E84879B97091UL, 0xB85045B68181585DUL, 0x30644E72E131A029UL);
+    uint256_t R = -prime_256;
+    uint256_t R_mod_p = R % prime_256;
 
-//     uint512_t R_512(R_mod_p);
+    uint512_t R_512(R_mod_p);
 
-//     uint512_t R_squared = R_512 * R_512;
+    uint512_t R_squared = R_512 * R_512;
 
-//     uint512_t R_squared_mod_p = R_squared % uint512_t(prime_256);
+    uint512_t R_squared_mod_p = R_squared % uint512_t(prime_256);
 
-//     uint512_t expected{ uint256_t(
-//                             FrParams::r_squared_0, FrParams::r_squared_1, FrParams::r_squared_2, FrParams::r_squared_3),
-//                         uint256_t(0) };
-//     EXPECT_EQ(R_squared_mod_p, expected);
-// }
+    uint512_t expected{
+        uint256_t(0x1BB8E645AE216DA7UL, 0x53FE3AB1E35C59E3UL, 0x8C49833D53BB8085UL, 0x216D0B17F4E44A5UL), uint256_t(0)
+    };
+    EXPECT_EQ(R_squared_mod_p, expected);
+}

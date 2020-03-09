@@ -1,4 +1,5 @@
 #pragma once
+#include <numeric/bitop/get_msb.hpp>
 #include <numeric/random/engine.hpp>
 
 #ifndef DISABLE_SHENANIGANS
@@ -468,25 +469,10 @@ template <class T> constexpr field<T> field<T>::operator/=(const field& other) n
 
 template <class T> constexpr uint64_t field<T>::get_msb() const noexcept
 {
-    constexpr auto get_uint64_msb = [](const uint64_t in) {
-        constexpr uint8_t de_bruijn_sequence[64]{ 0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61,
-                                                  54, 58, 35, 52, 50, 42, 21, 44, 38, 32, 29, 23, 17, 11, 4,  62,
-                                                  46, 55, 26, 59, 40, 36, 15, 53, 34, 51, 20, 43, 31, 22, 10, 45,
-                                                  25, 39, 14, 33, 19, 30, 9,  24, 13, 18, 8,  12, 7,  6,  5,  63 };
-
-        uint64_t t = in | (in >> 1);
-        t |= t >> 2;
-        t |= t >> 4;
-        t |= t >> 8;
-        t |= t >> 16;
-        t |= t >> 32;
-        return static_cast<uint64_t>(de_bruijn_sequence[(t * 0x03F79D71B4CB0A89ULL) >> 58ULL]);
-    };
-
-    uint64_t idx = get_uint64_msb(data[3]);
-    idx = idx == 0 ? get_uint64_msb(data[2]) : idx + 64;
-    idx = idx == 0 ? get_uint64_msb(data[1]) : idx + 64;
-    idx = idx == 0 ? get_uint64_msb(data[0]) : idx + 64;
+    uint64_t idx = numeric::get_msb(data[3]);
+    idx = idx == 0 ? numeric::get_msb(data[2]) : idx + 64;
+    idx = idx == 0 ? numeric::get_msb(data[1]) : idx + 64;
+    idx = idx == 0 ? numeric::get_msb(data[0]) : idx + 64;
     return idx;
 }
 

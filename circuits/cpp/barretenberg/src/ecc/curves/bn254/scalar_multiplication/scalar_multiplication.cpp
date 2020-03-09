@@ -1,5 +1,5 @@
+#include <numeric/bitop/get_msb.hpp>
 #include "./scalar_multiplication.hpp"
-
 #include "../../../groups/wnaf.hpp"
 #include "../fq.hpp"
 #include "../fr.hpp"
@@ -111,7 +111,7 @@ template <size_t num_initial_points> inline void compute_wnaf_states(multiplicat
     constexpr size_t SCALAR_MULTIPLICATION_MAX_ROUNDS = 256;
     const size_t num_rounds = get_num_rounds(num_points);
     constexpr size_t bits_per_bucket = get_optimal_bucket_width(num_initial_points);
-    const size_t log2_num_points = static_cast<uint64_t>(internal::get_msb(static_cast<uint32_t>(num_points)));
+    const size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
 
     // fetch our wnaf table and skew table pointers from pre-allocated memory. This eliminates soft page faults when
     // writing to newly allocated memory. The page faults were adding up to 200 milliseconds onto the runtime of our
@@ -279,7 +279,7 @@ inline g1::element scalar_multiplication_internal(multiplication_runtime_state& 
             // if first bucket is 1, we need to add (2 * running_sum)
             if (first_bucket > 0) {
                 uint32_t multiplier = static_cast<uint32_t>(first_bucket << 1UL);
-                size_t shift = internal::get_msb(multiplier);
+                size_t shift = numeric::get_msb(multiplier);
                 g1::element rolling_accumulator = g1::point_at_infinity;
                 bool init = false;
                 while (shift != static_cast<size_t>(-1)) {
@@ -396,7 +396,7 @@ inline g1::element unsafe_scalar_multiplication_internal(multiplication_runtime_
             // if first bucket is 1, we need to add (2 * running_sum)
             if (first_bucket > 0) {
                 uint32_t multiplier = static_cast<uint32_t>(first_bucket << 1UL);
-                size_t shift = internal::get_msb(multiplier);
+                size_t shift = numeric::get_msb(multiplier);
                 g1::element rolling_accumulator = g1::point_at_infinity;
                 bool init = false;
                 while (shift != static_cast<size_t>(-1)) {
@@ -489,7 +489,7 @@ inline g1::element pippenger(fr* scalars, g1::affine_element* points, const size
     }
 
     const size_t log2_initial_points =
-        std::min(static_cast<size_t>(internal::get_msb(static_cast<uint32_t>(num_initial_points))), 20UL);
+        std::min(static_cast<size_t>(numeric::get_msb(static_cast<uint32_t>(num_initial_points))), 20UL);
     g1::element result;
 
     switch (log2_initial_points) {
@@ -610,7 +610,7 @@ g1::element pippenger_unsafe(fr* scalars, g1::affine_element* points, const size
     }
 
     const size_t log2_initial_points =
-        std::min(static_cast<size_t>(internal::get_msb(static_cast<uint32_t>(num_initial_points))), 20UL);
+        std::min(static_cast<size_t>(numeric::get_msb(static_cast<uint32_t>(num_initial_points))), 20UL);
     g1::element result;
 
     switch (log2_initial_points) {

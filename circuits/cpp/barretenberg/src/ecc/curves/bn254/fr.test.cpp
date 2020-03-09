@@ -330,3 +330,14 @@ TEST(fr, multiplicative_generator)
 {
     EXPECT_EQ(fr::multiplicative_generator(), fr(5));
 }
+
+TEST(fr, uint256_conversions)
+{
+    constexpr uint256_t a{ 0x1111, 0x2222, 0x3333, 0x4444 };
+
+    constexpr fr b(a);
+    constexpr uint256_t c = b;
+
+    static_assert(a == c);
+    EXPECT_EQ(a, c);
+}

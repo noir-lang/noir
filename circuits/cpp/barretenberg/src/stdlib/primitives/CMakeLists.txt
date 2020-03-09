@@ -1,0 +1,5 @@
+add_subdirectory(bool)
+add_subdirectory(byte_array)
+add_subdirectory(field)
+add_subdirectory(uint)
+add_subdirectory(bit_array)

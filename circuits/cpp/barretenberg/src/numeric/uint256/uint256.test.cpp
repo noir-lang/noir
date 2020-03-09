@@ -301,15 +301,3 @@ TEST(uint256, greater_than_or_equal)
     b = uint256_t{ UINT64_MAX - 1, UINT64_MAX, UINT64_MAX, UINT64_MAX };
     EXPECT_EQ(a >= b, false);
 }
-
-// TODO: Move to field tests
-// TEST(uint256, field_conversions)
-// {
-//     constexpr uint256_t a{ 0x1111, 0x2222, 0x3333, 0x4444 };
-
-//     constexpr barretenberg::fr b(a);
-//     constexpr uint256_t c = b;
-
-//     static_assert(a == c);
-//     EXPECT_EQ(a, c);
-// }

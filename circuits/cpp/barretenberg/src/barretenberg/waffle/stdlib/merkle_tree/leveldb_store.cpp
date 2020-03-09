@@ -19,7 +19,7 @@ barretenberg::fr from_string(std::string const& data, size_t offset = 0)
 }
 } // namespace
 
-LevelDbStore::LevelDbStore(std::string const& db_path, size_t depth)
+leveldb_store::leveldb_store(std::string const& db_path, size_t depth)
     : depth_(depth)
 {
     ASSERT(depth_ >= 1 && depth <= 128);
@@ -51,17 +51,17 @@ LevelDbStore::LevelDbStore(std::string const& db_path, size_t depth)
     size_ = status.ok() ? ntohll(*reinterpret_cast<uint64_t*>(size.data())) : 0ULL;
 }
 
-barretenberg::fr LevelDbStore::root() const
+barretenberg::fr leveldb_store::root() const
 {
     return root_;
 }
 
-size_t LevelDbStore::size() const
+size_t leveldb_store::size() const
 {
     return size_;
 }
 
-fr_hash_path LevelDbStore::get_hash_path(index_t index)
+fr_hash_path leveldb_store::get_hash_path(index_t index)
 {
     fr_hash_path path(depth_);
 
@@ -129,7 +129,7 @@ fr_hash_path LevelDbStore::get_hash_path(index_t index)
     return path;
 }
 
-LevelDbStore::value_t LevelDbStore::get_element(index_t index)
+leveldb_store::value_t leveldb_store::get_element(index_t index)
 {
     fr leaf = get_element(root_, index, depth_);
     std::string data;
@@ -137,7 +137,7 @@ LevelDbStore::value_t LevelDbStore::get_element(index_t index)
     return status.ok() ? data : std::string(64, 0);
 }
 
-fr LevelDbStore::get_element(fr const& root, index_t index, size_t height)
+fr leveldb_store::get_element(fr const& root, index_t index, size_t height)
 {
     // std::cout << "get_element root:" << root << " index:" << (uint64_t)index << " height:" << height << std::endl;
     if (height == 0) {
@@ -165,7 +165,7 @@ fr LevelDbStore::get_element(fr const& root, index_t index, size_t height)
     }
 }
 
-void LevelDbStore::update_element(index_t index, value_t const& value)
+void leveldb_store::update_element(index_t index, value_t const& value)
 {
     fr sha_leaf = hash_value_native(value);
 
@@ -178,7 +178,7 @@ void LevelDbStore::update_element(index_t index, value_t const& value)
     tx_->Put("size", leveldb::Slice((char*)&new_size, sizeof(new_size)));
 }
 
-void LevelDbStore::commit()
+void leveldb_store::commit()
 {
     leveldb::WriteBatch batch;
     tx_->populate_write_batch(batch);
@@ -186,7 +186,7 @@ void LevelDbStore::commit()
     tx_.reset(new leveldb_tx(*db_));
 }
 
-void LevelDbStore::rollback()
+void leveldb_store::rollback()
 {
     tx_.reset(new leveldb_tx(*db_));
 
@@ -199,7 +199,7 @@ void LevelDbStore::rollback()
     size_ = status.ok() ? ntohll(*reinterpret_cast<uint64_t*>(size.data())) : 0ULL;
 }
 
-fr LevelDbStore::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
+fr leveldb_store::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
 {
     bool a_is_right = (a_index >> (height - 1)) & 0x1;
     auto left = a_is_right ? b : a;
@@ -211,7 +211,7 @@ fr LevelDbStore::binary_put(index_t a_index, fr const& a, fr const& b, size_t he
     return key;
 }
 
-fr LevelDbStore::fork_stump(
+fr leveldb_store::fork_stump(
     fr const& value1, index_t index1, fr const& value2, index_t index2, size_t height, size_t common_height)
 {
     if (height == common_height) {
@@ -240,7 +240,7 @@ fr LevelDbStore::fork_stump(
     }
 }
 
-fr LevelDbStore::update_element(fr const& root, fr const& value, index_t index, size_t height)
+fr leveldb_store::update_element(fr const& root, fr const& value, index_t index, size_t height)
 {
     // std::cout << "update_element root:" << root << " value:" << value << " index:" << (uint64_t)index
     //           << " height:" << height << std::endl;
@@ -301,7 +301,7 @@ fr LevelDbStore::update_element(fr const& root, fr const& value, index_t index, 
     }
 }
 
-fr LevelDbStore::compute_zero_path_hash(size_t height, index_t index, fr const& value)
+fr leveldb_store::compute_zero_path_hash(size_t height, index_t index, fr const& value)
 {
     fr current = value;
     for (size_t i = 0; i < height; ++i) {
@@ -319,7 +319,7 @@ fr LevelDbStore::compute_zero_path_hash(size_t height, index_t index, fr const& 
     return current;
 }
 
-void LevelDbStore::put(fr const& key, fr const& left, fr const& right)
+void leveldb_store::put(fr const& key, fr const& left, fr const& right)
 {
     std::ostringstream os;
     os.write((char*)left.data, 32);
@@ -328,7 +328,7 @@ void LevelDbStore::put(fr const& key, fr const& left, fr const& right)
     // std::cout << "PUT key:" << key << " left:" << left << " right:" << right << std::endl;
 }
 
-void LevelDbStore::put_stump(fr const& key, index_t index, fr const& value)
+void leveldb_store::put_stump(fr const& key, index_t index, fr const& value)
 {
     std::ostringstream os;
     os.write((char*)value.data, 32);

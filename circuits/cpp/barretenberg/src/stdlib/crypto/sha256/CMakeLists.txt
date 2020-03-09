@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_sha256 stdlib_uint stdlib_bit_array)

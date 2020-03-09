@@ -1,1 +1,1 @@
-barretenberg_module(composer proof_system)
+barretenberg_module(composer proof_system pedersen)

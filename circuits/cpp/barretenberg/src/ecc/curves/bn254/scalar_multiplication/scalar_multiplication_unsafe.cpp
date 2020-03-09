@@ -1,5 +1,5 @@
 #include "./scalar_multiplication.hpp"
-
+#include <numeric/bitop/get_msb.hpp>
 #include <chrono>
 #include <iostream>
 
@@ -248,7 +248,7 @@ g1::affine_element* reduce_buckets(affine_product_runtime_state& state, bool fir
     uint32_t new_num_points = 0;
     for (size_t i = 0; i < state.num_buckets; ++i) {
         uint32_t& count = state.bucket_counts[i];
-        uint32_t num_bits = internal::get_msb_32(count) + 1;
+        uint32_t num_bits = numeric::get_msb(count) + 1;
         uint32_t new_bucket_count = 0;
         for (size_t j = 0; j < num_bits; ++j) {
             uint32_t& current_offset = state.bit_offsets[j];
@@ -298,7 +298,7 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
         max_count = state.bucket_counts[i] > max_count ? state.bucket_counts[i] : max_count;
     }
 
-    const uint32_t max_bucket_bits = internal::get_msb_32(max_count);
+    const uint32_t max_bucket_bits = numeric::get_msb(max_count);
 
     for (size_t i = 0; i < max_bucket_bits + 1; ++i) {
         state.bit_offsets[i] = 0;
@@ -413,7 +413,7 @@ uint32_t construct_addition_chains(affine_product_runtime_state& state, bool emp
     for (size_t i = 0; i < state.num_buckets; ++i) {
         uint32_t count = *bucket_count_it;
         ++bucket_count_it;
-        uint32_t num_bits = internal::get_msb_32(count) + 1;
+        uint32_t num_bits = numeric::get_msb(count) + 1;
         for (size_t j = 0; j < num_bits; ++j) {
             uint32_t& current_offset = bit_offsets_copy[j];
             const size_t k_end = count & (1UL << j);
