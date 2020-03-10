@@ -1,6 +1,6 @@
 #include "schnorr.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
-#include <stdlib/crypto/blake2s/blake2s.hpp>
+#include <stdlib/hash/blake2s/blake2s.hpp>
 
 namespace plonk {
 namespace stdlib {

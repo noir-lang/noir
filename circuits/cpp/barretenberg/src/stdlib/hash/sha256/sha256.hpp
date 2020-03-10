@@ -23,7 +23,6 @@ template <typename Composer> bit_array<Composer> sha256(const bit_array<Composer
 
 extern template byte_array<waffle::TurboComposer> sha256_block(const byte_array<waffle::TurboComposer>& input);
 extern template bit_array<waffle::StandardComposer> sha256(const bit_array<waffle::StandardComposer>& input);
-extern template bit_array<waffle::MiMCComposer> sha256(const bit_array<waffle::MiMCComposer>& input);
 extern template bit_array<waffle::TurboComposer> sha256(const bit_array<waffle::TurboComposer>& input);
 
 } // namespace stdlib

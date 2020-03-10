@@ -1,13 +1,8 @@
 #pragma once
-#include "../../../misc_crypto/blake2s/blake2s.hpp"
-#include "../../../misc_crypto/pedersen/pedersen.hpp"
-#include "../../../misc_crypto/sha256/sha256.hpp"
-#include "../byte_array/byte_array.hpp"
-#include "../crypto/hash/blake2s.hpp"
-#include "../crypto/hash/sha256.hpp"
-#include <iomanip>
-#include <iostream>
 #include <vector>
+#include <crypto/blake2s/blake2s.hpp>
+#include <crypto/pedersen/pedersen.hpp>
+#include <stdlib/hash/blake2s/blake2s.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -28,7 +23,6 @@ template <typename ComposerContext> inline field_t<ComposerContext> hash_value(b
 inline barretenberg::fr hash_value_native(std::string const& input)
 {
     std::vector<uint8_t> inputv(input.begin(), input.end());
-    // std::vector<uint8_t> output = blake2::blake2s(inputv);
     std::vector<uint8_t> output = blake2::blake2s(inputv);
     barretenberg::fr result = barretenberg::fr::zero();
     if (isLittleEndian()) {

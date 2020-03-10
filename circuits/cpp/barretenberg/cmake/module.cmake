@@ -1,6 +1,13 @@
 # copyright 2019 Spilsbury Holdings
 #
 # usage: barretenberg_module(module_name [dependencies ...])
+#
+# We have to get a bit complicated here, due to the fact CMake will not parallelise the building of object files
+# between dependent targets, due to the potential of post-build code generation steps etc.
+# To work around this, we create "object libraries" containing the object files.
+# Then we declare an executable that is to be # built from these object files.
+# This executable will only be linked once it's dependencies are complete, but that's pretty fast.
+
 
 function(barretenberg_module MODULE_NAME)
     file(GLOB_RECURSE SOURCE_FILES *.cpp)
@@ -43,13 +50,6 @@ function(barretenberg_module MODULE_NAME)
 
     file(GLOB_RECURSE TEST_SOURCE_FILES *.test.cpp)
     if(TESTING AND TEST_SOURCE_FILES)
-        # We have to get a bit complicated here, due to the fact CMake will not parallelise the building of object files
-        # between dependent targets, due to the potential of post-build code generation steps etc.
-        # To work around this, we create an "object library" containing the test object files, that only has a
-        # dependency on gtest (to pull in the gtest include directory). Then we declare an executable that is to be
-        # built from these object files. This executable will only be linked once it's dependencies are complete, but
-        # that's pretty fast.
-
         add_library(
             ${MODULE_NAME}_test_objects
             OBJECT

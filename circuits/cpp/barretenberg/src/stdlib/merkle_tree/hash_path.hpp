@@ -1,6 +1,5 @@
 #pragma once
-#include "../field/field.hpp"
-#include "../int_utils.hpp"
+#include <stdlib/primitives/field/field.hpp>
 #include "hash.hpp"
 #include <algorithm>
 #include <vector>
@@ -10,7 +9,6 @@ namespace stdlib {
 namespace merkle_tree {
 
 using namespace barretenberg;
-using namespace int_utils;
 
 typedef std::vector<std::pair<fr, fr>> fr_hash_path;
 template <typename Ctx> using hash_path = std::vector<std::pair<field_t<Ctx>, field_t<Ctx>>>;

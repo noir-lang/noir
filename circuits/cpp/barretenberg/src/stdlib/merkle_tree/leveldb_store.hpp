@@ -1,9 +1,9 @@
 #pragma once
-#include "../field/field.hpp"
-#include "hash_path.hpp"
-#include "leveldb_tx.hpp"
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
+#include <stdlib/primitives/field/field.hpp>
+#include "hash_path.hpp"
+#include "leveldb_tx.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -11,14 +11,14 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
-class leveldb_store {
+class LevelDbStore {
   public:
     typedef uint128_t index_t;
     typedef std::string value_t;
 
-    leveldb_store(std::string const& path, size_t depth);
-    leveldb_store(leveldb_store const& other) = delete;
-    leveldb_store(leveldb_store&& other) = default;
+    LevelDbStore(std::string const& path, size_t depth);
+    LevelDbStore(LevelDbStore const& other) = delete;
+    LevelDbStore(LevelDbStore&& other) = default;
 
     fr_hash_path get_hash_path(index_t index);
 
@@ -45,12 +45,8 @@ class leveldb_store {
 
     fr binary_put(index_t a_index, fr const& a, fr const& b, size_t height);
 
-    fr fork_stump(fr const& value1,
-                           index_t index1,
-                           fr const& value2,
-                           index_t index2,
-                           size_t height,
-                           size_t stump_height);
+    fr fork_stump(
+        fr const& value1, index_t index1, fr const& value2, index_t index2, size_t height, size_t stump_height);
 
     void put(fr const& key, fr const& left, fr const& right);
 

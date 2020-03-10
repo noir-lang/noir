@@ -1,5 +1,4 @@
 #pragma once
-#include "../field/field.hpp"
 #include "hash_path.hpp"
 
 namespace plonk {
