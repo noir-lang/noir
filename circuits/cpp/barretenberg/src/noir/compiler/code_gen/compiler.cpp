@@ -2,7 +2,7 @@
 #include "expression_visitor.hpp"
 #include "function_call.hpp"
 #include "function_statement_visitor.hpp"
-#include "log.hpp"
+#include "../common/log.hpp"
 #include "type_info_from.hpp"
 #include "var_t.hpp"
 #include <boost/assert.hpp>
@@ -31,8 +31,7 @@ void Compiler::operator()(ast::variable_declaration const& x)
     ctx_.symbol_table.declare(v, x.variable);
 
     if (!x.assignment.has_value()) {
-        // throw std::runtime_error("Global variables must be defined.");
-        std::abort();
+        abort("Global variables must be defined.");
     }
 
     ast::assignment assign;

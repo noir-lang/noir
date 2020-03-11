@@ -1,11 +1,8 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-
-#include "../barretenberg/noir/compiler/compiler.hpp"
-#include "../barretenberg/noir/parse.hpp"
-#include "../barretenberg/waffle/proof_system/preprocess.hpp"
-#include "../barretenberg/waffle/proof_system/verifier/verifier.hpp"
+#include <noir/compiler/code_gen/compiler.hpp>
+#include <noir/compiler/parser/parse.hpp>
 
 using namespace barretenberg;
 using namespace noir::parser;
@@ -28,7 +25,7 @@ template <typename T> std::ostream& operator<<(std::ostream& os, std::vector<T> 
 
 template <typename T> void test_sha256(T const& input, std::vector<uint8_t> const& expected)
 {
-    std::ifstream file("../src/noir/sha256.noir");
+    std::ifstream file("../src/noir/compiler/code_gen/fixtures/sha256.noir");
     std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     auto ast = parse(code);
 
@@ -41,7 +38,7 @@ template <typename T> void test_sha256(T const& input, std::vector<uint8_t> cons
     auto output_vars = boost::get<std::vector<var_t>>(r.first.value());
     std::vector<uint8_t> output;
     std::transform(output_vars.begin(), output_vars.end(), std::back_inserter(output), [](var_t const& v) {
-        return static_cast<uint8_t>(boost::get<noir::code_gen::uint>(v.value()).get_value());
+        return static_cast<uint8_t>(boost::get<uint_nt>(v.value()).get_value());
     });
 
     if (output != expected) {

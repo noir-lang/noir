@@ -1,25 +1,16 @@
 #pragma once
+#include <numeric/uint256/uint256.hpp>
+#include <stdlib/types/turbo.hpp>
+#include <iomanip>
 
-#include "../common.hpp"
-#include "../byte_array/byte_array.hpp"
-#include "../field/field.hpp"
-#include "../bool/bool.hpp"
+namespace noir {
+namespace code_gen {
 
-#include "./uint.hpp"
+using namespace plonk::stdlib::types::turbo;
 
-#include <vector>
-#include <iostream>
-
-#include "../bool/bool.hpp"
-#include "../byte_array/byte_array.hpp"
-#include "../common.hpp"
-#include "../int_utils.hpp"
-
-namespace plonk {
-namespace stdlib {
-template <typename Composer> class uintNoir {
+class uint_nt {
   public:
-    uintNoir(size_t width, const uint64_t other)
+    uint_nt(size_t width, const uint64_t other)
         : __width(width)
         , uint8(uint256_t(other))
         , uint16(uint256_t(other))
@@ -27,7 +18,7 @@ template <typename Composer> class uintNoir {
         , uint64(uint256_t(other))
     {}
 
-    uintNoir(size_t width, const uint256_t other)
+    uint_nt(size_t width, const uint256_t other)
         : __width(width)
         , uint8(other)
         , uint16(other)
@@ -36,7 +27,7 @@ template <typename Composer> class uintNoir {
     {}
 
 
-    uintNoir(uint64_t value)
+    uint_nt(uint64_t value)
         : __width(32)
         , uint8(uint8_t(value))
         , uint16(uint16_t(value))
@@ -44,7 +35,7 @@ template <typename Composer> class uintNoir {
         , uint64(uint64_t(value))
     {}
 
-    uintNoir(size_t width, Composer* parent_context)
+    uint_nt(size_t width, Composer* parent_context)
         : __width(width)
         , uint8(parent_context, uint256_t(0))
         , uint16(parent_context, uint256_t(0))
@@ -52,30 +43,30 @@ template <typename Composer> class uintNoir {
         , uint64(parent_context, uint256_t(0))
     {}
 
-    uintNoir(size_t width, const witness_t<Composer>& value)
+    uint_nt(size_t width, const witness_ct& value)
         : __width(width)
     {
         switch (__width) {
         case 8: {
-            uint8 = uint<Composer, uint8_t>(value);
+            uint8 = uint8_ct(value);
             break;
         }
         case 16: {
-            uint16 = uint<Composer, uint16_t>(value);
+            uint16 = uint16_ct(value);
             break;
         }
         case 32: {
-            uint32 = uint<Composer, uint32_t>(value);
+            uint32 = uint32_ct(value);
             break;
         }
         default: {
-            uint64 = uint<Composer, uint64_t>(value);
+            uint64 = uint64_ct(value);
             break;
         }
         }
     }
 
-    uintNoir(size_t width, Composer* parent_context, const uint64_t other)
+    uint_nt(size_t width, Composer* parent_context, const uint64_t other)
         : __width(width)
         , uint8(parent_context, uint256_t(other))
         , uint16(parent_context, uint256_t(other))
@@ -83,77 +74,77 @@ template <typename Composer> class uintNoir {
         , uint64(parent_context, uint256_t(other))
     {}
 
-    uintNoir(size_t width, const field_t<Composer>& value)
+    uint_nt(size_t width, const field_ct& value)
         : __width(width)
     {
         switch (__width) {
         case 8: {
-            uint8 = uint<Composer, uint8_t>(value);
+            uint8 = uint8_ct(value);
             break;
         }
         case 16: {
-            uint16 = uint<Composer, uint16_t>(value);
+            uint16 = uint16_ct(value);
             break;
         }
         case 32: {
-            uint32 = uint<Composer, uint32_t>(value);
+            uint32 = uint32_ct(value);
             break;
         }
         default: {
-            uint64 = uint<Composer, uint64_t>(value);
+            uint64 = uint64_ct(value);
             break;
         }
         }
     }
 
-    uintNoir(Composer* parent_context, const std::vector<bool_t<Composer>>& wires)
+    uint_nt(Composer* parent_context, const std::vector<bool_ct>& wires)
         : __width(wires.size())
     {
         switch (__width) {
         case 8: {
-            uint8 = uint<Composer, uint8_t>(parent_context, wires);
+            uint8 = uint8_ct(parent_context, wires);
             break;
         }
         case 16: {
-            uint16 = uint<Composer, uint16_t>(parent_context, wires);
+            uint16 = uint16_ct(parent_context, wires);
             break;
         }
         case 32: {
-            uint32 = uint<Composer, uint32_t>(parent_context, wires);
+            uint32 = uint32_ct(parent_context, wires);
             break;
         }
         default: {
-            uint64 = uint<Composer, uint64_t>(parent_context, wires);
+            uint64 = uint64_ct(parent_context, wires);
             break;
         }
         }
     }
 
     template <size_t T>
-    uintNoir(Composer* parent_context, const std::array<bool_t<Composer>, T>& wires)
+    uint_nt(Composer* parent_context, const std::array<bool_ct, T>& wires)
         : __width(wires.size())
     {
         switch (__width) {
         case 8: {
-            uint8 = uint<Composer, uint8_t>(parent_context, wires);
+            uint8 = uint8_ct(parent_context, wires);
             break;
         }
         case 16: {
-            uint16 = uint<Composer, uint16_t>(parent_context, wires);
+            uint16 = uint16_ct(parent_context, wires);
             break;
         }
         case 32: {
-            uint32 = uint<Composer, uint32_t>(parent_context, wires);
+            uint32 = uint32_ct(parent_context, wires);
             break;
         }
         default: {
-            uint64 = uint<Composer, uint64_t>(parent_context, wires);
+            uint64 = uint64_ct(parent_context, wires);
             break;
         }
         }
     }
 
-    uintNoir(const uintNoir& other)
+    uint_nt(const uint_nt& other)
         : __width(other.__width)
         , uint8(other.uint8)
         , uint16(other.uint16)
@@ -161,7 +152,7 @@ template <typename Composer> class uintNoir {
         , uint64(other.uint64)
     {}
 
-    uintNoir(uintNoir&& other)
+    uint_nt(uint_nt&& other)
         : __width(other.__width)
         , uint8(other.uint8)
         , uint16(other.uint16)
@@ -169,51 +160,51 @@ template <typename Composer> class uintNoir {
         , uint64(other.uint64)
     {}
 
-    uintNoir(const byte_array<Composer>& other)
+    uint_nt(const byte_array_ct& other)
         : __width(other.bits().size())
     {
         switch (__width) {
         case 8: {
-            uint8 = uint<Composer, uint8_t>(other);
+            uint8 = uint8_ct(other);
             break;
         }
         case 16: {
-            uint16 = uint<Composer, uint16_t>(other);
+            uint16 = uint16_ct(other);
             break;
         }
         case 32: {
-            uint32 = uint<Composer, uint32_t>(other);
+            uint32 = uint32_ct(other);
             break;
         }
         default: {
-            uint64 = uint<Composer, uint64_t>(other);
+            uint64 = uint64_ct(other);
             break;
         }
         }
     }
 
-    // explicit uintNoir(char v)
+    // explicit uint_nt(char v)
     //     : __width(8)
     //     , uint8(uint256_t((uint64_t)v))
     // {}
 
-    // explicit uintNoir(uint16_t v)
+    // explicit uint_nt(uint16_t v)
     //     : __width(16)
     //     , uint16(uint256_t((uint64_t)v))
     // {}
 
-    // explicit uintNoir(uint32_t v)
+    // explicit uint_nt(uint32_t v)
     //     : __width(32)
     //     , uint32(uint256_t((uint64_t)v))
     // {}
 
-    // explicit uintNoir(uint64_t v)
+    // explicit uint_nt(uint64_t v)
     //     : __width(64)
     //     , uint64(uint256_t((uint64_t)v))
     // {}
 
     // template <typename Native>
-    // uintNoir(uint<Composer, Native> other)
+    // uint_nt(uint<Composer, Native> other)
     //     : __width(sizeof(Native) * 8)
     // {
     //     switch (__width) {
@@ -237,88 +228,88 @@ template <typename Composer> class uintNoir {
     // }
 
 
-    uintNoir(uint<Composer, uint8_t>&& other)
+    uint_nt(uint8_ct&& other)
         : __width(8)
         , uint8(other) {}
 
-    uintNoir(uint<Composer, uint16_t>&& other)
+    uint_nt(uint16_ct&& other)
         : __width(16)
         , uint16(other) {}
 
 
-    uintNoir(uint<Composer, uint32_t>&& other)
+    uint_nt(uint32_ct&& other)
         : __width(32)
         , uint32(other) {}
 
 
-    uintNoir(uint<Composer, uint64_t>&& other)
+    uint_nt(uint64_ct&& other)
         : __width(64)
         , uint64(other) {}
 
 
-    uintNoir(const uint<Composer, uint8_t>& other)
+    uint_nt(const uint8_ct& other)
         : __width(8)
         , uint8(other) {}
 
-    uintNoir(const uint<Composer, uint16_t>& other)
+    uint_nt(const uint16_ct& other)
         : __width(16)
         , uint16(other) {}
 
 
-    uintNoir(const uint<Composer, uint32_t>& other)
+    uint_nt(const uint32_ct& other)
         : __width(32)
         , uint32(other) {}
 
 
-    uintNoir(const uint<Composer, uint64_t>& other)
+    uint_nt(const uint64_ct& other)
         : __width(64)
         , uint64(other) {}
 
-    operator byte_array<Composer>()
+    operator byte_array_ct()
     {
         switch (__width) {
         case 8: {
-            return static_cast<byte_array<Composer>>(uint8);
+            return static_cast<byte_array_ct>(uint8);
             break;
         }
         case 16: {
-            return static_cast<byte_array<Composer>>(uint16);
+            return static_cast<byte_array_ct>(uint16);
             break;
         }
         case 32: {
-            return static_cast<byte_array<Composer>>(uint32);
+            return static_cast<byte_array_ct>(uint32);
             break;
         }
         default: {
-            return static_cast<byte_array<Composer>>(uint64);
+            return static_cast<byte_array_ct>(uint64);
             break;
         }
         }
     }
 
-    operator field_t<Composer>()
+    operator field_ct()
     {
         switch (__width) {
         case 8: {
-            return static_cast<field_t<Composer>>(uint8);
+            return static_cast<field_ct>(uint8);
             break;
         }
         case 16: {
-            return static_cast<field_t<Composer>>(uint16);
+            return static_cast<field_ct>(uint16);
             break;
         }
         case 32: {
-            return static_cast<field_t<Composer>>(uint32);
+            return static_cast<field_ct>(uint32);
             break;
         }
         default: {
-            return static_cast<field_t<Composer>>(uint64);
+            return static_cast<field_ct>(uint64);
             break;
         }
         }
     }
 
-    uintNoir& operator=(const uintNoir& other)
+    uint_nt& operator=(const uint_nt& other)
     {
         __width = other.__width;
         uint8 = other.uint8;
@@ -328,30 +319,30 @@ template <typename Composer> class uintNoir {
         return *this;
     }
 
-    uintNoir operator+(const uintNoir& other) const
+    uint_nt operator+(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
-            return uintNoir<Composer>(uint<Composer, uint8_t>(uint8 + other.uint8));
+            return uint_nt(uint8_ct(uint8 + other.uint8));
             break;
         }
         case 16: {
-            return uintNoir<Composer>(uint<Composer, uint16_t>(uint16 + other.uint16));
+            return uint_nt(uint16_ct(uint16 + other.uint16));
             break;
         }
         case 32: {
-            return uintNoir<Composer>(uint<Composer, uint32_t>(uint32 + other.uint32));
+            return uint_nt(uint32_ct(uint32 + other.uint32));
             break;
         }
         default: {
-            return uintNoir<Composer>(uint<Composer, uint64_t>(uint64 + other.uint64));
+            return uint_nt(uint64_ct(uint64 + other.uint64));
             break;
         }
         }
     }
 
 
-    uintNoir operator-(const uintNoir& other) const
+    uint_nt operator-(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -374,7 +365,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator*(const uintNoir& other) const
+    uint_nt operator*(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -396,7 +387,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    uintNoir operator/(const uintNoir& other) const
+    uint_nt operator/(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -419,7 +410,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator%(const uintNoir& other) const
+    uint_nt operator%(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -442,7 +433,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator&(const uintNoir& other) const
+    uint_nt operator&(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -465,7 +456,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator|(const uintNoir& other) const
+    uint_nt operator|(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -488,7 +479,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator^(const uintNoir& other) const
+    uint_nt operator^(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -511,7 +502,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator~() const
+    uint_nt operator~() const
     {
         switch (__width) {
         case 8: {
@@ -534,7 +525,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator>>(const size_t const_shift) const
+    uint_nt operator>>(const size_t const_shift) const
     {
         switch (__width) {
         case 8: {
@@ -557,7 +548,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir operator<<(const size_t const_shift) const
+    uint_nt operator<<(const size_t const_shift) const
     {
         switch (__width) {
         case 8: {
@@ -580,7 +571,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    uintNoir ror(const size_t rot) const
+    uint_nt ror(const size_t rot) const
     {
         switch (__width) {
         case 8: {
@@ -602,7 +593,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    uintNoir rol(const size_t rot) const
+    uint_nt rol(const size_t rot) const
     {
         switch (__width) {
         case 8: {
@@ -624,7 +615,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    bool_t<Composer> operator>(const uintNoir& other) const
+    bool_ct operator>(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -647,7 +638,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    bool_t<Composer> operator>=(const uintNoir& other) const
+    bool_ct operator>=(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -669,7 +660,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    bool_t<Composer> operator<(const uintNoir& other) const
+    bool_ct operator<(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -691,7 +682,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    bool_t<Composer> operator<=(const uintNoir& other) const
+    bool_ct operator<=(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -713,7 +704,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    bool_t<Composer> operator==(const uintNoir& other) const
+    bool_ct operator==(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -736,7 +727,7 @@ template <typename Composer> class uintNoir {
     }
 
 
-    bool_t<Composer> operator!=(const uintNoir& other) const
+    bool_ct operator!=(const uint_nt& other) const
     {
         switch (__width) {
         case 8: {
@@ -758,7 +749,7 @@ template <typename Composer> class uintNoir {
         }
     }
 
-    bool_t<Composer> at(const size_t bit_index) const
+    bool_ct at(const size_t bit_index) const
     {
         switch (__width) {
         case 8: {
@@ -779,20 +770,20 @@ template <typename Composer> class uintNoir {
         }
         }
     }
-    uintNoir operator++() { return operator+(uintNoir(width(), nullptr, 1)); };
-    uintNoir operator--() { return operator-(uintNoir(width(), nullptr, 1)); };
-    uintNoir operator+=(const uintNoir& other) { *this = operator+(other); return *this; };
-    uintNoir operator-=(const uintNoir& other) { *this = operator-(other); return *this; };
-    uintNoir operator*=(const uintNoir& other) { *this = operator*(other); return *this; };
-    uintNoir operator/=(const uintNoir& other) { *this = operator/(other); return *this; };
-    uintNoir operator%=(const uintNoir& other) { *this = operator%(other); return *this; };
+    uint_nt operator++() { return operator+(uint_nt(width(), nullptr, 1)); };
+    uint_nt operator--() { return operator-(uint_nt(width(), nullptr, 1)); };
+    uint_nt operator+=(const uint_nt& other) { *this = operator+(other); return *this; };
+    uint_nt operator-=(const uint_nt& other) { *this = operator-(other); return *this; };
+    uint_nt operator*=(const uint_nt& other) { *this = operator*(other); return *this; };
+    uint_nt operator/=(const uint_nt& other) { *this = operator/(other); return *this; };
+    uint_nt operator%=(const uint_nt& other) { *this = operator%(other); return *this; };
 
-    uintNoir operator&=(const uintNoir& other) { *this = operator&(other); return *this; };
-    uintNoir operator^=(const uintNoir& other) { *this = operator^(other); return *this; };
-    uintNoir operator|=(const uintNoir& other) { *this = operator|(other); return *this; };
+    uint_nt operator&=(const uint_nt& other) { *this = operator&(other); return *this; };
+    uint_nt operator^=(const uint_nt& other) { *this = operator^(other); return *this; };
+    uint_nt operator|=(const uint_nt& other) { *this = operator|(other); return *this; };
 
-    uintNoir operator>>=(const uint64_t const_shift) { *this = operator>>(const_shift); return *this; };
-    uintNoir operator<<=(const uint64_t const_shift) { *this = operator<<(const_shift); return *this; };
+    uint_nt operator>>=(const uint64_t const_shift) { *this = operator>>(const_shift); return *this; };
+    uint_nt operator<<=(const uint64_t const_shift) { *this = operator<<(const_shift); return *this; };
 
     uint256_t get_value() const
     {
@@ -842,15 +833,26 @@ template <typename Composer> class uintNoir {
   private:
     size_t __width;
   public:
-    uint<Composer, uint8_t> uint8;
-    uint<Composer, uint16_t> uint16;
-    uint<Composer, uint32_t> uint32;
-    uint<Composer, uint64_t> uint64;
+    uint8_ct uint8;
+    uint16_ct uint16;
+    uint32_ct uint32;
+    uint64_ct uint64;
 };
 
-template <typename T> inline std::ostream& operator<<(std::ostream& os, uintNoir<T> const& v)
+inline std::ostream& operator<<(std::ostream& os, uint_nt const& v)
 {
-    return os << v.get_value();
+    auto flags = os.flags();
+    os << std::hex << std::setfill('0');
+    auto value =  v.get_value();
+    switch(v.width()) {
+        case 8: os << std::setw(2) << (int)static_cast<uint8_t>(value); break;
+        case 16: os << std::setw(4) << static_cast<uint16_t>(value); break;
+        case 32: os << std::setw(8) << static_cast<uint32_t>(value); break;
+        case 64: os << std::setw(16) << static_cast<uint64_t>(value); break;
+        default: os << v.get_value(); break;
+    }
+    os.flags(flags);
+    return os;
 }
 
 }

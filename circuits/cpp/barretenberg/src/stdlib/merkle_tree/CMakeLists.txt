@@ -4,6 +4,8 @@ FetchContent_Declare(
     GIT_TAG 1.22
 )
 
+set(LEVELDB_BUILD_TESTS OFF)
+
 FetchContent_GetProperties(leveldb)
 if(NOT leveldb_POPULATED)
     FetchContent_Populate(leveldb)

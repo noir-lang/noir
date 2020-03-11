@@ -1,6 +1,6 @@
 #include "function_call.hpp"
 #include "function_statement_visitor.hpp"
-#include "log.hpp"
+#include "../common/log.hpp"
 #include "type_info_from.hpp"
 
 namespace noir {
@@ -12,7 +12,7 @@ var_t builtin_length(std::vector<var_t> const& args)
         abort("Incorrect number of arguments to length(arr).");
     }
     auto arr = boost::get<std::vector<var_t>>(args[0].value());
-    return uint(32, arr.size());
+    return uint_nt(32, arr.size());
 }
 
 var_t builtin_print(std::vector<var_t> const& args)
@@ -21,7 +21,7 @@ var_t builtin_print(std::vector<var_t> const& args)
         abort("Incorrect number of arguments to print.");
     }
     std::cout << "PRINT: " << args[0] << std::endl;
-    return bool_t(false);
+    return bool_ct(false);
 }
 
 var_t builtin_stats(std::vector<var_t> const& args, CompilerContext& ctx)
@@ -33,7 +33,7 @@ var_t builtin_stats(std::vector<var_t> const& args, CompilerContext& ctx)
          ctx.composer.get_num_gates(),
          ctx.composer.get_num_constant_gates(),
          ctx.composer.get_num_variables());
-    return bool_t(false);
+    return bool_ct(false);
 }
 
 void load_builtins(CompilerContext& ctx)

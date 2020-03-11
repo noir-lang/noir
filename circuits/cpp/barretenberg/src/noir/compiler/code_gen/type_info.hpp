@@ -1,5 +1,5 @@
 #pragma once
-#include "../ast.hpp"
+#include "../parser/ast.hpp"
 #include <boost/algorithm/string/join.hpp>
 #include <unordered_map>
 

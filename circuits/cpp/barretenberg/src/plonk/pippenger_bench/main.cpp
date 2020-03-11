@@ -1,22 +1,13 @@
-#include "assert.hpp"
 #include <cstdlib>
+#include <chrono>
+#include <common/assert.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <plonk/reference_string/reference_string.hpp>
+
 //#include <valgrind/callgrind.h>
 // CALLGRIND_START_INSTRUMENTATION;
 // CALLGRIND_STOP_INSTRUMENTATION;
 // CALLGRIND_DUMP_STATS;
-
-#include <chrono>
-
-#include "./waffle/composer/mimc_composer.hpp"
-#include "./waffle/composer/standard_composer.hpp"
-#include "./waffle/proof_system/preprocess.hpp"
-#include "./waffle/proof_system/prover/prover.hpp"
-#include "./waffle/proof_system/verifier/verifier.hpp"
-
-#include "./waffle/stdlib/common.hpp"
-#include "./waffle/stdlib/field/field.hpp"
-#include "./waffle/stdlib/mimc.hpp"
-#include "./waffle/waffle_types.hpp"
 
 using namespace barretenberg;
 
@@ -57,7 +48,7 @@ const auto init = []() {
         accumulator *= element;
         scalars.emplace_back(accumulator);
     }
-    reference_string = waffle::ReferenceString(NUM_POINTS, BARRETENBERG_SRS_PATH);
+    reference_string = waffle::ReferenceString(NUM_POINTS, "../srs_db");
 
     return 1;
 }();

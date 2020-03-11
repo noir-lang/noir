@@ -11,7 +11,7 @@ inline type_info type_info_from_type_id(CompilerContext ctx, ast::type_id const&
     bool mutable_ = t.qualifier.has_value() && t.qualifier.value() == ast::q_mutable;
     if (t.array_size.has_value()) {
         auto size_var = ExpressionVisitor(ctx, type_uint32)(t.array_size.value());
-        size_t size = static_cast<size_t>(boost::get<uint>(size_var.value()).get_value());
+        size_t size = static_cast<uint64_t>(boost::get<uint_nt>(size_var.value()).get_value());
         return type_info(nt, size, mutable_);
     }
     return type_info(nt);

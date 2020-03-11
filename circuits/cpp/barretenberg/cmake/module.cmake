@@ -8,7 +8,6 @@
 # Then we declare an executable that is to be # built from these object files.
 # This executable will only be linked once it's dependencies are complete, but that's pretty fast.
 
-
 function(barretenberg_module MODULE_NAME)
     file(GLOB_RECURSE SOURCE_FILES *.cpp)
     file(GLOB_RECURSE HEADER_FILES *.hpp)

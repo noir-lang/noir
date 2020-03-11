@@ -12,6 +12,8 @@ namespace {
 }
 
 namespace test_stdlib_uint32 {
+typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
+typedef stdlib::uint8<waffle::TurboComposer> uint8;
 typedef stdlib::uint32<waffle::TurboComposer> uint32;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 
@@ -22,6 +24,26 @@ std::vector<uint32_t> get_random_ints(size_t num)
         result.emplace_back(engine.get_random_uint32());
     }
     return result;
+}
+
+TEST(stdlib_uint32, test_create_from_wires)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    uint8 a = uint8(&composer, std::vector<bool_t>{
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        witness_t(&composer, true),
+    });
+
+    EXPECT_EQ(a.at(0).get_value(), false);
+    EXPECT_EQ(a.at(7).get_value(), true);
+    EXPECT_EQ(static_cast<uint32_t>(a.get_value()), 128U);
 }
 
 TEST(stdlib_uint32, test_add)

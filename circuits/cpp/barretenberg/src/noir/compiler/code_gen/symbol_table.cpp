@@ -1,5 +1,5 @@
 #include "symbol_table.hpp"
-#include "log.hpp"
+#include "../common/log.hpp"
 #include <iostream>
 
 namespace noir {
@@ -18,7 +18,7 @@ void SymbolTable::set(var_t const& var, std::string const& key)
         auto e_type = e.type.type_name();
         auto v_type = var.type.type_name();
         if (e_type != v_type) {
-            abort(format("Cannot assign value with type %s to variable %s with type %s.", v_type, key, e_type));
+            abort("Cannot assign value with type %s to variable %s with type %s.", v_type, key, e_type);
         }
         debug("SYMBOL TABLE UPDATE: %1%", key);
         e = var;

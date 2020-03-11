@@ -1,6 +1,5 @@
 #pragma once
-#include "../../waffle/proof_system/prover/prover.hpp"
-#include "../ast.hpp"
+#include <plonk/composer/turbo_composer.hpp>
 #include "compiler_context.hpp"
 #include "var_t.hpp"
 

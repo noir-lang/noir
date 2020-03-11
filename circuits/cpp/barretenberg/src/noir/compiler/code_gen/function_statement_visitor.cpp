@@ -1,6 +1,6 @@
 #include "function_statement_visitor.hpp"
 #include "expression_visitor.hpp"
-#include "log.hpp"
+#include "../common/log.hpp"
 #include "type_info_from.hpp"
 #include <iostream>
 
@@ -10,7 +10,7 @@ namespace code_gen {
 FunctionStatementVisitor::FunctionStatementVisitor(CompilerContext& ctx, type_info const& target_type)
     : ctx_(ctx)
     , target_type_(target_type)
-    , return_(bool_t(&ctx.composer, false))
+    , return_(bool_ct(&ctx.composer, false))
 {}
 
 var_t FunctionStatementVisitor::operator()(ast::variable_declaration const& x)
@@ -64,18 +64,18 @@ var_t FunctionStatementVisitor::operator()(boost::recursive_wrapper<ast::for_sta
     auto x = x_.get();
     auto from_var = ExpressionVisitor(ctx_, type_uint32)(x.from);
     auto to_var = ExpressionVisitor(ctx_, type_uint32)(x.to);
-    auto from = static_cast<uint32_t>(boost::get<uint>(from_var.value()).get_value());
-    auto to = static_cast<uint32_t>(boost::get<uint>(to_var.value()).get_value());
+    auto from = static_cast<uint32_t>(boost::get<uint_nt>(from_var.value()).get_value());
+    auto to = static_cast<uint32_t>(boost::get<uint_nt>(to_var.value()).get_value());
     ctx_.symbol_table.push();
-    ctx_.symbol_table.declare(uint(32, nullptr, 0), x.counter);
+    ctx_.symbol_table.declare(uint_nt(32, nullptr, 0), x.counter);
     for (uint32_t i = from; i < to; ++i) {
-        ctx_.symbol_table.set(uint(32, &ctx_.composer, i), x.counter);
+        ctx_.symbol_table.set(uint_nt(32, &ctx_.composer, i), x.counter);
         ctx_.symbol_table.push();
         (*this)(x.body);
         ctx_.symbol_table.pop();
     }
     ctx_.symbol_table.pop();
-    return uint(32, nullptr, 0);
+    return uint_nt(32, nullptr, 0);
 }
 
 var_t FunctionStatementVisitor::operator()(ast::return_expr const& x)

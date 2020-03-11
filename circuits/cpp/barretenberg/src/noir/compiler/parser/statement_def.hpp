@@ -5,6 +5,7 @@
 #include "error_handler.hpp"
 #include "expression.hpp"
 #include "statement.hpp"
+#include "../common/log.hpp"
 #include <boost/spirit/home/x3.hpp>
 #include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
 #include <iostream>
@@ -31,8 +32,7 @@ struct int_type_class {
     inline void on_success(Iterator const&, Iterator const&, ast::int_type& t, Context const&)
     {
         if (t.size < 2 || t.size > 64) {
-            std::cout << "Bad integer width." << std::endl;
-            std::abort();
+            abort("Bad integer width.");
         }
     }
 };

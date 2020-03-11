@@ -1,14 +1,16 @@
 #pragma once
-#include "../ast.hpp"
-#include "format.hpp"
+#include "../parser/ast.hpp"
+#include <stdlib/types/turbo.hpp>
+#include "../common/format.hpp"
 #include "lambda_visitor.hpp"
 #include "type_info.hpp"
-#include "types.hpp"
-#include <boost/format.hpp>
+#include "uint_nt.hpp"
 #include <sstream>
 
 namespace noir {
 namespace code_gen {
+
+using namespace plonk::stdlib::types::turbo;
 
 struct var_t;
 
@@ -33,14 +35,14 @@ struct var_t_ref {
 };
 
 struct var_t {
-    typedef boost::variant<bool_t, uint, boost::recursive_wrapper<std::vector<var_t>>> value_t;
+    typedef boost::variant<bool_ct, uint_nt, boost::recursive_wrapper<std::vector<var_t>>> value_t;
     typedef boost::variant<value_t, var_t_ref> internal_value_t;
 
     var_t(value_t const& value, type_info const& type)
         : type(type)
         , value_(value){};
 
-    var_t(uint value)
+    var_t(uint_nt value)
         : type(int_type(value.width(), false))
         , value_(value)
     {}
@@ -50,7 +52,7 @@ struct var_t {
     {
         std::vector<var_t> values;
         std::transform(str.begin(), str.end(), std::back_inserter(values), [&](char c) {
-            return noir::code_gen::uint(8, witness_t(&composer, c));
+            return uint_nt(8, witness_ct(&composer, c));
         });
         value_ = values;
     }
@@ -60,7 +62,7 @@ struct var_t {
     {
         std::vector<var_t> values;
         std::transform(input.begin(), input.end(), std::back_inserter(values), [&](uint8_t c) {
-            return noir::code_gen::uint(8, witness_t(&composer, c));
+            return uint_nt(8, witness_ct(&composer, c));
         });
         value_ = values;
     }
@@ -70,17 +72,17 @@ struct var_t {
     {
         std::vector<var_t> values;
         std::transform(input.begin(), input.end(), std::back_inserter(values), [&](uint32_t c) {
-            return noir::code_gen::uint(32, witness_t(&composer, c));
+            return uint_nt(32, witness_ct(&composer, c));
         });
         value_ = values;
     }
 
     var_t(char value)
         : type(type_uint8)
-        , value_(uint(8, (uint8_t)value))
+        , value_(uint_nt(8, (uint8_t)value))
     {}
 
-    var_t(bool_t value)
+    var_t(bool_ct value)
         : type(type_bool)
         , value_(value)
     {}
@@ -137,8 +139,8 @@ struct var_t_printer : boost::static_visitor<std::ostream&> {
     var_t_printer(std::ostream& os)
         : os(os)
     {}
-    result_type operator()(uint const& v) const { return os << v; }
-    result_type operator()(bool_t const& v) const { return os << v; }
+    result_type operator()(uint_nt const& v) const { return os << v; }
+    result_type operator()(bool_ct const& v) const { return os << v; }
 
     result_type operator()(std::vector<var_t> const& v) const
     {
@@ -168,8 +170,8 @@ struct VarTFactoryVisitor : boost::static_visitor<var_t> {
     VarTFactoryVisitor(type_info const& type, Composer& composer)
         : composer(composer)
         , type(type){};
-    result_type operator()(bool_type const&) const { return var_t(bool_t(&composer), type); }
-    result_type operator()(int_type const& t) const { return var_t(uint(t.width, &composer), type); }
+    result_type operator()(bool_type const&) const { return var_t(bool_ct(&composer), type); }
+    result_type operator()(int_type const& t) const { return var_t(uint_nt(t.width, &composer), type); }
     // result_type operator()(int_type const& t) const { return var_t(uint(t.width, &composer), type); }
     result_type operator()(array_type const& arr) const
     {

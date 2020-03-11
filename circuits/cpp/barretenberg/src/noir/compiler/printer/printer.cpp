@@ -5,7 +5,7 @@
 #include <set>
 
 namespace noir {
-namespace code_gen {
+namespace printer {
 
 void printer::operator()(unsigned int x) const
 {
@@ -122,7 +122,7 @@ void printer::operator()(ast::variable_declaration const& x) const
 
 void printer::operator()(ast::function_declaration const& x) const
 {
-    std::cout << "function declaration: " << x.return_type.type << " " << x.name << std::endl;
+    std::cout << "function declaration: " << x.name << std::endl;
 }
 
 void printer::operator()(ast::statement const& x) const

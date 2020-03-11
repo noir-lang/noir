@@ -1,11 +1,10 @@
 #pragma once
-#include "ast.hpp"
-#include "error_handler.hpp"
+#include "../parser/ast.hpp"
 #include <map>
 #include <vector>
 
 namespace noir {
-namespace code_gen {
+namespace printer {
 
 struct printer {
     typedef void result_type;

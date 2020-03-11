@@ -3,7 +3,6 @@
 #include <iostream>
 
 namespace noir {
-namespace code_gen {
 
 namespace {
 inline void format_chain(boost::format&) {}
@@ -27,5 +26,4 @@ template <typename... Args> std::string format(std::string const& str, Args... a
     return fmt.str();
 }
 
-} // namespace code_gen
 } // namespace noir

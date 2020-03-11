@@ -1,7 +1,7 @@
 #include "expression_visitor.hpp"
 #include "function_call.hpp"
 #include "function_statement_visitor.hpp"
-#include "log.hpp"
+#include "../common/log.hpp"
 #include "operators.hpp"
 #include "type_info_from.hpp"
 #include <boost/format.hpp>
@@ -17,12 +17,12 @@ ExpressionVisitor::ExpressionVisitor(CompilerContext& ctx, type_info const& targ
 
 var_t ExpressionVisitor::operator()(unsigned int x)
 {
-    debug("uint constant (target type %1%): %2%", target_type_, x);
+    debug("uint_nt constant (target type %1%): %2%", target_type_, x);
     auto it = boost::get<int_type>(&target_type_.type);
     if (!it) {
         abort(format("Cannot create type %s from constant %d.", target_type_.type_name(), x));
     }
-    return var_t(uint(it->width, &ctx_.composer, x), target_type_);
+    return var_t(uint_nt(it->width, &ctx_.composer, x), target_type_);
 }
 
 var_t ExpressionVisitor::operator()(bool x)
@@ -31,7 +31,7 @@ var_t ExpressionVisitor::operator()(bool x)
     if (!boost::get<bool_type>(&target_type_.type)) {
         abort(format("Cannot create type %s from constant %d.", target_type_.type_name(), x));
     }
-    return var_t(bool_t(&ctx_.composer, x), target_type_);
+    return var_t(bool_ct(&ctx_.composer, x), target_type_);
 }
 
 var_t ExpressionVisitor::operator()(ast::array const& x)
@@ -57,7 +57,7 @@ var_t ExpressionVisitor::operator()(var_t vlhs, ast::operation const& x)
         auto rhs = boost::apply_visitor(ExpressionVisitor(ctx_, type_uint32), x.operand_);
 
         // Evaluate index.
-        uint* iptr = boost::get<uint>(&rhs.value());
+        uint_nt* iptr = boost::get<uint_nt>(&rhs.value());
         if (!iptr) {
             abort("Index must be an integer.");
         }
@@ -202,18 +202,18 @@ struct IndexedAssignVisitor : boost::static_visitor<var_t> {
         return lhs[i] = rhs;
     }
 
-    var_t operator()(uint& lhs) const
+    var_t operator()(uint_nt& lhs) const
     {
         // Evaluate rhs of assignment, should resolve to bool.
         var_t rhs = ExpressionVisitor(ctx, type_bool)(rhs_expr);
-        bool_t bit = boost::get<bool_t>(rhs.value());
-        std::vector<bool_t> wires(lhs.width());
+        bool_ct bit = boost::get<bool_ct>(rhs.value());
+        std::vector<bool_ct> wires(lhs.width());
         size_t flipped = lhs.width() - i - 1;
         for (size_t j = 0; j < lhs.width(); ++j) {
             wires[j] = j == flipped ? bit : lhs.at(j);
         }
-        lhs = uint(&ctx.composer, wires);
-        debug("indexed assign bit %1% to %2% = %3%", i, bit, lhs);
+        lhs = uint_nt(&ctx.composer, wires);
+        debug("indexed assign bit %1% to %2% = lhs(%3%)", i, bit, lhs);
         return bit;
     }
 
@@ -239,7 +239,7 @@ var_t ExpressionVisitor::operator()(ast::assignment const& x)
         for (size_t j = 0; j < x.lhs.indexes.size() - 1; ++j) {
             // Evaluate index.
             auto ivar = ExpressionVisitor(ctx_, type_uint32)(x.lhs.indexes[0]);
-            auto iv = boost::get<uint>(ivar.value());
+            auto iv = boost::get<uint_nt>(ivar.value());
             if (!iv.is_constant()) {
                 abort("Index must be constant.");
             }
@@ -254,7 +254,7 @@ var_t ExpressionVisitor::operator()(ast::assignment const& x)
 
         // Evaluate final index.
         auto ivar = ExpressionVisitor(ctx_, type_uint32)(x.lhs.indexes.back());
-        uint iv = boost::get<uint>(ivar.value());
+        uint_nt iv = boost::get<uint_nt>(ivar.value());
         if (!iv.is_constant()) {
             abort("Index must be constant.");
         }

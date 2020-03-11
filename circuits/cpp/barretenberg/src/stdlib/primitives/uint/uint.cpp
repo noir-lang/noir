@@ -64,6 +64,7 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
         accumulator = accumulator + scaling_factor * other.get_bit(i);
         scaling_factor = scaling_factor + scaling_factor;
     }
+    accumulator = accumulator.normalize();
     if (accumulator.witness_index == UINT32_MAX) {
         additive_constant = uint256_t(accumulator.additive_constant);
     } else {
@@ -90,6 +91,7 @@ uint<Composer, Native>::uint(Composer* parent_context, const std::vector<bool_t<
         accumulator = accumulator + scaling_factor * wires[i];
         scaling_factor = scaling_factor + scaling_factor;
     }
+    accumulator = accumulator.normalize();
     if (accumulator.witness_index == UINT32_MAX) {
         additive_constant = uint256_t(accumulator.additive_constant);
     } else {

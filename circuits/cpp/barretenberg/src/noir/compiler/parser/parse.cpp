@@ -1,3 +1,4 @@
+#include "../common/log.hpp"
 #include "parse.hpp"
 #include "config.hpp"
 #include "expression.hpp"
@@ -21,9 +22,9 @@ template <typename T, typename AST> AST parse(iterator_type begin, iterator_type
     bool success = phrase_parse(begin, end, eparser, space_comment, ast);
 
     if (!success || begin != end) {
-        // throw std::runtime_error();
-        std::cout << "Parser failed at: " << std::string(begin, begin + 10) << std::endl;
-        std::abort();
+        std::ostringstream os;
+        os << "Parser failed at: " << std::string(begin, begin + 10);
+        abort(os.str());
     }
 
     return ast;

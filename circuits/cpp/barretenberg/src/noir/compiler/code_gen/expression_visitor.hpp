@@ -1,8 +1,8 @@
 #pragma once
-#include "../ast.hpp"
+#include "../common/log.hpp"
+#include "../parser/ast.hpp"
 #include "compiler_context.hpp"
 #include "symbol_table.hpp"
-#include "types.hpp"
 
 namespace noir {
 namespace code_gen {
@@ -13,7 +13,8 @@ class ExpressionVisitor : boost::static_visitor<var_t> {
 
     var_t operator()(ast::nil) const
     {
-        std::abort();
+        abort("nil");
+        return var_t(false);
     }
     var_t operator()(unsigned int x);
     var_t operator()(bool x);
