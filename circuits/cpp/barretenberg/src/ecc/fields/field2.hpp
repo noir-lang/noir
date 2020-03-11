@@ -1,7 +1,5 @@
 #pragma once
-
-#include <random>
-#include <stdint.h>
+#include <numeric/random/engine.hpp>
 
 namespace barretenberg {
 template <class base_field, class Params> struct alignas(32) field2 {
@@ -96,8 +94,7 @@ template <class base_field, class Params> struct alignas(32) field2 {
     constexpr field2 frobenius_map() const noexcept;
     constexpr void self_frobenius_map() noexcept;
 
-    static field2 random_element(std::mt19937_64* engine = nullptr,
-                                 std::uniform_int_distribution<uint64_t>* dist = nullptr);
+    static field2 random_element(numeric::random::Engine* engine = nullptr);
     static void serialize_to_buffer(const field2& value, uint8_t* buffer)
     {
         base_field::serialize_to_buffer(value.c0, buffer);

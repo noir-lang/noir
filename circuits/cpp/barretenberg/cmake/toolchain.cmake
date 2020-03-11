@@ -9,9 +9,9 @@ if(FORCE_CLANG)
 endif()
 
 if(ARM)
-    set(CMAKE_TOOLCHAIN_FILE "./toolchains/arm64-linux-gcc.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "./cmake/toolchains/arm64-linux-gcc.cmake")
 endif()
 
 if(WASM)
-    set(CMAKE_TOOLCHAIN_FILE "./toolchains/wasm-linux-clang.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "./cmake/toolchains/wasm-linux-clang.cmake")
 endif()

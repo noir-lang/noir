@@ -4,7 +4,7 @@
 using namespace barretenberg;
 
 namespace {
-random::Engine& engine = random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 TEST(standard_composer, test_add_gate_proofs)

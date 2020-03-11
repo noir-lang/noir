@@ -8,7 +8,7 @@ using namespace barretenberg;
 using namespace plonk;
 
 namespace {
-    random::Engine& engine = random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 namespace test_stdlib_uint32 {
@@ -30,16 +30,17 @@ TEST(stdlib_uint32, test_create_from_wires)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
 
-    uint8 a = uint8(&composer, std::vector<bool_t>{
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        witness_t(&composer, true),
-    });
+    uint8 a = uint8(&composer,
+                    std::vector<bool_t>{
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        witness_t(&composer, true),
+                    });
 
     EXPECT_EQ(a.at(0).get_value(), false);
     EXPECT_EQ(a.at(7).get_value(), true);

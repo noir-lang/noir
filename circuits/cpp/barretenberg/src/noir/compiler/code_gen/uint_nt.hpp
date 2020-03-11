@@ -782,8 +782,8 @@ class uint_nt {
     uint_nt operator^=(const uint_nt& other) { *this = operator^(other); return *this; };
     uint_nt operator|=(const uint_nt& other) { *this = operator|(other); return *this; };
 
-    uint_nt operator>>=(const uint64_t const_shift) { *this = operator>>(const_shift); return *this; };
-    uint_nt operator<<=(const uint64_t const_shift) { *this = operator<<(const_shift); return *this; };
+    uint_nt operator>>=(const size_t const_shift) { *this = operator>>(const_shift); return *this; };
+    uint_nt operator<<=(const size_t const_shift) { *this = operator<<(const_shift); return *this; };
 
     uint256_t get_value() const
     {

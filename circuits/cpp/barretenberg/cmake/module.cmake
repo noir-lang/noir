@@ -31,19 +31,6 @@ function(barretenberg_module MODULE_NAME)
             ${ARGN}
         )
 
-        if(WASM)
-            add_executable(
-                ${MODULE_NAME}.wasm
-                $<TARGET_OBJECTS:${MODULE_NAME}_objects>
-            )
-
-            target_link_options(
-                ${MODULE_NAME}.wasm
-                PRIVATE
-                -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory
-            )
-        endif()
-
         set(MODULE_LINK_NAME ${MODULE_NAME})
     endif()
 
@@ -82,6 +69,9 @@ function(barretenberg_module MODULE_NAME)
             gtest_main
         )
 
-        gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        if(NOT WASM)
+            # Currently haven't found a way to easily wrap the calls in wasmtime when run from ctest.
+            gtest_discover_tests(${MODULE_NAME}_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        endif()
     endif()
 endfunction()

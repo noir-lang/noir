@@ -11,38 +11,86 @@ git clone https://github.com/AztecProtocol/barretenberg
 
 mkdir build && cd build
 cmake ..
-cmake --build .
+make -j$(nproc) [optional target name]
 ```
 
-To run tests, in the /build directory run
+### Tests
+
+Each module has its own tests. To run, for example `ecc` tests:
 
 ```
-test/barretenberg_tests
+./src/ecc/ecc_tests
 ```
 
-To run benchmarks, in the /build directory run
+Running the entire suite of tests using `ctest`:
 
 ```
-test/barretenberg_bench
+make test
 ```
 
 To compile without tests and benchmarks, use `cmake .. -DTESTING=OFF -DBENCHMARKS=OFF`
 
-To select a test, run `./test/barretenberg_tests --gtest_filter=<test_filter>*`
+To select a test, run `<path_to_module_tests> --gtest_filter=<test_filter>*`
 
-To build in debug mode:
+### Debug build
 
 ```
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE="Debug"
-cmake --build .
+make -j$(nproc)
 ```
 
-To build without x64 assembly:
+### Build without x64 assembly:
 
 ```
 mkdir build && cd build
 cmake .. -DDISABLE_ASM=ON
-cmake --build .
+make -j$(nproc)
 ```
 
+### WASM build
+
+```
+mkdir build-wasm && cd build-wasm
+cmake .. -DWASM=ON
+make -j$(nproc) barretenberg.wasm
+```
+
+The resulting binary will be at `./src/barretenberg.wasm` and can be copied to `barretenberg.js` for use in node and the browser.
+
+Wasm build does not currently support `ctest` meaning you must run each modules tests individually.
+
+### Modules
+
+The following is the tree of module targets. e.g. to build `keccak` just `make keccack` (ignore the path).
+
+```
+crypto
+  |_keccak
+    blake2s
+    pedersen
+    sha256
+    schnorr
+ecc
+noir
+  |_noir_cli
+    noir
+numeric
+plonk
+  |_composer
+    pippenger_bench
+    proof_system
+    reference_string
+    transcript
+polynomials
+rollup
+srs
+stdlib
+  |_stdlib_bit_array
+    stdlib_bool
+    stdlib_byte_array
+    stdlib_field
+    stdlib_uint
+```
+
+Their test targets are at `<module_name>_tests`.

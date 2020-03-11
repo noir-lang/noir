@@ -1,6 +1,5 @@
 #pragma once
-
-#include <random>
+#include <numeric/random/engine.hpp>
 
 namespace barretenberg {
 template <typename quadratic_field, typename base_field, typename Fq12Params> class field12 {
@@ -233,12 +232,11 @@ template <typename quadratic_field, typename base_field, typename Fq12Params> cl
         };
     }
 
-    static constexpr field12 random_element(std::mt19937_64* engine = nullptr,
-                                            std::uniform_int_distribution<uint64_t>* dist = nullptr)
+    static constexpr field12 random_element(numeric::random::Engine* engine = nullptr)
     {
         return {
-            base_field::random_element(engine, dist),
-            base_field::random_element(engine, dist),
+            base_field::random_element(engine),
+            base_field::random_element(engine),
         };
     }
 

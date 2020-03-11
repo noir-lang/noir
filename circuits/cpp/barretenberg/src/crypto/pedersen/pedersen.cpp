@@ -209,7 +209,7 @@ grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right
     grumpkin::g1::element first = hash_single(left, hash_index);
     grumpkin::g1::element second = hash_single(right, hash_index + 1);
     r = first + second;
-    r = grumpkin::g1::normalize(r);
+    r = r.normalize();
     return r.x;
 #endif
 }

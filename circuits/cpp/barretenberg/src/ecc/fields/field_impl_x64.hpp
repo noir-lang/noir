@@ -6,7 +6,7 @@
 namespace barretenberg {
 
 /*
-template <class T> void field<T>::asm_butterfly(field& left, field& root) noexcept
+asm_butterfly(field& left, field& root) noexcept
 {
     __asm__(MUL("32(%0)", "40(%0)", "48(%0)", "56(%0)", "%1")
             // r12, r13, r14, r15 contains b*omega

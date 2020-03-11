@@ -479,19 +479,18 @@ constexpr bool element<Fq, Fr, T>::operator==(const element& other) const noexce
 }
 
 template <class Fq, class Fr, class T>
-element<Fq, Fr, T> element<Fq, Fr, T>::random_element(std::mt19937_64* engine,
-                                                      std::uniform_int_distribution<uint64_t>* dist) noexcept
+element<Fq, Fr, T> element<Fq, Fr, T>::random_element(numeric::random::Engine* engine) noexcept
 {
     if constexpr (T::can_hash_to_curve) {
-        element result = random_coordinates_on_curve(engine, dist);
-        result.z = Fq::random_element(engine, dist);
+        element result = random_coordinates_on_curve(engine);
+        result.z = Fq::random_element(engine);
         Fq zz = result.z.sqr();
         Fq zzz = zz * result.z;
         result.x *= zz;
         result.y *= zzz;
         return result;
     } else {
-        Fr scalar = Fr::random_element(engine, dist);
+        Fr scalar = Fr::random_element(engine);
         return (element{ T::one_x, T::one_y, Fq::one() } * scalar);
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <numeric/uint256/uint256.hpp>
+#include <numeric/random/engine.hpp>
 #include <common/inline.hpp>
 #include <array>
 #include <random>
@@ -26,8 +27,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     constexpr operator affine_element<Fq, Fr, Params>() const noexcept;
 
-    static element random_element(std::mt19937_64* engine = nullptr,
-                                  std::uniform_int_distribution<uint64_t>* dist = nullptr) noexcept;
+    static element random_element(numeric::random::Engine* engine = nullptr) noexcept;
 
     constexpr element dbl() const noexcept;
     constexpr void self_dbl() noexcept;
@@ -78,8 +78,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     element mul_with_endomorphism(const Fr& exponent) const noexcept;
 
     template <typename = typename std::enable_if<Params::can_hash_to_curve>>
-    static element random_coordinates_on_curve(std::mt19937_64* engine = nullptr,
-                                               std::uniform_int_distribution<uint64_t>* dist = nullptr) noexcept
+    static element random_coordinates_on_curve(numeric::random::Engine* engine = nullptr) noexcept
     {
         bool found_one = false;
         Fq yy;
@@ -87,7 +86,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
         Fq y;
         Fq t0;
         while (!found_one) {
-            x = Fq::random_element(engine, dist);
+            x = Fq::random_element(engine);
             yy = x.sqr() * x + Params::b;
             y = yy.sqrt();
             t0 = y.sqr();

@@ -5,7 +5,7 @@
 #include "unistd.h"
 #include <random>
 
-namespace barretenberg {
+namespace numeric {
 namespace random {
 
 class Engine {
@@ -33,6 +33,7 @@ class Engine {
 };
 
 Engine& get_debug_engine();
+Engine& get_engine();
 
 } // namespace random
 } // namespace barretenberg

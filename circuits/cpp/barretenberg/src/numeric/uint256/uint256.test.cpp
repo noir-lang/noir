@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 namespace {
-auto& engine = barretenberg::random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 TEST(uint256, get_bit)

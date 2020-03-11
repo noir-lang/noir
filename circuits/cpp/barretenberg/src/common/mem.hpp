@@ -14,7 +14,7 @@ inline void aligned_free(void* mem) {
 }
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__wasm__)
 inline void aligned_free(void* mem) {
   free(mem);
 }

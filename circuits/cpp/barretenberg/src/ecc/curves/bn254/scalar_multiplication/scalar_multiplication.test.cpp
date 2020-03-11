@@ -2,7 +2,7 @@
 #include <chrono>
 #include <vector>
 #include <srs/io.hpp>
-#include "scalar_multiplication.cpp"
+#include "scalar_multiplication.hpp"
 
 #define BARRETENBERG_SRS_PATH "../srs_db"
 
@@ -164,9 +164,9 @@ TEST(scalar_multiplication, reduce_buckets_simple)
     }
 
     for (size_t i = 0; i < num_points; ++i) {
-        uint64_t schedule = transcript[i] & 0x7fffffffU;
+        size_t schedule = transcript[i] & 0x7fffffffU;
         {
-            expected[schedule] += monomials[transcript_points[i]];
+            expected[schedule] += monomials[static_cast<size_t>(transcript_points[i])];
         }
     }
 

@@ -1,10 +1,10 @@
 #pragma once
-
 #include <cstdint>
 #include <iostream>
 #include <array>
 #include <random>
 #include <numeric/uint256/uint256.hpp>
+#include <numeric/random/engine.hpp>
 #include <common/inline.hpp>
 
 #if defined(__SIZEOF_INT128__)
@@ -105,6 +105,7 @@ template <class Params> struct alignas(32) field {
 
     BBERG_INLINE constexpr field pow(const uint256_t& exponent) const noexcept;
     BBERG_INLINE constexpr field pow(const uint64_t exponent) const noexcept;
+    static constexpr uint256_t modulus_minus_two = uint256_t(Params::modulus_0 - 2ULL, Params::modulus_1, Params::modulus_2, Params::modulus_3);
     constexpr field invert() const noexcept;
     static void batch_invert(field* coeffs, const size_t n) noexcept;
     constexpr field sqrt() const noexcept;
@@ -290,8 +291,7 @@ template <class Params> struct alignas(32) field {
         src = T;
     }
 
-    static field random_element(std::mt19937_64* engine = nullptr,
-                                std::uniform_int_distribution<uint64_t>* dist = nullptr) noexcept;
+    static field random_element(numeric::random::Engine* engine= nullptr) noexcept;
 
     static constexpr field multiplicative_generator() noexcept;
 

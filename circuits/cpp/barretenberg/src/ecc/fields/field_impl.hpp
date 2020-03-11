@@ -303,6 +303,7 @@ template <class T> constexpr field<T> field<T>::pow(const uint64_t exponent) con
 
 template <class T> constexpr field<T> field<T>::invert() const noexcept
 {
+    /*
     if (*this == zero()) {
         return zero();
     }
@@ -345,6 +346,8 @@ template <class T> constexpr field<T> field<T>::invert() const noexcept
         }
     }
     return accumulator;
+    */
+    return pow(modulus_minus_two);
 }
 
 template <class T> void field<T>::batch_invert(field* coeffs, const size_t n) noexcept
@@ -512,21 +515,15 @@ template <class T> constexpr field<T> field<T>::get_root_of_unity(const size_t s
 }
 
 template <class T>
-field<T> field<T>::random_element(std::mt19937_64* engine, std::uniform_int_distribution<uint64_t>* dist) noexcept
+field<T> field<T>::random_element(numeric::random::Engine* engine) noexcept
 {
-    std::mt19937_64* engine_ptr;
-    std::uniform_int_distribution<uint64_t>* dist_ptr;
     if (engine == nullptr) {
-        engine_ptr = &barretenberg::random::get_debug_engine().engine;
-        dist_ptr = &barretenberg::random::get_debug_engine().dist;
-    } else {
-        engine_ptr = engine;
-        dist_ptr = dist;
+        engine = &numeric::random::get_engine();
     }
-    wide_array random_data{ dist_ptr->operator()(*engine_ptr), dist_ptr->operator()(*engine_ptr),
-                            dist_ptr->operator()(*engine_ptr), dist_ptr->operator()(*engine_ptr),
-                            dist_ptr->operator()(*engine_ptr), dist_ptr->operator()(*engine_ptr),
-                            dist_ptr->operator()(*engine_ptr), dist_ptr->operator()(*engine_ptr) };
+    wide_array random_data{ engine->get_random_uint64(), engine->get_random_uint64(),
+                            engine->get_random_uint64(), engine->get_random_uint64(),
+                            engine->get_random_uint64(), engine->get_random_uint64(),
+                            engine->get_random_uint64(), engine->get_random_uint64(), };
     random_data.data[7] = random_data.data[7] & 0b0000111111111111111111111111111111111111111111111111111111111111ULL;
     random_data.data[3] = random_data.data[3] & 0b0000111111111111111111111111111111111111111111111111111111111111ULL;
     field left{ random_data.data[0], random_data.data[1], random_data.data[2], random_data.data[3] };

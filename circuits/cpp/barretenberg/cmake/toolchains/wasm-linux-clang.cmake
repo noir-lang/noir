@@ -8,6 +8,7 @@ set(CMAKE_SYSTEM_VERSION 1)
 set(CMAKE_SYSTEM_PROCESSOR wasm32)
 set(triple wasm32-wasi)
 
+set(WASI_SDK_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/src/wasi-sdk-8.0")
 set(CMAKE_C_COMPILER ${WASI_SDK_PREFIX}/bin/clang)
 set(CMAKE_CXX_COMPILER ${WASI_SDK_PREFIX}/bin/clang++)
 set(CMAKE_AR ${WASI_SDK_PREFIX}/bin/llvm-ar CACHE STRING "wasi-sdk build")

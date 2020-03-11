@@ -8,7 +8,7 @@ using namespace barretenberg;
 using namespace plonk;
 
 namespace {
-    random::Engine& engine = random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
@@ -138,8 +138,7 @@ TEST(stdlib_turbo_uint32, test_divide)
         uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val = dividend_is_divisor ? a_val : engine.get_random_uint32();
         uint32_t const_a = dividend_zero ? 0 - a_val : engine.get_random_uint32();
-        uint32_t const_b =
-            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
+        uint32_t const_b = divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
         uint32_t expected = (a_val + const_a) / (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -193,8 +192,7 @@ TEST(stdlib_turbo_uint32, test_modulo)
         uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val = dividend_is_divisor ? a_val : engine.get_random_uint32();
         uint32_t const_a = dividend_zero ? 0 - a_val : engine.get_random_uint32();
-        uint32_t const_b =
-            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
+        uint32_t const_b = divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
         uint32_t expected = (a_val + const_a) % (b_val + const_b);
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
@@ -249,8 +247,7 @@ TEST(stdlib_turbo_uint32, test_divide_by_zero_fails)
         uint32_t a_val = engine.get_random_uint32();
         uint32_t b_val = dividend_is_divisor ? a_val : engine.get_random_uint32();
         uint32_t const_a = dividend_zero ? 0 - a_val : engine.get_random_uint32();
-        uint32_t const_b =
-            divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
+        uint32_t const_b = divisor_zero ? 0 - b_val : (dividend_is_divisor ? const_a : engine.get_random_uint32());
         uint32 a = lhs_constant ? uint32(&composer, a_val) : witness_t(&composer, a_val);
         uint32 b = rhs_constant ? uint32(&composer, b_val) : witness_t(&composer, b_val);
         uint32 a_shift = uint32(&composer, const_a);

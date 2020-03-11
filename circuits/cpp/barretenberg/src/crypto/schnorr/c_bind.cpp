@@ -3,6 +3,7 @@
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 extern "C" {
 
 WASM_EXPORT void compute_public_key(uint8_t const* private_key, uint8_t* public_key_buf)

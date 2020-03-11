@@ -3,7 +3,7 @@
 #include "uint512.hpp"
 
 namespace {
-auto& engine = barretenberg::random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 TEST(uint512, get_bit)

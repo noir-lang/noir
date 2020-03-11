@@ -6,8 +6,10 @@ target_include_directories(
   ${PROJECT_SOURCE_DIR}/src/boost
 )
 
-target_include_directories(
-  noir_test_objects
-  SYSTEM PRIVATE
-  ${PROJECT_SOURCE_DIR}/src/boost
-)
+if(TESTING)
+  target_include_directories(
+    noir_test_objects
+    SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/boost
+  )
+endif()

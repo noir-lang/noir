@@ -5,7 +5,7 @@
 using namespace barretenberg;
 
 namespace {
-auto& engine = barretenberg::random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 TEST(turbo_composer, base_case)

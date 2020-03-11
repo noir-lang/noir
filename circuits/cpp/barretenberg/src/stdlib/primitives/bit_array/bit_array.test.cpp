@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <numeric/random/engine.hpp>
 #include <plonk/composer/standard_composer.hpp>
 #include "bit_array.hpp"
 
@@ -8,7 +9,7 @@ using namespace barretenberg;
 using namespace plonk;
 
 namespace {
-    random::Engine& engine = random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 typedef stdlib::bool_t<waffle::StandardComposer> bool_t;
