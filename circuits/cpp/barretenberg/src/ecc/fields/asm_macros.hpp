@@ -639,8 +639,8 @@
  * Compute Montgomery multiplication of a, b.
  * Result is stored, in (%%r12, %%r13, %%r14, %%r15), in preparation for being stored in "r"
  **/
-#define MUL(a, b)     \
-        "movq 0(" a "), %%rdx                      \n\t" /* load a[0] into %rdx                                     */  \
+#define MUL(a1, a2, a3, a4, b)     \
+        "movq " a1 ", %%rdx                      \n\t" /* load a[0] into %rdx                                     */  \
         "xorq %%r8, %%r8                           \n\t" /* clear r10 register, we use this when we need 0          */  \
         /* front-load mul ops, can parallelize 4 of these but latency is 4 cycles */                                    \
         "mulxq 0(" b "), %%r13, %%r14              \n\t" /* (r[0], r[1]) <- a[0] * b[0]                             */  \
@@ -682,7 +682,7 @@
         /* N.B. the value of r[4] now has a max of 63 bits and can accept another 62 bit value before overflowing   */  \
                                                                                                                         \
         /* a[1] * b */                                                                                                  \
-        "movq 8(" a "), %%rdx                      \n\t" /* load a[1] into %rdx                                     */  \
+        "movq " a2 ", %%rdx                      \n\t" /* load a[1] into %rdx                                     */  \
         "mulxq 0(" b "), %%r8, %%r9                \n\t" /* (t[0], t[1]) <- (a[1] * b[0])                           */  \
         "mulxq 8(" b "), %%rdi, %%r11              \n\t" /* (t[4], t[5]) <- (a[1] * b[1])                           */  \
         "adcxq %%r8, %%r14                         \n\t" /* r[1] += t[0] + flag_c                                   */  \
@@ -716,7 +716,7 @@
         "adoxq %[zero_reference], %%r13            \n\t"  /* r[5] += flag_o                                         */  \
                                                                                                                         \
         /* a[2] * b */                                                                                                  \
-        "movq 16(" a "), %%rdx                     \n\t" /* load a[2] into %rdx                                     */  \
+        "movq " a3 ", %%rdx                     \n\t" /* load a[2] into %rdx                                     */  \
         "mulxq 0(" b "), %%r8, %%r9                \n\t" /* (t[0], t[1]) <- (a[2] * b[0])                           */  \
         "mulxq 8(" b "), %%rdi, %%r11              \n\t" /* (t[0], t[1]) <- (a[2] * b[1])                           */  \
         "adcxq %%r8, %%r15                         \n\t" /* r[2] += t[0] + flag_c                                   */  \
@@ -749,7 +749,7 @@
         "adoxq %[zero_reference], %%r14            \n\t"  /* r[6] += flag_o                                         */  \
                                                                                                                         \
         /* a[3] * b */                                                                                                  \
-        "movq 24(" a "), %%rdx                     \n\t"  /* load a[3] into %rdx                                    */  \
+        "movq " a4 ", %%rdx                     \n\t"  /* load a[3] into %rdx                                    */  \
         "mulxq 0(" b "), %%r8, %%r9                \n\t"  /* (t[0], t[1]) <- (a[3] * b[0])                          */  \
         "mulxq 8(" b "), %%rdi, %%r11              \n\t"  /* (t[4], t[5]) <- (a[3] * b[1])                          */  \
         "adcxq %%r8, %%r10                         \n\t"  /* r[3] += t[0] + flag_c                                  */  \
