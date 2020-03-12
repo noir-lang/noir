@@ -304,20 +304,3 @@ fr polynomial::compute_kate_opening_coefficients(const barretenberg::fr& z)
 {
     return polynomial_arithmetic::compute_kate_opening_coefficients(coefficients, coefficients, z, size);
 }
-
-void polynomial::shrink_evaluation_domain(const size_t shrink_factor)
-{
-    // TODO SUPPORT MORE THAN 2X SHRINK
-    size_t log2_shrink_factor = static_cast<size_t>(log2(shrink_factor));
-    ASSERT(1UL << log2_shrink_factor == shrink_factor);
-
-    fr* new_memory = (fr*)(aligned_alloc(32, sizeof(fr) * max_size >> log2_shrink_factor));
-    for (size_t i = 0; i < size; i += shrink_factor) {
-        fr::__copy(coefficients[i], new_memory[i >> log2_shrink_factor]);
-    }
-    aligned_free(coefficients);
-    coefficients = new_memory;
-    size = size >> log2_shrink_factor;
-    max_size = max_size >> log2_shrink_factor;
-    allocated_pages = allocated_pages >> log2_shrink_factor;
-}

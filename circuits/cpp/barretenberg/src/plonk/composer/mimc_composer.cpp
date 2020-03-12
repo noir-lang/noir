@@ -1,6 +1,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/mimc_widget.hpp>
+#include <numeric/bitop/get_msb.hpp>
 #include "mimc_composer.hpp"
 
 using namespace barretenberg;
@@ -182,7 +183,7 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     }
 
     const size_t total_num_gates = n + offset + public_inputs.size();
-    size_t log2_n = static_cast<size_t>(log2(total_num_gates + 1));
+    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
     if ((1UL << log2_n) != (total_num_gates + 1)) {
         ++log2_n;
     }
@@ -355,7 +356,7 @@ std::shared_ptr<program_witness> MiMCComposer::compute_witness()
     witness = std::make_shared<program_witness>();
 
     const size_t total_num_gates = n + public_inputs.size() + offset;
-    size_t log2_n = static_cast<size_t>(log2(total_num_gates + 1));
+    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
     if ((1UL << log2_n) != (total_num_gates + 1)) {
         ++log2_n;
     }

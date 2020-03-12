@@ -17,29 +17,24 @@ static std::vector<std::string> VALUES = []() {
 
 TEST(stdlib_merkle_tree, test_memory_store)
 {
-    fr e00 = hash_value_native(VALUES[1]);
-    fr e01 = hash_value_native(VALUES[2]);
-    fr e02 = hash_value_native(VALUES[3]);
-    fr e03 = hash_value_native(VALUES[4]);
+    fr e00 = hash_value_native(VALUES[0]);
+    fr e01 = hash_value_native(VALUES[1]);
+    fr e02 = hash_value_native(VALUES[2]);
+    fr e03 = hash_value_native(VALUES[3]);
     fr e10 = compress_native({ e00, e01 });
     fr e11 = compress_native({ e02, e03 });
     fr root = compress_native({ e10, e11 });
-
     MemoryStore db(2);
-
     for (size_t i = 0; i < 4; ++i) {
-        db.update_element(i, VALUES[i + 1]);
+        db.update_element(i, VALUES[i]);
     }
-
     for (size_t i = 0; i < 4; ++i) {
-        EXPECT_EQ(db.get_element(i), VALUES[i + 1]);
+        EXPECT_EQ(db.get_element(i), VALUES[i]);
     }
-
     fr_hash_path expected = {
         std::make_pair(e00, e01),
         std::make_pair(e10, e11),
     };
-
     EXPECT_EQ(db.get_hash_path(0), expected);
     EXPECT_EQ(db.get_hash_path(1), expected);
 

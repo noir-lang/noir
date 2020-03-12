@@ -1,5 +1,7 @@
 #pragma once
 #include <stdlib.h>
+#include <memory>
+#include "memory.h"
 
 #ifdef __APPLE__
 inline void* aligned_alloc(size_t alignment, size_t size)
@@ -9,14 +11,16 @@ inline void* aligned_alloc(size_t alignment, size_t size)
     return t;
 }
 
-inline void aligned_free(void* mem) {
-  free(mem);
+inline void aligned_free(void* mem)
+{
+    free(mem);
 }
 #endif
 
 #if defined(__linux__) || defined(__wasm__)
-inline void aligned_free(void* mem) {
-  free(mem);
+inline void aligned_free(void* mem)
+{
+    free(mem);
 }
 #endif
 
@@ -26,7 +30,8 @@ inline void* aligned_alloc(size_t alignment, size_t size)
     return _aligned_malloc(size, alignment);
 }
 
-inline void aligned_free(void* mem) {
-  _aligned_free(mem);
+inline void aligned_free(void* mem)
+{
+    _aligned_free(mem);
 }
 #endif

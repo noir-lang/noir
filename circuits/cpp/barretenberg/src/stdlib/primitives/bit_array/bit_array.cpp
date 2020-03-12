@@ -1,6 +1,8 @@
 #include "bit_array.hpp"
 #include "../composers/composers.hpp"
 
+#include <bitset>
+
 namespace plonk {
 namespace stdlib {
 

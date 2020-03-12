@@ -22,7 +22,6 @@ template <class Params> struct alignas(32) field {
         self_to_montgomery_form();
     }
 
-
     // static constexpr field from_uint128(uint128_t const input)
     //     : data{ (uint64_t)input, (uint64_t)(input >> 64), 0, 0 }
     // {
@@ -105,7 +104,8 @@ template <class Params> struct alignas(32) field {
 
     BBERG_INLINE constexpr field pow(const uint256_t& exponent) const noexcept;
     BBERG_INLINE constexpr field pow(const uint64_t exponent) const noexcept;
-    static constexpr uint256_t modulus_minus_two = uint256_t(Params::modulus_0 - 2ULL, Params::modulus_1, Params::modulus_2, Params::modulus_3);
+    static constexpr uint256_t modulus_minus_two =
+        uint256_t(Params::modulus_0 - 2ULL, Params::modulus_1, Params::modulus_2, Params::modulus_3);
     constexpr field invert() const noexcept;
     static void batch_invert(field* coeffs, const size_t n) noexcept;
     constexpr field sqrt() const noexcept;
@@ -163,8 +163,7 @@ template <class Params> struct alignas(32) field {
     static inline std::vector<uint8_t> to_buffer(const std::vector<field>& ele)
     {
         std::vector<uint8_t> buffer(sizeof(field) * ele.size());
-        for (size_t i = 0; i < ele.size(); ++i)
-        {
+        for (size_t i = 0; i < ele.size(); ++i) {
             field::serialize_to_buffer(ele[i], &buffer[i * sizeof(field)]);
         }
         return buffer;
@@ -174,8 +173,7 @@ template <class Params> struct alignas(32) field {
     {
         const size_t num_elements = buffer.size() / sizeof(field);
         std::vector<field> elements;
-        for (size_t i = 0; i < num_elements; ++i)
-        {
+        for (size_t i = 0; i < num_elements; ++i) {
             elements.push_back(field::serialize_from_buffer(&buffer[i * sizeof(field)]));
         }
         return elements;
@@ -291,7 +289,7 @@ template <class Params> struct alignas(32) field {
         src = T;
     }
 
-    static field random_element(numeric::random::Engine* engine= nullptr) noexcept;
+    static field random_element(numeric::random::Engine* engine = nullptr) noexcept;
 
     static constexpr field multiplicative_generator() noexcept;
 

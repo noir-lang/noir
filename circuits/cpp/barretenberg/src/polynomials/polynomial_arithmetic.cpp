@@ -2,6 +2,7 @@
 #include <memory.h>
 #include <common/assert.hpp>
 #include <common/mem.hpp>
+#include <numeric/bitop/get_msb.hpp>
 #include "polynomial_arithmetic.hpp"
 #include "iterate_over_domain.hpp"
 
@@ -55,7 +56,7 @@ void copy_polynomial(fr* src, fr* dest, size_t num_src_coefficients, size_t num_
 void fft_inner_serial(fr* coeffs, const size_t domain_size, const std::vector<fr*>& root_table)
 {
     fr temp;
-    size_t log2_size = (size_t)log2(domain_size);
+    size_t log2_size = (size_t)numeric::get_msb(domain_size);
     // efficiently separate odd and even indices - (An introduction to algorithms, section 30.3)
 
     for (size_t i = 0; i <= domain_size; ++i) {
@@ -79,7 +80,7 @@ void fft_inner_serial(fr* coeffs, const size_t domain_size, const std::vector<fr
     }
 
     for (size_t m = 2; m < domain_size; m *= 2) {
-        const size_t i = (size_t)log2(m);
+        const size_t i = (size_t)numeric::get_msb(m);
         for (size_t k = 0; k < domain_size; k += (2 * m)) {
             for (size_t j = 0; j < m; ++j) {
                 temp = root_table[i - 1][j] * coeffs[k + j + m];
@@ -220,9 +221,10 @@ void fft_inner_parallel(fr* coeffs, const evaluation_domain& domain, const fr&, 
                 // block_mask)`
                 const size_t index_mask = ~block_mask;
 
-                // `round_roots` fetches the pointer to this round's lookup table. We use `log2(m) - 1` as our indexer,
-                // because we don't store the precomputed root values for the 1st round (because they're all 1).
-                const fr* round_roots = root_table[static_cast<size_t>(log2(m)) - 1];
+                // `round_roots` fetches the pointer to this round's lookup table. We use `numeric::get_msb(m) - 1` as
+                // our indexer, because we don't store the precomputed root values for the 1st round (because they're
+                // all 1).
+                const fr* round_roots = root_table[static_cast<size_t>(numeric::get_msb(m)) - 1];
 
                 // Finally, we want to treat the final round differently from the others,
                 // so that we can reduce out of our 'coarse' reduction and store the output in `coeffs` instead of
@@ -336,9 +338,10 @@ void fft_inner_parallel(
                 // block_mask)`
                 const size_t index_mask = ~block_mask;
 
-                // `round_roots` fetches the pointer to this round's lookup table. We use `log2(m) - 1` as our indexer,
-                // because we don't store the precomputed root values for the 1st round (because they're all 1).
-                const fr* round_roots = root_table[static_cast<size_t>(log2(m)) - 1];
+                // `round_roots` fetches the pointer to this round's lookup table. We use `numeric::get_msb(m) - 1` as
+                // our indexer, because we don't store the precomputed root values for the 1st round (because they're
+                // all 1).
+                const fr* round_roots = root_table[static_cast<size_t>(numeric::get_msb(m)) - 1];
 
                 // Finally, we want to treat the final round differently from the others,
                 // so that we can reduce out of our 'coarse' reduction and store the output in `coeffs` instead of
@@ -394,7 +397,7 @@ void coset_fft(fr* coeffs, const evaluation_domain& domain)
 
 void coset_fft(fr* coeffs, const evaluation_domain& domain, const evaluation_domain&, const size_t domain_extension)
 {
-    const size_t log2_domain_extension = static_cast<size_t>(log2(domain_extension));
+    const size_t log2_domain_extension = static_cast<size_t>(numeric::get_msb(domain_extension));
     fr primitive_root = fr::get_root_of_unity(domain.log2_size + log2_domain_extension);
 
     // fr work_root = domain.generator.sqr();
@@ -767,7 +770,7 @@ fr compute_barycentric_evaluation(fr* coeffs, const size_t num_coeffs, const fr&
 void compress_fft(const fr* src, fr* dest, const size_t cur_size, const size_t compress_factor)
 {
     // iterate from top to bottom, allows `dest` to overlap with `src`
-    size_t log2_compress_factor = (size_t)log2(compress_factor);
+    size_t log2_compress_factor = (size_t)numeric::get_msb(compress_factor);
     ASSERT(1UL << log2_compress_factor == compress_factor);
     size_t new_size = cur_size >> log2_compress_factor;
     for (size_t i = 0; i < new_size; ++i) {

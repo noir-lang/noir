@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+#include <common/net.hpp>
 #include <numeric/bitop/count_leading_zeros.hpp>
 #include <numeric/bitop/keep_n_lsb.hpp>
 #include "leveldb_store.hpp"
