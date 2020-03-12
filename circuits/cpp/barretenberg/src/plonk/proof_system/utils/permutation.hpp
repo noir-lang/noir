@@ -1,6 +1,7 @@
 #pragma once
 #include <polynomials/polynomial.hpp>
 #include <polynomials/iterate_over_domain.hpp>
+#include <numeric/bitop/get_msb.hpp>
 
 namespace waffle {
 template <typename program_settings>
@@ -19,7 +20,7 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // 2 = output
     const barretenberg::fr* roots = small_domain.get_round_roots()[small_domain.log2_size - 2];
     const size_t root_size = small_domain.size >> 1UL;
-    const size_t log2_root_size = static_cast<size_t>(log2(root_size));
+    const size_t log2_root_size = static_cast<size_t>(numeric::get_msb(root_size));
 
     ITERATE_OVER_DOMAIN_START(small_domain);
     // permutation[i] will specify the 'index' that this wire value will map to
@@ -39,8 +40,8 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
 
     // Step 3: compute the index of the subgroup element we'll be accessing.
     // To avoid a conditional branch, we can subtract `negative_idx << log2_root_size` from `raw_idx`
-    // here, `log2_root_size = log2(subgroup_size / 2)` (we know our subgroup size will be a power of 2, so we lose no
-    // precision here)
+    // here, `log2_root_size = numeric::get_msb(subgroup_size / 2)` (we know our subgroup size will be a power of 2, so
+    // we lose no precision here)
     const size_t idx = raw_idx - (static_cast<size_t>(negative_idx) << log2_root_size);
 
     // call `conditionally_subtract_double_modulus`, using `negative_idx` as our predicate.

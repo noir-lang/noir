@@ -2,6 +2,7 @@
 #include <memory.h>
 #include <common/assert.hpp>
 #include <common/mem.hpp>
+#include <numeric/bitop/get_msb.hpp>
 #include "evaluation_domain.hpp"
 
 #ifndef NO_MULTITHREADING
@@ -31,7 +32,7 @@ void compute_lookup_table_single(const fr& input_root,
                                  fr* const roots,
                                  std::vector<fr*>& round_roots)
 {
-    const size_t num_rounds = static_cast<size_t>(log2(size));
+    const size_t num_rounds = static_cast<size_t>(numeric::get_msb(size));
 
     round_roots.emplace_back(&roots[0]);
     for (size_t i = 1; i < num_rounds - 1; ++i) {
@@ -54,9 +55,9 @@ evaluation_domain::evaluation_domain(const size_t domain_size, const size_t targ
     : size(domain_size)
     , num_threads(compute_num_threads(domain_size))
     , thread_size(domain_size / num_threads)
-    , log2_size(static_cast<size_t>(log2(size)))
-    , log2_thread_size(static_cast<size_t>(log2(thread_size)))
-    , log2_num_threads(static_cast<size_t>(log2(num_threads)))
+    , log2_size(static_cast<size_t>(numeric::get_msb(size)))
+    , log2_thread_size(static_cast<size_t>(numeric::get_msb(thread_size)))
+    , log2_num_threads(static_cast<size_t>(numeric::get_msb(num_threads)))
     , generator_size(target_generator_size ? target_generator_size : domain_size)
     , root(fr::get_root_of_unity(log2_size))
     , root_inverse(root.invert())
@@ -75,9 +76,9 @@ evaluation_domain::evaluation_domain(const evaluation_domain& other)
     : size(other.size)
     , num_threads(compute_num_threads(other.size))
     , thread_size(other.size / num_threads)
-    , log2_size(static_cast<size_t>(log2(size)))
-    , log2_thread_size(static_cast<size_t>(log2(thread_size)))
-    , log2_num_threads(static_cast<size_t>(log2(num_threads)))
+    , log2_size(static_cast<size_t>(numeric::get_msb(size)))
+    , log2_thread_size(static_cast<size_t>(numeric::get_msb(thread_size)))
+    , log2_num_threads(static_cast<size_t>(numeric::get_msb(num_threads)))
     , generator_size(other.generator_size)
     , root(fr::get_root_of_unity(log2_size))
     , root_inverse(root.invert())
@@ -110,9 +111,9 @@ evaluation_domain::evaluation_domain(evaluation_domain&& other)
     : size(other.size)
     , num_threads(compute_num_threads(other.size))
     , thread_size(other.size / num_threads)
-    , log2_size(static_cast<size_t>(log2(size)))
-    , log2_thread_size(static_cast<size_t>(log2(thread_size)))
-    , log2_num_threads(static_cast<size_t>(log2(num_threads)))
+    , log2_size(static_cast<size_t>(numeric::get_msb(size)))
+    , log2_thread_size(static_cast<size_t>(numeric::get_msb(thread_size)))
+    , log2_num_threads(static_cast<size_t>(numeric::get_msb(num_threads)))
     , generator_size(other.generator_size)
     , root(fr::get_root_of_unity(log2_size))
     , root_inverse(root.invert())
@@ -133,9 +134,9 @@ evaluation_domain& evaluation_domain::operator=(evaluation_domain&& other)
     generator_size = other.generator_size;
     num_threads = compute_num_threads(other.size);
     thread_size = other.size / num_threads;
-    log2_size = static_cast<size_t>(log2(size));
-    log2_thread_size = static_cast<size_t>(log2(thread_size));
-    log2_num_threads = static_cast<size_t>(log2(num_threads));
+    log2_size = static_cast<size_t>(numeric::get_msb(size));
+    log2_thread_size = static_cast<size_t>(numeric::get_msb(thread_size));
+    log2_num_threads = static_cast<size_t>(numeric::get_msb(num_threads));
     fr::__copy(other.root, root);
     fr::__copy(other.root_inverse, root_inverse);
     fr::__copy(other.domain, domain);

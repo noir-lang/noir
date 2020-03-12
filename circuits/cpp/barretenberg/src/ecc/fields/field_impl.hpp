@@ -514,16 +514,16 @@ template <class T> constexpr field<T> field<T>::get_root_of_unity(const size_t s
     return r;
 }
 
-template <class T>
-field<T> field<T>::random_element(numeric::random::Engine* engine) noexcept
+template <class T> field<T> field<T>::random_element(numeric::random::Engine* engine) noexcept
 {
     if (engine == nullptr) {
         engine = &numeric::random::get_engine();
     }
-    wide_array random_data{ engine->get_random_uint64(), engine->get_random_uint64(),
-                            engine->get_random_uint64(), engine->get_random_uint64(),
-                            engine->get_random_uint64(), engine->get_random_uint64(),
-                            engine->get_random_uint64(), engine->get_random_uint64(), };
+    wide_array random_data{
+        engine->get_random_uint64(), engine->get_random_uint64(), engine->get_random_uint64(),
+        engine->get_random_uint64(), engine->get_random_uint64(), engine->get_random_uint64(),
+        engine->get_random_uint64(), engine->get_random_uint64(),
+    };
     random_data.data[7] = random_data.data[7] & 0b0000111111111111111111111111111111111111111111111111111111111111ULL;
     random_data.data[3] = random_data.data[3] & 0b0000111111111111111111111111111111111111111111111111111111111111ULL;
     field left{ random_data.data[0], random_data.data[1], random_data.data[2], random_data.data[3] };

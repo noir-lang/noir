@@ -49,7 +49,6 @@ public:
     void reserve(const size_t new_max_size);
     void resize(const size_t new_size);
     void resize_unsafe(const size_t new_size);
-    void shrink_evaluation_domain(const size_t shrink_factor);
 
 private:
     void zero_memory(const size_t zero_size);

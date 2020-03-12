@@ -1,4 +1,7 @@
 #include "byte_array.hpp"
+
+#include <bitset>
+
 #include "../composers/composers.hpp"
 
 namespace plonk {

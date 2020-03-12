@@ -11,6 +11,8 @@ using namespace benchmark;
 
 #include <barretenberg/types.hpp>
 
+#include <barretenberg/numeric/bitop/get_msb.hpp>
+
 #include <barretenberg/curves/bn254/fq.hpp>
 #include <barretenberg/curves/bn254/fr.hpp>
 #include <barretenberg/curves/bn254/g1.hpp>
@@ -218,7 +220,7 @@ BENCHMARK(new_plonk_scalar_multiplications_bench);
 void coset_fft_bench_parallel(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = (size_t)log2(state.range(0)) - (size_t)log2(START);
+        size_t idx = (size_t)numeric::get_msb(state.range(0)) - (size_t)numeric::get_msb(START);
         barretenberg::polynomial_arithmetic::coset_fft(globals.data, evaluation_domains[idx]);
     }
 }
@@ -227,7 +229,7 @@ BENCHMARK(coset_fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GA
 void alternate_coset_fft_bench_parallel(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = (size_t)log2(state.range(0)) - (size_t)log2(START);
+        size_t idx = (size_t)numeric::get_msb(state.range(0)) - (size_t)numeric::get_msb(START);
         barretenberg::polynomial_arithmetic::coset_fft(
             globals.data, evaluation_domains[idx - 2], evaluation_domains[idx - 2], 4);
     }
@@ -237,7 +239,7 @@ BENCHMARK(alternate_coset_fft_bench_parallel)->RangeMultiplier(2)->Range(START *
 void fft_bench_parallel(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = (size_t)log2(state.range(0)) - (size_t)log2(START);
+        size_t idx = (size_t)numeric::get_msb(state.range(0)) - (size_t)numeric::get_msb(START);
         barretenberg::polynomial_arithmetic::fft(globals.data, evaluation_domains[idx]);
     }
 }
@@ -246,7 +248,7 @@ BENCHMARK(fft_bench_parallel)->RangeMultiplier(2)->Range(START * 4, MAX_GATES * 
 void fft_bench_serial(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = (size_t)log2(state.range(0)) - (size_t)log2(START);
+        size_t idx = (size_t)numeric::get_msb(state.range(0)) - (size_t)numeric::get_msb(START);
         barretenberg::polynomial_arithmetic::fft_inner_serial(
             globals.data, evaluation_domains[idx].thread_size, evaluation_domains[idx].get_round_roots());
     }

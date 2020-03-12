@@ -4,6 +4,7 @@
 
 #include <barretenberg/curves/bn254/fr.hpp>
 
+#include <barretenberg/numeric/bitop/get_msb.hpp>
 #include <barretenberg/waffle/composer/standard_composer.hpp>
 #include <barretenberg/waffle/proof_system/preprocess.hpp>
 #include <barretenberg/waffle/proof_system/prover/prover.hpp>
@@ -52,7 +53,8 @@ void construct_proving_keys_bench(State& state) noexcept
     for (auto _ : state) {
         waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         composer.compute_proving_key();
         state.PauseTiming();
         provers[idx] = composer.preprocess();
@@ -67,7 +69,8 @@ void construct_instances_bench(State& state) noexcept
         state.PauseTiming();
         waffle::StandardComposer composer = waffle::StandardComposer(static_cast<size_t>(state.range(0)));
         generate_test_plonk_circuit(composer, static_cast<size_t>(state.range(0)));
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         composer.preprocess();
         state.ResumeTiming();
         verifiers[idx] = composer.create_verifier();
@@ -78,7 +81,8 @@ BENCHMARK(construct_instances_bench)->RangeMultiplier(2)->Range(START, MAX_GATES
 void construct_proofs_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         // provers[idx].reset();
         proofs[idx] = provers[idx].construct_proof();
         state.PauseTiming();
@@ -91,7 +95,8 @@ BENCHMARK(construct_proofs_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
 void verify_proofs_bench(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         verifiers[idx].verify_proof(proofs[idx]);
         state.PauseTiming();
         // if (!result)
@@ -106,7 +111,8 @@ BENCHMARK(verify_proofs_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
 void compute_wire_coefficients(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         provers[idx].reset();
         provers[idx].init_quotient_polynomials();
         provers[idx].compute_wire_coefficients();
@@ -117,7 +123,8 @@ BENCHMARK(compute_wire_coefficients)->RangeMultiplier(2)->Range(START, MAX_GATES
 void compute_wire_commitments(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         provers[idx].reset();
         provers[idx].compute_wire_commitments();
     }
@@ -127,7 +134,8 @@ BENCHMARK(compute_wire_commitments)->RangeMultiplier(2)->Range(START, MAX_GATES)
 void compute_z_coefficients(State& state) noexcept
 {
     for (auto _ : state) {
-        size_t idx = static_cast<size_t>(log2(state.range(0))) - static_cast<size_t>(log2(START));
+        size_t idx =
+            static_cast<size_t>(numeric::get_msb(state.range(0))) - static_cast<size_t>(numeric::get_msb(START));
         provers[idx].compute_z_coefficients();
     }
 }
