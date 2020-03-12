@@ -57,39 +57,27 @@ const auto init = []() {
     memset((void*)bucket_empty_status, 0x00, max_num_points * 2 * sizeof(bool));
 
     return 1;
-};
+}();
 } // namespace
 
 bool* get_skew_pointer()
 {
-    if (!skew_memory) {
-        init();
-    }
     return skew_memory;
 }
 
 uint64_t* get_wnaf_pointer()
 {
-    if (!wnaf_memory) {
-        init();
-    }
     return wnaf_memory;
 }
 
 g1::element* get_bucket_pointer()
 {
-    if (!bucket_memory) {
-        init();
-    }
     return bucket_memory;
 }
 
 scalar_multiplication::affine_product_runtime_state get_affine_product_runtime_state(const size_t num_threads,
                                                                                      const size_t thread_index)
 {
-    if (!point_pairs_1) {
-        init();
-    }
     constexpr size_t max_num_points = (2 << PIPPENGER_BLOCK_SIZE);
     const size_t points_per_thread = max_num_points / num_threads;
 

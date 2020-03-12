@@ -8,10 +8,10 @@
 #endif
 #endif
 
+#include "field_impl_generic.hpp"
+
 #ifdef BBERG_USE_ASM
 #include "field_impl_x64.hpp"
-#else
-#include "field_impl_generic.hpp"
 #endif
 
 #include <type_traits>
