@@ -1,3 +1,6 @@
+if(NOT WASM)
+    add_compile_options(-march=native)
+endif()
 add_compile_options(-march=native -Werror -Wall -Wextra -Wconversion -Wsign-conversion -Wno-deprecated)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

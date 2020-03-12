@@ -36,7 +36,7 @@ To select a test, run `<path_to_module_tests> --gtest_filter=<test_filter>*`
 
 ```
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE="Debug"
+cmake -DCMAKE_BUILD_TYPE="Debug" ..
 make -j$(nproc)
 ```
 
@@ -44,15 +44,32 @@ make -j$(nproc)
 
 ```
 mkdir build && cd build
-cmake .. -DDISABLE_ASM=ON
+cmake -DDISABLE_ASM=ON ..
 make -j$(nproc)
 ```
 
 ### WASM build
 
+We need to install `wasi-sdk` runtime to build the WASM version.
+You may need to install `gsed` on OS X (`brew install gnu-sed`) and use that instead of `sed`.
+
+```
+cd ./src
+curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk-8.0-linux.tar.gz | tar zxfv -
+sed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
+```
+
+If you want to be able to run the tests, you'll need to install `wasmtime`.
+
+```
+curl https://wasmtime.dev/install.sh -sSf | bash
+```
+
+Finally, to build.
+
 ```
 mkdir build-wasm && cd build-wasm
-cmake .. -DWASM=ON
+cmake -DWASM=ON ..
 make -j$(nproc) barretenberg.wasm
 ```
 

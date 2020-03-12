@@ -125,7 +125,7 @@ TEST(noir, uint_nt)
 
 template <typename T> void test_sha256(T const& input, std::vector<uint8_t> const& expected)
 {
-    std::ifstream file("../src/noir/compiler/code_gen/fixtures/sha256.noir");
+    std::ifstream file("../src/aztec/noir/compiler/code_gen/fixtures/sha256.noir");
     std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     auto ast = parse(code);
 
