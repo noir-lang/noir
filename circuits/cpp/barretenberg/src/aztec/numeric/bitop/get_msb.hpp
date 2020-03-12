@@ -38,4 +38,13 @@ constexpr inline uint64_t get_msb(const uint64_t in)
     return static_cast<uint64_t>(de_bruijn_sequence[(t * 0x03F79D71B4CB0A89ULL) >> 58ULL]);
 };
 
+constexpr inline size_t get_msb(const size_t in)
+{
+    if (sizeof(in) == 32) {
+        return get_msb(static_cast<uint32_t>(in));
+    } else {
+        return get_msb(static_cast<uint64_t>(in));
+    }
+}
+
 } // namespace numeric

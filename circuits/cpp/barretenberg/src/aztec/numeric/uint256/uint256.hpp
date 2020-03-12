@@ -32,10 +32,9 @@ class uint256_t {
     constexpr uint256_t& operator=(const uint256_t& other) = default;
 
     explicit constexpr operator bool() const { return static_cast<bool>(data[0]); };
-    explicit constexpr operator uint8_t() const { return static_cast<uint8_t>(data[0]); };
-    explicit constexpr operator uint16_t() const { return static_cast<uint16_t>(data[0]); };
-    explicit constexpr operator uint32_t() const { return static_cast<uint32_t>(data[0]); };
-    explicit constexpr operator uint64_t() const { return static_cast<uint64_t>(data[0]); };
+
+    template<typename T>
+    explicit constexpr operator T() const { return static_cast<T>(data[0]); };
 
     constexpr bool get_bit(const uint64_t bit_index) const;
     constexpr uint64_t get_msb() const;

@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include "../uint/uint.hpp"
 #include "../composers/composers_fwd.hpp"
 

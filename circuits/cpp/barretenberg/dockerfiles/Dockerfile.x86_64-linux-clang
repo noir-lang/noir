@@ -2,5 +2,5 @@ FROM aztecprotocol/clang:9.0.0
 WORKDIR /usr/src/barretenberg
 COPY . .
 RUN mkdir build && cd build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .. && make -j$(nproc)
-RUN cd build && ./test/barretenberg_tests
+RUN cd build && make test
 ENTRYPOINT /bin/bash

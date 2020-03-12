@@ -46,7 +46,7 @@ include(cmake/gtest.cmake)
 include(cmake/build.cmake)
 include(cmake/module.cmake)
 
-add_subdirectory(src)
+add_subdirectory(src/aztec)
 
 #if(BENCHMARKS)
 #    add_subdirectory(test/benchmarks)
