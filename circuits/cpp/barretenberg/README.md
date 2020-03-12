@@ -86,11 +86,20 @@ polynomials
 rollup
 srs
 stdlib
-  |_stdlib_bit_array
-    stdlib_bool
-    stdlib_byte_array
-    stdlib_field
-    stdlib_uint
+  encryption
+    |_schnorr
+  merkle_tree
+  hash
+    |_keccak
+      blake2s
+      pedersen
+      sha256
+  primitives
+    |_stdlib_bit_array
+      stdlib_bool
+      stdlib_byte_array
+      stdlib_field
+      stdlib_uint
 ```
 
 Their test targets are at `<module_name>_tests`.

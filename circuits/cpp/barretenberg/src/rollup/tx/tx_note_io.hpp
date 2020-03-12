@@ -1,9 +1,11 @@
 #pragma once
 #include <arpa/inet.h>
-#include <barretenberg/curves/grumpkin/grumpkin.hpp>
-#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <crypto/pedersen/pedersen.hpp>
+#include "tx_note.hpp"
 
 namespace rollup {
+namespace tx {
 
 inline barretenberg::fr hton(barretenberg::fr const& value)
 {
@@ -36,14 +38,15 @@ inline grumpkin::g1::affine_element ntoh(grumpkin::g1::affine_element const& val
     return { ntoh(value.x), ntoh(value.y) };
 }
 
-inline crypto::pedersen_note::private_note hton(crypto::pedersen_note::private_note const& value)
+inline tx_note hton(tx_note const& value)
 {
     return { hton(value.owner), htonl(value.value), hton(value.secret) };
 }
 
-inline crypto::pedersen_note::private_note ntoh(crypto::pedersen_note::private_note const& value)
+inline tx_note ntoh(tx_note const& value)
 {
     return { ntoh(value.owner), ntohl(value.value), ntoh(value.secret) };
 }
 
 } // namespace rollup
+}

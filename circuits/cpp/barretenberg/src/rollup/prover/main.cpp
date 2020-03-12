@@ -1,12 +1,12 @@
-#include "batch_tx.hpp"
+#include "../tx/batch_tx.hpp"
 #include "create.hpp"
 #include "destroy.hpp"
 #include "join.hpp"
 #include "join_split.hpp"
 #include "split.hpp"
 #include "timer.hpp"
-#include "user_context.hpp"
-#include <barretenberg/waffle/stdlib/merkle_tree/leveldb_store.hpp>
+#include "../tx/user_context.hpp"
+#include "rollup_context.hpp"
 
 char const* DATA_DB_PATH = "/tmp/rollup_prover";
 char const* NULLIFIER_DB_PATH = "/tmp/rollup_prover_nullifier";
@@ -14,7 +14,7 @@ char const* NULLIFIER_DB_PATH = "/tmp/rollup_prover_nullifier";
 typedef std::tuple<std::shared_ptr<waffle::proving_key>, std::shared_ptr<waffle::verification_key>, size_t>
     circuit_keys;
 
-using namespace rollup;
+using namespace rollup::prover;
 
 rollup_context create_rollup_context(std::string const& id, Composer& composer)
 {
@@ -26,9 +26,9 @@ rollup_context create_rollup_context(std::string const& id, Composer& composer)
         composer,
         std::move(data_db),
         std::move(nullifier_db),
-        public_witness_t(&composer, data_db.size()),
-        public_witness_t(&composer, data_db.root()),
-        public_witness_t(&composer, nullifier_db.root()),
+        public_witness_ct(&composer, data_db.size()),
+        public_witness_ct(&composer, data_db.root()),
+        public_witness_ct(&composer, nullifier_db.root()),
     };
 }
 
@@ -126,9 +126,9 @@ int main(int argc, char** argv)
         printf("composer gates = %zu\n", ctx.composer.get_num_gates());
 
         std::cout << "Computing witness..." << std::endl;
-        Timer witness_timer;
+        Timer witness_ctimer;
         ctx.composer.compute_witness();
-        std::cout << "Time taken to compute witness: " << witness_timer.toString() << std::endl;
+        std::cout << "Time taken to compute witness: " << witness_ctimer.toString() << std::endl;
 
         std::cout << "Creating prover..." << std::endl;
         Timer prover_timer;

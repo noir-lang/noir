@@ -27,7 +27,7 @@ add_subdirectory(polynomials)
 add_subdirectory(plonk)
 add_subdirectory(stdlib)
 add_subdirectory(noir)
-#add_subdirectory(rollup)
+add_subdirectory(rollup)
 
 if(WASM)
     add_executable(

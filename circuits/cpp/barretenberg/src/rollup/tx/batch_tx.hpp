@@ -5,6 +5,7 @@
 #include <algorithm>
 
 namespace rollup {
+namespace tx {
 
 struct batch_tx {
     uint32_t batch_num;
@@ -56,7 +57,7 @@ std::istream& read(std::istream& is, batch_tx& txs)
     return is;
 }
 
-std::ostream& write_json(std::ostream& os, crypto::pedersen_note::private_note const& tx, size_t indent = 0)
+std::ostream& write_json(std::ostream& os, tx_note const& tx, size_t indent = 0)
 {
     std::string i(indent, ' ');
     os << i << "{\n"
@@ -131,3 +132,4 @@ std::ostream& write_json(std::ostream& os, batch_tx const& txs)
 }
 
 } // namespace rollup
+}

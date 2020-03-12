@@ -1,9 +1,10 @@
-#include "../prover/batch_tx.hpp"
-#include "../prover/join_split_tx.hpp"
-#include <barretenberg/io/streams.hpp>
+#include "../tx/batch_tx.hpp"
+#include "../tx/join_split_tx.hpp"
+#include "../tx/user_context.hpp"
+#include <common/streams.hpp>
 #include <iostream>
 
-using namespace rollup;
+using namespace rollup::tx;
 
 int main(int argc, char** argv)
 {

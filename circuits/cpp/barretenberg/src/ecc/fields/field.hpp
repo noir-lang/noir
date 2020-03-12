@@ -3,13 +3,10 @@
 #include <iostream>
 #include <array>
 #include <random>
+#include <numeric/uint128/uint128.hpp>
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/random/engine.hpp>
 #include <common/inline.hpp>
-
-#if defined(__SIZEOF_INT128__)
-__extension__ using uint128_t = unsigned __int128;
-#endif
 
 namespace barretenberg {
 template <class Params> struct alignas(32) field {

@@ -1,8 +1,9 @@
 #pragma once
-#include <barretenberg/curves/bn254/fr.hpp>
-#include <barretenberg/curves/grumpkin/grumpkin.hpp>
+#include <ecc/curves/bn254/fr.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 
 namespace rollup {
+namespace tx {
 
 struct user_context {
     barretenberg::fr note_secret;
@@ -18,4 +19,5 @@ inline user_context create_user_context()
     return { note_secret, owner_secret, owner_pub_key };
 }
 
+}
 } // namespace rollup

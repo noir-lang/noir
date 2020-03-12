@@ -5,7 +5,6 @@
 #include <stdlib/primitives/byte_array/byte_array.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
-//#include "../merkle_tree/merkle_tree.hpp"
 
 namespace plonk {
 namespace stdlib {

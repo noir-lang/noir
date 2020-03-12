@@ -1,29 +1,15 @@
 #include <gtest/gtest.h>
-
-#include <barretenberg/curves/grumpkin/grumpkin.hpp>
-#include <barretenberg/waffle/composer/turbo_composer.hpp>
-#include <barretenberg/waffle/proof_system/preprocess.hpp>
-#include <barretenberg/waffle/proof_system/prover/prover.hpp>
-#include <barretenberg/waffle/proof_system/verifier/verifier.hpp>
-#include <barretenberg/waffle/proof_system/widgets/arithmetic_widget.hpp>
-
-#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
-#include <barretenberg/waffle/stdlib/bitarray/bitarray.hpp>
-#include <barretenberg/waffle/stdlib/common.hpp>
-#include <barretenberg/waffle/stdlib/crypto/commitment/pedersen_note.hpp>
-#include <iostream>
-#include <memory>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <crypto/pedersen/pedersen.hpp>
+#include "pedersen_note.hpp"
 
 using namespace barretenberg;
-using namespace plonk;
-
-typedef stdlib::field_t<waffle::TurboComposer> field_t;
-typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
-typedef stdlib::witness_t<waffle::TurboComposer> public_witness_t;
+using namespace plonk::stdlib::types::turbo;
+using namespace rollup::pedersen_note;
 
 TEST(stdlib_pedersen_note, test_new_pedersen_note)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     grumpkin::g1::element note_owner_pub_key = grumpkin::g1::element::random_element();
 
@@ -46,20 +32,20 @@ TEST(stdlib_pedersen_note, test_new_pedersen_note)
     expected += hashed_pub_key;
     expected = expected.normalize();
 
-    field_t view_key = witness_t(&composer, view_key_value);
-    field_t note_value_field = witness_t(&composer, note_value);
-    field_t note_owner_x = witness_t(&composer, note_owner_pub_key.x);
-    field_t note_owner_y = witness_t(&composer, note_owner_pub_key.y);
+    field_ct view_key = witness_ct(&composer, view_key_value);
+    field_ct note_value_field = witness_ct(&composer, note_value);
+    field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
+    field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
 
-    field_t ciphertext_x = public_witness_t(&composer, expected.x);
-    field_t ciphertext_y = public_witness_t(&composer, expected.y);
-    plonk::stdlib::pedersen_note::public_note target_encryption{ { ciphertext_x, ciphertext_y } };
+    field_ct ciphertext_x = public_witness_ct(&composer, expected.x);
+    field_ct ciphertext_y = public_witness_ct(&composer, expected.y);
+    public_note target_encryption{ { ciphertext_x, ciphertext_y } };
 
-    plonk::stdlib::uint<waffle::TurboComposer, uint32_t> value(note_value_field);
+    uint32_ct value(note_value_field);
 
-    plonk::stdlib::pedersen_note::private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key };
+    private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key };
 
-    plonk::stdlib::pedersen_note::public_note result = plonk::stdlib::pedersen_note::encrypt_note(plaintext);
+    public_note result = encrypt_note(plaintext);
     composer.assert_equal(result.ciphertext.x.witness_index, target_encryption.ciphertext.x.witness_index);
     composer.assert_equal(result.ciphertext.y.witness_index, target_encryption.ciphertext.y.witness_index);
 
@@ -76,7 +62,7 @@ TEST(stdlib_pedersen_note, test_new_pedersen_note)
 
 TEST(stdlib_pedersen_note, test_new_pedersen_note_zero)
 {
-    waffle::TurboComposer composer = waffle::TurboComposer();
+    Composer composer = Composer();
 
     grumpkin::g1::element note_owner_pub_key = grumpkin::g1::element::random_element();
 
@@ -94,20 +80,20 @@ TEST(stdlib_pedersen_note, test_new_pedersen_note_zero)
     expected += hashed_pub_key;
     expected = expected.normalize();
 
-    field_t view_key = witness_t(&composer, view_key_value);
-    field_t note_value_field = witness_t(&composer, note_value);
-    field_t note_owner_x = witness_t(&composer, note_owner_pub_key.x);
-    field_t note_owner_y = witness_t(&composer, note_owner_pub_key.y);
+    field_ct view_key = witness_ct(&composer, view_key_value);
+    field_ct note_value_field = witness_ct(&composer, note_value);
+    field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
+    field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
 
-    field_t ciphertext_x = public_witness_t(&composer, expected.x);
-    field_t ciphertext_y = public_witness_t(&composer, expected.y);
+    field_ct ciphertext_x = public_witness_ct(&composer, expected.x);
+    field_ct ciphertext_y = public_witness_ct(&composer, expected.y);
 
-    plonk::stdlib::pedersen_note::public_note target_encryption{ { ciphertext_x, ciphertext_y } };
-    plonk::stdlib::uint<waffle::TurboComposer, uint32_t> value(note_value_field);
+    public_note target_encryption{ { ciphertext_x, ciphertext_y } };
+    uint32_ct value(note_value_field);
 
-    plonk::stdlib::pedersen_note::private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key };
+    private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key };
 
-    plonk::stdlib::pedersen_note::public_note result = plonk::stdlib::pedersen_note::encrypt_note(plaintext);
+    public_note result = encrypt_note(plaintext);
     composer.assert_equal(result.ciphertext.x.witness_index, target_encryption.ciphertext.x.witness_index);
     composer.assert_equal(result.ciphertext.y.witness_index, target_encryption.ciphertext.y.witness_index);
 

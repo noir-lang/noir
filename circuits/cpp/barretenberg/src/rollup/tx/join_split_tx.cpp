@@ -1,11 +1,12 @@
+#include <crypto/pedersen/pedersen.hpp>
 #include "join_split_tx.hpp"
-#include "io.hpp"
+#include "tx_note_io.hpp"
+#include "tx_note.hpp"
 
 namespace rollup {
+namespace tx {
 
 using namespace barretenberg;
-
-typedef crypto::pedersen_note::private_note tx_note;
 
 fr generate_random_secret()
 {
@@ -28,7 +29,7 @@ crypto::schnorr::signature sign_notes(std::array<tx_note, 4> const& notes, user_
 {
     std::array<grumpkin::fq, 8> to_compress;
     for (size_t i = 0; i < 4; ++i) {
-        auto encrypted = crypto::pedersen_note::encrypt_note(notes[i]);
+        auto encrypted = encrypt_note(notes[i]);
         to_compress[i * 2] = encrypted.x;
         to_compress[i * 2 + 1] = encrypted.y;
     }
@@ -160,3 +161,4 @@ std::istream& read(std::istream& is, join_split_tx& be_tx)
 }
 
 } // namespace rollup
+}

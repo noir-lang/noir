@@ -19,12 +19,18 @@ barretenberg_module(stdlib_merkle_tree stdlib_byte_array stdlib_field stdlib_bla
 # In order to ensure we can get the leveldb includes. Better way?
 target_link_libraries(
     stdlib_merkle_tree_objects
-    PRIVATE
+    PUBLIC
+    leveldb
+)
+
+target_link_libraries(
+    stdlib_merkle_tree
+    PUBLIC
     leveldb
 )
 
 target_link_libraries(
     stdlib_merkle_tree_test_objects
-    PRIVATE
+    PUBLIC
     leveldb
 )

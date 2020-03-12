@@ -1,38 +1,40 @@
 #include "destroy.hpp"
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 
 namespace rollup {
+namespace prover {
 
 destroy_note_context create_destroy_note_context(rollup_context& ctx,
-                                                 field_t const& index_field,
+                                                 field_ct const& index_field,
                                                  note_pair const& note_data,
-                                                 bool_t is_real)
+                                                 bool_ct is_real)
 {
-    uint128_t index_to_destroy = field_to_uint128(index_field.get_value());
-    field_t data_root = ctx.data_root;
+    uint128_t index_to_destroy = static_cast<uint128_t>(index_field.get_value());
+    field_ct data_root = ctx.data_root;
     fr_hash_path data_path = ctx.data_db.get_hash_path(index_to_destroy);
-    byte_array data_value = create_note_leaf(ctx.composer, note_data.second);
+    byte_array_ct data_value = create_note_leaf(ctx.composer, note_data.second);
 
     // We mix in the index and notes secret as part of the value we hash into the tree to ensure notes will always have
     // unique entries.
-    byte_array note_hash_data = byte_array(&ctx.composer);
+    byte_array_ct note_hash_data = byte_array_ct(&ctx.composer);
     note_hash_data.write(note_data.second.ciphertext.x)
-        .write(byte_array(index_field).slice(28, 4))
-        .write(byte_array(note_data.first.secret).slice(4, 28));
+        .write(byte_array_ct(index_field).slice(28, 4))
+        .write(byte_array_ct(note_data.first.secret).slice(4, 28));
     note_hash_data.set_bit(511, is_real);
 
-    // We have to convert the byte_array into a field_t to get the montgomery form. Can we avoid this?
-    field_t nullifier_index = stdlib::merkle_tree::hash_value(note_hash_data);
-    uint128_t nullifier_index_raw = field_to_uint128(nullifier_index.get_value());
+    // We have to convert the byte_array_ct into a field_ct to get the montgomery form. Can we avoid this?
+    field_ct nullifier_index = stdlib::merkle_tree::hash_value(note_hash_data);
+    uint128_t nullifier_index_raw = static_cast<uint128_t>(nullifier_index.get_value());
 
-    byte_array nullifier_value(&ctx.composer);
-    nullifier_value.write(field_t(1ULL)).write(field_t(uint64_t(0)));
+    byte_array_ct nullifier_value(&ctx.composer);
+    nullifier_value.write(field_ct(1ULL)).write(field_ct(uint64_t(0)));
 
     fr_hash_path nullifier_old_path = ctx.nullifier_db.get_hash_path(nullifier_index_raw);
     fr_hash_path nullifier_new_path =
         stdlib::merkle_tree::get_new_hash_path(nullifier_old_path, nullifier_index_raw, nullifier_value.get_value());
 
-    field_t nullifier_old_root = ctx.nullifier_root;
-    field_t nullifier_new_root = witness_t(&ctx.composer, stdlib::merkle_tree::get_hash_path_root(nullifier_new_path));
+    field_ct nullifier_old_root = ctx.nullifier_root;
+    field_ct nullifier_new_root = witness_ct(&ctx.composer, stdlib::merkle_tree::get_hash_path_root(nullifier_new_path));
 
     destroy_note_context note_ctx = {
         note_data,
@@ -55,7 +57,7 @@ destroy_note_context create_destroy_note_context(rollup_context& ctx,
 void destroy_note(rollup_context& ctx, destroy_note_context const& destroy_ctx)
 {
     // Check that the note we want to destroy exists.
-    bool_t exists = stdlib::merkle_tree::check_membership(
+    bool_ct exists = stdlib::merkle_tree::check_membership(
         ctx.composer, destroy_ctx.data_root, destroy_ctx.data_path, destroy_ctx.data_value, destroy_ctx.data_index);
     ctx.composer.assert_equal(destroy_ctx.is_real.witness_index, exists.witness_index);
 
@@ -65,10 +67,10 @@ void destroy_note(rollup_context& ctx, destroy_note_context const& destroy_ctx)
                                            destroy_ctx.nullifier_value,
                                            destroy_ctx.nullifier_old_root,
                                            destroy_ctx.nullifier_old_path,
-                                           byte_array(&ctx.composer, 64),
-                                           static_cast<byte_array>(destroy_ctx.nullifier_index));
+                                           byte_array_ct(&ctx.composer, 64),
+                                           static_cast<byte_array_ct>(destroy_ctx.nullifier_index));
 
-    ctx.nullifier_db.update_element(field_to_uint128(destroy_ctx.nullifier_index.get_value()),
+    ctx.nullifier_db.update_element(static_cast<uint128_t>(destroy_ctx.nullifier_index.get_value()),
                                     destroy_ctx.nullifier_value.get_value());
 
     ctx.nullifier_root = destroy_ctx.nullifier_new_root;
@@ -76,10 +78,10 @@ void destroy_note(rollup_context& ctx, destroy_note_context const& destroy_ctx)
 
 bool destroy(rollup_context& ctx, uint32_t const index, tx_note const& note)
 {
-    field_t index_to_destroy_field = witness_t(&ctx.composer, index);
+    field_ct index_to_destroy_field = witness_ct(&ctx.composer, index);
     note_pair note_data = create_note_pair(ctx.composer, note);
     destroy_note_context destroy_ctx =
-        create_destroy_note_context(ctx, index_to_destroy_field, note_data, witness_t(&ctx.composer, true));
+        create_destroy_note_context(ctx, index_to_destroy_field, note_data, witness_ct(&ctx.composer, true));
     set_note_public(ctx.composer, destroy_ctx.note_data.second);
 
     destroy_note(ctx, destroy_ctx);
@@ -90,3 +92,4 @@ bool destroy(rollup_context& ctx, uint32_t const index, tx_note const& note)
 }
 
 } // namespace rollup
+}
