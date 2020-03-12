@@ -36,6 +36,7 @@ if(WASM)
     add_executable(
         barretenberg.wasm
         $<TARGET_OBJECTS:schnorr_objects>
+        $<TARGET_OBJECTS:ecc_objects>
     )
 
     target_link_options(
@@ -48,5 +49,6 @@ if(WASM)
         barretenberg.wasm
         PRIVATE
         schnorr
+        ecc
     )
 endif()

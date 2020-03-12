@@ -50,8 +50,19 @@ make -j$(nproc)
 
 ### WASM build
 
-We need to install `wasi-sdk` runtime to build the WASM version.
-You may need to install `gsed` on OS X (`brew install gnu-sed`) and use that instead of `sed`.
+We need to install `wasi-sdk` runtime to build the WASM version. We then hook a part of the runtime so we can build
+the tests, which use `gtest`.
+
+#### OS X
+You may need to install `gsed` on OS X (`brew install gnu-sed`).
+
+```
+cd ./src
+curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk-8.0-macos.tar.gz | tar zxfv -
+gsed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
+```
+
+#### Linux
 
 ```
 cd ./src
@@ -73,7 +84,7 @@ cmake -DWASM=ON ..
 make -j$(nproc) barretenberg.wasm
 ```
 
-The resulting binary will be at `./src/barretenberg.wasm` and can be copied to `barretenberg.js` for use in node and the browser.
+The resulting binary will be at `./src/aztec/barretenberg.wasm` and can be copied to `barretenberg.js` for use in node and the browser.
 
 Wasm build does not currently support `ctest` meaning you must run each modules tests individually.
 
