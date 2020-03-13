@@ -7,7 +7,7 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::pedersen_note;
 
-TEST(stdlib_pedersen_note, test_new_pedersen_note)
+TEST(rollup_pedersen_note, test_new_pedersen_note)
 {
     Composer composer = Composer();
 
@@ -60,7 +60,7 @@ TEST(stdlib_pedersen_note, test_new_pedersen_note)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_pedersen_note, test_new_pedersen_note_zero)
+TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
 {
     Composer composer = Composer();
 

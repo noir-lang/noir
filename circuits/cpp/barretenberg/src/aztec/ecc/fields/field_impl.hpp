@@ -1,6 +1,7 @@
 #pragma once
 #include <numeric/bitop/get_msb.hpp>
 #include <numeric/random/engine.hpp>
+#include <type_traits>
 
 #ifndef DISABLE_SHENANIGANS
 #ifdef __BMI2__
@@ -14,8 +15,6 @@
 #include "field_impl_x64.hpp"
 #endif
 
-#include <type_traits>
-
 namespace barretenberg {
 
 // template <class T> constexpr void field<T>::butterfly(field& left, field& right) noexcept
@@ -28,6 +27,7 @@ namespace barretenberg {
 //     return asm_butterfly(left, right);
 // #endif
 // }
+
 /**
  *
  * Mutiplication

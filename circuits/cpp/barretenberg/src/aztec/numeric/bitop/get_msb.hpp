@@ -5,7 +5,7 @@
 namespace numeric {
 
 // from http://supertech.csail.mit.edu/papers/debruijn.pdf
-constexpr inline uint32_t get_msb(const uint32_t in)
+constexpr inline uint32_t get_msb32(const uint32_t in)
 {
     constexpr uint8_t MultiplyDeBruijnBitPosition[32] = {
         0, 9,  1,  10, 13, 21, 2,  29, 11, 14, 16, 18, 22, 25, 3, 30,
@@ -22,7 +22,7 @@ constexpr inline uint32_t get_msb(const uint32_t in)
                                        static_cast<uint32_t>(27)];
 }
 
-constexpr inline uint64_t get_msb(const uint64_t in)
+constexpr inline uint64_t get_msb64(const uint64_t in)
 {
     constexpr uint8_t de_bruijn_sequence[64]{ 0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61,
                                               54, 58, 35, 52, 50, 42, 21, 44, 38, 32, 29, 23, 17, 11, 4,  62,
@@ -37,5 +37,10 @@ constexpr inline uint64_t get_msb(const uint64_t in)
     t |= t >> 32;
     return static_cast<uint64_t>(de_bruijn_sequence[(t * 0x03F79D71B4CB0A89ULL) >> 58ULL]);
 };
+
+template<typename T>
+constexpr inline T get_msb(const T in) {
+    return (sizeof(T) <= 4) ? get_msb32(in) : get_msb64(in);
+}
 
 } // namespace numeric

@@ -9,6 +9,7 @@ set(LEVELDB_BUILD_TESTS OFF)
 FetchContent_GetProperties(leveldb)
 if(NOT leveldb_POPULATED)
     FetchContent_Populate(leveldb)
+    set(LEVELDB_BUILD_TESTS OFF)
     add_subdirectory(${leveldb_SOURCE_DIR} ${leveldb_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 

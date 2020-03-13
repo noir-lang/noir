@@ -1,5 +1,5 @@
 #pragma once
-#include <arpa/inet.h>
+#include <common/net.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include "tx_note.hpp"
