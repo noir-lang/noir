@@ -4,12 +4,10 @@ FetchContent_Declare(
     GIT_TAG 1.22
 )
 
-set(LEVELDB_BUILD_TESTS OFF)
-
 FetchContent_GetProperties(leveldb)
 if(NOT leveldb_POPULATED)
     FetchContent_Populate(leveldb)
-    set(LEVELDB_BUILD_TESTS OFF)
+    set(LEVELDB_BUILD_TESTS OFF CACHE BOOL "LevelDB tests off")
     add_subdirectory(${leveldb_SOURCE_DIR} ${leveldb_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
