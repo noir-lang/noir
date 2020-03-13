@@ -1,0 +1,1 @@
+barretenberg_module(schnorr blake2s keccak sha256 numeric)

@@ -25,3 +25,4 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 AllowShortFunctionsOnASingleLine : Inline
+SortIncludes: false

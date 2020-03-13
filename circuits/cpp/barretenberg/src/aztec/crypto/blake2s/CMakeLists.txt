@@ -1,0 +1,1 @@
+barretenberg_module(blake2s)

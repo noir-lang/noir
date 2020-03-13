@@ -2,5 +2,5 @@ FROM aztecprotocol/gcc:9
 WORKDIR /usr/src/barretenberg
 COPY . .
 RUN mkdir build && cd build && cmake .. && make -j$(nproc)
-RUN cd build && ./test/barretenberg_tests
+RUN cd build && make test
 ENTRYPOINT /bin/bash

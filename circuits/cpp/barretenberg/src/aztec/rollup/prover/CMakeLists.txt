@@ -1,0 +1,19 @@
+add_executable(
+    rollup_prover
+    create.cpp
+    destroy.cpp
+    join_split.cpp
+    join.cpp
+    main.cpp
+    note.cpp
+    split.cpp
+)
+
+target_link_libraries(
+    rollup_prover
+    PRIVATE
+    stdlib_merkle_tree
+    stdlib_schnorr
+    rollup_tx
+    rollup_pedersen_note
+)

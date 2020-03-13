@@ -1,0 +1,5 @@
+add_subdirectory(composer)
+add_subdirectory(reference_string)
+add_subdirectory(transcript)
+add_subdirectory(proof_system)
+add_subdirectory(pippenger_bench)
