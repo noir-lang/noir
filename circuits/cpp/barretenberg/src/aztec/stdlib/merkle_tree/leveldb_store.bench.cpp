@@ -7,7 +7,7 @@ using namespace benchmark;
 using namespace plonk::stdlib::merkle_tree;
 
 namespace {
-    auto& engine = numeric::random::get_debug_engine();
+auto& engine = numeric::random::get_debug_engine();
 }
 
 constexpr size_t DEPTH = 128;

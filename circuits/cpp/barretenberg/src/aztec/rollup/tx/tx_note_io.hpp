@@ -48,5 +48,5 @@ inline tx_note ntoh(tx_note const& value)
     return { ntoh(value.owner), ntohl(value.value), ntoh(value.secret) };
 }
 
+} // namespace tx
 } // namespace rollup
-}

@@ -3,11 +3,9 @@
 #include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 
-namespace waffle
-{
+namespace waffle {
 
-struct verification_key
-{
+struct verification_key {
     verification_key(const size_t num_gates, const size_t num_inputs, std::string const& crs_path);
     verification_key(const verification_key& other);
     verification_key(verification_key&& other);
@@ -25,4 +23,4 @@ struct verification_key
 
     std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
 };
-}
+} // namespace waffle

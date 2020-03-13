@@ -17,7 +17,8 @@ grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext)
     } else {
         sum = p_2;
     }
-    grumpkin::g1::affine_element p_3 = crypto::pedersen::compress_to_point_native(plaintext.owner.x, plaintext.owner.y, 0);
+    grumpkin::g1::affine_element p_3 =
+        crypto::pedersen::compress_to_point_native(plaintext.owner.x, plaintext.owner.y, 0);
 
     sum += p_3;
 
@@ -26,5 +27,5 @@ grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext)
     return { sum.x, sum.y };
 }
 
-} // namespace pedersen_note
-} // namespace crypto
+} // namespace tx
+} // namespace rollup

@@ -18,6 +18,24 @@ make [optional target name]
 
 Add the number of jobs you want to your `make` command. e.g. `make -j16`.
 
+
+### Formatting
+
+You should format the codebase before committing changes. Ensure `clang-format` is installed.
+To format the entire codebase:
+
+```
+./format.sh
+```
+
+To format only staged changes:
+
+```
+./format.sh staged
+```
+
+It maybe desirable to install the later as a pre-commit hook.
+
 ### Tests
 
 Each module has its own tests. To build and run, for example `ecc` tests:

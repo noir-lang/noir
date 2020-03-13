@@ -8,14 +8,12 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-    struct keccak256
-    {
-        uint64_t word64s[4];
-    };
+struct keccak256 {
+    uint64_t word64s[4];
+};
 
 #ifdef __cplusplus
 }

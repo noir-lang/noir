@@ -21,8 +21,7 @@ TEST(stdlib_schnorr, test_scalar_mul)
 
     grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
     expected = expected.normalize();
-    point input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
-                                witness_ct(&composer, grumpkin::g1::affine_one.y) };
+    point input{ witness_ct(&composer, grumpkin::g1::affine_one.x), witness_ct(&composer, grumpkin::g1::affine_one.y) };
 
     point output = plonk::stdlib::schnorr::variable_base_mul(input, scalar_bits);
 

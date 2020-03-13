@@ -159,13 +159,7 @@ class MiMCComposer : public StandardComposer {
     void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b)
     {
         const add_triple gate_coefficients{
-            a_idx,
-            a_idx,
-            a_idx,
-            barretenberg::fr::one(),
-            barretenberg::fr::zero(),
-            barretenberg::fr::zero(),
-            -b,
+            a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
         };
         create_add_gate(gate_coefficients);
     }

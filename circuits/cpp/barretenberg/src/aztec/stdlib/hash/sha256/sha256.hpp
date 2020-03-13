@@ -15,7 +15,7 @@ template <typename Composer> void prepare_constants(std::array<uint32<Composer>,
 
 template <typename Composer>
 std::array<uint32<Composer>, 8> sha256_block(const std::array<uint32<Composer>, 8>& h_init,
-                                                     const std::array<uint32<Composer>, 16>& input);
+                                             const std::array<uint32<Composer>, 16>& input);
 
 template <typename Composer> byte_array<Composer> sha256_block(const byte_array<Composer>& input);
 

@@ -13,11 +13,15 @@ class VerifierTurboLogicWidget : public VerifierBaseWidget {
         std::vector<barretenberg::g1::affine_element>& points,
         std::vector<barretenberg::fr>& scalars);
 
-    barretenberg::fr compute_batch_evaluation_contribution(verification_key*, barretenberg::fr&,
-                                                                    const barretenberg::fr& nu_base,
-                                                                    const transcript::Transcript&);
+    barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
+                                                           barretenberg::fr&,
+                                                           const barretenberg::fr& nu_base,
+                                                           const transcript::Transcript&);
 
-    barretenberg::fr compute_quotient_evaluation_contribution(verification_key*, const barretenberg::fr&, const transcript::Transcript& transcript, barretenberg::fr& );
+    barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
+                                                              const barretenberg::fr&,
+                                                              const transcript::Transcript& transcript,
+                                                              barretenberg::fr&);
 };
 
 class ProverTurboLogicWidget : public ProverBaseWidget {
@@ -29,14 +33,14 @@ class ProverTurboLogicWidget : public ProverBaseWidget {
     ProverTurboLogicWidget& operator=(ProverTurboLogicWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                            const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript);
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          barretenberg::polynomial& r);
+                                                 const transcript::Transcript& transcript,
+                                                 barretenberg::polynomial& r);
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                const transcript::Transcript&,
-                                                                barretenberg::fr*,
-                                                                barretenberg::fr*);
+                                                       const transcript::Transcript&,
+                                                       barretenberg::fr*,
+                                                       barretenberg::fr*);
 
     void compute_transcript_elements(transcript::Transcript& transcript);
 
@@ -44,6 +48,5 @@ class ProverTurboLogicWidget : public ProverBaseWidget {
     barretenberg::polynomial& q_logic_fft;
     barretenberg::polynomial& q_c;
     barretenberg::polynomial& q_c_fft;
-
 };
 } // namespace waffle

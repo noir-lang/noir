@@ -23,5 +23,5 @@ void create_note(rollup_context& ctx, new_note_context const& note_ctx);
 
 bool create(rollup_context& ctx, tx_note const& note);
 
-}
-}
+} // namespace prover
+} // namespace rollup

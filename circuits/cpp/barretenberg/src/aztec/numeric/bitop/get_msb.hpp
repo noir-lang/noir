@@ -38,8 +38,8 @@ constexpr inline uint64_t get_msb64(const uint64_t in)
     return static_cast<uint64_t>(de_bruijn_sequence[(t * 0x03F79D71B4CB0A89ULL) >> 58ULL]);
 };
 
-template<typename T>
-constexpr inline T get_msb(const T in) {
+template <typename T> constexpr inline T get_msb(const T in)
+{
     return (sizeof(T) <= 4) ? get_msb32(in) : get_msb64(in);
 }
 

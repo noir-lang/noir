@@ -43,8 +43,7 @@ class uint512_t {
 
     explicit constexpr operator bool() const { return static_cast<bool>(lo.data[0]); };
 
-    template<typename T>
-    explicit constexpr operator T() const { return static_cast<T>(lo.data[0]); };
+    template <typename T> explicit constexpr operator T() const { return static_cast<T>(lo.data[0]); };
 
     constexpr bool get_bit(const uint64_t bit_index) const;
     constexpr uint64_t get_msb() const;

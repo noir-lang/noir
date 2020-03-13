@@ -12,4 +12,4 @@ bool join(rollup_context& ctx,
           tx_note const& out_note);
 
 }
-}
+} // namespace rollup

@@ -14,14 +14,14 @@ class VerifierTurboArithmeticWidget : public VerifierBaseWidget {
         std::vector<barretenberg::fr>& scalars) override;
 
     barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                                    barretenberg::fr& batch_eval,
-                                                                    const barretenberg::fr& nu_base,
-                                                                    const transcript::Transcript& transcript) override;
+                                                           barretenberg::fr& batch_eval,
+                                                           const barretenberg::fr& nu_base,
+                                                           const transcript::Transcript& transcript) override;
 
     barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                                       const barretenberg::fr& alpha_base,
-                                                                       const transcript::Transcript& transcript,
-                                                                       barretenberg::fr&) override;
+                                                              const barretenberg::fr& alpha_base,
+                                                              const transcript::Transcript& transcript,
+                                                              barretenberg::fr&) override;
 };
 
 class ProverTurboArithmeticWidget : public ProverBaseWidget {
@@ -33,14 +33,14 @@ class ProverTurboArithmeticWidget : public ProverBaseWidget {
     ProverTurboArithmeticWidget& operator=(ProverTurboArithmeticWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                            const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript);
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          barretenberg::polynomial& r);
+                                                 const transcript::Transcript& transcript,
+                                                 barretenberg::polynomial& r);
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                const transcript::Transcript&,
-                                                                barretenberg::fr*,
-                                                                barretenberg::fr*);
+                                                       const transcript::Transcript&,
+                                                       barretenberg::fr*,
+                                                       barretenberg::fr*);
 
     void compute_transcript_elements(transcript::Transcript& transcript);
 

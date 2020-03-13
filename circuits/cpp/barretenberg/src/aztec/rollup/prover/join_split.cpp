@@ -79,5 +79,5 @@ bool join_split(rollup_context& ctx, join_split_tx const& tx)
     return true;
 }
 
+} // namespace prover
 } // namespace rollup
-}

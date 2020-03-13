@@ -8,7 +8,7 @@ namespace plonk {
 namespace stdlib {
 
 template <typename Composer, typename Native> class uint {
-    public:
+  public:
     static constexpr size_t width = sizeof(Native) * 8;
 
     uint(const witness_t<Composer>& other);
@@ -66,18 +66,58 @@ template <typename Composer, typename Native> class uint {
     bool_t<Composer> operator!=(const uint& other) const;
     bool_t<Composer> operator!() const;
 
-    uint operator+=(const uint& other) { *this = operator+(other); return *this; }
-    uint operator-=(const uint& other) { *this = operator-(other); return *this; }
-    uint operator*=(const uint& other) { *this = operator*(other); return *this; }
-    uint operator/=(const uint& other) { *this = operator/(other); return *this; }
-    uint operator%=(const uint& other) { *this = operator%(other); return *this; }
+    uint operator+=(const uint& other)
+    {
+        *this = operator+(other);
+        return *this;
+    }
+    uint operator-=(const uint& other)
+    {
+        *this = operator-(other);
+        return *this;
+    }
+    uint operator*=(const uint& other)
+    {
+        *this = operator*(other);
+        return *this;
+    }
+    uint operator/=(const uint& other)
+    {
+        *this = operator/(other);
+        return *this;
+    }
+    uint operator%=(const uint& other)
+    {
+        *this = operator%(other);
+        return *this;
+    }
 
-    uint operator&=(const uint& other) { *this = operator&(other); return *this; }
-    uint operator^=(const uint& other) { *this = operator^(other); return *this; }
-    uint operator|=(const uint& other) { *this = operator|(other); return *this; }
+    uint operator&=(const uint& other)
+    {
+        *this = operator&(other);
+        return *this;
+    }
+    uint operator^=(const uint& other)
+    {
+        *this = operator^(other);
+        return *this;
+    }
+    uint operator|=(const uint& other)
+    {
+        *this = operator|(other);
+        return *this;
+    }
 
-    uint operator>>=(const size_t shift) { *this = operator>>(shift); return *this; }
-    uint operator<<=(const size_t shift) { *this = operator<<(shift); return *this; }
+    uint operator>>=(const size_t shift)
+    {
+        *this = operator>>(shift);
+        return *this;
+    }
+    uint operator<<=(const size_t shift)
+    {
+        *this = operator<<(shift);
+        return *this;
+    }
 
     uint normalize() const;
 
@@ -94,14 +134,10 @@ template <typename Composer, typename Native> class uint {
 
     uint256_t get_additive_constant() const { return additive_constant; }
 
-protected:
+  protected:
     Composer* context;
 
-    enum WitnessStatus {
-        OK,
-        NOT_NORMALIZED,
-        WEAK_NORMALIZED
-    };
+    enum WitnessStatus { OK, NOT_NORMALIZED, WEAK_NORMALIZED };
 
     mutable uint256_t additive_constant;
     mutable WitnessStatus witness_status;
@@ -110,8 +146,9 @@ protected:
 
     static constexpr uint256_t CIRCUIT_UINT_MAX_PLUS_ONE = (uint256_t(1) << width);
     static constexpr uint256_t MASK = CIRCUIT_UINT_MAX_PLUS_ONE - 1;
-private:
-    enum LogicOp{
+
+  private:
+    enum LogicOp {
         AND,
         XOR,
     };
@@ -138,5 +175,5 @@ EXTERN_STDLIB_TYPE_VA(uint, uint16_t);
 EXTERN_STDLIB_TYPE_VA(uint, uint32_t);
 EXTERN_STDLIB_TYPE_VA(uint, uint64_t);
 
-}
-}
+} // namespace stdlib
+} // namespace plonk

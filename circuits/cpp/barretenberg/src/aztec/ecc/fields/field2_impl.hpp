@@ -155,8 +155,7 @@ template <class base, class T> constexpr void field2<base, T>::self_frobenius_ma
     c1.self_neg();
 }
 
-template <class base, class T>
-field2<base, T> field2<base, T>::random_element(numeric::random::Engine* engine)
+template <class base, class T> field2<base, T> field2<base, T>::random_element(numeric::random::Engine* engine)
 {
     return { base::random_element(engine), base::random_element(engine) };
 }

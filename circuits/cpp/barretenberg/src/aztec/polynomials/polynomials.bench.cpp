@@ -138,8 +138,7 @@ void unsafe_pippenger_bench(State& state) noexcept
     uint64_t i = 0;
     for (auto _ : state) {
         uint64_t before = rdtsc();
-        scalar_multiplication::pippenger_unsafe(
-            &globals.scalars[0], &globals.monomials[0], num_points);
+        scalar_multiplication::pippenger_unsafe(&globals.scalars[0], &globals.monomials[0], num_points);
         uint64_t after = rdtsc();
         count += (after - before);
         ++i;
@@ -156,24 +155,15 @@ void new_plonk_scalar_multiplications_bench(State& state) noexcept
     uint64_t k = 0;
     for (auto _ : state) {
         uint64_t before = rdtsc();
-        g1::element a =
-            scalar_multiplication::pippenger(&globals.scalars[0], &globals.monomials[0], MAX_GATES);
-        g1::element b =
-            scalar_multiplication::pippenger(&globals.scalars[1], &globals.monomials[0], MAX_GATES);
-        g1::element c =
-            scalar_multiplication::pippenger(&globals.scalars[2], &globals.monomials[0], MAX_GATES);
-        g1::element d =
-            scalar_multiplication::pippenger(&globals.scalars[3], &globals.monomials[0], MAX_GATES);
-        g1::element e =
-            scalar_multiplication::pippenger(&globals.scalars[4], &globals.monomials[0], MAX_GATES);
-        g1::element f =
-            scalar_multiplication::pippenger(&globals.scalars[5], &globals.monomials[0], MAX_GATES);
-        g1::element g =
-            scalar_multiplication::pippenger(&globals.scalars[6], &globals.monomials[0], MAX_GATES);
-        g1::element h =
-            scalar_multiplication::pippenger(&globals.scalars[7], &globals.monomials[0], MAX_GATES);
-        g1::element i =
-            scalar_multiplication::pippenger(&globals.scalars[8], &globals.monomials[0], MAX_GATES);
+        g1::element a = scalar_multiplication::pippenger(&globals.scalars[0], &globals.monomials[0], MAX_GATES);
+        g1::element b = scalar_multiplication::pippenger(&globals.scalars[1], &globals.monomials[0], MAX_GATES);
+        g1::element c = scalar_multiplication::pippenger(&globals.scalars[2], &globals.monomials[0], MAX_GATES);
+        g1::element d = scalar_multiplication::pippenger(&globals.scalars[3], &globals.monomials[0], MAX_GATES);
+        g1::element e = scalar_multiplication::pippenger(&globals.scalars[4], &globals.monomials[0], MAX_GATES);
+        g1::element f = scalar_multiplication::pippenger(&globals.scalars[5], &globals.monomials[0], MAX_GATES);
+        g1::element g = scalar_multiplication::pippenger(&globals.scalars[6], &globals.monomials[0], MAX_GATES);
+        g1::element h = scalar_multiplication::pippenger(&globals.scalars[7], &globals.monomials[0], MAX_GATES);
+        g1::element i = scalar_multiplication::pippenger(&globals.scalars[8], &globals.monomials[0], MAX_GATES);
         uint64_t after = rdtsc();
         count += (after - before);
         ++k;

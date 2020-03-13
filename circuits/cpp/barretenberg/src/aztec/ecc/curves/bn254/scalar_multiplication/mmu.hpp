@@ -6,8 +6,7 @@
 #define PIPPENGER_BLOCK_SIZE 20
 #endif
 
-namespace barretenberg
-{
+namespace barretenberg {
 // simple helper functions to retrieve pointers to pre-allocated memory for the scalar multiplication algorithm.
 // This is to eliminate page faults when allocating (and writing) to large tranches of memory.
 namespace scalar_multiplication {
@@ -74,15 +73,14 @@ struct affine_product_runtime_state {
 };
 
 } // namespace scalar_multiplication
-namespace mmu
-{
-    bool* get_skew_pointer();
+namespace mmu {
+bool* get_skew_pointer();
 
-    uint64_t* get_wnaf_pointer();
+uint64_t* get_wnaf_pointer();
 
-    g1::element* get_bucket_pointer();
+g1::element* get_bucket_pointer();
 
-
-    scalar_multiplication::affine_product_runtime_state get_affine_product_runtime_state(const size_t num_threads, const size_t thread_index);
-}
-}
+scalar_multiplication::affine_product_runtime_state get_affine_product_runtime_state(const size_t num_threads,
+                                                                                     const size_t thread_index);
+} // namespace mmu
+} // namespace barretenberg

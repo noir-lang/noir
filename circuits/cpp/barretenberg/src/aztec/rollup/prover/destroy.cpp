@@ -34,7 +34,8 @@ destroy_note_context create_destroy_note_context(rollup_context& ctx,
         stdlib::merkle_tree::get_new_hash_path(nullifier_old_path, nullifier_index_raw, nullifier_value.get_value());
 
     field_ct nullifier_old_root = ctx.nullifier_root;
-    field_ct nullifier_new_root = witness_ct(&ctx.composer, stdlib::merkle_tree::get_hash_path_root(nullifier_new_path));
+    field_ct nullifier_new_root =
+        witness_ct(&ctx.composer, stdlib::merkle_tree::get_hash_path_root(nullifier_new_path));
 
     destroy_note_context note_ctx = {
         note_data,
@@ -91,5 +92,5 @@ bool destroy(rollup_context& ctx, uint32_t const index, tx_note const& note)
     return true;
 }
 
+} // namespace prover
 } // namespace rollup
-}

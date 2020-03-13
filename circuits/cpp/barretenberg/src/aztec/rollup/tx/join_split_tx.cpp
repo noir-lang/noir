@@ -160,5 +160,5 @@ std::istream& read(std::istream& is, join_split_tx& be_tx)
     return is;
 }
 
+} // namespace tx
 } // namespace rollup
-}

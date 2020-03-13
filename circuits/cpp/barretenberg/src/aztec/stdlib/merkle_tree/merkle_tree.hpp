@@ -10,10 +10,10 @@ namespace merkle_tree {
 
 template <typename Composer>
 bool_t<Composer> check_membership(Composer& composer,
-                             field_t<Composer> const& root,
-                             hash_path<Composer> const& hashes,
-                             byte_array<Composer> const& value,
-                             byte_array<Composer> const& index)
+                                  field_t<Composer> const& root,
+                                  hash_path<Composer> const& hashes,
+                                  byte_array<Composer> const& value,
+                                  byte_array<Composer> const& index)
 {
     field_t current = hash_value(value);
     bool_t is_member = witness_t(&composer, true);

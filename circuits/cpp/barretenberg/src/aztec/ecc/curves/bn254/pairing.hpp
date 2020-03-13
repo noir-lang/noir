@@ -47,12 +47,12 @@ constexpr void final_exponentiation_tricky_part(const fq12& elt, fq12& r);
 constexpr fq12 reduced_ate_pairing(const g1::affine_element& P_affine, const g2::affine_element& Q_affine);
 
 inline fq12 reduced_ate_pairing_batch(const g1::affine_element* P_affines,
-                                               const g2::affine_element* Q_affines,
-                                               size_t num_points);
+                                      const g2::affine_element* Q_affines,
+                                      size_t num_points);
 
 inline fq12 reduced_ate_pairing_batch_precomputed(const g1::affine_element* P_affines,
-                                                           const miller_lines* lines,
-                                                           size_t num_points);
+                                                  const miller_lines* lines,
+                                                  size_t num_points);
 
 } // namespace pairing
 } // namespace barretenberg

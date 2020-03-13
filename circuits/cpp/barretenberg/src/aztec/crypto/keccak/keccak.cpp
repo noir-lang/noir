@@ -61,10 +61,8 @@ static inline void keccak(uint64_t* out, size_t bits, const uint8_t* data, size_
 
     uint64_t state[25] = { 0 };
 
-    while (size >= block_size)
-    {
-        for (i = 0; i < (block_size / word_size); ++i)
-        {
+    while (size >= block_size) {
+        for (i = 0; i < (block_size / word_size); ++i) {
             state[i] ^= load_le(data);
             data += word_size;
         }
@@ -76,16 +74,14 @@ static inline void keccak(uint64_t* out, size_t bits, const uint8_t* data, size_
 
     state_iter = state;
 
-    while (size >= word_size)
-    {
+    while (size >= word_size) {
         *state_iter ^= load_le(data);
         ++state_iter;
         data += word_size;
         size -= word_size;
     }
 
-    while (size > 0)
-    {
+    while (size > 0) {
         *last_word_iter = *data;
         ++last_word_iter;
         ++data;
@@ -113,10 +109,8 @@ struct keccak256 hash_field_elements(const uint64_t* limbs, size_t num_elements)
 {
     uint8_t input_buffer[num_elements * 32];
 
-    for (size_t i = 0; i < num_elements; ++i)
-    {
-        for (size_t j = 0; j < 4; ++j)
-        {
+    for (size_t i = 0; i < num_elements; ++i) {
+        for (size_t j = 0; j < 4; ++j) {
             uint64_t word = (limbs[i * 4 + j]);
             size_t idx = i * 32 + j * 8;
             input_buffer[idx] = (uint8_t)((word >> 56) & 0xff);

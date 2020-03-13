@@ -36,5 +36,5 @@ bool split(
     return true;
 }
 
-}
+} // namespace prover
 } // namespace rollup

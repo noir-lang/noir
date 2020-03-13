@@ -26,7 +26,6 @@ class uint_nt {
         , uint64(other)
     {}
 
-
     uint_nt(uint64_t value)
         : __width(32)
         , uint8(uint8_t(value))
@@ -227,43 +226,45 @@ class uint_nt {
     //     }
     // }
 
-
     uint_nt(uint8_ct&& other)
         : __width(8)
-        , uint8(other) {}
+        , uint8(other)
+    {}
 
     uint_nt(uint16_ct&& other)
         : __width(16)
-        , uint16(other) {}
-
+        , uint16(other)
+    {}
 
     uint_nt(uint32_ct&& other)
         : __width(32)
-        , uint32(other) {}
-
+        , uint32(other)
+    {}
 
     uint_nt(uint64_ct&& other)
         : __width(64)
-        , uint64(other) {}
-
+        , uint64(other)
+    {}
 
     uint_nt(const uint8_ct& other)
         : __width(8)
-        , uint8(other) {}
+        , uint8(other)
+    {}
 
     uint_nt(const uint16_ct& other)
         : __width(16)
-        , uint16(other) {}
-
+        , uint16(other)
+    {}
 
     uint_nt(const uint32_ct& other)
         : __width(32)
-        , uint32(other) {}
-
+        , uint32(other)
+    {}
 
     uint_nt(const uint64_ct& other)
         : __width(64)
-        , uint64(other) {}
+        , uint64(other)
+    {}
 
     operator byte_array_ct()
     {
@@ -341,7 +342,6 @@ class uint_nt {
         }
     }
 
-
     uint_nt operator-(const uint_nt& other) const
     {
         switch (__width) {
@@ -363,7 +363,6 @@ class uint_nt {
         }
         }
     }
-
 
     uint_nt operator*(const uint_nt& other) const
     {
@@ -409,7 +408,6 @@ class uint_nt {
         }
     }
 
-
     uint_nt operator%(const uint_nt& other) const
     {
         switch (__width) {
@@ -431,7 +429,6 @@ class uint_nt {
         }
         }
     }
-
 
     uint_nt operator&(const uint_nt& other) const
     {
@@ -455,7 +452,6 @@ class uint_nt {
         }
     }
 
-
     uint_nt operator|(const uint_nt& other) const
     {
         switch (__width) {
@@ -477,7 +473,6 @@ class uint_nt {
         }
         }
     }
-
 
     uint_nt operator^(const uint_nt& other) const
     {
@@ -501,7 +496,6 @@ class uint_nt {
         }
     }
 
-
     uint_nt operator~() const
     {
         switch (__width) {
@@ -523,7 +517,6 @@ class uint_nt {
         }
         }
     }
-
 
     uint_nt operator>>(const size_t const_shift) const
     {
@@ -547,7 +540,6 @@ class uint_nt {
         }
     }
 
-
     uint_nt operator<<(const size_t const_shift) const
     {
         switch (__width) {
@@ -569,7 +561,6 @@ class uint_nt {
         }
         }
     }
-
 
     uint_nt ror(const size_t rot) const
     {
@@ -636,7 +627,6 @@ class uint_nt {
         }
         }
     }
-
 
     bool_ct operator>=(const uint_nt& other) const
     {
@@ -726,7 +716,6 @@ class uint_nt {
         }
     }
 
-
     bool_ct operator!=(const uint_nt& other) const
     {
         switch (__width) {
@@ -772,18 +761,58 @@ class uint_nt {
     }
     uint_nt operator++() { return operator+(uint_nt(width(), nullptr, 1)); };
     uint_nt operator--() { return operator-(uint_nt(width(), nullptr, 1)); };
-    uint_nt operator+=(const uint_nt& other) { *this = operator+(other); return *this; };
-    uint_nt operator-=(const uint_nt& other) { *this = operator-(other); return *this; };
-    uint_nt operator*=(const uint_nt& other) { *this = operator*(other); return *this; };
-    uint_nt operator/=(const uint_nt& other) { *this = operator/(other); return *this; };
-    uint_nt operator%=(const uint_nt& other) { *this = operator%(other); return *this; };
+    uint_nt operator+=(const uint_nt& other)
+    {
+        *this = operator+(other);
+        return *this;
+    };
+    uint_nt operator-=(const uint_nt& other)
+    {
+        *this = operator-(other);
+        return *this;
+    };
+    uint_nt operator*=(const uint_nt& other)
+    {
+        *this = operator*(other);
+        return *this;
+    };
+    uint_nt operator/=(const uint_nt& other)
+    {
+        *this = operator/(other);
+        return *this;
+    };
+    uint_nt operator%=(const uint_nt& other)
+    {
+        *this = operator%(other);
+        return *this;
+    };
 
-    uint_nt operator&=(const uint_nt& other) { *this = operator&(other); return *this; };
-    uint_nt operator^=(const uint_nt& other) { *this = operator^(other); return *this; };
-    uint_nt operator|=(const uint_nt& other) { *this = operator|(other); return *this; };
+    uint_nt operator&=(const uint_nt& other)
+    {
+        *this = operator&(other);
+        return *this;
+    };
+    uint_nt operator^=(const uint_nt& other)
+    {
+        *this = operator^(other);
+        return *this;
+    };
+    uint_nt operator|=(const uint_nt& other)
+    {
+        *this = operator|(other);
+        return *this;
+    };
 
-    uint_nt operator>>=(const size_t const_shift) { *this = operator>>(const_shift); return *this; };
-    uint_nt operator<<=(const size_t const_shift) { *this = operator<<(const_shift); return *this; };
+    uint_nt operator>>=(const size_t const_shift)
+    {
+        *this = operator>>(const_shift);
+        return *this;
+    };
+    uint_nt operator<<=(const size_t const_shift)
+    {
+        *this = operator<<(const_shift);
+        return *this;
+    };
 
     uint256_t get_value() const
     {
@@ -830,8 +859,10 @@ class uint_nt {
         }
         }
     }
+
   private:
     size_t __width;
+
   public:
     uint8_ct uint8;
     uint16_ct uint16;
@@ -843,17 +874,27 @@ inline std::ostream& operator<<(std::ostream& os, uint_nt const& v)
 {
     auto flags = os.flags();
     os << std::hex << std::setfill('0');
-    auto value =  v.get_value();
-    switch(v.width()) {
-        case 8: os << std::setw(2) << (int)static_cast<uint8_t>(value); break;
-        case 16: os << std::setw(4) << static_cast<uint16_t>(value); break;
-        case 32: os << std::setw(8) << static_cast<uint32_t>(value); break;
-        case 64: os << std::setw(16) << static_cast<uint64_t>(value); break;
-        default: os << v.get_value(); break;
+    auto value = v.get_value();
+    switch (v.width()) {
+    case 8:
+        os << std::setw(2) << (int)static_cast<uint8_t>(value);
+        break;
+    case 16:
+        os << std::setw(4) << static_cast<uint16_t>(value);
+        break;
+    case 32:
+        os << std::setw(8) << static_cast<uint32_t>(value);
+        break;
+    case 64:
+        os << std::setw(16) << static_cast<uint64_t>(value);
+        break;
+    default:
+        os << v.get_value();
+        break;
     }
     os.flags(flags);
     return os;
 }
 
-}
-}
+} // namespace code_gen
+} // namespace noir

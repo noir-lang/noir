@@ -79,9 +79,7 @@ fr ProverMiMCWidget::compute_quotient_contribution(const barretenberg::fr& alpha
 void ProverMiMCWidget::compute_transcript_elements(transcript::Transcript& transcript)
 {
     fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
-    transcript.add_element(
-        "q_mimc_coefficient",
-        q_mimc_coefficient.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_mimc_coefficient", q_mimc_coefficient.evaluate(z, key->small_domain.size).to_buffer());
 }
 
 fr ProverMiMCWidget::compute_linear_contribution(const fr& alpha_base,

@@ -73,7 +73,7 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
 }
 
 template <typename Composer, typename Native>
- uint<Composer, Native>::uint(Composer* parent_context, const std::array<bool_t<Composer>, width>& wires)
+uint<Composer, Native>::uint(Composer* parent_context, const std::array<bool_t<Composer>, width>& wires)
     : uint<Composer, Native>(parent_context, std::vector<bool_t<Composer>>(wires.begin(), wires.end()))
 {}
 

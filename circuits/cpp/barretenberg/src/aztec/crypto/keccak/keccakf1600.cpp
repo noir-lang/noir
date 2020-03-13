@@ -67,8 +67,7 @@ void ethash_keccakf1600(uint64_t state[25]) NOEXCEPT
     Aso = state[23];
     Asu = state[24];
 
-    for (round = 0; round < 24; round += 2)
-    {
+    for (round = 0; round < 24; round += 2) {
         /* Round (round + 0): Axx -> Exx */
 
         Ba = Aba ^ Aga ^ Aka ^ Ama ^ Asa;

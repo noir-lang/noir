@@ -131,5 +131,5 @@ std::ostream& write_json(std::ostream& os, batch_tx const& txs)
     return os;
 }
 
+} // namespace tx
 } // namespace rollup
-}

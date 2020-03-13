@@ -19,5 +19,5 @@ inline user_context create_user_context()
     return { note_secret, owner_secret, owner_pub_key };
 }
 
-}
+} // namespace tx
 } // namespace rollup

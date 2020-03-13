@@ -28,4 +28,4 @@ inline transcript::Transcript create_dummy_standard_transcript()
     transcript.apply_fiat_shamir("alpha");
     return transcript;
 }
-}
+} // namespace waffle

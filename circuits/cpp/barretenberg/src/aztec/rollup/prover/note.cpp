@@ -44,5 +44,5 @@ std::string create_note_db_element(public_note const& note)
     return new_element;
 }
 
-}
+} // namespace prover
 } // namespace rollup

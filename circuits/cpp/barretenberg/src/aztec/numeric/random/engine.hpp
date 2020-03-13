@@ -39,4 +39,4 @@ Engine& get_debug_engine();
 Engine& get_engine();
 
 } // namespace random
-} // namespace barretenberg
+} // namespace numeric

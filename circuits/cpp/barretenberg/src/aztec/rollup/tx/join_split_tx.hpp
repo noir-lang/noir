@@ -36,5 +36,5 @@ join_split_tx ntoh(join_split_tx const& tx);
 std::ostream& write(std::ostream& os, join_split_tx const& tx);
 std::istream& read(std::istream& is, join_split_tx& tx);
 
+} // namespace tx
 } // namespace rollup
-}

@@ -21,5 +21,5 @@ struct rollup_context {
     field_ct nullifier_root;
 };
 
-}
+} // namespace prover
 } // namespace rollup

@@ -21,4 +21,4 @@ template <> inline size_t count_leading_zeros<uint128_t>(uint128_t u)
     }
 }
 
-}
+} // namespace numeric

@@ -211,8 +211,7 @@ void ProverTurboArithmeticWidget::compute_transcript_elements(transcript::Transc
 {
     fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
 
-    transcript.add_element("q_arith",
-                           q_arith.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_arith", q_arith.evaluate(z, key->small_domain.size).to_buffer());
 }
 
 fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base,

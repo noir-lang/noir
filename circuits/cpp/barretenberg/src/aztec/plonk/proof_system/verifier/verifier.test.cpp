@@ -65,8 +65,8 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
             poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n));
     }
 
-    std::shared_ptr<verification_key> circuit_verification_key = std::make_shared<verification_key>(
-        circuit_proving_key->n, circuit_proving_key->num_public_inputs, "../srs_db");
+    std::shared_ptr<verification_key> circuit_verification_key =
+        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, "../srs_db");
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });

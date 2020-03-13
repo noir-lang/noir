@@ -12,14 +12,14 @@ class VerifierBoolWidget : public VerifierBaseWidget {
     VerifierBoolWidget();
 
     barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                                       const barretenberg::fr&,
-                                                                       const transcript::Transcript&,
-                                                                       barretenberg::fr&) override;
+                                                              const barretenberg::fr&,
+                                                              const transcript::Transcript&,
+                                                              barretenberg::fr&) override;
 
     barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                                    barretenberg::fr&,
-                                                                    const barretenberg::fr& nu_base,
-                                                                    const transcript::Transcript&) override;
+                                                           barretenberg::fr&,
+                                                           const barretenberg::fr& nu_base,
+                                                           const transcript::Transcript&) override;
 
     VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key* key,
@@ -38,15 +38,15 @@ class ProverBoolWidget : public ProverBaseWidget {
     ProverBoolWidget& operator=(ProverBoolWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                            const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript);
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          barretenberg::polynomial& r);
+                                                 const transcript::Transcript& transcript,
+                                                 barretenberg::polynomial& r);
 
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                const transcript::Transcript&,
-                                                                barretenberg::fr*,
-                                                                barretenberg::fr*);
+                                                       const transcript::Transcript&,
+                                                       barretenberg::fr*,
+                                                       barretenberg::fr*);
 
     barretenberg::polynomial& q_bl;
     barretenberg::polynomial& q_br;

@@ -4,11 +4,9 @@
 #include <polynomials/polynomial.hpp>
 #include <plonk/reference_string/reference_string.hpp>
 
-namespace waffle
-{
-struct proving_key
-{
-    public:
+namespace waffle {
+struct proving_key {
+  public:
     proving_key(const size_t num_gates, const size_t num_inputs, std::string const& crs_path);
 
     proving_key(const proving_key& other);
@@ -48,4 +46,4 @@ struct proving_key
     barretenberg::polynomial quotient_large;
     static constexpr size_t min_thread_block = 4UL;
 };
-}
+} // namespace waffle

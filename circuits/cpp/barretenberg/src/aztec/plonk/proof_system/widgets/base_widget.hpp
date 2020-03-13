@@ -35,17 +35,15 @@ class VerifierBaseWidget {
         std::vector<barretenberg::g1::affine_element>& points,
         std::vector<barretenberg::fr>& scalars) = 0;
 
-    virtual barretenberg::fr compute_batch_evaluation_contribution(
-        verification_key*,
-        barretenberg::fr& batch_eval,
-        const barretenberg::fr& nu_base,
-        const transcript::Transcript& transcript) = 0;
+    virtual barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
+                                                                   barretenberg::fr& batch_eval,
+                                                                   const barretenberg::fr& nu_base,
+                                                                   const transcript::Transcript& transcript) = 0;
 
-    virtual barretenberg::fr compute_quotient_evaluation_contribution(
-        verification_key*,
-        const barretenberg::fr& alpha_base,
-        const transcript::Transcript&,
-        barretenberg::fr&)
+    virtual barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
+                                                                      const barretenberg::fr& alpha_base,
+                                                                      const transcript::Transcript&,
+                                                                      barretenberg::fr&)
     {
         return alpha_base;
     }
@@ -95,14 +93,14 @@ class ProverBaseWidget {
     virtual ~ProverBaseWidget() {}
 
     virtual barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                                    const transcript::Transcript& transcript) = 0;
+                                                           const transcript::Transcript& transcript) = 0;
     virtual barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                                  const transcript::Transcript& transcript,
-                                                                  barretenberg::polynomial& r) = 0;
+                                                         const transcript::Transcript& transcript,
+                                                         barretenberg::polynomial& r) = 0;
     virtual barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                        const transcript::Transcript& transcript,
-                                                                        barretenberg::fr* poly,
-                                                                        barretenberg::fr*) = 0;
+                                                               const transcript::Transcript& transcript,
+                                                               barretenberg::fr* poly,
+                                                               barretenberg::fr*) = 0;
     virtual void compute_transcript_elements(transcript::Transcript&){};
 
     proving_key* key;

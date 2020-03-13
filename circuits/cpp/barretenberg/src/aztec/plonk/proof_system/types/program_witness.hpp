@@ -5,9 +5,8 @@
 
 namespace waffle {
 
-struct program_witness
-{
+struct program_witness {
     std::map<std::string, barretenberg::polynomial> wires;
 };
 
-}
+} // namespace waffle

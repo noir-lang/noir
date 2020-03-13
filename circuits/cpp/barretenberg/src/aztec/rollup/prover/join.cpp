@@ -37,6 +37,6 @@ bool join(rollup_context& ctx,
 
     return true;
 }
-}
+} // namespace prover
 
 } // namespace rollup

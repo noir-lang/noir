@@ -18,5 +18,5 @@ byte_array_ct create_note_leaf(Composer& composer, pedersen_note::public_note co
 
 std::string create_note_db_element(pedersen_note::public_note const& note);
 
-}
-}
+} // namespace prover
+} // namespace rollup

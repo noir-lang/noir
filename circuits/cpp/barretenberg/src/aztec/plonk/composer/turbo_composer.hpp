@@ -50,13 +50,7 @@ class TurboComposer : public ComposerBase {
     void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b)
     {
         const add_triple gate_coefficients{
-            a_idx,
-            a_idx,
-            a_idx,
-            barretenberg::fr::one(),
-            barretenberg::fr::zero(),
-            barretenberg::fr::zero(),
-            -b,
+            a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
         };
         create_add_gate(gate_coefficients);
     }

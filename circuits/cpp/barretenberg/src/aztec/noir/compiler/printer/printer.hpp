@@ -30,5 +30,5 @@ struct printer {
     void start(ast::statement_list const& x) const;
 };
 
-} // namespace code_gen
+} // namespace printer
 } // namespace noir

@@ -51,10 +51,7 @@ template <typename ComposerContext> class bit_array {
     bool_t<ComposerContext>& operator[](const size_t idx);
     bool_t<ComposerContext> operator[](const size_t idx) const;
 
-    operator byte_array<ComposerContext>()
-    {
-        return byte_array(context, values.rbegin(), values.rend());
-    };
+    operator byte_array<ComposerContext>() { return byte_array(context, values.rbegin(), values.rend()); };
 
     template <size_t N> operator std::array<uint32<ComposerContext>, N>()
     {

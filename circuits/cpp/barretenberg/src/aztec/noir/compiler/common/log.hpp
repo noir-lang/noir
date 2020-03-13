@@ -18,7 +18,7 @@ template <typename... Args> inline void info(std::string const& str, Args... arg
     std::cout << format(str, args...) << std::endl;
 }
 
-template <typename... Args> inline void abort[[noreturn]](std::string const& str, Args... args)
+template <typename... Args> inline void abort [[noreturn]] (std::string const& str, Args... args)
 {
     throw_or_abort(format(str, args...));
 }

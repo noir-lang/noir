@@ -194,8 +194,7 @@ void ProverTurboFixedBaseWidget::compute_transcript_elements(transcript::Transcr
 {
     ProverTurboArithmeticWidget::compute_transcript_elements(transcript);
     fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
-    transcript.add_element("q_ecc_1",
-                           q_ecc_1.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_ecc_1", q_ecc_1.evaluate(z, key->small_domain.size).to_buffer());
     transcript.add_element("q_c", q_c.evaluate(z, key->small_domain.size).to_buffer());
 }
 

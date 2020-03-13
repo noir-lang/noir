@@ -2,28 +2,23 @@
 #include <string>
 #include <vector>
 
-namespace transcript
-{
-class Manifest
-{
+namespace transcript {
+class Manifest {
   public:
-    struct ManifestEntry
-    {
+    struct ManifestEntry {
         std::string name;
         size_t num_bytes;
         bool derived_by_verifier;
     };
-    struct RoundManifest
-    {
+    struct RoundManifest {
         RoundManifest(std::initializer_list<ManifestEntry> element_names, const std::string challenge_name)
-            : elements(element_names), challenge(challenge_name){};
+            : elements(element_names)
+            , challenge(challenge_name){};
 
         bool includes_element(const std::string& element_name)
         {
-            for (auto ele : elements)
-            {
-                if (element_name == ele.name)
-                {
+            for (auto ele : elements) {
+                if (element_name == ele.name) {
                     return true;
                 }
             }
@@ -34,17 +29,12 @@ class Manifest
         std::string challenge;
     };
     Manifest(std::initializer_list<RoundManifest> _round_manifests)
-        : round_manifests(_round_manifests), num_rounds(round_manifests.size()){};
+        : round_manifests(_round_manifests)
+        , num_rounds(round_manifests.size()){};
 
-    size_t get_num_rounds() const
-    {
-        return num_rounds;
-    }
+    size_t get_num_rounds() const { return num_rounds; }
 
-    RoundManifest get_round_manifest(const size_t idx) const
-    {
-        return round_manifests[idx];
-    }
+    RoundManifest get_round_manifest(const size_t idx) const { return round_manifests[idx]; }
 
   private:
     std::vector<RoundManifest> round_manifests;

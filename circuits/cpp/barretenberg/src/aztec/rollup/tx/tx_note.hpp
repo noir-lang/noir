@@ -12,5 +12,5 @@ struct tx_note {
 
 grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext);
 
-} // namespace pedersen_note
-} // namespace stdlib
+} // namespace tx
+} // namespace rollup

@@ -15,9 +15,9 @@ class VerifierMiMCWidget : public VerifierBaseWidget {
         std::vector<barretenberg::fr>& scalars) override;
 
     barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                                    barretenberg::fr& batch_eval,
-                                                                    const barretenberg::fr& nu_base,
-                                                                    const transcript::Transcript& transcript) override;
+                                                           barretenberg::fr& batch_eval,
+                                                           const barretenberg::fr& nu_base,
+                                                           const transcript::Transcript& transcript) override;
 };
 
 class ProverMiMCWidget : public ProverBaseWidget {
@@ -29,14 +29,14 @@ class ProverMiMCWidget : public ProverBaseWidget {
     ProverMiMCWidget& operator=(ProverMiMCWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                            const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript);
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          barretenberg::polynomial& r);
+                                                 const transcript::Transcript& transcript,
+                                                 barretenberg::polynomial& r);
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                const transcript::Transcript& transcript,
-                                                                barretenberg::fr* poly,
-                                                                barretenberg::fr*);
+                                                       const transcript::Transcript& transcript,
+                                                       barretenberg::fr* poly,
+                                                       barretenberg::fr*);
     void compute_transcript_elements(transcript::Transcript& transcript);
 
     barretenberg::polynomial& q_mimc_selector;

@@ -12,6 +12,6 @@ typedef waffle::StandardComposer Composer;
 typedef stdlib::bool_t<Composer> bool_t;
 typedef stdlib::byte_array<Composer> byte_array;
 
-} // namespace turbo
+} // namespace standard
 } // namespace types
 } // namespace stdlib

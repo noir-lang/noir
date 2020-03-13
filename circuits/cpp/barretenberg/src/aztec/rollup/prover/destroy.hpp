@@ -31,5 +31,5 @@ void destroy_note(rollup_context& ctx, destroy_note_context const& destroy_ctx);
 
 bool destroy(rollup_context& ctx, uint32_t const index, tx_note const& note);
 
-}
-}
+} // namespace prover
+} // namespace rollup

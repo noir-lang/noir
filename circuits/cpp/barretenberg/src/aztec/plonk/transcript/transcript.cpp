@@ -53,7 +53,7 @@ std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::apply_fiat_shamir(
         // TODO: Was failing...
         // ASSERT(elements.count(manifest_element.name) == 1);
         std::vector<uint8_t>& element_data = elements[manifest_element.name];
-        //ASSERT(manifest_element.num_bytes == element_data.size());
+        // ASSERT(manifest_element.num_bytes == element_data.size());
         buffer.insert(buffer.end(), element_data.begin(), element_data.end());
     }
 

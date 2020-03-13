@@ -14,9 +14,9 @@ class VerifierSequentialWidget : public VerifierBaseWidget {
         std::vector<barretenberg::fr>& scalars) override;
 
     barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                                    barretenberg::fr&,
-                                                                    const barretenberg::fr& nu_base,
-                                                                    const transcript::Transcript&) override
+                                                           barretenberg::fr&,
+                                                           const barretenberg::fr& nu_base,
+                                                           const transcript::Transcript&) override
     {
         return nu_base;
     };
@@ -31,15 +31,15 @@ class ProverSequentialWidget : public ProverBaseWidget {
     ProverSequentialWidget& operator=(ProverSequentialWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                            const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript);
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                          const transcript::Transcript& transcript,
-                                                          barretenberg::polynomial& r);
+                                                 const transcript::Transcript& transcript,
+                                                 barretenberg::polynomial& r);
 
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                                const transcript::Transcript&,
-                                                                barretenberg::fr*,
-                                                                barretenberg::fr*)
+                                                       const transcript::Transcript&,
+                                                       barretenberg::fr*,
+                                                       barretenberg::fr*)
     {
         return nu_base;
     }

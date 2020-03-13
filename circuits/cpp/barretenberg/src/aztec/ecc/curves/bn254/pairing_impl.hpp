@@ -267,8 +267,8 @@ constexpr fq12 reduced_ate_pairing(const g1::affine_element& P_affine, const g2:
 }
 
 fq12 reduced_ate_pairing_batch_precomputed(const g1::affine_element* P_affines,
-                                                    const miller_lines* lines,
-                                                    const size_t num_points)
+                                           const miller_lines* lines,
+                                           const size_t num_points)
 {
     g1::element* P = new g1::element[num_points];
     for (size_t i = 0; i < num_points; ++i) {
@@ -282,8 +282,8 @@ fq12 reduced_ate_pairing_batch_precomputed(const g1::affine_element* P_affines,
 }
 
 fq12 reduced_ate_pairing_batch(const g1::affine_element* P_affines,
-                                        const g2::affine_element* Q_affines,
-                                        const size_t num_points)
+                               const g2::affine_element* Q_affines,
+                               const size_t num_points)
 {
     g1::element* P = new g1::element[num_points];
     g2::element* Q = new g2::element[num_points];

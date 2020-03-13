@@ -143,5 +143,5 @@ void printer::start(ast::statement_list const& x) const
     (*this)(x);
 }
 
-} // namespace code_gen
+} // namespace printer
 } // namespace noir
