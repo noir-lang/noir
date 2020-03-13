@@ -1,17 +1,8 @@
 #include <benchmark/benchmark.h>
-
-#include <math.h>
-
-#include <barretenberg/curves/bn254/fr.hpp>
-
-#include <barretenberg/waffle/composer/mimc_composer.hpp>
-#include <barretenberg/waffle/composer/standard_composer.hpp>
-#include <barretenberg/waffle/proof_system/preprocess.hpp>
-#include <barretenberg/waffle/proof_system/prover/prover.hpp>
-#include <barretenberg/waffle/proof_system/verifier/verifier.hpp>
-
-#include <barretenberg/waffle/stdlib/field/field.hpp>
-#include <barretenberg/waffle/stdlib/mimc.hpp>
+#include <ecc/curves/bn254/fr.hpp>
+#include <stdlib/primitives/field/field.hpp>
+#include <plonk/composer/mimc_composer.hpp>
+#include "mimc.hpp"
 
 using namespace benchmark;
 

@@ -8,18 +8,23 @@ The structured reference string contains monomials up to x^{2^20}. This SRS was 
 
 ```
 git clone https://github.com/AztecProtocol/barretenberg
-
+cd barretenberg/barretenberg
 mkdir build && cd build
 cmake ..
-make -j$(nproc) [optional target name]
+make [optional target name]
 ```
+
+### Parallelise the build
+
+Add the number of jobs you want to your `make` command. e.g. `make -j16`.
 
 ### Tests
 
-Each module has its own tests. To run, for example `ecc` tests:
+Each module has its own tests. To build and run, for example `ecc` tests:
 
 ```
-./src/ecc/ecc_tests
+make ecc_tests
+./src/aztec/ecc/ecc_tests
 ```
 
 Running the entire suite of tests using `ctest`:
@@ -32,12 +37,27 @@ To compile without tests and benchmarks, use `cmake .. -DTESTING=OFF -DBENCHMARK
 
 To select a test, run `<path_to_module_tests> --gtest_filter=<test_filter>*`
 
+### Benchmarks
+
+Some modules have benchmarks. The build targets are named `<module_name>_bench`. To build and run, for example `ecc` benchmarks.
+
+```
+make ecc_bench
+./src/aztec/ecc/ecc_bench
+```
+
+A shorthand for the above is:
+
+```
+make run_ecc_bench
+```
+
 ### Debug build
 
 ```
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE="Debug" ..
-make -j$(nproc)
+make
 ```
 
 ### Build without x64 assembly:
@@ -45,7 +65,7 @@ make -j$(nproc)
 ```
 mkdir build && cd build
 cmake -DDISABLE_ASM=ON ..
-make -j$(nproc)
+make
 ```
 
 ### WASM build

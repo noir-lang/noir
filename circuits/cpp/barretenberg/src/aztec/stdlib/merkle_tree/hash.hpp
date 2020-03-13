@@ -1,18 +1,14 @@
 #pragma once
 #include <vector>
+#include <common/net.hpp>
 #include <crypto/blake2s/blake2s.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <stdlib/hash/blake2s/blake2s.hpp>
+#include <stdlib/primitives/field/field.hpp>
 
 namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
-
-inline bool isLittleEndian()
-{
-    constexpr int num = 42;
-    return (*(char*)&num == 42);
-}
 
 template <typename ComposerContext> inline field_t<ComposerContext> hash_value(byte_array<ComposerContext> const& input)
 {
@@ -25,17 +21,10 @@ inline barretenberg::fr hash_value_native(std::string const& input)
     std::vector<uint8_t> inputv(input.begin(), input.end());
     std::vector<uint8_t> output = blake2::blake2s(inputv);
     barretenberg::fr result = barretenberg::fr::zero();
-    if (isLittleEndian()) {
-        result.data[0] = __builtin_bswap64(*(uint64_t*)&output[24]);
-        result.data[1] = __builtin_bswap64(*(uint64_t*)&output[16]);
-        result.data[2] = __builtin_bswap64(*(uint64_t*)&output[8]);
-        result.data[3] = __builtin_bswap64(*(uint64_t*)&output[0]);
-    } else {
-        result.data[0] = *(uint64_t*)&output[24];
-        result.data[1] = *(uint64_t*)&output[16];
-        result.data[2] = *(uint64_t*)&output[8];
-        result.data[3] = *(uint64_t*)&output[0];
-    }
+    result.data[0] = htonll(*(uint64_t*)&output[24]);
+    result.data[1] = htonll(*(uint64_t*)&output[16]);
+    result.data[2] = htonll(*(uint64_t*)&output[8]);
+    result.data[3] = htonll(*(uint64_t*)&output[0]);
     return result.to_montgomery_form();
 }
 

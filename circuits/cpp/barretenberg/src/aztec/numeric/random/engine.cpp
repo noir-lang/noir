@@ -53,6 +53,13 @@ uint64_t Engine::get_random_uint64()
     return dist(engine);
 }
 
+uint128_t Engine::get_random_uint128()
+{
+    uint128_t hi = dist(engine);
+    uint128_t lo = dist(engine);
+    return (hi << 64) | lo;
+}
+
 uint256_t Engine::get_random_uint256()
 {
     return uint256_t(dist(engine), dist(engine), dist(engine), dist(engine));

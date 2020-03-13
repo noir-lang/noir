@@ -69,5 +69,5 @@ int main()
 {
     std::cout << "executing pippenger algorithm" << std::endl;
     pippenger();
-    return 1;
+    return 0;
 }

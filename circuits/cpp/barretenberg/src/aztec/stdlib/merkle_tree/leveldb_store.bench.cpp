@@ -1,13 +1,14 @@
 #include <benchmark/benchmark.h>
-
-#include <iostream>
-#include <math.h>
-
-#include <barretenberg/waffle/stdlib/merkle_tree/hash.hpp>
-#include <barretenberg/waffle/stdlib/merkle_tree/leveldb_store.hpp>
+#include <numeric/random/engine.hpp>
+#include "hash.hpp"
+#include "leveldb_store.hpp"
 
 using namespace benchmark;
 using namespace plonk::stdlib::merkle_tree;
+
+namespace {
+    auto& engine = numeric::random::get_debug_engine();
+}
 
 constexpr size_t DEPTH = 128;
 constexpr size_t MAX = 4096;
@@ -62,9 +63,7 @@ void update_1024_random_elements(State& state) noexcept
         LevelDbStore db("/tmp/leveldb_bench", DEPTH);
         for (size_t i = 0; i < 1024; i++) {
             state.PauseTiming();
-            LevelDbStore::index_t index;
-            int got_entropy = getentropy((void*)&index, sizeof(index));
-            ASSERT(got_entropy == 0);
+            LevelDbStore::index_t index = engine.get_random_uint128();
             state.ResumeTiming();
             db.update_element(index, VALUES[i]);
         }

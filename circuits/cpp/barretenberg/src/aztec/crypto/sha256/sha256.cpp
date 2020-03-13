@@ -1,5 +1,6 @@
 #include "./sha256.hpp"
 #include <common/assert.hpp>
+#include <common/net.hpp>
 #include <array>
 #include <memory.h>
 
@@ -19,11 +20,6 @@ constexpr uint32_t round_constants[64]{
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-bool isLittleEndian()
-{
-    constexpr int num = 42;
-    return (*(char*)&num == 42);
-}
 } // namespace internal
 
 void prepare_constants(std::array<uint32_t, 8>& input)
@@ -113,7 +109,7 @@ std::vector<uint8_t> sha256_block(const std::vector<uint8_t>& input)
     prepare_constants(hash);
     std::array<uint32_t, 16> hash_input;
     memcpy((void*)&hash_input[0], (void*)&input[0], 64);
-    if (internal::isLittleEndian()) {
+    if (is_little_endian()) {
         for (size_t j = 0; j < hash_input.size(); ++j) {
             hash_input[j] = __builtin_bswap32(hash_input[j]);
         }
@@ -122,7 +118,7 @@ std::vector<uint8_t> sha256_block(const std::vector<uint8_t>& input)
 
     std::vector<uint8_t> output(32);
     memcpy((void*)&output[0], (void*)&hash[0], 32);
-    if (internal::isLittleEndian()) {
+    if (is_little_endian()) {
         uint32_t* output_uint32 = (uint32_t*)&output[0];
         for (size_t j = 0; j < 8; ++j) {
             output_uint32[j] = __builtin_bswap32(output_uint32[j]);
@@ -155,7 +151,7 @@ std::vector<uint8_t> sha256(const std::vector<uint8_t>& input)
     for (size_t i = 0; i < num_blocks; ++i) {
         std::array<uint32_t, 16> hash_input;
         memcpy((void*)&hash_input[0], (void*)&message_schedule[i * 64], 64);
-        if (internal::isLittleEndian()) {
+        if (is_little_endian()) {
             for (size_t j = 0; j < hash_input.size(); ++j) {
                 hash_input[j] = __builtin_bswap32(hash_input[j]);
             }
@@ -165,7 +161,7 @@ std::vector<uint8_t> sha256(const std::vector<uint8_t>& input)
 
     std::vector<uint8_t> output(32);
     memcpy((void*)&output[0], (void*)&rolling_hash[0], 32);
-    if (internal::isLittleEndian()) {
+    if (is_little_endian()) {
         uint32_t* output_uint32 = (uint32_t*)&output[0];
         for (size_t j = 0; j < 8; ++j) {
             output_uint32[j] = __builtin_bswap32(output_uint32[j]);

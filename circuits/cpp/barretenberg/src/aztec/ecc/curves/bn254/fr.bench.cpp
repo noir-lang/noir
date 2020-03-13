@@ -1,8 +1,7 @@
 #include <benchmark/benchmark.h>
+#include "fr.hpp"
 
 using namespace benchmark;
-
-#include <barretenberg/curves/bn254/fr.hpp>
 
 /*
 ADX asm

@@ -1,24 +1,14 @@
 #include <benchmark/benchmark.h>
-
-#include <math.h>
-
-#include <barretenberg/curves/bn254/fr.hpp>
-
-#include <barretenberg/waffle/composer/standard_composer.hpp>
-#include <barretenberg/waffle/composer/turbo_composer.hpp>
-#include <barretenberg/waffle/proof_system/preprocess.hpp>
-#include <barretenberg/waffle/proof_system/prover/prover.hpp>
-#include <barretenberg/waffle/proof_system/verifier/verifier.hpp>
-
-#include <barretenberg/waffle/stdlib/bitarray/bitarray.hpp>
-#include <barretenberg/waffle/stdlib/crypto/hash/sha256.hpp>
-#include <barretenberg/waffle/stdlib/uint32/uint32.hpp>
+#include <ecc/curves/bn254/fr.hpp>
+#include <stdlib/primitives/bit_array/bit_array.hpp>
+#include <plonk/composer/turbo_composer.hpp>
+#include "sha256.hpp"
 
 using namespace benchmark;
 
 typedef plonk::stdlib::uint32<waffle::TurboComposer> uint32;
 typedef plonk::stdlib::witness_t<waffle::TurboComposer> witness_t;
-typedef plonk::stdlib::bitarray<waffle::TurboComposer> bitarray;
+typedef plonk::stdlib::bit_array<waffle::TurboComposer> bit_array;
 
 constexpr size_t NUM_HASHES = 10;
 constexpr size_t MAX_BYTES = 55 + (9 * 64);
@@ -35,7 +25,7 @@ void generate_test_plonk_circuit(waffle::TurboComposer& composer, size_t num_byt
     for (size_t i = 0; i < num_bytes; ++i) {
         in[i] = get_random_char();
     }
-    bitarray input(&composer, in);
+    bit_array input(&composer, in);
     plonk::stdlib::sha256(input);
     // for (size_t j = 0; j < num_hashes; ++j)
     // {

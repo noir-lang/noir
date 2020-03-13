@@ -1,4 +1,5 @@
 #pragma once
+#include "../uint128/uint128.hpp"
 #include "../uint256/uint256.hpp"
 #include "../uint512/uint512.hpp"
 #include "stdint.h"
@@ -23,6 +24,8 @@ class Engine {
     uint32_t get_random_uint32();
 
     uint64_t get_random_uint64();
+
+    uint128_t get_random_uint128();
 
     uint256_t get_random_uint256();
 

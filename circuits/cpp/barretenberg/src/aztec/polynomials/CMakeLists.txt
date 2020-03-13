@@ -1,1 +1,1 @@
-barretenberg_module(polynomials numeric)
+barretenberg_module(polynomials numeric ecc)

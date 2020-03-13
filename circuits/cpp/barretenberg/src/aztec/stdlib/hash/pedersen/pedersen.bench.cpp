@@ -1,15 +1,10 @@
 #include <benchmark/benchmark.h>
-#include <math.h>
-
-#include <barretenberg/curves/bn254/fr.hpp>
-#include <barretenberg/curves/grumpkin/grumpkin.hpp>
-#include <barretenberg/misc_crypto/pedersen/pedersen.hpp>
-#include <barretenberg/waffle/composer/turbo_composer.hpp>
-#include <barretenberg/waffle/proof_system/preprocess.hpp>
-#include <barretenberg/waffle/proof_system/prover/prover.hpp>
-#include <barretenberg/waffle/proof_system/verifier/verifier.hpp>
-#include <barretenberg/waffle/stdlib/crypto/hash/pedersen.hpp>
-#include <barretenberg/waffle/stdlib/field/field.hpp>
+#include <ecc/curves/bn254/fr.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <crypto/pedersen/pedersen.hpp>
+#include <stdlib/primitives/field/field.hpp>
+#include <plonk/composer/turbo_composer.hpp>
+#include "pedersen.hpp"
 
 using namespace benchmark;
 
