@@ -108,23 +108,30 @@ curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-8
 sed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
 ```
 
-If you want to be able to run the tests, you'll need to install `wasmtime`.
+To build:
+
+```
+mkdir build-wasm && cd build-wasm
+cmake -DWASM=ON ..
+make -j$(nproc)
+```
+
+There will be a binary at `./src/aztec/barretenberg.wasm` that can be copied to `barretenberg.js` for use in node and the browser.
+
+#### Testing
+
+To run the tests, you'll need to install `wasmtime`.
 
 ```
 curl https://wasmtime.dev/install.sh -sSf | bash
 ```
 
-Finally, to build.
+The WASM build does not currently support `ctest` meaning you must run each modules tests individually.
+Tests can be run like:
 
 ```
-mkdir build-wasm && cd build-wasm
-cmake -DWASM=ON ..
-make -j$(nproc) barretenberg.wasm
+wasmtime --dir=.. ./src/aztec/ecc/ecc_tests
 ```
-
-The resulting binary will be at `./src/aztec/barretenberg.wasm` and can be copied to `barretenberg.js` for use in node and the browser.
-
-Wasm build does not currently support `ctest` meaning you must run each modules tests individually.
 
 ### Modules
 

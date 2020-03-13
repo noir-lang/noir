@@ -28,10 +28,13 @@ add_subdirectory(ecc)
 add_subdirectory(crypto)
 add_subdirectory(polynomials)
 add_subdirectory(plonk)
-add_subdirectory(plonk_bench)
 add_subdirectory(stdlib)
 add_subdirectory(noir)
-add_subdirectory(rollup)
+
+if(NOT WASM)
+    add_subdirectory(plonk_bench)
+    add_subdirectory(rollup)
+endif()
 
 if(WASM)
     add_executable(

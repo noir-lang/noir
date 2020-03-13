@@ -30,10 +30,10 @@ waffle::ProverTurboLogicWidget create_test_widget_circuit(const size_t num_gates
     w_3[0] = fr::zero();
     w_2[0] = fr::zero();
     w_1[0] = fr::zero();
-    for (uint64_t i = 1; i < num_gates; ++i) {
-        uint64_t left = (i - 1) & 3;
-        uint64_t right = ((i - 1) / 4) & 3;
-        uint64_t out = 0;
+    for (size_t i = 1; i < num_gates; ++i) {
+        size_t left = (i - 1) & 3;
+        size_t right = ((i - 1) / 4) & 3;
+        size_t out = 0;
         if (xor_gates && and_gates) {
             if (((i / 16) & 1) == 1) {
                 out = left ^ right;

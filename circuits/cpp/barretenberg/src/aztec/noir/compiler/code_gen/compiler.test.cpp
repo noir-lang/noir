@@ -8,12 +8,12 @@ using namespace plonk::stdlib::types::turbo;
 using namespace noir::parser;
 using namespace noir::code_gen;
 
-// namespace boost {
-// void throw_exception(std::exception const&)
-// {
-//     std::abort();
-// }
-// } // namespace boost
+namespace boost {
+void throw_exception(std::exception const&)
+{
+    std::abort();
+}
+} // namespace boost
 
 TEST(noir, uint_indexing)
 {
