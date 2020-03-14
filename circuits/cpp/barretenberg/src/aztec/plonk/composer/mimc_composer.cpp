@@ -312,11 +312,13 @@ std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
     poly_coefficients[9] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
+    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
+
     commitments.resize(10);
 
     for (size_t i = 0; i < 10; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n));
+            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
     }
 
     circuit_verification_key =

@@ -58,11 +58,12 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     poly_coefficients[7] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
+    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n));
+            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
     }
 
     std::shared_ptr<verification_key> circuit_verification_key =

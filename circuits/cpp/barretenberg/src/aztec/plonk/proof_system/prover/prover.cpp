@@ -64,7 +64,7 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
         W[i] = barretenberg::scalar_multiplication::pippenger_unsafe(
-            witness->wires.at(wire_tag).get_coefficients(), key->reference_string.monomials, n);
+            witness->wires.at(wire_tag).get_coefficients(), key->reference_string.monomials, n, key->pippenger_runtime_state);
     }
 
     g1::element::batch_normalize(&W[0], settings::program_width);
@@ -92,7 +92,7 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
 template <typename settings> void ProverBase<settings>::compute_z_commitment()
 {
     g1::element Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        key->z.get_coefficients(), key->reference_string.monomials, n);
+        key->z.get_coefficients(), key->reference_string.monomials, n, key->pippenger_runtime_state);
     g1::affine_element Z_affine;
     Z_affine = g1::affine_element(Z);
 
@@ -106,7 +106,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_commitm
     for (size_t i = 0; i < settings::program_width; ++i) {
         const size_t offset = n * i;
         T[i] = barretenberg::scalar_multiplication::pippenger_unsafe(
-            &key->quotient_large.get_coefficients()[offset], key->reference_string.monomials, n);
+            &key->quotient_large.get_coefficients()[offset], key->reference_string.monomials, n, key->pippenger_runtime_state);
     }
 
     g1::element::batch_normalize(&T[0], settings::program_width);
@@ -741,10 +741,10 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
     start = std::chrono::steady_clock::now();
 #endif
     g1::element PI_Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        opening_poly.get_coefficients(), key->reference_string.monomials, n);
+        opening_poly.get_coefficients(), key->reference_string.monomials, n, key->pippenger_runtime_state);
 
     g1::element PI_Z_OMEGA = barretenberg::scalar_multiplication::pippenger_unsafe(
-        shifted_opening_poly.get_coefficients(), key->reference_string.monomials, n);
+        shifted_opening_poly.get_coefficients(), key->reference_string.monomials, n, key->pippenger_runtime_state);
 
     g1::affine_element PI_Z_affine;
     g1::affine_element PI_Z_OMEGA_affine;

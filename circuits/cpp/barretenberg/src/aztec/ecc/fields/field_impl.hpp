@@ -14,6 +14,7 @@
 #ifdef BBERG_USE_ASM
 #include "field_impl_x64.hpp"
 #endif
+#include "field_impl_generic.hpp"
 
 namespace barretenberg {
 

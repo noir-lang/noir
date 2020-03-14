@@ -4,9 +4,15 @@
 #include <srs/io.hpp>
 #include <vector>
 
+#include <numeric/random/engine.hpp>
+
 #define BARRETENBERG_SRS_PATH "../srs_db"
 
 using namespace barretenberg;
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 // TODO: refactor pippenger tests. These are a hot mess...
 TEST(scalar_multiplication, reduce_buckets_simple)
@@ -229,16 +235,17 @@ TEST(scalar_multiplication, reduce_buckets)
     }
 
     // scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
-    scalar_multiplication::multiplication_runtime_state state;
+    scalar_multiplication::unsafe_pippenger_runtime_state state(num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    scalar_multiplication::compute_wnaf_states<num_initial_points>(state, scalars);
+    scalar_multiplication::compute_wnaf_states(
+        state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::organize_buckets<num_points>(state);
+    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
@@ -250,9 +257,9 @@ TEST(scalar_multiplication, reduce_buckets)
 
     uint64_t* point_schedule_copy = static_cast<uint64_t*>(aligned_alloc(64, sizeof(uint64_t) * num_points * 2));
     for (size_t i = 0; i < num_points; ++i) {
-        state.wnaf_table[i + num_points] = state.wnaf_table[i + num_points] & 0xffffffff7fffffffUL;
-        // printf("state.wnaf_table[%lu] = %lx \n", i, state.wnaf_table[i]);
-        point_schedule_copy[i] = state.wnaf_table[i + num_points];
+        state.point_schedule[i + num_points] = state.point_schedule[i + num_points] & 0xffffffff7fffffffUL;
+        // printf("state.point_schedule[%lu] = %lx \n", i, state.point_schedule[i]);
+        point_schedule_copy[i] = state.point_schedule[i + num_points];
     }
     const size_t first_bucket = point_schedule_copy[0] & 0x7fffffffULL;
     const size_t last_bucket = point_schedule_copy[num_points - 1] & 0x7fffffffULL;
@@ -264,7 +271,7 @@ TEST(scalar_multiplication, reduce_buckets)
                                                                        scratch_field,
                                                                        bucket_counts,
                                                                        &bit_offsets[0],
-                                                                       &state.wnaf_table[num_points],
+                                                                       &state.point_schedule[num_points],
                                                                        num_points,
                                                                        static_cast<uint32_t>(num_buckets),
                                                                        bucket_empty_status };
@@ -346,17 +353,18 @@ TEST(scalar_multiplication, reduce_buckets_basic)
         fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::multiplication_runtime_state state;
+    scalar_multiplication::unsafe_pippenger_runtime_state state(num_initial_points);
     scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    scalar_multiplication::compute_wnaf_states<num_initial_points>(state, scalars);
+    scalar_multiplication::compute_wnaf_states(
+        state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::organize_buckets<num_points>(state);
+    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
@@ -365,16 +373,20 @@ TEST(scalar_multiplication, reduce_buckets_basic)
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
     std::array<uint32_t, 22> bit_offsets = { 0 };
-    const size_t first_bucket = state.wnaf_table[0] & 0x7fffffffULL;
-    const size_t last_bucket = state.wnaf_table[num_points - 1] & 0x7fffffffULL;
+    const size_t first_bucket = state.point_schedule[0] & 0x7fffffffULL;
+    const size_t last_bucket = state.point_schedule[num_points - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
-    scalar_multiplication::affine_product_runtime_state product_state{
-        monomials,          point_pairs,   scratch_points,
-        scratch_field,      bucket_counts, &bit_offsets[0],
-        state.wnaf_table,   num_points,    static_cast<uint32_t>(num_buckets),
-        bucket_empty_status
-    };
+    scalar_multiplication::affine_product_runtime_state product_state{ monomials,
+                                                                       point_pairs,
+                                                                       scratch_points,
+                                                                       scratch_field,
+                                                                       bucket_counts,
+                                                                       &bit_offsets[0],
+                                                                       state.point_schedule,
+                                                                       num_points,
+                                                                       static_cast<uint32_t>(num_buckets),
+                                                                       bucket_empty_status };
 
     start = std::chrono::steady_clock::now();
     scalar_multiplication::reduce_buckets(product_state, true);
@@ -443,17 +455,18 @@ TEST(scalar_multiplication, construct_addition_chains)
         fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::multiplication_runtime_state state;
+    scalar_multiplication::unsafe_pippenger_runtime_state state(num_initial_points);
     scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    scalar_multiplication::compute_wnaf_states<num_initial_points>(state, scalars);
+    scalar_multiplication::compute_wnaf_states(
+        state.point_schedule, state.skew_table, state.round_counts, scalars, num_initial_points);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    scalar_multiplication::organize_buckets<num_points>(state);
+    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, num_points);
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
@@ -462,8 +475,8 @@ TEST(scalar_multiplication, construct_addition_chains)
     uint32_t* bucket_counts = static_cast<uint32_t*>(aligned_alloc(64, max_num_buckets * sizeof(uint32_t)));
     memset((void*)bucket_counts, 0x00, max_num_buckets * sizeof(uint32_t));
     std::array<uint32_t, 22> bit_offsets = { 0 };
-    const size_t first_bucket = state.wnaf_table[0] & 0x7fffffffULL;
-    const size_t last_bucket = state.wnaf_table[num_points - 1] & 0x7fffffffULL;
+    const size_t first_bucket = state.point_schedule[0] & 0x7fffffffULL;
+    const size_t last_bucket = state.point_schedule[num_points - 1] & 0x7fffffffULL;
     const size_t num_buckets = last_bucket - first_bucket + 1;
 
     scalar_multiplication::affine_product_runtime_state product_state{ monomials,
@@ -472,7 +485,7 @@ TEST(scalar_multiplication, construct_addition_chains)
                                                                        nullptr,
                                                                        bucket_counts,
                                                                        &bit_offsets[0],
-                                                                       state.wnaf_table,
+                                                                       state.point_schedule,
                                                                        num_points,
                                                                        static_cast<uint32_t>(num_buckets),
                                                                        bucket_empty_status };
@@ -489,49 +502,6 @@ TEST(scalar_multiplication, construct_addition_chains)
     aligned_free(monomials);
     aligned_free(bucket_counts);
 }
-
-// TEST(scalar_multiplication, pippenger_timing)
-// {
-//     constexpr size_t num_initial_points = 1 << 20;
-//     constexpr size_t num_points = num_initial_points * 2;
-//     g1::affine_element* monomials = (g1::affine_element*)(aligned_alloc(64, sizeof(g1::affine_element) *
-//     (num_points))); g2::affine_element g2_x; io::read_transcript(monomials, g2_x, num_initial_points,
-//     BARRETENBERG_SRS_PATH);
-
-//     scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
-
-//     fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
-
-//     fr source_scalar = fr::random_element();
-//     for (size_t i = 0; i < num_initial_points; ++i) {
-//         source_scalar.self_sqr();
-//         fr::__copy(source_scalar, scalars[i]);
-//     }
-
-//     scalar_multiplication::multiplication_runtime_state state;
-//     scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
-
-//     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-//     scalar_multiplication::compute_wnaf_states<num_initial_points>(state, scalars);
-//     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-//     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-//     std::cout << "wnaf time: " << diff.count() << "ms" << std::endl;
-
-//     start = std::chrono::steady_clock::now();
-//     scalar_multiplication::organize_buckets<num_points>(state);
-//     end = std::chrono::steady_clock::now();
-//     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-//     std::cout << "organize bucket time: " << diff.count() << "ms" << std::endl;
-
-//     start = std::chrono::steady_clock::now();
-//     scalar_multiplication::scalar_multiplication_internal<num_points>(state, monomials);
-//     end = std::chrono::steady_clock::now();
-//     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-//     std::cout << "scalar mul: " << diff.count() << "ms" << std::endl;
-
-//     aligned_free(scalars);
-//     aligned_free(monomials);
-// }
 
 TEST(scalar_multiplication, endomorphism_split)
 {
@@ -572,16 +542,17 @@ TEST(scalar_multiplication, radix_sort)
         fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::multiplication_runtime_state state;
-    scalar_multiplication::compute_wnaf_states<target_degree>(state, scalars);
+    scalar_multiplication::unsafe_pippenger_runtime_state state(target_degree);
+    scalar_multiplication::compute_wnaf_states(
+        state.point_schedule, state.skew_table, state.round_counts, scalars, target_degree);
 
     uint64_t* wnaf_copy = (uint64_t*)(aligned_alloc(64, sizeof(uint64_t) * target_degree * 2 * num_rounds));
-    memcpy((void*)wnaf_copy, (void*)state.wnaf_table, sizeof(uint64_t) * target_degree * 2 * num_rounds);
+    memcpy((void*)wnaf_copy, (void*)state.point_schedule, sizeof(uint64_t) * target_degree * 2 * num_rounds);
 
-    scalar_multiplication::organize_buckets<target_degree * 2>(state);
+    scalar_multiplication::organize_buckets(state.point_schedule, state.round_counts, target_degree * 2);
     for (size_t i = 0; i < num_rounds; ++i) {
         uint64_t* unsorted_wnaf = &wnaf_copy[i * target_degree * 2];
-        uint64_t* sorted_wnaf = &state.wnaf_table[i * target_degree * 2];
+        uint64_t* sorted_wnaf = &state.point_schedule[i * target_degree * 2];
 
         const auto find_entry = [unsorted_wnaf, num_entries = target_degree * 2](auto x) {
             for (size_t k = 0; k < num_entries; ++k) {
@@ -622,19 +593,22 @@ TEST(scalar_multiplication, oversized_inputs)
     fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * target_degree));
 
     fr source_scalar = fr::random_element();
+    fr accumulator = source_scalar;
     for (size_t i = 0; i < target_degree; ++i) {
-        source_scalar.self_sqr();
-        fr::__copy(source_scalar, scalars[i]);
+        accumulator *= source_scalar;
+        fr::__copy(accumulator, scalars[i]);
     }
+    scalar_multiplication::pippenger_runtime_state state(target_degree);
 
-    g1::element first = scalar_multiplication::pippenger(scalars, monomials, target_degree);
+    g1::element first = scalar_multiplication::pippenger(scalars, monomials, target_degree, state);
     first = first.normalize();
 
     for (size_t i = 0; i < target_degree; ++i) {
         scalars[i].self_neg();
     }
+    scalar_multiplication::pippenger_runtime_state state_2(target_degree);
 
-    g1::element second = scalar_multiplication::pippenger(scalars, monomials, target_degree);
+    g1::element second = scalar_multiplication::pippenger(scalars, monomials, target_degree, state_2);
     second = second.normalize();
 
     EXPECT_EQ((first.z == second.z), true);
@@ -671,7 +645,9 @@ TEST(scalar_multiplication, undersized_inputs)
     expected = expected.normalize();
     scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
+
+    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -702,8 +678,63 @@ TEST(scalar_multiplication, pippenger)
     }
     expected = expected.normalize();
     scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points);
+    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    result = result.normalize();
+
+    aligned_free(scalars);
+    aligned_free(points);
+
+    EXPECT_EQ(result == expected, true);
+}
+
+TEST(scalar_multiplication, pippenger_short_inputs)
+{
+    constexpr size_t num_points = 8192;
+
+    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+
+    g1::affine_element* points =
+        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+
+    for (size_t i = 0; i < num_points; ++i) {
+        points[i] = g1::affine_element(g1::element::random_element());
+    }
+    for (size_t i = 0; i < (num_points / 4); ++i) {
+        scalars[i * 4].data[0] = engine.get_random_uint32();
+        scalars[i * 4].data[1] = engine.get_random_uint32();
+        scalars[i * 4].data[2] = engine.get_random_uint32();
+        scalars[i * 4].data[3] = engine.get_random_uint32();
+        scalars[i * 4] = scalars[i * 4].to_montgomery_form();
+        scalars[i * 4 + 1].data[0] = 0;
+        scalars[i * 4 + 1].data[1] = 0;
+        scalars[i * 4 + 1].data[2] = 0;
+        scalars[i * 4 + 1].data[3] = 0;
+        scalars[i * 4 + 1] = scalars[i * 4 + 1].to_montgomery_form();
+        scalars[i * 4 + 2].data[0] = engine.get_random_uint32();
+        scalars[i * 4 + 2].data[1] = engine.get_random_uint32();
+        scalars[i * 4 + 2].data[2] = 0;
+        scalars[i * 4 + 2].data[3] = 0;
+        scalars[i * 4 + 2] = scalars[i * 4 + 2].to_montgomery_form();
+        scalars[i * 4 + 3].data[0] = (engine.get_random_uint32() & 0x07ULL);
+        scalars[i * 4 + 3].data[1] = 0;
+        scalars[i * 4 + 3].data[2] = 0;
+        scalars[i * 4 + 3].data[3] = 0;
+        scalars[i * 4 + 3] = scalars[i * 4 + 3].to_montgomery_form();
+    }
+
+    g1::element expected;
+    expected.self_set_infinity();
+    for (size_t i = 0; i < num_points; ++i) {
+        g1::element temp = points[i] * scalars[i];
+        expected += temp;
+    }
+    expected = expected.normalize();
+    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
+
+    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -735,7 +766,62 @@ TEST(scalar_multiplication, pippenger_unsafe)
     expected = expected.normalize();
     scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
 
-    g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points);
+    scalar_multiplication::unsafe_pippenger_runtime_state state(num_points);
+    g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points, state);
+    result = result.normalize();
+
+    aligned_free(scalars);
+    aligned_free(points);
+
+    EXPECT_EQ(result == expected, true);
+}
+
+TEST(scalar_multiplication, pippenger_unsafe_short_inputs)
+{
+    constexpr size_t num_points = 8192;
+
+    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+
+    g1::affine_element* points =
+        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+
+    for (size_t i = 0; i < num_points; ++i) {
+        points[i] = g1::affine_element(g1::element::random_element());
+    }
+    for (size_t i = 0; i < (num_points / 4); ++i) {
+        scalars[i * 4].data[0] = engine.get_random_uint32();
+        scalars[i * 4].data[1] = engine.get_random_uint32();
+        scalars[i * 4].data[2] = engine.get_random_uint32();
+        scalars[i * 4].data[3] = engine.get_random_uint32();
+        scalars[i * 4] = scalars[i * 4].to_montgomery_form();
+        scalars[i * 4 + 1].data[0] = 0;
+        scalars[i * 4 + 1].data[1] = 0;
+        scalars[i * 4 + 1].data[2] = 0;
+        scalars[i * 4 + 1].data[3] = 0;
+        scalars[i * 4 + 1] = scalars[i * 4 + 1].to_montgomery_form();
+        scalars[i * 4 + 2].data[0] = engine.get_random_uint32();
+        scalars[i * 4 + 2].data[1] = engine.get_random_uint32();
+        scalars[i * 4 + 2].data[2] = 0;
+        scalars[i * 4 + 2].data[3] = 0;
+        scalars[i * 4 + 2] = scalars[i * 4 + 2].to_montgomery_form();
+        scalars[i * 4 + 3].data[0] = (engine.get_random_uint32() & 0x07ULL);
+        scalars[i * 4 + 3].data[1] = 0;
+        scalars[i * 4 + 3].data[2] = 0;
+        scalars[i * 4 + 3].data[3] = 0;
+        scalars[i * 4 + 3] = scalars[i * 4 + 3].to_montgomery_form();
+    }
+
+    g1::element expected;
+    expected.self_set_infinity();
+    for (size_t i = 0; i < num_points; ++i) {
+        g1::element temp = points[i] * scalars[i];
+        expected += temp;
+    }
+    expected = expected.normalize();
+    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    scalar_multiplication::unsafe_pippenger_runtime_state state(num_points);
+
+    g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -766,8 +852,9 @@ TEST(scalar_multiplication, pippenger_one)
     }
     expected = expected.normalize();
     scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points);
+    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
     result = result.normalize();
 
     aligned_free(scalars);
@@ -782,7 +869,8 @@ TEST(scalar_multiplication, pippenger_zero_points)
 
     g1::affine_element* points = (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * 2 + 1);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, 0);
+    scalar_multiplication::pippenger_runtime_state state(0);
+    g1::element result = scalar_multiplication::pippenger(scalars, points, 0, state);
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }
 
@@ -796,6 +884,7 @@ TEST(scalar_multiplication, pippenger_mul_by_zero)
     points[0] = g1::affine_one;
     scalar_multiplication::generate_pippenger_point_table(points, points, 1);
 
-    g1::element result = scalar_multiplication::pippenger(scalars, points, 1);
+    scalar_multiplication::pippenger_runtime_state state(1);
+    g1::element result = scalar_multiplication::pippenger(scalars, points, 1, state);
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }

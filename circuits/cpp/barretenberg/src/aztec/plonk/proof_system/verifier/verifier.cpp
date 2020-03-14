@@ -300,10 +300,11 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(&elements[0], &elements[0], num_elements);
+    scalar_multiplication::pippenger_runtime_state state(num_elements);
     g1::element P[2];
 
     P[0] = g1::affine_element(g1::element(PI_Z_OMEGA) * u);
-    P[1] = barretenberg::scalar_multiplication::pippenger(&scalars[0], &elements[0], num_elements);
+    P[1] = barretenberg::scalar_multiplication::pippenger(&scalars[0], &elements[0], num_elements, state);
 
     P[1] += T[0];
     P[0] += PI_Z;
