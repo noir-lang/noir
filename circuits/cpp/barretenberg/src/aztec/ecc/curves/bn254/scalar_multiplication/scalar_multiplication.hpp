@@ -2,9 +2,9 @@
 
 #include "../fr.hpp"
 #include "../g1.hpp"
+#include "./mmu.hpp"
 #include <stddef.h>
 #include <stdint.h>
-#include "./mmu.hpp"
 
 namespace barretenberg {
 namespace scalar_multiplication {

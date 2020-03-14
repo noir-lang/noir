@@ -1,5 +1,5 @@
-#include <benchmark/benchmark.h>
 #include "fr.hpp"
+#include <benchmark/benchmark.h>
 
 using namespace benchmark;
 

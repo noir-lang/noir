@@ -1,12 +1,12 @@
 #pragma once
+#include <array>
+#include <common/inline.hpp>
 #include <cstdint>
 #include <iostream>
-#include <array>
-#include <random>
+#include <numeric/random/engine.hpp>
 #include <numeric/uint128/uint128.hpp>
 #include <numeric/uint256/uint256.hpp>
-#include <numeric/random/engine.hpp>
-#include <common/inline.hpp>
+#include <random>
 
 namespace barretenberg {
 template <class Params> struct alignas(32) field {

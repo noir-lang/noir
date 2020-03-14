@@ -1,7 +1,7 @@
 #pragma once
+#include <iomanip>
 #include <numeric/uint256/uint256.hpp>
 #include <stdlib/types/turbo.hpp>
-#include <iomanip>
 
 namespace noir {
 namespace code_gen {

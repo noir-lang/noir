@@ -1,10 +1,10 @@
+#include "turbo_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_range_widget.hpp>
-#include "turbo_composer.hpp"
 
 using namespace barretenberg;
 

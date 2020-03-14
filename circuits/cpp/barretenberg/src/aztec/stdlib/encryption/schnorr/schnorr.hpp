@@ -1,6 +1,6 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
 #include <crypto/schnorr/schnorr.hpp>
+#include <stdlib/types/turbo.hpp>
 
 namespace plonk {
 namespace stdlib {

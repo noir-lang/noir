@@ -1,12 +1,12 @@
 #include "../tx/batch_tx.hpp"
+#include "../tx/user_context.hpp"
 #include "create.hpp"
 #include "destroy.hpp"
 #include "join.hpp"
 #include "join_split.hpp"
+#include "rollup_context.hpp"
 #include "split.hpp"
 #include "timer.hpp"
-#include "../tx/user_context.hpp"
-#include "rollup_context.hpp"
 
 char const* DATA_DB_PATH = "/tmp/rollup_prover";
 char const* NULLIFIER_DB_PATH = "/tmp/rollup_prover_nullifier";

@@ -1,5 +1,5 @@
-#include "../common/log.hpp"
 #include "parse.hpp"
+#include "../common/log.hpp"
 #include "config.hpp"
 #include "expression.hpp"
 #include "skipper.hpp"

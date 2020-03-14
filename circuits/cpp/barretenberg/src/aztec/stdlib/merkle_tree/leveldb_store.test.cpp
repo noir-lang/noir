@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include <sys/random.h>
-#include <stdlib/types/turbo.hpp>
-#include "memory_store.hpp"
 #include "leveldb_store.hpp"
+#include "memory_store.hpp"
+#include <gtest/gtest.h>
+#include <stdlib/types/turbo.hpp>
+#include <sys/random.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;

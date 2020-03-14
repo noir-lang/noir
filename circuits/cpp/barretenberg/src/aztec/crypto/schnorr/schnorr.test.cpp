@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <ecc/curves/grumpkin/grumpkin.hpp>
 #include "schnorr.hpp"
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

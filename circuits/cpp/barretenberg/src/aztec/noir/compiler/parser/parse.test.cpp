@@ -1,6 +1,6 @@
+#include "parse.hpp"
 #include <fstream>
 #include <gtest/gtest.h>
-#include "parse.hpp"
 
 using namespace noir::parser;
 

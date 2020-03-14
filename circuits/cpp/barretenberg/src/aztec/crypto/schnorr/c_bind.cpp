@@ -1,5 +1,5 @@
-#include <ecc/curves/grumpkin/grumpkin.hpp>
 #include "schnorr.hpp"
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 

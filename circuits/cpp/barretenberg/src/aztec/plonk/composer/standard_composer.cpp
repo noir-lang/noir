@@ -1,7 +1,7 @@
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
-#include <numeric/bitop/get_msb.hpp>
 #include "standard_composer.hpp"
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <numeric/bitop/get_msb.hpp>
+#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 
 using namespace barretenberg;
 

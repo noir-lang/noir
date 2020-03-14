@@ -3,8 +3,8 @@
  * Licensed under the Apache License, Version 2.0.
  */
 
-#include <stdint.h>
 #include "keccak.hpp"
+#include <stdint.h>
 
 static uint64_t rol(uint64_t x, unsigned s)
 {

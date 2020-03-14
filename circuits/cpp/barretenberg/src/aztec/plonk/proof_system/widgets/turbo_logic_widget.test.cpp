@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <polynomials/polynomial_arithmetic.hpp>
 #include "create_dummy_transcript.hpp"
 #include "turbo_logic_widget.hpp"
+#include <gtest/gtest.h>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 using namespace barretenberg;
 using namespace waffle;

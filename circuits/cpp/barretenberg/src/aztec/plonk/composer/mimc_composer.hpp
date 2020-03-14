@@ -1,6 +1,6 @@
 #pragma once
-#include <plonk/transcript/manifest.hpp>
 #include "standard_composer.hpp"
+#include <plonk/transcript/manifest.hpp>
 
 namespace waffle {
 struct mimc_quadruplet {

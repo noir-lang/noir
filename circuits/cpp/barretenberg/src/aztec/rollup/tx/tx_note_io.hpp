@@ -1,8 +1,8 @@
 #pragma once
-#include <common/net.hpp>
-#include <ecc/curves/grumpkin/grumpkin.hpp>
-#include <crypto/pedersen/pedersen.hpp>
 #include "tx_note.hpp"
+#include <common/net.hpp>
+#include <crypto/pedersen/pedersen.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 
 namespace rollup {
 namespace tx {

@@ -1,6 +1,6 @@
-#include <cstdlib>
 #include <chrono>
 #include <common/assert.hpp>
+#include <cstdlib>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <plonk/reference_string/reference_string.hpp>
 

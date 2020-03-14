@@ -1,6 +1,6 @@
 #pragma once
-#include <ostream>
 #include <iomanip>
+#include <ostream>
 
 __extension__ using uint128_t = unsigned __int128;
 

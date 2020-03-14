@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "fq12.hpp"
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

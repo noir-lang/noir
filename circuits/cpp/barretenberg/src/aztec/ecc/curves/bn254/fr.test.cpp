@@ -1,6 +1,6 @@
+#include "fr.hpp"
 #include <gtest/gtest.h>
 #include <sys/random.h>
-#include "fr.hpp"
 
 using namespace barretenberg;
 

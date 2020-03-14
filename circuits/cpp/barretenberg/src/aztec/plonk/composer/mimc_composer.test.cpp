@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "mimc_composer.hpp"
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

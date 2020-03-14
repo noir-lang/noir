@@ -1,7 +1,7 @@
 #pragma once
-#include <stdlib/primitives/field/field.hpp>
 #include "hash.hpp"
 #include <algorithm>
+#include <stdlib/primitives/field/field.hpp>
 #include <vector>
 
 namespace plonk {

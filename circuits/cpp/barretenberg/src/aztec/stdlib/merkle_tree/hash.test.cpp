@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <stdlib/types/turbo.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
 #include "hash.hpp"
+#include <gtest/gtest.h>
+#include <stdlib/hash/pedersen/pedersen.hpp>
+#include <stdlib/types/turbo.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;

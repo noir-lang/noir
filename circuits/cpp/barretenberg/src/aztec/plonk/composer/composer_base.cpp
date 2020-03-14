@@ -1,7 +1,7 @@
-#include <plonk/proof_system/utils/permutation.hpp>
-#include <plonk/proof_system/proving_key/proving_key.hpp>
-#include <plonk/proof_system/verification_key/verification_key.hpp>
 #include "composer_base.hpp"
+#include <plonk/proof_system/proving_key/proving_key.hpp>
+#include <plonk/proof_system/utils/permutation.hpp>
+#include <plonk/proof_system/verification_key/verification_key.hpp>
 
 namespace waffle {
 void ComposerBase::assert_equal(const uint32_t a_idx, const uint32_t b_idx)

@@ -1,5 +1,4 @@
 #include <benchmark/benchmark.h>
-#include <numeric/bitop/get_msb.hpp>
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
@@ -7,8 +6,9 @@
 #include <ecc/curves/bn254/pairing.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <ecc/groups/wnaf.hpp>
-#include <srs/io.hpp>
+#include <numeric/bitop/get_msb.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
+#include <srs/io.hpp>
 
 using namespace benchmark;
 using namespace barretenberg;

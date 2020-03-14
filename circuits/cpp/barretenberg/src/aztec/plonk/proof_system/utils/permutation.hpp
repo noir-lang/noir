@@ -1,7 +1,7 @@
 #pragma once
-#include <polynomials/polynomial.hpp>
-#include <polynomials/iterate_over_domain.hpp>
 #include <numeric/bitop/get_msb.hpp>
+#include <polynomials/iterate_over_domain.hpp>
+#include <polynomials/polynomial.hpp>
 
 namespace waffle {
 template <typename program_settings>

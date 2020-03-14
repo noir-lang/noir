@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include <time.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <string>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <time.h>
 
 class Timer {
   private:

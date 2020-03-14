@@ -1,7 +1,7 @@
 #include "mimc.hpp"
 #include <common/assert.hpp>
-#include <ecc/curves/bn254/fr.hpp>
 #include <crypto/keccak/keccak.hpp>
+#include <ecc/curves/bn254/fr.hpp>
 #include <plonk/composer/mimc_composer.hpp>
 #include <stdlib/primitives/field/field.hpp>
 

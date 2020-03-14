@@ -1,6 +1,6 @@
+#include "format.hpp"
 #include <fstream>
 #include <gtest/gtest.h>
-#include "format.hpp"
 
 // namespace boost {
 // void throw_exception(std::exception const&)

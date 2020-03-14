@@ -1,7 +1,7 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
+#include <stdlib/types/turbo.hpp>
 
 namespace rollup {
 namespace prover {

@@ -1,7 +1,7 @@
 #include "./scalar_multiplication.hpp"
-#include <numeric/bitop/get_msb.hpp>
 #include <chrono>
 #include <iostream>
+#include <numeric/bitop/get_msb.hpp>
 
 namespace barretenberg {
 namespace scalar_multiplication {

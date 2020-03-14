@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <ecc/curves/grumpkin/grumpkin.hpp>
-#include <crypto/pedersen/pedersen.hpp>
 #include "pedersen.hpp"
+#include <crypto/pedersen/pedersen.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <gtest/gtest.h>
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;

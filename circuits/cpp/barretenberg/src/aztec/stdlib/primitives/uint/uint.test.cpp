@@ -1,8 +1,8 @@
+#include "../bool/bool.hpp"
+#include "uint.hpp"
 #include <gtest/gtest.h>
 #include <numeric/random/engine.hpp>
 #include <plonk/composer/turbo_composer.hpp>
-#include "../bool/bool.hpp"
-#include "uint.hpp"
 
 using namespace barretenberg;
 using namespace plonk;

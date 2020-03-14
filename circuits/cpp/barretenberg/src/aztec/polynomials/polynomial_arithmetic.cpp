@@ -1,10 +1,10 @@
-#include <math.h>
-#include <memory.h>
-#include <common/assert.hpp>
-#include <common/mem.hpp>
-#include <numeric/bitop/get_msb.hpp>
 #include "polynomial_arithmetic.hpp"
 #include "iterate_over_domain.hpp"
+#include <common/assert.hpp>
+#include <common/mem.hpp>
+#include <math.h>
+#include <memory.h>
+#include <numeric/bitop/get_msb.hpp>
 
 namespace barretenberg {
 namespace polynomial_arithmetic {

@@ -1,6 +1,6 @@
+#include "memory_store.hpp"
 #include <gtest/gtest.h>
 #include <stdlib/types/turbo.hpp>
-#include "memory_store.hpp"
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;

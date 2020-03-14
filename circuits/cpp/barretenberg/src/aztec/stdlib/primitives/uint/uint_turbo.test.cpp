@@ -1,6 +1,6 @@
+#include "uint.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/turbo_composer.hpp>
-#include "uint.hpp"
 
 namespace test_stlib_turbo_uint {
 

@@ -1,7 +1,7 @@
 #include "expression_visitor.hpp"
+#include "../common/log.hpp"
 #include "function_call.hpp"
 #include "function_statement_visitor.hpp"
-#include "../common/log.hpp"
 #include "operators.hpp"
 #include "type_info_from.hpp"
 #include <boost/format.hpp>

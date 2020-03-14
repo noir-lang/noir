@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <sys/random.h>
 #include "../curves/bn254/fr.hpp"
 #include "wnaf.hpp"
+#include <gtest/gtest.h>
+#include <sys/random.h>
 
 using namespace barretenberg;
 

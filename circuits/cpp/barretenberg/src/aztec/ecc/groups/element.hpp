@@ -1,12 +1,12 @@
 #pragma once
 
-#include <numeric/uint256/uint256.hpp>
-#include <numeric/random/engine.hpp>
-#include <common/inline.hpp>
-#include <array>
-#include <random>
-#include "wnaf.hpp"
 #include "affine_element.hpp"
+#include "wnaf.hpp"
+#include <array>
+#include <common/inline.hpp>
+#include <numeric/random/engine.hpp>
+#include <numeric/uint256/uint256.hpp>
+#include <random>
 
 namespace barretenberg {
 namespace group_elements {

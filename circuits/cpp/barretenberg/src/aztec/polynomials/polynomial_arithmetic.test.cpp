@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <common/mem.hpp>
 #include "polynomial_arithmetic.hpp"
+#include <common/mem.hpp>
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

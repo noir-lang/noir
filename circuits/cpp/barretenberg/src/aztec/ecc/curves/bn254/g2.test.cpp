@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "g2.hpp"
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

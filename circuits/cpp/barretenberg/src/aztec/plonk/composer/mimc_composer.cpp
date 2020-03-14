@@ -1,8 +1,8 @@
+#include "mimc_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/mimc_widget.hpp>
-#include <numeric/bitop/get_msb.hpp>
-#include "mimc_composer.hpp"
 
 using namespace barretenberg;
 

@@ -1,7 +1,7 @@
 #pragma once
-#include <stdlib.h>
-#include <memory>
 #include "memory.h"
+#include <memory>
+#include <stdlib.h>
 
 #ifdef __APPLE__
 inline void* aligned_alloc(size_t alignment, size_t size)

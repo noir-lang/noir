@@ -1,6 +1,6 @@
 #pragma once
-#include "rollup_context.hpp"
 #include "../tx/tx_note.hpp"
+#include "rollup_context.hpp"
 
 namespace rollup {
 namespace prover {

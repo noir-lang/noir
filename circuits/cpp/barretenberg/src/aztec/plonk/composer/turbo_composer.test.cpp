@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <crypto/pedersen/pedersen.hpp>
 #include "turbo_composer.hpp"
+#include <crypto/pedersen/pedersen.hpp>
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

@@ -1,8 +1,8 @@
+#include "turbo_range_widget.hpp"
+#include "../proving_key/proving_key.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
-#include "../proving_key/proving_key.hpp"
-#include "turbo_range_widget.hpp"
 
 using namespace barretenberg;
 
