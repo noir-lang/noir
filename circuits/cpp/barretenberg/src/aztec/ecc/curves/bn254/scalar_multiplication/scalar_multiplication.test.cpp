@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include <chrono>
-#include <vector>
-#include <srs/io.hpp>
 #include "scalar_multiplication.hpp"
+#include <chrono>
+#include <gtest/gtest.h>
+#include <srs/io.hpp>
+#include <vector>
 
 #define BARRETENBERG_SRS_PATH "../srs_db"
 

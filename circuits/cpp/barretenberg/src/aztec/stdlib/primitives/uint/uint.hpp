@@ -1,8 +1,8 @@
 #pragma once
-#include "../composers/composers_fwd.hpp"
 #include "../bool/bool.hpp"
-#include "../field/field.hpp"
 #include "../byte_array/byte_array.hpp"
+#include "../composers/composers_fwd.hpp"
+#include "../field/field.hpp"
 
 namespace plonk {
 namespace stdlib {

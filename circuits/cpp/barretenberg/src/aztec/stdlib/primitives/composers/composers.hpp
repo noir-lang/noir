@@ -1,6 +1,6 @@
 #pragma once
-#include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/mimc_composer.hpp>
+#include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
 
 #define INSTANTIATE_STDLIB_TYPE(stdlib_type)                                                                           \

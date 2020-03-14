@@ -1,4 +1,3 @@
-#include <numeric/bitop/get_msb.hpp>
 #include "./scalar_multiplication.hpp"
 #include "../../../groups/wnaf.hpp"
 #include "../fq.hpp"
@@ -11,6 +10,7 @@
 #include <array>
 #include <cstdlib>
 #include <math.h>
+#include <numeric/bitop/get_msb.hpp>
 #include <stddef.h>
 #include <stdint.h>
 

@@ -1,8 +1,8 @@
 #pragma once
 #include <map>
+#include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 #include <polynomials/polynomial.hpp>
-#include <plonk/reference_string/reference_string.hpp>
 
 namespace waffle {
 struct proving_key {

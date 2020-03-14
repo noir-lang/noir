@@ -1,6 +1,6 @@
 #pragma once
-#include <vector>
 #include <ecc/curves/bn254/fr.hpp>
+#include <vector>
 
 namespace waffle {
 barretenberg::fr compute_public_input_delta(const std::vector<barretenberg::fr>& inputs,

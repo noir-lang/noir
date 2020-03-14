@@ -1,7 +1,7 @@
-#include <sys/stat.h>
-#include <fstream>
-#include <common/net.hpp>
 #include "io.hpp"
+#include <common/net.hpp>
+#include <fstream>
+#include <sys/stat.h>
 
 namespace barretenberg {
 namespace io {

@@ -1,6 +1,6 @@
 #pragma once
-#include <plonk/transcript/manifest.hpp>
 #include "composer_base.hpp"
+#include <plonk/transcript/manifest.hpp>
 
 namespace waffle {
 class StandardComposer : public ComposerBase {

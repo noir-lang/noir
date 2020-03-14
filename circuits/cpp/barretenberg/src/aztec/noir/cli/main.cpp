@@ -1,8 +1,8 @@
 #include <fstream>
 #include <iostream>
-#include <vector>
 #include <noir/compiler/code_gen/compiler.hpp>
 #include <noir/compiler/parser/parse.hpp>
+#include <vector>
 
 using namespace barretenberg;
 using namespace noir::parser;

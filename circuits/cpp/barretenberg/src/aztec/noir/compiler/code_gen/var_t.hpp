@@ -1,11 +1,11 @@
 #pragma once
-#include "../parser/ast.hpp"
-#include <stdlib/types/turbo.hpp>
 #include "../common/format.hpp"
+#include "../parser/ast.hpp"
 #include "lambda_visitor.hpp"
 #include "type_info.hpp"
 #include "uint_nt.hpp"
 #include <sstream>
+#include <stdlib/types/turbo.hpp>
 
 namespace noir {
 namespace code_gen {

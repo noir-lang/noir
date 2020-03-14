@@ -4,7 +4,7 @@
 #
 # Scans for all .cpp files in a subdirectory, and creates a library named <module_name>.
 # Scans for all .test.cpp files in a subdirectory, and creates a gtest binary named <module name>_tests.
-# Scans for all .bench.cpp files in a subdirectory, and creates a gtest binary named <module name>_bench.
+# Scans for all .bench.cpp files in a subdirectory, and creates a benchmark binary named <module name>_bench.
 #
 # We have to get a bit complicated here, due to the fact CMake will not parallelise the building of object files
 # between dependent targets, due to the potential of post-build code generation steps etc.

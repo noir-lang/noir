@@ -1,6 +1,6 @@
 #pragma once
-#include "../witness/witness.hpp"
 #include "../composers/composers_fwd.hpp"
+#include "../witness/witness.hpp"
 
 namespace plonk {
 namespace stdlib {

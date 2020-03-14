@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
 #include "../random/engine.hpp"
 #include "uint512.hpp"
+#include <gtest/gtest.h>
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

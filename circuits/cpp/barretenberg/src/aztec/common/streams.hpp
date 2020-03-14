@@ -1,5 +1,5 @@
-#include <ostream>
 #include <iomanip>
+#include <ostream>
 #include <vector>
 
 namespace std {

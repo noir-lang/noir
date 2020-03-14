@@ -1,10 +1,10 @@
+#include "pedersen.hpp"
 #include <benchmark/benchmark.h>
+#include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
-#include <crypto/pedersen/pedersen.hpp>
-#include <stdlib/primitives/field/field.hpp>
 #include <plonk/composer/turbo_composer.hpp>
-#include "pedersen.hpp"
+#include <stdlib/primitives/field/field.hpp>
 
 using namespace benchmark;
 

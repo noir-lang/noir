@@ -1,7 +1,7 @@
+#include "sha256.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/standard_composer.hpp>
 #include <stdlib/types/turbo.hpp>
-#include "sha256.hpp"
 
 namespace test_stdlib_sha256 {
 

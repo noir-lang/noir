@@ -1,12 +1,12 @@
-#include <gtest/gtest.h>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
-#include <polynomials/polynomial_arithmetic.hpp>
 #include "../prover/prover.hpp"
 #include "../proving_key/proving_key.hpp"
-#include "../widgets/arithmetic_widget.hpp"
 #include "../utils/linearizer.hpp"
 #include "../utils/permutation.hpp"
+#include "../widgets/arithmetic_widget.hpp"
 #include "verifier.hpp"
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <gtest/gtest.h>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 namespace verifier_helpers {
 

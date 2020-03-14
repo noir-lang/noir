@@ -1,7 +1,7 @@
 #include "reference_string.hpp"
-#include <srs/io.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <srs/io.hpp>
 
 namespace waffle {
 VerifierReferenceString::VerifierReferenceString()

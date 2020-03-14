@@ -1,8 +1,8 @@
+#include "sha256.hpp"
 #include <benchmark/benchmark.h>
 #include <ecc/curves/bn254/fr.hpp>
-#include <stdlib/primitives/bit_array/bit_array.hpp>
 #include <plonk/composer/turbo_composer.hpp>
-#include "sha256.hpp"
+#include <stdlib/primitives/bit_array/bit_array.hpp>
 
 using namespace benchmark;
 

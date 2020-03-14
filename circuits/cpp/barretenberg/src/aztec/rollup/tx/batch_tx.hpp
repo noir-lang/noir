@@ -1,8 +1,8 @@
 #pragma once
 #include "join_split_tx.hpp"
+#include <algorithm>
 #include <arpa/inet.h>
 #include <sstream>
-#include <algorithm>
 
 namespace rollup {
 namespace tx {

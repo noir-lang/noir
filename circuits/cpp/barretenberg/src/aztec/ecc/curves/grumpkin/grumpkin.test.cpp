@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "grumpkin.hpp"
+#include <gtest/gtest.h>
 
 namespace test_grumpkin {
 

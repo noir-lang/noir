@@ -1,8 +1,8 @@
+#include "mimc.hpp"
 #include <benchmark/benchmark.h>
 #include <ecc/curves/bn254/fr.hpp>
-#include <stdlib/primitives/field/field.hpp>
 #include <plonk/composer/mimc_composer.hpp>
-#include "mimc.hpp"
+#include <stdlib/primitives/field/field.hpp>
 
 using namespace benchmark;
 

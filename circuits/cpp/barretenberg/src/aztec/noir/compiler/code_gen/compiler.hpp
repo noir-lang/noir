@@ -1,7 +1,7 @@
 #pragma once
-#include <plonk/composer/turbo_composer.hpp>
 #include "compiler_context.hpp"
 #include "var_t.hpp"
+#include <plonk/composer/turbo_composer.hpp>
 
 namespace noir {
 namespace code_gen {

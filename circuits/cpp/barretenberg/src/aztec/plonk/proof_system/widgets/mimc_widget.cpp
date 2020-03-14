@@ -1,7 +1,7 @@
+#include "mimc_widget.hpp"
+#include "../proving_key/proving_key.hpp"
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
-#include "../proving_key/proving_key.hpp"
-#include "mimc_widget.hpp"
 
 using namespace barretenberg;
 

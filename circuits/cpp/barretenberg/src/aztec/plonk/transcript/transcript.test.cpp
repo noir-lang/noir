@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "transcript.hpp"
+#include <gtest/gtest.h>
 
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)

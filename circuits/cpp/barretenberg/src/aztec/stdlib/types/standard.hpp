@@ -1,6 +1,6 @@
 #pragma once
-#include <plonk/composer/standard_composer.hpp>
 #include "../byte_array/byte_array.hpp"
+#include <plonk/composer/standard_composer.hpp>
 
 namespace stdlib {
 namespace types {

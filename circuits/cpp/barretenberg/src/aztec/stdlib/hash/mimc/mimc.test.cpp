@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
-#include <plonk/composer/standard_composer.hpp>
-#include <plonk/composer/mimc_composer.hpp>
-#include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/primitives/field/field.hpp>
 #include "mimc.hpp"
+#include <gtest/gtest.h>
+#include <plonk/composer/mimc_composer.hpp>
+#include <plonk/composer/standard_composer.hpp>
+#include <stdlib/primitives/field/field.hpp>
+#include <stdlib/primitives/witness/witness.hpp>
 
 namespace test_stdlib_mimc {
 using namespace barretenberg;

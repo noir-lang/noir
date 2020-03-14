@@ -1,8 +1,8 @@
 #pragma once
-#include <stdlib/primitives/field/field.hpp>
-#include <stdlib/primitives/byte_array/byte_array.hpp>
-#include <stdlib/hash/pedersen/pedersen.hpp>
 #include "hash_path.hpp"
+#include <stdlib/hash/pedersen/pedersen.hpp>
+#include <stdlib/primitives/byte_array/byte_array.hpp>
+#include <stdlib/primitives/field/field.hpp>
 
 namespace plonk {
 namespace stdlib {

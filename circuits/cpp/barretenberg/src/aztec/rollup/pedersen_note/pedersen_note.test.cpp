@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <ecc/curves/grumpkin/grumpkin.hpp>
-#include <crypto/pedersen/pedersen.hpp>
 #include "pedersen_note.hpp"
+#include <crypto/pedersen/pedersen.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;

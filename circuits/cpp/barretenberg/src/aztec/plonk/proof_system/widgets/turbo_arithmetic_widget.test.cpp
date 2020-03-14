@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include "turbo_arithmetic_widget.hpp"
-#include "create_dummy_transcript.hpp"
 #include "../proving_key/proving_key.hpp"
+#include "create_dummy_transcript.hpp"
+#include "turbo_arithmetic_widget.hpp"
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace waffle;

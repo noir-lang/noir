@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "blake2s.hpp"
+#include <gtest/gtest.h>
 
 #include <iostream>
 #include <memory>

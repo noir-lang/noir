@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <sys/random.h>
 #include "fq.hpp"
 #include "pseudorandom.hpp"
+#include <gtest/gtest.h>
+#include <sys/random.h>
 
 using namespace barretenberg;
 

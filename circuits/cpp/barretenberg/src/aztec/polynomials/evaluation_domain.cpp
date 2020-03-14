@@ -1,9 +1,9 @@
-#include <math.h>
-#include <memory.h>
+#include "evaluation_domain.hpp"
 #include <common/assert.hpp>
 #include <common/mem.hpp>
+#include <math.h>
+#include <memory.h>
 #include <numeric/bitop/get_msb.hpp>
-#include "evaluation_domain.hpp"
 
 #ifndef NO_MULTITHREADING
 #include "omp.h"

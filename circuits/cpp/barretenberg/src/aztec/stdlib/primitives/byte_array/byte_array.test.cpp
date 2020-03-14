@@ -1,6 +1,6 @@
+#include "byte_array.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/turbo_composer.hpp>
-#include "byte_array.hpp"
 
 namespace test_stdlib_byte_array {
 using namespace barretenberg;

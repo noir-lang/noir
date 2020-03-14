@@ -1,7 +1,7 @@
+#include "sha256.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
-#include "sha256.hpp"
 
 TEST(misc_sha256, ror)
 {

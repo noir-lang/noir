@@ -1,5 +1,5 @@
-#include <cstdint>
 #include "../uint128/uint128.hpp"
+#include <cstdint>
 
 namespace numeric {
 

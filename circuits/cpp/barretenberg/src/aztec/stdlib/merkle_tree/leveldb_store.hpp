@@ -1,9 +1,9 @@
 #pragma once
+#include "hash_path.hpp"
+#include "leveldb_tx.hpp"
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 #include <stdlib/primitives/field/field.hpp>
-#include "hash_path.hpp"
-#include "leveldb_tx.hpp"
 
 namespace plonk {
 namespace stdlib {

@@ -12,8 +12,8 @@
 #pragma once
 
 #include <cstdint>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 class uint256_t {
   public:

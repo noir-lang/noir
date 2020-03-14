@@ -1,11 +1,11 @@
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
-#include <ecc/curves/bn254/fq12.hpp>
-#include <ecc/curves/bn254/pairing.hpp>
-#include <plonk/transcript/transcript.hpp>
-#include <polynomials/polynomial_arithmetic.hpp>
 #include "./verifier.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
+#include <ecc/curves/bn254/fq12.hpp>
+#include <ecc/curves/bn254/pairing.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <plonk/transcript/transcript.hpp>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 using namespace barretenberg;
 

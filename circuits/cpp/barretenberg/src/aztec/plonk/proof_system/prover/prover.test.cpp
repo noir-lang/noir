@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include <polynomials/polynomial_arithmetic.hpp>
 #include "../utils/permutation.hpp"
 #include "../widgets/arithmetic_widget.hpp"
 #include "prover.hpp"
+#include <gtest/gtest.h>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 /*
 ```

@@ -1,7 +1,7 @@
-#include <common/assert.hpp>
-#include <common/mem.hpp>
 #include "polynomial.hpp"
 #include "polynomial_arithmetic.hpp"
+#include <common/assert.hpp>
+#include <common/mem.hpp>
 
 using namespace barretenberg;
 

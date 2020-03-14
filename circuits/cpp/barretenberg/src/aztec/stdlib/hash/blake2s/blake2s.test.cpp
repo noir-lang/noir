@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
 #include "blake2s.hpp"
 #include <crypto/blake2s/blake2s.hpp>
+#include <gtest/gtest.h>
 #include <plonk/composer/turbo_composer.hpp>
 
 using namespace barretenberg;

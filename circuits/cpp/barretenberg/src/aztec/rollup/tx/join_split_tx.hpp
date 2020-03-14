@@ -1,7 +1,7 @@
 #pragma once
-#include <crypto/schnorr/schnorr.hpp>
-#include "user_context.hpp"
 #include "tx_note.hpp"
+#include "user_context.hpp"
+#include <crypto/schnorr/schnorr.hpp>
 
 namespace rollup {
 namespace tx {

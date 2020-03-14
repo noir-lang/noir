@@ -1,6 +1,6 @@
+#include "transcript.hpp"
 #include <common/assert.hpp>
 #include <crypto/keccak/keccak.hpp>
-#include "transcript.hpp"
 
 namespace transcript {
 

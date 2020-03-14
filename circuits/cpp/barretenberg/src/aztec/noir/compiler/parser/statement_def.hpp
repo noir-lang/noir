@@ -1,11 +1,11 @@
 #pragma once
+#include "../common/log.hpp"
 #include "ast.hpp"
 #include "ast_adapted.hpp"
 #include "common.hpp"
 #include "error_handler.hpp"
 #include "expression.hpp"
 #include "statement.hpp"
-#include "../common/log.hpp"
 #include <boost/spirit/home/x3.hpp>
 #include <boost/spirit/home/x3/support/utility/annotate_on_success.hpp>
 #include <iostream>

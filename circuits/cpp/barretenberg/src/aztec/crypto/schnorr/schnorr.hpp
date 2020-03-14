@@ -1,12 +1,12 @@
 #pragma once
 
+#include <array>
 #include <memory.h>
 #include <string>
-#include <array>
 
 #include <crypto/blake2s/blake2s.hpp>
-#include <crypto/sha256/sha256.hpp>
 #include <crypto/keccak/keccak.hpp>
+#include <crypto/sha256/sha256.hpp>
 
 struct KeccakHasher {
     static std::vector<uint8_t> hash(const std::vector<uint8_t>& message)

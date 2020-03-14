@@ -1,9 +1,9 @@
 #pragma once
-#include <plonk/transcript/manifest.hpp>
-#include "../verification_key/verification_key.hpp"
 #include "../types/plonk_proof.hpp"
 #include "../types/program_settings.hpp"
+#include "../verification_key/verification_key.hpp"
 #include "../widgets/base_widget.hpp"
+#include <plonk/transcript/manifest.hpp>
 
 namespace waffle {
 template <typename program_settings> class VerifierBase {

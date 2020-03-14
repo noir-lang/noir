@@ -1,4 +1,4 @@
-### Barretenberg, an optimized elliptic curve library for the bn128 curve, and PLONK SNARK prover
+## Barretenberg, an optimized elliptic curve library for the bn128 curve, and PLONK SNARK prover
 
 **this code is highly experimental, use at your own risk!**
 
@@ -28,13 +28,16 @@ To format the entire codebase:
 ./format.sh
 ```
 
+This will reorder `#includes` *which can potentially break your build*. This means you have not correctly included
+the minimal required set of headers in some files and you should fix. Always re-test your build after running this command.
+
 To format only staged changes:
 
 ```
 ./format.sh staged
 ```
 
-It maybe desirable to install the later as a pre-commit hook.
+This will *not* reorder `#includes`, and so will never break your build. It maybe desirable to install the later as a pre-commit hook.
 
 ### Tests
 
@@ -113,7 +116,7 @@ To build:
 ```
 mkdir build-wasm && cd build-wasm
 cmake -DWASM=ON ..
-make -j$(nproc)
+make
 ```
 
 There will be a binary at `./src/aztec/barretenberg.wasm` that can be copied to `barretenberg.js` for use in node and the browser.

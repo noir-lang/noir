@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "standard_composer.hpp"
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 

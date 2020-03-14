@@ -1,10 +1,10 @@
-#include <chrono>
-#include <polynomials/polynomial_arithmetic.hpp>
-#include <polynomials/iterate_over_domain.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include "prover.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
+#include <chrono>
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <polynomials/iterate_over_domain.hpp>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 using namespace barretenberg;
 

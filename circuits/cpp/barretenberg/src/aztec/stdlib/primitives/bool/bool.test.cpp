@@ -1,6 +1,6 @@
+#include "bool.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/standard_composer.hpp>
-#include "bool.hpp"
 
 namespace test_stdlib_bool {
 using namespace barretenberg;

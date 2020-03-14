@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include <plonk/composer/standard_composer.hpp>
 #include "../bool/bool.hpp"
 #include "../byte_array/byte_array.hpp"
 #include "field.hpp"
+#include <gtest/gtest.h>
+#include <plonk/composer/standard_composer.hpp>
 
 namespace test_stdlib_field {
 using namespace barretenberg;

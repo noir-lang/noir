@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdint>
-#include <string>
 #include <ecc/curves/bn254/g1.hpp>
 #include <ecc/curves/bn254/g2.hpp>
+#include <string>
 
 namespace barretenberg {
 namespace io {
