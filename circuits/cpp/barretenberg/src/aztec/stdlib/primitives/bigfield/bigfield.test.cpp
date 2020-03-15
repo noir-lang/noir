@@ -468,4 +468,40 @@ TEST(stdlib_bigfield, test_reduce)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
+
+TEST(stdlib_bigfield, test_assert_is_in_field_success)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 10;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+
+        fq inputs[4]{ fq::random_element(), fq::random_element(), fq::random_element(), fq::random_element() };
+
+        bigfield a(witness_t(&composer, barretenberg::fr(uint256_t(inputs[0]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[0]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+        bigfield b(witness_t(&composer, barretenberg::fr(uint256_t(inputs[1]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[1]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+
+        bigfield c = a;
+        fq expected = inputs[0];
+        for (size_t i = 0; i < 16; ++i) {
+            c = b * b + c;
+            expected = inputs[1] * inputs[1] + expected;
+        }
+        // bigfield c = a + a + a + a - b - b - b - b;
+        c.assert_is_in_field();
+        uint256_t result = (c.get_value().lo);
+        EXPECT_EQ(result, uint256_t(expected));
+        EXPECT_EQ(c.get_value().get_msb() < 254, true);
+    }
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
 } // namespace test_stdlib_bigfield

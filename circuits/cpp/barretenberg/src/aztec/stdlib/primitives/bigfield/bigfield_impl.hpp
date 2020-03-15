@@ -437,11 +437,12 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
 
     barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
 
+    // std::cout << "pre" << std::endl;
     field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
                                              right.prime_basis_limb,
                                              quotient.prime_basis_limb * neg_prime,
                                              -remainder.prime_basis_limb);
-
+    // std::cout << "post" << std::endl;
     // field_t prime_basis_result =
     //     left.prime_basis_limb.madd(right.prime_basis_limb, (quotient.prime_basis_limb * neg_prime));
 
@@ -546,6 +547,7 @@ void bigfield<C, T>::evaluate_square(const bigfield& left, const bigfield& quoti
     field_t carry_hi = carry_hi_0.add_two(carry_hi_1, carry_hi_2);
 
     barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
+
     field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
                                              left.prime_basis_limb,
                                              quotient.prime_basis_limb * neg_prime,
@@ -634,7 +636,6 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
     const uint1024_t left(get_value());
     const uint1024_t right(other.get_value());
     const uint1024_t modulus(target_basis.modulus);
-
     uint512_t inverse_value = right.lo.invmod(target_basis.modulus).lo;
     uint1024_t inverse_1024(inverse_value);
     inverse_value = ((left * inverse_1024) % modulus).lo;
@@ -709,5 +710,51 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     binary_basis_limbs[3] = remainder.binary_basis_limbs[3];
     prime_basis_limb = remainder.prime_basis_limb;
 }
+
+template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() const
+{
+    if (is_constant()) {
+        return;
+    }
+
+    self_reduce();
+    uint256_t value = get_value().lo;
+    constexpr uint256_t modulus_value = modulus_u512.lo;
+
+    constexpr uint256_t modulus_0_value = modulus_value.slice(0, NUM_LIMB_BITS);
+    constexpr uint256_t modulus_1_value = modulus_value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
+    constexpr uint256_t modulus_2_value = modulus_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
+    constexpr uint256_t modulus_3_value = modulus_value.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
+
+    bool borrow_0_value = value.slice(0, NUM_LIMB_BITS) > modulus_0_value;
+    bool borrow_1_value = (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) - uint256_t(borrow_0_value)) > modulus_1_value;
+    bool borrow_2_value =
+        (value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3) - uint256_t(borrow_1_value)) > modulus_2_value;
+
+    field_t<C> modulus_0(context, modulus_0_value);
+    field_t<C> modulus_1(context, modulus_1_value);
+    field_t<C> modulus_2(context, modulus_2_value);
+    field_t<C> modulus_3(context, modulus_3_value);
+
+    bool_t<C> borrow_0(witness_t<C>(context, borrow_0_value));
+    bool_t<C> borrow_1(witness_t<C>(context, borrow_1_value));
+    bool_t<C> borrow_2(witness_t<C>(context, borrow_2_value));
+
+    field_t<C> r0 = modulus_0 - binary_basis_limbs[0].element + static_cast<field_t<C>>(borrow_0) * shift_1;
+    field_t<C> r1 = modulus_1 - binary_basis_limbs[1].element + static_cast<field_t<C>>(borrow_1) * shift_1 -
+                    static_cast<field_t<C>>(borrow_0);
+    field_t<C> r2 = modulus_2 - binary_basis_limbs[2].element + static_cast<field_t<C>>(borrow_2) * shift_1 -
+                    static_cast<field_t<C>>(borrow_1);
+    field_t<C> r3 = modulus_3 - binary_basis_limbs[3].element - static_cast<field_t<C>>(borrow_2);
+    r0 = r0.normalize();
+    r1 = r1.normalize();
+    r2 = r2.normalize();
+    r3 = r3.normalize();
+    context->create_range_constraint(r0.witness_index, NUM_LIMB_BITS);
+    context->create_range_constraint(r1.witness_index, NUM_LIMB_BITS);
+    context->create_range_constraint(r2.witness_index, NUM_LIMB_BITS);
+    context->create_range_constraint(r3.witness_index, NUM_LIMB_BITS);
+}
+
 } // namespace stdlib
 } // namespace plonk

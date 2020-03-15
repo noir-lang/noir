@@ -65,7 +65,9 @@ template <typename C, class Fq, class Fr, class T>
 element<C, Fq, Fr, T> element<C, Fq, Fr, T>::montgomery_ladder(const element& other) const
 {
     const Fq lambda_1 = (other.y - y) / (other.x - x);
+
     const Fq x_3 = lambda_1.sqr() - (other.x + x);
+
     /**
      * Compute D = A + B + A, where A = `this` and B = `other`
      *
@@ -85,7 +87,9 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::montgomery_ladder(const element& ot
      **/
 
     const Fq minus_lambda_2 = lambda_1 + ((y + y) / (x_3 - x));
+
     const Fq x_4 = minus_lambda_2.sqr() - (x + x_3);
+
     const Fq y_4 = minus_lambda_2 * (x_4 - x) - y;
     return element(x_4, y_4);
 }
@@ -105,10 +109,21 @@ template <typename C, class Fq, class Fr, class T>
 std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
 {
     C* ctx = scalar.context;
-    uint256_t scalar_multiplier = scalar.get_value().lo;
-    constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
+    uint512_t scalar_multiplier_512 = scalar.get_value() % Fr::modulus_u512;
+    scalar_multiplier_512 += Fr::modulus_u512;
 
+    constexpr uint64_t default_offset_bits = Fr::modulus_u512.get_msb() + 2; // 2^254
+    constexpr uint512_t default_offset = uint512_t(1) << default_offset_bits;
+
+    while (scalar_multiplier_512 < default_offset) {
+        scalar_multiplier_512 += Fr::modulus_u512;
+    }
+    scalar_multiplier_512 -= default_offset;
+    uint256_t scalar_multiplier = scalar_multiplier_512.lo;
+
+    constexpr uint64_t num_rounds = Fr::modulus_u512.get_msb() + 1;
     std::vector<bool_t<C>> naf_entries(num_rounds + 1);
+
     // if boolean is false => do NOT flip y
     // if boolean is true => DO flip y
     // first entry is skew. i.e. do we subtract one from the final result or not
@@ -153,13 +168,13 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::twin_mul(const element& base_a,
     element T0 = base_b + base_a;
     element T1 = base_b - base_a;
 
-    element accumulator = (base_a.montgomery_ladder(base_b)) + base_b;
-    bool_t<C> initial_selector = naf_entries_a[1] ^ naf_entries_b[1];
-    Fq initial_x = T0.x.conditional_select(T1.x, initial_selector);
-    Fq initial_y = T0.y.conditional_select(T1.y, initial_selector);
-    accumulator = accumulator + element(initial_x, initial_y.conditional_negate(naf_entries_b[1]));
+    element accumulator = T0.dbl(); // (base_a.montgomery_ladder(base_b)) + base_b;
+    // bool_t<C> initial_selector = naf_entries_a[1] ^ naf_entries_b[1];
+    // Fq initial_x = T0.x.conditional_select(T1.x, initial_selector);
+    // Fq initial_y = T0.y.conditional_select(T1.y, initial_selector);
+    // accumulator = accumulator + element(initial_x, initial_y.conditional_negate(naf_entries_b[1]));
 
-    for (size_t i = 2; i < num_rounds; ++i) {
+    for (size_t i = 0; i < num_rounds; ++i) {
         bool_t<C> table_selector = naf_entries_a[i] ^ naf_entries_b[i];
         bool_t<C> sign_selector = naf_entries_b[i];
         Fq to_add_x = T0.x.conditional_select(T1.x, table_selector);
@@ -320,42 +335,42 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::quad_mul(const element& base_a,
 
     element accumulator = element_table[0].dbl();
 
-    bool_t<C> t0 = naf_entries_d[1] ^ naf_entries_a[1];
-    bool_t<C> t1 = naf_entries_d[1] ^ naf_entries_b[1];
-    bool_t<C> t2 = naf_entries_d[1] ^ naf_entries_c[1];
-    field_t<C> initial_x_b0 = field_t<C>::select_from_three_bit_table(x_b0_table, t2, t1, t0);
-    field_t<C> initial_x_b1 = field_t<C>::select_from_three_bit_table(x_b1_table, t2, t1, t0);
-    field_t<C> initial_x_b2 = field_t<C>::select_from_three_bit_table(x_b2_table, t2, t1, t0);
-    field_t<C> initial_x_b3 = field_t<C>::select_from_three_bit_table(x_b3_table, t2, t1, t0);
-    field_t<C> initial_x_p = field_t<C>::select_from_three_bit_table(x_prime_table, t2, t1, t0);
+    // bool_t<C> t0 = naf_entries_d[1] ^ naf_entries_a[1];
+    // bool_t<C> t1 = naf_entries_d[1] ^ naf_entries_b[1];
+    // bool_t<C> t2 = naf_entries_d[1] ^ naf_entries_c[1];
+    // field_t<C> initial_x_b0 = field_t<C>::select_from_three_bit_table(x_b0_table, t2, t1, t0);
+    // field_t<C> initial_x_b1 = field_t<C>::select_from_three_bit_table(x_b1_table, t2, t1, t0);
+    // field_t<C> initial_x_b2 = field_t<C>::select_from_three_bit_table(x_b2_table, t2, t1, t0);
+    // field_t<C> initial_x_b3 = field_t<C>::select_from_three_bit_table(x_b3_table, t2, t1, t0);
+    // field_t<C> initial_x_p = field_t<C>::select_from_three_bit_table(x_prime_table, t2, t1, t0);
 
-    field_t<C> initial_y_b0 = field_t<C>::select_from_three_bit_table(y_b0_table, t2, t1, t0);
-    field_t<C> initial_y_b1 = field_t<C>::select_from_three_bit_table(y_b1_table, t2, t1, t0);
-    field_t<C> initial_y_b2 = field_t<C>::select_from_three_bit_table(y_b2_table, t2, t1, t0);
-    field_t<C> initial_y_b3 = field_t<C>::select_from_three_bit_table(y_b3_table, t2, t1, t0);
-    field_t<C> initial_y_p = field_t<C>::select_from_three_bit_table(y_prime_table, t2, t1, t0);
+    // field_t<C> initial_y_b0 = field_t<C>::select_from_three_bit_table(y_b0_table, t2, t1, t0);
+    // field_t<C> initial_y_b1 = field_t<C>::select_from_three_bit_table(y_b1_table, t2, t1, t0);
+    // field_t<C> initial_y_b2 = field_t<C>::select_from_three_bit_table(y_b2_table, t2, t1, t0);
+    // field_t<C> initial_y_b3 = field_t<C>::select_from_three_bit_table(y_b3_table, t2, t1, t0);
+    // field_t<C> initial_y_p = field_t<C>::select_from_three_bit_table(y_prime_table, t2, t1, t0);
 
-    Fq initial_x;
-    Fq initial_y;
-    initial_x.binary_basis_limbs[0] = typename Fq::Limb(initial_x_b0, Fq::DEFAULT_MAXIMUM_LIMB);
-    initial_x.binary_basis_limbs[1] = typename Fq::Limb(initial_x_b1, Fq::DEFAULT_MAXIMUM_LIMB);
-    initial_x.binary_basis_limbs[2] = typename Fq::Limb(initial_x_b2, Fq::DEFAULT_MAXIMUM_LIMB);
-    initial_x.binary_basis_limbs[3] = typename Fq::Limb(initial_x_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-    initial_x.prime_basis_limb = initial_x_p;
+    // Fq initial_x;
+    // Fq initial_y;
+    // initial_x.binary_basis_limbs[0] = typename Fq::Limb(initial_x_b0, Fq::DEFAULT_MAXIMUM_LIMB);
+    // initial_x.binary_basis_limbs[1] = typename Fq::Limb(initial_x_b1, Fq::DEFAULT_MAXIMUM_LIMB);
+    // initial_x.binary_basis_limbs[2] = typename Fq::Limb(initial_x_b2, Fq::DEFAULT_MAXIMUM_LIMB);
+    // initial_x.binary_basis_limbs[3] = typename Fq::Limb(initial_x_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+    // initial_x.prime_basis_limb = initial_x_p;
 
-    initial_y.binary_basis_limbs[0] = typename Fq::Limb(initial_y_b0, Fq::DEFAULT_MAXIMUM_LIMB);
-    initial_y.binary_basis_limbs[1] = typename Fq::Limb(initial_y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
-    initial_y.binary_basis_limbs[2] = typename Fq::Limb(initial_y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
-    initial_y.binary_basis_limbs[3] = typename Fq::Limb(initial_y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-    initial_y.prime_basis_limb = initial_y_p;
+    // initial_y.binary_basis_limbs[0] = typename Fq::Limb(initial_y_b0, Fq::DEFAULT_MAXIMUM_LIMB);
+    // initial_y.binary_basis_limbs[1] = typename Fq::Limb(initial_y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
+    // initial_y.binary_basis_limbs[2] = typename Fq::Limb(initial_y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
+    // initial_y.binary_basis_limbs[3] = typename Fq::Limb(initial_y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+    // initial_y.prime_basis_limb = initial_y_p;
 
-    initial_y = initial_y.conditional_negate(naf_entries_d[1]);
-    accumulator = accumulator + element(initial_x, initial_y);
+    // initial_y = initial_y.conditional_negate(naf_entries_d[1]);
+    // accumulator = accumulator + element(initial_x, initial_y);
 
-    for (size_t i = 2; i < num_rounds; ++i) {
-        t0 = naf_entries_d[i] ^ naf_entries_a[i];
-        t1 = naf_entries_d[i] ^ naf_entries_b[i];
-        t2 = naf_entries_d[i] ^ naf_entries_c[i];
+    for (size_t i = 0; i < num_rounds; ++i) {
+        bool_t<C> t0 = naf_entries_d[i] ^ naf_entries_a[i];
+        bool_t<C> t1 = naf_entries_d[i] ^ naf_entries_b[i];
+        bool_t<C> t2 = naf_entries_d[i] ^ naf_entries_c[i];
 
         field_t<C> x_b0 = field_t<C>::select_from_three_bit_table(x_b0_table, t2, t1, t0);
         field_t<C> x_b1 = field_t<C>::select_from_three_bit_table(x_b1_table, t2, t1, t0);
@@ -468,9 +483,9 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator*(const Fr& scalar) const
         reconstructed -= uint512_t(1);
     }
 
-    element accumulator = (*this).dbl() + element(x, y.conditional_negate(naf_entries[1]));
+    element accumulator = (*this).dbl();
 
-    for (size_t i = 2; i < num_rounds; ++i) {
+    for (size_t i = 0; i < num_rounds; ++i) {
         bool_t<C> predicate = naf_entries[i];
         bigfield y_test = y.conditional_negate(predicate);
         element to_add(x, y_test);

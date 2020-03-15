@@ -74,7 +74,7 @@ template <typename Composer, typename T> class bigfield {
         uint64_t maximum_product_bits = maximum_product.get_msb() - 1;
         return uint512_t(1) << (maximum_product_bits >> 1);
     }
-    static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << 120; }
+    static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << 100; }
 
     static constexpr uint512_t negative_prime_modulus = binary_basis.modulus - target_basis.modulus;
 
@@ -120,6 +120,8 @@ template <typename Composer, typename T> class bigfield {
                                  const bigfield& remainder);
 
     static void evaluate_square(const bigfield& left, const bigfield& quotient, const bigfield& remainder);
+
+    void assert_is_in_field() const;
 
     uint512_t get_value() const;
     uint512_t get_maximum_value() const;
