@@ -24,6 +24,14 @@ field_t<ComposerContext>::field_t(const witness_t<ComposerContext>& value)
 }
 
 template <typename ComposerContext>
+field_t<ComposerContext>::field_t(const barretenberg::fr& value)
+    : context(nullptr)
+    , additive_constant(value)
+    , multiplicative_constant(barretenberg::fr::one())
+    , witness_index(static_cast<uint32_t>(-1))
+{}
+
+template <typename ComposerContext>
 field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barretenberg::fr& value)
     : context(parent_context)
 {
@@ -96,6 +104,15 @@ field_t<ComposerContext>::field_t(byte_array<ComposerContext> const& other)
         field_t<ComposerContext> scaling_factor(bits[i].context, scaling_factor_value);
         *this = *this + (scaling_factor * temp);
     }
+}
+
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::from_witness_index(ComposerContext* ctx,
+                                                                      const uint32_t witness_index)
+{
+    field_t<ComposerContext> result(ctx);
+    result.witness_index = witness_index;
+    return result;
 }
 
 template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<ComposerContext>()
@@ -350,6 +367,87 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
     return result;
 }
 
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, const field_t& to_add) const
+{
+    ComposerContext* ctx =
+        (context == nullptr) ? (to_mul.context = nullptr ? to_add.context : to_mul.context) : context;
+
+    if ((to_mul.witness_index == UINT32_MAX) || (to_add.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
+        return (*this) * to_mul + to_add;
+    }
+
+    // (a * Q_a  + R_a) * (b * Q_b + R_b) + (c * Q_c  R_c) = result
+    barretenberg::fr q_m = multiplicative_constant * to_mul.multiplicative_constant;
+    barretenberg::fr q_1 = multiplicative_constant * to_mul.additive_constant;
+    barretenberg::fr q_2 = to_mul.multiplicative_constant * additive_constant;
+    barretenberg::fr q_3 = to_add.multiplicative_constant;
+    barretenberg::fr q_c = additive_constant * to_mul.additive_constant + to_add.additive_constant;
+
+    barretenberg::fr a = ctx->get_variable(witness_index);
+    barretenberg::fr b = ctx->get_variable(to_mul.witness_index);
+    barretenberg::fr c = ctx->get_variable(to_add.witness_index);
+
+    barretenberg::fr out = a * b * q_m + a * q_1 + b * q_2 + c * q_3 + q_c;
+
+    field_t<ComposerContext> result(ctx);
+    result.witness_index = ctx->add_variable(out);
+
+    const waffle::mul_quad gate_coefficients{
+        witness_index,
+        to_mul.witness_index,
+        to_add.witness_index,
+        result.witness_index,
+        q_m,
+        q_1,
+        q_2,
+        q_3,
+        -barretenberg::fr(1),
+        q_c,
+    };
+    ctx->create_big_mul_gate(gate_coefficients);
+    return result;
+}
+
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a, const field_t& add_b) const
+{
+    ComposerContext* ctx = (context == nullptr) ? (add_a.context = nullptr ? add_b.context : add_a.context) : context;
+
+    if ((add_a.witness_index == UINT32_MAX) || (add_b.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
+        return (*this) * add_a + add_b;
+    }
+
+    barretenberg::fr q_1 = multiplicative_constant;
+    barretenberg::fr q_2 = add_a.multiplicative_constant;
+    barretenberg::fr q_3 = add_b.multiplicative_constant;
+    barretenberg::fr q_c = additive_constant + add_a.additive_constant + add_b.additive_constant;
+
+    barretenberg::fr a = ctx->get_variable(witness_index);
+    barretenberg::fr b = ctx->get_variable(add_a.witness_index);
+    barretenberg::fr c = ctx->get_variable(add_b.witness_index);
+
+    barretenberg::fr out = a * q_1 + b * q_2 + c * q_3 + q_c;
+
+    field_t<ComposerContext> result(ctx);
+    result.witness_index = ctx->add_variable(out);
+
+    const waffle::mul_quad gate_coefficients{
+        witness_index,
+        add_a.witness_index,
+        add_b.witness_index,
+        result.witness_index,
+        barretenberg::fr(0),
+        q_1,
+        q_2,
+        q_3,
+        -barretenberg::fr(1),
+        q_c,
+    };
+    ctx->create_big_mul_gate(gate_coefficients);
+    return result;
+}
+
 template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerContext>::normalize() const
 {
     if (witness_index == static_cast<uint32_t>(-1) ||
@@ -473,6 +571,120 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     ctx->create_poly_gate(gate_coefficients);
 
     return result;
+}
+
+template <typename ComposerContext>
+std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two_bit_table(const field_t& T0,
+                                                                                           const field_t& T1,
+                                                                                           const field_t& T2,
+                                                                                           const field_t& T3)
+{
+    // (1 - t0)(1 - t1).T0 + t0(1 - t1).T1 + (1 - t0)t1.T2 + t0.t1.T3
+
+    // -t0.t1.T0 - t0.t1.T1 -t0.t1.T2 + t0.t1.T3 => t0.t1(T3 - T2 - T1 + T0)
+    // -t0.T0 + t0.T1 => t0(T1 - T0)
+    // -t1.T0 - t1.T2 => t1(T2 - T0)
+    // T0 = constant term
+    std::array<field_t, 4> table;
+    table[0] = T0;
+    table[1] = T1 - T0;
+    table[2] = T2 - T0;
+    table[3] = T3 - T2 - T1 + T0;
+    return table;
+}
+
+template <typename ComposerContext>
+std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_three_bit_table(const field_t& T0,
+                                                                                             const field_t& T1,
+                                                                                             const field_t& T2,
+                                                                                             const field_t& T3,
+                                                                                             const field_t& T4,
+                                                                                             const field_t& T5,
+                                                                                             const field_t& T6,
+                                                                                             const field_t& T7)
+{
+    std::array<field_t, 8> table;
+    table[0] = T0;                                    // const
+    table[1] = T1 - T0;                               // t0
+    table[2] = T2 - T0;                               // t1
+    table[3] = T4 - T0;                               // t2
+    table[4] = T3 - T2 - T1 + T0;                     // t0t1
+    table[5] = T5 - T4 - T1 + T0;                     // t0t2
+    table[6] = T6 - T4 - T2 + T0;                     // t1t2
+    table[7] = T7 - T6 - T5 + T4 - T3 + T2 + T1 - T0; // t0t1t2
+    return table;
+}
+
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::select_from_two_bit_table(const std::array<field_t, 4>& table,
+                                                                             const bool_t<ComposerContext>& t1,
+                                                                             const bool_t<ComposerContext>& t0)
+{
+    field_t R0 = static_cast<field_t>(t1).madd(table[3], table[1]);
+    field_t R1 = R0.madd(static_cast<field_t>(t0), table[0]);
+    field_t R2 = static_cast<field_t>(t1).madd(table[2], R1);
+    return R2;
+}
+
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::select_from_three_bit_table(const std::array<field_t, 8>& table,
+                                                                               const bool_t<ComposerContext>& t2,
+                                                                               const bool_t<ComposerContext>& t1,
+                                                                               const bool_t<ComposerContext>& t0)
+{
+    field_t R0 = static_cast<field_t>(t0).madd(table[7], table[6]);
+    field_t R1 = static_cast<field_t>(t1).madd(R0, table[3]);
+    field_t R2 = static_cast<field_t>(t2).madd(R1, table[0]);
+    field_t R3 = static_cast<field_t>(t0).madd(table[4], table[2]);
+    field_t R4 = static_cast<field_t>(t1).madd(R3, R2);
+    field_t R5 = static_cast<field_t>(t2).madd(table[5], table[1]);
+    field_t R6 = static_cast<field_t>(t0).madd(R5, R4);
+    return R6;
+}
+
+template <typename ComposerContext>
+void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
+                                                            const field_t& b,
+                                                            const field_t& c,
+                                                            const field_t& d)
+{
+    ComposerContext* ctx = a.context == nullptr
+                               ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
+                               : a.context;
+
+    if (ctx == nullptr) {
+        return;
+    }
+    // validate that a * b + c + d = 0
+    barretenberg::fr q_m = a.multiplicative_constant * b.multiplicative_constant;
+    barretenberg::fr q_1 = a.multiplicative_constant * b.additive_constant;
+    barretenberg::fr q_2 = b.multiplicative_constant * a.additive_constant;
+    barretenberg::fr q_3 = c.multiplicative_constant;
+    barretenberg::fr q_4 = d.multiplicative_constant;
+    barretenberg::fr q_c = a.additive_constant * b.additive_constant + c.additive_constant + d.additive_constant;
+
+    // debug TODO REMOVE
+
+    barretenberg::fr t1 = a.get_value();
+    barretenberg::fr t2 = b.get_value();
+    barretenberg::fr t3 = c.get_value();
+    barretenberg::fr t4 = d.get_value();
+    if (t1 * t2 + t3 + t4 != barretenberg::fr(0)) {
+        printf("polynomial identity does not validate!\n");
+    }
+    const waffle::mul_quad gate_coefficients{
+        a.witness_index == UINT32_MAX ? ctx->zero_idx : a.witness_index,
+        b.witness_index == UINT32_MAX ? ctx->zero_idx : b.witness_index,
+        c.witness_index == UINT32_MAX ? ctx->zero_idx : c.witness_index,
+        d.witness_index == UINT32_MAX ? ctx->zero_idx : d.witness_index,
+        q_m,
+        q_1,
+        q_2,
+        q_3,
+        q_4,
+        q_c,
+    };
+    ctx->create_big_mul_gate(gate_coefficients);
 }
 
 INSTANTIATE_STDLIB_TYPE(field_t);

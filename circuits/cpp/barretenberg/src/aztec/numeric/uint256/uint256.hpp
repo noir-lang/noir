@@ -38,6 +38,8 @@ class uint256_t {
     constexpr bool get_bit(const uint64_t bit_index) const;
     constexpr uint64_t get_msb() const;
 
+    constexpr uint256_t slice(const size_t start, const size_t end) const;
+
     constexpr uint256_t operator+(const uint256_t& other) const;
     constexpr uint256_t operator-(const uint256_t& other) const;
     constexpr uint256_t operator-() const;
@@ -62,6 +64,8 @@ class uint256_t {
     constexpr bool operator<(const uint256_t& other) const;
     constexpr bool operator>=(const uint256_t& other) const;
     constexpr bool operator<=(const uint256_t& other) const;
+
+    static constexpr size_t length() { return 256; }
 
     constexpr uint256_t& operator+=(const uint256_t& other)
     {
@@ -127,7 +131,7 @@ class uint256_t {
         return *this;
     };
 
-    constexpr std::pair<uint256_t, uint256_t> mul_512(const uint256_t& other) const;
+    constexpr std::pair<uint256_t, uint256_t> mul_extended(const uint256_t& other) const;
 
     uint64_t data[4];
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "../uint128/uint128.hpp"
 #include "../uint256/uint256.hpp"
-#include "../uint512/uint512.hpp"
+#include "../uintx/uintx.hpp"
 #include "stdint.h"
 #include "unistd.h"
 #include <random>
@@ -30,6 +30,8 @@ class Engine {
     uint256_t get_random_uint256();
 
     uint512_t get_random_uint512();
+
+    uint1024_t get_random_uint1024();
 
     std::mt19937_64 engine;
     std::uniform_int_distribution<uint64_t> dist = std::uniform_int_distribution<uint64_t>{ 0ULL, UINT64_MAX };
