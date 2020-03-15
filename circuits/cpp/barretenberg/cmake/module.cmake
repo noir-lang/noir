@@ -69,6 +69,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_NAME}_tests
             PRIVATE
             ${MODULE_LINK_NAME}
+            ${ARGN}
             gtest
             gtest_main
         )
@@ -102,6 +103,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_NAME}_bench
             PRIVATE
             ${MODULE_LINK_NAME}
+            ${ARGN}
             benchmark
         )
 

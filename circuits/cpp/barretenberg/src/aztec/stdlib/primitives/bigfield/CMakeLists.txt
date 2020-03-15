@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_bigfield numeric ecc composer stdlib_field)
+barretenberg_module(stdlib_bigfield numeric ecc composer stdlib_field stdlib_bool)

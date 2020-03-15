@@ -371,7 +371,7 @@ template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, const field_t& to_add) const
 {
     ComposerContext* ctx =
-        (context == nullptr) ? (to_mul.context = nullptr ? to_add.context : to_mul.context) : context;
+        (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
     if ((to_mul.witness_index == UINT32_MAX) || (to_add.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
         return (*this) * to_mul + to_add;
@@ -412,7 +412,7 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a, const field_t& add_b) const
 {
-    ComposerContext* ctx = (context == nullptr) ? (add_a.context = nullptr ? add_b.context : add_a.context) : context;
+    ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
     if ((add_a.witness_index == UINT32_MAX) || (add_b.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
         return (*this) * add_a + add_b;

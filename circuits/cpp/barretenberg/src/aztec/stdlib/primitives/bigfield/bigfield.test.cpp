@@ -50,10 +50,10 @@ TEST(stdlib_bigfield, test_mul)
         if (i == num_repetitions - 1) {
             std::cout << "num gates per mul = " << after - before << std::endl;
         }
-        uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-                           barretenberg::Bn254FqParams::modulus_1,
-                           barretenberg::Bn254FqParams::modulus_2,
-                           barretenberg::Bn254FqParams::modulus_3 };
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
 
         fq expected = (inputs[0] * inputs[1]);
         expected = expected.from_montgomery_form();
@@ -91,10 +91,10 @@ TEST(stdlib_bigfield, test_sqr)
         if (i == num_repetitions - 1) {
             std::cout << "num gates per mul = " << after - before << std::endl;
         }
-        uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-                           barretenberg::Bn254FqParams::modulus_1,
-                           barretenberg::Bn254FqParams::modulus_2,
-                           barretenberg::Bn254FqParams::modulus_3 };
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
 
         fq expected = (inputs[0].sqr());
         expected = expected.from_montgomery_form();
@@ -133,10 +133,10 @@ TEST(stdlib_bigfield, test_div)
                              barretenberg::fr(uint256_t(inputs[1]).slice(bigfield::NUM_LIMB_BITS * 2,
                                                                          bigfield::NUM_LIMB_BITS * 4))));
         bigfield c = a / b;
-        uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-                           barretenberg::Bn254FqParams::modulus_1,
-                           barretenberg::Bn254FqParams::modulus_2,
-                           barretenberg::Bn254FqParams::modulus_3 };
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
 
         fq expected = (inputs[0] / inputs[1]);
         expected = expected.reduce_once().reduce_once();
@@ -182,10 +182,10 @@ TEST(stdlib_bigfield, test_add_and_div)
                              barretenberg::fr(uint256_t(inputs[3]).slice(bigfield::NUM_LIMB_BITS * 2,
                                                                          bigfield::NUM_LIMB_BITS * 4))));
         bigfield e = (a + b) / (c + d);
-        uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-                           barretenberg::Bn254FqParams::modulus_1,
-                           barretenberg::Bn254FqParams::modulus_2,
-                           barretenberg::Bn254FqParams::modulus_3 };
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
 
         fq expected = (inputs[0] + inputs[1]) / (inputs[2] + inputs[3]);
         expected = expected.reduce_once().reduce_once();
