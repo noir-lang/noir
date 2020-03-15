@@ -355,9 +355,6 @@ g1::element scalar_multiplication_internal(pippenger_runtime_state& state,
         result += thread_accumulators[i];
     }
     free(thread_accumulators);
-    if (result.is_point_at_infinity()) {
-        std::cout << "result is point at infinity" << std::endl;
-    }
     return result;
 }
 

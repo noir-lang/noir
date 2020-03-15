@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_biggroup numeric ecc composer stdlib_field stdlib_bool stdlib_bigfield)

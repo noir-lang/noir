@@ -16,13 +16,13 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <memory>
 
-namespace {
-auto& engine = numeric::random::get_debug_engine();
-}
-
 namespace test_stdlib_bigfield {
 using namespace barretenberg;
 using namespace plonk;
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
 typedef stdlib::field_t<waffle::TurboComposer> field_t;
