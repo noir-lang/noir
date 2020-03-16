@@ -1,15 +1,18 @@
 #pragma once
 #include "hash_path.hpp"
-#include "leveldb_tx.hpp"
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
 #include <stdlib/primitives/field/field.hpp>
+
+namespace leveldb {
+  class DB;
+}
 
 namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
 using namespace barretenberg;
+
+class leveldb_tx;
 
 class LevelDbStore {
   public:
@@ -18,7 +21,10 @@ class LevelDbStore {
 
     LevelDbStore(std::string const& path, size_t depth);
     LevelDbStore(LevelDbStore const& other) = delete;
-    LevelDbStore(LevelDbStore&& other) = default;
+    LevelDbStore(LevelDbStore&& other);
+    ~LevelDbStore();
+
+    static void destroy(std::string path);
 
     fr_hash_path get_hash_path(index_t index);
 

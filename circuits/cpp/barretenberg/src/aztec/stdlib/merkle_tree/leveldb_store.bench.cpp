@@ -1,7 +1,9 @@
 #include "hash.hpp"
 #include "leveldb_store.hpp"
+#include "leveldb_tx.hpp"
 #include <benchmark/benchmark.h>
 #include <numeric/random/engine.hpp>
+#include <leveldb/db.h>
 
 using namespace benchmark;
 using namespace plonk::stdlib::merkle_tree;

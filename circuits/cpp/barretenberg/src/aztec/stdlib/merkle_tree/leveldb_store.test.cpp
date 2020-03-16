@@ -1,6 +1,8 @@
 #include "leveldb_store.hpp"
+#include "leveldb_tx.hpp"
 #include "memory_store.hpp"
 #include <gtest/gtest.h>
+#include <leveldb/db.h>
 #include <stdlib/types/turbo.hpp>
 #include <sys/random.h>
 
