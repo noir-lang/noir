@@ -256,9 +256,42 @@ template <class T> constexpr field<T> field<T>::subtract_coarse(const field& oth
 
     return { r0, r1, r2, r3 };
 }
+template <class T> constexpr field<T> field<T>::montgomery_mul_big(const field& other) const noexcept
+{
+    uint64_t c = 0;
+    uint64_t t0 = 0;
+    uint64_t t1 = 0;
+    uint64_t t2 = 0;
+    uint64_t t3 = 0;
+    uint64_t t4 = 0;
+    uint64_t t5 = 0;
+    uint64_t k = 0;
+
+    for (size_t i = 0; i < 4; ++i) {
+        mac(t0, data[i], other.data[0], c, t0, c);
+        mac(t1, data[i], other.data[1], c, t1, c);
+        mac(t2, data[i], other.data[2], c, t2, c);
+        mac(t3, data[i], other.data[3], c, t3, c);
+        t4 = addc(t4, c, 0, t5);
+
+        c = 0;
+        k = t0 * T::r_inv;
+        c = mac_discard_lo(t0, k, modulus.data[0]);
+        mac(t1, k, modulus.data[1], c, t0, c);
+        mac(t2, k, modulus.data[2], c, t1, c);
+        mac(t3, k, modulus.data[3], c, t2, c);
+        t3 = addc(c, t4, 0, c);
+        t4 = t5 + c;
+    }
+
+    return { t0, t1, t2, t3 };
+}
 
 template <class T> constexpr field<T> field<T>::montgomery_mul(const field& other) const noexcept
 {
+    if constexpr (modulus.data[3] > 0x4000000000000000ULL) {
+        return montgomery_mul_big(other);
+    }
     auto [t0, c] = mul_wide(data[0], other.data[0]);
     uint64_t k = t0 * T::r_inv;
     uint64_t a = mac_discard_lo(t0, k, modulus.data[0]);
@@ -308,6 +341,9 @@ template <class T> constexpr field<T> field<T>::montgomery_mul(const field& othe
 
 template <class T> constexpr field<T> field<T>::montgomery_square() const noexcept
 {
+    if constexpr (modulus.data[3] > 0x4000000000000000ULL) {
+        return montgomery_mul_big(*this);
+    }
     uint64_t t1 = 0;
     uint64_t t2 = 0;
     uint64_t t3 = 0;

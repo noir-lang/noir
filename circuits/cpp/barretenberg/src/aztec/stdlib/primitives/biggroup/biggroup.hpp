@@ -55,6 +55,24 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
 
     Fq x;
     Fq y;
+
+    // struct quad_lookup_table {
+    //     quad_lookup_table(const element& a, const element& b, const element& c, const element& d);
+    //     quad_lookup_table(const quad_lookup_table& other);
+    //     quad_lookup_table& operator=(const quad_lookup_table& other);
+
+    //     element get(const bool_t<Composer>& t0, const bool_t<Composer>& t1, const bool_t<Composer>& t2) const;
+
+    //     std::array<field_t<Composer>> x_b0_table;
+    //     std::array<field_t<Composer>> x_b1_table;
+    //     std::array<field_t<Composer>> x_b2_table;
+    //     std::array<field_t<Composer>> x_b3_table;
+
+    //     std::array<field_t<Composer>> y_b0_table;
+    //     std::array<field_t<Composer>> y_b1_table;
+    //     std::array<field_t<Composer>> y_b2_table;
+    //     std::array<field_t<Composer>> y_b3_table;
+    // };
 };
 } // namespace stdlib
 } // namespace plonk

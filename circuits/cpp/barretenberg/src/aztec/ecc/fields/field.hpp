@@ -383,6 +383,7 @@ template <class Params> struct alignas(32) field {
     BBERG_INLINE constexpr field subtract(const field& other) const noexcept;
     BBERG_INLINE constexpr field subtract_coarse(const field& other) const noexcept;
     BBERG_INLINE constexpr field montgomery_mul(const field& other) const noexcept;
+    BBERG_INLINE constexpr field montgomery_mul_big(const field& other) const noexcept;
     BBERG_INLINE constexpr field montgomery_square() const noexcept;
 
 #ifndef DISABLE_SHENANIGANS
