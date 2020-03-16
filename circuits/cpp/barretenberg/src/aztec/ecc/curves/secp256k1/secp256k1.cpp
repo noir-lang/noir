@@ -12,4 +12,4 @@ g1::affine_element get_generator(const size_t generator_index)
     ASSERT(generator_index < max_num_generators);
     return generators[generator_index];
 }
-} // namespace grumpkin
+} // namespace secp256k1

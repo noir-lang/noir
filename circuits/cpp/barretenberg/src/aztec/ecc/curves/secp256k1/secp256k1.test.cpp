@@ -1,7 +1,151 @@
 #include "secp256k1.hpp"
 #include <gtest/gtest.h>
+#include <numeric/random/engine.hpp>
 
 namespace test_secp256k1 {
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
+
+constexpr uint256_t test_fq_mod(secp256k1::Secp256k1FqParams::modulus_0,
+                                secp256k1::Secp256k1FqParams::modulus_1,
+                                secp256k1::Secp256k1FqParams::modulus_2,
+                                secp256k1::Secp256k1FqParams::modulus_3);
+
+uint256_t get_fq_element()
+{
+    uint256_t res = engine.get_random_uint256();
+    while (res >= test_fq_mod) {
+        res -= test_fq_mod;
+    }
+    return res;
+}
+
+TEST(secp256k1, test_add)
+{
+    const size_t n = 100;
+    for (size_t i = 0; i < n; ++i) {
+        uint256_t a_raw = get_fq_element();
+        uint256_t b_raw = get_fq_element();
+
+        secp256k1::fq a{ a_raw.data[0], a_raw.data[1], a_raw.data[2], a_raw.data[3] };
+        secp256k1::fq b{ b_raw.data[0], b_raw.data[1], b_raw.data[2], b_raw.data[3] };
+
+        secp256k1::fq c = a + b;
+
+        uint256_t expected = a_raw + b_raw;
+        if (expected < a_raw) {
+            expected -= test_fq_mod;
+        }
+        uint256_t result{ c.data[0], c.data[1], c.data[2], c.data[3] };
+        EXPECT_EQ(result, expected);
+    }
+}
+
+TEST(secp256k1, test_sub)
+{
+    const size_t n = 100;
+    for (size_t i = 0; i < n; ++i) {
+        uint256_t a_raw = get_fq_element();
+        uint256_t b_raw = get_fq_element();
+
+        secp256k1::fq a{ a_raw.data[0], a_raw.data[1], a_raw.data[2], a_raw.data[3] };
+        secp256k1::fq b{ b_raw.data[0], b_raw.data[1], b_raw.data[2], b_raw.data[3] };
+
+        secp256k1::fq c = a - b;
+
+        uint256_t expected = a_raw - b_raw;
+        if (expected > a_raw) {
+            expected += test_fq_mod;
+        }
+        uint256_t result{ c.data[0], c.data[1], c.data[2], c.data[3] };
+        EXPECT_EQ(result, expected);
+    }
+}
+
+TEST(secp256k1, test_to_montgomery_form)
+{
+    const size_t n = 10;
+    for (size_t i = 0; i < n; ++i) {
+        uint256_t a_raw = get_fq_element();
+        secp256k1::fq montgomery_result(a_raw);
+
+        uint512_t R = uint512_t(0, 1);
+        uint512_t aR = uint512_t(a_raw) * R;
+        uint256_t expected = (aR % uint512_t(test_fq_mod)).lo;
+
+        uint256_t result{
+            montgomery_result.data[0], montgomery_result.data[1], montgomery_result.data[2], montgomery_result.data[3]
+        };
+        EXPECT_EQ(result, expected);
+    }
+}
+
+TEST(secp256k1, test_from_montgomery_form)
+{
+    const size_t n = 100;
+    for (size_t i = 0; i < n; ++i) {
+        uint256_t a_raw = get_fq_element();
+        secp256k1::fq b(a_raw);
+        uint256_t c(b);
+        EXPECT_EQ(a_raw, c);
+    }
+}
+
+TEST(secp256k1, test_mul)
+{
+    const size_t n = 10;
+    for (size_t i = 0; i < n; ++i) {
+        uint256_t a_raw = get_fq_element();
+        uint256_t b_raw = get_fq_element();
+
+        secp256k1::fq a(a_raw);
+        secp256k1::fq b(b_raw);
+        secp256k1::fq c = (a * b);
+
+        uint1024_t a_1024 = uint1024_t(uint512_t(a_raw));
+        uint1024_t b_1024 = uint1024_t(uint512_t(b_raw));
+        uint1024_t c_1024 = a_1024 * b_1024;
+        uint1024_t cmod = c_1024 % uint1024_t(uint512_t(test_fq_mod));
+        uint256_t expected = cmod.lo.lo;
+        uint256_t result(c);
+        EXPECT_EQ(result, expected);
+    }
+}
+
+TEST(secp256k1, test_sqr)
+{
+    const size_t n = 10;
+    for (size_t i = 0; i < n; ++i) {
+        uint256_t a_raw = get_fq_element();
+
+        secp256k1::fq a(a_raw);
+        secp256k1::fq c = a.sqr();
+
+        uint512_t c_raw = uint512_t(a_raw) * uint512_t(a_raw);
+        c_raw = c_raw % uint512_t(test_fq_mod);
+        uint256_t expected = c_raw.lo;
+        uint256_t result(c);
+        EXPECT_EQ(result, expected);
+    }
+}
+
+TEST(secp256k1, test_arithmetic)
+{
+    secp256k1::fq a = secp256k1::fq::random_element();
+    secp256k1::fq b = secp256k1::fq::random_element();
+
+    secp256k1::fq c = (a + b) * (a - b);
+    secp256k1::fq d = a.sqr() - b.sqr();
+    EXPECT_EQ(c, d);
+}
+
+TEST(secp256k1, generator_on_curve)
+{
+    secp256k1::g1::element result = secp256k1::g1::one;
+    EXPECT_EQ(result.on_curve(), true);
+}
 
 TEST(secp256k1, random_element)
 {
@@ -332,7 +476,8 @@ TEST(secp256k1, group_exponentiation_consistency_check)
 TEST(secp256k1, derive_generators)
 {
     constexpr size_t num_generators = 128;
-    std::array<secp256k1::g1::affine_element, num_generators> result = secp256k1::g1::derive_generators<num_generators>();
+    std::array<secp256k1::g1::affine_element, num_generators> result =
+        secp256k1::g1::derive_generators<num_generators>();
 
     const auto is_unique = [&result](const secp256k1::g1::affine_element& y, const size_t j) {
         for (size_t i = 0; i < result.size(); ++i) {
