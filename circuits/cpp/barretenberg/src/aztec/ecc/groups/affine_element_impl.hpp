@@ -29,8 +29,11 @@ constexpr affine_element<Fq, Fr, T>::affine_element(const uint256_t& compressed)
     bool y_bit = compressed.get_bit(255);
 
     x = Fq(x_coordinate);
-    y = (x.sqr() * x + T::b).sqrt();
-
+    y = (x.sqr() * x + T::b);
+    if constexpr (T::has_a) {
+        y += (x * T::a);
+    }
+    y = y.sqrt();
     if (y.from_montgomery_form().get_bit(0) != y_bit) {
         y = -y;
     }
@@ -97,6 +100,9 @@ template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>:
     }
     Fq xxx = x.sqr() * x + T::b;
     Fq yy = y.sqr();
+    if constexpr (T::has_a) {
+        xxx += (x * T::a);
+    }
     return (xxx == yy);
 }
 

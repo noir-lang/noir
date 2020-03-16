@@ -75,10 +75,6 @@ template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_d
         }
     }
 
-    // z2 = 2*y*z
-    z += z;
-    z *= y;
-
     // T0 = x*x
     Fq T0 = x.sqr();
 
@@ -106,6 +102,13 @@ template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_d
     // T3 = 3T0
     T3 = T0 + T0;
     T3 += T0;
+    if constexpr (T::has_a) {
+        T3 += (T::a * z.sqr().sqr());
+    }
+
+    // z2 = 2*y*z
+    z += z;
+    z *= y;
 
     // T0 = 2T1
     T0 = T1 + T1;
@@ -506,7 +509,11 @@ template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::on_cur
         return false;
     }
     Fq zz = z.sqr();
-    Fq bz_6 = zz.sqr() * zz * T::b;
+    Fq zzzz = zz.sqr();
+    Fq bz_6 = zzzz * zz * T::b;
+    if constexpr (T::has_a) {
+        bz_6 += (x * T::a) * zzzz;
+    }
     Fq xxx = x.sqr() * x + bz_6;
     Fq yy = y.sqr();
     return (xxx == yy);
