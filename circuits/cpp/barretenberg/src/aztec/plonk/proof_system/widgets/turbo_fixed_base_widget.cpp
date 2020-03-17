@@ -276,7 +276,7 @@ fr ProverTurboFixedBaseWidget::compute_opening_poly_contribution(const fr& nu_ba
 // ###
 
 VerifierTurboFixedBaseWidget::VerifierTurboFixedBaseWidget()
-    : VerifierTurboArithmeticWidget()
+    : VerifierBaseWidget()
 {}
 
 barretenberg::fr VerifierTurboFixedBaseWidget::compute_quotient_evaluation_contribution(

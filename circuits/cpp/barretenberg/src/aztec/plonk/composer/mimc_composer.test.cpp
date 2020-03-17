@@ -33,7 +33,7 @@ TEST(mimc_composer, test_mimc_gate_proof)
 
     waffle::Prover prover = composer.preprocess();
 
-    waffle::Verifier verifier = composer.create_verifier();
+    waffle::MiMCVerifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 

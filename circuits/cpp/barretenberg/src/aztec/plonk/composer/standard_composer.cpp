@@ -724,9 +724,6 @@ Verifier StandardComposer::create_verifier()
     compute_verification_key();
     Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<VerifierArithmeticWidget> widget = std::make_unique<VerifierArithmeticWidget>();
-
-    output_state.verifier_widgets.emplace_back(std::move(widget));
 
     return output_state;
 }

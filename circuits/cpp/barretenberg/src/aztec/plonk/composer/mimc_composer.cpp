@@ -404,17 +404,12 @@ Prover MiMCComposer::preprocess()
     return output_state;
 }
 
-Verifier MiMCComposer::create_verifier()
+MiMCVerifier MiMCComposer::create_verifier()
 {
     compute_verification_key();
 
-    Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
+    MiMCVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<VerifierArithmeticWidget> arithmetic_widget = std::make_unique<VerifierArithmeticWidget>();
-    std::unique_ptr<VerifierMiMCWidget> mimc_widget = std::make_unique<VerifierMiMCWidget>();
-
-    output_state.verifier_widgets.push_back(std::move(arithmetic_widget));
-    output_state.verifier_widgets.push_back(std::move(mimc_widget));
     return output_state;
 }
 } // namespace waffle

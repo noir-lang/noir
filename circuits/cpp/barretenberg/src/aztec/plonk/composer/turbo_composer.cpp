@@ -1146,13 +1146,6 @@ TurboVerifier TurboComposer::create_verifier()
 
     TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<VerifierTurboFixedBaseWidget> fixed_base_widget = std::make_unique<VerifierTurboFixedBaseWidget>();
-    std::unique_ptr<VerifierTurboRangeWidget> range_widget = std::make_unique<VerifierTurboRangeWidget>();
-    std::unique_ptr<VerifierTurboLogicWidget> logic_widget = std::make_unique<VerifierTurboLogicWidget>();
-
-    output_state.verifier_widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.verifier_widgets.emplace_back(std::move(range_widget));
-    output_state.verifier_widgets.emplace_back(std::move(logic_widget));
 
     return output_state;
 }

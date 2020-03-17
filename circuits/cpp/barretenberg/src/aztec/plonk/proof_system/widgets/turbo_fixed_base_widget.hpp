@@ -2,26 +2,26 @@
 #include "turbo_arithmetic_widget.hpp"
 
 namespace waffle {
-class VerifierTurboFixedBaseWidget : public VerifierTurboArithmeticWidget {
+class VerifierTurboFixedBaseWidget : public VerifierBaseWidget {
   public:
     VerifierTurboFixedBaseWidget();
 
-    VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
+    static VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key*,
         const challenge_coefficients& challenge,
         const transcript::Transcript& transcript,
         std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars) override;
+        std::vector<barretenberg::fr>& scalars);
 
-    barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                           barretenberg::fr&,
-                                                           const barretenberg::fr& nu_base,
-                                                           const transcript::Transcript&) override;
+    static barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
+                                                                  barretenberg::fr&,
+                                                                  const barretenberg::fr& nu_base,
+                                                                  const transcript::Transcript&);
 
-    barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                              const barretenberg::fr&,
-                                                              const transcript::Transcript& transcript,
-                                                              barretenberg::fr&) override;
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
+                                                                     const barretenberg::fr&,
+                                                                     const transcript::Transcript& transcript,
+                                                                     barretenberg::fr&);
 };
 
 class ProverTurboFixedBaseWidget : public ProverTurboArithmeticWidget {

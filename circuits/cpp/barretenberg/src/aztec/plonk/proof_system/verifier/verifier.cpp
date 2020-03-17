@@ -21,11 +21,7 @@ template <typename program_settings>
 VerifierBase<program_settings>::VerifierBase(VerifierBase&& other)
     : manifest(other.manifest)
     , key(other.key)
-{
-    for (size_t i = 0; i < other.verifier_widgets.size(); ++i) {
-        verifier_widgets.emplace_back(std::move(other.verifier_widgets[i]));
-    }
-}
+{}
 
 template <typename program_settings>
 VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(VerifierBase&& other)
@@ -33,10 +29,6 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
     key = other.key;
     manifest = other.manifest;
 
-    verifier_widgets.resize(0);
-    for (size_t i = 0; i < other.verifier_widgets.size(); ++i) {
-        verifier_widgets.emplace_back(std::move(other.verifier_widgets[i]));
-    }
     return *this;
 }
 
@@ -85,15 +77,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
     if (!instance_valid) {
         printf("instance not valid!\n");
-        return false;
-    }
-
-    bool widget_instance_valid = true;
-    for (size_t i = 0; i < verifier_widgets.size(); ++i) {
-        widget_instance_valid = widget_instance_valid && verifier_widgets[i]->verify_instance_commitments();
-    }
-    if (!widget_instance_valid) {
-        printf("widget instance not valid!\n");
         return false;
     }
 
@@ -173,10 +156,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     t_eval += T1;
 
     fr alpha_base = alpha.sqr().sqr();
-    for (size_t i = 0; i < verifier_widgets.size(); ++i) {
-        alpha_base =
-            verifier_widgets[i]->compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
-    }
+
+    alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
 
     T0 = lagrange_evals.vanishing_poly.invert();
     t_eval *= T0;
@@ -230,10 +211,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-    for (size_t i = 0; i < verifier_widgets.size(); ++i) {
-        nu_base = verifier_widgets[i]->compute_batch_evaluation_contribution(
-            key.get(), batch_evaluation, nu_base, transcript);
-    }
+    nu_base = program_settings::compute_batch_evaluation_contribution(key.get(), batch_evaluation, nu_base, transcript);
 
     batch_evaluation.self_neg();
 
@@ -292,10 +270,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     VerifierBaseWidget::challenge_coefficients coeffs{ alpha.sqr().sqr(), alpha, nu_base, nu, nu };
 
-    for (size_t i = 0; i < verifier_widgets.size(); ++i) {
-        coeffs =
-            verifier_widgets[i]->append_scalar_multiplication_inputs(key.get(), coeffs, transcript, elements, scalars);
-    }
+    coeffs = program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, elements, scalars);
 
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
@@ -323,7 +298,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     return (result == barretenberg::fq12::one());
 }
 
-template class VerifierBase<standard_settings>;
-template class VerifierBase<turbo_settings>;
+template class VerifierBase<standard_verifier_settings>;
+template class VerifierBase<mimc_verifier_settings>;
+template class VerifierBase<turbo_verifier_settings>;
 
 } // namespace waffle

@@ -6,20 +6,28 @@ class VerifierSequentialWidget : public VerifierBaseWidget {
   public:
     VerifierSequentialWidget();
 
-    VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
+    static VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key* key,
         const challenge_coefficients& challenge,
         const transcript::Transcript& transcript,
         std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars) override;
+        std::vector<barretenberg::fr>& scalars);
 
-    barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
+    static barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
                                                            barretenberg::fr&,
                                                            const barretenberg::fr& nu_base,
-                                                           const transcript::Transcript&) override
+                                                           const transcript::Transcript&)
     {
         return nu_base;
     };
+
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
+                                                                      const barretenberg::fr& alpha_base,
+                                                                      const transcript::Transcript&,
+                                                                      barretenberg::fr&)
+    {
+        return alpha_base;
+    }
 };
 
 class ProverSequentialWidget : public ProverBaseWidget {

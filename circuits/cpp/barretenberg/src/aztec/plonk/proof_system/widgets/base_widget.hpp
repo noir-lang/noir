@@ -28,25 +28,25 @@ class VerifierBaseWidget {
     VerifierBaseWidget(VerifierBaseWidget&& other) = default;
     virtual ~VerifierBaseWidget() = default;
 
-    virtual challenge_coefficients append_scalar_multiplication_inputs(
-        verification_key*,
-        const challenge_coefficients& challenge,
-        const transcript::Transcript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars) = 0;
+    // virtual challenge_coefficients append_scalar_multiplication_inputs(
+    //     verification_key*,
+    //     const challenge_coefficients& challenge,
+    //     const transcript::Transcript& transcript,
+    //     std::vector<barretenberg::g1::affine_element>& points,
+    //     std::vector<barretenberg::fr>& scalars) = 0;
 
-    virtual barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                                   barretenberg::fr& batch_eval,
-                                                                   const barretenberg::fr& nu_base,
-                                                                   const transcript::Transcript& transcript) = 0;
+    // virtual barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
+    //                                                                barretenberg::fr& batch_eval,
+    //                                                                const barretenberg::fr& nu_base,
+    //                                                                const transcript::Transcript& transcript) = 0;
 
-    virtual barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                                      const barretenberg::fr& alpha_base,
-                                                                      const transcript::Transcript&,
-                                                                      barretenberg::fr&)
-    {
-        return alpha_base;
-    }
+    // virtual barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
+    //                                                                   const barretenberg::fr& alpha_base,
+    //                                                                   const transcript::Transcript&,
+    //                                                                   barretenberg::fr&)
+    // {
+    //     return alpha_base;
+    // }
 
     bool verify_instance_commitments()
     {

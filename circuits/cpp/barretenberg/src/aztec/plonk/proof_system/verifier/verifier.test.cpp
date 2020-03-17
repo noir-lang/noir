@@ -80,8 +80,8 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[7] });
 
     Verifier verifier(circuit_verification_key, create_manifest());
-    std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
-    verifier.verifier_widgets.emplace_back(std::move(widget));
+    // std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
+    // verifier.verifier_widgets.emplace_back(std::move(widget));
     return verifier;
 }
 
