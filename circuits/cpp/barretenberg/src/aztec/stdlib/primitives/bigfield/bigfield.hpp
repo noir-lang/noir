@@ -6,6 +6,7 @@
 #include <numeric/uintx/uintx.hpp>
 
 #include "../field/field.hpp"
+#include "../byte_array/byte_array.hpp"
 
 #include "../composers/composers_fwd.hpp"
 
@@ -36,7 +37,7 @@ template <typename Composer, typename T> class bigfield {
             : element(input)
         {
             if (input.witness_index == UINT32_MAX) {
-                maximum_value = uint256_t(input.additive_constant);
+                maximum_value = DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB; // uint256_t(input.additive_constant) + 1;
             } else if (max != uint256_t(0)) {
                 maximum_value = max;
             } else {
@@ -100,7 +101,7 @@ template <typename Composer, typename T> class bigfield {
              const witness_t<Composer>& c,
              const witness_t<Composer>& d,
              const bool can_overflow = false);
-
+    bigfield(const byte_array<Composer>& bytes);
     bigfield(const bigfield& other);
     bigfield(bigfield&& other);
 

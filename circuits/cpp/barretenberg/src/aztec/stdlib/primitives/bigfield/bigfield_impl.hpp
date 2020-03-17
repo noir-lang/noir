@@ -101,6 +101,47 @@ bigfield<C, T>::bigfield(bigfield&& other)
     , prime_basis_limb(other.prime_basis_limb)
 {}
 
+template <typename C, typename T> bigfield<C, T>::bigfield(const byte_array<C>& bytes)
+{
+    context = bytes.get_context();
+    std::vector<bool_t<C>> bits = bytes.bits();
+    const size_t num_bits = bits.size();
+    const size_t offset = num_bits - modulus_u512.get_msb() - 1;
+    std::vector<field_t<C>> elements;
+    for (size_t i = 0; i < 4; ++i) {
+        field_t<C> element = field_t<C>(context, barretenberg::fr(0));
+        size_t start;
+        if (i == 0) {
+            start = 0;
+        }
+        if (i == 1) {
+            start = NUM_LAST_LIMB_BITS;
+        }
+        if (i == 2) {
+            start = NUM_LAST_LIMB_BITS + NUM_LIMB_BITS;
+        }
+        if (i == 3) {
+            start = NUM_LAST_LIMB_BITS + NUM_LIMB_BITS * 2;
+        }
+        const size_t end = start + ((i == 0) ? NUM_LAST_LIMB_BITS : NUM_LIMB_BITS);
+        for (size_t j = start; j < end; ++j) {
+            element = element + element;
+            element = element + bits[j + offset];
+        }
+        elements.push_back(element);
+    }
+    binary_basis_limbs[3].element = elements[0];
+    binary_basis_limbs[3].maximum_value = DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB;
+    binary_basis_limbs[2].element = elements[1];
+    binary_basis_limbs[2].maximum_value = DEFAULT_MAXIMUM_LIMB;
+    binary_basis_limbs[1].element = elements[2];
+    binary_basis_limbs[1].maximum_value = DEFAULT_MAXIMUM_LIMB;
+    binary_basis_limbs[0].element = elements[3];
+    binary_basis_limbs[0].maximum_value = DEFAULT_MAXIMUM_LIMB;
+    prime_basis_limb = (binary_basis_limbs[3].element * shift_3) + (binary_basis_limbs[2].element * shift_2) +
+                       (binary_basis_limbs[1].element * shift_1) + (binary_basis_limbs[0].element);
+}
+
 template <typename C, typename T> bigfield<C, T>& bigfield<C, T>::operator=(const bigfield& other)
 {
     context = other.context;
@@ -166,17 +207,26 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator+(const
 
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::conditional_negate(const bool_t<C>& predicate) const
 {
-    reduction_check();
     C* ctx = context ? context : predicate.context;
 
+    // if (is_constant())
+    // {
+    //     uint256_t left_value = get_value() % modulus_u512;
+    //     uint256_t right_value = modulus_u512.lo - left_value;
+    //     bigfield left(ctx, left_value);
+    //     bigfield right(ctx, right_value);
+
+    // }
+    reduction_check();
+
     uint256_t limb_0_maximum_value = binary_basis_limbs[0].maximum_value;
-    uint64_t limb_0_borrow_shift = limb_0_maximum_value.get_msb() + 1;
+    uint64_t limb_0_borrow_shift = std::max(limb_0_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
     uint256_t limb_1_maximum_value =
         binary_basis_limbs[1].maximum_value + (uint256_t(1) << (limb_0_borrow_shift - NUM_LIMB_BITS));
-    uint64_t limb_1_borrow_shift = limb_1_maximum_value.get_msb() + 1;
+    uint64_t limb_1_borrow_shift = std::max(limb_1_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
     uint256_t limb_2_maximum_value =
         binary_basis_limbs[2].maximum_value + (uint256_t(1) << (limb_1_borrow_shift - NUM_LIMB_BITS));
-    uint64_t limb_2_borrow_shift = limb_2_maximum_value.get_msb() + 1;
+    uint64_t limb_2_borrow_shift = std::max(limb_2_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
 
     uint256_t limb_3_maximum_value =
         binary_basis_limbs[3].maximum_value + (uint256_t(1) << (limb_2_borrow_shift - NUM_LIMB_BITS));
@@ -268,12 +318,25 @@ bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const b
 
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const bigfield& other) const
 {
-    reduction_check();
-    other.reduction_check();
     C* ctx = context ? context : other.context;
 
-    bigfield result(ctx);
+    if (is_constant() && other.is_constant()) {
+        uint512_t left = get_value() % modulus_u512;
+        uint512_t right = other.get_value() % modulus_u512;
+        uint512_t out = (left + modulus_u512 - right) % modulus_u512;
+        return bigfield(ctx, uint256_t(out.lo));
+    }
+    reduction_check();
 
+    if (other.is_constant()) {
+        uint512_t right = other.get_value() % modulus_u512;
+        uint512_t neg_right = modulus_u512 - right;
+        return operator+(bigfield(ctx, uint256_t(neg_right.lo)));
+    }
+    other.reduction_check();
+
+    bigfield result(ctx);
+    // 0x0000000000000000 0400000000000000 0040000000000000 0004000000000000
     // uint512_t constant_to_add = modulus_u512;
     // uint512_t target_maximum = get_maximum_value();
     // while (constant_to_add < target_maximum)
@@ -299,13 +362,13 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
 
     // std::cout << "constant to add = " << constant_to_add << std::endl;
     uint256_t limb_0_maximum_value = other.binary_basis_limbs[0].maximum_value;
-    uint64_t limb_0_borrow_shift = limb_0_maximum_value.get_msb() + 1;
+    uint64_t limb_0_borrow_shift = std::max(limb_0_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
     uint256_t limb_1_maximum_value =
         other.binary_basis_limbs[1].maximum_value + (uint256_t(1) << (limb_0_borrow_shift - NUM_LIMB_BITS));
-    uint64_t limb_1_borrow_shift = limb_1_maximum_value.get_msb() + 1;
+    uint64_t limb_1_borrow_shift = std::max(limb_1_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
     uint256_t limb_2_maximum_value =
         other.binary_basis_limbs[2].maximum_value + (uint256_t(1) << (limb_1_borrow_shift - NUM_LIMB_BITS));
-    uint64_t limb_2_borrow_shift = limb_2_maximum_value.get_msb() + 1;
+    uint64_t limb_2_borrow_shift = std::max(limb_2_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
 
     uint256_t limb_3_maximum_value =
         other.binary_basis_limbs[3].maximum_value + (uint256_t(1) << (limb_2_borrow_shift - NUM_LIMB_BITS));
@@ -347,6 +410,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
 
     uint512_t constant_to_add_mod_p = constant_to_add % prime_basis.modulus;
     field_t prime_basis_to_add(ctx, barretenberg::fr(constant_to_add_mod_p.lo));
+    // result.prime_basis_limb = prime_basis_limb - other.prime_basis_limb;
     result.prime_basis_limb = prime_basis_limb + prime_basis_to_add - other.prime_basis_limb;
     return result;
 }
@@ -437,6 +501,11 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
 
     barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
 
+    // barretenberg::fr a = left.prime_basis_limb.get_value() * right.prime_basis_limb.get_value();
+    // barretenberg::fr b = quotient.prime_basis_limb.get_value() * neg_prime;
+    // barretenberg::fr c = b - remainder.prime_basis_limb.get_value();
+    // std::cout << "a lhs = " << a << std::endl;
+    // std::cout << "c rhs = " << -c << std::endl;
     // std::cout << "pre" << std::endl;
     field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
                                              right.prime_basis_limb,
@@ -579,7 +648,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
     bigfield remainder;
     bigfield quotient;
     if (is_constant()) {
-        remainder = bigfield(ctx, uint256_t(remainder_value));
+        remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
@@ -612,7 +681,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const
     bigfield remainder;
     bigfield quotient;
     if (is_constant() && other.is_constant()) {
-        remainder = bigfield(ctx, uint256_t(remainder_value));
+        remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
@@ -630,11 +699,13 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
 {
     reduction_check();
     other.reduction_check();
-    C* ctx = context ? other.context : context;
+    C* ctx = context ? context : other.context;
     // a / b = c
     // => c * b = a mod p
-    const uint1024_t left(get_value());
-    const uint1024_t right(other.get_value());
+    // std::cout << "left = " << get_value() << std::endl;
+    // std::cout << "right = " << other.get_value() << std::endl;
+    const uint1024_t left = uint1024_t(get_value());
+    const uint1024_t right = uint1024_t(other.get_value());
     const uint1024_t modulus(target_basis.modulus);
     uint512_t inverse_value = right.lo.invmod(target_basis.modulus).lo;
     uint1024_t inverse_1024(inverse_value);
@@ -657,6 +728,16 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
             witness_t(ctx, fr(inverse_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     }
 
+    // uint1024_t test_inv_value(inverse_value);
+    // uint1024_t lhs = right * test_inv_value;
+    // uint1024_t rhs = quotient_1024 * modulus + left;
+    // std::cout << "lhs = " << lhs << std::endl;
+    // std::cout << "rhs = " << rhs << std::endl;
+
+    // fr field_lhs = other.prime_basis_limb.get_value() * inverse.prime_basis_limb.get_value();
+    // fr field_rhs = quotient.prime_basis_limb.get_value() * fr(modulus_u512.lo) + prime_basis_limb.get_value();
+
+    // std::cout << "returning inverse of " << inverse.get_value() << std::endl;
     evaluate_product(other, inverse, quotient, *this);
     return inverse;
 }
@@ -664,6 +745,13 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
 template <typename C, typename T> void bigfield<C, T>::reduction_check() const
 {
     if (is_constant()) {
+        uint256_t reduced_value = (get_value() % modulus_u512).lo;
+        bigfield reduced(context, uint256_t(reduced_value));
+        binary_basis_limbs[0] = reduced.binary_basis_limbs[0];
+        binary_basis_limbs[1] = reduced.binary_basis_limbs[1];
+        binary_basis_limbs[2] = reduced.binary_basis_limbs[2];
+        binary_basis_limbs[3] = reduced.binary_basis_limbs[3];
+        prime_basis_limb = reduced.prime_basis_limb;
         return;
     }
     uint256_t maximum_limb_value = get_maximum_unreduced_limb_value();
@@ -679,6 +767,9 @@ template <typename C, typename T> void bigfield<C, T>::reduction_check() const
 
 template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 {
+    if (is_constant()) {
+        std::cout << "IN SELF REDUCE AND CONSTANT??? " << std::endl;
+    }
     // static uint64_t count = 0;
     // std::cout << "in self reduce count = " << count << std::endl;
     // ++count;

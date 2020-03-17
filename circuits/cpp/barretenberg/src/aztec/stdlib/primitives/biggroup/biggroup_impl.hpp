@@ -98,6 +98,10 @@ template <typename C, class Fq, class Fr, class T> element<C, Fq, Fr, T> element
 {
     Fq T0 = x.sqr();
     Fq T1 = T0 + T0 + T0;
+    if constexpr (T::has_a) {
+        Fq a(get_context(), uint256_t(T::a));
+        T1 = T1 + a;
+    }
     Fq lambda = T1 / (y + y);
     Fq x_3 = lambda.sqr() - (x + x);
     Fq y_3 = lambda * (x - x_3);
@@ -461,7 +465,6 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator*(const Fr& scalar) const
      * specifics.
      *
      **/
-
     constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
 
     std::vector<bool_t<C>> naf_entries = compute_naf(scalar);

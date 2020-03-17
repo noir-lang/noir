@@ -374,7 +374,7 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
         (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
     if ((to_mul.witness_index == UINT32_MAX) || (to_add.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
-        return (*this) * to_mul + to_add;
+        return ((*this) * to_mul + to_add).normalize();
     }
 
     // (a * Q_a  + R_a) * (b * Q_b + R_b) + (c * Q_c  R_c) = result
@@ -415,7 +415,7 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
     if ((add_a.witness_index == UINT32_MAX) || (add_b.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
-        return (*this) * add_a + add_b;
+        return ((*this) + add_a + add_b).normalize();
     }
 
     barretenberg::fr q_1 = multiplicative_constant;
@@ -652,9 +652,11 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
                                ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
                                : a.context;
 
-    if (ctx == nullptr) {
+    if (a.witness_index == UINT32_MAX && b.witness_index == UINT32_MAX && c.witness_index == UINT32_MAX &&
+        d.witness_index == UINT32_MAX) {
         return;
     }
+
     // validate that a * b + c + d = 0
     barretenberg::fr q_m = a.multiplicative_constant * b.multiplicative_constant;
     barretenberg::fr q_1 = a.multiplicative_constant * b.additive_constant;
@@ -669,8 +671,9 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
     barretenberg::fr t2 = b.get_value();
     barretenberg::fr t3 = c.get_value();
     barretenberg::fr t4 = d.get_value();
-    if (t1 * t2 + t3 + t4 != barretenberg::fr(0)) {
+    if (t1 * t2 != -(t3 + t4)) {
         printf("polynomial identity does not validate!\n");
+        std::cout << "t1 * t2 + t3 + t4 = " << (t1 * t2 + t3 + t4) << std::endl;
     }
     const waffle::mul_quad gate_coefficients{
         a.witness_index == UINT32_MAX ? ctx->zero_idx : a.witness_index,

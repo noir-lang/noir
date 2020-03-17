@@ -12,6 +12,7 @@
 
 #include <polynomials/polynomial_arithmetic.hpp>
 
+#include <ecc/curves/secp256r1/secp256r1.hpp>
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
@@ -30,6 +31,13 @@ typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn
 typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params> g1;
 
 } // namespace bn254
+namespace secp256r {
+typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
+typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FrParams> fr;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, secp256r1::Secp256r1G1Params> g1;
+
+} // namespace secp256r
+
 } // namespace stdlib
 } // namespace plonk
 typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
@@ -62,6 +70,36 @@ stdlib::bn254::fr convert_inputs(waffle::TurboComposer* ctx, const barretenberg:
                         witness_t(ctx,
                                   barretenberg::fr(scalar_u256.slice(stdlib::bn254::fq::NUM_LIMB_BITS * 2,
                                                                      stdlib::bn254::fq::NUM_LIMB_BITS * 4))));
+
+    return x;
+}
+
+stdlib::secp256r::g1 convert_inputs_secp256r1(waffle::TurboComposer* ctx, const secp256r1::g1::affine_element& input)
+{
+    uint256_t x_u256(input.x);
+    uint256_t y_u256(input.y);
+
+    stdlib::secp256r::fq x(witness_t(ctx, barretenberg::fr(x_u256.slice(0, stdlib::secp256r::fq::NUM_LIMB_BITS * 2))),
+                           witness_t(ctx,
+                                     barretenberg::fr(x_u256.slice(stdlib::secp256r::fq::NUM_LIMB_BITS * 2,
+                                                                   stdlib::secp256r::fq::NUM_LIMB_BITS * 4))));
+    stdlib::secp256r::fq y(witness_t(ctx, barretenberg::fr(y_u256.slice(0, stdlib::secp256r::fq::NUM_LIMB_BITS * 2))),
+                           witness_t(ctx,
+                                     barretenberg::fr(y_u256.slice(stdlib::secp256r::fq::NUM_LIMB_BITS * 2,
+                                                                   stdlib::secp256r::fq::NUM_LIMB_BITS * 4))));
+
+    return stdlib::secp256r::g1(x, y);
+}
+
+stdlib::secp256r::fr convert_inputs_secp256r1(waffle::TurboComposer* ctx, const secp256r1::fr& scalar)
+{
+    uint256_t scalar_u256(scalar);
+
+    stdlib::secp256r::fr x(
+        witness_t(ctx, barretenberg::fr(scalar_u256.slice(0, stdlib::secp256r::fq::NUM_LIMB_BITS * 2))),
+        witness_t(ctx,
+                  barretenberg::fr(scalar_u256.slice(stdlib::secp256r::fq::NUM_LIMB_BITS * 2,
+                                                     stdlib::secp256r::fq::NUM_LIMB_BITS * 4))));
 
     return x;
 }
@@ -300,6 +338,70 @@ TEST(stdlib_biggroup, test_quad_mul)
         barretenberg::g1::affine_element expected(input_e + input_f + input_g + input_h);
         barretenberg::fq c_x_result(c.x.get_value().lo);
         barretenberg::fq c_y_result(c.y.get_value().lo);
+
+        EXPECT_EQ(c_x_result, expected.x);
+        EXPECT_EQ(c_y_result, expected.y);
+    }
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_biggroup, test_one)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        barretenberg::fr scalar_a(barretenberg::fr::random_element());
+        if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            scalar_a -= barretenberg::fr(1); // make a have skew
+        }
+        stdlib::bn254::g1 P_a = stdlib::bn254::g1::one(&composer);
+        // std::cout << "a" << std::endl;
+        // P_a = P_a.dbl();
+        // std::cout << "b" << std::endl;
+        stdlib::bn254::fr x_a = convert_inputs(&composer, scalar_a);
+        stdlib::bn254::g1 c = P_a * x_a;
+        barretenberg::g1::affine_element expected(barretenberg::g1::one * scalar_a);
+        barretenberg::fq c_x_result(c.x.get_value().lo);
+        barretenberg::fq c_y_result(c.y.get_value().lo);
+
+        EXPECT_EQ(c_x_result, expected.x);
+        EXPECT_EQ(c_y_result, expected.y);
+    }
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_biggroup, test_one_secp256r1)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        secp256r1::fr scalar_a(secp256r1::fr::random_element());
+        if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            scalar_a -= secp256r1::fr(1); // make a have skew
+        }
+        stdlib::secp256r::g1 P_a = stdlib::secp256r::g1::one(&composer);
+        // std::cout << "a" << std::endl;
+        // P_a = P_a.dbl();
+        // std::cout << "b" << std::endl;
+        stdlib::secp256r::fr x_a = convert_inputs_secp256r1(&composer, scalar_a);
+        stdlib::secp256r::g1 c = P_a * x_a;
+        secp256r1::g1::affine_element expected(secp256r1::g1::one * scalar_a);
+        secp256r1::fq c_x_result(c.x.get_value().lo);
+        secp256r1::fq c_y_result(c.y.get_value().lo);
 
         EXPECT_EQ(c_x_result, expected.x);
         EXPECT_EQ(c_y_result, expected.y);

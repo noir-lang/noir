@@ -8,6 +8,8 @@
 #include "./bigfield.hpp"
 #include "../bool/bool.hpp"
 #include "../field/field.hpp"
+#include "../byte_array/byte_array.hpp"
+
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
@@ -497,6 +499,77 @@ TEST(stdlib_bigfield, test_assert_is_in_field_success)
         uint256_t result = (c.get_value().lo);
         EXPECT_EQ(result, uint256_t(expected));
         EXPECT_EQ(c.get_value().get_msb() < 254, true);
+    }
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_bigfield, byte_array_constructors)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 10;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+
+        fq inputs[4]{ fq::random_element(), fq::random_element(), fq::random_element(), fq::random_element() };
+        std::vector<uint8_t> input_a(sizeof(fq));
+        fq::serialize_to_buffer(inputs[0], &input_a[0]);
+        std::vector<uint8_t> input_b(sizeof(fq));
+        fq::serialize_to_buffer(inputs[1], &input_b[0]);
+
+        stdlib::byte_array<waffle::TurboComposer> input_arr_a(&composer, input_a);
+        stdlib::byte_array<waffle::TurboComposer> input_arr_b(&composer, input_b);
+
+        bigfield a(input_arr_a);
+        bigfield b(input_arr_b);
+
+        bigfield c = a * b;
+
+        fq expected = inputs[0] * inputs[1];
+        uint256_t result = (c.get_value().lo);
+        EXPECT_EQ(result, uint256_t(expected));
+    }
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_bigfield, test_div_against_constants)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
+        bigfield a(witness_t(&composer, barretenberg::fr(uint256_t(inputs[0]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[0]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+        bigfield b1(&composer, uint256_t(inputs[1]));
+        bigfield b2(&composer, uint256_t(inputs[2]));
+        bigfield c = a / (b1 - b2);
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
+
+        fq expected = (inputs[0] / (inputs[1] - inputs[2]));
+        std::cout << "denominator = " << inputs[1] - inputs[2] << std::endl;
+        std::cout << "expected = " << expected << std::endl;
+        expected = expected.from_montgomery_form();
+        uint512_t result = c.get_value();
+
+        EXPECT_EQ(result.lo.data[0], expected.data[0]);
+        EXPECT_EQ(result.lo.data[1], expected.data[1]);
+        EXPECT_EQ(result.lo.data[2], expected.data[2]);
+        EXPECT_EQ(result.lo.data[3], expected.data[3]);
+        EXPECT_EQ(result.hi.data[0], 0ULL);
+        EXPECT_EQ(result.hi.data[1], 0ULL);
+        EXPECT_EQ(result.hi.data[2], 0ULL);
+        EXPECT_EQ(result.hi.data[3], 0ULL);
     }
     waffle::TurboProver prover = composer.create_prover();
     waffle::TurboVerifier verifier = composer.create_verifier();

@@ -32,6 +32,7 @@ template <typename ComposerContext> class byte_array {
 
     byte_array slice(size_t offset) const;
     byte_array slice(size_t offset, size_t length) const;
+    byte_array slice_bits(size_t offset, size_t length) const;
     byte_array reverse() const;
 
     size_t size() const { return values.size() / 8; }

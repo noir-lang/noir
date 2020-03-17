@@ -93,6 +93,16 @@ template <typename ComposerContext> byte_array<ComposerContext> byte_array<Compo
 }
 
 template <typename ComposerContext>
+byte_array<ComposerContext> byte_array<ComposerContext>::slice_bits(size_t offset, size_t length) const
+{
+    ASSERT(offset < values.size());
+    ASSERT(length < values.size() - offset);
+    auto start = values.begin() + (long)(offset);
+    auto end = values.begin() + (long)((offset + length));
+    return byte_array(context, bits_t(start, end));
+}
+
+template <typename ComposerContext>
 byte_array<ComposerContext> byte_array<ComposerContext>::slice(size_t offset, size_t length) const
 {
     ASSERT(offset < values.size());

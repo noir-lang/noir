@@ -10,7 +10,6 @@ template <typename ComposerContext> class byte_array;
 
 template <typename ComposerContext> class field_t {
   public:
-
     field_t(ComposerContext* parent_context = nullptr);
     field_t(ComposerContext* parent_context, const barretenberg::fr& value);
     field_t(const barretenberg::fr& value);
@@ -58,7 +57,12 @@ template <typename ComposerContext> class field_t {
     field_t operator-() const
     {
         field_t result(*this);
+        // if (witness_index == UINT32_MAX) {
+        //     result.additive_constant -= result.additive_constant;
+        // } else {
         result.multiplicative_constant = -result.multiplicative_constant;
+        result.additive_constant = -result.additive_constant;
+        //}
         return result;
     }
 

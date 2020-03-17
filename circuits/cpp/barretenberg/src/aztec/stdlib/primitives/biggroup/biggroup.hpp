@@ -15,6 +15,16 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
     element(const element& other);
     element(element&& other);
 
+    static element one(Composer* ctx)
+    {
+        uint256_t x = uint256_t(Params::one_x);
+        uint256_t y = uint256_t(Params::one_y);
+        Fq x_fq(ctx, x);
+        Fq y_fq(ctx, y);
+        element result(x_fq, y_fq);
+        return result;
+    }
+
     element& operator=(const element& other);
     element& operator=(element&& other);
 
@@ -37,6 +47,17 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
                             const Fr& scalar_d);
 
     static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar);
+    Composer* get_context() const
+    {
+        if (x.context != nullptr) {
+            return x.context;
+        }
+        if (y.context != nullptr) {
+            return y.context;
+        }
+        return nullptr;
+    }
+
     Composer* get_context(const element& other) const
     {
         if (x.context != nullptr) {
