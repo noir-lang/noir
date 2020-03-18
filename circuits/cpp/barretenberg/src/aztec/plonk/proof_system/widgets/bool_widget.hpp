@@ -11,15 +11,13 @@ class VerifierBoolWidget : public VerifierBaseWidget {
   public:
     VerifierBoolWidget();
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                              const barretenberg::fr&,
-                                                              const transcript::Transcript&,
-                                                              barretenberg::fr&);
+    static barretenberg::fr compute_quotient_evaluation_contribution(
+        verification_key*, const barretenberg::fr&, const transcript::Transcript&, barretenberg::fr&, const bool);
 
     static barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                           barretenberg::fr&,
-                                                           const barretenberg::fr& nu_base,
-                                                           const transcript::Transcript&);
+                                                                  barretenberg::fr&,
+                                                                  const barretenberg::fr& nu_base,
+                                                                  const transcript::Transcript&);
 
     static VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key* key,
@@ -27,7 +25,6 @@ class VerifierBoolWidget : public VerifierBaseWidget {
         const transcript::Transcript& transcript,
         std::vector<barretenberg::g1::affine_element>& points,
         std::vector<barretenberg::fr>& scalars);
-
 };
 
 class ProverBoolWidget : public ProverBaseWidget {
@@ -47,7 +44,10 @@ class ProverBoolWidget : public ProverBaseWidget {
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
                                                        const transcript::Transcript&,
                                                        barretenberg::fr*,
-                                                       barretenberg::fr*);
+                                                       barretenberg::fr*,
+                                                       const bool);
+
+    void compute_transcript_elements(transcript::Transcript&, const bool) override;
 
     barretenberg::polynomial& q_bl;
     barretenberg::polynomial& q_br;

@@ -79,7 +79,7 @@ fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha_base, const t
     ITERATE_OVER_DOMAIN_START(key->mid_domain);
     fr T0 = (w_1_fft[i * 2].sqr() - w_1_fft[i * 2]) * q_bl_fft[i] * alpha_base;
     fr T1 = (w_2_fft[i * 2].sqr() - w_2_fft[i * 2]) * q_br_fft[i] * alpha_a;
-    fr T2 = (w_3_fft[i * 3].sqr() - w_3_fft[i * 2]) * q_bo_fft[i] * alpha_b;
+    fr T2 = (w_3_fft[i * 2].sqr() - w_3_fft[i * 2]) * q_bo_fft[i] * alpha_b;
 
     quotient_mid[i] += (T0 + T1 + T2);
     ITERATE_OVER_DOMAIN_END;
@@ -107,9 +107,37 @@ fr ProverBoolWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base * alpha.sqr() * alpha;
 }
 
-fr ProverBoolWidget::compute_opening_poly_contribution(const fr& nu_base, const transcript::Transcript&, fr*, fr*)
+fr ProverBoolWidget::compute_opening_poly_contribution(
+    const fr& nu_base, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
 {
-    return nu_base;
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    std::array<barretenberg::fr, 3> nu_powers;
+    nu_powers[0] = nu_base;
+    nu_powers[1] = nu_powers[0] * nu;
+    nu_powers[2] = nu_powers[1] * nu;
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    poly[i] += (q_bl[i] * nu_powers[0]);
+    poly[i] += (q_br[i] * nu_powers[1]);
+    poly[i] += (q_bo[i] * nu_powers[2]);
+    ITERATE_OVER_DOMAIN_END;
+
+    return nu_powers[2] * nu;
+}
+
+void ProverBoolWidget::compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return;
+    }
+    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    transcript.add_element("q_bl", q_bl.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_br", q_br.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_bo", q_bo.evaluate(z, key->small_domain.size).to_buffer());
 }
 
 // ###
@@ -121,9 +149,31 @@ VerifierBoolWidget::VerifierBoolWidget()
 fr VerifierBoolWidget::compute_quotient_evaluation_contribution(verification_key*,
                                                                 const fr& alpha_base,
                                                                 const transcript::Transcript& transcript,
-                                                                fr&)
+                                                                fr& t_eval,
+                                                                const bool use_linearisation)
 {
-    return alpha_base * fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    if (use_linearisation) {
+        return alpha_base * alpha;
+    }
+
+    fr alpha_a = alpha_base * alpha;
+    fr alpha_b = alpha_a * alpha;
+
+    fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+    fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+    fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+    fr q_bl_eval = fr::serialize_from_buffer(&transcript.get_element("q_bl")[0]);
+    fr q_br_eval = fr::serialize_from_buffer(&transcript.get_element("q_br")[0]);
+    fr q_bo_eval = fr::serialize_from_buffer(&transcript.get_element("q_bo")[0]);
+
+    fr T0 = (w_l_eval.sqr() - w_l_eval) * q_bl_eval * alpha_base;
+    fr T1 = (w_r_eval.sqr() - w_r_eval) * q_br_eval * alpha_a;
+    fr T2 = (w_o_eval.sqr() - w_o_eval) * q_bo_eval * alpha_b;
+
+    t_eval += (T0 + T1 + T2);
+
+    return alpha_base * alpha;
 }
 
 fr VerifierBoolWidget::compute_batch_evaluation_contribution(verification_key*,

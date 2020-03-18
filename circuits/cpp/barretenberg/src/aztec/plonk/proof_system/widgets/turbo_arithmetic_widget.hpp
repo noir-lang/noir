@@ -21,7 +21,8 @@ class VerifierTurboArithmeticWidget : public VerifierBaseWidget {
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
                                                                      const barretenberg::fr& alpha_base,
                                                                      const transcript::Transcript& transcript,
-                                                                     barretenberg::fr&);
+                                                                     barretenberg::fr& t_eval,
+                                                                     const bool use_linearisation);
 };
 
 class ProverTurboArithmeticWidget : public ProverBaseWidget {
@@ -40,9 +41,10 @@ class ProverTurboArithmeticWidget : public ProverBaseWidget {
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
                                                        const transcript::Transcript&,
                                                        barretenberg::fr*,
-                                                       barretenberg::fr*);
+                                                       barretenberg::fr*,
+                                                       const bool);
 
-    void compute_transcript_elements(transcript::Transcript& transcript);
+    void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 
     barretenberg::polynomial& q_1;
     barretenberg::polynomial& q_2;

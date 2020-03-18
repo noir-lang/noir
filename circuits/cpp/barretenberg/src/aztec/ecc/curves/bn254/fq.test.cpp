@@ -467,3 +467,17 @@ TEST(fq, r_inv)
     uint64_t result = Bn254FqParams::r_inv;
     EXPECT_EQ(result, expected);
 }
+
+TEST(fq, mul_test)
+{
+    fq a{ 0x32b4, 0, 0, 0 };
+    fq b{ 0x0ed9, 0, 0, 0 };
+    fq c = a * b;
+    printf("%lu %lu %lu %lu \n",
+           c.data[0] & 0xffff,
+           (c.data[0] >> 16) & 0xffff,
+           (c.data[0] >> 32) & 0xffff,
+           (c.data[0] >> 48) & 0xffff);
+}
+
+//   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e

@@ -214,3 +214,14 @@ TEST(uintx, invmod)
     uint256_t expected = uint256_t(fr(target_lo).invert());
     EXPECT_EQ(inverse, expected);
 }
+
+TEST(uintx, r_inv)
+{
+    uint256_t prime_256 = fr::modulus;
+    uint512_t r{ 0, 1 };
+    // -(1/q) mod r
+    uint512_t q{ -prime_256, 0 };
+    uint256_t q_inv = q.invmod(r).lo;
+    uint64_t result = q_inv.data[0];
+    EXPECT_EQ(result, Bn254FrParams::r_inv);
+}

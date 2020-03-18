@@ -116,5 +116,45 @@ class TurboComposer : public ComposerBase {
                                                   "separator") });
         return output;
     }
+
+    static transcript::Manifest create_unrolled_manifest(const size_t num_public_inputs)
+    {
+        // add public inputs....
+        constexpr size_t g1_size = 64;
+        constexpr size_t fr_size = 32;
+        const size_t public_input_size = fr_size * num_public_inputs;
+        const transcript::Manifest output = transcript::Manifest(
+            { transcript::Manifest::RoundManifest({ { "circuit_size", 4, true }, { "public_input_size", 4, true } },
+                                                  "init"),
+              transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
+                                                    { "W_1", g1_size, false },
+                                                    { "W_2", g1_size, false },
+                                                    { "W_3", g1_size, false },
+                                                    { "W_4", g1_size, false } },
+                                                  "beta"),
+              transcript::Manifest::RoundManifest({ {} }, "gamma"),
+              transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha"),
+              transcript::Manifest::RoundManifest({ { "T_1", g1_size, false },
+                                                    { "T_2", g1_size, false },
+                                                    { "T_3", g1_size, false },
+                                                    { "T_4", g1_size, false } },
+                                                  "z"),
+              transcript::Manifest::RoundManifest(
+                  {
+                      { "w_1", fr_size, false },       { "w_2", fr_size, false },       { "w_3", fr_size, false },
+                      { "w_4", fr_size, false },       { "w_1_omega", fr_size, false }, { "w_2_omega", fr_size, false },
+                      { "w_3_omega", fr_size, false }, { "w_4_omega", fr_size, false }, { "z", fr_size, false },
+                      { "z_omega", fr_size, false },   { "sigma_1", fr_size, false },   { "sigma_2", fr_size, false },
+                      { "sigma_3", fr_size, false },   { "sigma_4", fr_size, false },   { "q_1", fr_size, false },
+                      { "q_2", fr_size, false },       { "q_3", fr_size, false },       { "q_4", fr_size, false },
+                      { "q_5", fr_size, false },       { "q_m", fr_size, false },       { "q_c", fr_size, false },
+                      { "q_arith", fr_size, false },   { "q_ecc_1", fr_size, false },   { "r", fr_size, false },
+                      { "t", fr_size, true },
+                  },
+                  "nu"),
+              transcript::Manifest::RoundManifest({ { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } },
+                                                  "separator") });
+        return output;
+    }
 };
 } // namespace waffle

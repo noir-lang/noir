@@ -207,11 +207,23 @@ fr ProverTurboArithmeticWidget::compute_quotient_contribution(const barretenberg
     return alpha_base * alpha.sqr();
 }
 
-void ProverTurboArithmeticWidget::compute_transcript_elements(transcript::Transcript& transcript)
+void ProverTurboArithmeticWidget::compute_transcript_elements(transcript::Transcript& transcript,
+                                                              const bool use_linearisation)
 {
     fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
 
     transcript.add_element("q_arith", q_arith.evaluate(z, key->small_domain.size).to_buffer());
+
+    if (use_linearisation) {
+        return;
+    }
+    transcript.add_element("q_1", q_1.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_2", q_2.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_3", q_3.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_4", q_4.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_5", q_5.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_m", q_m.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_c", q_c.evaluate(z, key->small_domain.size).to_buffer());
 }
 
 fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
@@ -242,18 +254,40 @@ fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base
     return alpha_base * alpha.sqr();
 }
 
-fr ProverTurboArithmeticWidget::compute_opening_poly_contribution(const fr& nu_base,
-                                                                  const transcript::Transcript& transcript,
-                                                                  fr* poly,
-                                                                  fr*)
+fr ProverTurboArithmeticWidget::compute_opening_poly_contribution(
+    const fr& nu_base, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
 {
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
 
+    if (use_linearisation) {
+        ITERATE_OVER_DOMAIN_START(key->small_domain);
+        poly[i] += (q_arith[i] * nu_base);
+        ITERATE_OVER_DOMAIN_END;
+
+        return nu_base * nu;
+    }
+
+    std::array<barretenberg::fr, 8> nu_powers;
+    nu_powers[0] = nu_base;
+    nu_powers[1] = nu_powers[0] * nu;
+    nu_powers[2] = nu_powers[1] * nu;
+    nu_powers[3] = nu_powers[2] * nu;
+    nu_powers[4] = nu_powers[3] * nu;
+    nu_powers[5] = nu_powers[4] * nu;
+    nu_powers[6] = nu_powers[5] * nu;
+    nu_powers[7] = nu_powers[6] * nu;
     ITERATE_OVER_DOMAIN_START(key->small_domain);
-    poly[i] += (q_arith[i] * nu_base);
+    poly[i] += (q_1[i] * nu_powers[0]);
+    poly[i] += (q_2[i] * nu_powers[1]);
+    poly[i] += (q_3[i] * nu_powers[2]);
+    poly[i] += (q_4[i] * nu_powers[3]);
+    poly[i] += (q_5[i] * nu_powers[4]);
+    poly[i] += (q_m[i] * nu_powers[5]);
+    poly[i] += (q_c[i] * nu_powers[6]);
+    poly[i] += (q_arith[i] * nu_powers[7]);
     ITERATE_OVER_DOMAIN_END;
 
-    return nu_base * nu;
+    return nu_powers[7] * nu;
 }
 
 // ###
@@ -265,42 +299,134 @@ VerifierTurboArithmeticWidget::VerifierTurboArithmeticWidget()
 fr VerifierTurboArithmeticWidget::compute_quotient_evaluation_contribution(verification_key*,
                                                                            const fr& alpha_base,
                                                                            const transcript::Transcript& transcript,
-                                                                           fr& t_eval)
+                                                                           fr& t_eval,
+                                                                           bool use_linearisation)
 {
     const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    if (use_linearisation) {
+        const fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
+
+        const fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+        const fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
+
+        fr T1;
+        fr T2;
+        fr T3;
+        fr T4;
+        fr T5;
+        constexpr fr minus_seven = -fr(7);
+
+        T1 = q_arith_eval.sqr() - q_arith_eval;
+
+        T2 = w_4_eval + w_4_eval;
+        T2 = T2 + T2;
+        T2 = w_3_eval - T2;
+
+        T3 = T2.sqr();
+        T3 = T3 + T3;
+
+        T4 = T2 + T2 + T2;
+        T5 = T4 + T4;
+        T4 = T4 + T5;
+        T4 = T4 - T3;
+        T4 = T4 + minus_seven;
+
+        T2 = T2 * T4;
+
+        T1 = T1 * T2;
+        T1 = T1 * alpha_base;
+
+        t_eval = t_eval + T1;
+
+        return alpha_base * alpha.sqr();
+    }
+
+    const fr q_1_eval = fr::serialize_from_buffer(&transcript.get_element("q_1")[0]);
+    const fr q_2_eval = fr::serialize_from_buffer(&transcript.get_element("q_2")[0]);
+    const fr q_3_eval = fr::serialize_from_buffer(&transcript.get_element("q_3")[0]);
+    const fr q_4_eval = fr::serialize_from_buffer(&transcript.get_element("q_4")[0]);
+    const fr q_5_eval = fr::serialize_from_buffer(&transcript.get_element("q_5")[0]);
+    const fr q_m_eval = fr::serialize_from_buffer(&transcript.get_element("q_m")[0]);
+    const fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
+
     const fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
 
+    const fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+    const fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
     const fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
     const fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
 
+    constexpr fr minus_two = -fr(2);
+    constexpr fr minus_seven = -fr(7);
+
+    fr T0;
     fr T1;
     fr T2;
     fr T3;
     fr T4;
     fr T5;
-    constexpr fr minus_seven = -fr(7);
+    fr T6;
 
-    T1 = q_arith_eval.sqr() - q_arith_eval;
+    T0 = w_1_eval * q_m_eval;
+    T0 *= w_2_eval;
+    T1 = w_1_eval * q_1_eval;
+    T2 = w_2_eval * q_2_eval;
+    T3 = w_3_eval * q_3_eval;
+    T4 = w_4_eval * q_4_eval;
+    T5 = w_4_eval.sqr();
+    T5 -= w_4_eval;
+    T6 = w_4_eval + minus_two;
+    T5 *= T6;
+    T5 *= q_5_eval;
+    T5 *= alpha;
+
+    T0 += T1;
+    T0 += T2;
+    T0 += T3;
+    T0 += T4;
+    T0 += T5;
+    T0 += q_c_eval;
+    T0 *= q_arith_eval;
+
+    /**
+     * quad extraction term
+     *
+     * We evaluate ranges using the turbo_range_widget, which generates a sequence
+     * of accumulating sums - each sum aggregates a base-4 value.
+     *
+     * We sometimes need to extract individual bits from our quads, the following
+     * term will extrat the high bit from two accumulators, and add it into the
+     * arithmetic identity.
+     *
+     * This term is only active when q_arith[i] is set to 2
+     **/
+    T1 = q_arith_eval.sqr();
+    T1 -= q_arith_eval;
 
     T2 = w_4_eval + w_4_eval;
-    T2 = T2 + T2;
+    T2 += T2;
     T2 = w_3_eval - T2;
 
     T3 = T2.sqr();
-    T3 = T3 + T3;
+    T3 += T3;
 
-    T4 = T2 + T2 + T2;
+    T4 = T2 + T2;
+    T4 += T2;
     T5 = T4 + T4;
-    T4 = T4 + T5;
-    T4 = T4 - T3;
-    T4 = T4 + minus_seven;
+    T4 += T5;
 
-    T2 = T2 * T4;
+    T4 -= T3;
+    T4 += minus_seven;
 
-    T1 = T1 * T2;
-    T1 = T1 * alpha_base;
+    // T2 = 6 iff delta is 2 or 3
+    // T2 = 0 iff delta is 0 or 1 (extracts high bit)
+    T2 *= T4;
 
-    t_eval = t_eval + T1;
+    T1 *= T2;
+
+    T0 += T1;
+    T0 *= alpha_base;
+    t_eval += T0;
 
     return alpha_base * alpha.sqr();
 }

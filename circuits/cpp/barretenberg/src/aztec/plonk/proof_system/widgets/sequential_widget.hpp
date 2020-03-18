@@ -14,20 +14,18 @@ class VerifierSequentialWidget : public VerifierBaseWidget {
         std::vector<barretenberg::fr>& scalars);
 
     static barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                           barretenberg::fr&,
-                                                           const barretenberg::fr& nu_base,
-                                                           const transcript::Transcript&)
+                                                                  barretenberg::fr&,
+                                                                  const barretenberg::fr& nu_base,
+                                                                  const transcript::Transcript&)
     {
         return nu_base;
     };
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                                      const barretenberg::fr& alpha_base,
-                                                                      const transcript::Transcript&,
-                                                                      barretenberg::fr&)
-    {
-        return alpha_base;
-    }
+                                                                     const barretenberg::fr& alpha_base,
+                                                                     const transcript::Transcript& transcript,
+                                                                     barretenberg::fr& t_eval,
+                                                                     const bool use_linearisation);
 };
 
 class ProverSequentialWidget : public ProverBaseWidget {
@@ -44,13 +42,10 @@ class ProverSequentialWidget : public ProverBaseWidget {
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r);
 
-    barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                       const transcript::Transcript&,
-                                                       barretenberg::fr*,
-                                                       barretenberg::fr*)
-    {
-        return nu_base;
-    }
+    barretenberg::fr compute_opening_poly_contribution(
+        const barretenberg::fr&, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool);
+
+    void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 
     barretenberg::polynomial& q_3_next;
 

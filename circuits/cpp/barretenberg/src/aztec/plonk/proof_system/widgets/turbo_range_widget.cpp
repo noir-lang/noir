@@ -178,7 +178,15 @@ fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr&
     return alpha_d * alpha;
 }
 
-void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript&) {}
+void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript& transcript,
+                                                         const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return;
+    }
+    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    transcript.add_element("q_range", q_range.evaluate(z, key->small_domain.size).to_buffer());
+}
 
 fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
                                                        const transcript::Transcript& transcript,
@@ -259,9 +267,20 @@ fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_d * alpha;
 }
 
-fr ProverTurboRangeWidget::compute_opening_poly_contribution(const fr& nu_base, const transcript::Transcript&, fr*, fr*)
+fr ProverTurboRangeWidget::compute_opening_poly_contribution(
+    const fr& nu_base, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
 {
-    return nu_base;
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    poly[i] += (q_range[i] * nu_base);
+    ITERATE_OVER_DOMAIN_END;
+
+    return nu_base * nu;
 }
 
 // ###
@@ -271,11 +290,93 @@ VerifierTurboRangeWidget::VerifierTurboRangeWidget()
 {}
 
 barretenberg::fr VerifierTurboRangeWidget::compute_quotient_evaluation_contribution(
-    verification_key*, const fr& alpha_base, const transcript::Transcript& transcript, fr&)
+    verification_key*,
+    const fr& alpha_base,
+    const transcript::Transcript& transcript,
+    fr& t_eval,
+    const bool use_linearisation)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
-    return alpha_base * alpha.sqr().sqr();
+    if (use_linearisation) {
+        return alpha_base * alpha.sqr().sqr();
+    }
+
+    fr alpha_a = alpha_base;
+    fr alpha_b = alpha_a * alpha;
+    fr alpha_c = alpha_b * alpha;
+    fr alpha_d = alpha_c * alpha;
+
+
+    fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+    fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+    fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
+    fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
+
+    fr q_range_eval = fr::serialize_from_buffer(&transcript.get_element("q_range")[0]);
+
+    constexpr fr minus_two = -fr(2);
+    constexpr fr minus_three = -fr(3);
+
+
+    fr delta_1 = w_4_eval + w_4_eval;
+    delta_1 += delta_1;
+    delta_1 = w_3_eval - delta_1;
+
+    fr delta_2 = w_3_eval + w_3_eval;
+    delta_2 += delta_2;
+    delta_2 = w_2_eval - delta_2;
+
+    fr delta_3 = w_2_eval + w_2_eval;
+    delta_3 += delta_3;
+    delta_3 = w_1_eval - delta_3;
+
+    fr delta_4 = w_1_eval + w_1_eval;
+    delta_4 += delta_4;
+    delta_4 = w_4_omega_eval - delta_4;
+
+    // D(D - 1)(D - 2)(D - 3).alpha
+    fr T0 = delta_1.sqr();
+    T0 -= delta_1;
+    fr T1 = delta_1 + minus_two;
+    T0 *= T1;
+    T1 = delta_1 + minus_three;
+    T0 *= T1;
+    fr range_accumulator = T0 * alpha_a;
+
+    T0 = delta_2.sqr();
+    T0 -= delta_2;
+    T1 = delta_2 + minus_two;
+    T0 *= T1;
+    T1 = delta_2 + minus_three;
+    T0 *= T1;
+    T0 *= alpha_b;
+    range_accumulator += T0;
+
+    T0 = delta_3.sqr();
+    T0 -= delta_3;
+    T1 = delta_3 + minus_two;
+    T0 *= T1;
+    T1 = delta_3 + minus_three;
+    T0 *= T1;
+    T0 *= alpha_c;
+    range_accumulator += T0;
+
+    T0 = delta_4.sqr();
+    T0 -= delta_4;
+    T1 = delta_4 + minus_two;
+    T0 *= T1;
+    T1 = delta_4 + minus_three;
+    T0 *= T1;
+    T0 *= alpha_d;
+    range_accumulator += T0;
+
+    range_accumulator *= q_range_eval;
+
+    t_eval += range_accumulator;
+
+    return alpha_d * alpha;
 }
 
 barretenberg::fr VerifierTurboRangeWidget::compute_batch_evaluation_contribution(verification_key*,

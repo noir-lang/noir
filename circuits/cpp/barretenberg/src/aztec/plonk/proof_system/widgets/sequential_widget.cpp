@@ -79,11 +79,61 @@ fr ProverSequentialWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base;
 }
 
+fr ProverSequentialWidget::compute_opening_poly_contribution(
+    const fr& nu_base, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    poly[i] += (q_3_next[i] * nu_base);
+    ITERATE_OVER_DOMAIN_END;
+
+    return nu_base * nu;
+}
+
+void ProverSequentialWidget::compute_transcript_elements(transcript::Transcript& transcript,
+                                                         const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return;
+    }
+    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    transcript.add_element("q_3_next", q_3_next.evaluate(z, key->small_domain.size).to_buffer());
+}
+
 // ###
 
 VerifierSequentialWidget::VerifierSequentialWidget()
     : VerifierBaseWidget()
 {}
+
+fr VerifierSequentialWidget::compute_quotient_evaluation_contribution(verification_key*,
+                                                                      const fr& alpha_base,
+                                                                      const transcript::Transcript& transcript,
+                                                                      fr& t_eval,
+                                                                      const bool use_linearisation)
+{
+    const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+
+    if (use_linearisation) {
+        return alpha_base;
+    }
+
+    fr w_3_next_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
+
+    fr q_3_next_eval = fr::serialize_from_buffer(&transcript.get_element("q_3_next")[0]);
+
+    barretenberg::fr old_alpha = alpha_base * alpha.invert();
+
+    fr T0 = (w_3_next_eval * q_3_next_eval) * old_alpha;
+    t_eval += T0;
+
+    return alpha_base;
+}
 
 VerifierBaseWidget::challenge_coefficients VerifierSequentialWidget::append_scalar_multiplication_inputs(
     verification_key* key,

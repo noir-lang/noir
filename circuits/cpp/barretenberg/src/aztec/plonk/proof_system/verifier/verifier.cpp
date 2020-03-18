@@ -129,7 +129,9 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
 
     fr sigma_contribution = fr::one();
-    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
+    const size_t sigma_end =
+        (program_settings::use_linearisation ? program_settings::program_width - 1 : program_settings::program_width);
+    for (size_t i = 0; i < sigma_end; ++i) {
         T0 = sigma_evaluations[i] * beta;
         T1 = wire_evaluations[i] + gamma;
         T0 += T1;

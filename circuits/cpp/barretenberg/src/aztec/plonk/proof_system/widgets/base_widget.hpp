@@ -100,8 +100,9 @@ class ProverBaseWidget {
     virtual barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
                                                                const transcript::Transcript& transcript,
                                                                barretenberg::fr* poly,
-                                                               barretenberg::fr*) = 0;
-    virtual void compute_transcript_elements(transcript::Transcript&){};
+                                                               barretenberg::fr* shifted_poly,
+                                                               const bool use_linearisation) = 0;
+    virtual void compute_transcript_elements(transcript::Transcript&, const bool) = 0;
 
     proving_key* key;
     program_witness* witness;

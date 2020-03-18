@@ -63,8 +63,10 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     std::array<g1::element, settings::program_width> W;
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        W[i] = barretenberg::scalar_multiplication::pippenger_unsafe(
-            witness->wires.at(wire_tag).get_coefficients(), key->reference_string.monomials, n, key->pippenger_runtime_state);
+        W[i] = barretenberg::scalar_multiplication::pippenger_unsafe(witness->wires.at(wire_tag).get_coefficients(),
+                                                                     key->reference_string.monomials,
+                                                                     n,
+                                                                     key->pippenger_runtime_state);
     }
 
     g1::element::batch_normalize(&W[0], settings::program_width);
@@ -105,8 +107,10 @@ template <typename settings> void ProverBase<settings>::compute_quotient_commitm
     std::array<g1::element, settings::program_width> T;
     for (size_t i = 0; i < settings::program_width; ++i) {
         const size_t offset = n * i;
-        T[i] = barretenberg::scalar_multiplication::pippenger_unsafe(
-            &key->quotient_large.get_coefficients()[offset], key->reference_string.monomials, n, key->pippenger_runtime_state);
+        T[i] = barretenberg::scalar_multiplication::pippenger_unsafe(&key->quotient_large.get_coefficients()[offset],
+                                                                     key->reference_string.monomials,
+                                                                     n,
+                                                                     key->pippenger_runtime_state);
     }
 
     g1::element::batch_normalize(&T[0], settings::program_width);
@@ -587,7 +591,9 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    compute_linearisation_coefficients();
+    if constexpr (settings::use_linearisation) {
+        compute_linearisation_coefficients();
+    }
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -650,6 +656,14 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 
     for (size_t k = 0; k < settings::program_width - 1; ++k) {
         T0 = sigmas[k][i] * nu_powers[k + 5];
+        quotient_temp += T0;
+    }
+
+    if constexpr (!settings::use_linearisation) {
+        // TODO: fix overlapping nu_powers
+        T0 = sigmas[settings::program_width - 1][i] * nu_powers[settings::program_width + 4];
+        quotient_temp += T0;
+        T0 = z[i] * nu_powers[settings::program_width + 5];
         quotient_temp += T0;
     }
 
@@ -717,7 +731,7 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #endif
     for (size_t i = 0; i < widgets.size(); ++i) {
         nu_base = widgets[i]->compute_opening_poly_contribution(
-            nu_base, transcript, &opening_poly[0], &shifted_opening_poly[0]);
+            nu_base, transcript, &opening_poly[0], &shifted_opening_poly[0], settings::use_linearisation);
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -801,27 +815,30 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     transcript.add_element("z_omega", z_shifted_eval.to_buffer());
 
     for (size_t i = 0; i < widgets.size(); ++i) {
-        widgets[i]->compute_transcript_elements(transcript);
+        widgets[i]->compute_transcript_elements(transcript, settings::use_linearisation);
     }
 
     fr t_eval = key->quotient_large.evaluate(z_challenge, 4 * n);
 
-    barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
-        barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
-    plonk_linear_terms linear_terms = compute_linear_terms<settings>(transcript, lagrange_evals.l_1);
+    if constexpr (settings::use_linearisation) {
+        barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
+            barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
+        plonk_linear_terms linear_terms = compute_linear_terms<settings>(transcript, lagrange_evals.l_1);
 
-    const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
-    ITERATE_OVER_DOMAIN_START(key->small_domain);
-    r[i] = (z[i] * linear_terms.z_1) + (sigma_last[i] * linear_terms.sigma_last);
-    ITERATE_OVER_DOMAIN_END;
+        const polynomial& sigma_last =
+            key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
+        ITERATE_OVER_DOMAIN_START(key->small_domain);
+        r[i] = (z[i] * linear_terms.z_1) + (sigma_last[i] * linear_terms.sigma_last);
+        ITERATE_OVER_DOMAIN_END;
 
-    fr alpha_base = alpha.sqr().sqr();
-    for (size_t i = 0; i < widgets.size(); ++i) {
-        alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
+        fr alpha_base = alpha.sqr().sqr();
+        for (size_t i = 0; i < widgets.size(); ++i) {
+            alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
+        }
+
+        fr linear_eval = r.evaluate(z_challenge, n);
+        transcript.add_element("r", linear_eval.to_buffer());
     }
-
-    fr linear_eval = r.evaluate(z_challenge, n);
-    transcript.add_element("r", linear_eval.to_buffer());
     transcript.add_element("t", t_eval.to_buffer());
 
     return t_eval;

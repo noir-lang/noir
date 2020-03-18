@@ -21,7 +21,8 @@ class VerifierTurboRangeWidget : public VerifierBaseWidget {
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
                                                                      const barretenberg::fr&,
                                                                      const transcript::Transcript& transcript,
-                                                                     barretenberg::fr&);
+                                                                     barretenberg::fr&,
+                                                                     const bool);
 };
 
 class ProverTurboRangeWidget : public ProverBaseWidget {
@@ -38,11 +39,12 @@ class ProverTurboRangeWidget : public ProverBaseWidget {
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r);
     barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                       const transcript::Transcript&,
+                                                       const transcript::Transcript& transcript,
+                                                       barretenberg::fr* poly,
                                                        barretenberg::fr*,
-                                                       barretenberg::fr*);
+                                                       const bool use_linearisation);
 
-    void compute_transcript_elements(transcript::Transcript& transcript);
+    void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 
     barretenberg::polynomial& q_range;
     barretenberg::polynomial& q_range_fft;

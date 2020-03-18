@@ -26,6 +26,7 @@ class standard_settings : public settings_base {
     static constexpr bool uses_quotient_mid = true;
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
+    static constexpr bool use_linearisation = true;
 };
 
 class turbo_settings : public settings_base {
@@ -35,10 +36,12 @@ class turbo_settings : public settings_base {
     static constexpr bool uses_quotient_mid = false;
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
+    static constexpr bool use_linearisation = true;
 };
 
 class standard_verifier_settings : public standard_settings {
   public:
+    static constexpr bool use_linearisation = true;
     static VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key* key,
         const VerifierBaseWidget::challenge_coefficients& challenge,
@@ -63,12 +66,14 @@ class standard_verifier_settings : public standard_settings {
                                                                      const transcript::Transcript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        return VerifierArithmeticWidget::compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval);
+        return VerifierArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
     }
 };
 
 class mimc_verifier_settings : public standard_settings {
   public:
+    static constexpr bool use_linearisation = true;
     static VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key* key,
         const VerifierBaseWidget::challenge_coefficients& challenge,
@@ -100,16 +105,17 @@ class mimc_verifier_settings : public standard_settings {
                                                                      const transcript::Transcript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        barretenberg::fr updated_alpha_base =
-            VerifierArithmeticWidget::compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval);
-        updated_alpha_base =
-            VerifierMiMCWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval);
+        barretenberg::fr updated_alpha_base = VerifierArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = VerifierMiMCWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
 };
 
 class turbo_verifier_settings : public turbo_settings {
   public:
+    static constexpr bool use_linearisation = true;
     static VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
         verification_key* key,
         const VerifierBaseWidget::challenge_coefficients& challenge,
@@ -147,12 +153,12 @@ class turbo_verifier_settings : public turbo_settings {
                                                                      const transcript::Transcript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        barretenberg::fr updated_alpha_base =
-            VerifierTurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval);
+        barretenberg::fr updated_alpha_base = VerifierTurboFixedBaseWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = VerifierTurboRangeWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval);
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = VerifierTurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval);
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
 };

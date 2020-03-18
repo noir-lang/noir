@@ -343,9 +343,6 @@ template <class T> constexpr field<T> field<T>::montgomery_mul(const field& othe
     if constexpr (modulus.data[3] >= 0x4000000000000000ULL) {
         return montgomery_mul_big(other);
     }
-    if (!std::is_constant_evaluated()) {
-        std::cout << "??" << std::endl;
-    }
     auto [t0, c] = mul_wide(data[0], other.data[0]);
     uint64_t k = t0 * T::r_inv;
     uint64_t a = mac_discard_lo(t0, k, modulus.data[0]);
