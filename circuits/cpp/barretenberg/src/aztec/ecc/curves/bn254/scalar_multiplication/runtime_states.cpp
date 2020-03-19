@@ -13,7 +13,8 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
     num_points = num_initial_points * 2;
     const size_t num_buckets = static_cast<size_t>(
         (1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(num_initial_points)) + 1);
-    const size_t num_rounds = barretenberg::scalar_multiplication::get_num_rounds(num_points);
+    const size_t num_rounds =
+        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
 #ifndef NO_MULTITHREADING
     const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
 #else
@@ -106,7 +107,8 @@ unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(const size_t num_
 #else
     const size_t num_threads = 1;
 #endif
-    const size_t num_rounds = static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(num_points));
+    const size_t num_rounds =
+        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
     point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
     point_pairs_1 = (g1::affine_element*)(aligned_alloc(
