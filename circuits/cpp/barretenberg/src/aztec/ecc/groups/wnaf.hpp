@@ -240,10 +240,10 @@ inline void fixed_wnaf_with_counts(const uint64_t* scalar,
         }
         return;
     }
-    const size_t current_scalar_bits = get_num_scalar_bits(scalar) + 1;
+    const size_t current_scalar_bits = static_cast<size_t>(get_num_scalar_bits(scalar) + 1);
     skew_map = ((scalar[0] & 1) == 0);
     uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + (uint64_t)skew_map;
-    const size_t wnaf_entries = (current_scalar_bits + wnaf_bits - 1) / wnaf_bits;
+    const size_t wnaf_entries = static_cast<size_t>((current_scalar_bits + wnaf_bits - 1) / wnaf_bits);
 
     if (wnaf_entries == 1) {
         wnaf[(max_wnaf_entries - 1) * num_points] = (previous >> 1UL) | (point_index);
@@ -263,7 +263,7 @@ inline void fixed_wnaf_with_counts(const uint64_t* scalar,
             (point_index);
         previous = slice + predicate;
     }
-    size_t final_bits = current_scalar_bits - (wnaf_bits * (wnaf_entries - 1));
+    size_t final_bits = static_cast<size_t>(current_scalar_bits - (wnaf_bits * (wnaf_entries - 1)));
     uint64_t slice = get_wnaf_bits(scalar, final_bits, (wnaf_entries - 1) * wnaf_bits);
     uint64_t predicate = ((slice & 1UL) == 0UL);
 

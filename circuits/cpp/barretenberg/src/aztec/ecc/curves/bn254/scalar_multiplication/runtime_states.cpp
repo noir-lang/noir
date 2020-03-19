@@ -11,20 +11,20 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
 {
     constexpr size_t MAX_NUM_ROUNDS = 256;
     num_points = num_initial_points * 2;
-    const size_t num_buckets =
-        (1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(num_initial_points)) + 1;
+    const size_t num_buckets = static_cast<size_t>(
+        (1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(num_initial_points)) + 1);
     const size_t num_rounds = barretenberg::scalar_multiplication::get_num_rounds(num_points);
 #ifndef NO_MULTITHREADING
     const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
 #else
     const size_t num_threads = 1;
 #endif
-    point_schedule = (uint64_t*)(aligned_alloc(64, num_points * num_rounds * sizeof(uint64_t)));
-    skew_table = (bool*)(aligned_alloc(64, num_points * sizeof(bool)));
+    point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
+    skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
     buckets = (g1::element*)(aligned_alloc(64, num_threads * (num_buckets + num_threads) * sizeof(g1::element)));
     round_counts = (uint64_t*)(aligned_alloc(32, MAX_NUM_ROUNDS * sizeof(uint64_t)));
-    memset((void*)point_schedule, 0x00, num_points * num_rounds * sizeof(uint64_t));
-    memset((void*)skew_table, 0x00, num_points * sizeof(bool));
+    memset((void*)point_schedule, 0x00, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t));
+    memset((void*)skew_table, 0x00, static_cast<size_t>(num_points) * sizeof(bool));
     memset((void*)buckets, 0xff, num_threads * (num_buckets + num_threads) * sizeof(g1::element));
     memset((void*)round_counts, 0x00, MAX_NUM_ROUNDS * sizeof(uint64_t));
 }
@@ -99,26 +99,27 @@ unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(const size_t num_
 {
     constexpr size_t MAX_NUM_ROUNDS = 256;
     num_points = num_initial_points * 2;
-    const size_t num_buckets = 1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(num_initial_points);
+    const size_t num_buckets = static_cast<size_t>(
+        1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
 #ifndef NO_MULTITHREADING
     const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
 #else
     const size_t num_threads = 1;
 #endif
-    const size_t num_rounds = barretenberg::scalar_multiplication::get_num_rounds(num_points);
-    point_schedule = (uint64_t*)(aligned_alloc(64, num_points * num_rounds * sizeof(uint64_t)));
-    skew_table = (bool*)(aligned_alloc(64, num_points * sizeof(bool)));
-    point_pairs_1 =
-        (g1::affine_element*)(aligned_alloc(64, (num_points * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
-    point_pairs_2 =
-        (g1::affine_element*)(aligned_alloc(64, (num_points * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
-    scratch_space = (fq*)(aligned_alloc(64, num_points * sizeof(g1::affine_element)));
+    const size_t num_rounds = static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(num_points));
+    point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
+    skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
+    point_pairs_1 = (g1::affine_element*)(aligned_alloc(
+        64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
+    point_pairs_2 = (g1::affine_element*)(aligned_alloc(
+        64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
+    scratch_space = (fq*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(g1::affine_element)));
     bucket_counts = (uint32_t*)(aligned_alloc(64, num_threads * num_buckets * sizeof(uint32_t)));
     bit_counts = (uint32_t*)(aligned_alloc(64, num_threads * num_buckets * sizeof(uint32_t)));
     bucket_empty_status = (bool*)(aligned_alloc(64, num_threads * num_buckets * sizeof(bool)));
     round_counts = (uint64_t*)(aligned_alloc(32, MAX_NUM_ROUNDS * sizeof(uint64_t)));
 
-    const size_t points_per_thread = num_points / num_threads;
+    const size_t points_per_thread = static_cast<size_t>(num_points) / num_threads;
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
 #endif
@@ -132,7 +133,7 @@ unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(const size_t num_
                (points_per_thread + 16) * sizeof(g1::affine_element));
         memset((void*)(scratch_space + thread_offset), 0, (points_per_thread) * sizeof(fq));
         for (size_t j = 0; j < num_rounds; ++j) {
-            const size_t round_offset = (j * num_points);
+            const size_t round_offset = (j * static_cast<size_t>(num_points));
             memset((void*)(point_schedule + round_offset + thread_offset), 0, points_per_thread * sizeof(uint64_t));
         }
         memset((void*)(skew_table + thread_offset), 0, points_per_thread * sizeof(bool));
@@ -237,8 +238,9 @@ affine_product_runtime_state unsafe_pippenger_runtime_state::get_affine_product_
     // if (!point_pairs_1) {
     //     init();
     // }
-    const size_t points_per_thread = num_points / num_threads;
-    const size_t num_buckets = 1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(num_points / 2);
+    const size_t points_per_thread = static_cast<size_t>(num_points / num_threads);
+    const size_t num_buckets = static_cast<size_t>(
+        1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_points) / 2));
 
     scalar_multiplication::affine_product_runtime_state product_state;
 
