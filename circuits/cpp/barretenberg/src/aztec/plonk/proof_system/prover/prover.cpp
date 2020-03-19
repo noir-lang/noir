@@ -591,9 +591,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    if constexpr (settings::use_linearisation) {
-        compute_linearisation_coefficients();
-    }
+    compute_linearisation_coefficients();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -616,8 +614,10 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
         wires[i] = &witness->wires.at("w_" + std::to_string(i + 1))[0];
     }
 
-    std::array<fr*, settings::program_width - 1> sigmas;
-    for (size_t i = 0; i < settings::program_width - 1; ++i) {
+    constexpr size_t num_sigma_evaluations =
+        settings::use_linearisation ? settings::program_width - 1 : settings::program_width;
+    std::array<fr*, num_sigma_evaluations> sigmas;
+    for (size_t i = 0; i < num_sigma_evaluations; ++i) {
         sigmas[i] = &key->permutation_selectors.at("sigma_" + std::to_string(i + 1))[0];
     }
 
@@ -811,6 +811,14 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         transcript.add_element(permutation_key, permutation_eval.to_buffer());
     }
 
+    if constexpr (!settings::use_linearisation) {
+        fr z_eval = z.evaluate(z_challenge, n);
+        std::string sigma_last_key = "sigma_" + std::to_string(settings::program_width);
+        fr sigma_last_eval = key->permutation_selectors.at(sigma_last_key).evaluate(z_challenge, n);
+        transcript.add_element("z", z_eval.to_buffer());
+        transcript.add_element(sigma_last_key, sigma_last_eval.to_buffer());
+    }
+
     fr z_shifted_eval = z.evaluate(shifted_z, n);
     transcript.add_element("z_omega", z_shifted_eval.to_buffer());
 
@@ -864,6 +872,8 @@ template <typename settings> void ProverBase<settings>::reset()
     transcript = transcript::Transcript(manifest);
 }
 
+template class ProverBase<unrolled_standard_settings>;
+template class ProverBase<unrolled_turbo_settings>;
 template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
 

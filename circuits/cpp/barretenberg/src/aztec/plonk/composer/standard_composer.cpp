@@ -723,7 +723,25 @@ Verifier StandardComposer::create_verifier()
 {
     compute_verification_key();
     Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
+    return output_state;
+}
 
+UnrolledVerifier StandardComposer::create_unrolled_verifier()
+{
+    compute_verification_key();
+    UnrolledVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+    return output_state;
+}
+
+UnrolledProver StandardComposer::create_unrolled_prover()
+{
+    compute_proving_key();
+    compute_witness();
+    UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+    std::unique_ptr<ProverArithmeticWidget> widget =
+        std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
+
+    output_state.widgets.emplace_back(std::move(widget));
 
     return output_state;
 }
@@ -738,7 +756,6 @@ Prover StandardComposer::preprocess()
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
     output_state.widgets.emplace_back(std::move(widget));
-
     return output_state;
 }
 

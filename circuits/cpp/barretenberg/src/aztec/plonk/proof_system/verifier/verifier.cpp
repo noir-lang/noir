@@ -170,7 +170,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
 
     if constexpr (!program_settings::use_linearisation) {
-        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z")[0]);
         t_eval += (linear_terms.z_1 * z_eval);
         t_eval += (linear_terms.sigma_last * sigma_evaluations[program_settings::program_width - 1]);
     }
@@ -196,7 +196,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         T0 = nu_pow[0] * linear_eval;
         batch_evaluation += T0;
     } else {
-        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z")[0]);
         T0 = z_eval * nu_pow[program_settings::program_width + 5];
         batch_evaluation += T0;
         T0 = sigma_evaluations[program_settings::program_width - 1] * nu_pow[program_settings::program_width + 4];
@@ -272,11 +272,14 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         scalars.emplace_back(nu_pow[5 + i]);
     }
 
-    elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
     if constexpr (program_settings::use_linearisation) {
+        elements.emplace_back(
+            key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
         linear_terms.sigma_last *= nu_pow[0];
         scalars.emplace_back(linear_terms.sigma_last);
     } else {
+        elements.emplace_back(
+            key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
         scalars.emplace_back(nu_pow[program_settings::program_width + 4]);
     }
 
@@ -302,7 +305,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     VerifierBaseWidget::challenge_coefficients coeffs{ alpha.sqr().sqr(), alpha, nu_base, nu, nu };
 
     coeffs = program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, elements, scalars);
-
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(&elements[0], &elements[0], num_elements);
@@ -329,6 +331,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     return (result == barretenberg::fq12::one());
 }
 
+template class VerifierBase<unrolled_standard_verifier_settings>;
+template class VerifierBase<unrolled_turbo_verifier_settings>;
 template class VerifierBase<standard_verifier_settings>;
 template class VerifierBase<mimc_verifier_settings>;
 template class VerifierBase<turbo_verifier_settings>;

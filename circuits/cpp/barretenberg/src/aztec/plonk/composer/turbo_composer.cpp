@@ -1140,12 +1140,41 @@ TurboProver TurboComposer::create_prover()
     return output_state;
 }
 
+UnrolledTurboProver TurboComposer::create_unrolled_prover()
+{
+    compute_proving_key();
+    compute_witness();
+
+    UnrolledTurboProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+
+    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget> range_widget =
+        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
+        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
+
+    output_state.widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.widgets.emplace_back(std::move(range_widget));
+    output_state.widgets.emplace_back(std::move(logic_widget));
+
+    return output_state;
+}
+
 TurboVerifier TurboComposer::create_verifier()
 {
     compute_verification_key();
 
     TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
+    return output_state;
+}
+
+UnrolledTurboVerifier TurboComposer::create_unrolled_verifier()
+{
+    compute_verification_key();
+
+    UnrolledTurboVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
 
     return output_state;
 }

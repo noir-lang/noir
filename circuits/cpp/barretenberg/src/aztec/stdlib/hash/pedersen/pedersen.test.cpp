@@ -165,4 +165,38 @@ TEST(stdlib_pedersen, test_pedersen_large)
     EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_pedersen, test_pedersen_large_unrolled)
+{
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    fr left_in = fr::random_element();
+    fr right_in = fr::random_element();
+    // ensure left has skew 1, right has skew 0
+    if ((left_in.from_montgomery_form().data[0] & 1) == 1) {
+        left_in += fr::one();
+    }
+    if ((right_in.from_montgomery_form().data[0] & 1) == 0) {
+        right_in += fr::one();
+    }
+    field_t left = witness_t(&composer, left_in);
+    field_t right = witness_t(&composer, right_in);
+
+    for (size_t i = 0; i < 256; ++i) {
+        left = plonk::stdlib::pedersen::compress(left, right);
+    }
+
+    composer.set_public_input(left.witness_index);
+
+    waffle::UnrolledTurboProver prover = composer.create_unrolled_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    waffle::UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
 } // namespace test_stdlib_pedersen

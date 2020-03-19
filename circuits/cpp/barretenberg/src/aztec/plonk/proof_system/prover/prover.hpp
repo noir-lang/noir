@@ -58,10 +58,13 @@ template <typename settings> class ProverBase {
 
     bool uses_quotient_mid;
 };
-
+extern template class ProverBase<unrolled_standard_settings>;
+extern template class ProverBase<unrolled_turbo_settings>;
 extern template class ProverBase<standard_settings>;
 extern template class ProverBase<turbo_settings>;
 
+typedef ProverBase<unrolled_standard_settings> UnrolledProver;
+typedef ProverBase<unrolled_turbo_settings> UnrolledTurboProver;
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
 

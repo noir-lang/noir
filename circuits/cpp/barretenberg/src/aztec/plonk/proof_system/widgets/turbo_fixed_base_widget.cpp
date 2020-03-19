@@ -538,7 +538,6 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboFixedBaseWidget::append_
     std::vector<barretenberg::fr>& scalars,
     const bool use_linearisation)
 {
-
     fr alpha_a = challenge.alpha_base * challenge.alpha_step.sqr();
     fr alpha_b = alpha_a * challenge.alpha_step;
     fr alpha_c = alpha_b * challenge.alpha_step;
@@ -659,60 +658,58 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboFixedBaseWidget::append_
                                                                challenge.nu_step,
                                                            challenge.nu_step,
                                                            challenge.linear_nu };
-    } else {
-        std::array<fr, 9> nu_powers;
-        nu_powers[0] = challenge.nu_base;
-        nu_powers[1] = nu_powers[0] * challenge.nu_step;
-        nu_powers[2] = nu_powers[1] * challenge.nu_step;
-        nu_powers[3] = nu_powers[2] * challenge.nu_step;
-        nu_powers[4] = nu_powers[3] * challenge.nu_step;
-        nu_powers[5] = nu_powers[4] * challenge.nu_step;
-        nu_powers[6] = nu_powers[5] * challenge.nu_step;
-        nu_powers[7] = nu_powers[6] * challenge.nu_step;
-        nu_powers[8] = nu_powers[7] * challenge.nu_step;
-        nu_powers[9] = nu_powers[8] * challenge.nu_step;
-        if (key->constraint_selectors.at("Q_1").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_1"));
-            scalars.push_back(nu_powers[0]);
-        }
-        if (key->constraint_selectors.at("Q_2").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_2"));
-            scalars.push_back(nu_powers[1]);
-        }
-        if (key->constraint_selectors.at("Q_3").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_3"));
-            scalars.push_back(nu_powers[2]);
-        }
-        if (key->constraint_selectors.at("Q_4").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_4"));
-            scalars.push_back(nu_powers[3]);
-        }
-        if (key->constraint_selectors.at("Q_5").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_5"));
-            scalars.push_back(nu_powers[4]);
-        }
-        if (key->constraint_selectors.at("Q_M").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_M"));
-            scalars.push_back(nu_powers[5]);
-        }
-        if (key->constraint_selectors.at("Q_C").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_C"));
-            scalars.push_back(nu_powers[6]);
-        }
-        if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-            scalars.push_back(nu_powers[7]);
-        }
-        if (key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
-            scalars.push_back(nu_powers[8]);
-        }
-
-        return VerifierBaseWidget::challenge_coefficients{ alpha_g * challenge.alpha_step,
-                                                           challenge.alpha_step,
-                                                           nu_powers[8] * challenge.nu_step,
-                                                           challenge.nu_step,
-                                                           challenge.linear_nu };
     }
+    std::array<fr, 9> nu_powers;
+    nu_powers[0] = challenge.nu_base;
+    nu_powers[1] = nu_powers[0] * challenge.nu_step;
+    nu_powers[2] = nu_powers[1] * challenge.nu_step;
+    nu_powers[3] = nu_powers[2] * challenge.nu_step;
+    nu_powers[4] = nu_powers[3] * challenge.nu_step;
+    nu_powers[5] = nu_powers[4] * challenge.nu_step;
+    nu_powers[6] = nu_powers[5] * challenge.nu_step;
+    nu_powers[7] = nu_powers[6] * challenge.nu_step;
+    nu_powers[8] = nu_powers[7] * challenge.nu_step;
+    if (key->constraint_selectors.at("Q_1").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_1"));
+        scalars.push_back(nu_powers[0]);
+    }
+    if (key->constraint_selectors.at("Q_2").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_2"));
+        scalars.push_back(nu_powers[1]);
+    }
+    if (key->constraint_selectors.at("Q_3").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_3"));
+        scalars.push_back(nu_powers[2]);
+    }
+    if (key->constraint_selectors.at("Q_4").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_4"));
+        scalars.push_back(nu_powers[3]);
+    }
+    if (key->constraint_selectors.at("Q_5").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_5"));
+        scalars.push_back(nu_powers[4]);
+    }
+    if (key->constraint_selectors.at("Q_M").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_M"));
+        scalars.push_back(nu_powers[5]);
+    }
+    if (key->constraint_selectors.at("Q_C").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_C"));
+        scalars.push_back(nu_powers[6]);
+    }
+    if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
+        scalars.push_back(nu_powers[7]);
+    }
+    if (key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
+        scalars.push_back(nu_powers[8]);
+    }
+
+    return VerifierBaseWidget::challenge_coefficients{ alpha_g * challenge.alpha_step,
+                                                       challenge.alpha_step,
+                                                       nu_powers[8] * challenge.nu_step,
+                                                       challenge.nu_step,
+                                                       challenge.linear_nu };
 }
 } // namespace waffle

@@ -19,6 +19,9 @@ class TurboComposer : public ComposerBase {
     TurboProver create_prover();
     TurboVerifier create_verifier();
 
+    UnrolledTurboProver create_unrolled_prover();
+    UnrolledTurboVerifier create_unrolled_verifier();
+
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
 
@@ -148,8 +151,8 @@ class TurboComposer : public ComposerBase {
                       { "sigma_3", fr_size, false },   { "sigma_4", fr_size, false },   { "q_1", fr_size, false },
                       { "q_2", fr_size, false },       { "q_3", fr_size, false },       { "q_4", fr_size, false },
                       { "q_5", fr_size, false },       { "q_m", fr_size, false },       { "q_c", fr_size, false },
-                      { "q_arith", fr_size, false },   { "q_ecc_1", fr_size, false },   { "r", fr_size, false },
-                      { "t", fr_size, true },
+                      { "q_arith", fr_size, false },   { "q_logic", fr_size, false },   { "q_range", fr_size, false },
+                      { "q_ecc_1", fr_size, false },   { "t", fr_size, true },
                   },
                   "nu"),
               transcript::Manifest::RoundManifest({ { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } },

@@ -14,8 +14,7 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript, const Manif
         for (auto manifest_element : input_manifest.get_round_manifest(i).elements) {
             if (!manifest_element.derived_by_verifier) {
                 // printf("reading element %s ", manifest_element.name.c_str());
-                // for (size_t j = 0; j < manifest_element.num_bytes; ++j)
-                // {
+                // for (size_t j = 0; j < manifest_element.num_bytes; ++j) {
                 //     printf("%x", buffer[count + j]);
                 // }
                 // printf("\n");

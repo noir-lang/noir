@@ -371,3 +371,47 @@ TEST(standard_composer, big_add_gate_with_bit_extract)
 
     EXPECT_EQ(result, true);
 }
+
+TEST(standard_composer, test_unrolled_composer)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    const auto generate_constraints = [&composer](uint32_t quad_value) {
+        uint32_t quad_accumulator_left =
+            (engine.get_random_uint32() & 0x3fffffff) - quad_value; // make sure this won't overflow
+        uint32_t quad_accumulator_right = (4 * quad_accumulator_left) + quad_value;
+
+        uint32_t left_idx = composer.add_variable(uint256_t(quad_accumulator_left));
+        uint32_t right_idx = composer.add_variable(uint256_t(quad_accumulator_right));
+
+        uint32_t input = engine.get_random_uint32();
+        uint32_t output = input + (quad_value > 1 ? 1 : 0);
+
+        waffle::add_quad gate{ composer.add_variable(uint256_t(input)),
+                               composer.add_variable(uint256_t(output)),
+                               right_idx,
+                               left_idx,
+                               fr(6),
+                               -fr(6),
+                               fr::zero(),
+                               fr::zero(),
+                               fr::zero() };
+
+        composer.create_big_add_gate_with_bit_extraction(gate);
+    };
+
+    generate_constraints(0);
+    generate_constraints(1);
+    generate_constraints(2);
+    generate_constraints(3);
+
+    waffle::UnrolledProver prover = composer.create_unrolled_prover();
+
+    waffle::UnrolledVerifier verifier = composer.create_unrolled_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    EXPECT_EQ(result, true);
+}

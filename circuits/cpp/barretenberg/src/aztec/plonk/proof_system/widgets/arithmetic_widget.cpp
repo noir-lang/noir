@@ -136,7 +136,6 @@ fr ProverArithmeticWidget::compute_opening_poly_contribution(const barretenberg:
     }
 
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
-
     std::array<barretenberg::fr, 5> nu_powers;
     nu_powers[0] = nu_base;
     nu_powers[1] = nu_powers[0] * nu;
@@ -211,7 +210,6 @@ fr VerifierArithmeticWidget::compute_batch_evaluation_contribution(verification_
     if (use_linearisation) {
         return nu_base;
     }
-
     fr q_1_eval = fr::serialize_from_buffer(&transcript.get_element("q_1")[0]);
     fr q_2_eval = fr::serialize_from_buffer(&transcript.get_element("q_2")[0]);
     fr q_3_eval = fr::serialize_from_buffer(&transcript.get_element("q_3")[0]);
@@ -295,7 +293,7 @@ VerifierBaseWidget::challenge_coefficients VerifierArithmeticWidget::append_scal
     }
     return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step,
                                                        challenge.alpha_step,
-                                                       nu_powers[4] * challenge.linear_nu,
+                                                       nu_powers[4] * challenge.nu_step,
                                                        challenge.nu_step,
                                                        challenge.linear_nu };
 }
