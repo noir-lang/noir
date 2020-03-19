@@ -111,10 +111,14 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
                              static_cast<uint8_t>(key->num_public_inputs >> 24) });
     transcript.apply_fiat_shamir("init");
-    fr beta = fr::serialize_from_buffer(transcript.apply_fiat_shamir("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.apply_fiat_shamir("gamma").begin());
-    fr alpha = fr::serialize_from_buffer(transcript.apply_fiat_shamir("alpha").begin());
-    fr z_challenge = fr::serialize_from_buffer(transcript.apply_fiat_shamir("z").begin());
+    transcript.apply_fiat_shamir("beta");
+    transcript.apply_fiat_shamir("alpha");
+    transcript.apply_fiat_shamir("z");
+
+    fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     fr t_eval = fr::zero();
 
@@ -180,9 +184,12 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     transcript.add_element("t", t_eval.to_buffer());
 
-    fr nu = fr::serialize_from_buffer(transcript.apply_fiat_shamir("nu").begin());
+    transcript.apply_fiat_shamir("nu");
+    transcript.apply_fiat_shamir("separator");
 
-    fr u = fr::serialize_from_buffer(transcript.apply_fiat_shamir("separator").begin());
+    fr nu = fr::serialize_from_buffer(transcript.get_challenge("nu").begin());
+
+    fr u = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
     fr::__copy(nu, nu_pow[0]);
     for (size_t i = 1; i < 10; ++i) {
         nu_pow[i] = nu_pow[i - 1] * nu_pow[0];

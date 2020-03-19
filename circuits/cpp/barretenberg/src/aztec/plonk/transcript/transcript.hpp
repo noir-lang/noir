@@ -9,6 +9,10 @@ namespace transcript {
 class Transcript {
     static constexpr size_t PRNG_OUTPUT_SIZE = 32;
 
+    struct challenge {
+        std::array<uint8_t, PRNG_OUTPUT_SIZE> data;
+    };
+
   public:
     Transcript(const Manifest input_manifest)
         : manifest(input_manifest){};
@@ -18,9 +22,9 @@ class Transcript {
 
     void add_element(const std::string& element_name, const std::vector<uint8_t>& buffer);
 
-    std::array<uint8_t, PRNG_OUTPUT_SIZE> apply_fiat_shamir(const std::string& challenge_name);
+    void apply_fiat_shamir(const std::string& challenge_name);
 
-    std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge(const std::string& challenge_name) const;
+    std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge(const std::string& challenge_name, const size_t idx = 0) const;
 
     std::vector<uint8_t> get_element(const std::string& element_name) const;
 
@@ -30,9 +34,9 @@ class Transcript {
     size_t current_round = 0;
     std::map<std::string, std::vector<uint8_t>> elements;
 
-    std::map<std::string, std::array<uint8_t, PRNG_OUTPUT_SIZE>> challenges;
+    std::map<std::string, std::vector<challenge>> challenges;
 
-    std::array<uint8_t, PRNG_OUTPUT_SIZE> current_challenge;
+    challenge current_challenge;
 
     Manifest manifest;
 };

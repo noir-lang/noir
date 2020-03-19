@@ -1,6 +1,8 @@
 #include "transcript.hpp"
 #include <common/assert.hpp>
 #include <crypto/keccak/keccak.hpp>
+#include <iostream>
+#include <iomanip>
 
 namespace transcript {
 
@@ -39,42 +41,62 @@ void Transcript::add_element(const std::string& element_name, const std::vector<
     elements.insert({ element_name, buffer });
 }
 
-std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::apply_fiat_shamir(const std::string& challenge_name)
+void Transcript::apply_fiat_shamir(const std::string& challenge_name)
 {
     ASSERT(current_round <= manifest.get_num_rounds());
     ASSERT(challenge_name == manifest.get_round_manifest(current_round).challenge);
 
     std::vector<uint8_t> buffer;
     if (current_round > 0) {
-        buffer.insert(buffer.end(), current_challenge.begin(), current_challenge.end());
+        buffer.insert(buffer.end(), current_challenge.data.begin(), current_challenge.data.end());
     }
     for (auto manifest_element : manifest.get_round_manifest(current_round).elements) {
-        // TODO: Was failing...
-        // ASSERT(elements.count(manifest_element.name) == 1);
-        std::vector<uint8_t>& element_data = elements[manifest_element.name];
-        // ASSERT(manifest_element.num_bytes == element_data.size());
+        ASSERT(elements.count(manifest_element.name) == 1);
+        std::vector<uint8_t>& element_data = elements.at(manifest_element.name);
+        ASSERT(manifest_element.num_bytes == element_data.size());
         buffer.insert(buffer.end(), element_data.begin(), element_data.end());
     }
 
+    std::vector<challenge> round_challenges;
     keccak256 hash_result = ethash_keccak256(&buffer[0], buffer.size());
+    challenge base_challenge;
 
     for (size_t i = 0; i < 4; ++i) {
         for (size_t j = 0; j < 8; ++j) {
             uint8_t byte = static_cast<uint8_t>(hash_result.word64s[i] >> (56 - (j * 8)));
-            current_challenge[i * 8 + j] = byte;
+            base_challenge.data[i * 8 + j] = byte;
         }
     }
+    round_challenges.push_back(base_challenge);
 
-    challenges.insert({ challenge_name, current_challenge });
+    std::vector<uint8_t> rolling_buffer(base_challenge.data.begin(), base_challenge.data.end());
+    rolling_buffer.push_back(0);
+    for (size_t i = 1; i < manifest.get_round_manifest(current_round).num_challenges; ++i) {
+        rolling_buffer[rolling_buffer.size() - 1] = static_cast<uint8_t>(i);
+        hash_result = ethash_keccak256(&rolling_buffer[0], rolling_buffer.size());
+        challenge round_challenge;
+
+        for (size_t i = 0; i < 4; ++i) {
+            for (size_t j = 0; j < 8; ++j) {
+                uint8_t byte = static_cast<uint8_t>(hash_result.word64s[i] >> (56 - (j * 8)));
+                round_challenge.data[i * 8 + j] = byte;
+            }
+        }
+        round_challenges.push_back(round_challenge);
+    }
+
+    current_challenge = round_challenges[round_challenges.size() - 1];
+
+    challenges.insert({ challenge_name, round_challenges });
     ++current_round;
-    return current_challenge;
 }
 
-std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(const std::string& challenge_name) const
+std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(const std::string& challenge_name,
+                                                                            const size_t idx) const
 {
     // printf("getting challenge %s \n", challenge_name.c_str());
     ASSERT(challenges.count(challenge_name) == 1);
-    return challenges.at(challenge_name);
+    return challenges.at(challenge_name)[idx].data;
 }
 
 std::vector<uint8_t> Transcript::get_element(const std::string& element_name) const

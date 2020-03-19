@@ -71,16 +71,16 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
     constexpr size_t fr_size = 32;
     const size_t public_input_size = fr_size * num_public_inputs;
     const transcript::Manifest output = transcript::Manifest(
-        { transcript::Manifest::RoundManifest({ { "circuit_size", 4, false } }, "init"),
+        { transcript::Manifest::RoundManifest({ { "circuit_size", 4, false } }, "init", 1),
           transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
                                                 { "W_1", g1_size, false },
                                                 { "W_2", g1_size, false },
                                                 { "W_3", g1_size, false } },
-                                              "beta"),
-          transcript::Manifest::RoundManifest({ {} }, "gamma"),
-          transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha"),
+                                              "beta",
+                                              2),
+          transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
           transcript::Manifest::RoundManifest(
-              { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z"),
+              { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
           transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                 { "w_2", fr_size, false },
                                                 { "w_3", fr_size, false },
@@ -90,9 +90,10 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                                                 { "sigma_2", fr_size, false },
                                                 { "r", fr_size, false },
                                                 { "t", fr_size, true } },
-                                              "nu"),
-          transcript::Manifest::RoundManifest({ { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } },
-                                              "separator") });
+                                              "nu",
+                                              10),
+          transcript::Manifest::RoundManifest(
+              { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
 }
 

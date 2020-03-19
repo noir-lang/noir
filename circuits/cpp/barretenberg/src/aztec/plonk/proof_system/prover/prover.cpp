@@ -88,7 +88,6 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     transcript.add_element("public_inputs", fr::to_buffer(public_wires));
 
     transcript.apply_fiat_shamir("beta");
-    transcript.apply_fiat_shamir("gamma");
 }
 
 template <typename settings> void ProverBase<settings>::compute_z_commitment()
@@ -161,7 +160,7 @@ template <typename settings> void ProverBase<settings>::compute_z_coefficients()
     }
 
     fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("gamma").begin());
+    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     std::array<fr*, settings::program_width> lagrange_base_wires;
     std::array<fr*, settings::program_width> lagrange_base_sigmas;
@@ -263,7 +262,7 @@ template <typename settings> void ProverBase<settings>::compute_permutation_gran
     fr neg_alpha = -alpha;
     fr alpha_squared = alpha.sqr();
     fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("gamma").begin());
+    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     // Our permutation check boils down to two 'grand product' arguments,
     // that we represent with a single polynomial Z(X).

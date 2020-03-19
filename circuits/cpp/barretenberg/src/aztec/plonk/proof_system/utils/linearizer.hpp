@@ -21,7 +21,7 @@ inline plonk_linear_terms compute_linear_terms(const transcript::Transcript& tra
     barretenberg::fr alpha = barretenberg::fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);
     barretenberg::fr alpha_cubed = alpha.sqr() * alpha;
     barretenberg::fr beta = barretenberg::fr::serialize_from_buffer(&transcript.get_challenge("beta")[0]);
-    barretenberg::fr gamma = barretenberg::fr::serialize_from_buffer(&transcript.get_challenge("gamma")[0]);
+    barretenberg::fr gamma = barretenberg::fr::serialize_from_buffer(&transcript.get_challenge("beta", 1)[0]);
     barretenberg::fr z = barretenberg::fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
     barretenberg::fr z_beta = z * beta;
 
