@@ -293,7 +293,7 @@ g1::element scalar_multiplication_internal(pippenger_runtime_state& state,
                 }
                 multiplication_thread_state thread_state{ thread_buckets, thread_point_schedule };
                 scalar_multiplication_round_inner(
-                    thread_state, num_round_points_per_thread + leftovers, first_bucket, points);
+                    thread_state, static_cast<size_t>(num_round_points_per_thread + leftovers), first_bucket, points);
                 g1::element running_sum;
                 running_sum.self_set_infinity();
                 for (size_t k = num_thread_buckets - 1; k > 0; --k) {
@@ -545,7 +545,10 @@ g1::element pippenger(fr* scalars,
 
     if (num_slice_points != num_initial_points) {
         const uint64_t leftover_points = num_initial_points - num_slice_points;
-        return result + pippenger(scalars + num_slice_points, points + (num_slice_points * 2), leftover_points, state);
+        return result + pippenger(scalars + num_slice_points,
+                                  points + static_cast<size_t>((num_slice_points * 2)),
+                                  static_cast<size_t>(leftover_points),
+                                  state);
     } else {
         return result;
     }
@@ -610,8 +613,10 @@ g1::element pippenger_unsafe(fr* scalars,
 
     if (num_slice_points != num_initial_points) {
         const uint64_t leftover_points = num_initial_points - num_slice_points;
-        return result +
-               pippenger_unsafe(scalars + num_slice_points, points + (num_slice_points * 2), leftover_points, state);
+        return result + pippenger_unsafe(scalars + num_slice_points,
+                                         points + static_cast<size_t>(num_slice_points * 2),
+                                         static_cast<size_t>(leftover_points),
+                                         state);
     } else {
         return result;
     }
