@@ -348,7 +348,6 @@ fr VerifierTurboArithmeticWidget::compute_quotient_evaluation_contribution(verif
     const fr q_5_eval = fr::serialize_from_buffer(&transcript.get_element("q_5")[0]);
     const fr q_m_eval = fr::serialize_from_buffer(&transcript.get_element("q_m")[0]);
     const fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
-
     const fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
 
     const fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
@@ -435,15 +434,45 @@ barretenberg::fr VerifierTurboArithmeticWidget::compute_batch_evaluation_contrib
     verification_key*,
     barretenberg::fr& batch_eval,
     const barretenberg::fr& nu_base,
-    const transcript::Transcript& transcript)
+    const transcript::Transcript& transcript,
+    const bool use_linearisation)
 {
     fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
 
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
 
-    batch_eval = batch_eval + (nu_base * q_arith_eval);
+    if (use_linearisation) {
+        batch_eval = batch_eval + (nu_base * q_arith_eval);
+        return nu_base * nu;
+    }
 
-    return nu_base * nu;
+    const fr q_1_eval = fr::serialize_from_buffer(&transcript.get_element("q_1")[0]);
+    const fr q_2_eval = fr::serialize_from_buffer(&transcript.get_element("q_2")[0]);
+    const fr q_3_eval = fr::serialize_from_buffer(&transcript.get_element("q_3")[0]);
+    const fr q_4_eval = fr::serialize_from_buffer(&transcript.get_element("q_4")[0]);
+    const fr q_5_eval = fr::serialize_from_buffer(&transcript.get_element("q_5")[0]);
+    const fr q_m_eval = fr::serialize_from_buffer(&transcript.get_element("q_m")[0]);
+    const fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
+
+    std::array<barretenberg::fr, 8> nu_powers;
+    nu_powers[0] = nu_base;
+    nu_powers[1] = nu_powers[0] * nu;
+    nu_powers[2] = nu_powers[1] * nu;
+    nu_powers[3] = nu_powers[2] * nu;
+    nu_powers[4] = nu_powers[3] * nu;
+    nu_powers[5] = nu_powers[4] * nu;
+    nu_powers[6] = nu_powers[5] * nu;
+    nu_powers[7] = nu_powers[6] * nu;
+
+    batch_eval += (q_1_eval * nu_powers[0]);
+    batch_eval += (q_2_eval * nu_powers[1]);
+    batch_eval += (q_3_eval * nu_powers[2]);
+    batch_eval += (q_4_eval * nu_powers[3]);
+    batch_eval += (q_5_eval * nu_powers[4]);
+    batch_eval += (q_m_eval * nu_powers[5]);
+    batch_eval += (q_c_eval * nu_powers[6]);
+    batch_eval += (q_arith_eval * nu_powers[7]);
+    return nu_powers[7] * nu;
 }
 
 VerifierBaseWidget::challenge_coefficients VerifierTurboArithmeticWidget::append_scalar_multiplication_inputs(
@@ -451,68 +480,127 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboArithmeticWidget::append
     const challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+    std::vector<barretenberg::fr>& scalars,
+    const bool use_linearisation)
 {
-    fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
+    if (use_linearisation) {
+        fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+        fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+        fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+        fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
 
-    fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
+        fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
 
-    fr q_l_term = w_l_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
+        fr q_l_term = w_l_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_1").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_1"));
+            scalars.push_back(q_l_term);
+        }
+
+        fr q_r_term = w_r_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_2").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_2"));
+            scalars.push_back(q_r_term);
+        }
+
+        fr q_o_term = w_o_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_3").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_3"));
+            scalars.push_back(q_o_term);
+        }
+
+        fr q_4_term = w_4_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_4").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_4"));
+            scalars.push_back(q_4_term);
+        }
+
+        constexpr fr minus_two = -fr(2);
+        fr q_5_term = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
+                      challenge.alpha_step * challenge.linear_nu * q_arith_eval;
+        if (key->constraint_selectors.at("Q_5").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_5"));
+            scalars.push_back(q_5_term);
+        }
+
+        // Q_M term = w_l * w_r * challenge.alpha_base * nu
+        fr q_m_term = w_l_eval * w_r_eval * challenge.alpha_base * challenge.linear_nu * q_arith_eval;
+        if (key->constraint_selectors.at("Q_M").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_M"));
+            scalars.push_back(q_m_term);
+        }
+
+        fr q_c_term = challenge.alpha_base * challenge.linear_nu * q_arith_eval;
+        if (key->constraint_selectors.at("Q_C").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_C"));
+            scalars.push_back(q_c_term);
+        }
+
+        if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
+            scalars.push_back(challenge.nu_base);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step.sqr(),
+                                                           challenge.alpha_step,
+                                                           challenge.nu_base * challenge.nu_step,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
+    }
+
+    std::array<barretenberg::fr, 8> nu_powers;
+    nu_powers[0] = challenge.nu_base;
+    nu_powers[1] = nu_powers[0] * challenge.nu_step;
+    nu_powers[2] = nu_powers[1] * challenge.nu_step;
+    nu_powers[3] = nu_powers[2] * challenge.nu_step;
+    nu_powers[4] = nu_powers[3] * challenge.nu_step;
+    nu_powers[5] = nu_powers[4] * challenge.nu_step;
+    nu_powers[6] = nu_powers[5] * challenge.nu_step;
+    nu_powers[7] = nu_powers[6] * challenge.nu_step;
+
     if (key->constraint_selectors.at("Q_1").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_1"));
-        scalars.push_back(q_l_term);
+        scalars.push_back(nu_powers[0]);
     }
 
-    fr q_r_term = w_r_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
     if (key->constraint_selectors.at("Q_2").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_2"));
-        scalars.push_back(q_r_term);
+        scalars.push_back(nu_powers[1]);
     }
 
-    fr q_o_term = w_o_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
     if (key->constraint_selectors.at("Q_3").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_3"));
-        scalars.push_back(q_o_term);
+        scalars.push_back(nu_powers[2]);
     }
 
-    fr q_4_term = w_4_eval * q_arith_eval * challenge.alpha_base * challenge.linear_nu;
     if (key->constraint_selectors.at("Q_4").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_4"));
-        scalars.push_back(q_4_term);
+        scalars.push_back(nu_powers[3]);
     }
 
-    constexpr fr minus_two = -fr(2);
-    fr q_5_term = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base * challenge.alpha_step *
-                  challenge.linear_nu * q_arith_eval;
     if (key->constraint_selectors.at("Q_5").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_5"));
-        scalars.push_back(q_5_term);
+        scalars.push_back(nu_powers[4]);
     }
 
-    // Q_M term = w_l * w_r * challenge.alpha_base * nu
-    fr q_m_term = w_l_eval * w_r_eval * challenge.alpha_base * challenge.linear_nu * q_arith_eval;
     if (key->constraint_selectors.at("Q_M").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_M"));
-        scalars.push_back(q_m_term);
+        scalars.push_back(nu_powers[5]);
     }
 
-    fr q_c_term = challenge.alpha_base * challenge.linear_nu * q_arith_eval;
     if (key->constraint_selectors.at("Q_C").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_C"));
-        scalars.push_back(q_c_term);
+        scalars.push_back(nu_powers[6]);
     }
 
     if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-        scalars.push_back(challenge.nu_base);
+        scalars.push_back(nu_powers[7]);
     }
 
     return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step.sqr(),
                                                        challenge.alpha_step,
-                                                       challenge.nu_base * challenge.nu_step,
+                                                       nu_powers[7] * challenge.nu_step,
                                                        challenge.nu_step,
                                                        challenge.linear_nu };
 }

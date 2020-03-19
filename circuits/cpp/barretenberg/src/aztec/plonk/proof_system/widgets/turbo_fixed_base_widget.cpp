@@ -498,27 +498,36 @@ barretenberg::fr VerifierTurboFixedBaseWidget::compute_quotient_evaluation_contr
 }
 
 barretenberg::fr VerifierTurboFixedBaseWidget::compute_batch_evaluation_contribution(
-    verification_key*,
+    verification_key* key,
     barretenberg::fr& batch_eval,
     const barretenberg::fr& nu_base,
-    const transcript::Transcript& transcript)
+    const transcript::Transcript& transcript,
+    const bool use_linearisation)
 {
-    fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
     fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
     fr q_ecc_1_eval = fr::serialize_from_buffer(&transcript.get_element("q_ecc_1")[0]);
 
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
 
-    fr nu_a = nu_base * nu;
-    fr nu_b = nu_a * nu;
+    if (use_linearisation) {
 
-    fr T0 = q_arith_eval * nu_base;
-    fr T1 = q_ecc_1_eval * nu_a;
-    fr T2 = q_c_eval * nu_b;
+        fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
+        fr nu_a = nu_base * nu;
+        fr nu_b = nu_a * nu;
 
-    batch_eval = batch_eval + T0 + T1 + T2;
+        fr T0 = q_arith_eval * nu_base;
+        fr T1 = q_ecc_1_eval * nu_a;
+        fr T2 = q_c_eval * nu_b;
 
-    return nu_b * nu;
+        batch_eval = batch_eval + T0 + T1 + T2;
+
+        return nu_b * nu;
+    }
+    fr new_nu_base = VerifierTurboArithmeticWidget::compute_batch_evaluation_contribution(
+        key, batch_eval, nu_base, transcript, use_linearisation);
+    batch_eval += q_ecc_1_eval * new_nu_base;
+
+    return new_nu_base * nu;
 }
 
 VerifierBaseWidget::challenge_coefficients VerifierTurboFixedBaseWidget::append_scalar_multiplication_inputs(
@@ -526,19 +535,9 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboFixedBaseWidget::append_
     const challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+    std::vector<barretenberg::fr>& scalars,
+    const bool use_linearisation)
 {
-    fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
-    fr w_1_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_1_omega")[0]);
-    fr w_3_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
-    fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
-
-    fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
-    fr q_ecc_1_eval = fr::serialize_from_buffer(&transcript.get_element("q_ecc_1")[0]);
-    fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
 
     fr alpha_a = challenge.alpha_base * challenge.alpha_step.sqr();
     fr alpha_b = alpha_a * challenge.alpha_step;
@@ -547,104 +546,173 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboFixedBaseWidget::append_
     fr alpha_e = alpha_d * challenge.alpha_step;
     fr alpha_f = alpha_e * challenge.alpha_step;
     fr alpha_g = alpha_f * challenge.alpha_step;
+    if (use_linearisation) {
+        fr q_arith_eval = fr::serialize_from_buffer(&transcript.get_element("q_arith")[0]);
+        fr q_ecc_1_eval = fr::serialize_from_buffer(&transcript.get_element("q_ecc_1")[0]);
 
-    fr delta = w_4_omega_eval - (w_4_eval + w_4_eval + w_4_eval + w_4_eval);
+        fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+        fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+        fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+        fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
+        fr w_1_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_1_omega")[0]);
+        fr w_3_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
+        fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
 
-    fr delta_squared = delta.sqr();
+        fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
 
-    fr q_l_term_ecc = delta_squared * q_ecc_1_eval * alpha_b;
+        fr delta = w_4_omega_eval - (w_4_eval + w_4_eval + w_4_eval + w_4_eval);
 
-    fr q_l_term_arith = w_1_eval * challenge.alpha_base * q_arith_eval;
+        fr delta_squared = delta.sqr();
 
-    fr q_l_term = (q_l_term_arith + q_l_term_ecc) * challenge.linear_nu;
-    if (key->constraint_selectors.at("Q_1").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_1"));
-        scalars.push_back(q_l_term);
+        fr q_l_term_ecc = delta_squared * q_ecc_1_eval * alpha_b;
+
+        fr q_l_term_arith = w_1_eval * challenge.alpha_base * q_arith_eval;
+
+        fr q_l_term = (q_l_term_arith + q_l_term_ecc) * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_1").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_1"));
+            scalars.push_back(q_l_term);
+        }
+
+        fr q_r_term_ecc = alpha_b * q_ecc_1_eval;
+
+        fr q_r_term_arith = w_2_eval * challenge.alpha_base * q_arith_eval;
+
+        fr q_r_term = (q_r_term_ecc + q_r_term_arith) * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_2").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_2"));
+            scalars.push_back(q_r_term);
+        }
+
+        fr T0 = (w_1_omega_eval - w_1_eval) * delta * w_3_omega_eval * alpha_d;
+        fr T1 = delta * w_3_omega_eval * w_2_eval;
+        T1 = T1 + T1;
+        T1 = T1 * alpha_c;
+
+        fr q_o_term_ecc = (T0 + T1) * q_ecc_1_eval;
+        T0 = w_1_omega_eval - w_1_eval;
+
+        fr q_o_term_arith = w_3_eval * challenge.alpha_base * q_arith_eval;
+
+        fr q_o_term = (q_o_term_ecc + q_o_term_arith) * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_3").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_3"));
+            scalars.push_back(q_o_term);
+        }
+
+        fr q_4_term_ecc = w_3_eval * q_ecc_1_eval * q_c_eval * alpha_f;
+
+        fr q_4_term_arith = w_4_eval * challenge.alpha_base * q_arith_eval;
+
+        fr q_4_term = (q_4_term_ecc + q_4_term_arith) * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_4").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_4"));
+            scalars.push_back(q_4_term);
+        }
+
+        fr q_5_term_ecc = (fr::one() - w_4_eval) * q_ecc_1_eval * q_c_eval * alpha_f;
+
+        constexpr fr minus_two = -fr(2);
+        fr q_5_term_arith = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
+                            challenge.alpha_step * q_arith_eval;
+
+        fr q_5_term = (q_5_term_ecc + q_5_term_arith) * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_5").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_5"));
+            scalars.push_back(q_5_term);
+        }
+
+        // Q_M term = w_l * w_r * challenge.alpha_base * nu
+        fr q_m_term_ecc = w_3_eval * q_ecc_1_eval * q_c_eval * alpha_g;
+
+        fr q_m_term_arith = w_1_eval * w_2_eval * challenge.alpha_base * q_arith_eval;
+
+        fr q_m_term = (q_m_term_ecc + q_m_term_arith) * challenge.linear_nu;
+        if (key->constraint_selectors.at("Q_M").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_M"));
+            scalars.push_back(q_m_term);
+        }
+
+        fr q_c_term = challenge.alpha_base * challenge.linear_nu * q_arith_eval;
+        if (key->constraint_selectors.at("Q_C").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_C"));
+
+            // TODO: ROLL ARITHMETIC EXPRESSION INVOLVING Q_C INTO BATCH EVALUATION OF T(X)
+            fr blah_nu = challenge.nu_base * challenge.nu_step.sqr();
+            q_c_term = q_c_term + blah_nu;
+            scalars.push_back(q_c_term);
+        }
+
+        if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
+            scalars.push_back(challenge.nu_base);
+        }
+
+        if (key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
+            scalars.push_back((challenge.nu_base * challenge.nu_step));
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ alpha_g * challenge.alpha_step,
+                                                           challenge.alpha_step,
+                                                           challenge.nu_base * challenge.nu_step.sqr() *
+                                                               challenge.nu_step,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
+    } else {
+        std::array<fr, 9> nu_powers;
+        nu_powers[0] = challenge.nu_base;
+        nu_powers[1] = nu_powers[0] * challenge.nu_step;
+        nu_powers[2] = nu_powers[1] * challenge.nu_step;
+        nu_powers[3] = nu_powers[2] * challenge.nu_step;
+        nu_powers[4] = nu_powers[3] * challenge.nu_step;
+        nu_powers[5] = nu_powers[4] * challenge.nu_step;
+        nu_powers[6] = nu_powers[5] * challenge.nu_step;
+        nu_powers[7] = nu_powers[6] * challenge.nu_step;
+        nu_powers[8] = nu_powers[7] * challenge.nu_step;
+        nu_powers[9] = nu_powers[8] * challenge.nu_step;
+        if (key->constraint_selectors.at("Q_1").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_1"));
+            scalars.push_back(nu_powers[0]);
+        }
+        if (key->constraint_selectors.at("Q_2").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_2"));
+            scalars.push_back(nu_powers[1]);
+        }
+        if (key->constraint_selectors.at("Q_3").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_3"));
+            scalars.push_back(nu_powers[2]);
+        }
+        if (key->constraint_selectors.at("Q_4").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_4"));
+            scalars.push_back(nu_powers[3]);
+        }
+        if (key->constraint_selectors.at("Q_5").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_5"));
+            scalars.push_back(nu_powers[4]);
+        }
+        if (key->constraint_selectors.at("Q_M").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_M"));
+            scalars.push_back(nu_powers[5]);
+        }
+        if (key->constraint_selectors.at("Q_C").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_C"));
+            scalars.push_back(nu_powers[6]);
+        }
+        if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
+            scalars.push_back(nu_powers[7]);
+        }
+        if (key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
+            scalars.push_back(nu_powers[8]);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ alpha_g * challenge.alpha_step,
+                                                           challenge.alpha_step,
+                                                           nu_powers[8] * challenge.nu_step,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
     }
-
-    fr q_r_term_ecc = alpha_b * q_ecc_1_eval;
-
-    fr q_r_term_arith = w_2_eval * challenge.alpha_base * q_arith_eval;
-
-    fr q_r_term = (q_r_term_ecc + q_r_term_arith) * challenge.linear_nu;
-    if (key->constraint_selectors.at("Q_2").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_2"));
-        scalars.push_back(q_r_term);
-    }
-
-    fr T0 = (w_1_omega_eval - w_1_eval) * delta * w_3_omega_eval * alpha_d;
-    fr T1 = delta * w_3_omega_eval * w_2_eval;
-    T1 = T1 + T1;
-    T1 = T1 * alpha_c;
-
-    fr q_o_term_ecc = (T0 + T1) * q_ecc_1_eval;
-    T0 = w_1_omega_eval - w_1_eval;
-
-    fr q_o_term_arith = w_3_eval * challenge.alpha_base * q_arith_eval;
-
-    fr q_o_term = (q_o_term_ecc + q_o_term_arith) * challenge.linear_nu;
-    if (key->constraint_selectors.at("Q_3").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_3"));
-        scalars.push_back(q_o_term);
-    }
-
-    fr q_4_term_ecc = w_3_eval * q_ecc_1_eval * q_c_eval * alpha_f;
-
-    fr q_4_term_arith = w_4_eval * challenge.alpha_base * q_arith_eval;
-
-    fr q_4_term = (q_4_term_ecc + q_4_term_arith) * challenge.linear_nu;
-    if (key->constraint_selectors.at("Q_4").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_4"));
-        scalars.push_back(q_4_term);
-    }
-
-    fr q_5_term_ecc = (fr::one() - w_4_eval) * q_ecc_1_eval * q_c_eval * alpha_f;
-
-    constexpr fr minus_two = -fr(2);
-    fr q_5_term_arith = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
-                        challenge.alpha_step * q_arith_eval;
-
-    fr q_5_term = (q_5_term_ecc + q_5_term_arith) * challenge.linear_nu;
-    if (key->constraint_selectors.at("Q_5").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_5"));
-        scalars.push_back(q_5_term);
-    }
-
-    // Q_M term = w_l * w_r * challenge.alpha_base * nu
-    fr q_m_term_ecc = w_3_eval * q_ecc_1_eval * q_c_eval * alpha_g;
-
-    fr q_m_term_arith = w_1_eval * w_2_eval * challenge.alpha_base * q_arith_eval;
-
-    fr q_m_term = (q_m_term_ecc + q_m_term_arith) * challenge.linear_nu;
-    if (key->constraint_selectors.at("Q_M").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_M"));
-        scalars.push_back(q_m_term);
-    }
-
-    fr q_c_term = challenge.alpha_base * challenge.linear_nu * q_arith_eval;
-    if (key->constraint_selectors.at("Q_C").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_C"));
-
-        // TODO: ROLL ARITHMETIC EXPRESSION INVOLVING Q_C INTO BATCH EVALUATION OF T(X)
-        fr blah_nu = challenge.nu_base * challenge.nu_step.sqr();
-        q_c_term = q_c_term + blah_nu;
-        scalars.push_back(q_c_term);
-    }
-
-    if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-        scalars.push_back(challenge.nu_base);
-    }
-
-    if (key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
-        scalars.push_back((challenge.nu_base * challenge.nu_step));
-    }
-
-    return VerifierBaseWidget::challenge_coefficients{ alpha_g * challenge.alpha_step,
-                                                       challenge.alpha_step,
-                                                       challenge.nu_base * challenge.nu_step.sqr() * challenge.nu_step,
-                                                       challenge.nu_step,
-                                                       challenge.linear_nu };
 }
 } // namespace waffle

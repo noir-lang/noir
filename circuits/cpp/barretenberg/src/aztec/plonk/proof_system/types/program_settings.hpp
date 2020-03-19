@@ -50,7 +50,7 @@ class standard_verifier_settings : public standard_settings {
         std::vector<barretenberg::fr>& scalars)
     {
         return VerifierArithmeticWidget::append_scalar_multiplication_inputs(
-            key, challenge, transcript, points, scalars);
+            key, challenge, transcript, points, scalars, use_linearisation);
     }
 
     static barretenberg::fr compute_batch_evaluation_contribution(verification_key* key,
@@ -58,7 +58,8 @@ class standard_verifier_settings : public standard_settings {
                                                                   const barretenberg::fr& nu_base,
                                                                   const transcript::Transcript& transcript)
     {
-        return VerifierArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, nu_base, transcript);
+        return VerifierArithmeticWidget::compute_batch_evaluation_contribution(
+            key, batch_eval, nu_base, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -83,8 +84,10 @@ class mimc_verifier_settings : public standard_settings {
     {
 
         VerifierBaseWidget::challenge_coefficients result =
-            VerifierArithmeticWidget::append_scalar_multiplication_inputs(key, challenge, transcript, points, scalars);
-        result = VerifierMiMCWidget::append_scalar_multiplication_inputs(key, result, transcript, points, scalars);
+            VerifierArithmeticWidget::append_scalar_multiplication_inputs(
+                key, challenge, transcript, points, scalars, use_linearisation);
+        result = VerifierMiMCWidget::append_scalar_multiplication_inputs(
+            key, result, transcript, points, scalars, use_linearisation);
         return result;
     }
 
@@ -93,10 +96,10 @@ class mimc_verifier_settings : public standard_settings {
                                                                   const barretenberg::fr& nu_base,
                                                                   const transcript::Transcript& transcript)
     {
-        barretenberg::fr updated_nu_base =
-            VerifierArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, nu_base, transcript);
-        updated_nu_base =
-            VerifierMiMCWidget::compute_batch_evaluation_contribution(key, batch_eval, updated_nu_base, transcript);
+        barretenberg::fr updated_nu_base = VerifierArithmeticWidget::compute_batch_evaluation_contribution(
+            key, batch_eval, nu_base, transcript, use_linearisation);
+        updated_nu_base = VerifierMiMCWidget::compute_batch_evaluation_contribution(
+            key, batch_eval, updated_nu_base, transcript, use_linearisation);
         return updated_nu_base;
     }
 
@@ -125,11 +128,11 @@ class turbo_verifier_settings : public turbo_settings {
     {
         VerifierBaseWidget::challenge_coefficients result =
             VerifierTurboFixedBaseWidget::append_scalar_multiplication_inputs(
-                key, challenge, transcript, points, scalars);
-        result =
-            VerifierTurboRangeWidget::append_scalar_multiplication_inputs(key, result, transcript, points, scalars);
-        result =
-            VerifierTurboLogicWidget::append_scalar_multiplication_inputs(key, result, transcript, points, scalars);
+                key, challenge, transcript, points, scalars, use_linearisation);
+        result = VerifierTurboRangeWidget::append_scalar_multiplication_inputs(
+            key, result, transcript, points, scalars, use_linearisation);
+        result = VerifierTurboLogicWidget::append_scalar_multiplication_inputs(
+            key, result, transcript, points, scalars, use_linearisation);
         return result;
     }
 
@@ -138,12 +141,12 @@ class turbo_verifier_settings : public turbo_settings {
                                                                   const barretenberg::fr& nu_base,
                                                                   const transcript::Transcript& transcript)
     {
-        barretenberg::fr updated_nu_base =
-            VerifierTurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, nu_base, transcript);
+        barretenberg::fr updated_nu_base = VerifierTurboFixedBaseWidget::compute_batch_evaluation_contribution(
+            key, batch_eval, nu_base, transcript, use_linearisation);
         updated_nu_base = VerifierTurboRangeWidget::compute_batch_evaluation_contribution(
-            key, batch_eval, updated_nu_base, transcript);
+            key, batch_eval, updated_nu_base, transcript, use_linearisation);
         updated_nu_base = VerifierTurboLogicWidget::compute_batch_evaluation_contribution(
-            key, batch_eval, updated_nu_base, transcript);
+            key, batch_eval, updated_nu_base, transcript, use_linearisation);
 
         return updated_nu_base;
     }

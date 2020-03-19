@@ -681,12 +681,24 @@ barretenberg::fr VerifierTurboLogicWidget::compute_quotient_evaluation_contribut
     return alpha_base * alpha.sqr().sqr();
 }
 
-barretenberg::fr VerifierTurboLogicWidget::compute_batch_evaluation_contribution(verification_key*,
-                                                                                 barretenberg::fr&,
-                                                                                 const barretenberg::fr& nu_base,
-                                                                                 const transcript::Transcript&)
+barretenberg::fr VerifierTurboLogicWidget::compute_batch_evaluation_contribution(
+    verification_key*,
+    barretenberg::fr& batch_eval,
+    const barretenberg::fr& nu_base,
+    const transcript::Transcript& transcript,
+    const bool use_linearisation)
 {
-    return nu_base;
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr q_logic_eval = fr::serialize_from_buffer(&transcript.get_element("q_logic")[0]);
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    batch_eval += (q_logic_eval * nu_base);
+
+    return nu_base * nu;
 }
 
 VerifierBaseWidget::challenge_coefficients VerifierTurboLogicWidget::append_scalar_multiplication_inputs(
@@ -694,164 +706,184 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboLogicWidget::append_scal
     const challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+    std::vector<barretenberg::fr>& scalars,
+    const bool use_linearisation)
 {
-    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
-    fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_1_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_1_omega")[0]);
-    fr w_2_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_2_omega")[0]);
-    fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
-    fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
+    if (use_linearisation) {
+        fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
+        fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+        fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+        fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+        fr w_1_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_1_omega")[0]);
+        fr w_2_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_2_omega")[0]);
+        fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
+        fr q_c_eval = fr::serialize_from_buffer(&transcript.get_element("q_c")[0]);
 
-    constexpr fr six = fr{ 6, 0, 0, 0 }.to_montgomery_form();
-    constexpr fr eighty_one = fr{ 81, 0, 0, 0 }.to_montgomery_form();
-    constexpr fr eighty_three = fr{ 83, 0, 0, 0 }.to_montgomery_form();
+        constexpr fr six = fr{ 6, 0, 0, 0 }.to_montgomery_form();
+        constexpr fr eighty_one = fr{ 81, 0, 0, 0 }.to_montgomery_form();
+        constexpr fr eighty_three = fr{ 83, 0, 0, 0 }.to_montgomery_form();
 
+        fr alpha_a = challenge.alpha_base;
+        fr alpha_b = alpha_a * challenge.alpha_step;
+        fr alpha_c = alpha_b * challenge.alpha_step;
+        fr alpha_d = alpha_c * challenge.alpha_step;
+
+        fr delta_sum;
+        fr delta_squared_sum;
+        fr T0;
+        fr T1;
+        fr T2;
+        fr T3;
+        fr T4;
+        fr identity;
+        T0 = w_1_eval + w_1_eval;
+        T0 += T0;
+        T0 = w_1_omega_eval - T0;
+
+        // T1 = b
+        T1 = w_2_eval + w_2_eval;
+        T1 += T1;
+        T1 = w_2_omega_eval - T1;
+
+        // delta_sum = a + b
+        delta_sum = T0 + T1;
+
+        // T2 = a^2, T3 = b^2
+        T2 = T0.sqr();
+        T3 = T1.sqr();
+
+        delta_squared_sum = T2 + T3;
+
+        // identity = a^2 + b^2 + 2ab
+        identity = delta_sum.sqr();
+        // identity = 2ab
+        identity -= delta_squared_sum;
+
+        // identity = 2(ab - w)
+        T4 = w_3_eval + w_3_eval;
+        identity -= T4;
+        identity *= challenge.alpha_step;
+
+        // T4 = 4w
+        T4 += T4;
+
+        // T2 = a^2 - a
+        T2 -= T0;
+
+        // T0 = a^2 - 5a + 6
+        T0 += T0;
+        T0 += T0;
+        T0 = T2 - T0;
+        T0 += six;
+
+        // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
+        T0 *= T2;
+        identity += T0;
+        identity *= challenge.alpha_step;
+
+        // T3 = b^2 - b
+        T3 -= T1;
+
+        // T1 = b^2 - 5b + 6
+        T1 += T1;
+        T1 += T1;
+        T1 = T3 - T1;
+        T1 += six;
+
+        // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
+        T1 *= T3;
+        identity += T1;
+        identity *= challenge.alpha_step;
+
+        // T0 = 3(a + b)
+        T0 = delta_sum + delta_sum;
+        T0 += delta_sum;
+
+        // T1 = 9(a + b)
+        T1 = T0 + T0;
+        T1 += T0;
+
+        // delta_sum = 18(a + b)
+        delta_sum = T1 + T1;
+
+        // T1 = 81(a + b)
+        T2 = delta_sum + delta_sum;
+        T2 += T2;
+        T1 += T2;
+
+        // delta_squared_sum = 18(a^2 + b^2)
+        T2 = delta_squared_sum + delta_squared_sum;
+        T2 += delta_squared_sum;
+        delta_squared_sum = T2 + T2;
+        delta_squared_sum += T2;
+        delta_squared_sum += delta_squared_sum;
+
+        // delta_sum = w(4w - 18(a + b) + 81)
+        delta_sum = T4 - delta_sum;
+        delta_sum += eighty_one;
+        delta_sum *= w_3_eval;
+
+        // T1 = 18(a^2 + b^2) - 81(a + b) + 83
+        T1 = delta_squared_sum - T1;
+        T1 += eighty_three;
+
+        // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
+        delta_sum += T1;
+        delta_sum *= w_3_eval;
+
+        // T2 = 3c
+        T2 = w_4_eval + w_4_eval;
+        T2 += T2;
+        T2 = w_4_omega_eval - T2;
+        T3 = T2 + T2;
+        T2 += T3;
+
+        // T3 = 9c
+        T3 = T2 + T2;
+        T3 += T2;
+
+        // T3 = q_c * (9c - 3(a + b))
+        T3 -= T0;
+        T3 *= q_c_eval;
+
+        // T2 = 3c + 3(a + b) - 2 * delta_sum
+        T2 += T0;
+        delta_sum += delta_sum;
+        T2 -= delta_sum;
+
+        // T2 = T2 + T3
+        T2 += T3;
+
+        // identity = q_logic * alpha_base * (identity + T2)
+        identity += T2;
+        identity *= challenge.alpha_base;
+        identity *= challenge.linear_nu;
+
+        if (key->constraint_selectors.at("Q_LOGIC_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
+            scalars.push_back(identity);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ alpha_d * challenge.alpha_step,
+                                                           challenge.alpha_step,
+                                                           challenge.nu_base,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
+    }
+
+    if (key->constraint_selectors.at("Q_LOGIC_SELECTOR").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
+        scalars.push_back(challenge.nu_base);
+    }
     fr alpha_a = challenge.alpha_base;
     fr alpha_b = alpha_a * challenge.alpha_step;
     fr alpha_c = alpha_b * challenge.alpha_step;
     fr alpha_d = alpha_c * challenge.alpha_step;
 
-    fr delta_sum;
-    fr delta_squared_sum;
-    fr T0;
-    fr T1;
-    fr T2;
-    fr T3;
-    fr T4;
-    fr identity;
-    T0 = w_1_eval + w_1_eval;
-    T0 += T0;
-    T0 = w_1_omega_eval - T0;
-
-    // T1 = b
-    T1 = w_2_eval + w_2_eval;
-    T1 += T1;
-    T1 = w_2_omega_eval - T1;
-
-    // delta_sum = a + b
-    delta_sum = T0 + T1;
-
-    // T2 = a^2, T3 = b^2
-    T2 = T0.sqr();
-    T3 = T1.sqr();
-
-    delta_squared_sum = T2 + T3;
-
-    // identity = a^2 + b^2 + 2ab
-    identity = delta_sum.sqr();
-    // identity = 2ab
-    identity -= delta_squared_sum;
-
-    // identity = 2(ab - w)
-    T4 = w_3_eval + w_3_eval;
-    identity -= T4;
-    identity *= challenge.alpha_step;
-
-    // T4 = 4w
-    T4 += T4;
-
-    // T2 = a^2 - a
-    T2 -= T0;
-
-    // T0 = a^2 - 5a + 6
-    T0 += T0;
-    T0 += T0;
-    T0 = T2 - T0;
-    T0 += six;
-
-    // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
-    T0 *= T2;
-    identity += T0;
-    identity *= challenge.alpha_step;
-
-    // T3 = b^2 - b
-    T3 -= T1;
-
-    // T1 = b^2 - 5b + 6
-    T1 += T1;
-    T1 += T1;
-    T1 = T3 - T1;
-    T1 += six;
-
-    // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
-    T1 *= T3;
-    identity += T1;
-    identity *= challenge.alpha_step;
-
-    // T0 = 3(a + b)
-    T0 = delta_sum + delta_sum;
-    T0 += delta_sum;
-
-    // T1 = 9(a + b)
-    T1 = T0 + T0;
-    T1 += T0;
-
-    // delta_sum = 18(a + b)
-    delta_sum = T1 + T1;
-
-    // T1 = 81(a + b)
-    T2 = delta_sum + delta_sum;
-    T2 += T2;
-    T1 += T2;
-
-    // delta_squared_sum = 18(a^2 + b^2)
-    T2 = delta_squared_sum + delta_squared_sum;
-    T2 += delta_squared_sum;
-    delta_squared_sum = T2 + T2;
-    delta_squared_sum += T2;
-    delta_squared_sum += delta_squared_sum;
-
-    // delta_sum = w(4w - 18(a + b) + 81)
-    delta_sum = T4 - delta_sum;
-    delta_sum += eighty_one;
-    delta_sum *= w_3_eval;
-
-    // T1 = 18(a^2 + b^2) - 81(a + b) + 83
-    T1 = delta_squared_sum - T1;
-    T1 += eighty_three;
-
-    // delta_sum = w ( w ( 4w - 18(a + b) + 81) + 18(a^2 + b^2) - 81(a + b) + 83)
-    delta_sum += T1;
-    delta_sum *= w_3_eval;
-
-    // T2 = 3c
-    T2 = w_4_eval + w_4_eval;
-    T2 += T2;
-    T2 = w_4_omega_eval - T2;
-    T3 = T2 + T2;
-    T2 += T3;
-
-    // T3 = 9c
-    T3 = T2 + T2;
-    T3 += T2;
-
-    // T3 = q_c * (9c - 3(a + b))
-    T3 -= T0;
-    T3 *= q_c_eval;
-
-    // T2 = 3c + 3(a + b) - 2 * delta_sum
-    T2 += T0;
-    delta_sum += delta_sum;
-    T2 -= delta_sum;
-
-    // T2 = T2 + T3
-    T2 += T3;
-
-    // identity = q_logic * alpha_base * (identity + T2)
-    identity += T2;
-    identity *= challenge.alpha_base;
-    identity *= challenge.linear_nu;
-
-    if (key->constraint_selectors.at("Q_LOGIC_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
-        scalars.push_back(identity);
-    }
-
-    return VerifierBaseWidget::challenge_coefficients{
-        alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_base, challenge.nu_step, challenge.linear_nu
-    };
+    return VerifierBaseWidget::challenge_coefficients{ alpha_d * challenge.alpha_step,
+                                                       challenge.alpha_step,
+                                                       challenge.nu_base * challenge.nu_step,
+                                                       challenge.nu_step,
+                                                       challenge.linear_nu };
 }
 } // namespace waffle

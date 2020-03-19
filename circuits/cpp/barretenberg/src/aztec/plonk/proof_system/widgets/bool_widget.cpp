@@ -177,11 +177,31 @@ fr VerifierBoolWidget::compute_quotient_evaluation_contribution(verification_key
 }
 
 fr VerifierBoolWidget::compute_batch_evaluation_contribution(verification_key*,
-                                                             fr&,
+                                                             fr& batch_eval,
                                                              const fr& nu_base,
-                                                             const transcript::Transcript&)
+                                                             const transcript::Transcript& transcript,
+                                                             const bool use_linearisation)
 {
-    return nu_base;
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr q_bl_eval = fr::serialize_from_buffer(&transcript.get_element("q_bl")[0]);
+    fr q_br_eval = fr::serialize_from_buffer(&transcript.get_element("q_br")[0]);
+    fr q_bo_eval = fr::serialize_from_buffer(&transcript.get_element("q_bo")[0]);
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    std::array<barretenberg::fr, 3> nu_powers;
+    nu_powers[0] = nu_base;
+    nu_powers[1] = nu_powers[0] * nu;
+    nu_powers[2] = nu_powers[1] * nu;
+
+    batch_eval += (q_bl_eval * nu_powers[0]);
+    batch_eval += (q_br_eval * nu_powers[1]);
+    batch_eval += (q_bo_eval * nu_powers[2]);
+
+    return nu_powers[2] * nu;
 };
 
 VerifierBaseWidget::challenge_coefficients VerifierBoolWidget::append_scalar_multiplication_inputs(
@@ -189,35 +209,63 @@ VerifierBaseWidget::challenge_coefficients VerifierBoolWidget::append_scalar_mul
     const challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<g1::affine_element>& points,
-    std::vector<fr>& scalars)
+    std::vector<fr>& scalars,
+    const bool use_linearisation)
 {
-    fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+    if (use_linearisation) {
+        fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+        fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+        fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
 
-    fr left_bool_multiplier = (w_l_eval.sqr() - w_l_eval) * challenge.alpha_base * challenge.linear_nu;
-    fr right_bool_multiplier =
-        (w_r_eval.sqr() - w_r_eval) * challenge.alpha_base * challenge.alpha_step * challenge.linear_nu;
-    fr output_bool_multiplier =
-        (w_o_eval.sqr() - w_o_eval) * challenge.alpha_base * challenge.alpha_step.sqr() * challenge.linear_nu;
+        fr left_bool_multiplier = (w_l_eval.sqr() - w_l_eval) * challenge.alpha_base * challenge.linear_nu;
+        fr right_bool_multiplier =
+            (w_r_eval.sqr() - w_r_eval) * challenge.alpha_base * challenge.alpha_step * challenge.linear_nu;
+        fr output_bool_multiplier =
+            (w_o_eval.sqr() - w_o_eval) * challenge.alpha_base * challenge.alpha_step.sqr() * challenge.linear_nu;
+
+        if (key->constraint_selectors.at("Q_BL").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_BL"));
+            scalars.push_back(left_bool_multiplier);
+        }
+        if (key->constraint_selectors.at("Q_BR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_BR"));
+            scalars.push_back(right_bool_multiplier);
+        }
+        if (key->constraint_selectors.at("Q_BO").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_BO"));
+            scalars.push_back(output_bool_multiplier);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step.sqr() *
+                                                               challenge.alpha_step,
+                                                           challenge.alpha_step,
+                                                           challenge.nu_base,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
+    }
+
+    std::array<barretenberg::fr, 3> nu_powers;
+    nu_powers[0] = challenge.nu_base;
+    nu_powers[1] = nu_powers[0] * challenge.nu_step;
+    nu_powers[2] = nu_powers[1] * challenge.nu_step;
 
     if (key->constraint_selectors.at("Q_BL").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_BL"));
-        scalars.push_back(left_bool_multiplier);
+        scalars.push_back(nu_powers[0]);
     }
     if (key->constraint_selectors.at("Q_BR").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_BR"));
-        scalars.push_back(right_bool_multiplier);
+        scalars.push_back(nu_powers[1]);
     }
     if (key->constraint_selectors.at("Q_BO").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_BO"));
-        scalars.push_back(output_bool_multiplier);
+        scalars.push_back(nu_powers[2]);
     }
 
     return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step.sqr() *
                                                            challenge.alpha_step,
                                                        challenge.alpha_step,
-                                                       challenge.nu_base,
+                                                       nu_powers[2] * challenge.nu_step,
                                                        challenge.nu_step,
                                                        challenge.linear_nu };
 }

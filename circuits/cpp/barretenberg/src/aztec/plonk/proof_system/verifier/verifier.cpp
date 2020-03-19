@@ -39,8 +39,11 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::array<g1::affine_element, program_settings::program_width> T;
     std::array<g1::affine_element, program_settings::program_width> W;
 
+    constexpr size_t num_sigma_evaluations =
+        (program_settings::use_linearisation ? program_settings::program_width - 1 : program_settings::program_width);
+
     std::array<fr, program_settings::program_width> wire_evaluations;
-    std::array<fr, program_settings::program_width - 1> sigma_evaluations;
+    std::array<fr, num_sigma_evaluations> sigma_evaluations;
 
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string index = std::to_string(i + 1);
@@ -48,7 +51,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         W[i] = g1::affine_element::serialize_from_buffer(&transcript.get_element("W_" + index)[0]);
         wire_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("w_" + index)[0]);
     }
-    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
+    for (size_t i = 0; i < num_sigma_evaluations; ++i) {
         std::string index = std::to_string(i + 1);
         sigma_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("sigma_" + index)[0]);
     }
@@ -56,7 +59,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
     g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
 
-    fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
     fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
 
     bool inputs_valid = T[0].on_curve() && Z_1.on_curve() && PI_Z.on_curve();
@@ -84,7 +86,10 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
         field_elements_valid = field_elements_valid && !(sigma_evaluations[i] == fr::zero());
     }
-    field_elements_valid = field_elements_valid && !(linear_eval == fr::zero());
+    if constexpr (program_settings::use_linearisation) {
+        fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
+        field_elements_valid = field_elements_valid && !(linear_eval == fr::zero());
+    }
 
     if (!field_elements_valid) {
         printf("proof field elements not valid!\n");
@@ -129,9 +134,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
 
     fr sigma_contribution = fr::one();
-    const size_t sigma_end =
-        (program_settings::use_linearisation ? program_settings::program_width - 1 : program_settings::program_width);
-    for (size_t i = 0; i < sigma_end; ++i) {
+
+    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
         T0 = sigma_evaluations[i] * beta;
         T1 = wire_evaluations[i] + gamma;
         T0 += T1;
@@ -154,12 +158,22 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     T2 = lagrange_evals.l_1 * alpha_pow[2];
     T1 -= T2;
     T1 -= sigma_contribution;
-    T1 += linear_eval;
+
+    if constexpr (program_settings::use_linearisation) {
+        fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
+        T1 += linear_eval;
+    }
     t_eval += T1;
 
     fr alpha_base = alpha.sqr().sqr();
 
     alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
+
+    if constexpr (!program_settings::use_linearisation) {
+        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+        t_eval += (linear_terms.z_1 * z_eval);
+        t_eval += (linear_terms.sigma_last * sigma_evaluations[program_settings::program_width - 1]);
+    }
 
     T0 = lagrange_evals.vanishing_poly.invert();
     t_eval *= T0;
@@ -174,17 +188,20 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         nu_pow[i] = nu_pow[i - 1] * nu_pow[0];
     }
 
-    // reconstruct Kate opening commitments from committed values
-    linear_terms.z_1 *= nu_pow[0];
-    linear_terms.sigma_last *= nu_pow[0];
-
-    T0 = nu_pow[7] * u;
-    linear_terms.z_1 += T0;
-
     fr batch_evaluation;
     fr::__copy(t_eval, batch_evaluation);
-    T0 = nu_pow[0] * linear_eval;
-    batch_evaluation += T0;
+
+    if constexpr (program_settings::use_linearisation) {
+        fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
+        T0 = nu_pow[0] * linear_eval;
+        batch_evaluation += T0;
+    } else {
+        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+        T0 = z_eval * nu_pow[program_settings::program_width + 5];
+        batch_evaluation += T0;
+        T0 = sigma_evaluations[program_settings::program_width - 1] * nu_pow[program_settings::program_width + 4];
+        batch_evaluation += T0;
+    }
 
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         T0 = nu_pow[i + 1] * wire_evaluations[i];
@@ -225,7 +242,14 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::vector<g1::affine_element> elements;
 
     elements.emplace_back(Z_1);
-    scalars.emplace_back(linear_terms.z_1);
+    if constexpr (program_settings::use_linearisation) {
+        linear_terms.z_1 *= nu_pow[0];
+        linear_terms.z_1 += (nu_pow[7] * u);
+        scalars.emplace_back(linear_terms.z_1);
+    } else {
+        T0 = nu_pow[7] * u + nu_pow[program_settings::program_width + 5];
+        scalars.emplace_back(T0);
+    }
 
     fr::__copy(nu_pow[8], nu_base);
 
@@ -249,7 +273,12 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
 
     elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
-    scalars.emplace_back(linear_terms.sigma_last);
+    if constexpr (program_settings::use_linearisation) {
+        linear_terms.sigma_last *= nu_pow[0];
+        scalars.emplace_back(linear_terms.sigma_last);
+    } else {
+        scalars.emplace_back(nu_pow[program_settings::program_width + 4]);
+    }
 
     elements.emplace_back(g1::affine_one);
     scalars.emplace_back(batch_evaluation);

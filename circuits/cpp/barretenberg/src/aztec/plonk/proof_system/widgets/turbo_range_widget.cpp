@@ -307,7 +307,6 @@ barretenberg::fr VerifierTurboRangeWidget::compute_quotient_evaluation_contribut
     fr alpha_c = alpha_b * alpha;
     fr alpha_d = alpha_c * alpha;
 
-
     fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
     fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
     fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
@@ -318,7 +317,6 @@ barretenberg::fr VerifierTurboRangeWidget::compute_quotient_evaluation_contribut
 
     constexpr fr minus_two = -fr(2);
     constexpr fr minus_three = -fr(3);
-
 
     fr delta_1 = w_4_eval + w_4_eval;
     delta_1 += delta_1;
@@ -379,12 +377,24 @@ barretenberg::fr VerifierTurboRangeWidget::compute_quotient_evaluation_contribut
     return alpha_d * alpha;
 }
 
-barretenberg::fr VerifierTurboRangeWidget::compute_batch_evaluation_contribution(verification_key*,
-                                                                                 barretenberg::fr&,
-                                                                                 const barretenberg::fr& nu_base,
-                                                                                 const transcript::Transcript&)
+barretenberg::fr VerifierTurboRangeWidget::compute_batch_evaluation_contribution(
+    verification_key*,
+    barretenberg::fr& batch_eval,
+    const barretenberg::fr& nu_base,
+    const transcript::Transcript& transcript,
+    const bool use_linearisation)
 {
-    return nu_base;
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr q_range_eval = fr::serialize_from_buffer(&transcript.get_element("q_range")[0]);
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    batch_eval += (q_range_eval * nu_base);
+
+    return nu_base * nu;
 }
 
 VerifierBaseWidget::challenge_coefficients VerifierTurboRangeWidget::append_scalar_multiplication_inputs(
@@ -392,83 +402,102 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboRangeWidget::append_scal
     const challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+    std::vector<barretenberg::fr>& scalars,
+    const bool use_linearisation)
 {
-    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
-    fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
+    if (use_linearisation) {
+        fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
+        fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+        fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+        fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+        fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
 
-    constexpr fr minus_two = -fr(2);
-    constexpr fr minus_three = -fr(3);
+        constexpr fr minus_two = -fr(2);
+        constexpr fr minus_three = -fr(3);
 
+        fr alpha_a = challenge.alpha_base;
+        fr alpha_b = alpha_a * challenge.alpha_step;
+        fr alpha_c = alpha_b * challenge.alpha_step;
+        fr alpha_d = alpha_c * challenge.alpha_step;
+
+        fr delta_1 = w_4_eval + w_4_eval;
+        delta_1 += delta_1;
+        delta_1 = w_3_eval - delta_1;
+
+        fr delta_2 = w_3_eval + w_3_eval;
+        delta_2 += delta_2;
+        delta_2 = w_2_eval - delta_2;
+
+        fr delta_3 = w_2_eval + w_2_eval;
+        delta_3 += delta_3;
+        delta_3 = w_1_eval - delta_3;
+
+        fr delta_4 = w_1_eval + w_1_eval;
+        delta_4 += delta_4;
+        delta_4 = w_4_omega_eval - delta_4;
+
+        // D(D - 1)(D - 2)(D - 3).alpha
+        fr T0 = delta_1.sqr();
+        T0 -= delta_1;
+        fr T1 = delta_1 + minus_two;
+        T0 *= T1;
+        T1 = delta_1 + minus_three;
+        T0 *= T1;
+        fr range_accumulator = T0 * alpha_a;
+
+        T0 = delta_2.sqr();
+        T0 -= delta_2;
+        T1 = delta_2 + minus_two;
+        T0 *= T1;
+        T1 = delta_2 + minus_three;
+        T0 *= T1;
+        T0 *= alpha_b;
+        range_accumulator += T0;
+
+        T0 = delta_3.sqr();
+        T0 -= delta_3;
+        T1 = delta_3 + minus_two;
+        T0 *= T1;
+        T1 = delta_3 + minus_three;
+        T0 *= T1;
+        T0 *= alpha_c;
+        range_accumulator += T0;
+
+        T0 = delta_4.sqr();
+        T0 -= delta_4;
+        T1 = delta_4 + minus_two;
+        T0 *= T1;
+        T1 = delta_4 + minus_three;
+        T0 *= T1;
+        T0 *= alpha_d;
+        range_accumulator += T0;
+
+        range_accumulator *= challenge.linear_nu;
+
+        if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+            scalars.push_back(range_accumulator);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ alpha_d * challenge.alpha_step,
+                                                           challenge.alpha_step,
+                                                           challenge.nu_base,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
+    }
+    if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+        scalars.push_back(challenge.nu_base);
+    }
     fr alpha_a = challenge.alpha_base;
     fr alpha_b = alpha_a * challenge.alpha_step;
     fr alpha_c = alpha_b * challenge.alpha_step;
     fr alpha_d = alpha_c * challenge.alpha_step;
 
-    fr delta_1 = w_4_eval + w_4_eval;
-    delta_1 += delta_1;
-    delta_1 = w_3_eval - delta_1;
-
-    fr delta_2 = w_3_eval + w_3_eval;
-    delta_2 += delta_2;
-    delta_2 = w_2_eval - delta_2;
-
-    fr delta_3 = w_2_eval + w_2_eval;
-    delta_3 += delta_3;
-    delta_3 = w_1_eval - delta_3;
-
-    fr delta_4 = w_1_eval + w_1_eval;
-    delta_4 += delta_4;
-    delta_4 = w_4_omega_eval - delta_4;
-
-    // D(D - 1)(D - 2)(D - 3).alpha
-    fr T0 = delta_1.sqr();
-    T0 -= delta_1;
-    fr T1 = delta_1 + minus_two;
-    T0 *= T1;
-    T1 = delta_1 + minus_three;
-    T0 *= T1;
-    fr range_accumulator = T0 * alpha_a;
-
-    T0 = delta_2.sqr();
-    T0 -= delta_2;
-    T1 = delta_2 + minus_two;
-    T0 *= T1;
-    T1 = delta_2 + minus_three;
-    T0 *= T1;
-    T0 *= alpha_b;
-    range_accumulator += T0;
-
-    T0 = delta_3.sqr();
-    T0 -= delta_3;
-    T1 = delta_3 + minus_two;
-    T0 *= T1;
-    T1 = delta_3 + minus_three;
-    T0 *= T1;
-    T0 *= alpha_c;
-    range_accumulator += T0;
-
-    T0 = delta_4.sqr();
-    T0 -= delta_4;
-    T1 = delta_4 + minus_two;
-    T0 *= T1;
-    T1 = delta_4 + minus_three;
-    T0 *= T1;
-    T0 *= alpha_d;
-    range_accumulator += T0;
-
-    range_accumulator *= challenge.linear_nu;
-
-    if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
-        scalars.push_back(range_accumulator);
-    }
-
-    return VerifierBaseWidget::challenge_coefficients{
-        alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_base, challenge.nu_step, challenge.linear_nu
-    };
+    return VerifierBaseWidget::challenge_coefficients{ alpha_d * challenge.alpha_step,
+                                                       challenge.alpha_step,
+                                                       challenge.nu_base * challenge.nu_step,
+                                                       challenge.nu_step,
+                                                       challenge.linear_nu };
 }
 } // namespace waffle

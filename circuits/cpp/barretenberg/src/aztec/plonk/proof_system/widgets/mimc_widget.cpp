@@ -168,14 +168,27 @@ fr VerifierMiMCWidget::compute_quotient_evaluation_contribution(verification_key
 barretenberg::fr VerifierMiMCWidget::compute_batch_evaluation_contribution(verification_key*,
                                                                            barretenberg::fr& batch_eval,
                                                                            const barretenberg::fr& nu_base,
-                                                                           const transcript::Transcript& transcript)
+                                                                           const transcript::Transcript& transcript,
+                                                                           const bool use_linearisation)
 {
     fr q_mimc_coefficient_eval = fr::serialize_from_buffer(&transcript.get_element("q_mimc_coefficient")[0]);
     fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
 
-    batch_eval += (q_mimc_coefficient_eval * nu_base);
+    if (use_linearisation) {
+        batch_eval += (q_mimc_coefficient_eval * nu_base);
 
-    return nu_base * nu;
+        return nu_base * nu;
+    }
+
+    fr q_mimc_selector_eval = fr::serialize_from_buffer(&transcript.get_element("q_mimc_selector")[0]);
+
+    std::array<barretenberg::fr, 2> nu_powers;
+    nu_powers[0] = nu_base;
+    nu_powers[1] = nu_powers[0] * nu;
+    batch_eval += (q_mimc_coefficient_eval * nu_powers[0]);
+    batch_eval += (q_mimc_selector_eval * nu_powers[1]);
+
+    return nu_powers[1] * nu;
 }
 
 VerifierBaseWidget::challenge_coefficients VerifierMiMCWidget::append_scalar_multiplication_inputs(
@@ -183,32 +196,54 @@ VerifierBaseWidget::challenge_coefficients VerifierMiMCWidget::append_scalar_mul
     const VerifierBaseWidget::challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+    std::vector<barretenberg::fr>& scalars,
+    const bool use_linearisation)
 {
+    if (use_linearisation) {
+        if (key->constraint_selectors.at("Q_MIMC_COEFFICIENT").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_MIMC_COEFFICIENT"));
+            scalars.push_back(challenge.nu_base);
+        }
+        fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
+        fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
+        fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
+        fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
+        fr q_mimc_coefficient_eval = fr::serialize_from_buffer(&transcript.get_element("q_mimc_coefficient")[0]);
+
+        fr mimc_T0 = w_l_eval + w_o_eval + q_mimc_coefficient_eval;
+        fr mimc_a = (mimc_T0.sqr() * mimc_T0) - w_r_eval;
+        fr q_mimc_term =
+            ((w_r_eval.sqr() * mimc_T0 - w_o_shifted_eval) * challenge.alpha_step + mimc_a) * challenge.alpha_base;
+        q_mimc_term = q_mimc_term * challenge.linear_nu;
+
+        if (key->constraint_selectors.at("Q_MIMC_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_MIMC_SELECTOR"));
+            scalars.push_back(q_mimc_term);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step.sqr(),
+                                                           challenge.alpha_step,
+                                                           challenge.nu_base * challenge.nu_step,
+                                                           challenge.nu_step,
+                                                           challenge.linear_nu };
+    }
+
+    std::array<barretenberg::fr, 2> nu_powers;
+    nu_powers[0] = challenge.nu_base;
+    nu_powers[1] = nu_powers[0] * challenge.nu_step;
+
     if (key->constraint_selectors.at("Q_MIMC_COEFFICIENT").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_MIMC_COEFFICIENT"));
-        scalars.push_back(challenge.nu_base);
+        scalars.push_back(nu_powers[0]);
     }
-    fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_r_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_o_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
-    fr q_mimc_coefficient_eval = fr::serialize_from_buffer(&transcript.get_element("q_mimc_coefficient")[0]);
-
-    fr mimc_T0 = w_l_eval + w_o_eval + q_mimc_coefficient_eval;
-    fr mimc_a = (mimc_T0.sqr() * mimc_T0) - w_r_eval;
-    fr q_mimc_term =
-        ((w_r_eval.sqr() * mimc_T0 - w_o_shifted_eval) * challenge.alpha_step + mimc_a) * challenge.alpha_base;
-    q_mimc_term = q_mimc_term * challenge.linear_nu;
-
     if (key->constraint_selectors.at("Q_MIMC_SELECTOR").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_MIMC_SELECTOR"));
-        scalars.push_back(q_mimc_term);
+        scalars.push_back(nu_powers[1]);
     }
 
     return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base * challenge.alpha_step.sqr(),
                                                        challenge.alpha_step,
-                                                       challenge.nu_base * challenge.nu_step,
+                                                       nu_powers[1] * challenge.nu_step,
                                                        challenge.nu_step,
                                                        challenge.linear_nu };
 }

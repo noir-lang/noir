@@ -102,7 +102,7 @@ void ProverSequentialWidget::compute_transcript_elements(transcript::Transcript&
         return;
     }
     fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
-    transcript.add_element("q_3_next", q_3_next.evaluate(z, key->small_domain.size).to_buffer());
+    transcript.add_element("q_3_omega", q_3_next.evaluate(z, key->small_domain.size).to_buffer());
 }
 
 // ###
@@ -125,7 +125,7 @@ fr VerifierSequentialWidget::compute_quotient_evaluation_contribution(verificati
 
     fr w_3_next_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
 
-    fr q_3_next_eval = fr::serialize_from_buffer(&transcript.get_element("q_3_next")[0]);
+    fr q_3_next_eval = fr::serialize_from_buffer(&transcript.get_element("q_3_omega")[0]);
 
     barretenberg::fr old_alpha = alpha_base * alpha.invert();
 
@@ -135,29 +135,61 @@ fr VerifierSequentialWidget::compute_quotient_evaluation_contribution(verificati
     return alpha_base;
 }
 
+fr VerifierSequentialWidget::compute_batch_evaluation_contribution(verification_key*,
+                                                                   fr& batch_eval,
+                                                                   const fr& nu_base,
+                                                                   const transcript::Transcript& transcript,
+                                                                   bool use_linearisation)
+{
+    if (use_linearisation) {
+        return nu_base;
+    }
+
+    fr q_3_omega_eval = fr::serialize_from_buffer(&transcript.get_element("q_3_omega")[0]);
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu")[0]);
+
+    batch_eval += (q_3_omega_eval * nu_base);
+
+    return nu_base * nu;
+};
+
 VerifierBaseWidget::challenge_coefficients VerifierSequentialWidget::append_scalar_multiplication_inputs(
     verification_key* key,
     const challenge_coefficients& challenge,
     const transcript::Transcript& transcript,
     std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+    std::vector<barretenberg::fr>& scalars,
+    const bool use_linearisation)
 {
-    fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
+    if (use_linearisation) {
+        fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
 
-    barretenberg::fr old_alpha = (challenge.alpha_base * (challenge.alpha_step.invert()));
+        barretenberg::fr old_alpha = (challenge.alpha_base * (challenge.alpha_step.invert()));
 
-    // Q_M term = w_l * w_r * challenge.alpha_base * nu
-    fr q_o_next_term;
-    q_o_next_term = w_o_shifted_eval * old_alpha;
-    q_o_next_term *= challenge.linear_nu;
+        // Q_M term = w_l * w_r * challenge.alpha_base * nu
+        fr q_o_next_term;
+        q_o_next_term = w_o_shifted_eval * old_alpha;
+        q_o_next_term *= challenge.linear_nu;
+
+        if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
+            scalars.push_back(q_o_next_term);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients{
+            challenge.alpha_base, challenge.alpha_step, challenge.nu_base, challenge.nu_step, challenge.linear_nu
+        };
+    }
 
     if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
-        scalars.push_back(q_o_next_term);
+        scalars.push_back(challenge.nu_base);
     }
-
-    return VerifierBaseWidget::challenge_coefficients{
-        challenge.alpha_base, challenge.alpha_step, challenge.nu_base, challenge.nu_step, challenge.linear_nu
-    };
+    return VerifierBaseWidget::challenge_coefficients{ challenge.alpha_base,
+                                                       challenge.alpha_step,
+                                                       challenge.nu_base * challenge.nu_step,
+                                                       challenge.nu_step,
+                                                       challenge.linear_nu };
 }
 } // namespace waffle

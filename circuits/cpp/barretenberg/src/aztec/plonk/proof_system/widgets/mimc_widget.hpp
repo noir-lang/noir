@@ -12,12 +12,14 @@ class VerifierMiMCWidget : public VerifierBaseWidget {
         const challenge_coefficients& challenge,
         const transcript::Transcript& transcript,
         std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars);
+        std::vector<barretenberg::fr>& scalars,
+        const bool use_linearisation);
 
     static barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
                                                                   barretenberg::fr& batch_eval,
                                                                   const barretenberg::fr& nu_base,
-                                                                  const transcript::Transcript& transcript);
+                                                                  const transcript::Transcript& transcript,
+                                                                  const bool use_linearisation);
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
                                                                      const barretenberg::fr& alpha_base,
