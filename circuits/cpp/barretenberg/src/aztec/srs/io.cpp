@@ -26,10 +26,13 @@ size_t get_transcript_size(const Manifest& manifest)
     return manifest_size + g1_buffer_size + g2_buffer_size + BLAKE2B_CHECKSUM_LENGTH;
 }
 
-void read_manifest(std::vector<char>& buffer, Manifest& manifest)
+void read_manifest(std::string const& filename, Manifest& manifest)
 {
-    auto manifest_buf = (Manifest*)&buffer[0];
-    std::copy(manifest_buf, manifest_buf + 1, &manifest);
+    std::ifstream file;
+    file.open(filename, std::ifstream::binary);
+    file.read((char*)&manifest, sizeof(Manifest));
+    file.close();
+
     manifest.transcript_number = ntohl(manifest.transcript_number);
     manifest.total_transcripts = ntohl(manifest.total_transcripts);
     manifest.total_g1_points = ntohl(manifest.total_g1_points);
@@ -39,7 +42,7 @@ void read_manifest(std::vector<char>& buffer, Manifest& manifest)
     manifest.start_from = ntohl(manifest.start_from);
 }
 
-void read_g1_elements_from_buffer(g1::affine_element* elements, char* buffer, size_t buffer_size)
+void read_g1_elements_from_buffer(g1::affine_element* elements, char const* buffer, size_t buffer_size)
 {
     constexpr size_t bytes_per_element = sizeof(g1::affine_element);
     size_t num_elements = buffer_size / bytes_per_element;
@@ -61,7 +64,7 @@ void read_g1_elements_from_buffer(g1::affine_element* elements, char* buffer, si
     }
 }
 
-void read_g2_elements_from_buffer(g2::affine_element* elements, char* buffer, size_t buffer_size)
+void read_g2_elements_from_buffer(g2::affine_element* elements, char const* buffer, size_t buffer_size)
 {
     constexpr size_t bytes_per_element = sizeof(g2::affine_element);
     size_t num_elements = buffer_size / bytes_per_element;
@@ -137,16 +140,15 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
 
     while (is_file_exist(path) && num_read < degree) {
         Manifest manifest;
+        read_manifest(path, manifest);
 
-        auto buffer = read_file_into_buffer(path);
-
-        read_manifest(buffer, manifest);
-
+        auto offset = sizeof(Manifest);
         const size_t num_to_read = std::min((size_t)manifest.num_g1_points, degree - num_read);
-        const size_t manifest_size = sizeof(Manifest);
         const size_t g1_buffer_size = sizeof(fq) * 2 * num_to_read;
 
-        read_g1_elements_from_buffer(&monomials[num_read], &buffer[manifest_size], g1_buffer_size);
+        auto buffer = read_file_into_buffer(path, offset, g1_buffer_size);
+
+        read_g1_elements_from_buffer(&monomials[num_read], buffer.data(), g1_buffer_size);
 
         num_read += num_to_read;
         path = get_transcript_path(dir, ++num);
@@ -163,23 +165,17 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
 
 void read_transcript_g2(g2::affine_element& g2_x, std::string const& dir)
 {
-    Manifest manifest;
-
     std::string path = get_transcript_path(dir, 0);
-    auto buffer = read_file_into_buffer(path);
-
-    read_manifest(buffer, manifest);
-
-    const size_t manifest_size = sizeof(Manifest);
+    Manifest manifest;
+    read_manifest(path, manifest);
 
     const size_t g2_buffer_offset = sizeof(fq) * 2 * manifest.num_g1_points;
-    const size_t g2_buffer_size = sizeof(fq2) * 2 * 2;
+    const size_t g2_size = sizeof(fq2) * 2;
+    auto offset = sizeof(Manifest) + g2_buffer_offset;
 
-    g2::affine_element* g2_buffer = (g2::affine_element*)(aligned_alloc(32, sizeof(g2::affine_element) * (2)));
+    auto buffer = read_file_into_buffer(path, offset, g2_size);
 
-    read_g2_elements_from_buffer(g2_buffer, &buffer[manifest_size + g2_buffer_offset], g2_buffer_size);
-    g2_x = g2_buffer[0];
-    aligned_free(g2_buffer);
+    read_g2_elements_from_buffer(&g2_x, buffer.data(), g2_size);
 }
 
 void read_transcript(g1::affine_element* monomials, g2::affine_element& g2_x, size_t degree, std::string const& path)

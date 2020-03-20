@@ -7,6 +7,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <gtest/gtest.h>
 #include <polynomials/polynomial_arithmetic.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 namespace verifier_helpers {
 
@@ -62,11 +63,12 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
 
     for (size_t i = 0; i < 8; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n));
+            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n));
     }
 
+    auto crs = std::make_shared<waffle::VerifierFileReferenceString>("../srs_db");
     std::shared_ptr<verification_key> circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, "../srs_db");
+        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
@@ -93,7 +95,8 @@ waffle::Prover generate_test_data(const size_t n)
 
     // even indices = mul gates, odd incides = add gates
 
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, "../srs_db");
+    auto crs = std::make_shared<waffle::FileReferenceString>(n, "../srs_db");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs);
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
 
     polynomial w_l;

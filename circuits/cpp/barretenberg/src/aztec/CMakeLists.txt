@@ -30,10 +30,10 @@ add_subdirectory(polynomials)
 add_subdirectory(plonk)
 add_subdirectory(stdlib)
 add_subdirectory(noir)
+add_subdirectory(rollup)
 
-if(NOT WASM)
+if(BENCHMARKS)
     add_subdirectory(plonk_bench)
-    add_subdirectory(rollup)
 endif()
 
 if(WASM)
@@ -41,6 +41,7 @@ if(WASM)
         barretenberg.wasm
         $<TARGET_OBJECTS:schnorr_objects>
         $<TARGET_OBJECTS:ecc_objects>
+        $<TARGET_OBJECTS:rollup_client_proofs_objects>
     )
 
     target_link_options(
@@ -52,7 +53,6 @@ if(WASM)
     target_link_libraries(
         barretenberg.wasm
         PRIVATE
-        schnorr
-        ecc
+        rollup_client_proofs
     )
 endif()

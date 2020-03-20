@@ -4,7 +4,9 @@
 namespace waffle {
 class TurboComposer : public ComposerBase {
   public:
-    TurboComposer(std::string const& crs_path = BARRETENBERG_SRS_PATH, const size_t size_hint = 0);
+    TurboComposer();
+    TurboComposer(std::string const& crs_path, const size_t size_hint = 0);
+    TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
     TurboComposer(std::shared_ptr<proving_key> const& p_key,
                   std::shared_ptr<verification_key> const& v_key,
                   size_t size_hint = 0);

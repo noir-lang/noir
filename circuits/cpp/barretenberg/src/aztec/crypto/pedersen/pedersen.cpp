@@ -15,6 +15,7 @@ static constexpr size_t quad_length = bit_length / 2;
 static std::array<grumpkin::g1::affine_element, num_generators> generators;
 static std::array<std::array<fixed_base_ladder, quad_length>, num_generators> ladders;
 static std::array<std::array<fixed_base_ladder, quad_length>, num_generators> hash_ladders;
+static bool inited = false;
 
 const auto init = []() {
     generators = grumpkin::g1::derive_generators<num_generators>();
@@ -33,8 +34,9 @@ const auto init = []() {
                 ladders[i * 2 + 1][j + (quad_length - second_generator_segment)];
         }
     }
+    inited = true;
     return 1;
-}();
+};
 } // namespace
 
 void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, fixed_base_ladder* ladder)
@@ -135,6 +137,10 @@ grumpkin::g1::affine_element get_generator(const size_t generator_index)
 
 grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index)
 {
+    if (!inited) {
+        init();
+    }
+
     barretenberg::fr scalar_multiplier = in.from_montgomery_form();
 
     constexpr size_t num_bits = 254;

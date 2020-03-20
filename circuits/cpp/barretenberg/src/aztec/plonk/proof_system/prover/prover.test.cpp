@@ -3,6 +3,7 @@
 #include "prover.hpp"
 #include <gtest/gtest.h>
 #include <polynomials/polynomial_arithmetic.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 /*
 ```
@@ -105,7 +106,8 @@ waffle::Prover generate_test_data(const size_t n)
 
     // even indices = mul gates, odd incides = add gates
 
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, "../srs_db");
+    auto reference_string = std::make_shared<waffle::FileReferenceString>(n, "../srs_db");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string);
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
 
     polynomial w_l;

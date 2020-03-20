@@ -1,12 +1,12 @@
 #pragma once
 #include "composer_base.hpp"
 #include <plonk/transcript/manifest.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 namespace waffle {
 class StandardComposer : public ComposerBase {
   public:
     StandardComposer(const size_t size_hint = 0)
-        : ComposerBase()
     {
         features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
         w_l.reserve(size_hint);

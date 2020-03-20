@@ -2,10 +2,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
-
-#ifndef BARRETENBERG_SRS_PATH
-#define BARRETENBERG_SRS_PATH "../srs_db"
-#endif
+#include <plonk/reference_string/file_reference_string.hpp>
 
 namespace waffle {
 
@@ -147,11 +144,12 @@ class ComposerBase {
     };
 
     ComposerBase()
+        : ComposerBase(std::make_unique<FileReferenceStringFactory>("../srs_db"))
+    {}
+    ComposerBase(std::unique_ptr<ReferenceStringFactory>&& crs_factory)
         : n(0)
-        , crs_path(BARRETENBERG_SRS_PATH){};
-    ComposerBase(std::string const& crs_path_)
-        : n(0)
-        , crs_path(crs_path_){};
+        , crs_factory_(std::move(crs_factory))
+    {}
     ComposerBase(std::shared_ptr<proving_key> const& p_key, std::shared_ptr<verification_key> const& v_key)
         : n(0)
         , computed_proving_key(true)
@@ -243,7 +241,7 @@ class ComposerBase {
     bool computed_witness = false;
     std::shared_ptr<program_witness> witness;
 
-    std::string crs_path;
+    std::unique_ptr<ReferenceStringFactory> crs_factory_;
 };
 
 extern template void ComposerBase::compute_sigma_permutations<3>(proving_key* key);
