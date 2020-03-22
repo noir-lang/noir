@@ -1,1 +1,1 @@
-barretenberg_module(srs ecc)
+barretenberg_module(srs)
