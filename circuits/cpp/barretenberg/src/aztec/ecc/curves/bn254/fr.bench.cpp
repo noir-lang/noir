@@ -218,30 +218,7 @@ void unary_minus_bench(State& state) noexcept
 }
 BENCHMARK(unary_minus_bench);
 
-fr static_mul_assign_impl(const fr& x, const fr& y)
-{
-    fr acc = x;
-    for (size_t i = 0; i < NUM_POINTS; ++i) {
-        acc += y;
-    }
-    return acc;
-}
-void static_mul_assign_bench(State& state) noexcept
-{
-    uint64_t clocks = 0;
-    uint64_t count = 0;
-    for (auto _ : state) {
-        uint64_t before = rdtsc();
-        DoNotOptimize(static_mul_assign_impl(accx, accy));
-        clocks += (rdtsc() - before);
-        ++count;
-    }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
-    std::cout << "static mul assign clocks per operation = " << average << std::endl;
-}
-BENCHMARK(static_mul_assign_bench);
-
-fr mul_assign_impl(const fr& x, fr& y)
+fr mul_assign_impl(const fr& x, const fr& y)
 {
     fr acc = x;
     for (size_t i = 0; i < NUM_POINTS; ++i) {
@@ -264,7 +241,7 @@ void mul_assign_bench(State& state) noexcept
 }
 BENCHMARK(mul_assign_bench);
 
-fr mul_impl(const fr& x, fr& y)
+fr mul_impl(const fr& x, const fr& y)
 {
     fr acc = x;
     for (size_t i = 0; i < NUM_POINTS; ++i) {
