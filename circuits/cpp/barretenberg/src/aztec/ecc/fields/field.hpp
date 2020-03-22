@@ -160,7 +160,7 @@ template <class Params> struct alignas(32) field {
         return result.to_montgomery_form();
     }
 
-    inline std::vector<uint8_t> to_buffer()
+    inline std::vector<uint8_t> to_buffer() const
     {
         std::vector<uint8_t> buffer(sizeof(field));
         field::serialize_to_buffer(*this, &buffer[0]);
