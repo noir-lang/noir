@@ -1,6 +1,7 @@
 #pragma once
 #include "../types/program_witness.hpp"
 #include "../verification_key/verification_key.hpp"
+#include "../../transcript/transcript_wrappers.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace transcript {
@@ -15,12 +16,11 @@ class ReferenceString;
 
 class VerifierBaseWidget {
   public:
-    struct challenge_coefficients {
-        barretenberg::fr alpha_base;
-        barretenberg::fr alpha_step;
-        barretenberg::fr nu_base;
-        barretenberg::fr nu_step;
-        barretenberg::fr linear_nu;
+    template <typename Field> struct challenge_coefficients {
+        Field alpha_base;
+        Field alpha_step;
+        size_t nu_index;
+        size_t linear_nu_index;
     };
     VerifierBaseWidget() = default;
     VerifierBaseWidget(const VerifierBaseWidget& other) = default;
@@ -97,11 +97,11 @@ class ProverBaseWidget {
     virtual barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                          const transcript::Transcript& transcript,
                                                          barretenberg::polynomial& r) = 0;
-    virtual barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                               const transcript::Transcript& transcript,
-                                                               barretenberg::fr* poly,
-                                                               barretenberg::fr* shifted_poly,
-                                                               const bool use_linearisation) = 0;
+    virtual size_t compute_opening_poly_contribution(const size_t nu_index,
+                                                     const transcript::Transcript& transcript,
+                                                     barretenberg::fr* poly,
+                                                     barretenberg::fr* shifted_poly,
+                                                     const bool use_linearisation) = 0;
     virtual void compute_transcript_elements(transcript::Transcript&, const bool) = 0;
 
     proving_key* key;

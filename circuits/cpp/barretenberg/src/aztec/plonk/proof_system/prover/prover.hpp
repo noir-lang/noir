@@ -4,7 +4,7 @@
 #include "../types/program_settings.hpp"
 #include "../types/program_witness.hpp"
 #include "../widgets/base_widget.hpp"
-#include <plonk/transcript/transcript.hpp>
+#include "../../transcript/transcript.hpp"
 
 namespace waffle {
 
