@@ -1,6 +1,5 @@
 #include "field.hpp"
 #include "../bool/bool.hpp"
-#include "../byte_array/byte_array.hpp"
 #include "../composers/composers.hpp"
 
 namespace plonk {
@@ -66,30 +65,6 @@ template <typename ComposerContext> field_t<ComposerContext>::field_t(const bool
 }
 
 template <typename ComposerContext>
-field_t<ComposerContext>::field_t(byte_array<ComposerContext> const& other)
-    : context(other.get_context())
-    , additive_constant(barretenberg::fr::zero())
-    , multiplicative_constant(barretenberg::fr::one())
-    , witness_index(static_cast<uint32_t>(-1))
-{
-    auto bits = other.bits();
-
-    barretenberg::fr two = barretenberg::fr{ 2, 0, 0, 0 }.to_montgomery_form();
-
-    for (size_t i = 0; i < bits.size(); ++i) {
-        field_t<ComposerContext> temp(bits[i].context);
-        if (bits[i].is_constant()) {
-            temp.additive_constant = bits[i].get_value() ? barretenberg::fr::one() : barretenberg::fr::zero();
-        } else {
-            temp.witness_index = bits[i].witness_index;
-        }
-        barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(255 - i));
-        field_t<ComposerContext> scaling_factor(bits[i].context, scaling_factor_value);
-        *this = *this + (scaling_factor * temp);
-    }
-}
-
-template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::from_witness_index(ComposerContext* ctx,
                                                                       const uint32_t witness_index)
 {
@@ -123,33 +98,6 @@ template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<Co
     result.witness_index = witness_index;
     context->create_bool_gate(witness_index);
     return result;
-}
-
-template <typename ComposerContext> field_t<ComposerContext>::operator byte_array<ComposerContext>() const
-{
-    barretenberg::fr value = get_value().from_montgomery_form();
-    typename byte_array<ComposerContext>::bits_t bits(256, bool_t(context));
-
-    if (is_constant()) {
-        for (size_t i = 0; i < 256; ++i) {
-            bits[i] = value.get_bit(255 - i);
-        }
-    } else {
-        barretenberg::fr two = barretenberg::fr{ 2, 0, 0, 0 }.to_montgomery_form();
-        field_t<ComposerContext> validator(context, barretenberg::fr::zero());
-
-        for (size_t i = 0; i < 256; ++i) {
-            bool_t bit = witness_t(context, value.get_bit(255 - i));
-            bits[i] = bit;
-            barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(255 - i));
-            field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
-            validator = validator + (scaling_factor * field_t<ComposerContext>(bit));
-        }
-
-        context->assert_equal(validator.witness_index, witness_index);
-    }
-
-    return byte_array<ComposerContext>(context, bits);
 }
 
 template <typename ComposerContext> field_t<ComposerContext>& field_t<ComposerContext>::operator=(const field_t& other)

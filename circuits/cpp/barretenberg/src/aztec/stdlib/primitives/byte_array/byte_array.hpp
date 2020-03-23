@@ -1,5 +1,6 @@
 #pragma once
 #include "../bool/bool.hpp"
+#include "../field/field.hpp"
 #include "../composers/composers_fwd.hpp"
 
 namespace plonk {
@@ -15,6 +16,7 @@ template <typename ComposerContext> class byte_array {
     byte_array(ComposerContext* parent_context, std::vector<uint8_t> const& input);
     byte_array(ComposerContext* parent_context, bits_t const& input);
     byte_array(ComposerContext* parent_context, bits_t&& input);
+    byte_array(const field_t<ComposerContext>& input, const size_t num_bytes = 32);
 
     template <typename ItBegin, typename ItEnd>
     byte_array(ComposerContext* parent_context, ItBegin const& begin, ItEnd const& end)
@@ -27,6 +29,8 @@ template <typename ComposerContext> class byte_array {
 
     byte_array& operator=(const byte_array& other);
     byte_array& operator=(byte_array&& other);
+
+    explicit operator field_t<ComposerContext>() const;
 
     byte_array& write(byte_array const& other);
 

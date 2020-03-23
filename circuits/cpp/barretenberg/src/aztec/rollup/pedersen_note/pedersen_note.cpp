@@ -150,7 +150,7 @@ public_note encrypt_note(const private_note& plaintext)
 {
     Composer* context = plaintext.value.get_context();
 
-    field_ct k = static_cast<uint32_ct>(plaintext.value);
+    field_ct k = static_cast<field_ct>(plaintext.value);
 
     note_triple p_1 = fixed_base_scalar_mul<32>(k, 0);
     note_triple p_2 = fixed_base_scalar_mul<250>(plaintext.secret, 1);

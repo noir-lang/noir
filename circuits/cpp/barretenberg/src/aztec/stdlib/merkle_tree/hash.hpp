@@ -13,7 +13,7 @@ namespace merkle_tree {
 template <typename ComposerContext> inline field_t<ComposerContext> hash_value(byte_array<ComposerContext> const& input)
 {
     ASSERT(input.get_context() != nullptr);
-    return stdlib::blake2s(input);
+    return static_cast<field_t<ComposerContext>>(stdlib::blake2s(input));
 }
 
 inline barretenberg::fr hash_value_native(std::string const& input)

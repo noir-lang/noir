@@ -6,7 +6,6 @@ namespace plonk {
 namespace stdlib {
 
 template <typename ComposerContext> class bool_t;
-template <typename ComposerContext> class byte_array;
 
 template <typename ComposerContext> class field_t {
   public:
@@ -37,13 +36,12 @@ template <typename ComposerContext> class field_t {
     field_t(const witness_t<ComposerContext>& value);
     field_t(const field_t& other);
     field_t(field_t&& other);
-    field_t(byte_array<ComposerContext> const& other);
 
     field_t(const bool_t<ComposerContext>& other);
 
     static field_t from_witness_index(ComposerContext* parent_context, const uint32_t witness_index);
-    operator bool_t<ComposerContext>();
-    operator byte_array<ComposerContext>() const;
+    
+    explicit operator bool_t<ComposerContext>();
 
     field_t& operator=(const field_t& other);
     field_t& operator=(field_t&& other);
@@ -127,6 +125,8 @@ template <typename ComposerContext> class field_t {
     field_t normalize() const;
 
     barretenberg::fr get_value() const;
+
+    ComposerContext* get_context() const { return context; }
 
     bool_t<ComposerContext> is_zero();
     void assert_not_zero();

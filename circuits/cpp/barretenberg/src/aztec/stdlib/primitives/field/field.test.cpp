@@ -1,5 +1,4 @@
 #include "../bool/bool.hpp"
-#include "../byte_array/byte_array.hpp"
 #include "field.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/standard_composer.hpp>
@@ -12,7 +11,6 @@ typedef stdlib::bool_t<waffle::StandardComposer> bool_t;
 typedef stdlib::field_t<waffle::StandardComposer> field_t;
 typedef stdlib::witness_t<waffle::StandardComposer> witness_t;
 typedef stdlib::public_witness_t<waffle::StandardComposer> public_witness_t;
-typedef stdlib::byte_array<waffle::StandardComposer> byte_array;
 
 void fibbonaci(waffle::StandardComposer& composer)
 {
@@ -239,31 +237,6 @@ TEST(stdlib_field, is_zero)
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
-
-TEST(stdlib_field, test_byte_array_input_output_consistency)
-{
-    waffle::StandardComposer composer = waffle::StandardComposer();
-
-    fr a_expected = fr::random_element();
-    fr b_expected = fr::random_element();
-
-    field_t a = witness_t(&composer, a_expected);
-    field_t b = witness_t(&composer, b_expected);
-
-    byte_array arr(&composer);
-
-    arr.write(a);
-    arr.write(b);
-
-    EXPECT_EQ(arr.size(), 64UL);
-
-    field_t a_result(arr.slice(0, 32));
-    field_t b_result(arr.slice(32));
-
-    EXPECT_EQ(a_result.get_value(), a_expected);
-    EXPECT_EQ(b_result.get_value(), b_expected);
-}
-
 
 TEST(stdlib_field, madd)
 {
