@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../byte_array/byte_array.hpp"
 #include "../bigfield/bigfield.hpp"
 #include "../field/field.hpp"
 
@@ -47,6 +48,14 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
 
     element& operator=(const element& other);
     element& operator=(element&& other);
+
+    byte_array<Composer> to_byte_array() const
+    {
+        byte_array<Composer> result(get_context());
+        result.write(x.to_byte_array());
+        result.write(y.to_byte_array());
+        return result;
+    }
 
     element operator+(const element& other) const;
     element operator-(const element& other) const;

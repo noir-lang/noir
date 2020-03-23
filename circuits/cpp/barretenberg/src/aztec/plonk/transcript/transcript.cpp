@@ -138,11 +138,13 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name)
         }
         }
         for (size_t j = 0; j < challenges_per_hash; ++j) {
-            std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
-            std::copy(hash_output.begin() + (j * num_challenge_bytes),
-                      hash_output.begin() + (j + 1) * num_challenge_bytes,
-                      challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes));
-            round_challenges.push_back({ challenge });
+            if (2 * i + j  < num_challenges) {
+                std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
+                std::copy(hash_output.begin() + (j * num_challenge_bytes),
+                          hash_output.begin() + (j + 1) * num_challenge_bytes,
+                          challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes));
+                round_challenges.push_back({ challenge });
+            }
         }
     }
 

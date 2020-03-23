@@ -108,6 +108,18 @@ template <typename Composer, typename T> class bigfield {
     bigfield& operator=(const bigfield& other);
     bigfield& operator=(bigfield&& other);
 
+    byte_array<Composer> to_byte_array() const
+    {
+        byte_array<Composer> result(get_context());
+        field_t<Composer> lo = binary_basis_limbs[0].element + (binary_basis_limbs[1].element * shift_1);
+        field_t<Composer> hi = binary_basis_limbs[2].element + (binary_basis_limbs[3].element * shift_1);
+        lo = lo.normalize();
+        hi = hi.normalize();
+        result.write(byte_array<Composer>(hi, 16));
+        result.write(byte_array<Composer>(lo, 16));
+        return result;
+    }
+
     bigfield operator+(const bigfield& other) const;
     bigfield operator-(const bigfield& other) const;
     bigfield operator*(const bigfield& other) const;
@@ -140,6 +152,8 @@ template <typename Composer, typename T> class bigfield {
         bigfield result(nullptr, uint256_t(1));
         return result;
     }
+
+    Composer* get_context() const { return context; }
 
     void assert_equal(const bigfield&)
     {

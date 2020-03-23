@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_transcript ecc stdlib_bool stdlib_field stdlib_byte_array stdlib_blake2s transcript)
