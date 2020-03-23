@@ -3,29 +3,25 @@
 #include <numeric/random/engine.hpp>
 #include <type_traits>
 
-#ifndef DISABLE_SHENANIGANS
-#ifdef __BMI2__
-#define BBERG_USE_ASM
-#endif
+#include "field_impl_generic.hpp"
+
+#if (BBERG_NO_ASM == 0)
+#include "field_impl_x64.hpp"
 #endif
 
 #include "field_impl_generic.hpp"
-
-#ifdef BBERG_USE_ASM
-#include "field_impl_x64.hpp"
-#endif
 
 namespace barretenberg {
 
 // template <class T> constexpr void field<T>::butterfly(field& left, field& right) noexcept
 // {
-// #ifndef BBERG_USE_ASM
+// if constexpr(BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
 
-// #else
+// } else {
 //     if (std::is_constant_evaluated()) {
 //     }
 //     return asm_butterfly(left, right);
-// #endif
+// }
 // }
 
 /**
@@ -35,27 +31,27 @@ namespace barretenberg {
  **/
 template <class T> constexpr field<T> field<T>::operator*(const field& other) const noexcept
 {
-#ifndef BBERG_USE_ASM
-    return montgomery_mul(other);
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         return montgomery_mul(other);
+    } else {
+        if (std::is_constant_evaluated()) {
+            return montgomery_mul(other);
+        }
+        return asm_mul_with_coarse_reduction(*this, other);
     }
-    return asm_mul_with_coarse_reduction(*this, other);
-#endif
 }
 
 template <class T> constexpr field<T> field<T>::operator*=(const field& other) noexcept
 {
-#ifndef BBERG_USE_ASM
-    *this = operator*(other);
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         *this = operator*(other);
     } else {
-        asm_self_mul_with_coarse_reduction(*this, other); // asm_self_mul(*this, other);
+        if (std::is_constant_evaluated()) {
+            *this = operator*(other);
+        } else {
+            asm_self_mul_with_coarse_reduction(*this, other); // asm_self_mul(*this, other);
+        }
     }
-#endif
     return *this;
 }
 
@@ -66,28 +62,28 @@ template <class T> constexpr field<T> field<T>::operator*=(const field& other) n
  **/
 template <class T> constexpr field<T> field<T>::sqr() const noexcept
 {
-#ifndef BBERG_USE_ASM
-    return montgomery_square();
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         return montgomery_square();
     } else {
-        return asm_sqr_with_coarse_reduction(*this); // asm_sqr(*this);
+        if (std::is_constant_evaluated()) {
+            return montgomery_square();
+        } else {
+            return asm_sqr_with_coarse_reduction(*this); // asm_sqr(*this);
+        }
     }
-#endif
 }
 
 template <class T> constexpr void field<T>::self_sqr() noexcept
 {
-#ifndef BBERG_USE_ASM
-    *this = montgomery_square();
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         *this = montgomery_square();
     } else {
-        asm_self_sqr_with_coarse_reduction(*this);
+        if (std::is_constant_evaluated()) {
+            *this = montgomery_square();
+        } else {
+            asm_self_sqr_with_coarse_reduction(*this);
+        }
     }
-#endif
 }
 
 /**
@@ -97,28 +93,28 @@ template <class T> constexpr void field<T>::self_sqr() noexcept
  **/
 template <class T> constexpr field<T> field<T>::operator+(const field& other) const noexcept
 {
-#ifndef BBERG_USE_ASM
-    return add(other);
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         return add(other);
     } else {
-        return asm_add_with_coarse_reduction(*this, other); // asm_add_without_reduction(*this, other);
+        if (std::is_constant_evaluated()) {
+            return add(other);
+        } else {
+            return asm_add_with_coarse_reduction(*this, other); // asm_add_without_reduction(*this, other);
+        }
     }
-#endif
 }
 
 template <class T> constexpr field<T> field<T>::operator+=(const field& other) noexcept
 {
-#ifndef BBERG_USE_ASM
-    (*this) = operator+(other);
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         (*this) = operator+(other);
     } else {
-        asm_self_add_with_coarse_reduction(*this, other); // asm_self_add(*this, other);
+        if (std::is_constant_evaluated()) {
+            (*this) = operator+(other);
+        } else {
+            asm_self_add_with_coarse_reduction(*this, other); // asm_self_add(*this, other);
+        }
     }
-#endif
     return *this;
 }
 
@@ -129,53 +125,63 @@ template <class T> constexpr field<T> field<T>::operator+=(const field& other) n
  **/
 template <class T> constexpr field<T> field<T>::operator-(const field& other) const noexcept
 {
-#ifndef BBERG_USE_ASM
-    return subtract_coarse(other); // modulus - *this;
-#else
-    if (std::is_constant_evaluated()) {
-        return subtract_coarse(other); // subtract(other);
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
+        return subtract_coarse(other); // modulus - *this;
     } else {
-        return asm_sub_with_coarse_reduction(*this, other); // asm_sub(*this, other);
+        if (std::is_constant_evaluated()) {
+            return subtract_coarse(other); // subtract(other);
+        } else {
+            return asm_sub_with_coarse_reduction(*this, other); // asm_sub(*this, other);
+        }
     }
-#endif
 }
 
 template <class T> constexpr field<T> field<T>::operator-() const noexcept
 {
+    if constexpr (T::modulus_3 >= 0x4000000000000000ULL) {
+        constexpr field p{ modulus.data[0], modulus.data[1], modulus.data[2], modulus.data[3] };
+        return p - *this; // modulus - *this;
+    }
     constexpr field p{ twice_modulus.data[0], twice_modulus.data[1], twice_modulus.data[2], twice_modulus.data[3] };
     return p - *this; // modulus - *this;
 }
 
 template <class T> constexpr field<T> field<T>::operator-=(const field& other) noexcept
 {
-#ifndef BBERG_USE_ASM
-    *this = subtract_coarse(other); // subtract(other);
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         *this = subtract_coarse(other); // subtract(other);
     } else {
-        asm_self_sub_with_coarse_reduction(*this, other); // asm_self_sub(*this, other);
+        if (std::is_constant_evaluated()) {
+            *this = subtract_coarse(other); // subtract(other);
+        } else {
+            asm_self_sub_with_coarse_reduction(*this, other); // asm_self_sub(*this, other);
+        }
     }
-#endif
     return *this;
 }
 
 template <class T> constexpr void field<T>::self_neg() noexcept
 {
-    *this = twice_modulus - *this;
+    if constexpr (T::modulus_3 >= 0x4000000000000000ULL) {
+        constexpr field p{ modulus.data[0], modulus.data[1], modulus.data[2], modulus.data[3] };
+        *this = p - *this;
+    } else {
+        constexpr field p{ twice_modulus.data[0], twice_modulus.data[1], twice_modulus.data[2], twice_modulus.data[3] };
+        *this = p - *this;
+    }
 }
 
 template <class T> constexpr void field<T>::self_conditional_negate(const uint64_t predicate) noexcept
 {
-#ifndef BBERG_USE_ASM
-    *this = predicate ? -(*this) : *this;
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         *this = predicate ? -(*this) : *this;
     } else {
-        asm_conditional_negate(*this, predicate);
+        if (std::is_constant_evaluated()) {
+            *this = predicate ? -(*this) : *this;
+        } else {
+            asm_conditional_negate(*this, predicate);
+        }
     }
-#endif
 }
 
 /**
@@ -248,28 +254,28 @@ template <class T> constexpr void field<T>::self_from_montgomery_form() noexcept
 
 template <class T> constexpr field<T> field<T>::reduce_once() const noexcept
 {
-#ifndef BBERG_USE_ASM
-    return reduce();
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         return reduce();
     } else {
-        return asm_reduce_once(*this);
+        if (std::is_constant_evaluated()) {
+            return reduce();
+        } else {
+            return asm_reduce_once(*this);
+        }
     }
-#endif
 }
 
 template <class T> constexpr void field<T>::self_reduce_once() noexcept
 {
-#ifndef BBERG_USE_ASM
-    *this = reduce();
-#else
-    if (std::is_constant_evaluated()) {
+    if constexpr (BBERG_NO_ASM || T::modulus_3 >= 0x4000000000000000ULL) {
         *this = reduce();
     } else {
-        asm_self_reduce_once(*this);
+        if (std::is_constant_evaluated()) {
+            *this = reduce();
+        } else {
+            asm_self_reduce_once(*this);
+        }
     }
-#endif
 }
 
 template <class T> constexpr field<T> field<T>::pow(const uint256_t& exponent) const noexcept

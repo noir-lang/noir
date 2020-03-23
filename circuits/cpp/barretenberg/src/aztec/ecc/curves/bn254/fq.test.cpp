@@ -453,3 +453,19 @@ TEST(fq, multiplicative_generator)
 {
     EXPECT_EQ(fq::multiplicative_generator(), fq(3));
 }
+
+TEST(fq, r_inv)
+{
+    uint256_t prime_256{
+        Bn254FqParams::modulus_0, Bn254FqParams::modulus_1, Bn254FqParams::modulus_2, Bn254FqParams::modulus_3
+    };
+    uint512_t r{ 0, 1 };
+    // -(1/q) mod r
+    uint512_t q{ -prime_256, 0 };
+    uint256_t q_inv = q.invmod(r).lo;
+    uint64_t expected = (q_inv).data[0];
+    uint64_t result = Bn254FqParams::r_inv;
+    EXPECT_EQ(result, expected);
+}
+
+//   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e

@@ -119,7 +119,7 @@ constexpr std::pair<uint256_t, uint256_t> uint256_t::divmod(const uint256_t& b) 
     return { quotient, remainder };
 }
 
-constexpr std::pair<uint256_t, uint256_t> uint256_t::mul_512(const uint256_t& other) const
+constexpr std::pair<uint256_t, uint256_t> uint256_t::mul_extended(const uint256_t& other) const
 {
     const auto [r0, t0] = mul_wide(data[0], other.data[0]);
     const auto [q0, t1] = mac(t0, data[0], other.data[1], 0);
@@ -144,6 +144,13 @@ constexpr std::pair<uint256_t, uint256_t> uint256_t::mul_512(const uint256_t& ot
     uint256_t lo(r0, r1, r2, r3);
     uint256_t hi(r4, r5, r6, r7);
     return { lo, hi };
+}
+
+constexpr uint256_t uint256_t::slice(const uint64_t start, const uint64_t end) const
+{
+    const uint64_t range = end - start;
+    const uint256_t mask = (range == 256) ? -uint256_t(1) : (uint256_t(1) << range) - 1;
+    return ((*this) >> start) & mask;
 }
 
 constexpr bool uint256_t::get_bit(const uint64_t bit_index) const

@@ -39,7 +39,6 @@ using namespace barretenberg;
 constexpr size_t NUM_POINTS = 1 << 20;
 std::vector<fr> scalars;
 waffle::ReferenceString reference_string;
-
 const auto init = []() {
     fr element = fr::random_element();
     fr accumulator = element;
@@ -56,9 +55,10 @@ const auto init = []() {
 
 int pippenger()
 {
+    scalar_multiplication::unsafe_pippenger_runtime_state state(NUM_POINTS);
     std::chrono::steady_clock::time_point time_start = std::chrono::steady_clock::now();
     g1::element result =
-        scalar_multiplication::pippenger_unsafe(&scalars[0], &reference_string.monomials[0], NUM_POINTS);
+        scalar_multiplication::pippenger_unsafe(&scalars[0], &reference_string.monomials[0], NUM_POINTS, state);
     std::chrono::steady_clock::time_point time_end = std::chrono::steady_clock::now();
     std::chrono::microseconds diff = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start);
     std::cout << "run time: " << diff.count() << "us" << std::endl;
@@ -68,6 +68,10 @@ int pippenger()
 int main()
 {
     std::cout << "executing pippenger algorithm" << std::endl;
+    pippenger();
+    pippenger();
+    pippenger();
+    pippenger();
     pippenger();
     return 0;
 }

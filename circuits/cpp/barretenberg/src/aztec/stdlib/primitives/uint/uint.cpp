@@ -61,7 +61,7 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
     field_t<Composer> accumulator(context, fr::zero());
     field_t<Composer> scaling_factor(context, fr::one());
     for (size_t i = 0; i < other.bits().size(); ++i) {
-        accumulator = accumulator + scaling_factor * other.get_bit(i);
+        accumulator = accumulator + scaling_factor * field_t<Composer>(other.get_bit(i));
         scaling_factor = scaling_factor + scaling_factor;
     }
     accumulator = accumulator.normalize();
@@ -88,7 +88,7 @@ uint<Composer, Native>::uint(Composer* parent_context, const std::vector<bool_t<
     field_t<Composer> accumulator(context, fr::zero());
     field_t<Composer> scaling_factor(context, fr::one());
     for (size_t i = 0; i < wires.size(); ++i) {
-        accumulator = accumulator + scaling_factor * wires[i];
+        accumulator = accumulator + scaling_factor * field_t<Composer>(wires[i]);
         scaling_factor = scaling_factor + scaling_factor;
     }
     accumulator = accumulator.normalize();

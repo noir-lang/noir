@@ -2,10 +2,6 @@
 
 #include "../g1.hpp"
 
-#ifndef PIPPENGER_BLOCK_SIZE
-#define PIPPENGER_BLOCK_SIZE 20
-#endif
-
 namespace barretenberg {
 // simple helper functions to retrieve pointers to pre-allocated memory for the scalar multiplication algorithm.
 // This is to eliminate page faults when allocating (and writing) to large tranches of memory.
@@ -59,6 +55,13 @@ constexpr size_t get_optimal_bucket_width(const size_t num_points)
     }
     return 1;
 }
+
+constexpr size_t get_num_rounds(const size_t num_points)
+{
+    const size_t bits_per_bucket = get_optimal_bucket_width(num_points / 2);
+    return WNAF_SIZE(bits_per_bucket + 1);
+}
+
 struct affine_product_runtime_state {
     g1::affine_element* points;
     g1::affine_element* point_pairs_1;
@@ -72,15 +75,36 @@ struct affine_product_runtime_state {
     bool* bucket_empty_status;
 };
 
+struct pippenger_runtime_state {
+    uint64_t* point_schedule;
+    bool* skew_table;
+    g1::element* buckets;
+    uint64_t* round_counts;
+    uint64_t num_points;
+    pippenger_runtime_state(const size_t num_initial_points);
+    pippenger_runtime_state(pippenger_runtime_state&& other);
+    pippenger_runtime_state& operator=(pippenger_runtime_state&& other);
+    ~pippenger_runtime_state();
+};
+
+struct unsafe_pippenger_runtime_state {
+    uint64_t* point_schedule;
+    bool* skew_table;
+    g1::affine_element* point_pairs_1;
+    g1::affine_element* point_pairs_2;
+    fq* scratch_space;
+    uint32_t* bucket_counts;
+    uint32_t* bit_counts;
+    bool* bucket_empty_status;
+    uint64_t* round_counts;
+    uint64_t num_points;
+
+    unsafe_pippenger_runtime_state(const size_t num_initial_points);
+    unsafe_pippenger_runtime_state(unsafe_pippenger_runtime_state&& other);
+    unsafe_pippenger_runtime_state& operator=(unsafe_pippenger_runtime_state&& other);
+    ~unsafe_pippenger_runtime_state();
+
+    affine_product_runtime_state get_affine_product_runtime_state(const size_t num_threads, const size_t thread_index);
+};
 } // namespace scalar_multiplication
-namespace mmu {
-bool* get_skew_pointer();
-
-uint64_t* get_wnaf_pointer();
-
-g1::element* get_bucket_pointer();
-
-scalar_multiplication::affine_product_runtime_state get_affine_product_runtime_state(const size_t num_threads,
-                                                                                     const size_t thread_index);
-} // namespace mmu
 } // namespace barretenberg

@@ -17,16 +17,15 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
     const size_t public_input_size = fr_size * num_public_inputs;
     const transcript::Manifest output = transcript::Manifest(
         { transcript::Manifest::RoundManifest({ { "circuit_size", 4, true }, { "public_input_size", 4, true } },
-                                              "init"),
+                                              "init", 1),
           transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
                                                 { "W_1", g1_size, false },
                                                 { "W_2", g1_size, false },
                                                 { "W_3", g1_size, false } },
-                                              "beta"),
-          transcript::Manifest::RoundManifest({ {} }, "gamma"),
-          transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha"),
+                                              "beta", 2),
+          transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
           transcript::Manifest::RoundManifest(
-              { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z"),
+              { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
           transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                 { "w_2", fr_size, false },
                                                 { "w_3", fr_size, false },
@@ -36,9 +35,9 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                                                 { "sigma_2", fr_size, false },
                                                 { "r", fr_size, false },
                                                 { "t", fr_size, true } },
-                                              "nu"),
+                                              "nu", 10),
           transcript::Manifest::RoundManifest({ { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } },
-                                              "separator") });
+                                              "separator", 1) });
     return output;
 }
 
@@ -58,11 +57,12 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     poly_coefficients[7] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
+    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n));
+            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
     }
 
     std::shared_ptr<verification_key> circuit_verification_key =
@@ -79,8 +79,8 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[7] });
 
     Verifier verifier(circuit_verification_key, create_manifest());
-    std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
-    verifier.verifier_widgets.emplace_back(std::move(widget));
+    // std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
+    // verifier.verifier_widgets.emplace_back(std::move(widget));
     return verifier;
 }
 

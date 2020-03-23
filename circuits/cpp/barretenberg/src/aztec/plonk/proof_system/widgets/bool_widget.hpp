@@ -7,27 +7,31 @@ namespace waffle {
  *
  **/
 
-class VerifierBoolWidget : public VerifierBaseWidget {
+template <typename Field, typename Group, typename Transcript> class VerifierBoolWidget {
   public:
     VerifierBoolWidget();
 
-    barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                              const barretenberg::fr&,
-                                                              const transcript::Transcript&,
-                                                              barretenberg::fr&) override;
+    static Field compute_quotient_evaluation_contribution(
+        verification_key*, const Field&, const Transcript&, Field&, const bool);
 
-    barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                           barretenberg::fr&,
-                                                           const barretenberg::fr& nu_base,
-                                                           const transcript::Transcript&) override;
+    static size_t compute_batch_evaluation_contribution(verification_key*,
+                                                        Field& batch_eval,
+                                                        const size_t nu_index,
+                                                        const Transcript& transcript,
+                                                        const bool use_linearisation);
 
-    VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
+    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
         verification_key* key,
-        const challenge_coefficients& challenge,
-        const transcript::Transcript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars) override;
+        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
+        const Transcript& transcript,
+        std::vector<Group>& points,
+        std::vector<Field>& scalars,
+        const bool use_linearisation);
 };
+
+extern template class VerifierBoolWidget<barretenberg::fr,
+                                         barretenberg::g1::affine_element,
+                                         transcript::StandardTranscript>;
 
 class ProverBoolWidget : public ProverBaseWidget {
   public:
@@ -38,15 +42,15 @@ class ProverBoolWidget : public ProverBaseWidget {
     ProverBoolWidget& operator=(ProverBoolWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript) override;
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
-                                                 barretenberg::polynomial& r);
+                                                 barretenberg::polynomial& r) override;
 
-    barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                       const transcript::Transcript&,
-                                                       barretenberg::fr*,
-                                                       barretenberg::fr*);
+    size_t compute_opening_poly_contribution(
+        const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
+
+    void compute_transcript_elements(transcript::Transcript&, const bool) override;
 
     barretenberg::polynomial& q_bl;
     barretenberg::polynomial& q_br;

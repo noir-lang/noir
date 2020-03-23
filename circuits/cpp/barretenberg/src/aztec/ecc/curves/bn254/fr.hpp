@@ -7,7 +7,7 @@
 #include "../../fields/field.hpp"
 
 namespace barretenberg {
-class FrParams {
+class Bn254FrParams {
   public:
     static constexpr uint64_t modulus_0 = 0x43E1F593F0000001UL;
     static constexpr uint64_t modulus_1 = 0x2833E84879B97091UL;
@@ -42,6 +42,6 @@ class FrParams {
     static constexpr uint64_t r_inv = 0xc2e1f593efffffffUL;
 };
 
-typedef field<FrParams> fr;
+typedef field<Bn254FrParams> fr;
 
 } // namespace barretenberg

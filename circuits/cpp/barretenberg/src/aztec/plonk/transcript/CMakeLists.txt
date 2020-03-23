@@ -1,1 +1,1 @@
-barretenberg_module(transcript ecc)
+barretenberg_module(transcript ecc blake2s)

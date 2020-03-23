@@ -18,17 +18,21 @@ template <typename program_settings> class VerifierBase {
 
     bool verify_proof(const waffle::plonk_proof& proof);
 
-    std::vector<std::unique_ptr<VerifierBaseWidget>> verifier_widgets;
-
     transcript::Manifest manifest;
 
     std::shared_ptr<verification_key> key;
 };
 
-extern template class VerifierBase<standard_settings>;
-extern template class VerifierBase<turbo_settings>;
+extern template class VerifierBase<unrolled_standard_verifier_settings>;
+extern template class VerifierBase<unrolled_turbo_verifier_settings>;
+extern template class VerifierBase<standard_verifier_settings>;
+extern template class VerifierBase<mimc_verifier_settings>;
+extern template class VerifierBase<turbo_verifier_settings>;
 
-typedef VerifierBase<standard_settings> Verifier;
-typedef VerifierBase<turbo_settings> TurboVerifier;
+typedef VerifierBase<unrolled_standard_verifier_settings> UnrolledVerifier;
+typedef VerifierBase<unrolled_turbo_verifier_settings> UnrolledTurboVerifier;
+typedef VerifierBase<standard_verifier_settings> Verifier;
+typedef VerifierBase<mimc_verifier_settings> MiMCVerifier;
+typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
 
 } // namespace waffle

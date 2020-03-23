@@ -3,6 +3,8 @@
 #include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 #include <polynomials/polynomial.hpp>
+#include <plonk/reference_string/reference_string.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/runtime_states.hpp>
 
 namespace waffle {
 struct proving_key {
@@ -44,6 +46,8 @@ struct proving_key {
 
     barretenberg::polynomial quotient_mid;
     barretenberg::polynomial quotient_large;
+
+    barretenberg::scalar_multiplication::unsafe_pippenger_runtime_state pippenger_runtime_state;
     static constexpr size_t min_thread_block = 4UL;
 };
 } // namespace waffle

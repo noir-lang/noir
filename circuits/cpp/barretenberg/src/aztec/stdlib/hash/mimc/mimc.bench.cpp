@@ -23,7 +23,7 @@ void generate_test_mimc_circuit(waffle::MiMCComposer& mimc_composer, size_t num_
 }
 
 waffle::Prover mimc_provers[NUM_CIRCUITS];
-waffle::Verifier mimc_verifiers[NUM_CIRCUITS];
+waffle::MiMCVerifier mimc_verifiers[NUM_CIRCUITS];
 waffle::plonk_proof mimc_proofs[NUM_CIRCUITS];
 
 void construct_mimc_witnesses_bench(State& state) noexcept

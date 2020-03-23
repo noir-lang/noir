@@ -88,6 +88,9 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
         while (!found_one) {
             x = Fq::random_element(engine);
             yy = x.sqr() * x + Params::b;
+            if constexpr (Params::has_a) {
+                yy += (x * Params::a);
+            }
             y = yy.sqrt();
             t0 = y.sqr();
             found_one = (yy == t0);

@@ -36,8 +36,8 @@ template <typename Composer, typename Native> class uint {
     uint& operator=(const uint& other);
     uint& operator=(uint&& other);
 
-    operator byte_array<Composer>() const;
-    operator field_t<Composer>() const;
+    explicit operator byte_array<Composer>() const;
+    explicit operator field_t<Composer>() const;
 
     uint operator+(const uint& other) const;
     uint operator-(const uint& other) const;

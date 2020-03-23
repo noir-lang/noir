@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_field composer stdlib_byte_array)
+barretenberg_module(stdlib_field composer stdlib_bool)

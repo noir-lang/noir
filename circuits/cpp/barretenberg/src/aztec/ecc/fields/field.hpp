@@ -8,6 +8,16 @@
 #include <numeric/uint256/uint256.hpp>
 #include <random>
 
+#ifndef DISABLE_SHENANIGANS
+#ifdef __BMI2__
+#define BBERG_NO_ASM 0
+#else
+#define BBERG_NO_ASM 1
+#endif
+#else
+#define BBERG_NO_ASM 1
+#endif
+
 namespace barretenberg {
 template <class Params> struct alignas(32) field {
   public:
@@ -150,7 +160,7 @@ template <class Params> struct alignas(32) field {
         return result.to_montgomery_form();
     }
 
-    inline std::vector<uint8_t> to_buffer()
+    inline std::vector<uint8_t> to_buffer() const
     {
         std::vector<uint8_t> buffer(sizeof(field));
         field::serialize_to_buffer(*this, &buffer[0]);
@@ -383,9 +393,10 @@ template <class Params> struct alignas(32) field {
     BBERG_INLINE constexpr field subtract(const field& other) const noexcept;
     BBERG_INLINE constexpr field subtract_coarse(const field& other) const noexcept;
     BBERG_INLINE constexpr field montgomery_mul(const field& other) const noexcept;
+    BBERG_INLINE constexpr field montgomery_mul_big(const field& other) const noexcept;
     BBERG_INLINE constexpr field montgomery_square() const noexcept;
 
-#ifndef DISABLE_SHENANIGANS
+#if (BBERG_NO_ASM == 0)
     BBERG_INLINE static field asm_mul(const field& a, const field& b) noexcept;
     BBERG_INLINE static field asm_sqr(const field& a) noexcept;
     BBERG_INLINE static field asm_add(const field& a, const field& b) noexcept;
@@ -421,4 +432,5 @@ template <class Params> struct alignas(32) field {
 
 } // namespace barretenberg
 
+#include "field_impl_x64.hpp"
 #include "./field_impl.hpp"

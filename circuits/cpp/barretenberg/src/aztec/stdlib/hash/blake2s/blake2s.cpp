@@ -142,7 +142,7 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
 
     byte_array<Composer> result(input.get_context());
     for (auto h : S.h) {
-        byte_array<Composer> v = h;
+        byte_array<Composer> v = static_cast<byte_array<Composer>>(h);
         result.write(v.reverse());
     }
     return result;

@@ -35,6 +35,8 @@ template <class base_field, class Params> struct alignas(32) field2 {
     base_field c0;
     base_field c1;
 
+    static constexpr uint256_t modulus = base_field::modulus;
+
     static constexpr field2 zero() { return field2{ base_field::zero(), base_field::zero() }; }
     static constexpr field2 one() { return field2{ base_field::one(), base_field::zero() }; }
     static constexpr field2 twist_coeff_b() { return field2{ Params::twist_coeff_b_0, Params::twist_coeff_b_1 }; }

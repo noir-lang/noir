@@ -178,7 +178,15 @@ fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr&
     return alpha_d * alpha;
 }
 
-void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript&) {}
+void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript& transcript,
+                                                         const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return;
+    }
+    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    transcript.add_element("q_range", q_range.evaluate(z, key->small_domain.size).to_buffer());
+}
 
 fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
                                                        const transcript::Transcript& transcript,
@@ -259,78 +267,82 @@ fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_d * alpha;
 }
 
-fr ProverTurboRangeWidget::compute_opening_poly_contribution(const fr& nu_base, const transcript::Transcript&, fr*, fr*)
+size_t ProverTurboRangeWidget::compute_opening_poly_contribution(
+    const size_t nu_index, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
 {
-    return nu_base;
+    if (use_linearisation) {
+        return nu_index;
+    }
+
+    fr nu_base = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
+
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    poly[i] += (q_range[i] * nu_base);
+    ITERATE_OVER_DOMAIN_END;
+
+    return nu_index + 1;
 }
 
 // ###
 
-VerifierTurboRangeWidget::VerifierTurboRangeWidget()
-    : VerifierBaseWidget()
+template <typename Field, typename Group, typename Transcript>
+VerifierTurboRangeWidget<Field, Group, Transcript>::VerifierTurboRangeWidget()
 {}
 
-barretenberg::fr VerifierTurboRangeWidget::compute_quotient_evaluation_contribution(
-    verification_key*, const fr& alpha_base, const transcript::Transcript& transcript, fr&)
+template <typename Field, typename Group, typename Transcript>
+Field VerifierTurboRangeWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
+    verification_key*,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    Field& t_eval,
+    const bool use_linearisation)
 {
-    fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    Field alpha = transcript.get_challenge_field_element("alpha");
 
-    return alpha_base * alpha.sqr().sqr();
-}
+    if (use_linearisation) {
+        return alpha_base * alpha.sqr().sqr();
+    }
 
-barretenberg::fr VerifierTurboRangeWidget::compute_batch_evaluation_contribution(verification_key*,
-                                                                                 barretenberg::fr&,
-                                                                                 const barretenberg::fr& nu_base,
-                                                                                 const transcript::Transcript&)
-{
-    return nu_base;
-}
+    Field alpha_a = alpha_base;
+    Field alpha_b = alpha_a * alpha;
+    Field alpha_c = alpha_b * alpha;
+    Field alpha_d = alpha_c * alpha;
 
-VerifierBaseWidget::challenge_coefficients VerifierTurboRangeWidget::append_scalar_multiplication_inputs(
-    verification_key* key,
-    const challenge_coefficients& challenge,
-    const transcript::Transcript& transcript,
-    std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
-{
-    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
-    fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
+    Field w_1_eval = transcript.get_field_element("w_1");
+    Field w_2_eval = transcript.get_field_element("w_2");
+    Field w_3_eval = transcript.get_field_element("w_3");
+    Field w_4_eval = transcript.get_field_element("w_4");
+    Field w_4_omega_eval = transcript.get_field_element("w_4_omega");
 
-    constexpr fr minus_two = -fr(2);
-    constexpr fr minus_three = -fr(3);
+    Field q_range_eval = transcript.get_field_element("q_range");
 
-    fr alpha_a = challenge.alpha_base;
-    fr alpha_b = alpha_a * challenge.alpha_step;
-    fr alpha_c = alpha_b * challenge.alpha_step;
-    fr alpha_d = alpha_c * challenge.alpha_step;
+    constexpr Field minus_two = -Field(2);
+    constexpr Field minus_three = -Field(3);
 
-    fr delta_1 = w_4_eval + w_4_eval;
+    Field delta_1 = w_4_eval + w_4_eval;
     delta_1 += delta_1;
     delta_1 = w_3_eval - delta_1;
 
-    fr delta_2 = w_3_eval + w_3_eval;
+    Field delta_2 = w_3_eval + w_3_eval;
     delta_2 += delta_2;
     delta_2 = w_2_eval - delta_2;
 
-    fr delta_3 = w_2_eval + w_2_eval;
+    Field delta_3 = w_2_eval + w_2_eval;
     delta_3 += delta_3;
     delta_3 = w_1_eval - delta_3;
 
-    fr delta_4 = w_1_eval + w_1_eval;
+    Field delta_4 = w_1_eval + w_1_eval;
     delta_4 += delta_4;
     delta_4 = w_4_omega_eval - delta_4;
 
     // D(D - 1)(D - 2)(D - 3).alpha
-    fr T0 = delta_1.sqr();
+    Field T0 = delta_1.sqr();
     T0 -= delta_1;
-    fr T1 = delta_1 + minus_two;
+    Field T1 = delta_1 + minus_two;
     T0 *= T1;
     T1 = delta_1 + minus_three;
     T0 *= T1;
-    fr range_accumulator = T0 * alpha_a;
+    Field range_accumulator = T0 * alpha_a;
 
     T0 = delta_2.sqr();
     T0 -= delta_2;
@@ -359,15 +371,139 @@ VerifierBaseWidget::challenge_coefficients VerifierTurboRangeWidget::append_scal
     T0 *= alpha_d;
     range_accumulator += T0;
 
-    range_accumulator *= challenge.linear_nu;
+    range_accumulator *= q_range_eval;
 
-    if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
-        scalars.push_back(range_accumulator);
+    t_eval += range_accumulator;
+
+    return alpha_d * alpha;
+}
+
+template <typename Field, typename Group, typename Transcript>
+size_t VerifierTurboRangeWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
+    verification_key*,
+    Field& batch_eval,
+    const size_t nu_index,
+    const Transcript& transcript,
+    const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return nu_index;
     }
 
-    return VerifierBaseWidget::challenge_coefficients{
-        alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_base, challenge.nu_step, challenge.linear_nu
+    Field q_range_eval = transcript.get_field_element("q_range");
+
+    Field nu_base = transcript.get_challenge_field_element("nu", nu_index);
+
+    batch_eval += (q_range_eval * nu_base);
+
+    return nu_index + 1;
+}
+
+template <typename Field, typename Group, typename Transcript>
+VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboRangeWidget<Field, Group, Transcript>::
+    append_scalar_multiplication_inputs(verification_key* key,
+                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
+                                        const Transcript& transcript,
+                                        std::vector<Group>& points,
+                                        std::vector<Field>& scalars,
+                                        const bool use_linearisation)
+{
+    if (use_linearisation) {
+        Field w_4_eval = transcript.get_field_element("w_4");
+        Field w_1_eval = transcript.get_field_element("w_1");
+        Field w_2_eval = transcript.get_field_element("w_2");
+        Field w_3_eval = transcript.get_field_element("w_3");
+        Field w_4_omega_eval = transcript.get_field_element("w_4_omega");
+
+        Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
+
+        constexpr Field minus_two = -Field(2);
+        constexpr Field minus_three = -Field(3);
+
+        Field alpha_a = challenge.alpha_base;
+        Field alpha_b = alpha_a * challenge.alpha_step;
+        Field alpha_c = alpha_b * challenge.alpha_step;
+        Field alpha_d = alpha_c * challenge.alpha_step;
+
+        Field delta_1 = w_4_eval + w_4_eval;
+        delta_1 += delta_1;
+        delta_1 = w_3_eval - delta_1;
+
+        Field delta_2 = w_3_eval + w_3_eval;
+        delta_2 += delta_2;
+        delta_2 = w_2_eval - delta_2;
+
+        Field delta_3 = w_2_eval + w_2_eval;
+        delta_3 += delta_3;
+        delta_3 = w_1_eval - delta_3;
+
+        Field delta_4 = w_1_eval + w_1_eval;
+        delta_4 += delta_4;
+        delta_4 = w_4_omega_eval - delta_4;
+
+        // D(D - 1)(D - 2)(D - 3).alpha
+        Field T0 = delta_1.sqr();
+        T0 -= delta_1;
+        Field T1 = delta_1 + minus_two;
+        T0 *= T1;
+        T1 = delta_1 + minus_three;
+        T0 *= T1;
+        Field range_accumulator = T0 * alpha_a;
+
+        T0 = delta_2.sqr();
+        T0 -= delta_2;
+        T1 = delta_2 + minus_two;
+        T0 *= T1;
+        T1 = delta_2 + minus_three;
+        T0 *= T1;
+        T0 *= alpha_b;
+        range_accumulator += T0;
+
+        T0 = delta_3.sqr();
+        T0 -= delta_3;
+        T1 = delta_3 + minus_two;
+        T0 *= T1;
+        T1 = delta_3 + minus_three;
+        T0 *= T1;
+        T0 *= alpha_c;
+        range_accumulator += T0;
+
+        T0 = delta_4.sqr();
+        T0 -= delta_4;
+        T1 = delta_4 + minus_two;
+        T0 *= T1;
+        T1 = delta_4 + minus_three;
+        T0 *= T1;
+        T0 *= alpha_d;
+        range_accumulator += T0;
+
+        range_accumulator *= linear_nu;
+
+        if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+            scalars.push_back(range_accumulator);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients<Field>{
+            alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_index, challenge.linear_nu_index
+        };
+    }
+    Field nu_base = transcript.get_challenge_field_element("nu", challenge.nu_index);
+    if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
+        points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+        scalars.push_back(nu_base);
+    }
+    Field alpha_a = challenge.alpha_base;
+    Field alpha_b = alpha_a * challenge.alpha_step;
+    Field alpha_c = alpha_b * challenge.alpha_step;
+    Field alpha_d = alpha_c * challenge.alpha_step;
+
+    return VerifierBaseWidget::challenge_coefficients<Field>{
+        alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_index + 1, challenge.linear_nu_index
     };
 }
+
+template class VerifierTurboRangeWidget<barretenberg::fr,
+                                        barretenberg::g1::affine_element,
+                                        transcript::StandardTranscript>;
 } // namespace waffle

@@ -1,6 +1,6 @@
 #include "io.hpp"
-#include <ecc/curves/bn254/fq12.hpp>
-#include <ecc/curves/bn254/pairing.hpp>
+#include "../ecc/curves/bn254/fq12.hpp"
+#include "../ecc/curves/bn254/pairing.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

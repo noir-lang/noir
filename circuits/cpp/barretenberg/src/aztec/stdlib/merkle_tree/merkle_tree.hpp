@@ -15,7 +15,7 @@ bool_t<Composer> check_membership(Composer& composer,
                                   byte_array<Composer> const& value,
                                   byte_array<Composer> const& index)
 {
-    field_t current = hash_value(value);
+    field_t<Composer> current = hash_value(value);
     bool_t is_member = witness_t(&composer, true);
 
     for (size_t i = 0; i < hashes.size(); ++i) {

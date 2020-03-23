@@ -7,6 +7,7 @@ using namespace barretenberg;
 using namespace plonk;
 
 typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
+typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
 
@@ -77,6 +78,30 @@ TEST(stdlib_byte_array, test_ostream_operator)
     std::ostringstream os;
     os << arr;
     EXPECT_EQ(os.str(), "[ 01 02 03 61 ]");
+}
+
+TEST(stdlib_byte_array, test_byte_array_input_output_consistency)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    fr a_expected = fr::random_element();
+    fr b_expected = fr::random_element();
+
+    field_t a = witness_t(&composer, a_expected);
+    field_t b = witness_t(&composer, b_expected);
+
+    byte_array arr(&composer);
+
+    arr.write(static_cast<byte_array>(a));
+    arr.write(static_cast<byte_array>(b));
+
+    EXPECT_EQ(arr.size(), 64UL);
+
+    field_t a_result(arr.slice(0, 32));
+    field_t b_result(arr.slice(32));
+
+    EXPECT_EQ(a_result.get_value(), a_expected);
+    EXPECT_EQ(b_result.get_value(), b_expected);
 }
 
 } // namespace test_stdlib_byte_array

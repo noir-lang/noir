@@ -12,6 +12,7 @@ struct GrumpkinG1Params {
     static constexpr bool USE_ENDOMORPHISM = true;
     static constexpr bool can_hash_to_curve = true;
     static constexpr bool small_elements = true;
+    static constexpr bool has_a = false;
     // b = -17 in montgomery form
     // curve formula: y^2 = x^3 - 17
     // TODO: erm, I think this is -17 in montgomery form. Should double check this

@@ -4,8 +4,9 @@
 
 namespace barretenberg {
 namespace scalar_multiplication {
-template <size_t num_bits, size_t shift> inline void radix_sort(uint64_t* keys, const size_t num_entries) noexcept
+inline void radix_sort(uint64_t* keys, const size_t num_entries, const uint32_t shift) noexcept
 {
+    constexpr size_t num_bits = 8;
     constexpr size_t num_buckets = 1UL << num_bits;
     constexpr uint32_t mask = static_cast<uint32_t>(num_buckets) - 1U;
     std::array<uint32_t, num_buckets> bucket_counts{};
@@ -41,22 +42,23 @@ template <size_t num_bits, size_t shift> inline void radix_sort(uint64_t* keys, 
             bucket_start = &keys[offsets[i]];
         }
     }
-    if constexpr (shift > 0) {
+    if (shift > 0) {
         for (size_t i = 0; i < num_buckets; ++i) {
             if (offsets_copy[i + 1] - offsets_copy[i] > 1) {
-                radix_sort<num_bits, shift - 8>(&keys[offsets_copy[i]], offsets_copy[i + 1] - offsets_copy[i]);
+                radix_sort(&keys[offsets_copy[i]], offsets_copy[i + 1] - offsets_copy[i], shift - 8);
             }
         }
     }
 }
 
-template <size_t num_entries, size_t num_bits> inline void process_buckets(uint64_t* wnaf_entries) noexcept
+inline void process_buckets(uint64_t* wnaf_entries, const size_t num_entries, const uint32_t num_bits) noexcept
 {
-    constexpr size_t bits_per_round = 8;
-    constexpr size_t base = num_bits & 7;
-    constexpr size_t total_bits = (base == 0) ? num_bits : num_bits - base + 8;
-    constexpr size_t shift = total_bits - bits_per_round;
-    radix_sort<bits_per_round, shift>(wnaf_entries, num_entries);
+    const uint32_t bits_per_round = 8;
+    const uint32_t base = num_bits & 7;
+    const uint32_t total_bits = (base == 0) ? num_bits : num_bits - base + 8;
+    const uint32_t shift = total_bits - bits_per_round;
+
+    radix_sort(wnaf_entries, num_entries, shift);
 }
 } // namespace scalar_multiplication
 } // namespace barretenberg

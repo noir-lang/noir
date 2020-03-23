@@ -2,27 +2,34 @@
 #include "base_widget.hpp"
 
 namespace waffle {
-class VerifierArithmeticWidget : public VerifierBaseWidget {
+template <typename Field, typename Group, typename Transcript> class VerifierArithmeticWidget {
   public:
     VerifierArithmeticWidget();
 
-    barretenberg::fr compute_quotient_evaluation_contribution(verification_key*,
-                                                              const barretenberg::fr& alpha_base,
-                                                              const transcript::Transcript& transcript,
-                                                              barretenberg::fr& t_eval) override;
+    static Field compute_quotient_evaluation_contribution(verification_key*,
+                                                          const Field& alpha_base,
+                                                          const Transcript& transcript,
+                                                          Field& t_eval,
+                                                          const bool use_linearisation);
 
-    VerifierBaseWidget::challenge_coefficients append_scalar_multiplication_inputs(
+    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
         verification_key*,
-        const challenge_coefficients& challenge,
-        const transcript::Transcript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars) override;
+        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
+        const Transcript& transcript,
+        std::vector<Group>& points,
+        std::vector<Field>& scalars,
+        const bool use_linearisation);
 
-    barretenberg::fr compute_batch_evaluation_contribution(verification_key*,
-                                                           barretenberg::fr&,
-                                                           const barretenberg::fr& nu_base,
-                                                           const transcript::Transcript&) override;
+    static size_t compute_batch_evaluation_contribution(verification_key*,
+                                                        Field& batch_eval,
+                                                        const size_t nu_index,
+                                                        const Transcript& transcript,
+                                                        const bool use_linearisation);
 };
+
+extern template class VerifierArithmeticWidget<barretenberg::fr,
+                                               barretenberg::g1::affine_element,
+                                               transcript::StandardTranscript>;
 
 class ProverArithmeticWidget : public ProverBaseWidget {
   public:
@@ -33,14 +40,14 @@ class ProverArithmeticWidget : public ProverBaseWidget {
     ProverArithmeticWidget& operator=(ProverArithmeticWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript) override;
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
-                                                 barretenberg::polynomial& r);
-    barretenberg::fr compute_opening_poly_contribution(const barretenberg::fr& nu_base,
-                                                       const transcript::Transcript&,
-                                                       barretenberg::fr*,
-                                                       barretenberg::fr*);
+                                                 barretenberg::polynomial& r) override;
+    size_t compute_opening_poly_contribution(
+        const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
+
+    void compute_transcript_elements(transcript::Transcript&, const bool) override;
 
     barretenberg::polynomial& q_1;
     barretenberg::polynomial& q_2;
