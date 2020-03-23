@@ -40,15 +40,15 @@ class ProverTurboRangeWidget : public ProverBaseWidget {
     ProverTurboRangeWidget& operator=(ProverTurboRangeWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript) override;
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
-                                                 barretenberg::polynomial& r);
+                                                 barretenberg::polynomial& r) override;
     size_t compute_opening_poly_contribution(const size_t nu_index,
                                              const transcript::Transcript& transcript,
                                              barretenberg::fr* poly,
                                              barretenberg::fr*,
-                                             const bool use_linearisation);
+                                             const bool use_linearisation) override;
 
     void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 
