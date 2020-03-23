@@ -41,7 +41,7 @@ class ProverMiMCWidget : public ProverBaseWidget {
     ProverMiMCWidget& operator=(ProverMiMCWidget&& other);
 
     barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::Transcript& transcript);
+                                                   const transcript::Transcript& transcript) override;
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
