@@ -254,6 +254,7 @@ TEST(stdlib_bigfield, test_add_and_mul)
     EXPECT_EQ(proof_result, true);
 }
 
+/*
 TEST(stdlib_bigfield, test_add_and_mul_with_constants)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -291,6 +292,7 @@ TEST(stdlib_bigfield, test_add_and_mul_with_constants)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
+*/
 
 TEST(stdlib_bigfield, test_sub_and_mul)
 {
