@@ -467,3 +467,5 @@ TEST(fq, r_inv)
     uint64_t result = Bn254FqParams::r_inv;
     EXPECT_EQ(result, expected);
 }
+
+//   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e

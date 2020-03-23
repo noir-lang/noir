@@ -16,7 +16,6 @@ option(MULTITHREADING "Enable multi-threading" ON)
 option(TESTING "Build tests" ON)
 option(BENCHMARKS "Build benchmarks" ON)
 option(PROFILING "Build profiling" ON)
-option(FORCE_CLANG "Force build with clang" OFF)
 
 if(ARM)
     message(STATUS "Compiling for ARM.")
