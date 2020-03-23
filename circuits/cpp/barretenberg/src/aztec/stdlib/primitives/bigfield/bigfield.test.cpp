@@ -540,7 +540,7 @@ TEST(stdlib_bigfield, byte_array_constructors)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_bigfield, test_div_against_constants)
+TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
