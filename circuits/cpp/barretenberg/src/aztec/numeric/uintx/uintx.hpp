@@ -52,7 +52,7 @@ template <class base_uint> class uintx {
 
     constexpr bool get_bit(const uint64_t bit_index) const;
     constexpr uint64_t get_msb() const;
-    constexpr uintx slice(const size_t start, const size_t end) const;
+    constexpr uintx slice(const uint64_t start, const uint64_t end) const;
 
     constexpr uintx operator+(const uintx& other) const;
     constexpr uintx operator-(const uintx& other) const;

@@ -77,9 +77,9 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::invmod(c
 }
 
 template <class base_uint>
-constexpr uintx<base_uint> uintx<base_uint>::slice(const size_t start, const size_t end) const
+constexpr uintx<base_uint> uintx<base_uint>::slice(const uint64_t start, const uint64_t end) const
 {
-    const size_t range = end - start;
+    const uint64_t range = end - start;
     const uintx mask = range == base_uint::length() ? -uintx(1) : (uintx(1) << range) - 1;
     return ((*this) >> start) & mask;
 }

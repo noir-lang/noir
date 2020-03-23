@@ -38,7 +38,7 @@ class uint256_t {
     constexpr bool get_bit(const uint64_t bit_index) const;
     constexpr uint64_t get_msb() const;
 
-    constexpr uint256_t slice(const size_t start, const size_t end) const;
+    constexpr uint256_t slice(const uint64_t start, const uint64_t end) const;
 
     constexpr uint256_t operator+(const uint256_t& other) const;
     constexpr uint256_t operator-(const uint256_t& other) const;
