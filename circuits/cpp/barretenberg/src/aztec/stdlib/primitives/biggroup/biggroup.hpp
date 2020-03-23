@@ -15,6 +15,26 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
     element(const element& other);
     element(element&& other);
 
+    bool_t<Composer> on_curve()
+    {
+        Fq xx = x.sqr();
+        Fq lhs = xx * x;
+        Fq rhs = y.sqr();
+        Fq b(get_context(), uint256_t(Params::b));
+        lhs = lhs + b;
+        if constexpr (Params::has_a) {
+            Fq a(get_context(), uint256_t(Params::a));
+            lhs = lhs + (a * x);
+        }
+        Fq result = lhs - rhs;
+        result.assert_is_in_field();
+        field_t<Composer> product(get_context());
+        for (size_t i = 0; i < 4; ++i) {
+            product = product * result.binary_basis_limbs[i].element;
+        }
+        return product.is_zero();
+    }
+
     static element one(Composer* ctx)
     {
         uint256_t x = uint256_t(Params::one_x);
@@ -45,6 +65,12 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
                             const Fr& scalar_c,
                             const element& base_d,
                             const Fr& scalar_d);
+
+    static element batch_mul(const std::vector<element>&, const std::vector<Fq>&)
+    {
+        // TODO REPLACE WITH IMPLEMENTATION
+        return one();
+    }
 
     static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar);
     Composer* get_context() const

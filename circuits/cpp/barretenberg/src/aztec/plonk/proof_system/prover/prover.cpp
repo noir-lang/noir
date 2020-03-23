@@ -828,7 +828,7 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     if constexpr (settings::use_linearisation) {
         barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
             barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
-        plonk_linear_terms linear_terms = compute_linear_terms<settings>(transcript, lagrange_evals.l_1);
+        plonk_linear_terms linear_terms = compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript, lagrange_evals.l_1);
 
         const polynomial& sigma_last =
             key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
@@ -866,7 +866,7 @@ template <typename settings> waffle::plonk_proof ProverBase<settings>::construct
 template <typename settings> void ProverBase<settings>::reset()
 {
     transcript::Manifest manifest = transcript.get_manifest();
-    transcript = transcript::Transcript(manifest, settings::hash_type, settings::num_challenge_bytes);
+    transcript = transcript::StandardTranscript(manifest, settings::hash_type, settings::num_challenge_bytes);
 }
 
 template class ProverBase<unrolled_standard_settings>;

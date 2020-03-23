@@ -126,7 +126,7 @@ template <typename C, typename T> bigfield<C, T>::bigfield(const byte_array<C>& 
         const size_t end = start + ((i == 0) ? NUM_LAST_LIMB_BITS : NUM_LIMB_BITS);
         for (size_t j = start; j < end; ++j) {
             element = element + element;
-            element = element + bits[j + offset];
+            element = element + field_t<C>(bits[j + offset]);
         }
         elements.push_back(element);
     }

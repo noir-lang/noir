@@ -32,13 +32,13 @@ TEST(stdlib_uint32, test_create_from_wires)
 
     uint8 a = uint8(&composer,
                     std::vector<bool_t>{
-                        false,
-                        false,
-                        false,
-                        false,
-                        false,
-                        false,
-                        false,
+                        bool_t(false),
+                        bool_t(false),
+                        bool_t(false),
+                        bool_t(false),
+                        bool_t(false),
+                        bool_t(false),
+                        bool_t(false),
                         witness_t(&composer, true),
                     });
 

@@ -4,7 +4,7 @@
 #include "../types/program_settings.hpp"
 #include "../types/program_witness.hpp"
 #include "../widgets/base_widget.hpp"
-#include "../../transcript/transcript.hpp"
+#include "../../transcript/transcript_wrappers.hpp"
 
 namespace waffle {
 
@@ -51,7 +51,7 @@ template <typename settings> class ProverBase {
     // TODO: note from future self: totally not fine. Replace with template parameters
     std::vector<std::unique_ptr<ProverBaseWidget>> widgets;
     ReferenceString reference_string;
-    transcript::Transcript transcript;
+    transcript::StandardTranscript transcript;
 
     std::shared_ptr<proving_key> key;
     std::shared_ptr<program_witness> witness;

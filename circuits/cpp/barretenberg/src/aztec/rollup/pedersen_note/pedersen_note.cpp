@@ -164,8 +164,8 @@ public_note encrypt_note(const private_note& plaintext)
 
     // If k = 0, our scalar multiplier is going to be nonsense.
     // We need to conditionally validate that, if k != 0, the constructed scalar multiplier matches our input scalar.
-    field_ct lhs = p_1.scalar * (one - is_zero);
-    field_ct rhs = k * (one - is_zero);
+    field_ct lhs = p_1.scalar * (one - field_ct(is_zero));
+    field_ct rhs = k * (one - field_ct(is_zero));
     lhs.normalize();
     rhs.normalize();
     context->assert_equal(lhs.witness_index, rhs.witness_index);
@@ -176,8 +176,8 @@ public_note encrypt_note(const private_note& plaintext)
     field_ct x_3 = (lambda * lambda) - (p_2.base.x + p_1.base.x);
     field_ct y_3 = lambda * (p_1.base.x - x_3) - p_1.base.y;
 
-    field_ct x_4 = (p_2.base.x - x_3) * is_zero + x_3;
-    field_ct y_4 = (p_2.base.y - y_3) * is_zero + y_3;
+    field_ct x_4 = (p_2.base.x - x_3) * field_ct(is_zero) + x_3;
+    field_ct y_4 = (p_2.base.y - y_3) * field_ct(is_zero) + y_3;
 
     point p_3 = plonk::stdlib::pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y);
 

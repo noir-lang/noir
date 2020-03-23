@@ -24,27 +24,10 @@ field_t<ComposerContext>::field_t(const witness_t<ComposerContext>& value)
 }
 
 template <typename ComposerContext>
-field_t<ComposerContext>::field_t(const barretenberg::fr& value)
-    : context(nullptr)
-    , additive_constant(value)
-    , multiplicative_constant(barretenberg::fr::one())
-    , witness_index(static_cast<uint32_t>(-1))
-{}
-
-template <typename ComposerContext>
 field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barretenberg::fr& value)
     : context(parent_context)
 {
     barretenberg::fr::__copy(value, additive_constant);
-    multiplicative_constant = barretenberg::fr::zero();
-    witness_index = static_cast<uint32_t>(-1);
-}
-
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(const uint64_t value)
-    : context(nullptr)
-{
-    additive_constant = barretenberg::fr{ value, 0UL, 0UL, 0UL }.to_montgomery_form();
     multiplicative_constant = barretenberg::fr::zero();
     witness_index = static_cast<uint32_t>(-1);
 }
@@ -160,7 +143,7 @@ template <typename ComposerContext> field_t<ComposerContext>::operator byte_arra
             bits[i] = bit;
             barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(255 - i));
             field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
-            validator = validator + (scaling_factor * bit);
+            validator = validator + (scaling_factor * field_t<ComposerContext>(bit));
         }
 
         context->assert_equal(validator.witness_index, witness_index);
@@ -552,7 +535,7 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     field_t c(witness_t(ctx, fc));
     field_t d = *this - other;
     field_t test_lhs = d * c;
-    field_t test_rhs = (field_t(ctx, barretenberg::fr::one()) - result);
+    field_t test_rhs = (field_t(ctx, barretenberg::fr::one()) - field_t(result));
     test_rhs = test_rhs.normalize();
     ctx->assert_equal(test_lhs.witness_index, test_rhs.witness_index);
 
