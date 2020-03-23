@@ -689,7 +689,7 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
      * |  A  |  B  |  C  |  D  |
      * +-----+-----+-----+-----+
      * | 0   | 0   | w1  | 0   |
-     * | a1  | a1  | w2  | c1  |
+     * | a1  | b1  | w2  | c1  |
      * | a2  | b2  | w3  | c2  |
      * |  :  |  :  |  :  |  :  |
      * | an  | bn  | --- | cn  |
