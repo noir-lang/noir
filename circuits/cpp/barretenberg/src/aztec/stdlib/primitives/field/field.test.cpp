@@ -1,5 +1,4 @@
 #include "../bool/bool.hpp"
-#include "../byte_array/byte_array.hpp"
 #include "field.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/standard_composer.hpp>
@@ -12,7 +11,6 @@ typedef stdlib::bool_t<waffle::StandardComposer> bool_t;
 typedef stdlib::field_t<waffle::StandardComposer> field_t;
 typedef stdlib::witness_t<waffle::StandardComposer> witness_t;
 typedef stdlib::public_witness_t<waffle::StandardComposer> public_witness_t;
-typedef stdlib::byte_array<waffle::StandardComposer> byte_array;
 
 void fibbonaci(waffle::StandardComposer& composer)
 {
@@ -240,28 +238,136 @@ TEST(stdlib_field, is_zero)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_field, test_byte_array_input_output_consistency)
+TEST(stdlib_field, madd)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
 
-    fr a_expected = fr::random_element();
-    fr b_expected = fr::random_element();
+    field_t a(stdlib::witness_t(&composer, fr::random_element()));
+    field_t b(stdlib::witness_t(&composer, fr::random_element()));
+    field_t c(stdlib::witness_t(&composer, fr::random_element()));
+    field_t ma(&composer, fr::random_element());
+    field_t ca(&composer, fr::random_element());
+    field_t mb(&composer, fr::random_element());
+    field_t cb(&composer, fr::random_element());
+    field_t mc(&composer, fr::random_element());
+    field_t cc(&composer, fr::random_element());
 
-    field_t a = witness_t(&composer, a_expected);
-    field_t b = witness_t(&composer, b_expected);
+    // test madd when all operands are witnesses
+    field_t d = a * ma + ca;
+    field_t e = b * mb + cb;
+    field_t f = c * mc + cc;
+    field_t g = d.madd(e, f);
+    field_t h = d * e + f;
+    h = h.normalize();
+    g = g.normalize();
+    EXPECT_EQ(g.get_value(), h.get_value());
 
-    byte_array arr(&composer);
+    // test madd when to_add = constant
+    field_t i = a.madd(b, ma);
+    field_t j = a * b + ma;
+    i = i.normalize();
+    j = j.normalize();
+    EXPECT_EQ(i.get_value(), j.get_value());
 
-    arr.write(a);
-    arr.write(b);
+    // test madd when to_mul = constant
+    field_t k = a.madd(mb, c);
+    field_t l = a * mb + c;
+    k = k.normalize();
+    l = l.normalize();
+    EXPECT_EQ(k.get_value(), l.get_value());
 
-    EXPECT_EQ(arr.size(), 64UL);
+    // test madd when lhs is constant
+    field_t m = ma.madd(b, c);
+    field_t n = ma * b + c;
+    m = m.normalize();
+    n = n.normalize();
+    EXPECT_EQ(m.get_value(), n.get_value());
 
-    field_t a_result(arr.slice(0, 32));
-    field_t b_result(arr.slice(32));
+    waffle::Prover prover = composer.preprocess();
 
-    EXPECT_EQ(a_result.get_value(), a_expected);
-    EXPECT_EQ(b_result.get_value(), b_expected);
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_field, two_bit_table)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    field_t a(witness_t(&composer, fr::random_element()));
+    field_t b(witness_t(&composer, fr::random_element()));
+    field_t c(witness_t(&composer, fr::random_element()));
+    field_t d(witness_t(&composer, fr::random_element()));
+
+    std::array<field_t, 4> table = field_t::preprocess_two_bit_table(a, b, c, d);
+
+    bool_t zero(witness_t(&composer, false));
+    bool_t one(witness_t(&composer, true));
+
+    field_t result_a = field_t::select_from_two_bit_table(table, zero, zero).normalize();
+    field_t result_b = field_t::select_from_two_bit_table(table, zero, one).normalize();
+    field_t result_c = field_t::select_from_two_bit_table(table, one, zero).normalize();
+    field_t result_d = field_t::select_from_two_bit_table(table, one, one).normalize();
+
+    EXPECT_EQ(result_a.get_value(), a.get_value());
+    EXPECT_EQ(result_b.get_value(), b.get_value());
+    EXPECT_EQ(result_c.get_value(), c.get_value());
+    EXPECT_EQ(result_d.get_value(), d.get_value());
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_field, three_bit_table)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    field_t a(witness_t(&composer, fr::random_element()));
+    field_t b(witness_t(&composer, fr::random_element()));
+    field_t c(witness_t(&composer, fr::random_element()));
+    field_t d(witness_t(&composer, fr::random_element()));
+    field_t e(witness_t(&composer, fr::random_element()));
+    field_t f(witness_t(&composer, fr::random_element()));
+    field_t g(witness_t(&composer, fr::random_element()));
+    field_t h(witness_t(&composer, fr::random_element()));
+
+    std::array<field_t, 8> table = field_t::preprocess_three_bit_table(a, b, c, d, e, f, g, h);
+
+    bool_t zero(witness_t(&composer, false));
+    bool_t one(witness_t(&composer, true));
+
+    field_t result_a = field_t::select_from_three_bit_table(table, zero, zero, zero).normalize();
+    field_t result_b = field_t::select_from_three_bit_table(table, zero, zero, one).normalize();
+    field_t result_c = field_t::select_from_three_bit_table(table, zero, one, zero).normalize();
+    field_t result_d = field_t::select_from_three_bit_table(table, zero, one, one).normalize();
+    field_t result_e = field_t::select_from_three_bit_table(table, one, zero, zero).normalize();
+    field_t result_f = field_t::select_from_three_bit_table(table, one, zero, one).normalize();
+    field_t result_g = field_t::select_from_three_bit_table(table, one, one, zero).normalize();
+    field_t result_h = field_t::select_from_three_bit_table(table, one, one, one).normalize();
+
+    EXPECT_EQ(result_a.get_value(), a.get_value());
+    EXPECT_EQ(result_b.get_value(), b.get_value());
+    EXPECT_EQ(result_c.get_value(), c.get_value());
+    EXPECT_EQ(result_d.get_value(), d.get_value());
+    EXPECT_EQ(result_e.get_value(), e.get_value());
+    EXPECT_EQ(result_f.get_value(), f.get_value());
+    EXPECT_EQ(result_g.get_value(), g.get_value());
+    EXPECT_EQ(result_h.get_value(), h.get_value());
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
 } // namespace test_stdlib_field

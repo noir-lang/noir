@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_ecdsa sha256 stdlib_sha256 stdlib_byte_array stdlib_bit_array)

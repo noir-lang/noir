@@ -79,35 +79,125 @@ fr ProverSequentialWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base;
 }
 
+size_t ProverSequentialWidget::compute_opening_poly_contribution(
+    const size_t nu_index, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return nu_index;
+    }
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
+
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    poly[i] += (q_3_next[i] * nu);
+    ITERATE_OVER_DOMAIN_END;
+
+    return nu_index + 1;
+}
+
+void ProverSequentialWidget::compute_transcript_elements(transcript::Transcript& transcript,
+                                                         const bool use_linearisation)
+{
+    if (use_linearisation) {
+        return;
+    }
+    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    transcript.add_element("q_3_omega", q_3_next.evaluate(z, key->small_domain.size).to_buffer());
+}
+
 // ###
 
-VerifierSequentialWidget::VerifierSequentialWidget()
-    : VerifierBaseWidget()
+template <typename Field, typename Group, typename Transcript>
+VerifierSequentialWidget<Field, Group, Transcript>::VerifierSequentialWidget()
 {}
 
-VerifierBaseWidget::challenge_coefficients VerifierSequentialWidget::append_scalar_multiplication_inputs(
-    verification_key* key,
-    const challenge_coefficients& challenge,
-    const transcript::Transcript& transcript,
-    std::vector<barretenberg::g1::affine_element>& points,
-    std::vector<barretenberg::fr>& scalars)
+template <typename Field, typename Group, typename Transcript>
+Field VerifierSequentialWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
+    verification_key*,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    Field& t_eval,
+    const bool use_linearisation)
 {
-    fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
+    const Field alpha = transcript.get_challenge_field_element("alpha");
 
-    barretenberg::fr old_alpha = (challenge.alpha_base * (challenge.alpha_step.invert()));
+    if (use_linearisation) {
+        return alpha_base;
+    }
 
-    // Q_M term = w_l * w_r * challenge.alpha_base * nu
-    fr q_o_next_term;
-    q_o_next_term = w_o_shifted_eval * old_alpha;
-    q_o_next_term *= challenge.linear_nu;
+    Field w_3_next_eval = transcript.get_field_element("w_3_omega");
+
+    Field q_3_next_eval = transcript.get_field_element("q_3_omega");
+
+    Field old_alpha = alpha_base * alpha.invert();
+
+    Field T0 = (w_3_next_eval * q_3_next_eval) * old_alpha;
+    t_eval += T0;
+
+    return alpha_base;
+}
+
+template <typename Field, typename Group, typename Transcript>
+size_t VerifierSequentialWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
+    verification_key*, Field& batch_eval, const size_t nu_index, const Transcript& transcript, bool use_linearisation)
+{
+    if (use_linearisation) {
+        return nu_index;
+    }
+
+    Field q_3_omega_eval = transcript.get_field_element("q_3_omega");
+
+    Field nu = transcript.get_challenge_field_element("nu", nu_index);
+
+    batch_eval += (q_3_omega_eval * nu);
+
+    return nu_index + 1;
+};
+
+template <typename Field, typename Group, typename Transcript>
+VerifierBaseWidget::challenge_coefficients<Field> VerifierSequentialWidget<Field, Group, Transcript>::
+    append_scalar_multiplication_inputs(verification_key* key,
+                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
+                                        const Transcript& transcript,
+                                        std::vector<Group>& points,
+                                        std::vector<Field>& scalars,
+                                        const bool use_linearisation)
+{
+    if (use_linearisation) {
+        Field w_o_shifted_eval = transcript.get_field_element("w_3_omega");
+
+        Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
+
+        Field old_alpha = (challenge.alpha_base * (challenge.alpha_step.invert()));
+
+        // Q_M term = w_l * w_r * challenge.alpha_base * nu
+        Field q_o_next_term;
+        q_o_next_term = w_o_shifted_eval * old_alpha;
+        q_o_next_term *= linear_nu;
+
+        if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
+            points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
+            scalars.push_back(q_o_next_term);
+        }
+
+        return VerifierBaseWidget::challenge_coefficients<Field>{
+            challenge.alpha_base, challenge.alpha_step, challenge.nu_index, challenge.linear_nu_index
+        };
+    }
+
+    Field nu_base = transcript.get_challenge_field_element("nu", challenge.nu_index);
 
     if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
-        scalars.push_back(q_o_next_term);
+        scalars.push_back(nu_base);
     }
-
-    return VerifierBaseWidget::challenge_coefficients{
-        challenge.alpha_base, challenge.alpha_step, challenge.nu_base, challenge.nu_step, challenge.linear_nu
+    return VerifierBaseWidget::challenge_coefficients<Field>{
+        challenge.alpha_base, challenge.alpha_step, challenge.nu_index + 1, challenge.linear_nu_index
     };
 }
+
+template class VerifierSequentialWidget<barretenberg::fr,
+                                        barretenberg::g1::affine_element,
+                                        transcript::StandardTranscript>;
+
 } // namespace waffle

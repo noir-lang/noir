@@ -39,6 +39,33 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::ve
 }
 
 template <typename ComposerContext>
+byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, const size_t num_bytes)
+{
+    const size_t num_bits = num_bytes * 8;
+    barretenberg::fr value = input.get_value().from_montgomery_form();
+    values.resize(num_bits);
+    context = input.get_context();
+    if (input.is_constant()) {
+        for (size_t i = 0; i < num_bits; ++i) {
+            values[i] = value.get_bit(num_bits - 1 - i);
+        }
+    } else {
+        barretenberg::fr two(2);
+        field_t<ComposerContext> validator(context, barretenberg::fr::zero());
+
+        for (size_t i = 0; i < num_bits; ++i) {
+            bool_t bit = witness_t(context, value.get_bit(num_bits - 1 - i));
+            values[i] = bit;
+            barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(num_bits - 1 - i));
+            field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
+            validator = validator + (scaling_factor * field_t<ComposerContext>(bit));
+        }
+
+        context->assert_equal(validator.witness_index, input.witness_index);
+    }
+}
+
+template <typename ComposerContext>
 byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, bits_t const& input)
     : context(parent_context)
     , values(input)
@@ -79,6 +106,24 @@ byte_array<ComposerContext>& byte_array<ComposerContext>::operator=(byte_array&&
     return *this;
 }
 
+template <typename ComposerContext> byte_array<ComposerContext>::operator field_t<ComposerContext>() const
+{
+    barretenberg::fr two(2);
+    field_t<ComposerContext> result(context, barretenberg::fr(0));
+    for (size_t i = 0; i < values.size(); ++i) {
+        field_t<ComposerContext> temp(values[i].context);
+        if (values[i].is_constant()) {
+            temp.additive_constant = values[i].get_value() ? barretenberg::fr::one() : barretenberg::fr::zero();
+        } else {
+            temp.witness_index = values[i].witness_index;
+        }
+        barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(255 - i));
+        field_t<ComposerContext> scaling_factor(values[i].context, scaling_factor_value);
+        result = result + (scaling_factor * temp);
+    }
+    return result;
+}
+
 template <typename ComposerContext>
 byte_array<ComposerContext>& byte_array<ComposerContext>::write(byte_array const& other)
 {
@@ -90,6 +135,16 @@ template <typename ComposerContext> byte_array<ComposerContext> byte_array<Compo
 {
     ASSERT(offset < values.size());
     return byte_array(context, bits_t(values.begin() + (long)(offset * 8), values.end()));
+}
+
+template <typename ComposerContext>
+byte_array<ComposerContext> byte_array<ComposerContext>::slice_bits(size_t offset, size_t length) const
+{
+    ASSERT(offset < values.size());
+    ASSERT(length < values.size() - offset);
+    auto start = values.begin() + (long)(offset);
+    auto end = values.begin() + (long)((offset + length));
+    return byte_array(context, bits_t(start, end));
 }
 
 template <typename ComposerContext>

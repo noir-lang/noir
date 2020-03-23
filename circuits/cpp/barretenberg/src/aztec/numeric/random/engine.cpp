@@ -70,6 +70,11 @@ uint512_t Engine::get_random_uint512()
     return uint512_t(get_random_uint256(), get_random_uint256());
 }
 
+uint1024_t Engine::get_random_uint1024()
+{
+    return uint1024_t(get_random_uint512(), get_random_uint512());
+}
+
 Engine& get_debug_engine()
 {
     static std::seed_seq debug_seed({ 1, 2, 3, 4, 5, 6, 7, 8 });

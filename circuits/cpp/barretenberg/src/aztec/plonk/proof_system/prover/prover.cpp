@@ -15,7 +15,7 @@ ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key,
                                  std::shared_ptr<program_witness> input_witness,
                                  const transcript::Manifest& input_manifest)
     : n(input_key == nullptr ? 0 : input_key->n)
-    , transcript(input_manifest)
+    , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , key(input_key)
     , witness(input_witness)
 {}
@@ -63,8 +63,10 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     std::array<g1::element, settings::program_width> W;
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        W[i] = barretenberg::scalar_multiplication::pippenger_unsafe(
-            witness->wires.at(wire_tag).get_coefficients(), key->reference_string->get_monomials(), n);
+        W[i] = barretenberg::scalar_multiplication::pippenger_unsafe(witness->wires.at(wire_tag).get_coefficients(),
+                                                                     key->reference_string->get_monomials(),
+                                                                     n,
+                                                                     key->pippenger_runtime_state);
     }
 
     g1::element::batch_normalize(&W[0], settings::program_width);
@@ -86,13 +88,12 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
     transcript.add_element("public_inputs", fr::to_buffer(public_wires));
 
     transcript.apply_fiat_shamir("beta");
-    transcript.apply_fiat_shamir("gamma");
 }
 
 template <typename settings> void ProverBase<settings>::compute_z_commitment()
 {
     g1::element Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        key->z.get_coefficients(), key->reference_string->get_monomials(), n);
+        key->z.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
     g1::affine_element Z_affine;
     Z_affine = g1::affine_element(Z);
 
@@ -105,8 +106,10 @@ template <typename settings> void ProverBase<settings>::compute_quotient_commitm
     std::array<g1::element, settings::program_width> T;
     for (size_t i = 0; i < settings::program_width; ++i) {
         const size_t offset = n * i;
-        T[i] = barretenberg::scalar_multiplication::pippenger_unsafe(
-            &key->quotient_large.get_coefficients()[offset], key->reference_string->get_monomials(), n);
+        T[i] = barretenberg::scalar_multiplication::pippenger_unsafe(&key->quotient_large.get_coefficients()[offset],
+                                                                     key->reference_string->get_monomials(),
+                                                                     n,
+                                                                     key->pippenger_runtime_state);
     }
 
     g1::element::batch_normalize(&T[0], settings::program_width);
@@ -157,7 +160,7 @@ template <typename settings> void ProverBase<settings>::compute_z_coefficients()
     }
 
     fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("gamma").begin());
+    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     std::array<fr*, settings::program_width> lagrange_base_wires;
     std::array<fr*, settings::program_width> lagrange_base_sigmas;
@@ -259,7 +262,7 @@ template <typename settings> void ProverBase<settings>::compute_permutation_gran
     fr neg_alpha = -alpha;
     fr alpha_squared = alpha.sqr();
     fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("gamma").begin());
+    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     // Our permutation check boils down to two 'grand product' arguments,
     // that we represent with a single polynomial Z(X).
@@ -601,7 +604,10 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    fr nu = fr::serialize_from_buffer(transcript.get_challenge("nu").begin());
+    std::vector<fr> nu_challenges;
+    for (size_t i = 0; i < transcript.get_num_challenges("nu"); ++i) {
+        nu_challenges.emplace_back(fr::serialize_from_buffer(transcript.get_challenge("nu", i).begin()));
+    }
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
     fr* r = key->linear_poly.get_coefficients();
 
@@ -610,15 +616,11 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
         wires[i] = &witness->wires.at("w_" + std::to_string(i + 1))[0];
     }
 
-    std::array<fr*, settings::program_width - 1> sigmas;
-    for (size_t i = 0; i < settings::program_width - 1; ++i) {
+    constexpr size_t num_sigma_evaluations =
+        settings::use_linearisation ? settings::program_width - 1 : settings::program_width;
+    std::array<fr*, num_sigma_evaluations> sigmas;
+    for (size_t i = 0; i < num_sigma_evaluations; ++i) {
         sigmas[i] = &key->permutation_selectors.at("sigma_" + std::to_string(i + 1))[0];
-    }
-
-    fr nu_powers[9 + settings::program_width];
-    fr::__copy(nu, nu_powers[0]);
-    for (size_t i = 1; i < 9 + settings::program_width; ++i) {
-        nu_powers[i] = nu_powers[i - 1] * nu_powers[0];
     }
 
     polynomial& z = key->z;
@@ -637,76 +639,85 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 
     polynomial& quotient_large = key->quotient_large;
 
+    constexpr size_t nu_offset = (settings::use_linearisation ? 1 : 0);
+    constexpr size_t nu_z_offset =
+        (settings::use_linearisation) ? 2 * settings::program_width : 2 * settings::program_width + 1;
+
     ITERATE_OVER_DOMAIN_START(key->small_domain);
 
     fr T0;
-    fr quotient_temp;
-    quotient_temp = r[i] * nu_powers[0];
-
+    fr quotient_temp = fr::zero();
+    if constexpr (settings::use_linearisation) {
+        quotient_temp = r[i] * nu_challenges[0];
+    }
     for (size_t k = 1; k < settings::program_width; ++k) {
         T0 = quotient_large[i + (k * n)] * z_powers[k];
         quotient_temp += T0;
     }
+    for (size_t k = 0; k < settings::program_width; ++k) {
+        T0 = wires[k][i] * nu_challenges[k + nu_offset];
+        quotient_temp += T0;
+    }
 
     for (size_t k = 0; k < settings::program_width - 1; ++k) {
-        T0 = sigmas[k][i] * nu_powers[k + 5];
+        T0 = sigmas[k][i] * nu_challenges[k + settings::program_width + nu_offset];
         quotient_temp += T0;
     }
 
-    for (size_t k = 0; k < settings::program_width; ++k) {
-        T0 = wires[k][i] * nu_powers[k + 1];
+    if constexpr (!settings::use_linearisation) {
+        // TODO: fix overlapping nu_powers
+        T0 = sigmas[settings::program_width - 1][i] * nu_challenges[settings::program_width * 2 - 1];
+        quotient_temp += T0;
+        T0 = z[i] * nu_challenges[2 * settings::program_width];
         quotient_temp += T0;
     }
 
-    shifted_opening_poly[i] = z[i] * nu_powers[7];
+    shifted_opening_poly[i] = z[i] * nu_challenges[nu_z_offset];
 
     opening_poly[i] = quotient_large[i] + quotient_temp;
 
     ITERATE_OVER_DOMAIN_END;
 
-    fr nu_base = nu_powers[8];
-
+    constexpr size_t shifted_nu_offset = nu_z_offset + 1;
     if constexpr (settings::wire_shift_settings > 0) {
-        std::array<fr, settings::program_width> shift_nu_powers;
-        for (size_t i = 0; i < settings::program_width; ++i) {
-            if (settings::requires_shifted_wire(settings::wire_shift_settings, i)) {
-                shift_nu_powers[i] = nu_base;
-                nu_base = nu_base * nu;
-            }
-        }
-
         ITERATE_OVER_DOMAIN_START(key->small_domain);
-
+        size_t nu_ptr = shifted_nu_offset;
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 0)) {
             fr T0;
-            T0 = shift_nu_powers[0] * wires[0][i];
+            T0 = nu_challenges[nu_ptr++] * wires[0][i];
             shifted_opening_poly[i] += T0;
         }
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 1)) {
             fr T0;
-            T0 = shift_nu_powers[1] * wires[1][i];
+            T0 = nu_challenges[nu_ptr++] * wires[1][i];
             shifted_opening_poly[i] += T0;
         }
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 2)) {
             fr T0;
-            T0 = shift_nu_powers[2] * wires[2][i];
+            T0 = nu_challenges[nu_ptr++] * wires[2][i];
             shifted_opening_poly[i] += T0;
         }
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 3)) {
             fr T0;
-            T0 = shift_nu_powers[3] * wires[3][i];
+            T0 = nu_challenges[nu_ptr++] * wires[3][i];
             shifted_opening_poly[i] += T0;
         }
         for (size_t k = 4; k < settings::program_width; ++k) {
             if (settings::requires_shifted_wire(settings::wire_shift_settings, k)) {
                 fr T0;
-                T0 = shift_nu_powers[k] * wires[k][i];
+                T0 = nu_challenges[nu_ptr++] * wires[k][i];
                 shifted_opening_poly[i] += T0;
             }
         }
         ITERATE_OVER_DOMAIN_END;
     }
 
+    size_t nu_ptr = shifted_nu_offset;
+    for (size_t i = 0; i < settings::program_width; ++i) {
+        if (settings::requires_shifted_wire(settings::wire_shift_settings, i)) {
+            ++nu_ptr;
+        }
+    }
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -716,8 +727,8 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
     start = std::chrono::steady_clock::now();
 #endif
     for (size_t i = 0; i < widgets.size(); ++i) {
-        nu_base = widgets[i]->compute_opening_poly_contribution(
-            nu_base, transcript, &opening_poly[0], &shifted_opening_poly[0]);
+        nu_ptr = widgets[i]->compute_opening_poly_contribution(
+            nu_ptr, transcript, &opening_poly[0], &shifted_opening_poly[0], settings::use_linearisation);
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -741,10 +752,10 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
     start = std::chrono::steady_clock::now();
 #endif
     g1::element PI_Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        opening_poly.get_coefficients(), key->reference_string->get_monomials(), n);
+        opening_poly.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
 
     g1::element PI_Z_OMEGA = barretenberg::scalar_multiplication::pippenger_unsafe(
-        shifted_opening_poly.get_coefficients(), key->reference_string->get_monomials(), n);
+        shifted_opening_poly.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
 
     g1::affine_element PI_Z_affine;
     g1::affine_element PI_Z_OMEGA_affine;
@@ -797,31 +808,42 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         transcript.add_element(permutation_key, permutation_eval.to_buffer());
     }
 
+    if constexpr (!settings::use_linearisation) {
+        fr z_eval = z.evaluate(z_challenge, n);
+        std::string sigma_last_key = "sigma_" + std::to_string(settings::program_width);
+        fr sigma_last_eval = key->permutation_selectors.at(sigma_last_key).evaluate(z_challenge, n);
+        transcript.add_element("z", z_eval.to_buffer());
+        transcript.add_element(sigma_last_key, sigma_last_eval.to_buffer());
+    }
+
     fr z_shifted_eval = z.evaluate(shifted_z, n);
     transcript.add_element("z_omega", z_shifted_eval.to_buffer());
 
     for (size_t i = 0; i < widgets.size(); ++i) {
-        widgets[i]->compute_transcript_elements(transcript);
+        widgets[i]->compute_transcript_elements(transcript, settings::use_linearisation);
     }
 
     fr t_eval = key->quotient_large.evaluate(z_challenge, 4 * n);
 
-    barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
-        barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
-    plonk_linear_terms linear_terms = compute_linear_terms<settings>(transcript, lagrange_evals.l_1);
+    if constexpr (settings::use_linearisation) {
+        barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
+            barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
+        plonk_linear_terms linear_terms = compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript, lagrange_evals.l_1);
 
-    const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
-    ITERATE_OVER_DOMAIN_START(key->small_domain);
-    r[i] = (z[i] * linear_terms.z_1) + (sigma_last[i] * linear_terms.sigma_last);
-    ITERATE_OVER_DOMAIN_END;
+        const polynomial& sigma_last =
+            key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
+        ITERATE_OVER_DOMAIN_START(key->small_domain);
+        r[i] = (z[i] * linear_terms.z_1) + (sigma_last[i] * linear_terms.sigma_last);
+        ITERATE_OVER_DOMAIN_END;
 
-    fr alpha_base = alpha.sqr().sqr();
-    for (size_t i = 0; i < widgets.size(); ++i) {
-        alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
+        fr alpha_base = alpha.sqr().sqr();
+        for (size_t i = 0; i < widgets.size(); ++i) {
+            alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
+        }
+
+        fr linear_eval = r.evaluate(z_challenge, n);
+        transcript.add_element("r", linear_eval.to_buffer());
     }
-
-    fr linear_eval = r.evaluate(z_challenge, n);
-    transcript.add_element("r", linear_eval.to_buffer());
     transcript.add_element("t", t_eval.to_buffer());
 
     return t_eval;
@@ -844,9 +866,11 @@ template <typename settings> waffle::plonk_proof ProverBase<settings>::construct
 template <typename settings> void ProverBase<settings>::reset()
 {
     transcript::Manifest manifest = transcript.get_manifest();
-    transcript = transcript::Transcript(manifest);
+    transcript = transcript::StandardTranscript(manifest, settings::hash_type, settings::num_challenge_bytes);
 }
 
+template class ProverBase<unrolled_standard_settings>;
+template class ProverBase<unrolled_turbo_settings>;
 template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
 

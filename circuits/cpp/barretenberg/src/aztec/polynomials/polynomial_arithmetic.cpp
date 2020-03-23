@@ -12,18 +12,20 @@ namespace {
 static fr* working_memory = nullptr;
 static size_t current_size = 0;
 
-const auto init = []() {
-    constexpr size_t max_num_elements = (1 << 20);
-    working_memory = (fr*)(aligned_alloc(64, max_num_elements * 4 * sizeof(fr)));
-    memset((void*)working_memory, 1, max_num_elements * 4 * sizeof(fr));
-    current_size = (max_num_elements * 4);
-    return 1;
-}();
+// const auto init = []() {
+//     constexpr size_t max_num_elements = (1 << 20);
+//     working_memory = (fr*)(aligned_alloc(64, max_num_elements * 4 * sizeof(fr)));
+//     memset((void*)working_memory, 1, max_num_elements * 4 * sizeof(fr));
+//     current_size = (max_num_elements * 4);
+//     return 1;
+// }();
 
 fr* get_scratch_space(const size_t num_elements)
 {
     if (num_elements > current_size) {
-        free(working_memory);
+        if (working_memory) {
+            aligned_free(working_memory);
+        }
         working_memory = (fr*)(aligned_alloc(64, num_elements * sizeof(fr)));
         current_size = num_elements;
     }

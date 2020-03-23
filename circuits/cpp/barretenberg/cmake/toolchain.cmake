@@ -3,9 +3,8 @@ if(APPLE)
     set(CMAKE_C_COMPILER "/usr/local/opt/llvm/bin/clang")
 endif()
 
-if(FORCE_CLANG)
-    set(CMAKE_C_COMPILER "/usr/local/clang_9.0.0/bin/clang-9")
-    set(CMAKE_CXX_COMPILER "/usr/local/clang_9.0.0/bin/clang++")
+if(LINUX_CLANG)
+    include("./cmake/toolchains/x86_64-linux-clang.cmake")
 endif()
 
 if(ARM)

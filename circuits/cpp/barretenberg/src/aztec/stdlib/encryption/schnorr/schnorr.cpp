@@ -51,8 +51,8 @@ point variable_base_mul(const point& pub_key, const bit_array_ct& scalar)
         field_ct x_dbl = (dbl_lambda * dbl_lambda) - (accumulator.x * two);
         field_ct y_dbl = dbl_lambda * (accumulator.x - x_dbl) - accumulator.y;
 
-        accumulator.x = accumulator.x + ((x_dbl - accumulator.x) * initialized);
-        accumulator.y = accumulator.y + ((y_dbl - accumulator.y) * initialized);
+        accumulator.x = accumulator.x + ((x_dbl - accumulator.x) * field_ct(initialized));
+        accumulator.y = accumulator.y + ((y_dbl - accumulator.y) * field_ct(initialized));
         bool_ct was_initialized = initialized;
         initialized = initialized | scalar[i];
 
@@ -61,8 +61,8 @@ point variable_base_mul(const point& pub_key, const bit_array_ct& scalar)
         field_ct y_add = add_lambda * (pub_key.x - x_add) - pub_key.y;
 
         bool_ct add_predicate = scalar[i] & was_initialized;
-        accumulator.x = accumulator.x + ((x_add - accumulator.x) * add_predicate);
-        accumulator.y = accumulator.y + ((y_add - accumulator.y) * add_predicate);
+        accumulator.x = accumulator.x + ((x_add - accumulator.x) * field_ct(add_predicate));
+        accumulator.y = accumulator.y + ((y_add - accumulator.y) * field_ct(add_predicate));
     }
     accumulator.x = accumulator.x.normalize();
     accumulator.y = accumulator.y.normalize();
@@ -93,7 +93,7 @@ bool verify_signature(const bit_array_ct& message, const point& pub_key, const s
 
     for (size_t i = 0; i < 256; ++i) {
         bool_t temp = witness_t(context, r_x.get_bit(i));
-        accumulator = accumulator + (sum * temp);
+        accumulator = accumulator + (sum * field_ct(temp));
         sum = sum + sum;
         temp = temp.normalize();
         hash_input[input_length - 1 - (255 - i)] = temp;

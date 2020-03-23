@@ -656,12 +656,13 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
     poly_coefficients[6] = circuit_proving_key->permutation_selectors.at("sigma_2").get_coefficients();
     poly_coefficients[7] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
 
+    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     std::vector<barretenberg::g1::affine_element> commitments;
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n));
+            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n, state));
     }
 
     auto crs = crs_factory_->get_verifier_crs();
@@ -724,10 +725,25 @@ Verifier StandardComposer::create_verifier()
 {
     compute_verification_key();
     Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
+    return output_state;
+}
 
-    std::unique_ptr<VerifierArithmeticWidget> widget = std::make_unique<VerifierArithmeticWidget>();
+UnrolledVerifier StandardComposer::create_unrolled_verifier()
+{
+    compute_verification_key();
+    UnrolledVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+    return output_state;
+}
 
-    output_state.verifier_widgets.emplace_back(std::move(widget));
+UnrolledProver StandardComposer::create_unrolled_prover()
+{
+    compute_proving_key();
+    compute_witness();
+    UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+    std::unique_ptr<ProverArithmeticWidget> widget =
+        std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
+
+    output_state.widgets.emplace_back(std::move(widget));
 
     return output_state;
 }
@@ -742,7 +758,6 @@ Prover StandardComposer::preprocess()
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
     output_state.widgets.emplace_back(std::move(widget));
-
     return output_state;
 }
 

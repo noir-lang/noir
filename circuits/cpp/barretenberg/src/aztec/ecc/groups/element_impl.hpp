@@ -63,13 +63,17 @@ template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T>::operator af
 
 template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_dbl() noexcept
 {
-    if (y.is_msb_set_word()) {
-        self_set_infinity();
-        return;
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        if (is_point_at_infinity()) {
+            self_set_infinity();
+            return;
+        }
+    } else {
+        if (y.is_msb_set_word()) {
+            self_set_infinity();
+            return;
+        }
     }
-    // z2 = 2*y*z
-    z += z;
-    z *= y;
 
     // T0 = x*x
     Fq T0 = x.sqr();
@@ -98,6 +102,13 @@ template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_d
     // T3 = 3T0
     T3 = T0 + T0;
     T3 += T0;
+    if constexpr (T::has_a) {
+        T3 += (T::a * z.sqr().sqr());
+    }
+
+    // z2 = 2*y*z
+    z += z;
+    z *= y;
 
     // T0 = 2T1
     T0 = T1 + T1;
@@ -132,11 +143,20 @@ template <class Fq, class Fr, class T>
 constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq, Fr, T>& other,
                                                          const uint64_t predicate) noexcept
 {
-    if (y.is_msb_set_word()) {
-        conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
-        z = Fq::one();
-        return;
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        if (is_point_at_infinity()) {
+            conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
+            z = Fq::one();
+            return;
+        }
+    } else {
+        if (y.is_msb_set_word()) {
+            conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
+            z = Fq::one();
+            return;
+        }
     }
+
     // T0 = z1.z1
     Fq T0 = z.sqr();
 
@@ -213,10 +233,18 @@ constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const affine_element<Fq, Fr, T>& other) noexcept
 {
-    if (y.is_msb_set_word()) {
-        *this = { other.x, other.y, Fq::one() };
-        return *this;
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        if (is_point_at_infinity()) {
+            *this = { other.x, other.y, Fq::one() };
+            return *this;
+        }
+    } else {
+        if (y.is_msb_set_word()) {
+            *this = { other.x, other.y, Fq::one() };
+            return *this;
+        }
     }
+
     // T0 = z1.z1
     Fq T0 = z.sqr();
 
@@ -313,18 +341,34 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator-(const affine_element<
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const element& other) noexcept
 {
-    bool p1_zero = y.is_msb_set();
-    bool p2_zero = other.y.is_msb_set();
-    if (__builtin_expect((p1_zero || p2_zero), 0)) {
-        if (p1_zero && !p2_zero) {
-            *this = other;
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        bool p1_zero = is_point_at_infinity();
+        bool p2_zero = other.is_point_at_infinity();
+        if (__builtin_expect((p1_zero || p2_zero), 0)) {
+            if (p1_zero && !p2_zero) {
+                *this = other;
+                return *this;
+            }
+            if (p2_zero && !p1_zero) {
+                return *this;
+            }
+            self_set_infinity();
             return *this;
         }
-        if (p2_zero && !p1_zero) {
+    } else {
+        bool p1_zero = y.is_msb_set();
+        bool p2_zero = other.y.is_msb_set();
+        if (__builtin_expect((p1_zero || p2_zero), 0)) {
+            if (p1_zero && !p2_zero) {
+                *this = other;
+                return *this;
+            }
+            if (p2_zero && !p1_zero) {
+                return *this;
+            }
+            self_set_infinity();
             return *this;
         }
-        self_set_infinity();
-        return *this;
     }
     Fq Z1Z1(z.sqr());
     Fq Z2Z2(other.z.sqr());
@@ -440,12 +484,23 @@ template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T> element<Fq, 
 
 template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_set_infinity() noexcept
 {
-    y.self_set_msb();
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        y.data[0] = 0;
+        y.data[1] = 0;
+        y.data[2] = 0;
+        y.data[3] = 0;
+    } else {
+        y.self_set_msb();
+    }
 }
 
 template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::is_point_at_infinity() const noexcept
 {
-    return (y.is_msb_set());
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        return ((y.data[0] | y.data[1] | y.data[2] | y.data[3]) == 0);
+    } else {
+        return (y.is_msb_set());
+    }
 }
 
 template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::on_curve() const noexcept
@@ -454,7 +509,11 @@ template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::on_cur
         return false;
     }
     Fq zz = z.sqr();
-    Fq bz_6 = zz.sqr() * zz * T::b;
+    Fq zzzz = zz.sqr();
+    Fq bz_6 = zzzz * zz * T::b;
+    if constexpr (T::has_a) {
+        bz_6 += (x * T::a) * zzzz;
+    }
     Fq xxx = x.sqr() * x + bz_6;
     Fq yy = y.sqr();
     return (xxx == yy);

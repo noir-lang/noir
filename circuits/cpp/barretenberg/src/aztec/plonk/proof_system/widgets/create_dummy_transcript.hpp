@@ -23,7 +23,6 @@ inline transcript::Transcript create_dummy_standard_transcript()
     transcript.add_element("W_2", g1_vector);
     transcript.add_element("W_3", g1_vector);
     transcript.apply_fiat_shamir("beta");
-    transcript.apply_fiat_shamir("gamma");
     transcript.add_element("Z", g1_vector);
     transcript.apply_fiat_shamir("alpha");
     return transcript;

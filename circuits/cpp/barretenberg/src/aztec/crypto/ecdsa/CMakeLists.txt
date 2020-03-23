@@ -1,0 +1,1 @@
+barretenberg_module(ecdsa blake2s keccak sha256 numeric)

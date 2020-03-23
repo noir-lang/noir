@@ -29,8 +29,11 @@ constexpr affine_element<Fq, Fr, T>::affine_element(const uint256_t& compressed)
     bool y_bit = compressed.get_bit(255);
 
     x = Fq(x_coordinate);
-    y = (x.sqr() * x + T::b).sqrt();
-
+    y = (x.sqr() * x + T::b);
+    if constexpr (T::has_a) {
+        y += (x * T::a);
+    }
+    y = y.sqrt();
     if (y.from_montgomery_form().get_bit(0) != y_bit) {
         y = -y;
     }
@@ -71,12 +74,23 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::set_infinity() co
 
 template <class Fq, class Fr, class T> constexpr void affine_element<Fq, Fr, T>::self_set_infinity() noexcept
 {
-    y.self_set_msb();
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        y.data[0] = 0;
+        y.data[1] = 0;
+        y.data[2] = 0;
+        y.data[3] = 0;
+    } else {
+        y.self_set_msb();
+    }
 }
 
 template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>::is_point_at_infinity() const noexcept
 {
-    return (y.is_msb_set());
+    if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        return ((y.data[0] | y.data[1] | y.data[2] | y.data[3]) == 0);
+    } else {
+        return (y.is_msb_set());
+    }
 }
 
 template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>::on_curve() const noexcept
@@ -86,6 +100,9 @@ template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>:
     }
     Fq xxx = x.sqr() * x + T::b;
     Fq yy = y.sqr();
+    if constexpr (T::has_a) {
+        xxx += (x * T::a);
+    }
     return (xxx == yy);
 }
 

@@ -15,7 +15,7 @@ TEST(stdlib_merkle_tree, test_check_membership)
 
     Composer composer = Composer();
 
-    byte_array_ct zero = field_ct(witness_ct(&composer, fr::zero()));
+    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
     byte_array_ct value = zero;
     value.write(zero);
     field_ct root = witness_ct(&composer, db.root());
@@ -42,7 +42,7 @@ TEST(stdlib_merkle_tree, test_assert_check_membership)
 
     Composer composer = Composer();
 
-    byte_array_ct zero = field_ct(witness_ct(&composer, fr::zero()));
+    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
     byte_array_ct value = zero;
     value.write(zero);
     field_ct root = witness_ct(&composer, db.root());
@@ -67,8 +67,8 @@ TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 
     Composer composer = Composer();
 
-    byte_array_ct zero = field_ct(witness_ct(&composer, fr::zero()));
-    byte_array_ct value = field_ct(witness_ct(&composer, fr::one()));
+    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
+    byte_array_ct value(field_ct(witness_ct(&composer, fr::one())));
     value.write(zero);
     field_ct root = witness_ct(&composer, db.root());
 
@@ -92,14 +92,14 @@ TEST(stdlib_merkle_tree, test_update_members)
 
     Composer composer = Composer();
 
-    byte_array_ct zero = field_ct(witness_ct(&composer, fr::zero()));
+    byte_array_ct zero(field_ct(witness_ct(&composer, fr::zero())));
 
     byte_array_ct old_value = zero;
     old_value.write(zero);
     hash_path<Composer> old_path = create_witness_hash_path(composer, db.get_hash_path(0));
     field_ct old_root = witness_ct(&composer, db.root());
 
-    byte_array_ct new_value = field_ct(witness_ct(&composer, fr::one()));
+    byte_array_ct new_value(field_ct(witness_ct(&composer, fr::one())));
     new_value.write(zero);
     auto new_path_fr = get_new_hash_path(db.get_hash_path(0), 0, new_value.get_value());
     hash_path<Composer> new_path = create_witness_hash_path(composer, new_path_fr);

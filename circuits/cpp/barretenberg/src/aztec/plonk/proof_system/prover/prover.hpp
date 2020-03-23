@@ -4,7 +4,7 @@
 #include "../types/program_settings.hpp"
 #include "../types/program_witness.hpp"
 #include "../widgets/base_widget.hpp"
-#include <plonk/transcript/transcript.hpp>
+#include "../../transcript/transcript_wrappers.hpp"
 
 namespace waffle {
 
@@ -50,17 +50,20 @@ template <typename settings> class ProverBase {
     // Hmm, mixing runtime polymorphism and zero-knowledge proof generation. This seems fine...
     // TODO: note from future self: totally not fine. Replace with template parameters
     std::vector<std::unique_ptr<ProverBaseWidget>> widgets;
-    transcript::Transcript transcript;
+    transcript::StandardTranscript transcript;
 
     std::shared_ptr<proving_key> key;
     std::shared_ptr<program_witness> witness;
 
     bool uses_quotient_mid;
 };
-
+extern template class ProverBase<unrolled_standard_settings>;
+extern template class ProverBase<unrolled_turbo_settings>;
 extern template class ProverBase<standard_settings>;
 extern template class ProverBase<turbo_settings>;
 
+typedef ProverBase<unrolled_standard_settings> UnrolledProver;
+typedef ProverBase<unrolled_turbo_settings> UnrolledTurboProver;
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
 

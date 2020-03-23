@@ -93,8 +93,8 @@ template <typename Composer, typename Native>
 bool_t<Composer> uint<Composer, Native>::operator==(const uint& other) const
 {
     // casting to a field type will ensure that lhs / rhs are both normalized
-    const field_t<Composer> lhs = *this;
-    const field_t<Composer> rhs = other;
+    const field_t<Composer> lhs = static_cast<field_t<Composer>>(*this);
+    const field_t<Composer> rhs = static_cast<field_t<Composer>>(other);
 
     return (lhs == rhs).normalize();
 }

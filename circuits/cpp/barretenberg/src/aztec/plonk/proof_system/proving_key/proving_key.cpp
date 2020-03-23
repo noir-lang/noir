@@ -9,6 +9,7 @@ proving_key::proving_key(const size_t num_gates, const size_t num_inputs, std::s
     , mid_domain(2 * n, n > min_thread_block ? n : 2 * n)
     , large_domain(4 * n, n > min_thread_block ? n : 4 * n)
     , reference_string(crs)
+    , pippenger_runtime_state(n)
 {
     if (n != 0) {
         small_domain.compute_lookup_table();
@@ -121,6 +122,7 @@ proving_key::proving_key(const proving_key& other)
     , opening_poly(other.opening_poly)
     , shifted_opening_poly(other.shifted_opening_poly)
     , linear_poly(other.linear_poly)
+    , pippenger_runtime_state(n)
 {}
 
 proving_key::proving_key(proving_key&& other)
@@ -142,6 +144,7 @@ proving_key::proving_key(proving_key&& other)
     , opening_poly(std::move(other.opening_poly))
     , shifted_opening_poly(std::move(other.shifted_opening_poly))
     , linear_poly(std::move(other.linear_poly))
+    , pippenger_runtime_state(std::move(other.pippenger_runtime_state))
 {}
 
 proving_key& proving_key::operator=(proving_key&& other)
@@ -164,6 +167,7 @@ proving_key& proving_key::operator=(proving_key&& other)
     opening_poly = std::move(other.opening_poly);
     shifted_opening_poly = std::move(other.shifted_opening_poly);
     linear_poly = std::move(other.linear_poly);
+    pippenger_runtime_state = std::move(other.pippenger_runtime_state);
     return *this;
 }
 } // namespace waffle

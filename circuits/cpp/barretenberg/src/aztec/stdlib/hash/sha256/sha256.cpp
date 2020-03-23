@@ -129,7 +129,7 @@ template <typename Composer> byte_array<Composer> sha256_block(const byte_array<
 
     byte_array<Composer> result(input.get_context());
     for (size_t i = 0; i < 8; ++i) {
-        result.write(hash[i]);
+        result.write(static_cast<byte_array<Composer>>(hash[i]));
     }
 
     return result;

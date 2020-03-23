@@ -1050,12 +1050,13 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
     poly_coefficients[13] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
     poly_coefficients[14] = circuit_proving_key->permutation_selectors.at("sigma_4").get_coefficients();
 
+    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     std::vector<barretenberg::g1::affine_element> commitments;
     commitments.resize(15);
 
     for (size_t i = 0; i < 15; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n));
+            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n, state));
     }
 
     auto crs = crs_factory_->get_verifier_crs();
@@ -1151,19 +1152,41 @@ TurboProver TurboComposer::create_prover()
     return output_state;
 }
 
+UnrolledTurboProver TurboComposer::create_unrolled_prover()
+{
+    compute_proving_key();
+    compute_witness();
+
+    UnrolledTurboProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+
+    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget> range_widget =
+        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
+        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
+
+    output_state.widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.widgets.emplace_back(std::move(range_widget));
+    output_state.widgets.emplace_back(std::move(logic_widget));
+
+    return output_state;
+}
+
 TurboVerifier TurboComposer::create_verifier()
 {
     compute_verification_key();
 
     TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<VerifierTurboFixedBaseWidget> fixed_base_widget = std::make_unique<VerifierTurboFixedBaseWidget>();
-    std::unique_ptr<VerifierTurboRangeWidget> range_widget = std::make_unique<VerifierTurboRangeWidget>();
-    std::unique_ptr<VerifierTurboLogicWidget> logic_widget = std::make_unique<VerifierTurboLogicWidget>();
+    return output_state;
+}
 
-    output_state.verifier_widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.verifier_widgets.emplace_back(std::move(range_widget));
-    output_state.verifier_widgets.emplace_back(std::move(logic_widget));
+UnrolledTurboVerifier TurboComposer::create_unrolled_verifier()
+{
+    compute_verification_key();
+
+    UnrolledTurboVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
 
     return output_state;
 }

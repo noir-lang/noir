@@ -5,12 +5,6 @@ if(DISABLE_ADX)
     target_compile_definitions(ecc PRIVATE -DDISABLE_ADX)
 endif()
 
-if(NOT DEFINED PIPPENGER_BLOCK_SIZE)
-    set(PIPPENGER_BLOCK_SIZE "20" CACHE STRING "maximum multi-exponentiation size")
-endif()
-message(STATUS "Setting pippenger block size to " ${PIPPENGER_BLOCK_SIZE})
-target_compile_definitions(ecc PRIVATE -DPIPPENGER_BLOCK_SIZE=${PIPPENGER_BLOCK_SIZE})
-
 target_precompile_headers(
     ecc
     PUBLIC
