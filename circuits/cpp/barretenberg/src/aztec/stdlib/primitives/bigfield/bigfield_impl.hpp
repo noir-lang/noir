@@ -44,9 +44,9 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     field_t<C> low_prime_limb(context);
     if (low_bits.witness_index != UINT32_MAX) {
         std::vector<uint32_t> low_accumulator =
-            context->create_range_constraint(low_bits.witness_index, NUM_LIMB_BITS * 2);
-        limb_1.witness_index = low_accumulator[(NUM_LIMB_BITS / 2) - 1];
-        low_prime_limb.witness_index = low_accumulator[(NUM_LIMB_BITS)-1];
+            context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
+        limb_1.witness_index = low_accumulator[static_cast<size_t>((NUM_LIMB_BITS / 2) - 1)];
+        low_prime_limb.witness_index = low_accumulator[static_cast<size_t>((NUM_LIMB_BITS)-1)];
         limb_0 = (low_prime_limb - (limb_1 * shift_1));
     } else {
         uint256_t slice_0 = uint256_t(low_bits.additive_constant).slice(0, NUM_LIMB_BITS);
@@ -63,9 +63,9 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     const uint64_t num_high_limb_bits = NUM_LIMB_BITS + num_last_limb_bits;
     if (high_bits.witness_index != UINT32_MAX) {
         std::vector<uint32_t> high_accumulator =
-            context->create_range_constraint(high_bits.witness_index, num_high_limb_bits);
-        limb_3.witness_index = high_accumulator[(num_last_limb_bits / 2) - 1];
-        high_prime_limb.witness_index = high_accumulator[(num_high_limb_bits / 2) - 1];
+            context->create_range_constraint(high_bits.witness_index, static_cast<size_t>(num_high_limb_bits));
+        limb_3.witness_index = high_accumulator[static_cast<size_t>((num_last_limb_bits / 2) - 1)];
+        high_prime_limb.witness_index = high_accumulator[static_cast<size_t>((num_high_limb_bits / 2) - 1)];
         limb_2 = (high_prime_limb - (limb_3 * shift_1));
     } else {
         uint256_t slice_2 = uint256_t(high_bits.additive_constant).slice(0, NUM_LIMB_BITS);
@@ -524,8 +524,9 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
     const field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-    const auto accumulators = ctx->create_range_constraint(carry_combined.witness_index, carry_lo_msb + carry_hi_msb);
-    ctx->assert_equal(carry_hi.witness_index, accumulators[(carry_hi_msb / 2) - 1]);
+    const auto accumulators =
+        ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+    ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
     // field_t rhs = remainder.prime_basis_limb.normalize();
     // ctx->assert_equal(prime_basis_result.witness_index, rhs.witness_index);
 }
@@ -627,8 +628,9 @@ void bigfield<C, T>::evaluate_square(const bigfield& left, const bigfield& quoti
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
     const field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-    const auto accumulators = ctx->create_range_constraint(carry_combined.witness_index, carry_lo_msb + carry_hi_msb);
-    ctx->assert_equal(carry_hi.witness_index, accumulators[(carry_hi_msb / 2) - 1]);
+    const auto accumulators =
+        ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+    ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
 }
 
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
@@ -781,7 +783,7 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     uint64_t maximum_quotient_bits = maximum_quotient_size.get_msb() + 1;
     uint32_t quotient_limb_index = context->add_variable(barretenberg::fr(quotient_value.lo));
     field_t<C> quotient_limb = field_t<C>::from_witness_index(context, quotient_limb_index);
-    context->create_range_constraint(quotient_limb.witness_index, maximum_quotient_bits);
+    context->create_range_constraint(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
     quotient.binary_basis_limbs[0] = Limb(quotient_limb, uint256_t(1) << maximum_quotient_bits);
     quotient.binary_basis_limbs[1] = Limb(field_t<C>(context, barretenberg::fr(0)), 0);
     quotient.binary_basis_limbs[2] = Limb(field_t<C>(context, barretenberg::fr(0)), 0);
@@ -841,10 +843,10 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     r1 = r1.normalize();
     r2 = r2.normalize();
     r3 = r3.normalize();
-    context->create_range_constraint(r0.witness_index, NUM_LIMB_BITS);
-    context->create_range_constraint(r1.witness_index, NUM_LIMB_BITS);
-    context->create_range_constraint(r2.witness_index, NUM_LIMB_BITS);
-    context->create_range_constraint(r3.witness_index, NUM_LIMB_BITS);
+    context->create_range_constraint(r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+    context->create_range_constraint(r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+    context->create_range_constraint(r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+    context->create_range_constraint(r3.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
 }
 
 } // namespace stdlib
