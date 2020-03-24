@@ -11,7 +11,7 @@ namespace create {
 using namespace rollup::tx;
 using namespace plonk::stdlib::types::turbo;
 
-std::vector<uint8_t> create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
+waffle::plonk_proof create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
 
 std::vector<uint8_t> create_note_proof(tx_note const& note,
                                        crypto::schnorr::signature const& sig,

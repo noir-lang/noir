@@ -100,6 +100,9 @@ void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, fi
 
 const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t num_bits)
 {
+    if (!inited) {
+        init();
+    }
     // find n, such that 2n + 1 >= num_bits
     size_t n;
     if (num_bits == 0) {
@@ -116,6 +119,9 @@ const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t n
 
 const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits)
 {
+    if (!inited) {
+        init();
+    }
     // find n, such that 2n + 1 >= num_bits
     size_t n;
     if (num_bits == 0) {
@@ -137,10 +143,6 @@ grumpkin::g1::affine_element get_generator(const size_t generator_index)
 
 grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index)
 {
-    if (!inited) {
-        init();
-    }
-
     barretenberg::fr scalar_multiplier = in.from_montgomery_form();
 
     constexpr size_t num_bits = 254;

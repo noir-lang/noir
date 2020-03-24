@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <sstream>
 #include <plonk/reference_string/mem_reference_string.hpp>
 #include "create.hpp"
 
@@ -37,6 +36,7 @@ WASM_EXPORT void create_note_proof(uint8_t const* owner_buf,
         std::make_unique<waffle::MemReferenceStringFactory>((char*)monomials_buf, monomials_buf_size);
 
     auto proof_data = rollup::client_proofs::create::create_note_proof(note, sig, std::move(crs_factory));
-    std::copy(proof_data.begin(), proof_data.end(), proof_data_buf);
+    *(uint32_t*)proof_data_buf = static_cast<uint32_t>(proof_data.size());
+    std::copy(proof_data.begin(), proof_data.end(), proof_data_buf + 4);
 }
 }

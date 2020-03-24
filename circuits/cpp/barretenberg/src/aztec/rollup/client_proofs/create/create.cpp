@@ -38,16 +38,20 @@ void verify_signature(Composer& composer,
     stdlib::schnorr::verify_signature(message2, owner_pub_key, signature);
 }
 
-std::vector<uint8_t> create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig)
+waffle::plonk_proof create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig)
 {
     note_pair note_data = create_note_pair(composer, note);
 
     verify_signature(composer, note_data.second, note.owner, sig);
 
+#ifndef __wasm__
+    std::cout << "gates: " << composer.get_num_gates() << std::endl;
+#endif
+
     Prover prover = composer.create_prover();
     waffle::plonk_proof proof = prover.construct_proof();
 
-    return proof.proof_data;
+    return proof;
 }
 
 std::vector<uint8_t> create_note_proof(tx_note const& note,
@@ -55,7 +59,7 @@ std::vector<uint8_t> create_note_proof(tx_note const& note,
                                        std::unique_ptr<waffle::MemReferenceStringFactory>&& crs_factory)
 {
     Composer composer(std::move(crs_factory));
-    return create_note_proof(composer, note, sig);
+    return create_note_proof(composer, note, sig).proof_data;
 }
 
 } // namespace create
