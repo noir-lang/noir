@@ -1,15 +1,22 @@
 #include "pedersen.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <numeric/random/engine.hpp>
+
 #include <gtest/gtest.h>
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;
 using namespace plonk;
 
+typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
 typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 TEST(stdlib_pedersen, test_pedersen)
 {
@@ -199,4 +206,34 @@ TEST(stdlib_pedersen, test_pedersen_large_unrolled)
     EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_pedersen, test_compress_byte_array)
+{
+    const size_t num_input_bytes = 351;
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    std::vector<uint8_t> input;
+    input.reserve(num_input_bytes);
+    for (size_t i = 0; i < num_input_bytes; ++i) {
+        input.push_back(engine.get_random_uint8());
+    }
+
+    std::vector<uint8_t> native_output = crypto::pedersen::compress_native(input);
+
+    byte_array circuit_input(&composer, input);
+    byte_array result = plonk::stdlib::pedersen::compress(circuit_input);
+    byte_array expected(&composer, native_output);
+
+    EXPECT_EQ(result.get_value(), expected.get_value());
+
+    waffle::UnrolledTurboProver prover = composer.create_unrolled_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    waffle::UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
 } // namespace test_stdlib_pedersen

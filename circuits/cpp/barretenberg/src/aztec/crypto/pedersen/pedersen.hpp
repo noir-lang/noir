@@ -24,6 +24,9 @@ grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
                                                       const grumpkin::fq& right,
                                                       const size_t hash_index = 0);
 
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs);
+std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input);
+
 template <size_t num_bits>
 grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const size_t generator_index)
 {

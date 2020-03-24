@@ -108,6 +108,7 @@ byte_array<ComposerContext>& byte_array<ComposerContext>::operator=(byte_array&&
 
 template <typename ComposerContext> byte_array<ComposerContext>::operator field_t<ComposerContext>() const
 {
+    const size_t bits = values.size();
     barretenberg::fr two(2);
     field_t<ComposerContext> result(context, barretenberg::fr(0));
     for (size_t i = 0; i < values.size(); ++i) {
@@ -117,7 +118,7 @@ template <typename ComposerContext> byte_array<ComposerContext>::operator field_
         } else {
             temp.witness_index = values[i].witness_index;
         }
-        barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(255 - i));
+        barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(bits - 1 - i));
         field_t<ComposerContext> scaling_factor(values[i].context, scaling_factor_value);
         result = result + (scaling_factor * temp);
     }

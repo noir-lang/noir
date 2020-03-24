@@ -11,6 +11,7 @@
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../hash/blake2s/blake2s.hpp"
+#include "../../hash/pedersen/pedersen.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -24,7 +25,7 @@ template <typename Composer> class Transcript {
 
     Transcript(Composer* in_context, const transcript::Manifest input_manifest)
         : context(in_context)
-        , transcript_base(input_manifest, transcript::HashType::Blake2s, 16)
+        , transcript_base(input_manifest, transcript::HashType::PedersenBlake2s, 16)
         , current_challenge(in_context)
     {}
 
@@ -32,7 +33,7 @@ template <typename Composer> class Transcript {
                const std::vector<uint8_t>& input_transcript,
                const transcript::Manifest input_manifest)
         : context(in_context)
-        , transcript_base(input_transcript, input_manifest, transcript::HashType::Blake2s, 16)
+        , transcript_base(input_transcript, input_manifest, transcript::HashType::PedersenBlake2s, 16)
         , current_challenge(in_context)
     /*, transcript_bytes(in_context) */
     {
@@ -78,7 +79,8 @@ template <typename Composer> class Transcript {
     int check_challenge_cache(const std::string& challenge_name, const size_t challenge_idx)
     {
         for (size_t i = 0; i < challenge_keys.size(); ++i) {
-            if (challenge_keys[i] == std::make_pair(challenge_name, challenge_idx)) {
+            if (challenge_keys[i] == challenge_name) {
+                ASSERT(challenge_values[i].size() < challenge_idx);
                 return static_cast<int>(i);
             }
         }
@@ -87,11 +89,17 @@ template <typename Composer> class Transcript {
 
     void add_field_element(const std::string& element_name, const field_pt& element)
     {
-        transcript_base.add_element(element_name, element.get_value().to_buffer());
+        std::vector<uint8_t> buffer = element.get_value().to_buffer();
+        const size_t element_size = transcript_base.get_element_size(element_name);
+        // uint8_t* begin = &buffer[0] + 32 - element_size;
+        // uint8_t* end = &buffer[buffer.size()];
+        std::vector<uint8_t> sliced_buffer(buffer.end() - (std::ptrdiff_t)element_size, buffer.end());
+        transcript_base.add_element(element_name, sliced_buffer);
         field_keys.push_back(element_name);
         field_values.push_back(element);
     }
-
+    // 0x28b96cad7dce47b8e727159ce2adbdd119a4435d6edcba6361209301bd53bd0f
+    // 0xb96cad7dce47b8e727159ce2adbdd10019a4435d6edcba6361209301bd53bd0f
     void add_group_element(const std::string& element_name, const group_pt& element)
     {
         uint256_t x = element.x.get_value().lo;
@@ -115,30 +123,115 @@ template <typename Composer> class Transcript {
 
     void apply_fiat_shamir(const std::string& challenge_name)
     {
+        const size_t bytes_per_element = 31;
+        const auto split = [&, bytes_per_element](field_pt& work_element,
+                                                  std::vector<field_pt>& element_buffer,
+                                                  const field_pt& element,
+                                                  size_t& current_byte_counter,
+                                                  const size_t num_bytes) {
+            uint256_t element_u256(element.get_value());
+            size_t hi_bytes = bytes_per_element - current_byte_counter;
+            if (hi_bytes >= num_bytes) {
+                // hmm
+                size_t new_byte_counter = current_byte_counter + num_bytes;
+                field_pt hi = element;
+                const size_t leftovers = bytes_per_element - new_byte_counter;
+                field_pt buffer_shift =
+                    field_pt(context, barretenberg::fr(uint256_t(1) << ((uint64_t)leftovers * 8ULL)));
+                work_element = work_element + (hi * buffer_shift);
+                work_element = work_element.normalize();
+                current_byte_counter = new_byte_counter;
+                if (current_byte_counter == bytes_per_element) {
+                    current_byte_counter = 0;
+                    element_buffer.push_back(work_element);
+                    work_element = field_pt(context, barretenberg::fr(0));
+                }
+                return;
+            }
+            const size_t lo_bytes = num_bytes - hi_bytes;
+
+            field_pt lo = witness_t(context, barretenberg::fr(element_u256.slice(0, lo_bytes * 8)));
+            field_pt hi = witness_t(context, barretenberg::fr(element_u256.slice(lo_bytes * 8, 256)));
+            context->create_range_constraint(lo.witness_index, lo_bytes * 8);
+            context->create_range_constraint(hi.witness_index, hi_bytes * 8);
+            field_pt shift(context, barretenberg::fr(uint256_t(1ULL) << (uint64_t)lo_bytes * 8ULL));
+            field_pt sum = lo + (hi * shift);
+            sum = sum.normalize();
+            context->assert_equal(sum.witness_index, element.witness_index);
+            current_byte_counter = (current_byte_counter + num_bytes) % bytes_per_element;
+            work_element = work_element + hi;
+
+            element_buffer.push_back(work_element);
+
+            field_t lo_shift(context,
+                             barretenberg::fr(uint256_t(1ULL) << ((31ULL - (uint64_t)current_byte_counter) * 8ULL)));
+            work_element = (lo * lo_shift);
+            work_element = work_element.normalize();
+        };
+
         transcript_base.apply_fiat_shamir(challenge_name);
-        byte_array<Composer> buffer(context);
+
+        std::vector<field_pt> compression_buffer;
+        field_pt working_element(context);
+
+        size_t byte_counter = 0;
         if (current_round > 0) {
-            buffer.write(current_challenge);
+            split(working_element, compression_buffer, field_pt(current_challenge), byte_counter, 32);
         }
         for (auto manifest_element : get_manifest().get_round_manifest(current_round).elements) {
             if (manifest_element.num_bytes == 32) {
-                buffer.write(byte_array<Composer>(get_field_element(manifest_element.name)));
+                split(working_element,
+                      compression_buffer,
+                      get_field_element(manifest_element.name),
+                      byte_counter,
+                      manifest_element.num_bytes);
             } else if (manifest_element.num_bytes == 64) {
-                buffer.write(byte_array<Composer>(get_group_element(manifest_element.name).to_byte_array()));
-            } else if (manifest_element.num_bytes < 32) {
-                buffer.write(
-                    byte_array<Composer>(get_field_element(manifest_element.name), manifest_element.num_bytes));
-            } else {
+                group_pt point = get_group_element(manifest_element.name);
+
+                field_pt y_hi =
+                    point.y.binary_basis_limbs[2].element + (point.y.binary_basis_limbs[3].element * fq_pt::shift_1);
+                field_pt y_lo =
+                    point.y.binary_basis_limbs[0].element + (point.y.binary_basis_limbs[1].element * fq_pt::shift_1);
+                field_pt x_hi =
+                    point.x.binary_basis_limbs[2].element + (point.x.binary_basis_limbs[3].element * fq_pt::shift_1);
+                field_pt x_lo =
+                    point.x.binary_basis_limbs[0].element + (point.x.binary_basis_limbs[1].element * fq_pt::shift_1);
+                const size_t lo_bytes = fq_pt::NUM_LIMB_BITS / 4;
+                const size_t hi_bytes = 32 - lo_bytes;
+
+                split(working_element, compression_buffer, y_hi, byte_counter, hi_bytes);
+                split(working_element, compression_buffer, y_lo, byte_counter, lo_bytes);
+                split(working_element, compression_buffer, x_hi, byte_counter, hi_bytes);
+                split(working_element, compression_buffer, x_lo, byte_counter, lo_bytes);
+            } else if (manifest_element.name == "public_inputs") {
                 std::vector<field_pt> field_array = get_field_element_vector(manifest_element.name);
                 for (size_t i = 0; i < field_array.size(); ++i) {
-                    buffer.write(byte_array<Composer>(field_array[i]));
+                    split(working_element, compression_buffer, field_array[i], byte_counter, 32);
                 }
+            } else if (manifest_element.num_bytes < 32) {
+                split(working_element,
+                      compression_buffer,
+                      get_field_element(manifest_element.name),
+                      byte_counter,
+                      manifest_element.num_bytes);
             }
         }
 
         std::vector<byte_array<Composer>> round_challenges;
 
-        byte_array<Composer> base_hash = blake2s(buffer);
+        if (byte_counter != 0) {
+            const uint256_t down_shift = uint256_t(1) << uint256_t((bytes_per_element - byte_counter) * 8);
+            working_element = working_element / barretenberg::fr(down_shift);
+            working_element = working_element.normalize();
+
+            compression_buffer.push_back(working_element);
+        }
+
+        field_pt T0 = pedersen::compress(compression_buffer);
+
+        byte_array<Composer> compressed_buffer(T0);
+
+        byte_array<Composer> base_hash = blake2s(compressed_buffer);
 
         const size_t num_challenges = get_manifest().get_round_manifest(current_round).num_challenges;
 
@@ -149,6 +242,7 @@ template <typename Composer> class Transcript {
         if (num_challenges > 1) {
             byte_array<Composer> second(field_pt(0), 16);
             second.write(base_hash.slice(16, 16));
+            round_challenges.push_back(second);
         }
 
         for (size_t i = 2; i < num_challenges; i += 2) {
@@ -170,7 +264,7 @@ template <typename Composer> class Transcript {
         current_challenge = round_challenges[round_challenges.size() - 1];
         ++current_round;
 
-        challenge_keys.push_back(std::make_pair(challenge_name, num_challenges));
+        challenge_keys.push_back(challenge_name);
 
         std::vector<field_pt> challenge_elements;
         for (const auto challenge : round_challenges) {
@@ -211,7 +305,7 @@ template <typename Composer> class Transcript {
         return result;
     }
 
-    field_pt get_challenge_field_element(const std::string& challenge_name, const size_t challenge_idx)
+    field_pt get_challenge_field_element(const std::string& challenge_name, const size_t challenge_idx = 0)
     {
         const int cache_idx = check_challenge_cache(challenge_name, challenge_idx);
         ASSERT(cache_idx != -1);
@@ -235,8 +329,9 @@ template <typename Composer> class Transcript {
     static fq_pt convert_fq(Composer* ctx, const barretenberg::fq& input)
     {
         uint256_t input_u256(input);
-        field_pt low(witness_pt(ctx, input_u256.slice(0, 128)));
-        field_pt hi(witness_pt(ctx, input_u256.slice(128, 256)));
+        field_pt low(witness_pt(ctx, barretenberg::fr(input_u256.slice(0, fq_pt::NUM_LIMB_BITS * 2))));
+        field_pt hi(
+            witness_pt(ctx, barretenberg::fr(input_u256.slice(fq_pt::NUM_LIMB_BITS * 2, fq_pt::NUM_LIMB_BITS * 4))));
         return fq_pt(low, hi);
     };
 
@@ -265,7 +360,7 @@ template <typename Composer> class Transcript {
     std::vector<std::string> group_keys;
     std::vector<group_pt> group_values;
 
-    std::vector<std::pair<std::string, size_t>> challenge_keys;
+    std::vector<std::string> challenge_keys;
     std::vector<std::vector<field_pt>> challenge_values;
 
     size_t current_round = 0;

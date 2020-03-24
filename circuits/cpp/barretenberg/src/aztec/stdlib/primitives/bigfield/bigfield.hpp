@@ -115,8 +115,9 @@ template <typename Composer, typename T> class bigfield {
         field_t<Composer> hi = binary_basis_limbs[2].element + (binary_basis_limbs[3].element * shift_1);
         lo = lo.normalize();
         hi = hi.normalize();
-        result.write(byte_array<Composer>(hi, 16));
-        result.write(byte_array<Composer>(lo, 16));
+        // n.b. this only works if NUM_LIMB_BITS * 2 is divisible by 8
+        result.write(byte_array<Composer>(hi, 32 - (NUM_LIMB_BITS / 4)));
+        result.write(byte_array<Composer>(lo, (NUM_LIMB_BITS / 4)));
         return result;
     }
 

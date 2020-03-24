@@ -43,6 +43,11 @@ Engine& Engine::operator=(Engine&& other)
     return *this;
 }
 
+uint8_t Engine::get_random_uint8()
+{
+    return static_cast<uint8_t>(dist(engine));
+}
+
 uint32_t Engine::get_random_uint32()
 {
     return static_cast<uint32_t>(dist(engine));

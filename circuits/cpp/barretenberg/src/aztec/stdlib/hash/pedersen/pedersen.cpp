@@ -158,6 +158,38 @@ field_ct compress(const field_ct& in_left, const field_ct& in_right, const size_
     return add_points(first, second).x;
 }
 
+field_ct compress(const std::vector<field_ct>& inputs)
+{
+    point accumulator = hash_single(inputs[0], 0);
+    for (size_t i = 1; i < inputs.size(); ++i) {
+        accumulator = add_points(accumulator, hash_single(inputs[i], i));
+    }
+    return accumulator.x;
+}
+
+byte_array_ct compress(const byte_array_ct& input)
+{
+    const size_t num_bytes = input.size();
+    const size_t bytes_per_element = 31;
+    size_t num_elements = (num_bytes % bytes_per_element != 0) + (num_bytes / bytes_per_element);
+
+    std::vector<field_ct> elements;
+    for (size_t i = 0; i < num_elements; ++i) {
+        size_t bytes_to_slice = 0;
+        if (i == num_elements - 1) {
+            bytes_to_slice = num_bytes - (i * bytes_per_element);
+        } else {
+            bytes_to_slice = bytes_per_element;
+        }
+
+        field_ct element = static_cast<field_ct>(input.slice(i * bytes_per_element, bytes_to_slice));
+        elements.emplace_back(element);
+    }
+
+    field_ct compressed = compress(elements);
+    return byte_array_ct(compressed);
+}
+
 field_ct compress_eight(const std::array<field_ct, 8>& inputs)
 {
     point accumulator = hash_single(inputs[0], 16);

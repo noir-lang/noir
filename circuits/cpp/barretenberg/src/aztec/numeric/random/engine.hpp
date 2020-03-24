@@ -21,6 +21,8 @@ class Engine {
 
     Engine& operator=(Engine&& other);
 
+    uint8_t get_random_uint8();
+
     uint32_t get_random_uint32();
 
     uint64_t get_random_uint64();

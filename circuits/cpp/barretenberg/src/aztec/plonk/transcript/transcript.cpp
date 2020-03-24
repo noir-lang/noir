@@ -2,6 +2,7 @@
 #include <common/assert.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/blake2s/blake2s.hpp>
+#include <crypto/pedersen/pedersen.hpp>
 #include <iostream>
 #include <iomanip>
 
@@ -70,7 +71,7 @@ void Transcript::add_element(const std::string& element_name, const std::vector<
     elements.insert({ element_name, buffer });
 }
 
-void Transcript::apply_fiat_shamir(const std::string& challenge_name)
+void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const bool debug*/)
 {
     ASSERT(current_round <= manifest.get_num_rounds());
     ASSERT(challenge_name == manifest.get_round_manifest(current_round).challenge);
@@ -98,6 +99,11 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name)
         base_hash = Blake2sHasher::hash(buffer);
         break;
     }
+    case HashType::PedersenBlake2s: {
+        std::vector<uint8_t> compressed_buffer = crypto::pedersen::compress_native(buffer);
+        base_hash = Blake2sHasher::hash(compressed_buffer);
+        break;
+    }
     default: {
         base_hash = Keccak256Hasher::hash(buffer);
         break;
@@ -108,11 +114,13 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name)
     const size_t challenges_per_hash = PRNG_OUTPUT_SIZE / num_challenge_bytes;
 
     for (size_t j = 0; j < challenges_per_hash; ++j) {
-        std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
-        std::copy(base_hash.begin() + (j * num_challenge_bytes),
-                  base_hash.begin() + (j + 1) * num_challenge_bytes,
-                  challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes));
-        round_challenges.push_back({ challenge });
+        if (j < num_challenges) {
+            std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
+            std::copy(base_hash.begin() + (j * num_challenge_bytes),
+                      base_hash.begin() + (j + 1) * num_challenge_bytes,
+                      challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes));
+            round_challenges.push_back({ challenge });
+        }
     }
 
     std::vector<uint8_t> rolling_buffer(base_hash.begin(), base_hash.end());
@@ -134,11 +142,15 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name)
             hash_output = Blake2sHasher::hash(rolling_buffer);
             break;
         }
+        case HashType::PedersenBlake2s: {
+            hash_output = Blake2sHasher::hash(rolling_buffer);
+            break;
+        }
         default: {
         }
         }
         for (size_t j = 0; j < challenges_per_hash; ++j) {
-            if (2 * i + j  < num_challenges) {
+            if (challenges_per_hash * i + j < num_challenges) {
                 std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
                 std::copy(hash_output.begin() + (j * num_challenge_bytes),
                           hash_output.begin() + (j + 1) * num_challenge_bytes,
@@ -175,6 +187,18 @@ std::vector<uint8_t> Transcript::get_element(const std::string& element_name) co
     // printf("getting element %s \n", element_name.c_str());
     ASSERT(elements.count(element_name) == 1);
     return elements.at(element_name);
+}
+
+size_t Transcript::get_element_size(const std::string& element_name) const
+{
+    for (size_t i = 0; i < manifest.get_num_rounds(); ++i) {
+        for (auto manifest_element : manifest.get_round_manifest(i).elements) {
+            if (manifest_element.name == element_name) {
+                return manifest_element.num_bytes;
+            }
+        }
+    }
+    return static_cast<size_t>(-1);
 }
 
 std::vector<uint8_t> Transcript::export_transcript() const

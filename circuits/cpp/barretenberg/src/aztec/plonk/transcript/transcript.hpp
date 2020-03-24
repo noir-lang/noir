@@ -21,7 +21,7 @@ struct Blake2sHasher {
     static std::array<uint8_t, PRNG_OUTPUT_SIZE> hash(std::vector<uint8_t> const& input);
 };
 
-enum HashType { Keccak256, Blake2s };
+enum HashType { Keccak256, Blake2s, PedersenBlake2s };
 
 class Transcript {
     static constexpr size_t PRNG_OUTPUT_SIZE = 32;
@@ -45,12 +45,14 @@ class Transcript {
 
     void add_element(const std::string& element_name, const std::vector<uint8_t>& buffer);
 
-    void apply_fiat_shamir(const std::string& challenge_name);
+    void apply_fiat_shamir(const std::string& challenge_name /*, const bool debug = false*/);
 
     std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge(const std::string& challenge_name, const size_t idx = 0) const;
     size_t get_num_challenges(const std::string& challenge_name) const;
 
     std::vector<uint8_t> get_element(const std::string& element_name) const;
+
+    size_t get_element_size(const std::string& element_name) const;
 
     std::vector<uint8_t> export_transcript() const;
 

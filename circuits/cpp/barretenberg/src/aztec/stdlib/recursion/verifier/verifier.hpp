@@ -52,8 +52,8 @@ recursion_output<Group> verify_proof(Composer* context,
         field_t<Composer> low(context);
         field_t<Composer> high(context);
         uint256_t input_u256(input);
-        field_t low(witness_t(context, input_u256.slice(0, 128));
-        field_t hi(witness_t(context, input_u256.slice(128, 256)));
+        field_t low(witness_t(context, barretenberg::fr(input_u256.slice(0, 128)));
+        field_t hi(witness_t(context, barretenberg::fr(input_u256.slice(128, 256))));
         return fq(context, low, hi);
     };
 

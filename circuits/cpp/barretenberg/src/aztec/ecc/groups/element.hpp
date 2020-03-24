@@ -101,6 +101,13 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     static void conditional_negate_affine(const affine_element<Fq, Fr, Params>& in,
                                           affine_element<Fq, Fr, Params>& out,
                                           const uint64_t predicate) noexcept;
+
+
+    friend std::ostream& operator<<(std::ostream& os, const element& a)
+    {
+        os << "{ " << a.x << ", " << a.y << ", " << a.z << " }";
+        return os;
+    }
 };
 
 // constexpr element<Fq, Fr, Params>::one = element<Fq, Fr, Params>{ Params::one_x, Params::one_y, Fq::one() };
