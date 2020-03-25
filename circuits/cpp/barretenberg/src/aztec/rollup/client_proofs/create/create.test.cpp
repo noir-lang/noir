@@ -12,7 +12,7 @@ using namespace rollup::tx;
 
 TEST(client_proofs, test_create)
 {
-    Composer composer = Composer("../srs_db/ignition");
+    Composer composer = Composer("../srs_db");
     user_context user = create_user_context();
 
     tx_note note = {
