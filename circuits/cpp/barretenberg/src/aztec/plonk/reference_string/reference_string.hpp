@@ -13,7 +13,7 @@ namespace waffle {
 
 class VerifierReferenceString {
   public:
-    virtual ~VerifierReferenceString() {};
+    virtual ~VerifierReferenceString(){};
 
     virtual barretenberg::g2::affine_element get_g2x() const = 0;
 
@@ -22,7 +22,7 @@ class VerifierReferenceString {
 
 class ProverReferenceString {
   public:
-    virtual ~ProverReferenceString() {};
+    virtual ~ProverReferenceString(){};
 
     virtual barretenberg::g1::affine_element* get_monomials() = 0;
 };

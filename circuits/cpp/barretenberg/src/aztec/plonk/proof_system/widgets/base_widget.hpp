@@ -1,7 +1,7 @@
 #pragma once
+#include "../../transcript/transcript_wrappers.hpp"
 #include "../types/program_witness.hpp"
 #include "../verification_key/verification_key.hpp"
-#include "../../transcript/transcript_wrappers.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace transcript {

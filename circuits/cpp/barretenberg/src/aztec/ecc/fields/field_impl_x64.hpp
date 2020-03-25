@@ -81,12 +81,12 @@ template <class T> field<T> field<T>::asm_mul_with_coarse_reduction(const field&
             : "%r"(&a),
               "%r"(&b),
               "r"(&r),
-              [modulus_0] "m"(modulus.data[0]),
-              [modulus_1] "m"(modulus.data[1]),
-              [modulus_2] "m"(modulus.data[2]),
-              [modulus_3] "m"(modulus.data[3]),
-              [r_inv] "m"(r_inv),
-              [zero_reference] "m"(zero_reference)
+              [ modulus_0 ] "m"(modulus.data[0]),
+              [ modulus_1 ] "m"(modulus.data[1]),
+              [ modulus_2 ] "m"(modulus.data[2]),
+              [ modulus_3 ] "m"(modulus.data[3]),
+              [ r_inv ] "m"(r_inv),
+              [ zero_reference ] "m"(zero_reference)
             : "%rdx", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
     return r;
 }
@@ -108,12 +108,12 @@ template <class T> void field<T>::asm_self_mul_with_coarse_reduction(const field
             :
             : "r"(&a),
               "r"(&b),
-              [modulus_0] "m"(modulus.data[0]),
-              [modulus_1] "m"(modulus.data[1]),
-              [modulus_2] "m"(modulus.data[2]),
-              [modulus_3] "m"(modulus.data[3]),
-              [r_inv] "m"(r_inv),
-              [zero_reference] "m"(zero_reference)
+              [ modulus_0 ] "m"(modulus.data[0]),
+              [ modulus_1 ] "m"(modulus.data[1]),
+              [ modulus_2 ] "m"(modulus.data[2]),
+              [ modulus_3 ] "m"(modulus.data[3]),
+              [ r_inv ] "m"(r_inv),
+              [ zero_reference ] "m"(zero_reference)
             : "%rdx", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 
@@ -135,12 +135,12 @@ template <class T> field<T> field<T>::asm_sqr_with_coarse_reduction(const field&
             :
             : "r"(&a),
               "r"(&r),
-              [zero_reference] "m"(zero_reference),
-              [modulus_0] "m"(modulus.data[0]),
-              [modulus_1] "m"(modulus.data[1]),
-              [modulus_2] "m"(modulus.data[2]),
-              [modulus_3] "m"(modulus.data[3]),
-              [r_inv] "m"(r_inv)
+              [ zero_reference ] "m"(zero_reference),
+              [ modulus_0 ] "m"(modulus.data[0]),
+              [ modulus_1 ] "m"(modulus.data[1]),
+              [ modulus_2 ] "m"(modulus.data[2]),
+              [ modulus_3 ] "m"(modulus.data[3]),
+              [ r_inv ] "m"(r_inv)
             : "%rcx", "%rdx", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
     return r;
 }
@@ -161,12 +161,12 @@ template <class T> void field<T>::asm_self_sqr_with_coarse_reduction(const field
             STORE_FIELD_ELEMENT("%0", "%%r12", "%%r13", "%%r14", "%%r15")
             :
             : "r"(&a),
-              [zero_reference] "m"(zero_reference),
-              [modulus_0] "m"(modulus.data[0]),
-              [modulus_1] "m"(modulus.data[1]),
-              [modulus_2] "m"(modulus.data[2]),
-              [modulus_3] "m"(modulus.data[3]),
-              [r_inv] "m"(r_inv)
+              [ zero_reference ] "m"(zero_reference),
+              [ modulus_0 ] "m"(modulus.data[0]),
+              [ modulus_1 ] "m"(modulus.data[1]),
+              [ modulus_2 ] "m"(modulus.data[2]),
+              [ modulus_3 ] "m"(modulus.data[3]),
+              [ r_inv ] "m"(r_inv)
             : "%rcx", "%rdx", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 
@@ -183,10 +183,10 @@ template <class T> field<T> field<T>::asm_add_with_coarse_reduction(const field&
             : "%r"(&a),
               "%r"(&b),
               "r"(&r),
-              [twice_not_modulus_0] "m"(twice_not_modulus.data[0]),
-              [twice_not_modulus_1] "m"(twice_not_modulus.data[1]),
-              [twice_not_modulus_2] "m"(twice_not_modulus.data[2]),
-              [twice_not_modulus_3] "m"(twice_not_modulus.data[3])
+              [ twice_not_modulus_0 ] "m"(twice_not_modulus.data[0]),
+              [ twice_not_modulus_1 ] "m"(twice_not_modulus.data[1]),
+              [ twice_not_modulus_2 ] "m"(twice_not_modulus.data[2]),
+              [ twice_not_modulus_3 ] "m"(twice_not_modulus.data[3])
             : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
     return r;
 }
@@ -202,10 +202,10 @@ template <class T> void field<T>::asm_self_add_with_coarse_reduction(const field
             :
             : "r"(&a),
               "r"(&b),
-              [twice_not_modulus_0] "m"(twice_not_modulus.data[0]),
-              [twice_not_modulus_1] "m"(twice_not_modulus.data[1]),
-              [twice_not_modulus_2] "m"(twice_not_modulus.data[2]),
-              [twice_not_modulus_3] "m"(twice_not_modulus.data[3])
+              [ twice_not_modulus_0 ] "m"(twice_not_modulus.data[0]),
+              [ twice_not_modulus_1 ] "m"(twice_not_modulus.data[1]),
+              [ twice_not_modulus_2 ] "m"(twice_not_modulus.data[2]),
+              [ twice_not_modulus_3 ] "m"(twice_not_modulus.data[3])
             : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 
@@ -220,10 +220,10 @@ template <class T> field<T> field<T>::asm_sub_with_coarse_reduction(const field&
         : "r"(&a),
           "r"(&b),
           "r"(&r),
-          [twice_modulus_0] "m"(twice_modulus.data[0]),
-          [twice_modulus_1] "m"(twice_modulus.data[1]),
-          [twice_modulus_2] "m"(twice_modulus.data[2]),
-          [twice_modulus_3] "m"(twice_modulus.data[3])
+          [ twice_modulus_0 ] "m"(twice_modulus.data[0]),
+          [ twice_modulus_1 ] "m"(twice_modulus.data[1]),
+          [ twice_modulus_2 ] "m"(twice_modulus.data[2]),
+          [ twice_modulus_3 ] "m"(twice_modulus.data[3])
         : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
     return r;
 }
@@ -237,10 +237,10 @@ template <class T> void field<T>::asm_self_sub_with_coarse_reduction(const field
         :
         : "r"(&a),
           "r"(&b),
-          [twice_modulus_0] "m"(twice_modulus.data[0]),
-          [twice_modulus_1] "m"(twice_modulus.data[1]),
-          [twice_modulus_2] "m"(twice_modulus.data[2]),
-          [twice_modulus_3] "m"(twice_modulus.data[3])
+          [ twice_modulus_0 ] "m"(twice_modulus.data[0]),
+          [ twice_modulus_1 ] "m"(twice_modulus.data[1]),
+          [ twice_modulus_2 ] "m"(twice_modulus.data[2]),
+          [ twice_modulus_3 ] "m"(twice_modulus.data[3])
         : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 
@@ -264,10 +264,10 @@ template <class T> void field<T>::asm_conditional_negate(field& r, const uint64_
             :
             : "r"(predicate),
               "r"(&r),
-              [twice_modulus_0] "i"(twice_modulus.data[0]),
-              [twice_modulus_1] "i"(twice_modulus.data[1]),
-              [twice_modulus_2] "i"(twice_modulus.data[2]),
-              [twice_modulus_3] "i"(twice_modulus.data[3])
+              [ twice_modulus_0 ] "i"(twice_modulus.data[0]),
+              [ twice_modulus_1 ] "i"(twice_modulus.data[1]),
+              [ twice_modulus_2 ] "i"(twice_modulus.data[2]),
+              [ twice_modulus_3 ] "i"(twice_modulus.data[3])
             : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 
@@ -280,10 +280,10 @@ template <class T> field<T> field<T>::asm_reduce_once(const field& a) noexcept
             :
             : "r"(&a),
               "r"(&r),
-              [not_modulus_0] "m"(not_modulus.data[0]),
-              [not_modulus_1] "m"(not_modulus.data[1]),
-              [not_modulus_2] "m"(not_modulus.data[2]),
-              [not_modulus_3] "m"(not_modulus.data[3])
+              [ not_modulus_0 ] "m"(not_modulus.data[0]),
+              [ not_modulus_1 ] "m"(not_modulus.data[1]),
+              [ not_modulus_2 ] "m"(not_modulus.data[2]),
+              [ not_modulus_3 ] "m"(not_modulus.data[3])
             : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
     return r;
 }
@@ -295,10 +295,10 @@ template <class T> void field<T>::asm_self_reduce_once(const field& a) noexcept
                     STORE_FIELD_ELEMENT("%0", "%%r12", "%%r13", "%%r14", "%%r15")
             :
             : "r"(&a),
-              [not_modulus_0] "m"(not_modulus.data[0]),
-              [not_modulus_1] "m"(not_modulus.data[1]),
-              [not_modulus_2] "m"(not_modulus.data[2]),
-              [not_modulus_3] "m"(not_modulus.data[3])
+              [ not_modulus_0 ] "m"(not_modulus.data[0]),
+              [ not_modulus_1 ] "m"(not_modulus.data[1]),
+              [ not_modulus_2 ] "m"(not_modulus.data[2]),
+              [ not_modulus_3 ] "m"(not_modulus.data[3])
             : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 } // namespace barretenberg

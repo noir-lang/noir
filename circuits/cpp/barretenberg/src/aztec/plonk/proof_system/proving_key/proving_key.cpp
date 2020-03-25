@@ -2,7 +2,9 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 
 namespace waffle {
-proving_key::proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs)
+proving_key::proving_key(const size_t num_gates,
+                         const size_t num_inputs,
+                         std::shared_ptr<ProverReferenceString> const& crs)
     : n(num_gates)
     , num_public_inputs(num_inputs)
     , small_domain(n, n)

@@ -1,9 +1,9 @@
-#include "create.hpp"
-#include "../../tx/user_context.hpp"
-#include <gtest/gtest.h>
-#include <crypto/schnorr/schnorr.hpp>
-#include <common/streams.hpp>
 #include "../../pedersen_note/pedersen_note.hpp"
+#include "../../tx/user_context.hpp"
+#include "create.hpp"
+#include <common/streams.hpp>
+#include <crypto/schnorr/schnorr.hpp>
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
@@ -16,9 +16,9 @@ TEST(client_proofs, test_create)
     user_context user = create_user_context();
 
     tx_note note = {
-      user.public_key,
-      100,
-      user.note_secret,
+        user.public_key,
+        100,
+        user.note_secret,
     };
 
     auto encrypted_note = encrypt_note(note);

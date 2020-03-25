@@ -1,7 +1,7 @@
 #pragma once
 #include "../bool/bool.hpp"
-#include "../field/field.hpp"
 #include "../composers/composers_fwd.hpp"
+#include "../field/field.hpp"
 
 namespace plonk {
 namespace stdlib {

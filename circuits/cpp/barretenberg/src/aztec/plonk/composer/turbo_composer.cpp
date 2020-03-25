@@ -16,9 +16,7 @@ TurboComposer::TurboComposer()
 {}
 
 TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint)
-    : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint)
-{
-};
+    : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 TurboComposer::TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
     : ComposerBase(std::move(crs_factory))
@@ -1055,8 +1053,11 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
     commitments.resize(15);
 
     for (size_t i = 0; i < 15; ++i) {
-        commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n, state));
+        commitments[i] =
+            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
+                                                                circuit_proving_key->reference_string->get_monomials(),
+                                                                circuit_proving_key->n,
+                                                                state));
     }
 
     auto crs = crs_factory_->get_verifier_crs();

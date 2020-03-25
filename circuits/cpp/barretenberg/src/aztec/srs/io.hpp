@@ -1,7 +1,7 @@
 #pragma once
-#include <cstdint>
 #include "../ecc/curves/bn254/g1.hpp"
 #include "../ecc/curves/bn254/g2.hpp"
+#include <cstdint>
 #include <string>
 
 namespace barretenberg {

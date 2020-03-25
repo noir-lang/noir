@@ -1,12 +1,12 @@
 #pragma once
 
-#include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/fq.hpp>
+#include <ecc/curves/bn254/fr.hpp>
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/uintx/uintx.hpp>
 
-#include "../field/field.hpp"
 #include "../byte_array/byte_array.hpp"
+#include "../field/field.hpp"
 
 #include "../composers/composers_fwd.hpp"
 

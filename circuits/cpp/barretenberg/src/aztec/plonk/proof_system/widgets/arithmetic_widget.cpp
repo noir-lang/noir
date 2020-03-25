@@ -236,13 +236,13 @@ size_t VerifierArithmeticWidget<Field, Group, Transcript>::compute_batch_evaluat
 };
 
 template <typename Field, typename Group, typename Transcript>
-VerifierBaseWidget::challenge_coefficients<Field> VerifierArithmeticWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
-    verification_key* key,
-    const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-    const Transcript& transcript,
-    std::vector<Group>& points,
-    std::vector<Field>& scalars,
-    const bool use_linearisation)
+VerifierBaseWidget::challenge_coefficients<Field> VerifierArithmeticWidget<Field, Group, Transcript>::
+    append_scalar_multiplication_inputs(verification_key* key,
+                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
+                                        const Transcript& transcript,
+                                        std::vector<Group>& points,
+                                        std::vector<Field>& scalars,
+                                        const bool use_linearisation)
 {
     if (use_linearisation) {
         Field w_l_eval = transcript.get_field_element("w_1");

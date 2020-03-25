@@ -1,7 +1,7 @@
 #pragma once
 
-#include <numeric/uintx/uintx.hpp>
 #include <numeric/uint256/uint256.hpp>
+#include <numeric/uintx/uintx.hpp>
 
 #include "../../fields/field.hpp"
 #include "../../groups/group.hpp"

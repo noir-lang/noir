@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../primitives/field/field.hpp"
-#include "../primitives/bool/bool.hpp"
 #include "../primitives/bigfield/bigfield.hpp"
 #include "../primitives/biggroup/biggroup.hpp"
+#include "../primitives/bool/bool.hpp"
+#include "../primitives/field/field.hpp"
 
 namespace stdlib {
 namespace recursion {

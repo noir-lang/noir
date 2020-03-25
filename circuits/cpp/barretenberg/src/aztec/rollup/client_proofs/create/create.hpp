@@ -1,8 +1,8 @@
 #pragma once
-#include <crypto/schnorr/schnorr.hpp>
-#include <stdlib/types/turbo.hpp>
-#include <plonk/reference_string/mem_reference_string.hpp>
 #include "../../tx/tx_note.hpp"
+#include <crypto/schnorr/schnorr.hpp>
+#include <plonk/reference_string/mem_reference_string.hpp>
+#include <stdlib/types/turbo.hpp>
 
 namespace rollup {
 namespace client_proofs {

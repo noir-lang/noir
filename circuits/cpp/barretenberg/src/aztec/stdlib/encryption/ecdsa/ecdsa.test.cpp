@@ -1,6 +1,6 @@
-#include "ecdsa.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
+#include "ecdsa.hpp"
 
 #include <crypto/ecdsa/ecdsa.hpp>
 

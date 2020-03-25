@@ -48,7 +48,7 @@ const auto init = []() {
         accumulator *= element;
         scalars.emplace_back(accumulator);
     }
-    //reference_string = waffle::ReferenceString(NUM_POINTS, "../srs_db");
+    // reference_string = waffle::ReferenceString(NUM_POINTS, "../srs_db");
 
     return 1;
 }();

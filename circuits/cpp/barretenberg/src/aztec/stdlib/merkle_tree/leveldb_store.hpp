@@ -3,7 +3,7 @@
 #include <stdlib/primitives/field/field.hpp>
 
 namespace leveldb {
-  class DB;
+class DB;
 }
 
 namespace plonk {

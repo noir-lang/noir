@@ -190,7 +190,6 @@ TEST(secp256r1, check_group_modulus)
     EXPECT_EQ(result == secp256r1::g1::one, true);
 }
 
-
 TEST(secp256r1, add_exception_test_infinity)
 {
     secp256r1::g1::element lhs = secp256r1::g1::element::random_element();

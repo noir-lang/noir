@@ -44,8 +44,11 @@ class ProverArithmeticWidget : public ProverBaseWidget {
     barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
-    size_t compute_opening_poly_contribution(
-        const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
+    size_t compute_opening_poly_contribution(const size_t nu_index,
+                                             const transcript::Transcript&,
+                                             barretenberg::fr*,
+                                             barretenberg::fr*,
+                                             const bool) override;
 
     void compute_transcript_elements(transcript::Transcript&, const bool) override;
 

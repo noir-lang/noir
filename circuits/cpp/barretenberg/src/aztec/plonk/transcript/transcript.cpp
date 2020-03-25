@@ -1,9 +1,9 @@
 #include "transcript.hpp"
 #include <common/assert.hpp>
-#include <crypto/keccak/keccak.hpp>
 #include <crypto/blake2s/blake2s.hpp>
-#include <iostream>
+#include <crypto/keccak/keccak.hpp>
 #include <iomanip>
+#include <iostream>
 
 namespace transcript {
 

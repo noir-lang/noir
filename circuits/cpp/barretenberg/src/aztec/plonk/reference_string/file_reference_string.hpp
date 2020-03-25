@@ -2,10 +2,10 @@
  * Create reference strings given a path to a directory of transcript files.
  */
 #pragma once
+#include "reference_string.hpp"
 #include <cstddef>
 #include <ecc/curves/bn254/g1.hpp>
 #include <ecc/curves/bn254/g2.hpp>
-#include "reference_string.hpp"
 
 namespace barretenberg {
 namespace pairing {

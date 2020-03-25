@@ -1,13 +1,13 @@
 #include "leveldb_store.hpp"
-#include "leveldb_tx.hpp"
 #include "hash.hpp"
+#include "leveldb_tx.hpp"
 #include <common/net.hpp>
 #include <iostream>
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 #include <numeric/bitop/count_leading_zeros.hpp>
 #include <numeric/bitop/keep_n_lsb.hpp>
 #include <sstream>
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
 
 namespace plonk {
 namespace stdlib {
@@ -63,10 +63,10 @@ LevelDbStore::LevelDbStore(LevelDbStore&& other)
     , root_(other.root_)
 {}
 
-LevelDbStore::~LevelDbStore() {
-}
+LevelDbStore::~LevelDbStore() {}
 
-void LevelDbStore::destroy(std::string path) {
+void LevelDbStore::destroy(std::string path)
+{
     leveldb::DestroyDB(path, leveldb::Options());
 }
 

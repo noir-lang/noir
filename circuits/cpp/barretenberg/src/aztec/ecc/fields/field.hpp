@@ -432,5 +432,5 @@ template <class Params> struct alignas(32) field {
 
 } // namespace barretenberg
 
-#include "field_impl_x64.hpp"
 #include "./field_impl.hpp"
+#include "field_impl_x64.hpp"

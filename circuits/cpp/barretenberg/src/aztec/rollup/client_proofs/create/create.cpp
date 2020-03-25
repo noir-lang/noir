@@ -1,6 +1,6 @@
 #include "create.hpp"
-#include <stdlib/encryption/schnorr/schnorr.hpp>
 #include "../../pedersen_note/pedersen_note.hpp"
+#include <stdlib/encryption/schnorr/schnorr.hpp>
 
 namespace rollup {
 namespace client_proofs {
@@ -81,7 +81,8 @@ std::vector<uint8_t> create_note_proof(tx_note const& note, crypto::schnorr::sig
     return proof.proof_data;
 }
 
-bool verify_proof(waffle::plonk_proof const& proof) {
+bool verify_proof(waffle::plonk_proof const& proof)
+{
     Verifier verifier(verification_key, Composer::create_manifest(3));
     return verifier.verify_proof(proof);
 }

@@ -1,10 +1,9 @@
 #pragma once
+#include <ecc/curves/bn254/scalar_multiplication/runtime_states.hpp>
 #include <map>
 #include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 #include <polynomials/polynomial.hpp>
-#include <plonk/reference_string/reference_string.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/runtime_states.hpp>
 
 namespace waffle {
 struct proving_key {

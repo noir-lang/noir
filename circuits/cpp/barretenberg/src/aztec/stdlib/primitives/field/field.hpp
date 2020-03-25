@@ -40,7 +40,7 @@ template <typename ComposerContext> class field_t {
     field_t(const bool_t<ComposerContext>& other);
 
     static field_t from_witness_index(ComposerContext* parent_context, const uint32_t witness_index);
-    
+
     explicit operator bool_t<ComposerContext>();
 
     field_t& operator=(const field_t& other);

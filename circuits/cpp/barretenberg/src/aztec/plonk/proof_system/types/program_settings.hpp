@@ -3,8 +3,8 @@
 #include <cstdint>
 
 #include "../../transcript/transcript_wrappers.hpp"
-#include "../widgets/base_widget.hpp"
 #include "../widgets/arithmetic_widget.hpp"
+#include "../widgets/base_widget.hpp"
 #include "../widgets/mimc_widget.hpp"
 #include "../widgets/turbo_arithmetic_widget.hpp"
 #include "../widgets/turbo_fixed_base_widget.hpp"

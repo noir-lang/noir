@@ -2,10 +2,10 @@
 
 #include <transcript/transcript.hpp>
 
-#include "../primitives/field/field.hpp"
-#include "../primitives/bool/bool.hpp"
 #include "../primitives/bigfield/bigfield.hpp"
 #include "../primitives/biggroup/biggroup.hpp"
+#include "../primitives/bool/bool.hpp"
+#include "../primitives/field/field.hpp"
 
 namespace stdlib {
 namespace recursion {
@@ -57,13 +57,9 @@ template <typename Composer> class Transcript {
             buffer.push_back(current_challenge);
         }
         for (auto manifest_element : manifest.get_round_manifest(current_round).elements) {
-            if (manifest_element.num_bytes == 32)
-            {
+            if (manifest_element.num_bytes == 32) {
                 buffer.push_back(get_field_element(manifest_element.name));
-            }
-            else if (manifest_element.num_bytes == 64)
-            {
-                
+            } else if (manifest_element.num_bytes == 64) {
             }
             ASSERT(elements.count(manifest_element.name) == 1);
             std::vector<uint8_t>& element_data = elements.at(manifest_element.name);

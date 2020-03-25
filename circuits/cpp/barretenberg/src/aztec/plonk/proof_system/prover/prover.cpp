@@ -754,8 +754,11 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
     g1::element PI_Z = barretenberg::scalar_multiplication::pippenger_unsafe(
         opening_poly.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
 
-    g1::element PI_Z_OMEGA = barretenberg::scalar_multiplication::pippenger_unsafe(
-        shifted_opening_poly.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
+    g1::element PI_Z_OMEGA =
+        barretenberg::scalar_multiplication::pippenger_unsafe(shifted_opening_poly.get_coefficients(),
+                                                              key->reference_string->get_monomials(),
+                                                              n,
+                                                              key->pippenger_runtime_state);
 
     g1::affine_element PI_Z_affine;
     g1::affine_element PI_Z_OMEGA_affine;
@@ -828,7 +831,9 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     if constexpr (settings::use_linearisation) {
         barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
             barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
-        plonk_linear_terms linear_terms = compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript, lagrange_evals.l_1);
+        plonk_linear_terms linear_terms =
+            compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript,
+                                                                                             lagrange_evals.l_1);
 
         const polynomial& sigma_last =
             key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));

@@ -6,7 +6,9 @@
 namespace waffle {
 
 struct verification_key {
-    verification_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<VerifierReferenceString> const& crs);
+    verification_key(const size_t num_gates,
+                     const size_t num_inputs,
+                     std::shared_ptr<VerifierReferenceString> const& crs);
     verification_key(const verification_key& other);
     verification_key(verification_key&& other);
     verification_key& operator=(verification_key&& other);

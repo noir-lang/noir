@@ -12,13 +12,13 @@
 
 #include <polynomials/polynomial_arithmetic.hpp>
 
-#include <ecc/curves/secp256r1/secp256r1.hpp>
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
+#include <ecc/curves/secp256r1/secp256r1.hpp>
 
-#include <numeric/random/engine.hpp>
 #include <memory>
+#include <numeric/random/engine.hpp>
 
 using namespace barretenberg;
 using namespace plonk;

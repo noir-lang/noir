@@ -1,5 +1,3 @@
-#include "../tx/batch_tx.hpp"
-#include "../tx/user_context.hpp"
 #include "../prover/create.hpp"
 #include "../prover/destroy.hpp"
 #include "../prover/join.hpp"
@@ -7,6 +5,8 @@
 #include "../prover/rollup_context.hpp"
 #include "../prover/split.hpp"
 #include "../prover/timer.hpp"
+#include "../tx/batch_tx.hpp"
+#include "../tx/user_context.hpp"
 
 char const* DATA_DB_PATH = "/tmp/rollup_prover";
 char const* NULLIFIER_DB_PATH = "/tmp/rollup_prover_nullifier";

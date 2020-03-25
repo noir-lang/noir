@@ -318,8 +318,11 @@ std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
     commitments.resize(10);
 
     for (size_t i = 0; i < 10; ++i) {
-        commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n, state));
+        commitments[i] =
+            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
+                                                                circuit_proving_key->reference_string->get_monomials(),
+                                                                circuit_proving_key->n,
+                                                                state));
     }
 
     auto crs = crs_factory_->get_verifier_crs();

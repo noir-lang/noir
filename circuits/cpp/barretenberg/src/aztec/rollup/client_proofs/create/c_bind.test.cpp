@@ -1,11 +1,11 @@
+#include "../../tx/user_context.hpp"
 #include "c_bind.h"
 #include "create.hpp"
-#include "../../tx/user_context.hpp"
-#include <plonk/reference_string/file_reference_string.hpp>
-#include <gtest/gtest.h>
-#include <crypto/schnorr/schnorr.hpp>
 #include <common/streams.hpp>
+#include <crypto/schnorr/schnorr.hpp>
 #include <fstream>
+#include <gtest/gtest.h>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 using namespace barretenberg;
 using namespace rollup::client_proofs::create;

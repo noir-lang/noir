@@ -2,8 +2,8 @@
 #include "../widgets/arithmetic_widget.hpp"
 #include "prover.hpp"
 #include <gtest/gtest.h>
-#include <polynomials/polynomial_arithmetic.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 /*
 ```

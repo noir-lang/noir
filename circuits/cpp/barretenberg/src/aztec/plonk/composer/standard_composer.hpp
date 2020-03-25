@@ -1,7 +1,7 @@
 #pragma once
 #include "composer_base.hpp"
-#include <plonk/transcript/manifest.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <plonk/transcript/manifest.hpp>
 
 namespace waffle {
 class StandardComposer : public ComposerBase {
