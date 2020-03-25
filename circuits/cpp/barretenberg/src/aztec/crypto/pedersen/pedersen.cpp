@@ -138,6 +138,9 @@ const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const siz
 
 grumpkin::g1::affine_element get_generator(const size_t generator_index)
 {
+    if (!inited) {
+        init();
+    }
     return generators[generator_index];
 }
 
@@ -181,6 +184,9 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
 
 grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
 {
+    if (!inited) {
+        init();
+    }
     grumpkin::g1::element out[8];
 
 #ifndef NO_MULTITHREADING
@@ -200,6 +206,9 @@ grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
 
 grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index)
 {
+    if (!inited) {
+        init();
+    }
 #ifndef NO_MULTITHREADING
     grumpkin::fq in[2] = { left, right };
     grumpkin::g1::element out[2];
@@ -226,6 +235,9 @@ grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
                                                       const grumpkin::fq& right,
                                                       const size_t hash_index)
 {
+    if (!inited) {
+        init();
+    }
     grumpkin::g1::element first = hash_single(left, hash_index);
     grumpkin::g1::element second = hash_single(right, hash_index + 1);
     first = first + second;
