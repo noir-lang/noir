@@ -1,6 +1,8 @@
 #include "leveldb_store.hpp"
+#include "leveldb_tx.hpp"
 #include "merkle_tree.hpp"
 #include <gtest/gtest.h>
+#include <leveldb/db.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;

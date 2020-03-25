@@ -9,15 +9,19 @@
 namespace waffle {
 struct proving_key {
   public:
-    proving_key(const size_t num_gates, const size_t num_inputs, std::string const& crs_path);
+    proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
 
     proving_key(const proving_key& other);
 
     proving_key(proving_key&& other);
 
+    proving_key(std::ostream& is, std::string const& crs_path);
+
     proving_key& operator=(proving_key&& other);
 
     void reset();
+
+    void write(std::ostream& os);
 
     size_t n;
     size_t num_public_inputs;
@@ -35,7 +39,7 @@ struct proving_key {
     barretenberg::evaluation_domain mid_domain;
     barretenberg::evaluation_domain large_domain;
 
-    ReferenceString reference_string;
+    std::shared_ptr<ProverReferenceString> reference_string;
 
     barretenberg::polynomial z;
     barretenberg::polynomial z_fft;

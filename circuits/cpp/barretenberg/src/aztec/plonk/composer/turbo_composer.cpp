@@ -5,13 +5,23 @@
 #include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_range_widget.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 using namespace barretenberg;
 
 namespace waffle {
 
+TurboComposer::TurboComposer()
+    : TurboComposer("../srs_db", 0)
+{}
+
 TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint)
-    : ComposerBase(crs_path)
+    : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint)
+{
+};
+
+TurboComposer::TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
+    : ComposerBase(std::move(crs_factory))
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -31,7 +41,7 @@ TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint
 
     zero_idx = put_constant_variable(fr::zero());
     // zero_idx = add_variable(barretenberg::fr::zero());
-};
+}
 
 TurboComposer::TurboComposer(std::shared_ptr<proving_key> const& p_key,
                              std::shared_ptr<verification_key> const& v_key,
@@ -905,7 +915,8 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
         }
         old_epicycles = new_epicycles;
     }
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs_path);
+    auto crs = crs_factory_->get_prover_crs(new_n);
+    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
@@ -1045,11 +1056,12 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
 
     for (size_t i = 0; i < 15; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
+            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n, state));
     }
 
+    auto crs = crs_factory_->get_verifier_crs();
     circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs_path);
+        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });

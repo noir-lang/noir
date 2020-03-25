@@ -1,10 +1,13 @@
 #include "leveldb_store.hpp"
+#include "leveldb_tx.hpp"
 #include "hash.hpp"
 #include <common/net.hpp>
 #include <iostream>
 #include <numeric/bitop/count_leading_zeros.hpp>
 #include <numeric/bitop/keep_n_lsb.hpp>
 #include <sstream>
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 
 namespace plonk {
 namespace stdlib {
@@ -49,6 +52,22 @@ LevelDbStore::LevelDbStore(std::string const& db_path, size_t depth)
     std::string size;
     status = db->Get(leveldb::ReadOptions(), "size", &size);
     size_ = status.ok() ? ntohll(*reinterpret_cast<uint64_t*>(size.data())) : 0ULL;
+}
+
+LevelDbStore::LevelDbStore(LevelDbStore&& other)
+    : db_(std::move(other.db_))
+    , tx_(std::move(other.tx_))
+    , zero_hashes_(std::move(other.zero_hashes_))
+    , depth_(other.depth_)
+    , size_(other.size_)
+    , root_(other.root_)
+{}
+
+LevelDbStore::~LevelDbStore() {
+}
+
+void LevelDbStore::destroy(std::string path) {
+    leveldb::DestroyDB(path, leveldb::Options());
 }
 
 barretenberg::fr LevelDbStore::root() const

@@ -50,7 +50,6 @@ template <typename settings> class ProverBase {
     // Hmm, mixing runtime polymorphism and zero-knowledge proof generation. This seems fine...
     // TODO: note from future self: totally not fine. Replace with template parameters
     std::vector<std::unique_ptr<ProverBaseWidget>> widgets;
-    ReferenceString reference_string;
     transcript::StandardTranscript transcript;
 
     std::shared_ptr<proving_key> key;

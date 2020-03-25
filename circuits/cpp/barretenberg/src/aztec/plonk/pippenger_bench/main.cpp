@@ -2,7 +2,7 @@
 #include <common/assert.hpp>
 #include <cstdlib>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
-#include <plonk/reference_string/reference_string.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 //#include <valgrind/callgrind.h>
 // CALLGRIND_START_INSTRUMENTATION;
@@ -38,7 +38,8 @@ using namespace barretenberg;
 // }
 constexpr size_t NUM_POINTS = 1 << 20;
 std::vector<fr> scalars;
-waffle::ReferenceString reference_string;
+auto reference_string = std::make_shared<waffle::FileReferenceString>(NUM_POINTS, "../srs_db");
+
 const auto init = []() {
     fr element = fr::random_element();
     fr accumulator = element;
@@ -47,7 +48,7 @@ const auto init = []() {
         accumulator *= element;
         scalars.emplace_back(accumulator);
     }
-    reference_string = waffle::ReferenceString(NUM_POINTS, "../srs_db");
+    //reference_string = waffle::ReferenceString(NUM_POINTS, "../srs_db");
 
     return 1;
 }();
@@ -58,7 +59,7 @@ int pippenger()
     scalar_multiplication::unsafe_pippenger_runtime_state state(NUM_POINTS);
     std::chrono::steady_clock::time_point time_start = std::chrono::steady_clock::now();
     g1::element result =
-        scalar_multiplication::pippenger_unsafe(&scalars[0], &reference_string.monomials[0], NUM_POINTS, state);
+        scalar_multiplication::pippenger_unsafe(&scalars[0], reference_string->get_monomials(), NUM_POINTS, state);
     std::chrono::steady_clock::time_point time_end = std::chrono::steady_clock::now();
     std::chrono::microseconds diff = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start);
     std::cout << "run time: " << diff.count() << "us" << std::endl;

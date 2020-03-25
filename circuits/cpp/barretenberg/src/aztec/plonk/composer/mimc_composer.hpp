@@ -14,7 +14,6 @@ struct mimc_quadruplet {
 class MiMCComposer : public StandardComposer {
   public:
     MiMCComposer(const size_t size_hint = 0)
-        : StandardComposer()
     {
         q_mimc_coefficient.reserve(size_hint);
         q_mimc_selector.reserve(size_hint);

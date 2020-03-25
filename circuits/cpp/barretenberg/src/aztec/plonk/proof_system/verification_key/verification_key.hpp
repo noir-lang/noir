@@ -6,7 +6,7 @@
 namespace waffle {
 
 struct verification_key {
-    verification_key(const size_t num_gates, const size_t num_inputs, std::string const& crs_path);
+    verification_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<VerifierReferenceString> const& crs);
     verification_key(const verification_key& other);
     verification_key(verification_key&& other);
     verification_key& operator=(verification_key&& other);
@@ -17,7 +17,7 @@ struct verification_key {
 
     barretenberg::evaluation_domain domain;
 
-    VerifierReferenceString reference_string;
+    std::shared_ptr<VerifierReferenceString> reference_string;
 
     std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
 

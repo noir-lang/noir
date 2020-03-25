@@ -4,7 +4,10 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/composer/turbo_composer.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 #include <stdlib/primitives/field/field.hpp>
+
+#define BARRETENBERG_SRS_PATH "../srs_db"
 
 using namespace benchmark;
 

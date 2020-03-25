@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 #include <polynomials/polynomial_arithmetic.hpp>
 
+#define BARRETENBERG_SRS_PATH "../srs_db"
+
 using namespace barretenberg;
 using namespace waffle;
 
@@ -117,7 +119,8 @@ TEST(turbo_range_widget, quotient_polynomial_satisfiability)
 {
     const size_t num_gates = 64;
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(num_gates, 0, BARRETENBERG_SRS_PATH);
+    auto crs = std::make_shared<waffle::FileReferenceString>(num_gates, BARRETENBERG_SRS_PATH);
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(num_gates, 0, crs);
 
     waffle::ProverTurboRangeWidget widget = create_test_widget_circuit(num_gates, witness, key);
 
@@ -134,7 +137,8 @@ TEST(turbo_range_widget, compute_linear_contribution)
 {
     const size_t num_gates = 64;
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(num_gates, 0, BARRETENBERG_SRS_PATH);
+    auto crs = std::make_shared<waffle::FileReferenceString>(num_gates, BARRETENBERG_SRS_PATH);
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(num_gates, 0, crs);
 
     waffle::ProverTurboRangeWidget widget = create_test_widget_circuit(num_gates, witness, key, true);
 

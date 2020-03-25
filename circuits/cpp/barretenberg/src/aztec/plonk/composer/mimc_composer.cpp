@@ -198,7 +198,8 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
         q_mimc_selector.emplace_back(fr::zero());
     }
 
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs_path);
+    auto crs = crs_factory_->get_prover_crs(new_n);
+    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
@@ -318,11 +319,12 @@ std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
 
     for (size_t i = 0; i < 10; ++i) {
         commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
+            poly_coefficients[i], circuit_proving_key->reference_string->get_monomials(), circuit_proving_key->n, state));
     }
 
+    auto crs = crs_factory_->get_verifier_crs();
     circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs_path);
+        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
