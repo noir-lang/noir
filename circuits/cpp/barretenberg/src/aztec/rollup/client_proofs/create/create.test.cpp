@@ -12,7 +12,7 @@ using namespace rollup::tx;
 
 TEST(client_proofs, test_create)
 {
-    Composer composer = Composer();
+    Composer composer = Composer("../srs_db/ignition");
     user_context user = create_user_context();
 
     tx_note note = {
@@ -29,9 +29,14 @@ TEST(client_proofs, test_create)
         crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
             std::string(message.begin(), message.end()), { user.private_key, user.public_key });
 
-    auto proof = create_note_proof(composer, note, signature);
+    create_note_proof(composer, note, signature);
 
+    Prover prover = composer.create_prover();
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    std::cout << "gates: " << composer.get_num_gates() << std::endl;
     std::cout << "proof size: " << proof.proof_data.size() << std::endl;
+    std::cout << "public inputs size: " << composer.public_inputs.size() << std::endl;
 
     auto verifier = composer.create_verifier();
     bool result = verifier.verify_proof(proof);

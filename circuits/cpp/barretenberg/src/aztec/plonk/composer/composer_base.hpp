@@ -154,7 +154,7 @@ class ComposerBase {
         : n(0)
         , computed_proving_key(true)
         , circuit_proving_key(p_key)
-        , computed_verification_key(true)
+        , computed_verification_key(v_key.get() != nullptr)
         , circuit_verification_key(v_key)
     {}
     ComposerBase(ComposerBase&& other) = default;

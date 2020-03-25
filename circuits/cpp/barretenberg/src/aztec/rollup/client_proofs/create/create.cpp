@@ -13,6 +13,9 @@ using namespace pedersen_note;
 
 typedef std::pair<private_note, public_note> note_pair;
 
+static std::shared_ptr<waffle::proving_key> proving_key;
+static std::shared_ptr<waffle::verification_key> verification_key;
+
 note_pair create_note_pair(Composer& composer, tx_note const& note)
 {
     note_pair result;
@@ -38,28 +41,49 @@ void verify_signature(Composer& composer,
     stdlib::schnorr::verify_signature(message2, owner_pub_key, signature);
 }
 
-waffle::plonk_proof create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig)
+void create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig)
 {
     note_pair note_data = create_note_pair(composer, note);
-
     verify_signature(composer, note_data.second, note.owner, sig);
+}
 
-#ifndef __wasm__
-    std::cout << "gates: " << composer.get_num_gates() << std::endl;
-#endif
+void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
+{
+    // Junk data required just to create proving key.
+    tx_note note;
+    crypto::schnorr::signature sig;
+
+    Composer composer(std::move(crs_factory));
+    create_note_proof(composer, note, sig);
+    proving_key = composer.compute_proving_key();
+}
+
+void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
+{
+    // Junk data required just to create proving key.
+    tx_note note;
+    crypto::schnorr::signature sig;
+
+    Composer composer(std::move(crs_factory));
+    create_note_proof(composer, note, sig);
+    proving_key = composer.compute_proving_key();
+    verification_key = composer.compute_verification_key();
+}
+
+std::vector<uint8_t> create_note_proof(tx_note const& note, crypto::schnorr::signature const& sig)
+{
+    Composer composer(proving_key, nullptr);
+    create_note_proof(composer, note, sig);
 
     Prover prover = composer.create_prover();
     waffle::plonk_proof proof = prover.construct_proof();
 
-    return proof;
+    return proof.proof_data;
 }
 
-std::vector<uint8_t> create_note_proof(tx_note const& note,
-                                       crypto::schnorr::signature const& sig,
-                                       std::unique_ptr<waffle::MemReferenceStringFactory>&& crs_factory)
-{
-    Composer composer(std::move(crs_factory));
-    return create_note_proof(composer, note, sig).proof_data;
+bool verify_proof(waffle::plonk_proof const& proof) {
+    Verifier verifier(verification_key, Composer::create_manifest(3));
+    return verifier.verify_proof(proof);
 }
 
 } // namespace create

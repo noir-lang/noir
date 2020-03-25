@@ -15,6 +15,8 @@ class VerifierReferenceString {
   public:
     virtual ~VerifierReferenceString() {};
 
+    virtual barretenberg::g2::affine_element get_g2x() const = 0;
+
     virtual barretenberg::pairing::miller_lines const* get_precomputed_g2_lines() const = 0;
 };
 

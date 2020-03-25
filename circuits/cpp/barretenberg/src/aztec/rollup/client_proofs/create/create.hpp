@@ -11,11 +11,15 @@ namespace create {
 using namespace rollup::tx;
 using namespace plonk::stdlib::types::turbo;
 
-waffle::plonk_proof create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
+void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
-std::vector<uint8_t> create_note_proof(tx_note const& note,
-                                       crypto::schnorr::signature const& sig,
-                                       std::unique_ptr<waffle::MemReferenceStringFactory>&& crs_factory);
+void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
+
+void create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
+
+std::vector<uint8_t> create_note_proof(tx_note const& note, crypto::schnorr::signature const& sig);
+
+bool verify_proof(waffle::plonk_proof const& proof);
 
 } // namespace create
 } // namespace client_proofs

@@ -20,9 +20,12 @@ class VerifierFileReferenceString : public VerifierReferenceString {
     VerifierFileReferenceString(std::string const& path);
     ~VerifierFileReferenceString();
 
+    barretenberg::g2::affine_element get_g2x() const { return g2_x; }
+
     barretenberg::pairing::miller_lines const* get_precomputed_g2_lines() const { return precomputed_g2_lines; }
 
   private:
+    barretenberg::g2::affine_element g2_x;
     barretenberg::pairing::miller_lines* precomputed_g2_lines;
 };
 
