@@ -402,9 +402,51 @@ fr ProverPermutationWidget<program_width>::compute_linear_contribution(const fr&
 
 template <size_t program_width>
 size_t ProverPermutationWidget<program_width>::compute_opening_poly_contribution(
-    const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool)
+    const size_t nu_index,
+    const transcript::Transcript& transcript,
+    barretenberg::fr* opening_poly,
+    barretenberg::fr* shifted_opening_poly,
+    const bool use_linearisation)
 {
-    return nu_index;
+    polynomial& z = key->z;
+
+    const size_t num_sigma_evaluations = use_linearisation ? program_width - 1 : program_width;
+    std::vector<fr*> sigmas(num_sigma_evaluations);
+    for (size_t i = 0; i < num_sigma_evaluations; ++i) {
+        sigmas[i] = &key->permutation_selectors.at("sigma_" + std::to_string(i + 1))[0];
+    }
+
+    size_t nu_shifted_z_offset = (use_linearisation) ? program_width - 1 : program_width + 1;
+    std::vector<barretenberg::fr> nu_challenges(nu_shifted_z_offset + 1);
+    for (size_t i = 0; i < nu_shifted_z_offset + 1; i++) {
+        nu_challenges[i] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + i)[0]);
+    }
+
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+
+    fr T0;
+    fr quotient_temp = fr::zero();
+
+    for (size_t k = 0; k < program_width - 1; ++k) {
+        T0 = sigmas[k][i] * nu_challenges[k];
+        quotient_temp += T0;
+    }
+
+    if (!use_linearisation) {
+        // TODO: fix overlapping nu_powers
+        T0 = sigmas[program_width - 1][i] * nu_challenges[program_width - 1];
+        quotient_temp += T0;
+        T0 = z[i] * nu_challenges[program_width];
+        quotient_temp += T0;
+    }
+
+    shifted_opening_poly[i] += z[i] * nu_challenges[nu_shifted_z_offset];
+
+    opening_poly[i] += quotient_temp;
+
+    ITERATE_OVER_DOMAIN_END;
+
+    return nu_index + nu_shifted_z_offset + 1;
 }
 
 template <size_t program_width>
