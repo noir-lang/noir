@@ -783,13 +783,11 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 template <typename settings> barretenberg::fr ProverBase<settings>::compute_linearisation_coefficients()
 {
 
-    fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    fr shifted_z;
-    shifted_z = z_challenge * key->small_domain.root;
+    fr shifted_z = z_challenge * key->small_domain.root;
 
     polynomial& r = key->linear_poly;
-    polynomial& z = key->z;
+    // polynomial& z = key->z;
     // ok... now we need to evaluate polynomials. Jeepers
 
     // evaluate the prover and instance polynomials.
@@ -808,25 +806,26 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         }
     }
 
-    // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in the
-    // transcript
-    for (size_t i = 0; i < settings::program_width - 1; ++i) {
-        std::string permutation_key = "sigma_" + std::to_string(i + 1);
-        const polynomial& sigma = key->permutation_selectors.at(permutation_key);
-        fr permutation_eval = sigma.evaluate(z_challenge, n);
-        transcript.add_element(permutation_key, permutation_eval.to_buffer());
-    }
+    // // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in
+    // the
+    // // transcript
+    // for (size_t i = 0; i < settings::program_width - 1; ++i) {
+    //     std::string permutation_key = "sigma_" + std::to_string(i + 1);
+    //     const polynomial& sigma = key->permutation_selectors.at(permutation_key);
+    //     fr permutation_eval = sigma.evaluate(z_challenge, n);
+    //     transcript.add_element(permutation_key, permutation_eval.to_buffer());
+    // }
 
-    if constexpr (!settings::use_linearisation) {
-        fr z_eval = z.evaluate(z_challenge, n);
-        std::string sigma_last_key = "sigma_" + std::to_string(settings::program_width);
-        fr sigma_last_eval = key->permutation_selectors.at(sigma_last_key).evaluate(z_challenge, n);
-        transcript.add_element("z", z_eval.to_buffer());
-        transcript.add_element(sigma_last_key, sigma_last_eval.to_buffer());
-    }
+    // if constexpr (!settings::use_linearisation) {
+    //     fr z_eval = z.evaluate(z_challenge, n);
+    //     std::string sigma_last_key = "sigma_" + std::to_string(settings::program_width);
+    //     fr sigma_last_eval = key->permutation_selectors.at(sigma_last_key).evaluate(z_challenge, n);
+    //     transcript.add_element("z", z_eval.to_buffer());
+    //     transcript.add_element(sigma_last_key, sigma_last_eval.to_buffer());
+    // }
 
-    fr z_shifted_eval = z.evaluate(shifted_z, n);
-    transcript.add_element("z_omega", z_shifted_eval.to_buffer());
+    // fr z_shifted_eval = z.evaluate(shifted_z, n);
+    // transcript.add_element("z_omega", z_shifted_eval.to_buffer());
 
     for (size_t i = 0; i < widgets.size(); ++i) {
         widgets[i]->compute_transcript_elements(transcript, settings::use_linearisation);
@@ -835,19 +834,18 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     fr t_eval = key->quotient_large.evaluate(z_challenge, 4 * n);
 
     if constexpr (settings::use_linearisation) {
-        barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
-            barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
-        plonk_linear_terms linear_terms =
-            compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript,
-                                                                                             lagrange_evals.l_1);
+        // barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
+        //     barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
+        // plonk_linear_terms linear_terms =
+        //     compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript,
+        //                                                                                      lagrange_evals.l_1);
 
-        const polynomial& sigma_last =
-            key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
-        ITERATE_OVER_DOMAIN_START(key->small_domain);
-        r[i] = (z[i] * linear_terms.z_1) + (sigma_last[i] * linear_terms.sigma_last);
-        ITERATE_OVER_DOMAIN_END;
-
-        fr alpha_base = alpha.sqr().sqr();
+        // const polynomial& sigma_last =
+        //     key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
+        // ITERATE_OVER_DOMAIN_START(key->small_domain);
+        // r[i] = (z[i] * linear_terms.z_1) + (sigma_last[i] * linear_terms.sigma_last);
+        // ITERATE_OVER_DOMAIN_END;
+        fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
         for (size_t i = 0; i < widgets.size(); ++i) {
             alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
         }

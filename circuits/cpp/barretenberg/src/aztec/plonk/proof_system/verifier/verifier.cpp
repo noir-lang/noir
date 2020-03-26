@@ -127,8 +127,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     // compute the terms we need to derive R(X)
     plonk_linear_terms linear_terms =
-        compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings>(transcript,
-                                                                                                 lagrange_evals.l_1);
+        compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings::program_width>(
+            transcript, lagrange_evals.l_1);
 
     // reconstruct evaluation of quotient polynomial from prover messages
     fr T0;

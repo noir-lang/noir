@@ -1,10 +1,11 @@
 #include "permutation_widget.hpp"
 #include "../proving_key/proving_key.hpp"
 #include "../public_inputs/public_inputs.hpp"
-
+#include "../utils/linearizer.hpp"
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 using namespace barretenberg;
 
@@ -343,12 +344,60 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
 }
 
 template <size_t program_width>
-fr ProverPermutationWidget<program_width>::compute_linear_contribution(const fr& alpha_base,
-                                                                       const transcript::Transcript&,
-                                                                       polynomial&)
+fr ProverPermutationWidget<program_width>::compute_linear_contribution(const fr& alpha,
+                                                                       const transcript::Transcript& transcript,
+                                                                       polynomial& r)
 {
+    polynomial& z = key->z;
+    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
-    return alpha_base;
+    barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
+        barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
+
+    fr alpha_cubed = alpha.sqr() * alpha;
+    fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    fr z_beta = z_challenge * beta;
+
+    std::array<fr, program_width> wire_evaluations;
+    for (size_t i = 0; i < program_width; ++i) {
+        wire_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("w_" + std::to_string(i + 1))[0]);
+    }
+
+    fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+
+    fr T0;
+    fr z_contribution = fr(1);
+    for (size_t i = 0; i < program_width; ++i) {
+        fr coset_generator = (i == 0) ? fr(1) : fr::coset_generator(i - 1);
+        T0 = z_beta * coset_generator;
+        T0 += wire_evaluations[i];
+        T0 += gamma;
+        z_contribution *= T0;
+    }
+    fr z_1_multiplicand = z_contribution * alpha;
+    T0 = lagrange_evals.l_1 * alpha_cubed;
+    z_1_multiplicand += T0;
+
+    fr sigma_contribution = fr(1);
+    for (size_t i = 0; i < program_width - 1; ++i) {
+        fr permutation_evaluation =
+            fr::serialize_from_buffer(&transcript.get_element("sigma_" + std::to_string(i + 1))[0]);
+        T0 = permutation_evaluation * beta;
+        T0 += wire_evaluations[i];
+        T0 += gamma;
+        sigma_contribution *= T0;
+    }
+    sigma_contribution *= z_1_shifted_eval;
+    fr sigma_last_multiplicand = -(sigma_contribution * alpha);
+    sigma_last_multiplicand *= beta;
+
+    const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(program_width));
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    r[i] = (z[i] * z_1_multiplicand) + (sigma_last[i] * sigma_last_multiplicand);
+    ITERATE_OVER_DOMAIN_END;
+
+    return alpha.sqr().sqr();
 }
 
 template <size_t program_width>
@@ -359,8 +408,33 @@ size_t ProverPermutationWidget<program_width>::compute_opening_poly_contribution
 }
 
 template <size_t program_width>
-void ProverPermutationWidget<program_width>::compute_transcript_elements(transcript::Transcript&, const bool)
+void ProverPermutationWidget<program_width>::compute_transcript_elements(transcript::Transcript& transcript,
+                                                                         const bool use_linearisation)
 {
+    // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in the
+    // transcript
+    const size_t n = key->n;
+    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+    fr shifted_z = z_challenge * key->small_domain.root;
+    polynomial& z = key->z;
+
+    for (size_t i = 0; i < program_width - 1; ++i) {
+        std::string permutation_key = "sigma_" + std::to_string(i + 1);
+        const polynomial& sigma = key->permutation_selectors.at(permutation_key);
+        fr permutation_eval = sigma.evaluate(z_challenge, n);
+        transcript.add_element(permutation_key, permutation_eval.to_buffer());
+    }
+
+    if (!use_linearisation) {
+        fr z_eval = z.evaluate(z_challenge, n);
+        std::string sigma_last_key = "sigma_" + std::to_string(program_width);
+        fr sigma_last_eval = key->permutation_selectors.at(sigma_last_key).evaluate(z_challenge, n);
+        transcript.add_element("z", z_eval.to_buffer());
+        transcript.add_element(sigma_last_key, sigma_last_eval.to_buffer());
+    }
+
+    fr z_shifted_eval = z.evaluate(shifted_z, n);
+    transcript.add_element("z_omega", z_shifted_eval.to_buffer());
     return;
 }
 
@@ -377,6 +451,7 @@ template <typename Field, typename Group, typename Transcript>
 Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
     verification_key*, const Field& alpha_base, const Transcript&, Field&, const bool)
 {
+
     return alpha_base;
 }
 
