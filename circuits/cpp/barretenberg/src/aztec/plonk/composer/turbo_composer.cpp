@@ -1164,6 +1164,8 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
 
     UnrolledTurboProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboRangeWidget> range_widget =
@@ -1171,6 +1173,7 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
     std::unique_ptr<ProverTurboLogicWidget> logic_widget =
         std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(fixed_base_widget));
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));

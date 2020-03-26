@@ -3,6 +3,7 @@
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/mimc_widget.hpp>
+#include <plonk/proof_system/widgets/permutation_widget.hpp>
 
 using namespace barretenberg;
 
@@ -399,11 +400,14 @@ Prover MiMCComposer::preprocess()
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverMiMCWidget> mimc_widget =
         std::make_unique<ProverMiMCWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> arithmetic_widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(arithmetic_widget));
     output_state.widgets.emplace_back(std::move(mimc_widget));
     return output_state;

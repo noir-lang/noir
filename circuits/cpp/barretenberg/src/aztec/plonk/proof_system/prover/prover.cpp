@@ -98,7 +98,6 @@ template <typename settings> void ProverBase<settings>::compute_z_commitment()
     Z_affine = g1::affine_element(Z);
 
     transcript.add_element("Z", Z_affine.to_buffer());
-    transcript.apply_fiat_shamir("alpha");
 }
 
 template <typename settings> void ProverBase<settings>::compute_quotient_commitment()
@@ -469,7 +468,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    compute_z_coefficients();
+    // compute_z_coefficients();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -481,7 +480,8 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
     for (auto& widget : widgets) {
         widget->compute_round_commitments(transcript, 2);
     }
-    compute_z_commitment();
+    // compute_z_commitment();
+    transcript.apply_fiat_shamir("alpha");
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -525,14 +525,14 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    compute_permutation_grand_product_coefficients();
+    // compute_permutation_grand_product_coefficients();
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "compute permutation grand product coeffs: " << diff.count() << "ms" << std::endl;
 #endif
-    fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-    fr alpha_base = alpha.sqr().sqr();
+    fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    // fr alpha_base = alpha.sqr().sqr();
 
     for (size_t i = 0; i < widgets.size(); ++i) {
 #ifdef DEBUG_TIMING
