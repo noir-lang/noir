@@ -1,4 +1,5 @@
-#include "turbo_logic_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/transcript/transcript.hpp>
@@ -509,6 +510,7 @@ size_t ProverTurboLogicWidget::compute_opening_poly_contribution(
     poly[i] += (q_logic[i] * nu);
     ITERATE_OVER_DOMAIN_END;
 
+    std::cout << "final nu index = " << nu_index + 1 << std::endl;
     return nu_index + 1;
 }
 // ###
@@ -542,9 +544,9 @@ Field VerifierTurboLogicWidget<Field, Group, Transcript>::compute_quotient_evalu
     Field q_logic_eval = transcript.get_field_element("q_logic");
     Field q_c_eval = transcript.get_field_element("q_c");
 
-    constexpr Field six = Field(6);
-    constexpr Field eighty_one = Field(81);
-    constexpr Field eighty_three = Field(83);
+    const Field six = Field(6);
+    const Field eighty_one = Field(81);
+    const Field eighty_three = Field(83);
 
     Field delta_sum;
     Field delta_squared_sum;
@@ -724,9 +726,9 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field
 
         Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
 
-        constexpr Field six = Field(6);
-        constexpr Field eighty_one = Field(81);
-        constexpr Field eighty_three = Field(83);
+        const Field six = Field(6);
+        const Field eighty_one = Field(81);
+        const Field eighty_three = Field(83);
 
         Field alpha_a = challenge.alpha_base;
         Field alpha_b = alpha_a * challenge.alpha_step;

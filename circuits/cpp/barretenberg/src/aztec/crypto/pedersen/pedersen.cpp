@@ -168,6 +168,9 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
         uint64_t predicate = (entry >> 31U) & 1U;
         accumulator.self_mixed_add_or_sub(point_to_add, predicate);
     }
+    if (in == barretenberg::fr(0)) {
+        accumulator.self_set_infinity();
+    }
     return accumulator;
 }
 
@@ -230,7 +233,7 @@ grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
         r = out[i] + r;
     }
     r = r.normalize();
-    return r.x;
+    return r.is_point_at_infinity() ? grumpkin::fq(0) : r.x;
 }
 
 std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)

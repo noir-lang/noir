@@ -46,7 +46,7 @@ template <typename Composer> class Transcript {
 
     transcript::Manifest get_manifest() const { return transcript_base.get_manifest(); }
 
-    int check_field_element_cache(const std::string& element_name)
+    int check_field_element_cache(const std::string& element_name) const
     {
         for (size_t i = 0; i < field_keys.size(); ++i) {
             if (field_keys[i] == element_name) {
@@ -56,7 +56,7 @@ template <typename Composer> class Transcript {
         return -1;
     }
 
-    int check_field_element_vector_cache(const std::string& element_name)
+    int check_field_element_vector_cache(const std::string& element_name) const
     {
         for (size_t i = 0; i < field_vector_keys.size(); ++i) {
             if (field_vector_keys[i] == element_name) {
@@ -66,7 +66,7 @@ template <typename Composer> class Transcript {
         return -1;
     }
 
-    int check_group_element_cache(const std::string& element_name)
+    int check_group_element_cache(const std::string& element_name) const
     {
         for (size_t i = 0; i < group_keys.size(); ++i) {
             if (group_keys[i] == element_name) {
@@ -76,7 +76,7 @@ template <typename Composer> class Transcript {
         return -1;
     }
 
-    int check_challenge_cache(const std::string& challenge_name, const size_t challenge_idx)
+    int check_challenge_cache(const std::string& challenge_name, const size_t challenge_idx) const
     {
         for (size_t i = 0; i < challenge_keys.size(); ++i) {
             if (challenge_keys[i] == challenge_name) {
@@ -157,6 +157,7 @@ template <typename Composer> class Transcript {
             field_pt shift(context, barretenberg::fr(uint256_t(1ULL) << (uint64_t)lo_bytes * 8ULL));
             field_pt sum = lo + (hi * shift);
             sum = sum.normalize();
+
             context->assert_equal(sum.witness_index, element.witness_index);
             current_byte_counter = (current_byte_counter + num_bytes) % bytes_per_element;
             work_element = work_element + hi;
@@ -227,8 +228,7 @@ template <typename Composer> class Transcript {
             compression_buffer.push_back(working_element);
         }
 
-        field_pt T0 = pedersen::compress(compression_buffer);
-
+        field_pt T0 = pedersen::compress(compression_buffer, true);
         byte_array<Composer> compressed_buffer(T0);
 
         byte_array<Composer> base_hash = blake2s(compressed_buffer);
@@ -273,7 +273,7 @@ template <typename Composer> class Transcript {
         challenge_values.push_back(challenge_elements);
     }
 
-    field_pt get_field_element(const std::string& element_name)
+    field_pt get_field_element(const std::string& element_name) const
     {
         const int cache_idx = check_field_element_cache(element_name);
         if (cache_idx != -1) {
@@ -287,7 +287,7 @@ template <typename Composer> class Transcript {
         return result;
     }
 
-    std::vector<field_pt> get_field_element_vector(const std::string& element_name)
+    std::vector<field_pt> get_field_element_vector(const std::string& element_name) const
     {
         const int cache_idx = check_field_element_vector_cache(element_name);
         if (cache_idx != -1) {
@@ -305,14 +305,14 @@ template <typename Composer> class Transcript {
         return result;
     }
 
-    field_pt get_challenge_field_element(const std::string& challenge_name, const size_t challenge_idx = 0)
+    field_pt get_challenge_field_element(const std::string& challenge_name, const size_t challenge_idx = 0) const
     {
         const int cache_idx = check_challenge_cache(challenge_name, challenge_idx);
         ASSERT(cache_idx != -1);
         return challenge_values[static_cast<size_t>(cache_idx)][challenge_idx];
     }
 
-    group_pt get_group_element(const std::string& element_name)
+    group_pt get_group_element(const std::string& element_name) const
     {
         int cache_idx = check_group_element_cache(element_name);
         if (cache_idx != -1) {
@@ -342,23 +342,25 @@ template <typename Composer> class Transcript {
         return group_pt(x, y);
     };
 
+    size_t get_num_challenges(const std::string& challenge_name) const
+    {
+        return transcript_base.get_num_challenges(challenge_name);
+    }
+
     Composer* context;
 
   private:
     transcript::Transcript transcript_base;
     byte_array<Composer> current_challenge;
 
-    std::vector<std::string> field_vector_keys;
-    std::vector<std::vector<field_pt>> field_vector_values;
+    mutable std::vector<std::string> field_vector_keys;
+    mutable std::vector<std::vector<field_pt>> field_vector_values;
 
-    std::vector<std::pair<std::string, size_t>> misc_keys;
-    std::vector<field_pt> misc_values;
+    mutable std::vector<std::string> field_keys;
+    mutable std::vector<field_pt> field_values;
 
-    std::vector<std::string> field_keys;
-    std::vector<field_pt> field_values;
-
-    std::vector<std::string> group_keys;
-    std::vector<group_pt> group_values;
+    mutable std::vector<std::string> group_keys;
+    mutable std::vector<group_pt> group_values;
 
     std::vector<std::string> challenge_keys;
     std::vector<std::vector<field_pt>> challenge_values;

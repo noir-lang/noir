@@ -1,4 +1,5 @@
-#include "turbo_fixed_base_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/transcript/transcript.hpp>
@@ -324,11 +325,11 @@ Field VerifierTurboFixedBaseWidget<Field, Group, Transcript>::compute_quotient_e
     Field alpha_e = alpha_d * alpha;
     Field alpha_f = alpha_e * alpha;
     Field alpha_g = alpha_f * alpha;
-    constexpr Field grumpkin_curve_b = -Field(17);
+    const Field grumpkin_curve_b = -Field(17);
 
     if (use_linearisation) {
         Field delta = w_4_omega_eval - (w_4_eval + w_4_eval + w_4_eval + w_4_eval);
-        constexpr Field three = Field(3);
+        const Field three = Field(3);
         Field T1 = (delta + Field(1));
         Field T2 = (delta + three);
         Field T3 = (delta - Field(1));
@@ -387,8 +388,8 @@ Field VerifierTurboFixedBaseWidget<Field, Group, Transcript>::compute_quotient_e
         Field q_5_eval = transcript.get_field_element("q_5");
         Field q_m_eval = transcript.get_field_element("q_m");
 
-        constexpr Field minus_nine = -Field(9);
-        constexpr Field minus_one = -Field(1);
+        const Field minus_nine = -Field(9);
+        const Field minus_one = -Field(1);
 
         Field accumulator_delta = w_4_eval + w_4_eval;
         accumulator_delta += accumulator_delta;
@@ -625,7 +626,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboFixedBaseWidget<F
 
         Field q_5_term_ecc = (Field(1) - w_4_eval) * q_ecc_1_eval * q_c_eval * alpha_f;
 
-        constexpr Field minus_two = -Field(2);
+        const Field minus_two = -Field(2);
         Field q_5_term_arith = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
                                challenge.alpha_step * q_arith_eval;
 

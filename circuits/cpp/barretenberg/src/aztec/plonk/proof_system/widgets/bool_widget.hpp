@@ -9,18 +9,18 @@ namespace waffle {
 
 template <typename Field, typename Group, typename Transcript> class VerifierBoolWidget {
   public:
-    VerifierBoolWidget();
+    inline VerifierBoolWidget();
 
-    static Field compute_quotient_evaluation_contribution(
+    inline static Field compute_quotient_evaluation_contribution(
         verification_key*, const Field&, const Transcript&, Field&, const bool);
 
-    static size_t compute_batch_evaluation_contribution(verification_key*,
+    inline static size_t compute_batch_evaluation_contribution(verification_key*,
                                                         Field& batch_eval,
                                                         const size_t nu_index,
                                                         const Transcript& transcript,
                                                         const bool use_linearisation);
 
-    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
+    inline static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
         verification_key* key,
         const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
         const Transcript& transcript,
@@ -35,22 +35,25 @@ extern template class VerifierBoolWidget<barretenberg::fr,
 
 class ProverBoolWidget : public ProverBaseWidget {
   public:
-    ProverBoolWidget(proving_key* input_key, program_witness* input_witness);
-    ProverBoolWidget(const ProverBoolWidget& other);
-    ProverBoolWidget(ProverBoolWidget&& other);
-    ProverBoolWidget& operator=(const ProverBoolWidget& other);
-    ProverBoolWidget& operator=(ProverBoolWidget&& other);
+    inline ProverBoolWidget(proving_key* input_key, program_witness* input_witness);
+    inline ProverBoolWidget(const ProverBoolWidget& other);
+    inline ProverBoolWidget(ProverBoolWidget&& other);
+    inline ProverBoolWidget& operator=(const ProverBoolWidget& other);
+    inline ProverBoolWidget& operator=(ProverBoolWidget&& other);
 
-    barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                    const transcript::Transcript& transcript) override;
-    barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
 
-    size_t compute_opening_poly_contribution(
-        const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
+    inline size_t compute_opening_poly_contribution(const size_t nu_index,
+                                             const transcript::Transcript&,
+                                             barretenberg::fr*,
+                                             barretenberg::fr*,
+                                             const bool) override;
 
-    void compute_transcript_elements(transcript::Transcript&, const bool) override;
+    inline void compute_transcript_elements(transcript::Transcript&, const bool) override;
 
     barretenberg::polynomial& q_bl;
     barretenberg::polynomial& q_br;
@@ -61,3 +64,5 @@ class ProverBoolWidget : public ProverBaseWidget {
     barretenberg::polynomial& q_bo_fft;
 };
 } // namespace waffle
+
+#include "bool_widget_impl.hpp"

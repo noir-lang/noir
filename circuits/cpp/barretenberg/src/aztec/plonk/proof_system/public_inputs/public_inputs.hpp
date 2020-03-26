@@ -3,8 +3,11 @@
 #include <vector>
 
 namespace waffle {
-barretenberg::fr compute_public_input_delta(const std::vector<barretenberg::fr>& inputs,
-                                            const barretenberg::fr& beta,
-                                            const barretenberg::fr& gamma,
-                                            const barretenberg::fr& subgroup_generator);
+template <typename Field>
+Field compute_public_input_delta(const std::vector<Field>& inputs,
+                                 const Field& beta,
+                                 const Field& gamma,
+                                 const Field& subgroup_generator);
 }
+
+#include "public_inputs_impl.hpp"

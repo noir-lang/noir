@@ -4,9 +4,9 @@
 namespace waffle {
 template <typename Field, typename Group, typename Transcript> class VerifierTurboArithmeticWidget {
   public:
-    VerifierTurboArithmeticWidget();
+    inline VerifierTurboArithmeticWidget();
 
-    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
+    inline static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
         verification_key* key,
         const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
         const Transcript& transcript,
@@ -14,13 +14,13 @@ template <typename Field, typename Group, typename Transcript> class VerifierTur
         std::vector<Field>& scalars,
         const bool use_linearisation);
 
-    static size_t compute_batch_evaluation_contribution(verification_key*,
+    inline static size_t compute_batch_evaluation_contribution(verification_key*,
                                                         Field& batch_eval,
                                                         const size_t nu_index,
                                                         const Transcript& transcript,
                                                         const bool use_linearisation);
 
-    static Field compute_quotient_evaluation_contribution(verification_key*,
+    inline static Field compute_quotient_evaluation_contribution(verification_key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
@@ -33,24 +33,24 @@ extern template class VerifierTurboArithmeticWidget<barretenberg::fr,
 
 class ProverTurboArithmeticWidget : public ProverBaseWidget {
   public:
-    ProverTurboArithmeticWidget(proving_key* input_key, program_witness* input_witness);
-    ProverTurboArithmeticWidget(const ProverTurboArithmeticWidget& other);
-    ProverTurboArithmeticWidget(ProverTurboArithmeticWidget&& other);
-    ProverTurboArithmeticWidget& operator=(const ProverTurboArithmeticWidget& other);
-    ProverTurboArithmeticWidget& operator=(ProverTurboArithmeticWidget&& other);
+    inline ProverTurboArithmeticWidget(proving_key* input_key, program_witness* input_witness);
+    inline ProverTurboArithmeticWidget(const ProverTurboArithmeticWidget& other);
+    inline ProverTurboArithmeticWidget(ProverTurboArithmeticWidget&& other);
+    inline ProverTurboArithmeticWidget& operator=(const ProverTurboArithmeticWidget& other);
+    inline ProverTurboArithmeticWidget& operator=(ProverTurboArithmeticWidget&& other);
 
-    barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                    const transcript::Transcript& transcript) override;
-    barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
-    size_t compute_opening_poly_contribution(const size_t nu_index,
+    inline size_t compute_opening_poly_contribution(const size_t nu_index,
                                              const transcript::Transcript&,
                                              barretenberg::fr*,
                                              barretenberg::fr*,
                                              const bool) override;
 
-    void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
+    inline void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 
     barretenberg::polynomial& q_1;
     barretenberg::polynomial& q_2;
@@ -71,3 +71,5 @@ class ProverTurboArithmeticWidget : public ProverBaseWidget {
     barretenberg::polynomial& q_arith_fft;
 };
 } // namespace waffle
+
+#include "turbo_arithmetic_widget_impl.hpp"

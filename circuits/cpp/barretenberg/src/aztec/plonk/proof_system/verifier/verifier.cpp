@@ -101,15 +101,15 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     fr alpha_pow[4];
 
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(key->n),
-                             static_cast<uint8_t>(key->n >> 8),
+                           { static_cast<uint8_t>(key->n >> 24),
                              static_cast<uint8_t>(key->n >> 16),
-                             static_cast<uint8_t>(key->n >> 24) });
+                             static_cast<uint8_t>(key->n >> 8),
+                             static_cast<uint8_t>(key->n) });
     transcript.add_element("public_input_size",
-                           { static_cast<uint8_t>(key->num_public_inputs),
-                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                           { static_cast<uint8_t>(key->num_public_inputs >> 24),
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
-                             static_cast<uint8_t>(key->num_public_inputs >> 24) });
+                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                             static_cast<uint8_t>(key->num_public_inputs) });
     transcript.apply_fiat_shamir("init");
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
@@ -126,7 +126,9 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->domain);
 
     // compute the terms we need to derive R(X)
-    plonk_linear_terms linear_terms = compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings>(transcript, lagrange_evals.l_1);
+    plonk_linear_terms linear_terms =
+        compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings>(transcript,
+                                                                                                 lagrange_evals.l_1);
 
     // reconstruct evaluation of quotient polynomial from prover messages
     fr T0;
@@ -149,7 +151,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::vector<barretenberg::fr> public_inputs =
         barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
 
-    fr public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->domain.root);
+    fr public_input_delta = compute_public_input_delta<barretenberg::fr>(public_inputs, beta, gamma, key->domain.root);
     T0 = wire_evaluations[program_settings::program_width - 1] + gamma;
     sigma_contribution *= T0;
     sigma_contribution *= z_1_shifted_eval;

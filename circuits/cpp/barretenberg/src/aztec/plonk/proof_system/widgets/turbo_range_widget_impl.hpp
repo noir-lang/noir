@@ -1,4 +1,5 @@
-#include "turbo_range_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/transcript/transcript.hpp>
@@ -114,8 +115,8 @@ fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr&
 
     fr* quotient_large = &key->quotient_large[0];
 
-    constexpr fr minus_two = -fr(2);
-    constexpr fr minus_three = -fr(3);
+    constexpr fr minus_two = fr(-2);
+    constexpr fr minus_three = fr(-3);
 
     ITERATE_OVER_DOMAIN_START(key->large_domain);
 
@@ -200,8 +201,8 @@ fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
     fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
     fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
 
-    constexpr fr minus_two = -fr(2);
-    constexpr fr minus_three = -fr(3);
+    constexpr fr minus_two = fr(-2);
+    constexpr fr minus_three = fr(-3);
 
     fr alpha_a = alpha_base;
     fr alpha_b = alpha_a * alpha;
@@ -316,8 +317,8 @@ Field VerifierTurboRangeWidget<Field, Group, Transcript>::compute_quotient_evalu
 
     Field q_range_eval = transcript.get_field_element("q_range");
 
-    constexpr Field minus_two = -Field(2);
-    constexpr Field minus_three = -Field(3);
+    const Field minus_two = Field(-2);
+    const Field minus_three = Field(-3);
 
     Field delta_1 = w_4_eval + w_4_eval;
     delta_1 += delta_1;
@@ -417,8 +418,8 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboRangeWidget<Field
 
         Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
 
-        constexpr Field minus_two = -Field(2);
-        constexpr Field minus_three = -Field(3);
+        const Field minus_two = -Field(2);
+        const Field minus_three = -Field(3);
 
         Field alpha_a = challenge.alpha_base;
         Field alpha_b = alpha_a * challenge.alpha_step;

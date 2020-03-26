@@ -19,7 +19,11 @@ point add_points(const point& first, const point& second)
 }
 } // namespace
 
-point hash_single(const field_ct& in, const size_t hash_index)
+/**
+ * edge cases are if scalar multiplier is 1 or 0
+ * not neccessary to check if scalar multiplier is the output of a PRNG (e.g. SHA256)
+ **/
+point hash_single(const field_ct& in, const size_t hash_index, const bool validate_edge_cases = false)
 {
     field_ct scalar = in;
     if (!(in.additive_constant == fr::zero()) || !(in.multiplicative_constant == fr::one())) {
@@ -147,24 +151,86 @@ point hash_single(const field_ct& in, const size_t hash_index)
     result.y = field_ct(ctx);
     result.y.witness_index = add_quad.b;
 
-    ctx->assert_equal(add_quad.d, in.witness_index);
+    if (validate_edge_cases) {
+        field_ct reconstructed_scalar(ctx);
+        reconstructed_scalar.witness_index = add_quad.d;
+        field_ct lhs = reconstructed_scalar * in;
+        field_ct rhs = in * in;
+        ctx->assert_equal(lhs.witness_index, rhs.witness_index);
+    } else {
+        ctx->assert_equal(add_quad.d, in.witness_index);
+    }
     return result;
 }
 
-field_ct compress(const field_ct& in_left, const field_ct& in_right, const size_t hash_index)
+field_ct accumulate(std::vector<point>& to_accumulate)
 {
-    point first = hash_single(in_left, hash_index);
-    point second = hash_single(in_right, hash_index + 1);
-    return add_points(first, second).x;
-}
+    if (to_accumulate.size() == 0) {
+        return field_ct(0);
+    }
 
-field_ct compress(const std::vector<field_ct>& inputs)
-{
-    point accumulator = hash_single(inputs[0], 0);
-    for (size_t i = 1; i < inputs.size(); ++i) {
-        accumulator = add_points(accumulator, hash_single(inputs[i], i));
+    point accumulator = to_accumulate[0];
+    for (size_t i = 1; i < to_accumulate.size(); ++i) {
+        accumulator = add_points(accumulator, to_accumulate[i]);
     }
     return accumulator.x;
+}
+
+field_ct conditionally_accumulate(std::vector<point>& to_accumulate, std::vector<field_ct>& inputs)
+{
+    if (to_accumulate.size() == 0) {
+        return field_ct(0);
+    }
+
+    point accumulator = to_accumulate[0];
+    bool_ct is_accumulator_zero = inputs[0].is_zero();
+
+    for (size_t i = 1; i < to_accumulate.size(); ++i) {
+        bool_ct current_is_zero = inputs[i].is_zero();
+        bool_ct initialize_instead_of_add = (is_accumulator_zero && !current_is_zero);
+
+        field_ct lambda = (to_accumulate[i].y - accumulator.y) / (to_accumulate[i].x - accumulator.x);
+        field_ct x_3 = lambda * lambda - (to_accumulate[i].x + accumulator.x);
+        field_ct y_3 = lambda * (accumulator.x - x_3) - accumulator.y;
+
+        x_3 = (to_accumulate[i].x - x_3).madd(initialize_instead_of_add, x_3);
+        y_3 = (to_accumulate[i].y - y_3).madd(initialize_instead_of_add, y_3);
+        x_3 = (accumulator.x - x_3).madd(current_is_zero, x_3);
+        y_3 = (accumulator.y - y_3).madd(current_is_zero, y_3);
+        accumulator.x = x_3;
+        accumulator.y = y_3;
+        is_accumulator_zero = is_accumulator_zero && current_is_zero;
+    }
+
+    accumulator.x = (field_ct(0) - accumulator.x).madd(is_accumulator_zero, accumulator.x);
+    return accumulator.x;
+}
+
+field_ct compress(const field_ct& in_left, const field_ct& in_right, const size_t hash_index, bool handle_edge_cases)
+{
+    std::vector<point> accumulators;
+    accumulators.push_back(hash_single(in_left, hash_index, handle_edge_cases));
+    accumulators.push_back(hash_single(in_right, hash_index + 1, handle_edge_cases));
+    if (handle_edge_cases) {
+        std::vector<field_ct> inputs;
+        inputs.push_back(in_left);
+        inputs.push_back(in_right);
+        return conditionally_accumulate(accumulators, inputs);
+    }
+    return accumulate(accumulators);
+}
+
+field_ct compress(std::vector<field_ct>& inputs, bool handle_edge_cases)
+{
+    std::vector<point> to_accumulate;
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        inputs[i] = inputs[i].normalize();
+        to_accumulate.push_back(hash_single(inputs[i], i, handle_edge_cases));
+    }
+    if (handle_edge_cases) {
+        return conditionally_accumulate(to_accumulate, inputs);
+    }
+    return accumulate(to_accumulate);
 }
 
 byte_array_ct compress(const byte_array_ct& input)
@@ -186,17 +252,14 @@ byte_array_ct compress(const byte_array_ct& input)
         elements.emplace_back(element);
     }
 
-    field_ct compressed = compress(elements);
+    field_ct compressed = compress(elements, true);
     return byte_array_ct(compressed);
 }
 
-field_ct compress_eight(const std::array<field_ct, 8>& inputs)
+field_ct compress_eight(std::array<field_ct, 8>& inputs, bool handle_edge_cases)
 {
-    point accumulator = hash_single(inputs[0], 16);
-    for (size_t i = 1; i < 8; ++i) {
-        accumulator = add_points(accumulator, hash_single(inputs[i], 16 + i));
-    }
-    return accumulator.x;
+    std::vector<field_ct> converted(inputs.begin(), inputs.end());
+    return compress(converted, handle_edge_cases);
 }
 
 point compress_to_point(const field_ct& in_left, const field_ct& in_right, const size_t hash_index)

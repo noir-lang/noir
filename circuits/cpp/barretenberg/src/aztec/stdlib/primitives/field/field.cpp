@@ -31,24 +31,6 @@ field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barrete
     witness_index = static_cast<uint32_t>(-1);
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(const field_t& other)
-    : context(other.context)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-}
-
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(field_t&& other)
-    : context(other.context)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-}
-
 template <typename ComposerContext> field_t<ComposerContext>::field_t(const bool_t<ComposerContext>& other)
 {
     context = (other.context == nullptr) ? nullptr : other.context;
@@ -98,24 +80,6 @@ template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<Co
     result.witness_index = witness_index;
     context->create_bool_gate(witness_index);
     return result;
-}
-
-template <typename ComposerContext> field_t<ComposerContext>& field_t<ComposerContext>::operator=(const field_t& other)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-    context = (other.context == nullptr ? nullptr : other.context);
-    return *this;
-}
-
-template <typename ComposerContext> field_t<ComposerContext>& field_t<ComposerContext>::operator=(field_t&& other)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-    context = (other.context == nullptr ? nullptr : other.context);
-    return *this;
 }
 
 template <typename ComposerContext>
@@ -485,6 +449,7 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     field_t test_lhs = d * c;
     field_t test_rhs = (field_t(ctx, barretenberg::fr::one()) - field_t(result));
     test_rhs = test_rhs.normalize();
+    std::cout << "equality check?" << std::endl;
     ctx->assert_equal(test_lhs.witness_index, test_rhs.witness_index);
 
     barretenberg::fr fe = is_equal ? barretenberg::fr::one() : fd;

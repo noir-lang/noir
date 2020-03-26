@@ -310,7 +310,8 @@ template <typename settings> void ProverBase<settings>::compute_permutation_gran
     std::vector<barretenberg::fr> public_inputs =
         barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
 
-    fr public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->small_domain.root);
+    fr public_input_delta =
+        compute_public_input_delta<barretenberg::fr>(public_inputs, beta, gamma, key->small_domain.root);
     public_input_delta *= alpha;
 
     polynomial& quotient_large = key->quotient_large;
@@ -418,15 +419,15 @@ template <typename settings> void ProverBase<settings>::init_quotient_polynomial
 template <typename settings> void ProverBase<settings>::execute_preamble_round()
 {
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(n),
-                             static_cast<uint8_t>(n >> 8),
+                           { static_cast<uint8_t>(n >> 24),
                              static_cast<uint8_t>(n >> 16),
-                             static_cast<uint8_t>(n >> 24) });
+                             static_cast<uint8_t>(n >> 8),
+                             static_cast<uint8_t>(n) });
     transcript.add_element("public_input_size",
-                           { static_cast<uint8_t>(key->num_public_inputs),
-                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                           { static_cast<uint8_t>(key->num_public_inputs >> 24),
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
-                             static_cast<uint8_t>(key->num_public_inputs >> 24) });
+                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                             static_cast<uint8_t>(key->num_public_inputs) });
     transcript.apply_fiat_shamir("init");
 }
 
@@ -828,7 +829,9 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     if constexpr (settings::use_linearisation) {
         barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
             barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
-        plonk_linear_terms linear_terms = compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript, lagrange_evals.l_1);
+        plonk_linear_terms linear_terms =
+            compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, settings>(transcript,
+                                                                                             lagrange_evals.l_1);
 
         const polynomial& sigma_last =
             key->permutation_selectors.at("sigma_" + std::to_string(settings::program_width));
@@ -844,6 +847,7 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         fr linear_eval = r.evaluate(z_challenge, n);
         transcript.add_element("r", linear_eval.to_buffer());
     }
+    std::cout << "prover t_eval = " << t_eval << std::endl;
     transcript.add_element("t", t_eval.to_buffer());
 
     return t_eval;

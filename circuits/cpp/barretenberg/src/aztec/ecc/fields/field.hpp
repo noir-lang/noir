@@ -41,6 +41,26 @@ template <class Params> struct alignas(32) field {
         self_to_montgomery_form();
     }
 
+    constexpr field(const int input) noexcept
+        : data{ 0, 0, 0, 0 }
+    {
+        if (input < 0) {
+            data[0] = static_cast<uint64_t>(-input);
+            data[1] = 0;
+            data[2] = 0;
+            data[3] = 0;
+            self_to_montgomery_form();
+            self_neg();
+            self_reduce_once();
+        } else {
+            data[0] = static_cast<uint64_t>(input);
+            data[1] = 0;
+            data[2] = 0;
+            data[3] = 0;
+            self_to_montgomery_form();
+        }
+    }
+
     constexpr field(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t d) noexcept
         : data{ a, b, c, d } {};
 

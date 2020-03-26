@@ -4,15 +4,15 @@
 namespace waffle {
 template <typename Field, typename Group, typename Transcript> class VerifierArithmeticWidget {
   public:
-    VerifierArithmeticWidget();
+    inline VerifierArithmeticWidget();
 
-    static Field compute_quotient_evaluation_contribution(verification_key*,
+    inline static Field compute_quotient_evaluation_contribution(verification_key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
                                                           const bool use_linearisation);
 
-    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
+    inline static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
         verification_key*,
         const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
         const Transcript& transcript,
@@ -20,7 +20,7 @@ template <typename Field, typename Group, typename Transcript> class VerifierAri
         std::vector<Field>& scalars,
         const bool use_linearisation);
 
-    static size_t compute_batch_evaluation_contribution(verification_key*,
+    inline static size_t compute_batch_evaluation_contribution(verification_key*,
                                                         Field& batch_eval,
                                                         const size_t nu_index,
                                                         const Transcript& transcript,
@@ -33,21 +33,24 @@ extern template class VerifierArithmeticWidget<barretenberg::fr,
 
 class ProverArithmeticWidget : public ProverBaseWidget {
   public:
-    ProverArithmeticWidget(proving_key*, program_witness*);
-    ProverArithmeticWidget(const ProverArithmeticWidget& other);
-    ProverArithmeticWidget(ProverArithmeticWidget&& other);
-    ProverArithmeticWidget& operator=(const ProverArithmeticWidget& other);
-    ProverArithmeticWidget& operator=(ProverArithmeticWidget&& other);
+    inline ProverArithmeticWidget(proving_key*, program_witness*);
+    inline ProverArithmeticWidget(const ProverArithmeticWidget& other);
+    inline ProverArithmeticWidget(ProverArithmeticWidget&& other);
+    inline ProverArithmeticWidget& operator=(const ProverArithmeticWidget& other);
+    inline ProverArithmeticWidget& operator=(ProverArithmeticWidget&& other);
 
-    barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                    const transcript::Transcript& transcript) override;
-    barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
-    size_t compute_opening_poly_contribution(
-        const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
+    inline size_t compute_opening_poly_contribution(const size_t nu_index,
+                                             const transcript::Transcript&,
+                                             barretenberg::fr*,
+                                             barretenberg::fr*,
+                                             const bool) override;
 
-    void compute_transcript_elements(transcript::Transcript&, const bool) override;
+    inline void compute_transcript_elements(transcript::Transcript&, const bool) override;
 
     barretenberg::polynomial& q_1;
     barretenberg::polynomial& q_2;
@@ -62,3 +65,5 @@ class ProverArithmeticWidget : public ProverBaseWidget {
     barretenberg::polynomial& q_c_fft;
 };
 } // namespace waffle
+
+#include "arithmetic_widget_impl.hpp"

@@ -46,7 +46,7 @@ transcript::Manifest create_manifest(const size_t num_public_inputs)
                                                 { "r", fr_size, false },
                                                 { "t", fr_size, true } },
                                               "nu",
-                                              10),
+                                              25),
           transcript::Manifest::RoundManifest(
               { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
@@ -67,6 +67,8 @@ TestData get_test_data()
         data.g1_elements.push_back(barretenberg::g1::affine_element(barretenberg::g1::element::random_element()));
         data.fr_elements.push_back(barretenberg::fr::random_element());
     }
+    data.fr_elements[2] = barretenberg::fr(0);
+    data.fr_elements[3] = barretenberg::fr(0);
     data.num_public_inputs = 13;
     for (size_t i = 0; i < data.num_public_inputs; ++i) {
         data.public_input_elements.push_back(barretenberg::fr::random_element());
@@ -240,20 +242,34 @@ TEST(stdlib_transcript, validate_transcript)
             EXPECT_EQ(result[i].get_value(), expected[i]);
         }
     };
-
+    std::cout << "a" << std::endl;
     check_public_inputs();
+    std::cout << "b" << std::endl;
 
     check_small_element("circuit_size");
+    std::cout << "c" << std::endl;
+
     check_small_element("public_input_size");
+    std::cout << "d" << std::endl;
 
     check_challenge("beta", 0);
+    std::cout << "e" << std::endl;
+
     check_challenge("beta", 1);
+    std::cout << "f" << std::endl;
+
     check_challenge("alpha", 0);
+    std::cout << "g" << std::endl;
+
     check_challenge("z", 0);
+    std::cout << "h" << std::endl;
+
     for (size_t i = 0; i < 10; ++i) {
         check_challenge("nu", 0);
     }
+    std::cout << "i" << std::endl;
     check_challenge("separator", 0);
+    std::cout << "j" << std::endl;
 
     check_field_element("w_1");
     check_field_element("w_2");

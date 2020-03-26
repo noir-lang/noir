@@ -1,4 +1,5 @@
-#include "turbo_arithmetic_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
@@ -313,7 +314,7 @@ Field VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_quotient_
         Field T3;
         Field T4;
         Field T5;
-        constexpr Field minus_seven = -fr(7);
+        const Field minus_seven = -Field(7);
 
         T1 = q_arith_eval.sqr() - q_arith_eval;
 
@@ -354,8 +355,8 @@ Field VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_quotient_
     const Field w_3_eval = transcript.get_field_element("w_3");
     const Field w_4_eval = transcript.get_field_element("w_4");
 
-    constexpr Field minus_two = -fr(2);
-    constexpr Field minus_seven = -fr(7);
+    const Field minus_two = -Field(2);
+    const Field minus_seven = -Field(7);
 
     Field T0;
     Field T1;
@@ -519,7 +520,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboArithmeticWidget<
             scalars.push_back(q_4_term);
         }
 
-        constexpr Field minus_two = -Field(2);
+        const Field minus_two = -Field(2);
         Field q_5_term = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
                          challenge.alpha_step * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_5").on_curve()) {

@@ -35,7 +35,7 @@ class standard_settings : public settings_base {
 class unrolled_standard_settings : public settings_base {
   public:
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t program_width = 3;
     static constexpr uint64_t wire_shift_settings = 0b0100;
     static constexpr bool uses_quotient_mid = true;
@@ -59,7 +59,7 @@ class turbo_settings : public settings_base {
 class unrolled_turbo_settings : public settings_base {
   public:
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t program_width = 4;
     static constexpr uint64_t wire_shift_settings = 0b1111;
     static constexpr bool uses_quotient_mid = false;
@@ -111,7 +111,7 @@ class standard_verifier_settings : public standard_settings {
 
 class unrolled_standard_verifier_settings : public standard_settings {
   public:
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr bool use_linearisation = false;
     static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
@@ -279,7 +279,7 @@ class turbo_verifier_settings : public turbo_settings {
 class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
   public:
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr bool use_linearisation = false;
     static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
         verification_key* key,

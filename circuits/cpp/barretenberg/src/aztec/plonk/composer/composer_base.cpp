@@ -7,6 +7,9 @@ namespace waffle {
 void ComposerBase::assert_equal(const uint32_t a_idx, const uint32_t b_idx)
 {
     ASSERT((variables[a_idx] == variables[b_idx]));
+    if ((variables[a_idx]) != (variables[b_idx])) {
+        std::cout << "hey! variables not equal!" << std::endl;
+    }
     for (size_t i = 0; i < wire_epicycles[b_idx].size(); ++i) {
         wire_epicycles[a_idx].emplace_back(wire_epicycles[b_idx][i]);
         if (wire_epicycles[b_idx][i].wire_type == WireType::LEFT) {

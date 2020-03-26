@@ -4,9 +4,9 @@
 namespace waffle {
 template <typename Field, typename Group, typename Transcript> class VerifierTurboLogicWidget {
   public:
-    VerifierTurboLogicWidget();
+    inline VerifierTurboLogicWidget();
 
-    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
+    inline static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
         verification_key* key,
         const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
         const Transcript& transcript,
@@ -14,13 +14,13 @@ template <typename Field, typename Group, typename Transcript> class VerifierTur
         std::vector<Field>& scalars,
         const bool use_linearisation);
 
-    static size_t compute_batch_evaluation_contribution(verification_key*,
+    inline static size_t compute_batch_evaluation_contribution(verification_key*,
                                                         Field& batch_eval,
                                                         const size_t nu_index,
                                                         const Transcript& transcript,
                                                         const bool use_linearisation);
 
-    static Field compute_quotient_evaluation_contribution(verification_key*,
+    inline static Field compute_quotient_evaluation_contribution(verification_key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
@@ -33,21 +33,21 @@ extern template class VerifierTurboLogicWidget<barretenberg::fr,
 
 class ProverTurboLogicWidget : public ProverBaseWidget {
   public:
-    ProverTurboLogicWidget(proving_key* input_key, program_witness* input_witness);
-    ProverTurboLogicWidget(const ProverTurboLogicWidget& other);
-    ProverTurboLogicWidget(ProverTurboLogicWidget&& other);
-    ProverTurboLogicWidget& operator=(const ProverTurboLogicWidget& other);
-    ProverTurboLogicWidget& operator=(ProverTurboLogicWidget&& other);
+    inline ProverTurboLogicWidget(proving_key* input_key, program_witness* input_witness);
+    inline ProverTurboLogicWidget(const ProverTurboLogicWidget& other);
+    inline ProverTurboLogicWidget(ProverTurboLogicWidget&& other);
+    inline ProverTurboLogicWidget& operator=(const ProverTurboLogicWidget& other);
+    inline ProverTurboLogicWidget& operator=(ProverTurboLogicWidget&& other);
 
-    barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                    const transcript::Transcript& transcript) override;
-    barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
+    inline barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
-    size_t compute_opening_poly_contribution(
+    inline size_t compute_opening_poly_contribution(
         const size_t nu_index, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
 
-    void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
+    inline void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 
     barretenberg::polynomial& q_logic;
     barretenberg::polynomial& q_logic_fft;
@@ -55,3 +55,5 @@ class ProverTurboLogicWidget : public ProverBaseWidget {
     barretenberg::polynomial& q_c_fft;
 };
 } // namespace waffle
+
+#include "turbo_logic_widget_impl.hpp"
