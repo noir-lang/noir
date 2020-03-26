@@ -16,15 +16,6 @@ rollup::tx::tx_note create_tx_note(uint8_t const* owner_buf, uint32_t value, uin
 
 extern "C" {
 
-#ifdef __wasm__
-void logstr(char const* str);
-#else
-inline void logstr(char const* str)
-{
-    std::cout << str << std::endl;
-}
-#endif
-
 WASM_EXPORT void init_keys(uint8_t const* monomials_buf, uint32_t monomials_buf_size, uint8_t const* g2x)
 {
     auto crs_factory =

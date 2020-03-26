@@ -1,6 +1,7 @@
 #include "create.hpp"
 #include "../../pedersen_note/pedersen_note.hpp"
 #include <stdlib/encryption/schnorr/schnorr.hpp>
+#include <common/log.hpp>
 
 namespace rollup {
 namespace client_proofs {
@@ -74,6 +75,8 @@ std::vector<uint8_t> create_note_proof(tx_note const& note, crypto::schnorr::sig
 {
     Composer composer(proving_key, nullptr);
     create_note_proof(composer, note, sig);
+
+    info("composer gates: ", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
     waffle::plonk_proof proof = prover.construct_proof();
