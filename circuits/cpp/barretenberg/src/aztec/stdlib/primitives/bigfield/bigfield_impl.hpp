@@ -408,6 +408,26 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     result.binary_basis_limbs[2].maximum_value = binary_basis_limbs[2].maximum_value + t2 + to_add_2;
     result.binary_basis_limbs[3].maximum_value = binary_basis_limbs[3].maximum_value - t3 + to_add_3;
 
+    bool r0 = uint256_t(result.binary_basis_limbs[0].element.get_value()).get_msb() > 120;
+    bool r1 = uint256_t(result.binary_basis_limbs[1].element.get_value()).get_msb() > 120;
+    bool r2 = uint256_t(result.binary_basis_limbs[2].element.get_value()).get_msb() > 120;
+    bool r3 = uint256_t(result.binary_basis_limbs[3].element.get_value()).get_msb() > 120;
+    if (r0 || r1 || r2 || r3) {
+        std::cout << "subtraction underflow" << std::endl;
+        std::cout << "left  limbs = " << binary_basis_limbs[0].element << " , " << binary_basis_limbs[1].element << ", "
+                  << binary_basis_limbs[2].element << ", " << binary_basis_limbs[3].element << std::endl;
+
+        std::cout << "to subtract  limbs = " << other.binary_basis_limbs[0].element << " , "
+                  << other.binary_basis_limbs[1].element << ", " << other.binary_basis_limbs[2].element << ", "
+                  << other.binary_basis_limbs[3].element << std::endl;
+
+        std::cout << "result  limbs = " << result.binary_basis_limbs[0].element << " , "
+                  << result.binary_basis_limbs[1].element << ", " << result.binary_basis_limbs[2].element << ", "
+                  << result.binary_basis_limbs[3].element << std::endl;
+
+        std::cout << "limb maximum values = " << limb_0_maximum_value << " , " << limb_1_maximum_value << " , "
+                  << limb_2_maximum_value << " , " << limb_3_maximum_value << std::endl;
+    }
     uint512_t constant_to_add_mod_p = constant_to_add % prime_basis.modulus;
     field_t prime_basis_to_add(ctx, barretenberg::fr(constant_to_add_mod_p.lo));
     // result.prime_basis_limb = prime_basis_limb - other.prime_basis_limb;
@@ -523,10 +543,29 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
-    const field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+    field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+    carry_combined = carry_combined.normalize();
+    std::cout << "left  limbs = " << left.binary_basis_limbs[0].element << " , " << left.binary_basis_limbs[1].element
+              << ", " << left.binary_basis_limbs[2].element << ", " << left.binary_basis_limbs[3].element << std::endl;
+    std::cout << "right limbs = " << right.binary_basis_limbs[0].element << " , " << right.binary_basis_limbs[1].element
+              << ", " << right.binary_basis_limbs[2].element << ", " << right.binary_basis_limbs[3].element
+              << std::endl;
+    std::cout << "quot  limbs = " << quotient.binary_basis_limbs[0].element << " , "
+              << quotient.binary_basis_limbs[1].element << ", " << quotient.binary_basis_limbs[2].element << ", "
+              << quotient.binary_basis_limbs[3].element << std::endl;
+    std::cout << "rem   limbs = " << remainder.binary_basis_limbs[0].element << " , "
+              << remainder.binary_basis_limbs[1].element << ", " << remainder.binary_basis_limbs[2].element << ", "
+              << remainder.binary_basis_limbs[3].element << std::endl;
+
+    std::cout << "carry lo and carry hi = " << carry_lo << " , " << carry_hi << std::endl;
+    std::cout << "carry combined msb = " << uint256_t(carry_combined.get_value()).get_msb()
+              << "vs range bits = " << carry_lo_msb + carry_hi_msb << std::endl;
     const auto accumulators =
         ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+    std::cout << "assert equal product" << std::endl;
+    carry_hi = carry_hi.normalize();
     ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+    std::cout << "assert equal product end" << std::endl;
     // field_t rhs = remainder.prime_basis_limb.normalize();
     // ctx->assert_equal(prime_basis_result.witness_index, rhs.witness_index);
 }

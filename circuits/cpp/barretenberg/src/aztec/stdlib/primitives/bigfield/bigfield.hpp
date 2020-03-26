@@ -18,6 +18,9 @@ template <typename Composer, typename T> class bigfield {
     static constexpr uint64_t NUM_LIMB_BITS = 68;
     static constexpr uint64_t LOG2_BINARY_MODULUS = NUM_LIMB_BITS * 4;
 
+    static constexpr uint256_t modulus = (uint256_t(T::modulus_0, T::modulus_1, T::modulus_2, T::modulus_3));
+
+    static constexpr bool is_composite = true;
     static constexpr uint512_t modulus_u512 =
         uint512_t(uint256_t(T::modulus_0, T::modulus_1, T::modulus_2, T::modulus_3));
 
@@ -73,7 +76,7 @@ template <typename Composer, typename T> class bigfield {
         uint1024_t maximum_product = uint1024_t(binary_basis.modulus) * uint1024_t(prime_basis.modulus);
         // TODO: compute square root
         uint64_t maximum_product_bits = maximum_product.get_msb() - 1;
-        return uint512_t(1) << (maximum_product_bits >> 1);
+        return (uint512_t(1) << (maximum_product_bits >> 1)) - uint512_t(1);
     }
     static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << 100; }
 
@@ -156,8 +159,15 @@ template <typename Composer, typename T> class bigfield {
 
     Composer* get_context() const { return context; }
 
-    void assert_equal(const bigfield&)
+    void assert_equal(const bigfield& rhs)
     {
+        assert_is_in_field();
+        rhs.assert_is_in_field();
+        if (get_value() != rhs.get_value()) {
+            std::cout << "not equal!" << std::endl;
+            std::cout << "lhs = " << get_value() << std::endl;
+            std::cout << "rhs = " << rhs.get_value() << std::endl;
+        }
         // TODO fill this in...
     }
     // static constexpr bigfield neg_one()

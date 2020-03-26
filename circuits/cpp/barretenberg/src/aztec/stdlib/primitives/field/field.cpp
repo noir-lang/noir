@@ -470,6 +470,14 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
 }
 
 template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::conditional_negate(const bool_t<ComposerContext>& predicate) const
+{
+    field_t<ComposerContext> predicate_field(predicate);
+    field_t<ComposerContext> multiplicand = -(predicate_field + predicate_field);
+    return multiplicand.madd(*this, *this);
+}
+
+template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two_bit_table(const field_t& T0,
                                                                                            const field_t& T1,
                                                                                            const field_t& T2,

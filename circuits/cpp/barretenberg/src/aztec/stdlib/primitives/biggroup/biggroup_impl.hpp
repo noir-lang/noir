@@ -46,6 +46,10 @@ element<C, Fq, Fr, T>& element<C, Fq, Fr, T>::operator=(element&& other)
 template <typename C, class Fq, class Fr, class T>
 element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator+(const element& other) const
 {
+    uint512_t diff = other.x.get_value() - x.get_value();
+    if (diff == uint512_t(0) || (diff % Fq::modulus_u512 == uint512_t(0))) {
+        std::cout << "exception condition hit?" << std::endl;
+    }
     const Fq lambda = (other.y - y) / (other.x - x);
     const Fq x3 = lambda.sqr() - (other.x + x);
     const Fq y3 = lambda * (x - x3) - y;
@@ -113,19 +117,19 @@ template <typename C, class Fq, class Fr, class T>
 std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
 {
     C* ctx = scalar.context;
-    uint512_t scalar_multiplier_512 = scalar.get_value() % Fr::modulus_u512;
-    scalar_multiplier_512 += Fr::modulus_u512;
+    uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
+    scalar_multiplier_512 += uint512_t(Fr::modulus);
 
-    constexpr uint64_t default_offset_bits = Fr::modulus_u512.get_msb() + 2; // 2^254
+    constexpr uint64_t default_offset_bits = Fr::modulus.get_msb() + 2; // 2^254
     constexpr uint512_t default_offset = uint512_t(1) << default_offset_bits;
 
     while (scalar_multiplier_512 < default_offset) {
-        scalar_multiplier_512 += Fr::modulus_u512;
+        scalar_multiplier_512 += uint512_t(Fr::modulus);
     }
     scalar_multiplier_512 -= default_offset;
     uint256_t scalar_multiplier = scalar_multiplier_512.lo;
 
-    constexpr uint64_t num_rounds = Fr::modulus_u512.get_msb() + 1;
+    constexpr uint64_t num_rounds = Fr::modulus.get_msb() + 1;
     std::vector<bool_t<C>> naf_entries(num_rounds + 1);
 
     // if boolean is false => do NOT flip y
@@ -148,6 +152,30 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
         }
     }
     naf_entries[0] = bool_t<C>(witness_t(ctx, false)); // most significant entry is always true
+
+    // validate correctness of NAF
+    Fr accumulator(ctx, uint256_t(2));
+    for (size_t i = 0; i < num_rounds; ++i) {
+        accumulator = accumulator + accumulator;
+
+        Fr to_add(ctx, uint256_t(1));
+        accumulator = accumulator + to_add.conditional_negate(naf_entries[i]);
+    }
+
+    if constexpr (Fr::is_composite) {
+        Fr skew(ctx, uint256_t(0));
+        skew.binary_basis_limbs[0].element = field_t<C>(naf_entries[num_rounds]);
+        skew.prime_basis_limb = field_t<C>(naf_entries[num_rounds]);
+        accumulator = accumulator - skew;
+        // accumulator.assert_is_in_field();
+    } else {
+        accumulator -= field_t<C>(naf_entries[num_rounds]);
+    }
+    std::cout << "naf check start" << std::endl;
+    std::cout << "scalar = " << scalar << std::endl;
+    std::cout << "recons = " << accumulator << std::endl;
+    accumulator.assert_equal(scalar);
+    std::cout << "naf check end" << std::endl;
     return naf_entries;
 }
 
@@ -168,22 +196,18 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::twin_mul(const element& base_a,
     // B - A
     // -B + A
     // -B - A
+    twin_lookup_table table({ base_a, base_b });
+    // element T0 = base_b + base_a;
+    // element T1 = base_b - base_a;
 
-    element T0 = base_b + base_a;
-    element T1 = base_b - base_a;
-
-    element accumulator = T0.dbl(); // (base_a.montgomery_ladder(base_b)) + base_b;
+    element accumulator = table[0].dbl(); // (base_a.montgomery_ladder(base_b)) + base_b;
     // bool_t<C> initial_selector = naf_entries_a[1] ^ naf_entries_b[1];
     // Fq initial_x = T0.x.conditional_select(T1.x, initial_selector);
     // Fq initial_y = T0.y.conditional_select(T1.y, initial_selector);
     // accumulator = accumulator + element(initial_x, initial_y.conditional_negate(naf_entries_b[1]));
 
     for (size_t i = 0; i < num_rounds; ++i) {
-        bool_t<C> table_selector = naf_entries_a[i] ^ naf_entries_b[i];
-        bool_t<C> sign_selector = naf_entries_b[i];
-        Fq to_add_x = T0.x.conditional_select(T1.x, table_selector);
-        Fq to_add_y = T0.y.conditional_select(T1.y, table_selector);
-        element to_add(to_add_x, to_add_y.conditional_negate(sign_selector));
+        element to_add = table.get(naf_entries_a[i], naf_entries_b[i]);
         accumulator = accumulator.montgomery_ladder(to_add);
     }
 
@@ -222,186 +246,12 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::quad_mul(const element& base_a,
     std::vector<bool_t<C>> naf_entries_c = compute_naf(scalar_c);
     std::vector<bool_t<C>> naf_entries_d = compute_naf(scalar_d);
 
-    // compute precomputed lookup table of:
-    // B + A
-    // B - A
-    // -B + A
-    // -B - A
-    element T0 = base_b + base_a;
-    element T1 = base_b - base_a;
-    element T2 = base_d + base_c;
-    element T3 = base_d - base_c;
-
-    std::array<element, 8> element_table;
-    element_table[0] = T2 + T0; // D + C + B + A
-    element_table[1] = T2 + T1; // D + C + B - A
-    element_table[2] = T2 - T1; // D + C - B + A
-    element_table[3] = T2 - T0; // D + C - B - A
-    element_table[4] = T3 + T0; // D - C + B + A
-    element_table[5] = T3 + T1; // D - C + B - A
-    element_table[6] = T3 - T1; // D - C - B + A
-    element_table[7] = T3 - T0; // D - C - B - A
-    for (size_t i = 0; i < 8; ++i) {
-        element_table[i].x.self_reduce();
-        element_table[i].y.self_reduce();
-    }
-    std::array<field_t<C>, 8> x_b0_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].x.binary_basis_limbs[0].element,
-                                               element_table[1].x.binary_basis_limbs[0].element,
-                                               element_table[2].x.binary_basis_limbs[0].element,
-                                               element_table[3].x.binary_basis_limbs[0].element,
-                                               element_table[4].x.binary_basis_limbs[0].element,
-                                               element_table[5].x.binary_basis_limbs[0].element,
-                                               element_table[6].x.binary_basis_limbs[0].element,
-                                               element_table[7].x.binary_basis_limbs[0].element);
-    std::array<field_t<C>, 8> x_b1_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].x.binary_basis_limbs[1].element,
-                                               element_table[1].x.binary_basis_limbs[1].element,
-                                               element_table[2].x.binary_basis_limbs[1].element,
-                                               element_table[3].x.binary_basis_limbs[1].element,
-                                               element_table[4].x.binary_basis_limbs[1].element,
-                                               element_table[5].x.binary_basis_limbs[1].element,
-                                               element_table[6].x.binary_basis_limbs[1].element,
-                                               element_table[7].x.binary_basis_limbs[1].element);
-    std::array<field_t<C>, 8> x_b2_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].x.binary_basis_limbs[2].element,
-                                               element_table[1].x.binary_basis_limbs[2].element,
-                                               element_table[2].x.binary_basis_limbs[2].element,
-                                               element_table[3].x.binary_basis_limbs[2].element,
-                                               element_table[4].x.binary_basis_limbs[2].element,
-                                               element_table[5].x.binary_basis_limbs[2].element,
-                                               element_table[6].x.binary_basis_limbs[2].element,
-                                               element_table[7].x.binary_basis_limbs[2].element);
-    std::array<field_t<C>, 8> x_b3_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].x.binary_basis_limbs[3].element,
-                                               element_table[1].x.binary_basis_limbs[3].element,
-                                               element_table[2].x.binary_basis_limbs[3].element,
-                                               element_table[3].x.binary_basis_limbs[3].element,
-                                               element_table[4].x.binary_basis_limbs[3].element,
-                                               element_table[5].x.binary_basis_limbs[3].element,
-                                               element_table[6].x.binary_basis_limbs[3].element,
-                                               element_table[7].x.binary_basis_limbs[3].element);
-    std::array<field_t<C>, 8> x_prime_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].x.prime_basis_limb,
-                                               element_table[1].x.prime_basis_limb,
-                                               element_table[2].x.prime_basis_limb,
-                                               element_table[3].x.prime_basis_limb,
-                                               element_table[4].x.prime_basis_limb,
-                                               element_table[5].x.prime_basis_limb,
-                                               element_table[6].x.prime_basis_limb,
-                                               element_table[7].x.prime_basis_limb);
-
-    std::array<field_t<C>, 8> y_b0_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].y.binary_basis_limbs[0].element,
-                                               element_table[1].y.binary_basis_limbs[0].element,
-                                               element_table[2].y.binary_basis_limbs[0].element,
-                                               element_table[3].y.binary_basis_limbs[0].element,
-                                               element_table[4].y.binary_basis_limbs[0].element,
-                                               element_table[5].y.binary_basis_limbs[0].element,
-                                               element_table[6].y.binary_basis_limbs[0].element,
-                                               element_table[7].y.binary_basis_limbs[0].element);
-    std::array<field_t<C>, 8> y_b1_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].y.binary_basis_limbs[1].element,
-                                               element_table[1].y.binary_basis_limbs[1].element,
-                                               element_table[2].y.binary_basis_limbs[1].element,
-                                               element_table[3].y.binary_basis_limbs[1].element,
-                                               element_table[4].y.binary_basis_limbs[1].element,
-                                               element_table[5].y.binary_basis_limbs[1].element,
-                                               element_table[6].y.binary_basis_limbs[1].element,
-                                               element_table[7].y.binary_basis_limbs[1].element);
-    std::array<field_t<C>, 8> y_b2_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].y.binary_basis_limbs[2].element,
-                                               element_table[1].y.binary_basis_limbs[2].element,
-                                               element_table[2].y.binary_basis_limbs[2].element,
-                                               element_table[3].y.binary_basis_limbs[2].element,
-                                               element_table[4].y.binary_basis_limbs[2].element,
-                                               element_table[5].y.binary_basis_limbs[2].element,
-                                               element_table[6].y.binary_basis_limbs[2].element,
-                                               element_table[7].y.binary_basis_limbs[2].element);
-    std::array<field_t<C>, 8> y_b3_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].y.binary_basis_limbs[3].element,
-                                               element_table[1].y.binary_basis_limbs[3].element,
-                                               element_table[2].y.binary_basis_limbs[3].element,
-                                               element_table[3].y.binary_basis_limbs[3].element,
-                                               element_table[4].y.binary_basis_limbs[3].element,
-                                               element_table[5].y.binary_basis_limbs[3].element,
-                                               element_table[6].y.binary_basis_limbs[3].element,
-                                               element_table[7].y.binary_basis_limbs[3].element);
-    std::array<field_t<C>, 8> y_prime_table =
-        field_t<C>::preprocess_three_bit_table(element_table[0].y.prime_basis_limb,
-                                               element_table[1].y.prime_basis_limb,
-                                               element_table[2].y.prime_basis_limb,
-                                               element_table[3].y.prime_basis_limb,
-                                               element_table[4].y.prime_basis_limb,
-                                               element_table[5].y.prime_basis_limb,
-                                               element_table[6].y.prime_basis_limb,
-                                               element_table[7].y.prime_basis_limb);
+    quad_lookup_table element_table({ base_a, base_b, base_c, base_d });
 
     element accumulator = element_table[0].dbl();
 
-    // bool_t<C> t0 = naf_entries_d[1] ^ naf_entries_a[1];
-    // bool_t<C> t1 = naf_entries_d[1] ^ naf_entries_b[1];
-    // bool_t<C> t2 = naf_entries_d[1] ^ naf_entries_c[1];
-    // field_t<C> initial_x_b0 = field_t<C>::select_from_three_bit_table(x_b0_table, t2, t1, t0);
-    // field_t<C> initial_x_b1 = field_t<C>::select_from_three_bit_table(x_b1_table, t2, t1, t0);
-    // field_t<C> initial_x_b2 = field_t<C>::select_from_three_bit_table(x_b2_table, t2, t1, t0);
-    // field_t<C> initial_x_b3 = field_t<C>::select_from_three_bit_table(x_b3_table, t2, t1, t0);
-    // field_t<C> initial_x_p = field_t<C>::select_from_three_bit_table(x_prime_table, t2, t1, t0);
-
-    // field_t<C> initial_y_b0 = field_t<C>::select_from_three_bit_table(y_b0_table, t2, t1, t0);
-    // field_t<C> initial_y_b1 = field_t<C>::select_from_three_bit_table(y_b1_table, t2, t1, t0);
-    // field_t<C> initial_y_b2 = field_t<C>::select_from_three_bit_table(y_b2_table, t2, t1, t0);
-    // field_t<C> initial_y_b3 = field_t<C>::select_from_three_bit_table(y_b3_table, t2, t1, t0);
-    // field_t<C> initial_y_p = field_t<C>::select_from_three_bit_table(y_prime_table, t2, t1, t0);
-
-    // Fq initial_x;
-    // Fq initial_y;
-    // initial_x.binary_basis_limbs[0] = typename Fq::Limb(initial_x_b0, Fq::DEFAULT_MAXIMUM_LIMB);
-    // initial_x.binary_basis_limbs[1] = typename Fq::Limb(initial_x_b1, Fq::DEFAULT_MAXIMUM_LIMB);
-    // initial_x.binary_basis_limbs[2] = typename Fq::Limb(initial_x_b2, Fq::DEFAULT_MAXIMUM_LIMB);
-    // initial_x.binary_basis_limbs[3] = typename Fq::Limb(initial_x_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-    // initial_x.prime_basis_limb = initial_x_p;
-
-    // initial_y.binary_basis_limbs[0] = typename Fq::Limb(initial_y_b0, Fq::DEFAULT_MAXIMUM_LIMB);
-    // initial_y.binary_basis_limbs[1] = typename Fq::Limb(initial_y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
-    // initial_y.binary_basis_limbs[2] = typename Fq::Limb(initial_y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
-    // initial_y.binary_basis_limbs[3] = typename Fq::Limb(initial_y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-    // initial_y.prime_basis_limb = initial_y_p;
-
-    // initial_y = initial_y.conditional_negate(naf_entries_d[1]);
-    // accumulator = accumulator + element(initial_x, initial_y);
-
     for (size_t i = 0; i < num_rounds; ++i) {
-        bool_t<C> t0 = naf_entries_d[i] ^ naf_entries_a[i];
-        bool_t<C> t1 = naf_entries_d[i] ^ naf_entries_b[i];
-        bool_t<C> t2 = naf_entries_d[i] ^ naf_entries_c[i];
-
-        field_t<C> x_b0 = field_t<C>::select_from_three_bit_table(x_b0_table, t2, t1, t0);
-        field_t<C> x_b1 = field_t<C>::select_from_three_bit_table(x_b1_table, t2, t1, t0);
-        field_t<C> x_b2 = field_t<C>::select_from_three_bit_table(x_b2_table, t2, t1, t0);
-        field_t<C> x_b3 = field_t<C>::select_from_three_bit_table(x_b3_table, t2, t1, t0);
-        field_t<C> x_p = field_t<C>::select_from_three_bit_table(x_prime_table, t2, t1, t0);
-
-        field_t<C> y_b0 = field_t<C>::select_from_three_bit_table(y_b0_table, t2, t1, t0);
-        field_t<C> y_b1 = field_t<C>::select_from_three_bit_table(y_b1_table, t2, t1, t0);
-        field_t<C> y_b2 = field_t<C>::select_from_three_bit_table(y_b2_table, t2, t1, t0);
-        field_t<C> y_b3 = field_t<C>::select_from_three_bit_table(y_b3_table, t2, t1, t0);
-        field_t<C> y_p = field_t<C>::select_from_three_bit_table(y_prime_table, t2, t1, t0);
-
-        Fq to_add_x;
-        Fq to_add_y;
-        to_add_x.binary_basis_limbs[0] = typename Fq::Limb(x_b0, Fq::DEFAULT_MAXIMUM_LIMB);
-        to_add_x.binary_basis_limbs[1] = typename Fq::Limb(x_b1, Fq::DEFAULT_MAXIMUM_LIMB);
-        to_add_x.binary_basis_limbs[2] = typename Fq::Limb(x_b2, Fq::DEFAULT_MAXIMUM_LIMB);
-        to_add_x.binary_basis_limbs[3] = typename Fq::Limb(x_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-        to_add_x.prime_basis_limb = x_p;
-
-        to_add_y.binary_basis_limbs[0] = typename Fq::Limb(y_b0, Fq::DEFAULT_MAXIMUM_LIMB);
-        to_add_y.binary_basis_limbs[1] = typename Fq::Limb(y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
-        to_add_y.binary_basis_limbs[2] = typename Fq::Limb(y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
-        to_add_y.binary_basis_limbs[3] = typename Fq::Limb(y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-        to_add_y.prime_basis_limb = y_p;
-        element to_add(to_add_x, to_add_y.conditional_negate(naf_entries_d[i]));
+        element to_add = element_table.get(naf_entries_a[i], naf_entries_b[i], naf_entries_c[i], naf_entries_d[i]);
         accumulator = accumulator.montgomery_ladder(to_add);
     }
 
@@ -438,11 +288,113 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::quad_mul(const element& base_a,
 }
 
 template <typename C, class Fq, class Fr, class T>
+element<C, Fq, Fr, T> element<C, Fq, Fr, T>::batch_mul(const std::vector<element>& points,
+                                                       const std::vector<Fr>& scalars)
+{
+    const size_t num_points = points.size();
+    ASSERT(scalars.size() == num_points);
+
+    const size_t num_quads = num_points / 4;
+
+    const bool has_twin = ((num_quads * 4) < num_points - 1);
+
+    const bool has_singleton = num_points != ((num_quads * 4) + ((size_t)has_twin * 2));
+
+    std::cout << "num points = " << num_points << std::endl;
+    std::cout << "num quads = " << num_quads << std::endl;
+    std::cout << "has twin = " << has_twin << std::endl;
+    std::cout << "has singleton" << has_singleton << std::endl;
+    std::vector<quad_lookup_table> quad_tables;
+    std::vector<twin_lookup_table> twin_tables;
+    std::vector<element> singletons;
+    for (size_t i = 0; i < num_quads; ++i) {
+        quad_tables.emplace_back(
+            quad_lookup_table({ points[4 * i], points[4 * i + 1], points[4 * i + 2], points[4 * i + 3] }));
+    }
+
+    if (has_twin) {
+        twin_tables.emplace_back(twin_lookup_table({ points[4 * num_quads], points[4 * num_quads + 1] }));
+    }
+
+    if (has_singleton) {
+        singletons.emplace_back(points[points.size() - 1]);
+        singletons[0].x.self_reduce();
+        singletons[0].y.self_reduce();
+    }
+
+    constexpr uint64_t num_rounds = Fq::modulus.get_msb() + 1;
+
+    std::vector<std::vector<bool_t<C>>> naf_entries;
+    for (size_t i = 0; i < num_points; ++i) {
+        naf_entries.emplace_back(compute_naf(scalars[i]));
+    }
+
+    std::vector<element> add_accumulator;
+    for (size_t i = 0; i < num_quads; ++i) {
+        add_accumulator.emplace_back(quad_tables[i][0]);
+    }
+    if (has_twin) {
+        add_accumulator.emplace_back(twin_tables[0][0]);
+    }
+    if (has_singleton) {
+        add_accumulator.emplace_back(singletons[0]);
+    }
+
+    element accumulator = add_accumulator[0];
+    for (size_t i = 1; i < add_accumulator.size(); ++i) {
+        accumulator = accumulator + add_accumulator[i];
+    }
+    accumulator = accumulator.dbl();
+
+    for (size_t i = 0; i < num_rounds; ++i) {
+        std::cout << "i = " << i << std::endl;
+        std::vector<element> round_accumulator;
+        for (size_t j = 0; j < num_quads; ++j) {
+            round_accumulator.push_back(quad_tables[j].get(naf_entries[4 * j][i],
+                                                           naf_entries[4 * j + 1][i],
+                                                           naf_entries[4 * j + 2][i],
+                                                           naf_entries[4 * j + 3][i]));
+        }
+        if (has_twin) {
+            round_accumulator.push_back(
+                twin_tables[0].get(naf_entries[num_quads * 4][i], naf_entries[num_quads * 4 + 1][i]));
+        }
+        if (has_singleton) {
+            round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1][i]));
+        }
+
+        std::cout << "naf entries 1 = " << naf_entries[0][i].get_value() << naf_entries[1][i].get_value()
+                  << naf_entries[2][i].get_value() << naf_entries[3][i].get_value() << std::endl;
+        std::cout << "naf entries 2 = " << naf_entries[4][i].get_value() << naf_entries[5][i].get_value()
+                  << naf_entries[6][i].get_value() << naf_entries[7][i].get_value() << std::endl;
+
+        element to_add = round_accumulator[0];
+        for (size_t j = 1; j < round_accumulator.size(); ++j) {
+            std::cout << "adding at index " << j << std::endl;
+            std::cout << "x1 y1 = " << to_add.x.get_value() << " , " << to_add.y.get_value() << std::endl;
+            std::cout << "x2 y2 = " << round_accumulator[j].x.get_value() << " , " << round_accumulator[j].y.get_value()
+                      << std::endl;
+            to_add = to_add + round_accumulator[j];
+        }
+        std::cout << "calling mont ladder" << std::endl;
+        accumulator = accumulator.montgomery_ladder(to_add);
+    }
+
+    for (size_t i = 0; i < num_points; ++i) {
+        element skew = accumulator - points[i];
+        Fq out_x = accumulator.x.conditional_select(skew.x, naf_entries[i][num_rounds]);
+        Fq out_y = accumulator.y.conditional_select(skew.y, naf_entries[i][num_rounds]);
+        accumulator = element(out_x, out_y);
+    }
+    accumulator.x.self_reduce();
+    accumulator.y.self_reduce();
+    return accumulator;
+}
+
+template <typename C, class Fq, class Fr, class T>
 element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator*(const Fr& scalar) const
 {
     /**
-     *
-     * Alright! We can finally tackle scalar multiplications over the *wrong* prime field.
      *
      * Let's say we have some curve E defined over a field Fq. The order of E is p, which is prime.
      *

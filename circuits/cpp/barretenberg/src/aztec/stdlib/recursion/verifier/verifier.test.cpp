@@ -7,6 +7,9 @@
 #include <plonk/transcript/transcript.hpp>
 #include <stdlib/types/turbo.hpp>
 
+#include <ecc/curves/bn254/fq12.hpp>
+#include <ecc/curves/bn254/pairing.hpp>
+
 #include "program_settings.hpp"
 
 using namespace plonk;
@@ -49,14 +52,31 @@ TEST(stdlib_verifier, test_recursive_proof_composition)
     waffle::TurboComposer inner_composer = waffle::TurboComposer();
     waffle::TurboComposer outer_composer = waffle::TurboComposer();
     create_inner_circuit(inner_composer);
-    create_outer_circuit(inner_composer, outer_composer);
+    stdlib::recursion::recursion_output<group_ct> output = create_outer_circuit(inner_composer, outer_composer);
 
     printf("composer gates = %zu\n", outer_composer.get_num_gates());
+
+    std::cout << "creating prover" << std::endl;
     waffle::TurboProver prover = outer_composer.create_prover();
+    std::cout << "created prover" << std::endl;
+    g1::affine_element P[2];
+    P[0].x = barretenberg::fq(output.P0.x.get_value().lo);
+    P[0].y = barretenberg::fq(output.P0.y.get_value().lo);
+    P[1].x = barretenberg::fq(output.P1.x.get_value().lo);
+    P[1].y = barretenberg::fq(output.P1.y.get_value().lo);
 
+    barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
+        P, prover.key->reference_string.precomputed_g2_lines, 2);
+
+    EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
+
+    std::cout << "creating verifier" << std::endl;
     waffle::TurboVerifier verifier = outer_composer.create_verifier();
+    std::cout << "created verifier" << std::endl;
 
+    std::cout << "creating proof" << std::endl;
     waffle::plonk_proof proof = prover.construct_proof();
+    std::cout << "created proof" << std::endl;
 
     bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);

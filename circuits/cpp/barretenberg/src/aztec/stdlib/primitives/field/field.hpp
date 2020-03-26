@@ -1,6 +1,7 @@
 #pragma once
 #include "../composers/composers_fwd.hpp"
 #include "../witness/witness.hpp"
+#include <common/assert.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -52,6 +53,9 @@ template <typename ComposerContext> class field_t {
     {}
 
     field_t(const bool_t<ComposerContext>& other);
+
+    static constexpr bool is_composite = false;
+    static constexpr uint256_t modulus = barretenberg::fr::modulus;
 
     static field_t from_witness_index(ComposerContext* parent_context, const uint32_t witness_index);
 
@@ -118,6 +122,18 @@ template <typename ComposerContext> class field_t {
         result.additive_constant = -additive_constant;
 
         return result;
+    }
+
+    field_t conditional_negate(const bool_t<ComposerContext>& predicate) const;
+
+    void assert_equal(const field_t& rhs) const
+    {
+        const field_t lhs = *this;
+        ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
+        ASSERT(ctx != nullptr);
+        field_t left = lhs.normalize();
+        field_t right = rhs.normalize();
+        ctx->assert_equal(left.witness_index, right.witness_index);
     }
 
     static std::array<field_t, 4> preprocess_two_bit_table(const field_t& T0,

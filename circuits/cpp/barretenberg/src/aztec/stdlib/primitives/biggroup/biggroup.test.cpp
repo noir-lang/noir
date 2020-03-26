@@ -31,6 +31,11 @@ typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn
 typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params> g1;
 
 } // namespace bn254
+namespace alt_bn254 {
+typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
+typedef typename plonk::stdlib::field_t<typename waffle::TurboComposer> fr;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params> g1;
+} // namespace alt_bn254
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FrParams> fr;
@@ -60,6 +65,24 @@ stdlib::bn254::g1 convert_inputs(waffle::TurboComposer* ctx, const barretenberg:
                                                                 stdlib::bn254::fq::NUM_LIMB_BITS * 4))));
 
     return stdlib::bn254::g1(x, y);
+}
+
+stdlib::alt_bn254::g1 convert_inputs_alt_bn254(waffle::TurboComposer* ctx,
+                                               const barretenberg::g1::affine_element& input)
+{
+    uint256_t x_u256(input.x);
+    uint256_t y_u256(input.y);
+
+    stdlib::alt_bn254::fq x(witness_t(ctx, barretenberg::fr(x_u256.slice(0, stdlib::alt_bn254::fq::NUM_LIMB_BITS * 2))),
+                            witness_t(ctx,
+                                      barretenberg::fr(x_u256.slice(stdlib::alt_bn254::fq::NUM_LIMB_BITS * 2,
+                                                                    stdlib::alt_bn254::fq::NUM_LIMB_BITS * 4))));
+    stdlib::alt_bn254::fq y(witness_t(ctx, barretenberg::fr(y_u256.slice(0, stdlib::alt_bn254::fq::NUM_LIMB_BITS * 2))),
+                            witness_t(ctx,
+                                      barretenberg::fr(y_u256.slice(stdlib::alt_bn254::fq::NUM_LIMB_BITS * 2,
+                                                                    stdlib::alt_bn254::fq::NUM_LIMB_BITS * 4))));
+
+    return stdlib::alt_bn254::g1(x, y);
 }
 
 stdlib::bn254::fr convert_inputs(waffle::TurboComposer* ctx, const barretenberg::fr& scalar)
@@ -352,6 +375,57 @@ TEST(stdlib_biggroup, test_quad_mul)
     EXPECT_EQ(proof_result, true);
 }
 
+TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        barretenberg::g1::affine_element input_a(barretenberg::g1::element::random_element());
+        barretenberg::g1::affine_element input_b(barretenberg::g1::element::random_element());
+        barretenberg::g1::affine_element input_c(barretenberg::g1::element::random_element());
+        barretenberg::g1::affine_element input_d(barretenberg::g1::element::random_element());
+        barretenberg::fr scalar_a(barretenberg::fr::random_element());
+        barretenberg::fr scalar_b(barretenberg::fr::random_element());
+        barretenberg::fr scalar_c(barretenberg::fr::random_element());
+        barretenberg::fr scalar_d(barretenberg::fr::random_element());
+        if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            scalar_a -= barretenberg::fr(1); // make a have skew
+        }
+        if ((scalar_b.from_montgomery_form().get_bit(0) & 1) == 0) {
+            scalar_b += barretenberg::fr(1); // make b not have skew
+        }
+        stdlib::alt_bn254::g1 P_a = convert_inputs_alt_bn254(&composer, input_a);
+        stdlib::alt_bn254::fr x_a = witness_t(&composer, scalar_a);
+        stdlib::alt_bn254::g1 P_b = convert_inputs_alt_bn254(&composer, input_b);
+        stdlib::alt_bn254::fr x_b = witness_t(&composer, scalar_b);
+        stdlib::alt_bn254::g1 P_c = convert_inputs_alt_bn254(&composer, input_c);
+        stdlib::alt_bn254::fr x_c = witness_t(&composer, scalar_c);
+        stdlib::alt_bn254::g1 P_d = convert_inputs_alt_bn254(&composer, input_d);
+        stdlib::alt_bn254::fr x_d = witness_t(&composer, scalar_d);
+
+        stdlib::alt_bn254::g1 c = stdlib::alt_bn254::g1::quad_mul(P_a, x_a, P_b, x_b, P_c, x_c, P_d, x_d);
+        barretenberg::g1::element input_e = (barretenberg::g1::element(input_a) * scalar_a);
+        barretenberg::g1::element input_f = (barretenberg::g1::element(input_b) * scalar_b);
+        barretenberg::g1::element input_g = (barretenberg::g1::element(input_c) * scalar_c);
+        barretenberg::g1::element input_h = (barretenberg::g1::element(input_d) * scalar_d);
+
+        barretenberg::g1::affine_element expected(input_e + input_f + input_g + input_h);
+        barretenberg::fq c_x_result(c.x.get_value().lo);
+        barretenberg::fq c_y_result(c.y.get_value().lo);
+
+        EXPECT_EQ(c_x_result, expected.x);
+        EXPECT_EQ(c_y_result, expected.y);
+    }
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
 TEST(stdlib_biggroup, test_one)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -406,6 +480,48 @@ TEST(stdlib_biggroup, test_one_secp256r1)
         EXPECT_EQ(c_x_result, expected.x);
         EXPECT_EQ(c_y_result, expected.y);
     }
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_biggroup, test_batch_mul)
+{
+    const size_t num_points = 21;
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    std::vector<barretenberg::g1::affine_element> points;
+    std::vector<barretenberg::fr> scalars;
+    for (size_t i = 0; i < num_points; ++i) {
+        points.push_back(barretenberg::g1::affine_element(barretenberg::g1::element::random_element()));
+        scalars.push_back(barretenberg::fr::random_element());
+    }
+
+    std::vector<stdlib::alt_bn254::g1> circuit_points;
+    std::vector<stdlib::alt_bn254::fr> circuit_scalars;
+    for (size_t i = 0; i < num_points; ++i) {
+        circuit_points.push_back(convert_inputs_alt_bn254(&composer, points[i]));
+        circuit_scalars.push_back(witness_t(&composer, scalars[i]));
+    }
+
+    stdlib::alt_bn254::g1 result_point = stdlib::alt_bn254::g1::batch_mul(circuit_points, circuit_scalars);
+
+    barretenberg::g1::element expected_point = barretenberg::g1::one;
+    expected_point.self_set_infinity();
+    for (size_t i = 0; i < num_points; ++i) {
+        expected_point += (barretenberg::g1::element(points[i]) * scalars[i]);
+    }
+    expected_point = expected_point.normalize();
+    barretenberg::fq result_x(result_point.x.get_value().lo);
+    barretenberg::fq result_y(result_point.y.get_value().lo);
+
+    EXPECT_EQ(result_x, expected_point.x);
+    EXPECT_EQ(result_y, expected_point.y);
+
     std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
     waffle::TurboProver prover = composer.create_prover();
     std::cout << "creating verifier " << std::endl;

@@ -12,13 +12,18 @@
 
 #include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
 
+#include <polynomials/polynomial_arithmetic.hpp>
+
+#include <ecc/curves/bn254/fq12.hpp>
+#include <ecc/curves/bn254/pairing.hpp>
+
 namespace plonk {
 namespace stdlib {
 namespace recursion {
 
 template <typename Group> struct recursion_output {
+    Group P0;
     Group P1;
-    Group P2;
 };
 
 template <typename Composer> struct lagrange_evaluations {
@@ -39,8 +44,11 @@ lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>&
 
     lagrange_evaluations<Composer> result;
     result.vanishing_poly = numerator / (z - domain.root_inverse);
+    numerator *= domain.domain_inverse;
     result.l_1 = numerator / (z - field_pt(1));
     result.l_n_minus_1 = numerator / ((z * domain.root.sqr()) - field_pt(1));
+
+    barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z.get_value(), domain);
     return result;
 }
 
@@ -73,6 +81,7 @@ verify_proof(Composer* context,
         T[i] = transcript.get_group_element("T_" + index);
         W[i] = transcript.get_group_element("W_" + index);
         wire_evaluations[i] = transcript.get_field_element("w_" + index);
+        std::cout << "sigmas = " << key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)) << std::endl;
         sigmas[i] =
             Transcript<Composer>::convert_g1(context, key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)));
     }
@@ -302,7 +311,6 @@ verify_proof(Composer* context,
     }
     field_pt z_power = z_pow_n;
     for (size_t i = 1; i < program_settings::program_width; ++i) {
-        // field_pt z_power = z_challenge.pow(static_cast<uint64_t>(key->n * i));
         if (T[i].on_curve().get_value()) {
             elements.emplace_back(T[i]);
             scalars.emplace_back(z_power);
@@ -319,6 +327,64 @@ verify_proof(Composer* context,
         elements.push_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_inputs[i]));
     }
 
+    std::cout << "mark a" << std::endl;
+    group_pt rhs = group_pt::batch_mul(elements, scalars);
+    std::cout << "mark b" << std::endl;
+    rhs = (rhs + T[0]).normalize();
+    std::cout << "mark c" << std::endl;
+    group_pt lhs = PI_Z_OMEGA * u;
+    std::cout << "mark d" << std::endl;
+    lhs = lhs + PI_Z;
+    std::cout << "mark e" << std::endl;
+    lhs = (-lhs).normalize();
+    std::cout << "mark f" << std::endl;
+
+    return recursion_output<group_pt>{ rhs, lhs };
+    /*
+    std::cout << "g1 rhs points = " << elements.size() << std::endl;
+    barretenberg::g1::element rhs = barretenberg::g1::one;
+    rhs.self_set_infinity();
+    for (size_t i = 0; i < elements.size(); ++i) {
+        group_pt input = elements[i];
+        uint256_t x = input.x.get_value().lo;
+        uint256_t y = input.y.get_value().lo;
+        barretenberg::g1::element point(barretenberg::fq(x), barretenberg::fq(y), barretenberg::fq(1));
+        barretenberg::fr scalar(scalars[i].get_value());
+        rhs += (point * scalar);
+    }
+
+    barretenberg::g1::element lhs;
+    lhs.x = barretenberg::fq(PI_Z_OMEGA.x.get_value().lo);
+    lhs.y = barretenberg::fq(PI_Z_OMEGA.y.get_value().lo);
+    lhs.z = barretenberg::fq(1);
+    lhs = lhs * u.get_value();
+
+    barretenberg::g1::element to_add;
+    to_add.x = barretenberg::fq(PI_Z.x.get_value().lo);
+    to_add.y = barretenberg::fq(PI_Z.y.get_value().lo);
+    to_add.z = barretenberg::fq(1);
+
+    lhs += to_add;
+    lhs = -lhs;
+
+    to_add.x = barretenberg::fq(T[0].x.get_value().lo);
+    to_add.y = barretenberg::fq(T[0].y.get_value().lo);
+    to_add.z = barretenberg::fq(1);
+    rhs += to_add;
+
+    lhs = lhs.normalize();
+    rhs = rhs.normalize();
+
+    g1::affine_element P_affine[2];
+    barretenberg::fq::__copy(lhs.x, P_affine[1].x);
+    barretenberg::fq::__copy(lhs.y, P_affine[1].y);
+    barretenberg::fq::__copy(rhs.x, P_affine[0].x);
+    barretenberg::fq::__copy(rhs.y, P_affine[0].y);
+
+    barretenberg::fq12 tresult = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
+        P_affine, key->reference_string.precomputed_g2_lines, 2);
+
+    std::cout << "result = " << (tresult == barretenberg::fq12::one()) << std::endl;
     // recursion_output<group_pt> result{
     //     (PI_Z_OMEGA * u) + PI_Z,
     //     group_pt::batch_mul(scalars, elements),
@@ -329,6 +395,7 @@ verify_proof(Composer* context,
     };
 
     return result;
+    */
 }
 
 } // namespace recursion

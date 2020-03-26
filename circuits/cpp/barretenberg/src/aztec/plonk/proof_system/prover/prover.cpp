@@ -847,7 +847,6 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         fr linear_eval = r.evaluate(z_challenge, n);
         transcript.add_element("r", linear_eval.to_buffer());
     }
-    std::cout << "prover t_eval = " << t_eval << std::endl;
     transcript.add_element("t", t_eval.to_buffer());
 
     return t_eval;
