@@ -454,6 +454,9 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
     start = std::chrono::steady_clock::now();
 #endif
     compute_wire_commitments();
+    for (auto& widget : widgets) {
+        widget->compute_round_commitments(transcript, 1);
+    }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -475,6 +478,9 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
+    for (auto& widget : widgets) {
+        widget->compute_round_commitments(transcript, 2);
+    }
     compute_z_commitment();
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();

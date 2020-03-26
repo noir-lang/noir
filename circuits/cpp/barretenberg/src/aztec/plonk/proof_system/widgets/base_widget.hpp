@@ -92,6 +92,8 @@ class ProverBaseWidget {
 
     virtual ~ProverBaseWidget() {}
 
+    virtual void compute_round_commitments(const transcript::Transcript&, const size_t){};
+
     virtual barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                            const transcript::Transcript& transcript) = 0;
     virtual barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
