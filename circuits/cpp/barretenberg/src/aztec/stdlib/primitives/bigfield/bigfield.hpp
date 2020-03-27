@@ -40,7 +40,7 @@ template <typename Composer, typename T> class bigfield {
             : element(input)
         {
             if (input.witness_index == UINT32_MAX) {
-                maximum_value = DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB; // uint256_t(input.additive_constant) + 1;
+                maximum_value = uint256_t(input.additive_constant) + 1;
             } else if (max != uint256_t(0)) {
                 maximum_value = max;
             } else {
@@ -78,7 +78,7 @@ template <typename Composer, typename T> class bigfield {
         uint64_t maximum_product_bits = maximum_product.get_msb() - 1;
         return (uint512_t(1) << (maximum_product_bits >> 1)) - uint512_t(1);
     }
-    static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << 100; }
+    static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << 110; }
 
     static constexpr uint512_t negative_prime_modulus = binary_basis.modulus - target_basis.modulus;
 
@@ -129,7 +129,16 @@ template <typename Composer, typename T> class bigfield {
     bigfield operator*(const bigfield& other) const;
     bigfield operator/(const bigfield& other) const;
 
+    bigfield operator-() const { return bigfield(get_context(), uint256_t(0)) - *this; }
+
     bigfield sqr() const;
+    bigfield madd(const bigfield& to_mul, const bigfield& to_add) const;
+
+    static void evaluate_madd(const bigfield& left,
+                              const bigfield& right_mul,
+                              const bigfield& right_add,
+                              const bigfield& quotient,
+                              const bigfield& remainder);
 
     static void evaluate_product(const bigfield& left,
                                  const bigfield& right,

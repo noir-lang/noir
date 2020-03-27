@@ -118,6 +118,57 @@ TEST(stdlib_bigfield, test_sqr)
     EXPECT_EQ(proof_result, true);
 }
 
+TEST(stdlib_bigfield, test_madd)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
+        bigfield a(witness_t(&composer, barretenberg::fr(uint256_t(inputs[0]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[0]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+        bigfield b(witness_t(&composer, barretenberg::fr(uint256_t(inputs[1]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[1]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+
+        bigfield c(witness_t(&composer, barretenberg::fr(uint256_t(inputs[2]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[2]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+
+        uint64_t before = composer.get_num_gates();
+        bigfield d = a.madd(b, c);
+        uint64_t after = composer.get_num_gates();
+        if (i == num_repetitions - 1) {
+            std::cout << "num gates per mul = " << after - before << std::endl;
+        }
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
+
+        fq expected = (inputs[0] * inputs[1]) + inputs[2];
+        expected = expected.from_montgomery_form();
+        uint512_t result = d.get_value();
+
+        EXPECT_EQ(result.lo.data[0], expected.data[0]);
+        EXPECT_EQ(result.lo.data[1], expected.data[1]);
+        EXPECT_EQ(result.lo.data[2], expected.data[2]);
+        EXPECT_EQ(result.lo.data[3], expected.data[3]);
+        EXPECT_EQ(result.hi.data[0], 0ULL);
+        EXPECT_EQ(result.hi.data[1], 0ULL);
+        EXPECT_EQ(result.hi.data[2], 0ULL);
+        EXPECT_EQ(result.hi.data[3], 0ULL);
+    }
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
 TEST(stdlib_bigfield, test_div)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();

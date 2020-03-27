@@ -15,7 +15,7 @@ namespace stdlib {
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FrParams> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, secp256r1::Secp256r1G1Params> g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, secp256r1::Secp256r1G1Params, secp256r1::g1> g1;
 
 } // namespace secp256r
 } // namespace stdlib

@@ -28,18 +28,18 @@ namespace stdlib {
 namespace bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FrParams> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params> g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params, barretenberg::g1> g1;
 
 } // namespace bn254
 namespace alt_bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::field_t<typename waffle::TurboComposer> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params> g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params, barretenberg::g1> g1;
 } // namespace alt_bn254
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FrParams> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, secp256r1::Secp256r1G1Params> g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, secp256r1::Secp256r1G1Params, secp256r1::g1> g1;
 
 } // namespace secp256r
 
@@ -308,6 +308,52 @@ TEST(stdlib_biggroup, test_twin_mul)
         barretenberg::g1::element input_c = (barretenberg::g1::element(input_a) * scalar_a);
         barretenberg::g1::element input_d = (barretenberg::g1::element(input_b) * scalar_b);
         barretenberg::g1::affine_element expected(input_c + input_d);
+        barretenberg::fq c_x_result(c.x.get_value().lo);
+        barretenberg::fq c_y_result(c.y.get_value().lo);
+
+        EXPECT_EQ(c_x_result, expected.x);
+        EXPECT_EQ(c_y_result, expected.y);
+    }
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_biggroup, test_triple_mul)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        barretenberg::g1::affine_element input_a(barretenberg::g1::element::random_element());
+        barretenberg::g1::affine_element input_b(barretenberg::g1::element::random_element());
+        barretenberg::g1::affine_element input_c(barretenberg::g1::element::random_element());
+        barretenberg::fr scalar_a(barretenberg::fr::random_element());
+        barretenberg::fr scalar_b(barretenberg::fr::random_element());
+        barretenberg::fr scalar_c(barretenberg::fr::random_element());
+        if ((scalar_a.from_montgomery_form().get_bit(0) & 1) == 1) {
+            scalar_a -= barretenberg::fr(1); // make a have skew
+        }
+        if ((scalar_b.from_montgomery_form().get_bit(0) & 1) == 0) {
+            scalar_b += barretenberg::fr(1); // make b not have skew
+        }
+        stdlib::bn254::g1 P_a = convert_inputs(&composer, input_a);
+        stdlib::bn254::fr x_a = convert_inputs(&composer, scalar_a);
+        stdlib::bn254::g1 P_b = convert_inputs(&composer, input_b);
+        stdlib::bn254::fr x_b = convert_inputs(&composer, scalar_b);
+        stdlib::bn254::g1 P_c = convert_inputs(&composer, input_c);
+        stdlib::bn254::fr x_c = convert_inputs(&composer, scalar_c);
+
+        stdlib::bn254::g1 c = stdlib::bn254::g1::triple_mul(P_a, x_a, P_b, x_b, P_c, x_c);
+        barretenberg::g1::element input_e = (barretenberg::g1::element(input_a) * scalar_a);
+        barretenberg::g1::element input_f = (barretenberg::g1::element(input_b) * scalar_b);
+        barretenberg::g1::element input_g = (barretenberg::g1::element(input_c) * scalar_c);
+
+        barretenberg::g1::affine_element expected(input_e + input_f + input_g);
         barretenberg::fq c_x_result(c.x.get_value().lo);
         barretenberg::fq c_y_result(c.y.get_value().lo);
 

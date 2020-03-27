@@ -53,8 +53,11 @@ lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>&
 }
 
 template <typename Composer, typename program_settings>
-recursion_output<
-    element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::Bn254G1Params>>
+recursion_output<element<Composer,
+                         bigfield<Composer, barretenberg::Bn254FqParams>,
+                         field_t<Composer>,
+                         barretenberg::Bn254G1Params,
+                         barretenberg::g1>>
 verify_proof(Composer* context,
              std::shared_ptr<waffle::verification_key> key,
              const transcript::Manifest& manifest,
@@ -63,7 +66,7 @@ verify_proof(Composer* context,
     using bool_pt = bool_t<Composer>;
     using field_pt = field_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
-    using group_pt = element<Composer, fq_pt, field_pt, barretenberg::Bn254G1Params>;
+    using group_pt = element<Composer, fq_pt, field_pt, barretenberg::Bn254G1Params, barretenberg::g1>;
 
     Transcript<Composer> transcript = Transcript<Composer>(context, proof.proof_data, manifest);
 
@@ -333,7 +336,6 @@ verify_proof(Composer* context,
     group_pt lhs = group_pt::batch_mul({ PI_Z_OMEGA }, { u }, 128);
     lhs = lhs + PI_Z;
     lhs = (-lhs).normalize();
-
     return recursion_output<group_pt>{ rhs, lhs };
 }
 

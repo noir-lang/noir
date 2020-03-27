@@ -21,7 +21,7 @@ template <typename Composer> class Transcript {
     using field_pt = field_t<Composer>;
     using witness_pt = witness_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
-    using group_pt = element<Composer, fq_pt, field_pt, barretenberg::Bn254G1Params>;
+    using group_pt = element<Composer, fq_pt, field_pt, barretenberg::Bn254G1Params, barretenberg::g1>;
 
     Transcript(Composer* in_context, const transcript::Manifest input_manifest)
         : context(in_context)

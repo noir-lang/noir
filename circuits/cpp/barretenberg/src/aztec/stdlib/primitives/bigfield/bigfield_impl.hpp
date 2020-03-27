@@ -385,6 +385,120 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
 }
 
 template <typename C, typename T>
+void bigfield<C, T>::evaluate_madd(const bigfield& left,
+                                   const bigfield& right_mul,
+                                   const bigfield& right_add,
+                                   const bigfield& quotient,
+                                   const bigfield& remainder)
+{
+    C* ctx = left.context ? left.context : right_mul.context ? right_mul.context : right_add.context;
+
+    uint256_t max_b0 = (left.binary_basis_limbs[1].maximum_value * right_mul.binary_basis_limbs[0].maximum_value);
+    max_b0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
+    uint256_t max_b1 = (left.binary_basis_limbs[0].maximum_value * right_mul.binary_basis_limbs[1].maximum_value);
+    max_b1 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+    uint256_t max_c0 = (left.binary_basis_limbs[1].maximum_value * right_mul.binary_basis_limbs[1].maximum_value);
+    max_c0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
+    uint256_t max_c1 = (left.binary_basis_limbs[2].maximum_value * right_mul.binary_basis_limbs[0].maximum_value);
+    max_c1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
+    uint256_t max_c2 = (left.binary_basis_limbs[0].maximum_value * right_mul.binary_basis_limbs[2].maximum_value);
+    max_c2 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+    uint256_t max_d0 = (left.binary_basis_limbs[3].maximum_value * right_mul.binary_basis_limbs[0].maximum_value);
+    max_d0 += (neg_modulus_limbs_u256[3] << NUM_LIMB_BITS);
+    uint256_t max_d1 = (left.binary_basis_limbs[2].maximum_value * right_mul.binary_basis_limbs[1].maximum_value);
+    max_d1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
+    uint256_t max_d2 = (left.binary_basis_limbs[1].maximum_value * right_mul.binary_basis_limbs[2].maximum_value);
+    max_d2 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
+    uint256_t max_d3 = (left.binary_basis_limbs[0].maximum_value * right_mul.binary_basis_limbs[3].maximum_value);
+    max_d3 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+
+    uint256_t max_r0 = left.binary_basis_limbs[0].maximum_value * right_mul.binary_basis_limbs[0].maximum_value;
+    max_r0 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+
+    const uint256_t max_r1 = max_b0 + max_b1;
+    const uint256_t max_r2 = max_c0 + max_c1 + max_c2;
+    const uint256_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
+
+    const uint256_t max_a0 = right_add.binary_basis_limbs[0].maximum_value +
+                             (right_add.binary_basis_limbs[1].maximum_value << NUM_LIMB_BITS);
+
+    const uint256_t max_a1 = right_add.binary_basis_limbs[2].maximum_value +
+                             (right_add.binary_basis_limbs[3].maximum_value << NUM_LIMB_BITS);
+    const uint256_t max_lo = max_r0 + (max_r1 << NUM_LIMB_BITS) + max_a0;
+    const uint256_t max_hi = max_r2 + (max_r3 << NUM_LIMB_BITS) + max_a1;
+
+    uint64_t max_lo_bits = max_lo.get_msb() + 1;
+    uint64_t max_hi_bits = max_hi.get_msb() + 1;
+    if ((max_lo_bits & 1ULL) == 1ULL) {
+        ++max_lo_bits;
+    }
+    if ((max_hi_bits & 1ULL) == 1ULL) {
+        ++max_hi_bits;
+    }
+
+    const field_t b0 = left.binary_basis_limbs[1].element.madd(
+        right_mul.binary_basis_limbs[0].element, quotient.binary_basis_limbs[1].element * neg_modulus_limbs[0]);
+    const field_t b1 = left.binary_basis_limbs[0].element.madd(
+        right_mul.binary_basis_limbs[1].element, quotient.binary_basis_limbs[0].element * neg_modulus_limbs[1]);
+    const field_t c0 = left.binary_basis_limbs[1].element.madd(
+        right_mul.binary_basis_limbs[1].element, quotient.binary_basis_limbs[1].element * neg_modulus_limbs[1]);
+    const field_t c1 = left.binary_basis_limbs[2].element.madd(
+        right_mul.binary_basis_limbs[0].element, quotient.binary_basis_limbs[2].element * neg_modulus_limbs[0]);
+    const field_t c2 = left.binary_basis_limbs[0].element.madd(
+        right_mul.binary_basis_limbs[2].element, quotient.binary_basis_limbs[0].element * neg_modulus_limbs[2]);
+    const field_t d0 = left.binary_basis_limbs[3].element.madd(
+        right_mul.binary_basis_limbs[0].element, quotient.binary_basis_limbs[3].element * neg_modulus_limbs[0]);
+    const field_t d1 = left.binary_basis_limbs[2].element.madd(
+        right_mul.binary_basis_limbs[1].element, quotient.binary_basis_limbs[2].element * neg_modulus_limbs[1]);
+    const field_t d2 = left.binary_basis_limbs[1].element.madd(
+        right_mul.binary_basis_limbs[2].element, quotient.binary_basis_limbs[1].element * neg_modulus_limbs[2]);
+    const field_t d3 = left.binary_basis_limbs[0].element.madd(
+        right_mul.binary_basis_limbs[3].element, quotient.binary_basis_limbs[0].element * neg_modulus_limbs[3]);
+
+    const field_t r0 = left.binary_basis_limbs[0].element.madd(
+        right_mul.binary_basis_limbs[0].element, quotient.binary_basis_limbs[0].element * neg_modulus_limbs[0]);
+
+    const field_t r1 = b0.add_two(b1, -remainder.binary_basis_limbs[1].element);
+    const field_t r2 = c0.add_two(c1, c2);
+    const field_t r3 = d0 + d1.add_two(d2, d3);
+
+    field_t carry_lo_0 = r0 * shift_right_2;
+    field_t carry_lo_1 = r1 * (shift_1 * shift_right_2);
+    field_t carry_lo_2 = -(remainder.binary_basis_limbs[0].element * shift_right_2);
+    field_t carry_lo = carry_lo_0.add_two(carry_lo_1, carry_lo_2);
+    carry_lo = carry_lo.add_two(right_add.binary_basis_limbs[0].element * shift_right_2,
+                                right_add.binary_basis_limbs[1].element * (shift_1 * shift_right_2));
+
+    field_t t1 = carry_lo.add_two(-remainder.binary_basis_limbs[2].element,
+                                  -(remainder.binary_basis_limbs[3].element * shift_1));
+    field_t carry_hi_0 = r2 * shift_right_2;
+    field_t carry_hi_1 = r3 * (shift_1 * shift_right_2);
+    field_t carry_hi_2 = t1 * shift_right_2;
+    field_t carry_hi = carry_hi_0.add_two(carry_hi_1, carry_hi_2);
+    carry_hi = carry_hi.add_two(right_add.binary_basis_limbs[2].element * shift_right_2,
+                                right_add.binary_basis_limbs[3].element * (shift_1 * shift_right_2));
+
+    barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
+
+    field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
+                                             right_mul.prime_basis_limb,
+                                             quotient.prime_basis_limb * neg_prime,
+                                             right_add.prime_basis_limb - remainder.prime_basis_limb);
+
+    const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
+    const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
+
+    const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
+    field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
+    carry_combined = carry_combined.normalize();
+
+    const auto accumulators =
+        ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+    carry_hi = carry_hi.normalize();
+    ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+}
+
+template <typename C, typename T>
 void bigfield<C, T>::evaluate_product(const bigfield& left,
                                       const bigfield& right,
                                       const bigfield& quotient,
@@ -474,7 +588,6 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
                                              right.prime_basis_limb,
                                              quotient.prime_basis_limb * neg_prime,
                                              -remainder.prime_basis_limb);
-
 
     const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
@@ -620,6 +733,42 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
     };
 
     evaluate_square(*this, quotient, remainder);
+    return remainder;
+}
+
+template <typename C, typename T>
+bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const bigfield& to_add) const
+{
+    reduction_check();
+    to_mul.reduction_check();
+    to_add.reduction_check();
+
+    C* ctx = context ? context : to_mul.context ? to_mul.context : to_add.context;
+
+    const uint1024_t left(get_value());
+    const uint1024_t mul_right(to_mul.get_value());
+    const uint1024_t add_right(to_add.get_value());
+    const uint1024_t modulus(target_basis.modulus);
+
+    const auto [quotient_1024, remainder_1024] = (left * mul_right + add_right).divmod(modulus);
+
+    const uint512_t quotient_value = quotient_1024.lo;
+    const uint512_t remainder_value = remainder_1024.lo;
+
+    bigfield remainder;
+    bigfield quotient;
+    if (is_constant() && to_mul.is_constant() && to_add.is_constant()) {
+        remainder = bigfield(ctx, uint256_t(remainder_value.lo));
+        return remainder;
+    } else {
+        quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+                            witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
+                            true);
+        remainder = bigfield(
+            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
+    };
+    evaluate_madd(*this, to_mul, to_add, quotient, remainder);
     return remainder;
 }
 

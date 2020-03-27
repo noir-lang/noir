@@ -3,70 +3,76 @@
 namespace plonk {
 namespace stdlib {
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T>::element()
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>::element()
     : x()
     , y()
 {}
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T>::element(const Fq& x_in, const Fq& y_in)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>::element(const typename G::affine_element& input)
+    : x(nullptr, input.x)
+    , y(nullptr, input.y)
+{}
+
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>::element(const Fq& x_in, const Fq& y_in)
     : x(x_in)
     , y(y_in)
 {}
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T>::element(const element& other)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>::element(const element& other)
     : x(other.x)
     , y(other.y)
 {}
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T>::element(element&& other)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>::element(element&& other)
     : x(other.x)
     , y(other.y)
 {}
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T>& element<C, Fq, Fr, T>::operator=(const element& other)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>& element<C, Fq, Fr, T, G>::operator=(const element& other)
 {
     x = other.x;
     y = other.y;
     return *this;
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T>& element<C, Fq, Fr, T>::operator=(element&& other)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G>& element<C, Fq, Fr, T, G>::operator=(element&& other)
 {
     x = other.x;
     y = other.y;
     return *this;
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator+(const element& other) const
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator+(const element& other) const
 {
     const Fq lambda = (other.y - y) / (other.x - x);
-    const Fq x3 = lambda.sqr() - (other.x + x);
-    const Fq y3 = lambda * (x - x3) - y;
+    const Fq x3 = lambda.madd(lambda, -(other.x + x)); // lambda.sqr() - (other.x + x);
+    const Fq y3 = lambda.madd(x - x3, -y);             // lambda * (x - x3) - y;
     return element(x3, y3);
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator-(const element& other) const
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator-(const element& other) const
 {
     const Fq lambda = (other.y + y) / (other.x - x);
-    const Fq x_3 = lambda.sqr() - (other.x + x);
-    const Fq y_3 = lambda * (x_3 - x) - y;
+    const Fq x_3 = lambda.madd(lambda, -(other.x + x)); // sqr() - (other.x + x);
+    const Fq y_3 = lambda.madd(x_3 - x, -y);            //  * (x_3 - x) - y;
     return element(x_3, y_3);
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::montgomery_ladder(const element& other) const
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::montgomery_ladder(const element& other) const
 {
     const Fq lambda_1 = (other.y - y) / (other.x - x);
 
-    const Fq x_3 = lambda_1.sqr() - (other.x + x);
+    const Fq x_3 = lambda_1.madd(lambda_1, -(other.x + x)); // .sqr() - (other.x + x);
 
     /**
      * Compute D = A + B + A, where A = `this` and B = `other`
@@ -88,13 +94,14 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::montgomery_ladder(const element& ot
 
     const Fq minus_lambda_2 = lambda_1 + ((y + y) / (x_3 - x));
 
-    const Fq x_4 = minus_lambda_2.sqr() - (x + x_3);
+    const Fq x_4 = minus_lambda_2.madd(minus_lambda_2, -(x + x_3)); // sqr() - (x + x_3);
 
-    const Fq y_4 = minus_lambda_2 * (x_4 - x) - y;
+    const Fq y_4 = minus_lambda_2.madd(x_4 - x, -y); // - y;
     return element(x_4, y_4);
 }
 
-template <typename C, class Fq, class Fr, class T> element<C, Fq, Fr, T> element<C, Fq, Fr, T>::dbl() const
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::dbl() const
 {
     Fq T0 = x.sqr();
     Fq T1 = T0 + T0 + T0;
@@ -109,8 +116,8 @@ template <typename C, class Fq, class Fr, class T> element<C, Fq, Fr, T> element
     return element(x_3, y_3);
 }
 
-template <typename C, class Fq, class Fr, class T>
-std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
+template <typename C, class Fq, class Fr, class T, class G>
+std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf(const Fr& scalar)
 {
     C* ctx = scalar.context;
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
@@ -171,8 +178,8 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
     return naf_entries;
 }
 
-template <typename C, class Fq, class Fr, class T>
-std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf_batch(const Fr& scalar, const size_t max_num_bits)
+template <typename C, class Fq, class Fr, class T, class G>
+std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf_batch(const Fr& scalar, const size_t max_num_bits)
 {
     C* ctx = scalar.context;
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
@@ -224,11 +231,11 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf_batch(const Fr& scalar
     return naf_entries;
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::twin_mul(const element& base_a,
-                                                      const Fr& scalar_a,
-                                                      const element& base_b,
-                                                      const Fr& scalar_b)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::twin_mul(const element& base_a,
+                                                            const Fr& scalar_a,
+                                                            const element& base_b,
+                                                            const Fr& scalar_b)
 {
 
     constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
@@ -273,15 +280,65 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::twin_mul(const element& base_a,
     return element(out_x, out_y);
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::quad_mul(const element& base_a,
-                                                      const Fr& scalar_a,
-                                                      const element& base_b,
-                                                      const Fr& scalar_b,
-                                                      const element& base_c,
-                                                      const Fr& scalar_c,
-                                                      const element& base_d,
-                                                      const Fr& scalar_d)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::triple_mul(const element& base_a,
+                                                              const Fr& scalar_a,
+                                                              const element& base_b,
+                                                              const Fr& scalar_b,
+                                                              const element& base_c,
+                                                              const Fr& scalar_c)
+
+{
+    constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
+
+    std::vector<bool_t<C>> naf_entries_a = compute_naf(scalar_a);
+    std::vector<bool_t<C>> naf_entries_b = compute_naf(scalar_b);
+    std::vector<bool_t<C>> naf_entries_c = compute_naf(scalar_c);
+
+    triple_lookup_table element_table({ base_a, base_b, base_c });
+
+    element accumulator = element_table[0].dbl();
+
+    for (size_t i = 0; i < num_rounds; ++i) {
+        element to_add = element_table.get(naf_entries_a[i], naf_entries_b[i], naf_entries_c[i]);
+        accumulator = accumulator.montgomery_ladder(to_add);
+    }
+
+    element skew_output_a = accumulator - base_a;
+
+    Fq out_x = accumulator.x.conditional_select(skew_output_a.x, naf_entries_a[num_rounds]);
+    Fq out_y = accumulator.y.conditional_select(skew_output_a.y, naf_entries_a[num_rounds]);
+
+    accumulator = element(out_x, out_y);
+
+    element skew_output_b = accumulator - base_b;
+
+    out_x = accumulator.x.conditional_select(skew_output_b.x, naf_entries_b[num_rounds]);
+    out_y = accumulator.y.conditional_select(skew_output_b.y, naf_entries_b[num_rounds]);
+
+    accumulator = element(out_x, out_y);
+
+    element skew_output_c = accumulator - base_c;
+
+    out_x = accumulator.x.conditional_select(skew_output_c.x, naf_entries_c[num_rounds]);
+    out_y = accumulator.y.conditional_select(skew_output_c.y, naf_entries_c[num_rounds]);
+
+    accumulator = element(out_x, out_y);
+
+    accumulator.x.self_reduce();
+    accumulator.y.self_reduce();
+    return accumulator;
+}
+
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::quad_mul(const element& base_a,
+                                                            const Fr& scalar_a,
+                                                            const element& base_b,
+                                                            const Fr& scalar_b,
+                                                            const element& base_c,
+                                                            const Fr& scalar_c,
+                                                            const element& base_d,
+                                                            const Fr& scalar_d)
 
 {
     constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
@@ -332,10 +389,10 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::quad_mul(const element& base_a,
     return accumulator;
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::batch_mul(const std::vector<element>& points,
-                                                       const std::vector<Fr>& scalars,
-                                                       const size_t max_num_bits)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::batch_mul(const std::vector<element>& points,
+                                                             const std::vector<Fr>& scalars,
+                                                             const size_t max_num_bits)
 {
     const size_t num_points = points.size();
     ASSERT(scalars.size() == num_points);
@@ -349,7 +406,16 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::batch_mul(const std::vector<element
         naf_entries.emplace_back(compute_naf_batch(scalars[i], max_num_bits));
     }
 
-    element accumulator = point_table.get_initial_entry();
+    std::array<typename G::affine_element, 1> generator_array = G::template derive_generators<1>();
+    typename G::affine_element offset_generator_start(generator_array[0]);
+
+    uint256_t offset_multiplier = uint256_t(1) << uint256_t(num_rounds - 1);
+
+    typename G::affine_element offset_generator_end = typename G::element(offset_generator_start) * offset_multiplier;
+
+    element accumulator(offset_generator_start);
+    accumulator = accumulator + point_table.get_initial_entry();
+
     for (size_t i = 1; i < num_rounds; ++i) {
         std::vector<bool_t<C>> nafs;
         for (size_t j = 0; j < num_points; ++j) {
@@ -357,8 +423,9 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::batch_mul(const std::vector<element
         }
 
         element to_add = point_table.get(nafs);
-        accumulator = accumulator.dbl();
-        accumulator = accumulator + to_add;
+        accumulator = accumulator.montgomery_ladder(to_add);
+        // accumulator = accumulator.dbl();
+        // accumulator = accumulator + to_add;
     }
 
     for (size_t i = 0; i < num_points; ++i) {
@@ -367,99 +434,99 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::batch_mul(const std::vector<element
         Fq out_y = accumulator.y.conditional_select(skew.y, naf_entries[i][num_rounds]);
         accumulator = element(out_x, out_y);
     }
-    accumulator.x.self_reduce();
-    accumulator.y.self_reduce();
+    accumulator = accumulator - element(offset_generator_end);
+
     return accumulator;
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::mixed_batch_mul(const std::vector<element>& big_points,
-                                                             const std::vector<Fr>& big_scalars,
-                                                             const std::vector<element>& small_points,
-                                                             const std::vector<Fr>& small_scalars,
-                                                             const size_t max_num_small_bits)
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::mixed_batch_mul(const std::vector<element>& big_points,
+                                                                   const std::vector<Fr>& big_scalars,
+                                                                   const std::vector<element>& small_points,
+                                                                   const std::vector<Fr>& small_scalars,
+                                                                   const size_t max_num_small_bits)
 {
     const size_t num_big_points = big_points.size();
     const size_t num_small_points = small_points.size();
+    C* ctx;
+    for (auto element : big_points) {
+        if (element.get_context()) {
+            ctx = element.get_context();
+            break;
+        }
+    }
+
+    std::vector<element> points;
+    std::vector<Fr> scalars;
+    for (size_t i = 0; i < num_small_points; ++i) {
+        points.push_back(small_points[i]);
+        scalars.push_back(small_scalars[i]);
+    }
+    for (size_t i = 0; i < num_big_points; ++i) {
+        Fr scalar = big_scalars[i];
+        barretenberg::fr k = scalar.get_value();
+        barretenberg::fr k1(0);
+        barretenberg::fr k2(0);
+        barretenberg::fr::split_into_endomorphism_scalars(k.from_montgomery_form(), k1, k2);
+        Fr scalar_k1 = witness_t<C>(ctx, k1.to_montgomery_form());
+        Fr scalar_k2 = witness_t<C>(ctx, k2.to_montgomery_form());
+        ctx->assert_equal((scalar_k1 - scalar_k2 * barretenberg::fr::beta()).witness_index,
+                          scalar.normalize().witness_index);
+        scalars.push_back(scalar_k1);
+        scalars.push_back(scalar_k2);
+        element point = big_points[i];
+        points.push_back(point);
+        point.y = -point.y;
+        point.x = point.x * Fq(ctx, uint256_t(barretenberg::fq::beta()));
+        point.y.self_reduce();
+        points.push_back(point);
+    }
 
     ASSERT(big_scalars.size() == num_big_points);
     ASSERT(small_scalars.size() == num_small_points);
 
-    batch_lookup_table big_point_table(big_points);
-    batch_lookup_table small_point_table(small_points);
+    batch_lookup_table point_table(points);
 
-    const uint64_t num_big_rounds = Fq::modulus.get_msb() + 1;
-    const uint64_t num_small_rounds = max_num_small_bits;
-
-    std::vector<std::vector<bool_t<C>>> big_naf_entries;
-    std::vector<std::vector<bool_t<C>>> small_naf_entries;
-    for (size_t i = 0; i < num_big_points; ++i) {
-        big_naf_entries.emplace_back(compute_naf_batch(big_scalars[i]));
-    }
-    for (size_t i = 0; i < num_small_points; ++i) {
-        small_naf_entries.emplace_back(compute_naf_batch(small_scalars[i], max_num_small_bits));
+    const uint64_t num_rounds = max_num_small_bits;
+    const size_t num_points = points.size();
+    std::vector<std::vector<bool_t<C>>> naf_entries;
+    for (size_t i = 0; i < num_points; ++i) {
+        naf_entries.emplace_back(compute_naf_batch(scalars[i], max_num_small_bits));
     }
 
-    element accumulator = big_point_table.get_initial_entry();
+    std::array<typename G::affine_element, 1> generator_array = G::template derive_generators<1>();
+    typename G::affine_element offset_generator_start(generator_array[0]);
 
-    const uint64_t num_isolated_big_rounds = num_big_rounds - num_small_rounds;
-    for (size_t i = 1; i < num_isolated_big_rounds; ++i) {
-        std::vector<bool_t<C>> big_nafs;
-        for (size_t j = 0; j < num_big_points; ++j) {
-            big_nafs.emplace_back(big_naf_entries[j][i]);
+    uint256_t offset_multiplier = uint256_t(1) << uint256_t(num_rounds - 1);
+
+    typename G::affine_element offset_generator_end = typename G::element(offset_generator_start) * offset_multiplier;
+
+    element accumulator(offset_generator_start);
+    accumulator = accumulator + point_table.get_initial_entry();
+
+    for (size_t i = 1; i < num_rounds; ++i) {
+        std::vector<bool_t<C>> nafs;
+        for (size_t j = 0; j < points.size(); ++j) {
+            nafs.emplace_back(naf_entries[j][i]);
         }
 
-        element to_add = big_point_table.get(big_nafs);
-        accumulator = accumulator.dbl();
-        accumulator = accumulator + to_add;
-    }
-    {
-        std::vector<bool_t<C>> big_nafs;
-        for (size_t j = 0; j < num_big_points; ++j) {
-            big_nafs.emplace_back(big_naf_entries[j][num_isolated_big_rounds]);
-        }
+        element to_add = point_table.get(nafs);
 
-        element big_to_add = big_point_table.get(big_nafs);
-        accumulator = accumulator.dbl();
-        accumulator = accumulator + big_to_add;
-        element small_to_add = small_point_table.get_initial_entry();
-        accumulator = accumulator + small_to_add;
+        accumulator = accumulator.montgomery_ladder(to_add);
     }
-
-    for (size_t i = 1; i < num_small_rounds; ++i) {
-        std::vector<bool_t<C>> big_nafs;
-        std::vector<bool_t<C>> small_nafs;
-        for (size_t j = 0; j < num_big_points; ++j) {
-            big_nafs.emplace_back(big_naf_entries[j][num_isolated_big_rounds + i]);
-        }
-        for (size_t j = 0; j < num_small_points; ++j) {
-            small_nafs.emplace_back(small_naf_entries[j][i]);
-        }
-        element big_add = big_point_table.get(big_nafs);
-        element small_add = small_point_table.get(small_nafs);
-        accumulator = accumulator.dbl();
-        accumulator = accumulator + big_add;
-        accumulator = accumulator + small_add;
-    }
-    for (size_t i = 0; i < num_big_points; ++i) {
-        element skew = accumulator - big_points[i];
-        Fq out_x = accumulator.x.conditional_select(skew.x, big_naf_entries[i][num_big_rounds]);
-        Fq out_y = accumulator.y.conditional_select(skew.y, big_naf_entries[i][num_big_rounds]);
+    for (size_t i = 0; i < num_points; ++i) {
+        element skew = accumulator - points[i];
+        Fq out_x = accumulator.x.conditional_select(skew.x, naf_entries[i][num_rounds]);
+        Fq out_y = accumulator.y.conditional_select(skew.y, naf_entries[i][num_rounds]);
         accumulator = element(out_x, out_y);
     }
-    for (size_t i = 0; i < num_small_points; ++i) {
-        element skew = accumulator - small_points[i];
-        Fq out_x = accumulator.x.conditional_select(skew.x, small_naf_entries[i][num_small_rounds]);
-        Fq out_y = accumulator.y.conditional_select(skew.y, small_naf_entries[i][num_small_rounds]);
-        accumulator = element(out_x, out_y);
-    }
-    accumulator.x.self_reduce();
-    accumulator.y.self_reduce();
+
+    accumulator = accumulator - element(offset_generator_end);
     return accumulator;
 }
 
-template <typename C, class Fq, class Fr, class T>
-element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator*(const Fr& scalar) const
+template <typename C, class Fq, class Fr, class T, class G>
+element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator*(const Fr& scalar) const
 {
     /**
      *

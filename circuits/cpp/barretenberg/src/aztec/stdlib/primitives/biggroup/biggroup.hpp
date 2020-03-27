@@ -8,9 +8,10 @@ namespace plonk {
 namespace stdlib {
 
 // ( ͡° ͜ʖ ͡°)
-template <typename Composer, class Fq, class Fr, class Params> class element {
+template <typename Composer, class Fq, class Fr, class Params, class NativeGroup> class element {
   public:
     element();
+    element(const NativeGroup::affine_element& input);
     element(const Fq& x, const Fq& y);
 
     element(const element& other);
@@ -89,6 +90,13 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
 
     static element twin_mul(const element& base_a, const Fr& scalar_a, const element& base_b, const Fr& scalar_b);
 
+    static element triple_mul(const element& base_a,
+                              const Fr& scalar_a,
+                              const element& base_b,
+                              const Fr& scalar_b,
+                              const element& base_c,
+                              const Fr& scalar_c);
+
     static element quad_mul(const element& base_a,
                             const Fr& scalar_a,
                             const element& base_b,
@@ -146,10 +154,10 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
         {
             T0 = inputs[1] + inputs[0];
             T1 = inputs[1] - inputs[0];
-            T0.x.self_reduce();
-            T0.y.self_reduce();
-            T1.x.self_reduce();
-            T1.y.self_reduce();
+            // T0.x.self_reduce();
+            // T0.y.self_reduce();
+            // T1.x.self_reduce();
+            // T1.y.self_reduce();
         }
 
         twin_lookup_table(const twin_lookup_table& other) = default;
@@ -177,6 +185,112 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
         element T1;
     };
 
+    struct triple_lookup_table {
+        triple_lookup_table(const std::array<element, 3>& inputs)
+        {
+            element T0 = inputs[1] + inputs[0];
+            element T1 = inputs[1] - inputs[0];
+            element_table[0] = inputs[2] + T0; // C + B + A
+            element_table[1] = inputs[2] + T1; // C + B - A
+            element_table[2] = inputs[2] - T1; // C - B + A
+            element_table[3] = inputs[2] - T0; // C - B - A
+            // for (size_t i = 0; i < 4; ++i) {
+            //     element_table[i].x.self_reduce();
+            //     element_table[i].y.self_reduce();
+            // }
+            x_b0_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].x.binary_basis_limbs[0].element,
+                                                                     element_table[1].x.binary_basis_limbs[0].element,
+                                                                     element_table[2].x.binary_basis_limbs[0].element,
+                                                                     element_table[3].x.binary_basis_limbs[0].element);
+            x_b1_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].x.binary_basis_limbs[1].element,
+                                                                     element_table[1].x.binary_basis_limbs[1].element,
+                                                                     element_table[2].x.binary_basis_limbs[1].element,
+                                                                     element_table[3].x.binary_basis_limbs[1].element);
+            x_b2_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].x.binary_basis_limbs[2].element,
+                                                                     element_table[1].x.binary_basis_limbs[2].element,
+                                                                     element_table[2].x.binary_basis_limbs[2].element,
+                                                                     element_table[3].x.binary_basis_limbs[2].element);
+            x_b3_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].x.binary_basis_limbs[3].element,
+                                                                     element_table[1].x.binary_basis_limbs[3].element,
+                                                                     element_table[2].x.binary_basis_limbs[3].element,
+                                                                     element_table[3].x.binary_basis_limbs[3].element);
+
+            y_b0_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].y.binary_basis_limbs[0].element,
+                                                                     element_table[1].y.binary_basis_limbs[0].element,
+                                                                     element_table[2].y.binary_basis_limbs[0].element,
+                                                                     element_table[3].y.binary_basis_limbs[0].element);
+            y_b1_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].y.binary_basis_limbs[1].element,
+                                                                     element_table[1].y.binary_basis_limbs[1].element,
+                                                                     element_table[2].y.binary_basis_limbs[1].element,
+                                                                     element_table[3].y.binary_basis_limbs[1].element);
+            y_b2_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].y.binary_basis_limbs[2].element,
+                                                                     element_table[1].y.binary_basis_limbs[2].element,
+                                                                     element_table[2].y.binary_basis_limbs[2].element,
+                                                                     element_table[3].y.binary_basis_limbs[2].element);
+            y_b3_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].y.binary_basis_limbs[3].element,
+                                                                     element_table[1].y.binary_basis_limbs[3].element,
+                                                                     element_table[2].y.binary_basis_limbs[3].element,
+                                                                     element_table[3].y.binary_basis_limbs[3].element);
+        }
+
+        triple_lookup_table(const triple_lookup_table& other) = default;
+        triple_lookup_table& operator=(const triple_lookup_table& other) = default;
+
+        element get(const bool_t<Composer>& v0, const bool_t<Composer>& v1, const bool_t<Composer>& v2) const
+        {
+            bool_t<Composer> t0 = v2 ^ v0;
+            bool_t<Composer> t1 = v2 ^ v1;
+
+            field_t<Composer> x_b0 = field_t<Composer>::select_from_two_bit_table(x_b0_table, t1, t0);
+            field_t<Composer> x_b1 = field_t<Composer>::select_from_two_bit_table(x_b1_table, t1, t0);
+            field_t<Composer> x_b2 = field_t<Composer>::select_from_two_bit_table(x_b2_table, t1, t0);
+            field_t<Composer> x_b3 = field_t<Composer>::select_from_two_bit_table(x_b3_table, t1, t0);
+
+            field_t<Composer> y_b0 = field_t<Composer>::select_from_two_bit_table(y_b0_table, t1, t0);
+            field_t<Composer> y_b1 = field_t<Composer>::select_from_two_bit_table(y_b1_table, t1, t0);
+            field_t<Composer> y_b2 = field_t<Composer>::select_from_two_bit_table(y_b2_table, t1, t0);
+            field_t<Composer> y_b3 = field_t<Composer>::select_from_two_bit_table(y_b3_table, t1, t0);
+
+            Fq to_add_x;
+            Fq to_add_y;
+            to_add_x.binary_basis_limbs[0] = typename Fq::Limb(x_b0, Fq::DEFAULT_MAXIMUM_LIMB);
+            to_add_x.binary_basis_limbs[1] = typename Fq::Limb(x_b1, Fq::DEFAULT_MAXIMUM_LIMB);
+            to_add_x.binary_basis_limbs[2] = typename Fq::Limb(x_b2, Fq::DEFAULT_MAXIMUM_LIMB);
+            to_add_x.binary_basis_limbs[3] = typename Fq::Limb(x_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+            to_add_x.prime_basis_limb =
+                to_add_x.binary_basis_limbs[0].element.add_two(to_add_x.binary_basis_limbs[1].element * Fq::shift_1,
+                                                               to_add_x.binary_basis_limbs[2].element * Fq::shift_2);
+            to_add_x.prime_basis_limb += to_add_x.binary_basis_limbs[3].element * Fq::shift_3;
+
+            to_add_y.binary_basis_limbs[0] = typename Fq::Limb(y_b0, Fq::DEFAULT_MAXIMUM_LIMB);
+            to_add_y.binary_basis_limbs[1] = typename Fq::Limb(y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
+            to_add_y.binary_basis_limbs[2] = typename Fq::Limb(y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
+            to_add_y.binary_basis_limbs[3] = typename Fq::Limb(y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+
+            to_add_y.prime_basis_limb =
+                to_add_y.binary_basis_limbs[0].element.add_two(to_add_y.binary_basis_limbs[1].element * Fq::shift_1,
+                                                               to_add_y.binary_basis_limbs[2].element * Fq::shift_2);
+            to_add_y.prime_basis_limb += to_add_y.binary_basis_limbs[3].element * Fq::shift_3;
+            element to_add(to_add_x, to_add_y.conditional_negate(v2));
+
+            return to_add;
+        }
+
+        element operator[](const size_t idx) const { return element_table[idx]; }
+
+        std::array<field_t<Composer>, 4> x_b0_table;
+        std::array<field_t<Composer>, 4> x_b1_table;
+        std::array<field_t<Composer>, 4> x_b2_table;
+        std::array<field_t<Composer>, 4> x_b3_table;
+
+        std::array<field_t<Composer>, 4> y_b0_table;
+        std::array<field_t<Composer>, 4> y_b1_table;
+        std::array<field_t<Composer>, 4> y_b2_table;
+        std::array<field_t<Composer>, 4> y_b3_table;
+
+        std::array<element, 4> element_table;
+    };
+
     struct quad_lookup_table {
         quad_lookup_table(const std::array<element, 4>& inputs)
         {
@@ -193,10 +307,7 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
             element_table[5] = T3 + T1; // D - C + B - A
             element_table[6] = T3 - T1; // D - C - B + A
             element_table[7] = T3 - T0; // D - C - B - A
-            for (size_t i = 0; i < 8; ++i) {
-                element_table[i].x.self_reduce();
-                element_table[i].y.self_reduce();
-            }
+
             x_b0_table =
                 field_t<Composer>::preprocess_three_bit_table(element_table[0].x.binary_basis_limbs[0].element,
                                                               element_table[1].x.binary_basis_limbs[0].element,
@@ -233,14 +344,6 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
                                                               element_table[5].x.binary_basis_limbs[3].element,
                                                               element_table[6].x.binary_basis_limbs[3].element,
                                                               element_table[7].x.binary_basis_limbs[3].element);
-            x_prime_table = field_t<Composer>::preprocess_three_bit_table(element_table[0].x.prime_basis_limb,
-                                                                          element_table[1].x.prime_basis_limb,
-                                                                          element_table[2].x.prime_basis_limb,
-                                                                          element_table[3].x.prime_basis_limb,
-                                                                          element_table[4].x.prime_basis_limb,
-                                                                          element_table[5].x.prime_basis_limb,
-                                                                          element_table[6].x.prime_basis_limb,
-                                                                          element_table[7].x.prime_basis_limb);
 
             y_b0_table =
                 field_t<Composer>::preprocess_three_bit_table(element_table[0].y.binary_basis_limbs[0].element,
@@ -278,14 +381,6 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
                                                               element_table[5].y.binary_basis_limbs[3].element,
                                                               element_table[6].y.binary_basis_limbs[3].element,
                                                               element_table[7].y.binary_basis_limbs[3].element);
-            y_prime_table = field_t<Composer>::preprocess_three_bit_table(element_table[0].y.prime_basis_limb,
-                                                                          element_table[1].y.prime_basis_limb,
-                                                                          element_table[2].y.prime_basis_limb,
-                                                                          element_table[3].y.prime_basis_limb,
-                                                                          element_table[4].y.prime_basis_limb,
-                                                                          element_table[5].y.prime_basis_limb,
-                                                                          element_table[6].y.prime_basis_limb,
-                                                                          element_table[7].y.prime_basis_limb);
         }
         quad_lookup_table(const quad_lookup_table& other) = default;
         quad_lookup_table& operator=(const quad_lookup_table& other) = default;
@@ -303,13 +398,11 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
             field_t<Composer> x_b1 = field_t<Composer>::select_from_three_bit_table(x_b1_table, t2, t1, t0);
             field_t<Composer> x_b2 = field_t<Composer>::select_from_three_bit_table(x_b2_table, t2, t1, t0);
             field_t<Composer> x_b3 = field_t<Composer>::select_from_three_bit_table(x_b3_table, t2, t1, t0);
-            field_t<Composer> x_p = field_t<Composer>::select_from_three_bit_table(x_prime_table, t2, t1, t0);
 
             field_t<Composer> y_b0 = field_t<Composer>::select_from_three_bit_table(y_b0_table, t2, t1, t0);
             field_t<Composer> y_b1 = field_t<Composer>::select_from_three_bit_table(y_b1_table, t2, t1, t0);
             field_t<Composer> y_b2 = field_t<Composer>::select_from_three_bit_table(y_b2_table, t2, t1, t0);
             field_t<Composer> y_b3 = field_t<Composer>::select_from_three_bit_table(y_b3_table, t2, t1, t0);
-            field_t<Composer> y_p = field_t<Composer>::select_from_three_bit_table(y_prime_table, t2, t1, t0);
 
             Fq to_add_x;
             Fq to_add_y;
@@ -317,14 +410,20 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
             to_add_x.binary_basis_limbs[1] = typename Fq::Limb(x_b1, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_x.binary_basis_limbs[2] = typename Fq::Limb(x_b2, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_x.binary_basis_limbs[3] = typename Fq::Limb(x_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-            to_add_x.prime_basis_limb = x_p;
+            to_add_x.prime_basis_limb =
+                to_add_x.binary_basis_limbs[0].element.add_two(to_add_x.binary_basis_limbs[1].element * Fq::shift_1,
+                                                               to_add_x.binary_basis_limbs[2].element * Fq::shift_2);
+            to_add_x.prime_basis_limb += to_add_x.binary_basis_limbs[3].element * Fq::shift_3;
 
             to_add_y.binary_basis_limbs[0] = typename Fq::Limb(y_b0, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_y.binary_basis_limbs[1] = typename Fq::Limb(y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_y.binary_basis_limbs[2] = typename Fq::Limb(y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_y.binary_basis_limbs[3] = typename Fq::Limb(y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
+            to_add_y.prime_basis_limb =
+                to_add_y.binary_basis_limbs[0].element.add_two(to_add_y.binary_basis_limbs[1].element * Fq::shift_1,
+                                                               to_add_y.binary_basis_limbs[2].element * Fq::shift_2);
+            to_add_y.prime_basis_limb += to_add_y.binary_basis_limbs[3].element * Fq::shift_3;
 
-            to_add_y.prime_basis_limb = y_p;
             element to_add(to_add_x, to_add_y.conditional_negate(v3));
 
             return to_add;
@@ -336,13 +435,11 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
         std::array<field_t<Composer>, 8> x_b1_table;
         std::array<field_t<Composer>, 8> x_b2_table;
         std::array<field_t<Composer>, 8> x_b3_table;
-        std::array<field_t<Composer>, 8> x_prime_table;
 
         std::array<field_t<Composer>, 8> y_b0_table;
         std::array<field_t<Composer>, 8> y_b1_table;
         std::array<field_t<Composer>, 8> y_b2_table;
         std::array<field_t<Composer>, 8> y_b3_table;
-        std::array<field_t<Composer>, 8> y_prime_table;
 
         std::array<element, 8> element_table;
     };
@@ -353,23 +450,29 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
             num_points = points.size();
             num_quads = num_points / 4;
 
-            has_twin = ((num_quads * 4) < num_points - 1);
+            has_triple = ((num_quads * 4) < num_points - 2) && (num_points >= 3);
 
-            has_singleton = num_points != ((num_quads * 4) + ((size_t)has_twin * 2));
+            has_twin = ((num_quads * 4 + (size_t)has_triple * 3) < num_points - 1) && (num_points >= 2);
+
+            has_singleton = num_points != ((num_quads * 4) + ((size_t)has_triple * 3) + ((size_t)has_twin * 2));
 
             for (size_t i = 0; i < num_quads; ++i) {
-                quad_tables.emplace_back(
+                quad_tables.push_back(
                     quad_lookup_table({ points[4 * i], points[4 * i + 1], points[4 * i + 2], points[4 * i + 3] }));
             }
 
+            if (has_triple) {
+                triple_tables.push_back(triple_lookup_table(
+                    { points[4 * num_quads], points[4 * num_quads + 1], points[4 * num_quads + 2] }));
+            }
             if (has_twin) {
-                twin_tables.emplace_back(twin_lookup_table({ points[4 * num_quads], points[4 * num_quads + 1] }));
+                twin_tables.push_back(twin_lookup_table({ points[4 * num_quads], points[4 * num_quads + 1] }));
             }
 
             if (has_singleton) {
-                singletons.emplace_back(points[points.size() - 1]);
-                singletons[0].x.self_reduce();
-                singletons[0].y.self_reduce();
+                singletons.push_back(points[points.size() - 1]);
+                // singletons[0].x.self_reduce();
+                // singletons[0].y.self_reduce();
             }
         }
 
@@ -377,13 +480,16 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
         {
             std::vector<element> add_accumulator;
             for (size_t i = 0; i < num_quads; ++i) {
-                add_accumulator.emplace_back(quad_tables[i][0]);
+                add_accumulator.push_back(quad_tables[i][0]);
             }
             if (has_twin) {
-                add_accumulator.emplace_back(twin_tables[0][0]);
+                add_accumulator.push_back(twin_tables[0][0]);
+            }
+            if (has_triple) {
+                add_accumulator.push_back(triple_tables[0][0]);
             }
             if (has_singleton) {
-                add_accumulator.emplace_back(singletons[0]);
+                add_accumulator.push_back(singletons[0]);
             }
 
             element accumulator = add_accumulator[0];
@@ -399,6 +505,10 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
             for (size_t j = 0; j < num_quads; ++j) {
                 round_accumulator.push_back(quad_tables[j].get(
                     naf_entries[4 * j], naf_entries[4 * j + 1], naf_entries[4 * j + 2], naf_entries[4 * j + 3]));
+            }
+            if (has_triple) {
+                round_accumulator.push_back(triple_tables[0].get(
+                    naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1], naf_entries[num_quads * 4 + 2]));
             }
             if (has_twin) {
                 round_accumulator.push_back(
@@ -416,10 +526,12 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
         }
 
         std::vector<quad_lookup_table> quad_tables;
+        std::vector<triple_lookup_table> triple_tables;
         std::vector<twin_lookup_table> twin_tables;
         std::vector<element> singletons;
         size_t num_points;
         size_t num_quads;
+        bool has_triple;
         bool has_twin;
         bool has_singleton;
     };

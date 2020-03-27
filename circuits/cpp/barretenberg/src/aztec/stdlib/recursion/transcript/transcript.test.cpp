@@ -15,7 +15,7 @@ typedef stdlib::uint<waffle::TurboComposer, uint32_t> uint32;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
 typedef stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FqParams> fq_t;
-typedef stdlib::element<waffle::TurboComposer, fq_t, field_t, barretenberg::Bn254G1Params> group_t;
+typedef stdlib::element<waffle::TurboComposer, fq_t, field_t, barretenberg::Bn254G1Params, barretenberg::g1> group_t;
 
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)
