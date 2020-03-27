@@ -449,7 +449,6 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     field_t test_lhs = d * c;
     field_t test_rhs = (field_t(ctx, barretenberg::fr::one()) - field_t(result));
     test_rhs = test_rhs.normalize();
-    std::cout << "equality check?" << std::endl;
     ctx->assert_equal(test_lhs.witness_index, test_rhs.witness_index);
 
     barretenberg::fr fe = is_equal ? barretenberg::fr::one() : fd;

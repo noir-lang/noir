@@ -510,7 +510,6 @@ size_t ProverTurboLogicWidget::compute_opening_poly_contribution(
     poly[i] += (q_logic[i] * nu);
     ITERATE_OVER_DOMAIN_END;
 
-    std::cout << "final nu index = " << nu_index + 1 << std::endl;
     return nu_index + 1;
 }
 // ###
