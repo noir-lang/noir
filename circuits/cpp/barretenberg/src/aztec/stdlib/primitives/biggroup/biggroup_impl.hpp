@@ -46,10 +46,6 @@ element<C, Fq, Fr, T>& element<C, Fq, Fr, T>::operator=(element&& other)
 template <typename C, class Fq, class Fr, class T>
 element<C, Fq, Fr, T> element<C, Fq, Fr, T>::operator+(const element& other) const
 {
-    uint512_t diff = other.x.get_value() - x.get_value();
-    if (diff == uint512_t(0) || (diff % Fq::modulus_u512 == uint512_t(0))) {
-        std::cout << "exception condition hit?" << std::endl;
-    }
     const Fq lambda = (other.y - y) / (other.x - x);
     const Fq x3 = lambda.sqr() - (other.x + x);
     const Fq y3 = lambda * (x - x3) - y;
@@ -120,8 +116,8 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
     scalar_multiplier_512 += uint512_t(Fr::modulus);
 
-    constexpr uint64_t default_offset_bits = Fr::modulus.get_msb() + 2; // 2^254
-    constexpr uint512_t default_offset = uint512_t(1) << default_offset_bits;
+    const uint64_t default_offset_bits = Fr::modulus.get_msb() + 2; // 2^254
+    const uint512_t default_offset = uint512_t(1) << default_offset_bits;
 
     while (scalar_multiplier_512 < default_offset) {
         scalar_multiplier_512 += uint512_t(Fr::modulus);
@@ -129,7 +125,7 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
     scalar_multiplier_512 -= default_offset;
     uint256_t scalar_multiplier = scalar_multiplier_512.lo;
 
-    constexpr uint64_t num_rounds = Fr::modulus.get_msb() + 1;
+    const uint64_t num_rounds = Fr::modulus.get_msb() + 1;
     std::vector<bool_t<C>> naf_entries(num_rounds + 1);
 
     // if boolean is false => do NOT flip y
@@ -171,11 +167,60 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf(const Fr& scalar)
     } else {
         accumulator -= field_t<C>(naf_entries[num_rounds]);
     }
-    std::cout << "naf check start" << std::endl;
-    std::cout << "scalar = " << scalar << std::endl;
-    std::cout << "recons = " << accumulator << std::endl;
     accumulator.assert_equal(scalar);
-    std::cout << "naf check end" << std::endl;
+    return naf_entries;
+}
+
+template <typename C, class Fq, class Fr, class T>
+std::vector<bool_t<C>> element<C, Fq, Fr, T>::compute_naf_batch(const Fr& scalar, const size_t max_num_bits)
+{
+    C* ctx = scalar.context;
+    uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
+    uint256_t scalar_multiplier = scalar_multiplier_512.lo;
+
+    const uint64_t num_rounds = (max_num_bits == 0) ? Fr::modulus.get_msb() + 1 : max_num_bits;
+    std::vector<bool_t<C>> naf_entries(num_rounds + 1);
+
+    // if boolean is false => do NOT flip y
+    // if boolean is true => DO flip y
+    // first entry is skew. i.e. do we subtract one from the final result or not
+    if (scalar_multiplier.get_bit(0) == false) {
+        // add skew
+        naf_entries[num_rounds] = bool_t<C>(witness_t(ctx, true));
+        scalar_multiplier += uint256_t(1);
+    } else {
+        naf_entries[num_rounds] = bool_t<C>(witness_t(ctx, false));
+    }
+    for (size_t i = 0; i < num_rounds - 1; ++i) {
+        bool next_entry = scalar_multiplier.get_bit(i + 1);
+        // if the next entry is false, we need to flip the sign of the current entry. i.e. make negative
+        if (next_entry == false) {
+            naf_entries[num_rounds - i - 1] = bool_t<C>(witness_t(ctx, true)); // flip sign
+        } else {
+            naf_entries[num_rounds - i - 1] = bool_t<C>(witness_t(ctx, false)); // don't flip!
+        }
+    }
+    naf_entries[0] = bool_t<C>(witness_t(ctx, false)); // most significant entry is always true
+
+    // validate correctness of NAF
+    Fr accumulator(ctx, uint256_t(0));
+    for (size_t i = 0; i < num_rounds; ++i) {
+        accumulator = accumulator + accumulator;
+
+        Fr to_add(ctx, uint256_t(1));
+        accumulator = accumulator + to_add.conditional_negate(naf_entries[i]);
+    }
+
+    if constexpr (Fr::is_composite) {
+        Fr skew(ctx, uint256_t(0));
+        skew.binary_basis_limbs[0].element = field_t<C>(naf_entries[num_rounds]);
+        skew.prime_basis_limb = field_t<C>(naf_entries[num_rounds]);
+        accumulator = accumulator - skew;
+        // accumulator.assert_is_in_field();
+    } else {
+        accumulator -= field_t<C>(naf_entries[num_rounds]);
+    }
+    accumulator.assert_equal(scalar);
     return naf_entries;
 }
 
@@ -289,101 +334,123 @@ element<C, Fq, Fr, T> element<C, Fq, Fr, T>::quad_mul(const element& base_a,
 
 template <typename C, class Fq, class Fr, class T>
 element<C, Fq, Fr, T> element<C, Fq, Fr, T>::batch_mul(const std::vector<element>& points,
-                                                       const std::vector<Fr>& scalars)
+                                                       const std::vector<Fr>& scalars,
+                                                       const size_t max_num_bits)
 {
     const size_t num_points = points.size();
     ASSERT(scalars.size() == num_points);
 
-    const size_t num_quads = num_points / 4;
+    batch_lookup_table point_table(points);
 
-    const bool has_twin = ((num_quads * 4) < num_points - 1);
-
-    const bool has_singleton = num_points != ((num_quads * 4) + ((size_t)has_twin * 2));
-
-    std::cout << "num points = " << num_points << std::endl;
-    std::cout << "num quads = " << num_quads << std::endl;
-    std::cout << "has twin = " << has_twin << std::endl;
-    std::cout << "has singleton" << has_singleton << std::endl;
-    std::vector<quad_lookup_table> quad_tables;
-    std::vector<twin_lookup_table> twin_tables;
-    std::vector<element> singletons;
-    for (size_t i = 0; i < num_quads; ++i) {
-        quad_tables.emplace_back(
-            quad_lookup_table({ points[4 * i], points[4 * i + 1], points[4 * i + 2], points[4 * i + 3] }));
-    }
-
-    if (has_twin) {
-        twin_tables.emplace_back(twin_lookup_table({ points[4 * num_quads], points[4 * num_quads + 1] }));
-    }
-
-    if (has_singleton) {
-        singletons.emplace_back(points[points.size() - 1]);
-        singletons[0].x.self_reduce();
-        singletons[0].y.self_reduce();
-    }
-
-    constexpr uint64_t num_rounds = Fq::modulus.get_msb() + 1;
+    const uint64_t num_rounds = (max_num_bits == 0) ? Fq::modulus.get_msb() + 1 : max_num_bits;
 
     std::vector<std::vector<bool_t<C>>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {
-        naf_entries.emplace_back(compute_naf(scalars[i]));
+        naf_entries.emplace_back(compute_naf_batch(scalars[i], max_num_bits));
     }
 
-    std::vector<element> add_accumulator;
-    for (size_t i = 0; i < num_quads; ++i) {
-        add_accumulator.emplace_back(quad_tables[i][0]);
-    }
-    if (has_twin) {
-        add_accumulator.emplace_back(twin_tables[0][0]);
-    }
-    if (has_singleton) {
-        add_accumulator.emplace_back(singletons[0]);
-    }
-
-    element accumulator = add_accumulator[0];
-    for (size_t i = 1; i < add_accumulator.size(); ++i) {
-        accumulator = accumulator + add_accumulator[i];
-    }
-    accumulator = accumulator.dbl();
-
-    for (size_t i = 0; i < num_rounds; ++i) {
-        std::cout << "i = " << i << std::endl;
-        std::vector<element> round_accumulator;
-        for (size_t j = 0; j < num_quads; ++j) {
-            round_accumulator.push_back(quad_tables[j].get(naf_entries[4 * j][i],
-                                                           naf_entries[4 * j + 1][i],
-                                                           naf_entries[4 * j + 2][i],
-                                                           naf_entries[4 * j + 3][i]));
-        }
-        if (has_twin) {
-            round_accumulator.push_back(
-                twin_tables[0].get(naf_entries[num_quads * 4][i], naf_entries[num_quads * 4 + 1][i]));
-        }
-        if (has_singleton) {
-            round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1][i]));
+    element accumulator = point_table.get_initial_entry();
+    for (size_t i = 1; i < num_rounds; ++i) {
+        std::vector<bool_t<C>> nafs;
+        for (size_t j = 0; j < num_points; ++j) {
+            nafs.emplace_back(naf_entries[j][i]);
         }
 
-        std::cout << "naf entries 1 = " << naf_entries[0][i].get_value() << naf_entries[1][i].get_value()
-                  << naf_entries[2][i].get_value() << naf_entries[3][i].get_value() << std::endl;
-        std::cout << "naf entries 2 = " << naf_entries[4][i].get_value() << naf_entries[5][i].get_value()
-                  << naf_entries[6][i].get_value() << naf_entries[7][i].get_value() << std::endl;
-
-        element to_add = round_accumulator[0];
-        for (size_t j = 1; j < round_accumulator.size(); ++j) {
-            std::cout << "adding at index " << j << std::endl;
-            std::cout << "x1 y1 = " << to_add.x.get_value() << " , " << to_add.y.get_value() << std::endl;
-            std::cout << "x2 y2 = " << round_accumulator[j].x.get_value() << " , " << round_accumulator[j].y.get_value()
-                      << std::endl;
-            to_add = to_add + round_accumulator[j];
-        }
-        std::cout << "calling mont ladder" << std::endl;
-        accumulator = accumulator.montgomery_ladder(to_add);
+        element to_add = point_table.get(nafs);
+        accumulator = accumulator.dbl();
+        accumulator = accumulator + to_add;
     }
 
     for (size_t i = 0; i < num_points; ++i) {
         element skew = accumulator - points[i];
         Fq out_x = accumulator.x.conditional_select(skew.x, naf_entries[i][num_rounds]);
         Fq out_y = accumulator.y.conditional_select(skew.y, naf_entries[i][num_rounds]);
+        accumulator = element(out_x, out_y);
+    }
+    accumulator.x.self_reduce();
+    accumulator.y.self_reduce();
+    return accumulator;
+}
+
+template <typename C, class Fq, class Fr, class T>
+element<C, Fq, Fr, T> element<C, Fq, Fr, T>::mixed_batch_mul(const std::vector<element>& big_points,
+                                                             const std::vector<Fr>& big_scalars,
+                                                             const std::vector<element>& small_points,
+                                                             const std::vector<Fr>& small_scalars,
+                                                             const size_t max_num_small_bits)
+{
+    const size_t num_big_points = big_points.size();
+    const size_t num_small_points = small_points.size();
+
+    ASSERT(big_scalars.size() == num_big_points);
+    ASSERT(small_scalars.size() == num_small_points);
+
+    batch_lookup_table big_point_table(big_points);
+    batch_lookup_table small_point_table(small_points);
+
+    const uint64_t num_big_rounds = Fq::modulus.get_msb() + 1;
+    const uint64_t num_small_rounds = max_num_small_bits;
+
+    std::vector<std::vector<bool_t<C>>> big_naf_entries;
+    std::vector<std::vector<bool_t<C>>> small_naf_entries;
+    for (size_t i = 0; i < num_big_points; ++i) {
+        big_naf_entries.emplace_back(compute_naf_batch(big_scalars[i]));
+    }
+    for (size_t i = 0; i < num_small_points; ++i) {
+        small_naf_entries.emplace_back(compute_naf_batch(small_scalars[i], max_num_small_bits));
+    }
+
+    element accumulator = big_point_table.get_initial_entry();
+
+    const uint64_t num_isolated_big_rounds = num_big_rounds - num_small_rounds;
+    for (size_t i = 1; i < num_isolated_big_rounds; ++i) {
+        std::vector<bool_t<C>> big_nafs;
+        for (size_t j = 0; j < num_big_points; ++j) {
+            big_nafs.emplace_back(big_naf_entries[j][i]);
+        }
+
+        element to_add = big_point_table.get(big_nafs);
+        accumulator = accumulator.dbl();
+        accumulator = accumulator + to_add;
+    }
+    {
+        std::vector<bool_t<C>> big_nafs;
+        for (size_t j = 0; j < num_big_points; ++j) {
+            big_nafs.emplace_back(big_naf_entries[j][num_isolated_big_rounds]);
+        }
+
+        element big_to_add = big_point_table.get(big_nafs);
+        accumulator = accumulator.dbl();
+        accumulator = accumulator + big_to_add;
+        element small_to_add = small_point_table.get_initial_entry();
+        accumulator = accumulator + small_to_add;
+    }
+
+    for (size_t i = 1; i < num_small_rounds; ++i) {
+        std::vector<bool_t<C>> big_nafs;
+        std::vector<bool_t<C>> small_nafs;
+        for (size_t j = 0; j < num_big_points; ++j) {
+            big_nafs.emplace_back(big_naf_entries[j][num_isolated_big_rounds + i]);
+        }
+        for (size_t j = 0; j < num_small_points; ++j) {
+            small_nafs.emplace_back(small_naf_entries[j][i]);
+        }
+        element big_add = big_point_table.get(big_nafs);
+        element small_add = small_point_table.get(small_nafs);
+        accumulator = accumulator.dbl();
+        accumulator = accumulator + big_add;
+        accumulator = accumulator + small_add;
+    }
+    for (size_t i = 0; i < num_big_points; ++i) {
+        element skew = accumulator - big_points[i];
+        Fq out_x = accumulator.x.conditional_select(skew.x, big_naf_entries[i][num_big_rounds]);
+        Fq out_y = accumulator.y.conditional_select(skew.y, big_naf_entries[i][num_big_rounds]);
+        accumulator = element(out_x, out_y);
+    }
+    for (size_t i = 0; i < num_small_points; ++i) {
+        element skew = accumulator - small_points[i];
+        Fq out_x = accumulator.x.conditional_select(skew.x, small_naf_entries[i][num_small_rounds]);
+        Fq out_y = accumulator.y.conditional_select(skew.y, small_naf_entries[i][num_small_rounds]);
         accumulator = element(out_x, out_y);
     }
     accumulator.x.self_reduce();

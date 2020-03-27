@@ -18,8 +18,6 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
 
     bool_t<Composer> on_curve()
     {
-        // TODO FIX
-        // return bool_t<Composer>(get_context(), true);
         Fq xx = x.sqr();
         Fq lhs = xx * x;
         Fq rhs = y.sqr();
@@ -100,9 +98,19 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
                             const element& base_d,
                             const Fr& scalar_d);
 
-    static element batch_mul(const std::vector<element>& points, const std::vector<Fr>& scalars);
+    static element batch_mul(const std::vector<element>& points,
+                             const std::vector<Fr>& scalars,
+                             const size_t max_num_bits = 0);
+
+    static element mixed_batch_mul(const std::vector<element>& big_points,
+                                   const std::vector<Fr>& big_scalars,
+                                   const std::vector<element>& small_points,
+                                   const std::vector<Fr>& small_scalars,
+                                   const size_t max_num_small_bits);
 
     static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar);
+    static std::vector<bool_t<Composer>> compute_naf_batch(const Fr& scalar, const size_t max_num_bits = 0);
+
     Composer* get_context() const
     {
         if (x.context != nullptr) {
@@ -316,12 +324,9 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
             to_add_y.binary_basis_limbs[2] = typename Fq::Limb(y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_y.binary_basis_limbs[3] = typename Fq::Limb(y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
 
-            if (uint256_t(to_add_y.binary_basis_limbs[1].element.get_value()) > Fq::DEFAULT_MAXIMUM_LIMB) {
-                std::cout << "error? " << to_add_y.binary_basis_limbs[1].element.get_value() << "vs "
-                          << Fq::DEFAULT_MAXIMUM_LIMB << std::endl;
-            }
             to_add_y.prime_basis_limb = y_p;
             element to_add(to_add_x, to_add_y.conditional_negate(v3));
+
             return to_add;
         }
 
@@ -340,6 +345,83 @@ template <typename Composer, class Fq, class Fr, class Params> class element {
         std::array<field_t<Composer>, 8> y_prime_table;
 
         std::array<element, 8> element_table;
+    };
+
+    struct batch_lookup_table {
+        batch_lookup_table(const std::vector<element>& points)
+        {
+            num_points = points.size();
+            num_quads = num_points / 4;
+
+            has_twin = ((num_quads * 4) < num_points - 1);
+
+            has_singleton = num_points != ((num_quads * 4) + ((size_t)has_twin * 2));
+
+            for (size_t i = 0; i < num_quads; ++i) {
+                quad_tables.emplace_back(
+                    quad_lookup_table({ points[4 * i], points[4 * i + 1], points[4 * i + 2], points[4 * i + 3] }));
+            }
+
+            if (has_twin) {
+                twin_tables.emplace_back(twin_lookup_table({ points[4 * num_quads], points[4 * num_quads + 1] }));
+            }
+
+            if (has_singleton) {
+                singletons.emplace_back(points[points.size() - 1]);
+                singletons[0].x.self_reduce();
+                singletons[0].y.self_reduce();
+            }
+        }
+
+        element get_initial_entry() const
+        {
+            std::vector<element> add_accumulator;
+            for (size_t i = 0; i < num_quads; ++i) {
+                add_accumulator.emplace_back(quad_tables[i][0]);
+            }
+            if (has_twin) {
+                add_accumulator.emplace_back(twin_tables[0][0]);
+            }
+            if (has_singleton) {
+                add_accumulator.emplace_back(singletons[0]);
+            }
+
+            element accumulator = add_accumulator[0];
+            for (size_t i = 1; i < add_accumulator.size(); ++i) {
+                accumulator = accumulator + add_accumulator[i];
+            }
+            return accumulator;
+        }
+
+        element get(std::vector<bool_t<Composer>>& naf_entries) const
+        {
+            std::vector<element> round_accumulator;
+            for (size_t j = 0; j < num_quads; ++j) {
+                round_accumulator.push_back(quad_tables[j].get(
+                    naf_entries[4 * j], naf_entries[4 * j + 1], naf_entries[4 * j + 2], naf_entries[4 * j + 3]));
+            }
+            if (has_twin) {
+                round_accumulator.push_back(
+                    twin_tables[0].get(naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1]));
+            }
+            if (has_singleton) {
+                round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1]));
+            }
+
+            element result = round_accumulator[0];
+            for (size_t j = 1; j < round_accumulator.size(); ++j) {
+                result = result + round_accumulator[j];
+            }
+            return result;
+        }
+
+        std::vector<quad_lookup_table> quad_tables;
+        std::vector<twin_lookup_table> twin_tables;
+        std::vector<element> singletons;
+        size_t num_points;
+        size_t num_quads;
+        bool has_twin;
+        bool has_singleton;
     };
 };
 } // namespace stdlib
