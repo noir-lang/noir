@@ -267,10 +267,10 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::conditional_neg
     field_t limb_3 = static_cast<field_t<C>>(predicate).madd(-(binary_basis_limbs[3].element * two) + to_add_3,
                                                              binary_basis_limbs[3].element);
 
-    uint256_t max_limb_0 = binary_basis_limbs[0].maximum_value + to_add_0_u256;
-    uint256_t max_limb_1 = binary_basis_limbs[1].maximum_value + to_add_1_u256;
-    uint256_t max_limb_2 = binary_basis_limbs[2].maximum_value + to_add_2_u256;
-    uint256_t max_limb_3 = binary_basis_limbs[3].maximum_value + to_add_3_u256;
+    uint256_t max_limb_0 = binary_basis_limbs[0].maximum_value + to_add_0_u256 + t0;
+    uint256_t max_limb_1 = binary_basis_limbs[1].maximum_value + to_add_1_u256 + t1;
+    uint256_t max_limb_2 = binary_basis_limbs[2].maximum_value + to_add_2_u256 + t2;
+    uint256_t max_limb_3 = binary_basis_limbs[3].maximum_value + to_add_3_u256 - t3;
 
     bigfield result(ctx);
     result.binary_basis_limbs[0] = Limb(limb_0, max_limb_0);
@@ -336,31 +336,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     other.reduction_check();
 
     bigfield result(ctx);
-    // 0x0000000000000000 0400000000000000 0040000000000000 0004000000000000
-    // uint512_t constant_to_add = modulus_u512;
-    // uint512_t target_maximum = get_maximum_value();
-    // while (constant_to_add < target_maximum)
-    // {
-    //     constant_to_add += modulus_u512;
-    // }
 
-    // uint256_t limb_0_maximum_value = other.binary_basis_limbs[0].maximum_value - constant_to_add.slice(0,
-    // NUM_LIMB_BITS)
-    // // uint256_t target_maximum = other.binary_basis_limbs[3].maximum_value;
-    // uint512_t target_maximum = get_maximum_value();
-    // uint512_t comparison_maximum = modulus_u512;
-    // std::cout << "target maximum = " << target_maximum << std::endl;
-    // std::cout << "comparison maximum = " << comparison_maximum << std::endl;
-    // std::cout << "is constant? " << is_constant() << std::endl;
-    // // uint256_t comparison_maximum = uint256_t(modulus_u512.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4));
-    // uint512_t tt0 = comparison_maximum;
-    // uint512_t constant_to_add = modulus_u512;
-    // while (comparison_maximum <= target_maximum) {
-    //     comparison_maximum += tt0;
-    //     constant_to_add += modulus_u512;
-    // }
-
-    // std::cout << "constant to add = " << constant_to_add << std::endl;
     uint256_t limb_0_maximum_value = other.binary_basis_limbs[0].maximum_value;
     uint64_t limb_0_borrow_shift = std::max(limb_0_maximum_value.get_msb() + 1, NUM_LIMB_BITS);
     uint256_t limb_1_maximum_value =
@@ -373,16 +349,10 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     uint256_t limb_3_maximum_value =
         other.binary_basis_limbs[3].maximum_value + (uint256_t(1) << (limb_2_borrow_shift - NUM_LIMB_BITS));
 
-    // uint256_t comparison_maximum = uint256_t(modulus_u512.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4));
-    // uint256_t additive_term = comparison_maximum;
     uint512_t constant_to_add = modulus_u512;
     while (constant_to_add.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4).lo <= limb_3_maximum_value) {
         constant_to_add += modulus_u512;
     }
-    // uint64_t limb_0_borrow_shift = other.binary_basis_limbs[0].maximum_value.get_msb() + 1;
-    // uint64_t limb_1_borrow_shift = (other.binary_basis_limbs[1].maximum_value + (uint256_t(limb_0_borrow_shift) >>
-    // NUM_LIMB_BITS)).get_msb() + 1; uint64_t limb_2_borrow_shift = other.binary_basis_limbs[2].maximum_value.get_msb()
-    // + 1;
 
     uint256_t t0(uint256_t(1) << limb_0_borrow_shift);
     uint256_t t1((uint256_t(1) << limb_1_borrow_shift) - (uint256_t(1) << (limb_0_borrow_shift - NUM_LIMB_BITS)));
@@ -408,29 +378,8 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     result.binary_basis_limbs[2].maximum_value = binary_basis_limbs[2].maximum_value + t2 + to_add_2;
     result.binary_basis_limbs[3].maximum_value = binary_basis_limbs[3].maximum_value - t3 + to_add_3;
 
-    bool r0 = uint256_t(result.binary_basis_limbs[0].element.get_value()).get_msb() > 120;
-    bool r1 = uint256_t(result.binary_basis_limbs[1].element.get_value()).get_msb() > 120;
-    bool r2 = uint256_t(result.binary_basis_limbs[2].element.get_value()).get_msb() > 120;
-    bool r3 = uint256_t(result.binary_basis_limbs[3].element.get_value()).get_msb() > 120;
-    if (r0 || r1 || r2 || r3) {
-        std::cout << "subtraction underflow" << std::endl;
-        std::cout << "left  limbs = " << binary_basis_limbs[0].element << " , " << binary_basis_limbs[1].element << ", "
-                  << binary_basis_limbs[2].element << ", " << binary_basis_limbs[3].element << std::endl;
-
-        std::cout << "to subtract  limbs = " << other.binary_basis_limbs[0].element << " , "
-                  << other.binary_basis_limbs[1].element << ", " << other.binary_basis_limbs[2].element << ", "
-                  << other.binary_basis_limbs[3].element << std::endl;
-
-        std::cout << "result  limbs = " << result.binary_basis_limbs[0].element << " , "
-                  << result.binary_basis_limbs[1].element << ", " << result.binary_basis_limbs[2].element << ", "
-                  << result.binary_basis_limbs[3].element << std::endl;
-
-        std::cout << "limb maximum values = " << limb_0_maximum_value << " , " << limb_1_maximum_value << " , "
-                  << limb_2_maximum_value << " , " << limb_3_maximum_value << std::endl;
-    }
     uint512_t constant_to_add_mod_p = constant_to_add % prime_basis.modulus;
     field_t prime_basis_to_add(ctx, barretenberg::fr(constant_to_add_mod_p.lo));
-    // result.prime_basis_limb = prime_basis_limb - other.prime_basis_limb;
     result.prime_basis_limb = prime_basis_limb + prime_basis_to_add - other.prime_basis_limb;
     return result;
 }
@@ -521,23 +470,11 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
 
     barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
 
-    // barretenberg::fr a = left.prime_basis_limb.get_value() * right.prime_basis_limb.get_value();
-    // barretenberg::fr b = quotient.prime_basis_limb.get_value() * neg_prime;
-    // barretenberg::fr c = b - remainder.prime_basis_limb.get_value();
-    // std::cout << "a lhs = " << a << std::endl;
-    // std::cout << "c rhs = " << -c << std::endl;
-    // std::cout << "pre" << std::endl;
     field_t<C>::evaluate_polynomial_identity(left.prime_basis_limb,
                                              right.prime_basis_limb,
                                              quotient.prime_basis_limb * neg_prime,
                                              -remainder.prime_basis_limb);
-    // std::cout << "post" << std::endl;
-    // field_t prime_basis_result =
-    //     left.prime_basis_limb.madd(right.prime_basis_limb, (quotient.prime_basis_limb * neg_prime));
 
-    //
-    // reamdiner.prime_basis_lib == left.prime_basis_limb.madd(right.prime_basis_limb, (quotient.prime_basis_limb *
-    // neg_prime));
 
     const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
@@ -545,29 +482,11 @@ void bigfield<C, T>::evaluate_product(const bigfield& left,
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
     field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
     carry_combined = carry_combined.normalize();
-    std::cout << "left  limbs = " << left.binary_basis_limbs[0].element << " , " << left.binary_basis_limbs[1].element
-              << ", " << left.binary_basis_limbs[2].element << ", " << left.binary_basis_limbs[3].element << std::endl;
-    std::cout << "right limbs = " << right.binary_basis_limbs[0].element << " , " << right.binary_basis_limbs[1].element
-              << ", " << right.binary_basis_limbs[2].element << ", " << right.binary_basis_limbs[3].element
-              << std::endl;
-    std::cout << "quot  limbs = " << quotient.binary_basis_limbs[0].element << " , "
-              << quotient.binary_basis_limbs[1].element << ", " << quotient.binary_basis_limbs[2].element << ", "
-              << quotient.binary_basis_limbs[3].element << std::endl;
-    std::cout << "rem   limbs = " << remainder.binary_basis_limbs[0].element << " , "
-              << remainder.binary_basis_limbs[1].element << ", " << remainder.binary_basis_limbs[2].element << ", "
-              << remainder.binary_basis_limbs[3].element << std::endl;
 
-    std::cout << "carry lo and carry hi = " << carry_lo << " , " << carry_hi << std::endl;
-    std::cout << "carry combined msb = " << uint256_t(carry_combined.get_value()).get_msb()
-              << "vs range bits = " << carry_lo_msb + carry_hi_msb << std::endl;
     const auto accumulators =
         ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-    std::cout << "assert equal product" << std::endl;
     carry_hi = carry_hi.normalize();
     ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
-    std::cout << "assert equal product end" << std::endl;
-    // field_t rhs = remainder.prime_basis_limb.normalize();
-    // ctx->assert_equal(prime_basis_result.witness_index, rhs.witness_index);
 }
 
 template <typename C, typename T>
@@ -743,8 +662,6 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
     C* ctx = context ? context : other.context;
     // a / b = c
     // => c * b = a mod p
-    // std::cout << "left = " << get_value() << std::endl;
-    // std::cout << "right = " << other.get_value() << std::endl;
     const uint1024_t left = uint1024_t(get_value());
     const uint1024_t right = uint1024_t(other.get_value());
     const uint1024_t modulus(target_basis.modulus);
@@ -769,16 +686,6 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
             witness_t(ctx, fr(inverse_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     }
 
-    // uint1024_t test_inv_value(inverse_value);
-    // uint1024_t lhs = right * test_inv_value;
-    // uint1024_t rhs = quotient_1024 * modulus + left;
-    // std::cout << "lhs = " << lhs << std::endl;
-    // std::cout << "rhs = " << rhs << std::endl;
-
-    // fr field_lhs = other.prime_basis_limb.get_value() * inverse.prime_basis_limb.get_value();
-    // fr field_rhs = quotient.prime_basis_limb.get_value() * fr(modulus_u512.lo) + prime_basis_limb.get_value();
-
-    // std::cout << "returning inverse of " << inverse.get_value() << std::endl;
     evaluate_product(other, inverse, quotient, *this);
     return inverse;
 }
@@ -808,12 +715,6 @@ template <typename C, typename T> void bigfield<C, T>::reduction_check() const
 
 template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 {
-    if (is_constant()) {
-        std::cout << "IN SELF REDUCE AND CONSTANT??? " << std::endl;
-    }
-    // static uint64_t count = 0;
-    // std::cout << "in self reduce count = " << count << std::endl;
-    // ++count;
     const auto [quotient_value, remainder_value] = get_value().divmod(target_basis.modulus);
 
     bigfield quotient(context);
