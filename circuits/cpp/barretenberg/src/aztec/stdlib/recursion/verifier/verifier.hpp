@@ -81,7 +81,6 @@ verify_proof(Composer* context,
         T[i] = transcript.get_group_element("T_" + index);
         W[i] = transcript.get_group_element("W_" + index);
         wire_evaluations[i] = transcript.get_field_element("w_" + index);
-        std::cout << "sigmas = " << key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)) << std::endl;
         sigmas[i] =
             Transcript<Composer>::convert_g1(context, key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)));
     }
@@ -184,7 +183,7 @@ verify_proof(Composer* context,
     }
 
     t_eval = t_eval / lagrange_evals.vanishing_poly;
-    std::cout << "rverifier t_eval = " << t_eval << std::endl;
+
     transcript.add_field_element("t", t_eval);
 
     transcript.apply_fiat_shamir("nu");
@@ -246,30 +245,32 @@ verify_proof(Composer* context,
     z_omega_scalar = z_challenge * key->domain.root;
     z_omega_scalar *= u;
 
-    std::vector<field_pt> scalars;
-    std::vector<group_pt> elements;
+    std::vector<field_pt> big_scalars;
+    std::vector<group_pt> big_elements;
+    std::vector<field_pt> small_scalars;
+    std::vector<group_pt> small_elements;
 
-    elements.emplace_back(Z_1);
+    big_elements.emplace_back(Z_1);
     if constexpr (program_settings::use_linearisation) {
         linear_terms.z_1 *= nu_challenges[0];
         linear_terms.z_1 += (nu_challenges[nu_z_offset] * u);
-        scalars.emplace_back(linear_terms.z_1);
+        big_scalars.emplace_back(linear_terms.z_1);
     } else {
         T0 = nu_challenges[nu_z_offset] * u + nu_challenges[2 * program_settings::program_width];
-        scalars.emplace_back(T0);
+        big_scalars.emplace_back(T0);
     }
 
     nu_ptr = nu_z_offset + 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         // TODO sort this to remove branch
         if (W[i].on_curve().get_value()) {
-            elements.emplace_back(W[i]);
+            big_elements.emplace_back(W[i]);
             if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
                 T0 = nu_challenges[nu_ptr] * u;
                 T0 += nu_challenges[i + nu_offset];
-                scalars.emplace_back(T0);
+                big_scalars.emplace_back(T0);
             } else {
-                scalars.emplace_back(nu_challenges[i + nu_offset]);
+                big_scalars.emplace_back(nu_challenges[i + nu_offset]);
             }
         }
         if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
@@ -278,30 +279,30 @@ verify_proof(Composer* context,
     }
 
     for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
-        elements.emplace_back(sigmas[i]);
-        scalars.emplace_back(nu_challenges[program_settings::program_width + i + nu_offset]);
+        small_elements.emplace_back(sigmas[i]);
+        small_scalars.emplace_back(nu_challenges[program_settings::program_width + i + nu_offset]);
     }
 
     if constexpr (program_settings::use_linearisation) {
-        elements.emplace_back(sigmas[program_settings::program_width - 1]);
+        small_elements.emplace_back(sigmas[program_settings::program_width - 1]);
         linear_terms.sigma_last *= nu_challenges[0];
-        scalars.emplace_back(linear_terms.sigma_last);
+        small_scalars.emplace_back(linear_terms.sigma_last);
     } else {
-        elements.emplace_back(sigmas[program_settings::program_width - 1]);
-        scalars.emplace_back(nu_challenges[2 * program_settings::program_width - 1]);
+        small_elements.emplace_back(sigmas[program_settings::program_width - 1]);
+        small_scalars.emplace_back(nu_challenges[2 * program_settings::program_width - 1]);
     }
 
-    elements.emplace_back(group_pt::one(context));
-    scalars.emplace_back(batch_evaluation);
+    big_elements.emplace_back(group_pt::one(context));
+    big_scalars.emplace_back(batch_evaluation);
 
     // TODO FIX
     if (PI_Z_OMEGA.on_curve().get_value()) {
-        elements.emplace_back(PI_Z_OMEGA);
-        scalars.emplace_back(z_omega_scalar);
+        big_elements.emplace_back(PI_Z_OMEGA);
+        big_scalars.emplace_back(z_omega_scalar);
     }
 
-    elements.emplace_back(PI_Z);
-    scalars.emplace_back(z_challenge);
+    small_elements.emplace_back(PI_Z);
+    small_scalars.emplace_back(z_challenge);
 
     // TODO FIX
     field_pt z_pow_n = z_challenge;
@@ -312,8 +313,8 @@ verify_proof(Composer* context,
     field_pt z_power = z_pow_n;
     for (size_t i = 1; i < program_settings::program_width; ++i) {
         if (T[i].on_curve().get_value()) {
-            elements.emplace_back(T[i]);
-            scalars.emplace_back(z_power);
+            big_elements.emplace_back(T[i]);
+            big_scalars.emplace_back(z_power);
         }
 
         z_power *= z_pow_n;
@@ -322,80 +323,18 @@ verify_proof(Composer* context,
     waffle::VerifierBaseWidget::challenge_coefficients<field_pt> coeffs{ alpha.sqr().sqr(), alpha, nu_ptr, 0 };
 
     std::vector<barretenberg::g1::affine_element> g1_inputs;
-    program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, g1_inputs, scalars);
+    program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, g1_inputs, small_scalars);
     for (size_t i = 0; i < g1_inputs.size(); ++i) {
-        elements.push_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_inputs[i]));
+        small_elements.push_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_inputs[i]));
     }
 
-    std::cout << "mark a" << std::endl;
-    group_pt rhs = group_pt::batch_mul(elements, scalars);
-    std::cout << "mark b" << std::endl;
+    group_pt rhs = group_pt::mixed_batch_mul(big_elements, big_scalars, small_elements, small_scalars, 128);
     rhs = (rhs + T[0]).normalize();
-    std::cout << "mark c" << std::endl;
-    group_pt lhs = PI_Z_OMEGA * u;
-    std::cout << "mark d" << std::endl;
+    group_pt lhs = group_pt::batch_mul({ PI_Z_OMEGA }, { u }, 128);
     lhs = lhs + PI_Z;
-    std::cout << "mark e" << std::endl;
     lhs = (-lhs).normalize();
-    std::cout << "mark f" << std::endl;
 
     return recursion_output<group_pt>{ rhs, lhs };
-    /*
-    std::cout << "g1 rhs points = " << elements.size() << std::endl;
-    barretenberg::g1::element rhs = barretenberg::g1::one;
-    rhs.self_set_infinity();
-    for (size_t i = 0; i < elements.size(); ++i) {
-        group_pt input = elements[i];
-        uint256_t x = input.x.get_value().lo;
-        uint256_t y = input.y.get_value().lo;
-        barretenberg::g1::element point(barretenberg::fq(x), barretenberg::fq(y), barretenberg::fq(1));
-        barretenberg::fr scalar(scalars[i].get_value());
-        rhs += (point * scalar);
-    }
-
-    barretenberg::g1::element lhs;
-    lhs.x = barretenberg::fq(PI_Z_OMEGA.x.get_value().lo);
-    lhs.y = barretenberg::fq(PI_Z_OMEGA.y.get_value().lo);
-    lhs.z = barretenberg::fq(1);
-    lhs = lhs * u.get_value();
-
-    barretenberg::g1::element to_add;
-    to_add.x = barretenberg::fq(PI_Z.x.get_value().lo);
-    to_add.y = barretenberg::fq(PI_Z.y.get_value().lo);
-    to_add.z = barretenberg::fq(1);
-
-    lhs += to_add;
-    lhs = -lhs;
-
-    to_add.x = barretenberg::fq(T[0].x.get_value().lo);
-    to_add.y = barretenberg::fq(T[0].y.get_value().lo);
-    to_add.z = barretenberg::fq(1);
-    rhs += to_add;
-
-    lhs = lhs.normalize();
-    rhs = rhs.normalize();
-
-    g1::affine_element P_affine[2];
-    barretenberg::fq::__copy(lhs.x, P_affine[1].x);
-    barretenberg::fq::__copy(lhs.y, P_affine[1].y);
-    barretenberg::fq::__copy(rhs.x, P_affine[0].x);
-    barretenberg::fq::__copy(rhs.y, P_affine[0].y);
-
-    barretenberg::fq12 tresult = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
-        P_affine, key->reference_string.precomputed_g2_lines, 2);
-
-    std::cout << "result = " << (tresult == barretenberg::fq12::one()) << std::endl;
-    // recursion_output<group_pt> result{
-    //     (PI_Z_OMEGA * u) + PI_Z,
-    //     group_pt::batch_mul(scalars, elements),
-    // };
-    recursion_output<group_pt> result{
-        group_pt::one(context),
-        group_pt::one(context),
-    };
-
-    return result;
-    */
 }
 
 } // namespace recursion
