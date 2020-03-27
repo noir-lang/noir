@@ -531,3 +531,110 @@ TEST(stdlib_biggroup, test_batch_mul)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
+
+TEST(stdlib_biggroup, test_batch_mul_short_scalars)
+{
+    const size_t num_points = 11;
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    std::vector<barretenberg::g1::affine_element> points;
+    std::vector<barretenberg::fr> scalars;
+    for (size_t i = 0; i < num_points; ++i) {
+        points.push_back(barretenberg::g1::affine_element(barretenberg::g1::element::random_element()));
+        uint256_t scalar_raw = barretenberg::fr::random_element();
+        scalar_raw.data[2] = 0ULL;
+        scalar_raw.data[3] = 0ULL;
+        scalars.push_back(barretenberg::fr(scalar_raw));
+    }
+
+    std::vector<stdlib::alt_bn254::g1> circuit_points;
+    std::vector<stdlib::alt_bn254::fr> circuit_scalars;
+    for (size_t i = 0; i < num_points; ++i) {
+        circuit_points.push_back(convert_inputs_alt_bn254(&composer, points[i]));
+        circuit_scalars.push_back(witness_t(&composer, scalars[i]));
+    }
+
+    stdlib::alt_bn254::g1 result_point = stdlib::alt_bn254::g1::batch_mul(circuit_points, circuit_scalars, 128);
+
+    barretenberg::g1::element expected_point = barretenberg::g1::one;
+    expected_point.self_set_infinity();
+    for (size_t i = 0; i < num_points; ++i) {
+        expected_point += (barretenberg::g1::element(points[i]) * scalars[i]);
+    }
+    expected_point = expected_point.normalize();
+    barretenberg::fq result_x(result_point.x.get_value().lo);
+    barretenberg::fq result_y(result_point.y.get_value().lo);
+
+    EXPECT_EQ(result_x, expected_point.x);
+    EXPECT_EQ(result_y, expected_point.y);
+
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_biggroup, test_mixed_batch_mul)
+{
+    const size_t num_big_points = 10;
+    const size_t num_small_points = 11;
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    std::vector<barretenberg::g1::affine_element> big_points;
+    std::vector<barretenberg::fr> big_scalars;
+    std::vector<barretenberg::g1::affine_element> small_points;
+    std::vector<barretenberg::fr> small_scalars;
+
+    for (size_t i = 0; i < num_big_points; ++i) {
+        big_points.push_back(barretenberg::g1::affine_element(barretenberg::g1::element::random_element()));
+        big_scalars.push_back(barretenberg::fr::random_element());
+    }
+    for (size_t i = 0; i < num_small_points; ++i) {
+        small_points.push_back(barretenberg::g1::affine_element(barretenberg::g1::element::random_element()));
+        uint256_t scalar_raw = barretenberg::fr::random_element();
+        scalar_raw.data[2] = 0ULL;
+        scalar_raw.data[3] = 0ULL;
+        small_scalars.push_back(barretenberg::fr(scalar_raw));
+    }
+
+    std::vector<stdlib::alt_bn254::g1> big_circuit_points;
+    std::vector<stdlib::alt_bn254::fr> big_circuit_scalars;
+    std::vector<stdlib::alt_bn254::g1> small_circuit_points;
+    std::vector<stdlib::alt_bn254::fr> small_circuit_scalars;
+    for (size_t i = 0; i < num_big_points; ++i) {
+        big_circuit_points.push_back(convert_inputs_alt_bn254(&composer, big_points[i]));
+        big_circuit_scalars.push_back(witness_t(&composer, big_scalars[i]));
+    }
+    for (size_t i = 0; i < num_small_points; ++i) {
+        small_circuit_points.push_back(convert_inputs_alt_bn254(&composer, small_points[i]));
+        small_circuit_scalars.push_back(witness_t(&composer, small_scalars[i]));
+    }
+    stdlib::alt_bn254::g1 result_point = stdlib::alt_bn254::g1::mixed_batch_mul(
+        big_circuit_points, big_circuit_scalars, small_circuit_points, small_circuit_scalars, 128);
+
+    barretenberg::g1::element expected_point = barretenberg::g1::one;
+    expected_point.self_set_infinity();
+    for (size_t i = 0; i < num_big_points; ++i) {
+        expected_point += (barretenberg::g1::element(big_points[i]) * big_scalars[i]);
+    }
+    for (size_t i = 0; i < num_small_points; ++i) {
+        expected_point += (barretenberg::g1::element(small_points[i]) * small_scalars[i]);
+    }
+    expected_point = expected_point.normalize();
+    barretenberg::fq result_x(result_point.x.get_value().lo);
+    barretenberg::fq result_y(result_point.y.get_value().lo);
+
+    EXPECT_EQ(result_x, expected_point.x);
+    EXPECT_EQ(result_y, expected_point.y);
+
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    waffle::TurboProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
