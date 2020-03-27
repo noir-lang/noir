@@ -5,6 +5,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
+#include <common/log.hpp>
 
 using namespace barretenberg;
 
@@ -58,15 +59,29 @@ template <typename settings> void ProverBase<settings>::compute_wire_coefficient
     }
 }
 
+#ifdef __wasm__
+extern "C" void wasm_pippenger_unsafe(fr* scalars, size_t const num_initial_points, g1::element* result);
+#endif
+
+template <typename settings>
+g1::element ProverBase<settings>::pippenger_unsafe(fr* scalars, const size_t num_initial_points)
+{
+#ifndef __wasm__
+    return scalar_multiplication::pippenger_unsafe(
+        scalars, key->reference_string->get_monomials(), num_initial_points, key->pippenger_runtime_state);
+#else
+    g1::element result;
+    wasm_pippenger_unsafe(scalars, num_initial_points, &result);
+    return result;
+#endif
+}
+
 template <typename settings> void ProverBase<settings>::compute_wire_commitments()
 {
     std::array<g1::element, settings::program_width> W;
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        W[i] = barretenberg::scalar_multiplication::pippenger_unsafe(witness->wires.at(wire_tag).get_coefficients(),
-                                                                     key->reference_string->get_monomials(),
-                                                                     n,
-                                                                     key->pippenger_runtime_state);
+        W[i] = pippenger_unsafe(witness->wires.at(wire_tag).get_coefficients(), n);
     }
 
     g1::element::batch_normalize(&W[0], settings::program_width);
@@ -92,8 +107,7 @@ template <typename settings> void ProverBase<settings>::compute_wire_commitments
 
 template <typename settings> void ProverBase<settings>::compute_z_commitment()
 {
-    g1::element Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        key->z.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
+    g1::element Z = pippenger_unsafe(key->z.get_coefficients(), n);
     g1::affine_element Z_affine;
     Z_affine = g1::affine_element(Z);
 
@@ -106,10 +120,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_commitm
     std::array<g1::element, settings::program_width> T;
     for (size_t i = 0; i < settings::program_width; ++i) {
         const size_t offset = n * i;
-        T[i] = barretenberg::scalar_multiplication::pippenger_unsafe(&key->quotient_large.get_coefficients()[offset],
-                                                                     key->reference_string->get_monomials(),
-                                                                     n,
-                                                                     key->pippenger_runtime_state);
+        T[i] = pippenger_unsafe(&key->quotient_large.get_coefficients()[offset], n);
     }
 
     g1::element::batch_normalize(&T[0], settings::program_width);
@@ -751,14 +762,8 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    g1::element PI_Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        opening_poly.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
-
-    g1::element PI_Z_OMEGA =
-        barretenberg::scalar_multiplication::pippenger_unsafe(shifted_opening_poly.get_coefficients(),
-                                                              key->reference_string->get_monomials(),
-                                                              n,
-                                                              key->pippenger_runtime_state);
+    g1::element PI_Z = pippenger_unsafe(opening_poly.get_coefficients(), n);
+    g1::element PI_Z_OMEGA = pippenger_unsafe(shifted_opening_poly.get_coefficients(), n);
 
     g1::affine_element PI_Z_affine;
     g1::affine_element PI_Z_OMEGA_affine;

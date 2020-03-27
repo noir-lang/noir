@@ -23,7 +23,7 @@ VerifierMemReferenceString::~VerifierMemReferenceString()
     aligned_free(precomputed_g2_lines);
 }
 
-MemReferenceString::MemReferenceString(const size_t num_points, char const* buffer, size_t)
+MemReferenceString::MemReferenceString(const size_t num_points, char const* buffer)
 {
     monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
         64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));

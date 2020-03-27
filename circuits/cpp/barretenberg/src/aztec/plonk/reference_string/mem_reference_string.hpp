@@ -28,7 +28,7 @@ class VerifierMemReferenceString : public VerifierReferenceString {
 
 class MemReferenceString : public ProverReferenceString {
   public:
-    MemReferenceString(const size_t num_points, char const* buffer, size_t buffer_size);
+    MemReferenceString(const size_t num_points, char const* buffer);
     ~MemReferenceString();
 
     barretenberg::g1::affine_element* get_monomials() { return monomials; }
@@ -47,7 +47,8 @@ class MemReferenceStringFactory : public ReferenceStringFactory {
 
     std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree)
     {
-        return std::make_shared<MemReferenceString>(degree, buffer_, size_);
+        ASSERT(degree <= size_);
+        return std::make_shared<MemReferenceString>(degree, buffer_);
     }
 
     std::shared_ptr<VerifierReferenceString> get_verifier_crs()

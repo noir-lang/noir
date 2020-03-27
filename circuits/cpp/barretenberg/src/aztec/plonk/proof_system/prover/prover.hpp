@@ -56,7 +56,11 @@ template <typename settings> class ProverBase {
     std::shared_ptr<program_witness> witness;
 
     bool uses_quotient_mid;
+
+  private:
+    barretenberg::g1::element pippenger_unsafe(barretenberg::fr* scalars, const size_t num_initial_points);
 };
+
 extern template class ProverBase<unrolled_standard_settings>;
 extern template class ProverBase<unrolled_turbo_settings>;
 extern template class ProverBase<standard_settings>;
