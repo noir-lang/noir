@@ -8,7 +8,7 @@ namespace plonk {
 namespace stdlib {
 
 // ( ͡° ͜ʖ ͡°)
-template <typename Composer, class Fq, class Fr, class Params, class NativeGroup> class element {
+template <typename Composer, class Fq, class Fr, class NativeGroup> class element {
   public:
     element();
     element(const NativeGroup::affine_element& input);

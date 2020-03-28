@@ -3,54 +3,54 @@
 namespace plonk {
 namespace stdlib {
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>::element()
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>::element()
     : x()
     , y()
 {}
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>::element(const typename G::affine_element& input)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>::element(const typename G::affine_element& input)
     : x(nullptr, input.x)
     , y(nullptr, input.y)
 {}
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>::element(const Fq& x_in, const Fq& y_in)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>::element(const Fq& x_in, const Fq& y_in)
     : x(x_in)
     , y(y_in)
 {}
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>::element(const element& other)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>::element(const element& other)
     : x(other.x)
     , y(other.y)
 {}
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>::element(element&& other)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>::element(element&& other)
     : x(other.x)
     , y(other.y)
 {}
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>& element<C, Fq, Fr, T, G>::operator=(const element& other)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>& element<C, Fq, Fr, G>::operator=(const element& other)
 {
     x = other.x;
     y = other.y;
     return *this;
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G>& element<C, Fq, Fr, T, G>::operator=(element&& other)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G>& element<C, Fq, Fr, G>::operator=(element&& other)
 {
     x = other.x;
     y = other.y;
     return *this;
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator+(const element& other) const
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator+(const element& other) const
 {
     other.x.assert_is_not_equal(x);
     const Fq lambda = Fq::div({ other.y, -y }, (other.x - x));
@@ -59,18 +59,18 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator+(const element& othe
     return element(x3, y3);
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator-(const element& other) const
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator-(const element& other) const
 {
     other.x.assert_is_not_equal(x);
     const Fq lambda = Fq::div({ other.y, y }, (other.x - x));
-    const Fq x_3 = lambda.sqradd({ -other.x, -x })
+    const Fq x_3 = lambda.sqradd({ -other.x, -x });
     const Fq y_3 = lambda.madd(x_3 - x, { -y });
     return element(x_3, y_3);
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::montgomery_ladder(const element& other) const
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const element& other) const
 {
     other.x.assert_is_not_equal(x);
     const Fq lambda_1 = Fq::div({ other.y - y }, (other.x - x));
@@ -103,8 +103,8 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::montgomery_ladder(const eleme
     return element(x_4, y_4);
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-std::pair<element<C, Fq, Fr, T, G>, element<C, Fq, Fr, T, G>> element<C, Fq, Fr, T, G>::compute_offset_generators(
+template <typename C, class Fq, class Fr, class G>
+std::pair<element<C, Fq, Fr, G>, element<C, Fq, Fr, G>> element<C, Fq, Fr, G>::compute_offset_generators(
     const size_t num_rounds)
 {
     std::array<typename G::affine_element, 1> generator_array = G::template derive_generators<1>();
@@ -116,8 +116,7 @@ std::pair<element<C, Fq, Fr, T, G>, element<C, Fq, Fr, T, G>> element<C, Fq, Fr,
     return std::make_pair<element, element>(offset_generator_start, offset_generator_end);
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::dbl() const
+template <typename C, class Fq, class Fr, class G> element<C, Fq, Fr, G> element<C, Fq, Fr, G>::dbl() const
 {
     Fq T0 = x.sqr();
     Fq T1 = T0 + T0 + T0;
@@ -131,8 +130,8 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::dbl() const
     return element(x_3, y_3);
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf(const Fr& scalar, const size_t max_num_bits)
+template <typename C, class Fq, class Fr, class G>
+std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, const size_t max_num_bits)
 {
     C* ctx = scalar.context;
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
@@ -210,10 +209,10 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf(const Fr& scalar, c
     return naf_entries;
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::batch_mul(const std::vector<element>& points,
-                                                             const std::vector<Fr>& scalars,
-                                                             const size_t max_num_bits)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element>& points,
+                                                       const std::vector<Fr>& scalars,
+                                                       const size_t max_num_bits)
 {
     const size_t num_points = points.size();
     ASSERT(scalars.size() == num_points);
@@ -252,12 +251,12 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::batch_mul(const std::vector<e
     return accumulator;
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::mixed_batch_mul(const std::vector<element>& big_points,
-                                                                   const std::vector<Fr>& big_scalars,
-                                                                   const std::vector<element>& small_points,
-                                                                   const std::vector<Fr>& small_scalars,
-                                                                   const size_t max_num_small_bits)
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<element>& big_points,
+                                                             const std::vector<Fr>& big_scalars,
+                                                             const std::vector<element>& small_points,
+                                                             const std::vector<Fr>& small_scalars,
+                                                             const size_t max_num_small_bits)
 {
     if constexpr (!G::USE_ENDOMORPHISM || Fr::is_composite) {
         std::vector<element> points(big_points.begin(), big_points.end());
@@ -339,8 +338,8 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::mixed_batch_mul(const std::ve
     return accumulator;
 }
 
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator*(const Fr& scalar) const
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator*(const Fr& scalar) const
 {
     /**
      *
