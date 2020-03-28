@@ -171,6 +171,7 @@ template <typename ComposerContext> class field_t {
 
     bool_t<ComposerContext> is_zero();
     void assert_is_not_zero();
+    void assert_is_zero();
     bool is_constant() const { return witness_index == static_cast<uint32_t>(-1); }
 
     mutable ComposerContext* context = nullptr;

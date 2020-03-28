@@ -53,16 +53,13 @@ lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>&
 }
 
 template <typename Composer, typename program_settings>
-recursion_output<element<Composer,
-                         bigfield<Composer, barretenberg::Bn254FqParams>,
-                         field_t<Composer>,
-                         barretenberg::g1>>
+recursion_output<
+    element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>
 verify_proof(Composer* context,
              std::shared_ptr<waffle::verification_key> key,
              const transcript::Manifest& manifest,
              const waffle::plonk_proof& proof)
 {
-    using bool_pt = bool_t<Composer>;
     using field_pt = field_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
     using group_pt = element<Composer, fq_pt, field_pt, barretenberg::g1>;
@@ -98,16 +95,17 @@ verify_proof(Composer* context,
 
     field_pt z_1_shifted_eval = transcript.get_field_element("z_omega");
 
-    bool_pt inputs_valid = T[0].on_curve() && Z_1.on_curve() && PI_Z.on_curve();
+    T[0].validate_on_curve();
+    Z_1.validate_on_curve();
+    PI_Z.validate_on_curve();
+
     for (size_t i = 0; i < program_settings::program_width; ++i) {
-        inputs_valid = inputs_valid && sigmas[i].on_curve();
-        inputs_valid = inputs_valid && !(sigma_evaluations[i] == field_pt(0));
+        sigma_evaluations[i].assert_is_not_zero();
     }
     if constexpr (program_settings::use_linearisation) {
         field_pt linear_eval = transcript.get_field_element("r");
-        inputs_valid = inputs_valid && !(linear_eval == field_pt(0)());
+        linear_eval.assert_is_not_zero();
     }
-    context->assert_equal_constant(inputs_valid.witness_index, barretenberg::fr(1));
 
     field_pt alpha_pow[4];
 
@@ -264,16 +262,14 @@ verify_proof(Composer* context,
 
     nu_ptr = nu_z_offset + 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
-        // TODO sort this to remove branch
-        if (W[i].on_curve().get_value()) {
-            big_elements.emplace_back(W[i]);
-            if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
-                T0 = nu_challenges[nu_ptr] * u;
-                T0 += nu_challenges[i + nu_offset];
-                big_scalars.emplace_back(T0);
-            } else {
-                big_scalars.emplace_back(nu_challenges[i + nu_offset]);
-            }
+        W[i].validate_on_curve();
+        big_elements.emplace_back(W[i]);
+        if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
+            T0 = nu_challenges[nu_ptr] * u;
+            T0 += nu_challenges[i + nu_offset];
+            big_scalars.emplace_back(T0);
+        } else {
+            big_scalars.emplace_back(nu_challenges[i + nu_offset]);
         }
         if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
             ++nu_ptr;
@@ -297,11 +293,9 @@ verify_proof(Composer* context,
     big_elements.emplace_back(group_pt::one(context));
     big_scalars.emplace_back(batch_evaluation);
 
-    // TODO FIX
-    if (PI_Z_OMEGA.on_curve().get_value()) {
-        big_elements.emplace_back(PI_Z_OMEGA);
-        big_scalars.emplace_back(z_omega_scalar);
-    }
+    PI_Z_OMEGA.validate_on_curve();
+    big_elements.emplace_back(PI_Z_OMEGA);
+    big_scalars.emplace_back(z_omega_scalar);
 
     small_elements.emplace_back(PI_Z);
     small_scalars.emplace_back(z_challenge);
@@ -314,10 +308,9 @@ verify_proof(Composer* context,
     }
     field_pt z_power = z_pow_n;
     for (size_t i = 1; i < program_settings::program_width; ++i) {
-        if (T[i].on_curve().get_value()) {
-            big_elements.emplace_back(T[i]);
-            big_scalars.emplace_back(z_power);
-        }
+        T[i].validate_on_curve();
+        big_elements.emplace_back(T[i]);
+        big_scalars.emplace_back(z_power);
 
         z_power *= z_pow_n;
     }

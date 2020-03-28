@@ -17,7 +17,7 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
     element(const element& other);
     element(element&& other);
 
-    bool_t<Composer> on_curve()
+    void validate_on_curve()
     {
         Fq xx = x.sqr();
         Fq lhs = xx * x;
@@ -28,13 +28,7 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
             Fq a(get_context(), uint256_t(NativeGroup::curve_a));
             lhs = lhs + (a * x);
         }
-        Fq result = lhs - rhs;
-        result.assert_is_in_field();
-        field_t<Composer> product(get_context());
-        for (size_t i = 0; i < 4; ++i) {
-            product = product * result.binary_basis_limbs[i].element;
-        }
-        return product.is_zero();
+        lhs.assert_equal(rhs);
     }
 
     static element one(Composer* ctx)
@@ -43,8 +37,7 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
         uint256_t y = uint256_t(NativeGroup::one.y);
         Fq x_fq(ctx, x);
         Fq y_fq(ctx, y);
-        element result(x_fq, y_fq);
-        return result;
+        return element(x_fq, y_fq);
     }
 
     element& operator=(const element& other);

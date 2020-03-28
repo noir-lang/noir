@@ -371,9 +371,24 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     return result;
 }
 
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero()
+{
+    if (witness_index == UINT32_MAX) {
+        ASSERT(additive_constant == barretenberg::fr(0));
+        return;
+    }
+    ComposerContext* ctx = context;
+    const waffle::poly_triple gate_coefficients{
+        witness_index,           ctx->zero_idx,       ctx->zero_idx,       barretenberg::fr(0),
+        multiplicative_constant, barretenberg::fr(0), barretenberg::fr(0), additive_constant,
+    };
+    context->create_poly_gate(gate_coefficients);
+}
+
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero()
 {
     if (witness_index == UINT32_MAX) {
+        ASSERT(additive_constant != barretenberg::fr(0));
         return;
     }
     ComposerContext* ctx = context;
