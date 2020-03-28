@@ -22,10 +22,10 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
         Fq xx = x.sqr();
         Fq lhs = xx * x;
         Fq rhs = y.sqr();
-        Fq b(get_context(), uint256_t(Params::b));
+        Fq b(get_context(), uint256_t(NativeGroup::curve_b));
         lhs = lhs + b;
-        if constexpr (Params::has_a) {
-            Fq a(get_context(), uint256_t(Params::a));
+        if constexpr (NativeGroup::has_a) {
+            Fq a(get_context(), uint256_t(NativeGroup::curve_a));
             lhs = lhs + (a * x);
         }
         Fq result = lhs - rhs;
@@ -39,8 +39,8 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
 
     static element one(Composer* ctx)
     {
-        uint256_t x = uint256_t(Params::one_x);
-        uint256_t y = uint256_t(Params::one_y);
+        uint256_t x = uint256_t(NativeGroup::one.x);
+        uint256_t y = uint256_t(NativeGroup::one.y);
         Fq x_fq(ctx, x);
         Fq y_fq(ctx, y);
         element result(x_fq, y_fq);
@@ -63,8 +63,7 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
     element operator-() const
     {
         element result(*this);
-        // TODO fix
-        result.y = result.y.conditional_negate(bool_t<Composer>(get_context(), true));
+        result.y = -result.y;
         return result;
     }
 
@@ -88,24 +87,6 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
     element dbl() const;
     element montgomery_ladder(const element& other) const;
 
-    static element twin_mul(const element& base_a, const Fr& scalar_a, const element& base_b, const Fr& scalar_b);
-
-    static element triple_mul(const element& base_a,
-                              const Fr& scalar_a,
-                              const element& base_b,
-                              const Fr& scalar_b,
-                              const element& base_c,
-                              const Fr& scalar_c);
-
-    static element quad_mul(const element& base_a,
-                            const Fr& scalar_a,
-                            const element& base_b,
-                            const Fr& scalar_b,
-                            const element& base_c,
-                            const Fr& scalar_c,
-                            const element& base_d,
-                            const Fr& scalar_d);
-
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
                              const size_t max_num_bits = 0);
@@ -116,8 +97,7 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
                                    const std::vector<Fr>& small_scalars,
                                    const size_t max_num_small_bits);
 
-    static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar);
-    static std::vector<bool_t<Composer>> compute_naf_batch(const Fr& scalar, const size_t max_num_bits = 0);
+    static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar, const size_t max_num_bits = 0);
 
     Composer* get_context() const
     {
@@ -149,15 +129,14 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
     Fq x;
     Fq y;
 
+  private:
+    static std::pair<element, element> compute_offset_generators(const size_t num_rounds);
+
     struct twin_lookup_table {
         twin_lookup_table(const std::array<element, 2>& inputs)
         {
             T0 = inputs[1] + inputs[0];
             T1 = inputs[1] - inputs[0];
-            // T0.x.self_reduce();
-            // T0.y.self_reduce();
-            // T1.x.self_reduce();
-            // T1.y.self_reduce();
         }
 
         twin_lookup_table(const twin_lookup_table& other) = default;
@@ -194,10 +173,7 @@ template <typename Composer, class Fq, class Fr, class Params, class NativeGroup
             element_table[1] = inputs[2] + T1; // C + B - A
             element_table[2] = inputs[2] - T1; // C - B + A
             element_table[3] = inputs[2] - T0; // C - B - A
-            // for (size_t i = 0; i < 4; ++i) {
-            //     element_table[i].x.self_reduce();
-            //     element_table[i].y.self_reduce();
-            // }
+
             x_b0_table = field_t<Composer>::preprocess_two_bit_table(element_table[0].x.binary_basis_limbs[0].element,
                                                                      element_table[1].x.binary_basis_limbs[0].element,
                                                                      element_table[2].x.binary_basis_limbs[0].element,

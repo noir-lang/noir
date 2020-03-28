@@ -139,7 +139,7 @@ TEST(stdlib_bigfield, test_madd)
                                                                          bigfield::NUM_LIMB_BITS * 4))));
 
         uint64_t before = composer.get_num_gates();
-        bigfield d = a.madd(b, c);
+        bigfield d = a.madd(b, { c });
         uint64_t after = composer.get_num_gates();
         if (i == num_repetitions - 1) {
             std::cout << "num gates per mul = " << after - before << std::endl;

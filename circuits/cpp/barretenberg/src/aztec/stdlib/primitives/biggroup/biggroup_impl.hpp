@@ -52,27 +52,30 @@ element<C, Fq, Fr, T, G>& element<C, Fq, Fr, T, G>::operator=(element&& other)
 template <typename C, class Fq, class Fr, class T, class G>
 element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator+(const element& other) const
 {
-    const Fq lambda = (other.y - y) / (other.x - x);
-    const Fq x3 = lambda.madd(lambda, -(other.x + x)); // lambda.sqr() - (other.x + x);
-    const Fq y3 = lambda.madd(x - x3, -y);             // lambda * (x - x3) - y;
+    other.x.assert_is_not_equal(x);
+    const Fq lambda = Fq::div({ other.y, -y }, (other.x - x));
+    const Fq x3 = lambda.sqradd({ -other.x, -x });
+    const Fq y3 = lambda.madd(x - x3, { -y });
     return element(x3, y3);
 }
 
 template <typename C, class Fq, class Fr, class T, class G>
 element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator-(const element& other) const
 {
-    const Fq lambda = (other.y + y) / (other.x - x);
-    const Fq x_3 = lambda.madd(lambda, -(other.x + x)); // sqr() - (other.x + x);
-    const Fq y_3 = lambda.madd(x_3 - x, -y);            //  * (x_3 - x) - y;
+    other.x.assert_is_not_equal(x);
+    const Fq lambda = Fq::div({ other.y, y }, (other.x - x));
+    const Fq x_3 = lambda.sqradd({ -other.x, -x })
+    const Fq y_3 = lambda.madd(x_3 - x, { -y });
     return element(x_3, y_3);
 }
 
 template <typename C, class Fq, class Fr, class T, class G>
 element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::montgomery_ladder(const element& other) const
 {
-    const Fq lambda_1 = (other.y - y) / (other.x - x);
+    other.x.assert_is_not_equal(x);
+    const Fq lambda_1 = Fq::div({ other.y - y }, (other.x - x));
 
-    const Fq x_3 = lambda_1.madd(lambda_1, -(other.x + x)); // .sqr() - (other.x + x);
+    const Fq x_3 = lambda_1.sqradd({ -other.x, -x });
 
     /**
      * Compute D = A + B + A, where A = `this` and B = `other`
@@ -92,12 +95,25 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::montgomery_ladder(const eleme
      *  D.y = lambda_2 * (A.x - D.x) - A.y
      **/
 
-    const Fq minus_lambda_2 = lambda_1 + ((y + y) / (x_3 - x));
+    const Fq minus_lambda_2 = lambda_1 + (y + y) / (x_3 - x);
 
-    const Fq x_4 = minus_lambda_2.madd(minus_lambda_2, -(x + x_3)); // sqr() - (x + x_3);
+    const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
 
-    const Fq y_4 = minus_lambda_2.madd(x_4 - x, -y); // - y;
+    const Fq y_4 = minus_lambda_2.madd(x_4 - x, { -y });
     return element(x_4, y_4);
+}
+
+template <typename C, class Fq, class Fr, class T, class G>
+std::pair<element<C, Fq, Fr, T, G>, element<C, Fq, Fr, T, G>> element<C, Fq, Fr, T, G>::compute_offset_generators(
+    const size_t num_rounds)
+{
+    std::array<typename G::affine_element, 1> generator_array = G::template derive_generators<1>();
+    typename G::affine_element offset_generator_start(generator_array[0]);
+
+    uint256_t offset_multiplier = uint256_t(1) << uint256_t(num_rounds - 1);
+
+    typename G::affine_element offset_generator_end = typename G::element(offset_generator_start) * offset_multiplier;
+    return std::make_pair<element, element>(offset_generator_start, offset_generator_end);
 }
 
 template <typename C, class Fq, class Fr, class T, class G>
@@ -105,81 +121,18 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::dbl() const
 {
     Fq T0 = x.sqr();
     Fq T1 = T0 + T0 + T0;
-    if constexpr (T::has_a) {
-        Fq a(get_context(), uint256_t(T::a));
+    if constexpr (G::has_a) {
+        Fq a(get_context(), uint256_t(G::curve_a));
         T1 = T1 + a;
     }
     Fq lambda = T1 / (y + y);
-    Fq x_3 = lambda.sqr() - (x + x);
-    Fq y_3 = lambda * (x - x_3);
-    y_3 = y_3 - y;
+    Fq x_3 = lambda.sqradd({ -x, -x });
+    Fq y_3 = lambda.madd(x - x_3, { -y });
     return element(x_3, y_3);
 }
 
 template <typename C, class Fq, class Fr, class T, class G>
-std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf(const Fr& scalar)
-{
-    C* ctx = scalar.context;
-    uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
-    scalar_multiplier_512 += uint512_t(Fr::modulus);
-
-    const uint64_t default_offset_bits = Fr::modulus.get_msb() + 2; // 2^254
-    const uint512_t default_offset = uint512_t(1) << default_offset_bits;
-
-    while (scalar_multiplier_512 < default_offset) {
-        scalar_multiplier_512 += uint512_t(Fr::modulus);
-    }
-    scalar_multiplier_512 -= default_offset;
-    uint256_t scalar_multiplier = scalar_multiplier_512.lo;
-
-    const uint64_t num_rounds = Fr::modulus.get_msb() + 1;
-    std::vector<bool_t<C>> naf_entries(num_rounds + 1);
-
-    // if boolean is false => do NOT flip y
-    // if boolean is true => DO flip y
-    // first entry is skew. i.e. do we subtract one from the final result or not
-    if (scalar_multiplier.get_bit(0) == false) {
-        // add skew
-        naf_entries[num_rounds] = bool_t<C>(witness_t(ctx, true));
-        scalar_multiplier += uint256_t(1);
-    } else {
-        naf_entries[num_rounds] = bool_t<C>(witness_t(ctx, false));
-    }
-    for (size_t i = 0; i < num_rounds - 1; ++i) {
-        bool next_entry = scalar_multiplier.get_bit(i + 1);
-        // if the next entry is false, we need to flip the sign of the current entry. i.e. make negative
-        if (next_entry == false) {
-            naf_entries[num_rounds - i - 1] = bool_t<C>(witness_t(ctx, true)); // flip sign
-        } else {
-            naf_entries[num_rounds - i - 1] = bool_t<C>(witness_t(ctx, false)); // don't flip!
-        }
-    }
-    naf_entries[0] = bool_t<C>(witness_t(ctx, false)); // most significant entry is always true
-
-    // validate correctness of NAF
-    Fr accumulator(ctx, uint256_t(2));
-    for (size_t i = 0; i < num_rounds; ++i) {
-        accumulator = accumulator + accumulator;
-
-        Fr to_add(ctx, uint256_t(1));
-        accumulator = accumulator + to_add.conditional_negate(naf_entries[i]);
-    }
-
-    if constexpr (Fr::is_composite) {
-        Fr skew(ctx, uint256_t(0));
-        skew.binary_basis_limbs[0].element = field_t<C>(naf_entries[num_rounds]);
-        skew.prime_basis_limb = field_t<C>(naf_entries[num_rounds]);
-        accumulator = accumulator - skew;
-        // accumulator.assert_is_in_field();
-    } else {
-        accumulator -= field_t<C>(naf_entries[num_rounds]);
-    }
-    accumulator.assert_equal(scalar);
-    return naf_entries;
-}
-
-template <typename C, class Fq, class Fr, class T, class G>
-std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf_batch(const Fr& scalar, const size_t max_num_bits)
+std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf(const Fr& scalar, const size_t max_num_bits)
 {
     C* ctx = scalar.context;
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
@@ -207,186 +160,54 @@ std::vector<bool_t<C>> element<C, Fq, Fr, T, G>::compute_naf_batch(const Fr& sca
             naf_entries[num_rounds - i - 1] = bool_t<C>(witness_t(ctx, false)); // don't flip!
         }
     }
-    naf_entries[0] = bool_t<C>(witness_t(ctx, false)); // most significant entry is always true
+    naf_entries[0] = bool_t<C>(ctx, false); // most significant entry is always true
 
     // validate correctness of NAF
-    Fr accumulator(ctx, uint256_t(0));
-    for (size_t i = 0; i < num_rounds; ++i) {
-        accumulator = accumulator + accumulator;
+    if constexpr (!Fr::is_composite) {
+        Fr accumulator(ctx, uint256_t(0));
+        for (size_t i = 0; i < num_rounds; i += 2) {
+            accumulator = accumulator + accumulator;
+            accumulator = accumulator + accumulator;
+            Fr hi = Fr(1) - (static_cast<Fr>(naf_entries[i]) * Fr(2));
+            Fr lo = Fr(1) - (static_cast<Fr>(naf_entries[i + 1]) * Fr(2));
+            accumulator = accumulator.add_two(hi + hi, lo);
+        }
+        if ((num_rounds & 1UL) == 1UL) {
+            accumulator = accumulator + accumulator;
 
-        Fr to_add(ctx, uint256_t(1));
-        accumulator = accumulator + to_add.conditional_negate(naf_entries[i]);
-    }
-
-    if constexpr (Fr::is_composite) {
-        Fr skew(ctx, uint256_t(0));
-        skew.binary_basis_limbs[0].element = field_t<C>(naf_entries[num_rounds]);
-        skew.prime_basis_limb = field_t<C>(naf_entries[num_rounds]);
-        accumulator = accumulator - skew;
-        // accumulator.assert_is_in_field();
-    } else {
+            accumulator = accumulator + Fr(1) - (static_cast<Fr>(naf_entries[num_rounds - 1]) * Fr(2));
+        }
         accumulator -= field_t<C>(naf_entries[num_rounds]);
+        accumulator.assert_equal(scalar);
+    } else {
+        const auto reconstruct_half_naf = [ctx](bool_t<C>* nafs, const size_t half_round_length) {
+            field_t<C> negative_accumulator(0);
+            field_t<C> positive_accumulator(0);
+            for (size_t i = 0; i < half_round_length; ++i) {
+                negative_accumulator = negative_accumulator + negative_accumulator + field_t<C>(nafs[i]);
+                positive_accumulator =
+                    positive_accumulator + positive_accumulator + field_t<C>(1) - field_t<C>(nafs[i]);
+            }
+            return std::make_pair(positive_accumulator, negative_accumulator);
+        };
+        const size_t midpoint = num_rounds / 2;
+        auto hi_accumulators = reconstruct_half_naf(&naf_entries[0], midpoint);
+        auto lo_accumulators = reconstruct_half_naf(&naf_entries[midpoint], num_rounds - midpoint);
+
+        lo_accumulators.second = lo_accumulators.second + field_t<C>(naf_entries[num_rounds]);
+
+        Fr reconstructed_lo =
+            Fr(lo_accumulators.first, field_t<C>(ctx, 0)) - Fr(lo_accumulators.second, field_t<C>(ctx, 0));
+        Fr reconstructed_hi =
+            Fr(hi_accumulators.first, field_t<C>(ctx, 0)) - Fr(hi_accumulators.second, field_t<C>(ctx, 0));
+
+        Fr hi_shift(ctx, uint256_t(1) << uint256_t(num_rounds - midpoint));
+
+        Fr accumulator = reconstructed_lo + (reconstructed_hi * hi_shift);
+
+        accumulator.assert_equal(scalar);
     }
-    accumulator.assert_equal(scalar);
     return naf_entries;
-}
-
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::twin_mul(const element& base_a,
-                                                            const Fr& scalar_a,
-                                                            const element& base_b,
-                                                            const Fr& scalar_b)
-{
-
-    constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
-
-    std::vector<bool_t<C>> naf_entries_a = compute_naf(scalar_a);
-    std::vector<bool_t<C>> naf_entries_b = compute_naf(scalar_b);
-
-    // compute precomputed lookup table of:
-    // B + A
-    // B - A
-    // -B + A
-    // -B - A
-    twin_lookup_table table({ base_a, base_b });
-    // element T0 = base_b + base_a;
-    // element T1 = base_b - base_a;
-
-    element accumulator = table[0].dbl(); // (base_a.montgomery_ladder(base_b)) + base_b;
-    // bool_t<C> initial_selector = naf_entries_a[1] ^ naf_entries_b[1];
-    // Fq initial_x = T0.x.conditional_select(T1.x, initial_selector);
-    // Fq initial_y = T0.y.conditional_select(T1.y, initial_selector);
-    // accumulator = accumulator + element(initial_x, initial_y.conditional_negate(naf_entries_b[1]));
-
-    for (size_t i = 0; i < num_rounds; ++i) {
-        element to_add = table.get(naf_entries_a[i], naf_entries_b[i]);
-        accumulator = accumulator.montgomery_ladder(to_add);
-    }
-
-    element skew_output_a = accumulator - base_a;
-
-    Fq out_x = accumulator.x.conditional_select(skew_output_a.x, naf_entries_a[num_rounds]);
-    Fq out_y = accumulator.y.conditional_select(skew_output_a.y, naf_entries_a[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    element skew_output_b = accumulator - base_b;
-
-    out_x = accumulator.x.conditional_select(skew_output_b.x, naf_entries_b[num_rounds]);
-    out_y = accumulator.y.conditional_select(skew_output_b.y, naf_entries_b[num_rounds]);
-
-    out_x.self_reduce();
-    out_y.self_reduce();
-    return element(out_x, out_y);
-}
-
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::triple_mul(const element& base_a,
-                                                              const Fr& scalar_a,
-                                                              const element& base_b,
-                                                              const Fr& scalar_b,
-                                                              const element& base_c,
-                                                              const Fr& scalar_c)
-
-{
-    constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
-
-    std::vector<bool_t<C>> naf_entries_a = compute_naf(scalar_a);
-    std::vector<bool_t<C>> naf_entries_b = compute_naf(scalar_b);
-    std::vector<bool_t<C>> naf_entries_c = compute_naf(scalar_c);
-
-    triple_lookup_table element_table({ base_a, base_b, base_c });
-
-    element accumulator = element_table[0].dbl();
-
-    for (size_t i = 0; i < num_rounds; ++i) {
-        element to_add = element_table.get(naf_entries_a[i], naf_entries_b[i], naf_entries_c[i]);
-        accumulator = accumulator.montgomery_ladder(to_add);
-    }
-
-    element skew_output_a = accumulator - base_a;
-
-    Fq out_x = accumulator.x.conditional_select(skew_output_a.x, naf_entries_a[num_rounds]);
-    Fq out_y = accumulator.y.conditional_select(skew_output_a.y, naf_entries_a[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    element skew_output_b = accumulator - base_b;
-
-    out_x = accumulator.x.conditional_select(skew_output_b.x, naf_entries_b[num_rounds]);
-    out_y = accumulator.y.conditional_select(skew_output_b.y, naf_entries_b[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    element skew_output_c = accumulator - base_c;
-
-    out_x = accumulator.x.conditional_select(skew_output_c.x, naf_entries_c[num_rounds]);
-    out_y = accumulator.y.conditional_select(skew_output_c.y, naf_entries_c[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    accumulator.x.self_reduce();
-    accumulator.y.self_reduce();
-    return accumulator;
-}
-
-template <typename C, class Fq, class Fr, class T, class G>
-element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::quad_mul(const element& base_a,
-                                                            const Fr& scalar_a,
-                                                            const element& base_b,
-                                                            const Fr& scalar_b,
-                                                            const element& base_c,
-                                                            const Fr& scalar_c,
-                                                            const element& base_d,
-                                                            const Fr& scalar_d)
-
-{
-    constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
-
-    std::vector<bool_t<C>> naf_entries_a = compute_naf(scalar_a);
-    std::vector<bool_t<C>> naf_entries_b = compute_naf(scalar_b);
-    std::vector<bool_t<C>> naf_entries_c = compute_naf(scalar_c);
-    std::vector<bool_t<C>> naf_entries_d = compute_naf(scalar_d);
-
-    quad_lookup_table element_table({ base_a, base_b, base_c, base_d });
-
-    element accumulator = element_table[0].dbl();
-
-    for (size_t i = 0; i < num_rounds; ++i) {
-        element to_add = element_table.get(naf_entries_a[i], naf_entries_b[i], naf_entries_c[i], naf_entries_d[i]);
-        accumulator = accumulator.montgomery_ladder(to_add);
-    }
-
-    element skew_output_a = accumulator - base_a;
-
-    Fq out_x = accumulator.x.conditional_select(skew_output_a.x, naf_entries_a[num_rounds]);
-    Fq out_y = accumulator.y.conditional_select(skew_output_a.y, naf_entries_a[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    element skew_output_b = accumulator - base_b;
-
-    out_x = accumulator.x.conditional_select(skew_output_b.x, naf_entries_b[num_rounds]);
-    out_y = accumulator.y.conditional_select(skew_output_b.y, naf_entries_b[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    element skew_output_c = accumulator - base_c;
-
-    out_x = accumulator.x.conditional_select(skew_output_c.x, naf_entries_c[num_rounds]);
-    out_y = accumulator.y.conditional_select(skew_output_c.y, naf_entries_c[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-
-    element skew_output_d = accumulator - base_d;
-
-    out_x = accumulator.x.conditional_select(skew_output_d.x, naf_entries_d[num_rounds]);
-    out_y = accumulator.y.conditional_select(skew_output_d.y, naf_entries_d[num_rounds]);
-
-    accumulator = element(out_x, out_y);
-    accumulator.x.self_reduce();
-    accumulator.y.self_reduce();
-    return accumulator;
 }
 
 template <typename C, class Fq, class Fr, class T, class G>
@@ -403,18 +224,12 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::batch_mul(const std::vector<e
 
     std::vector<std::vector<bool_t<C>>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {
-        naf_entries.emplace_back(compute_naf_batch(scalars[i], max_num_bits));
+        naf_entries.emplace_back(compute_naf(scalars[i], max_num_bits));
     }
 
-    std::array<typename G::affine_element, 1> generator_array = G::template derive_generators<1>();
-    typename G::affine_element offset_generator_start(generator_array[0]);
+    const auto offset_generators = compute_offset_generators(num_rounds);
 
-    uint256_t offset_multiplier = uint256_t(1) << uint256_t(num_rounds - 1);
-
-    typename G::affine_element offset_generator_end = typename G::element(offset_generator_start) * offset_multiplier;
-
-    element accumulator(offset_generator_start);
-    accumulator = accumulator + point_table.get_initial_entry();
+    element accumulator = offset_generators.first + point_table.get_initial_entry();
 
     for (size_t i = 1; i < num_rounds; ++i) {
         std::vector<bool_t<C>> nafs;
@@ -424,8 +239,6 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::batch_mul(const std::vector<e
 
         element to_add = point_table.get(nafs);
         accumulator = accumulator.montgomery_ladder(to_add);
-        // accumulator = accumulator.dbl();
-        // accumulator = accumulator + to_add;
     }
 
     for (size_t i = 0; i < num_points; ++i) {
@@ -434,7 +247,7 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::batch_mul(const std::vector<e
         Fq out_y = accumulator.y.conditional_select(skew.y, naf_entries[i][num_rounds]);
         accumulator = element(out_x, out_y);
     }
-    accumulator = accumulator - element(offset_generator_end);
+    accumulator = accumulator - offset_generators.second;
 
     return accumulator;
 }
@@ -446,6 +259,13 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::mixed_batch_mul(const std::ve
                                                                    const std::vector<Fr>& small_scalars,
                                                                    const size_t max_num_small_bits)
 {
+    if constexpr (!G::USE_ENDOMORPHISM || Fr::is_composite) {
+        std::vector<element> points(big_points.begin(), big_points.end());
+        std::copy(small_points.begin(), small_points.end(), std::back_inserter(big_points));
+        std::vector<element> scalars(big_scalars.begin(), big_scalars.end());
+        std::copy(small_scalars.begin(), small_scalars.end(), std::back_inserter(big_scalars));
+        return batch_mul(points, scalars);
+    }
     const size_t num_big_points = big_points.size();
     const size_t num_small_points = small_points.size();
     C* ctx;
@@ -491,18 +311,12 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::mixed_batch_mul(const std::ve
     const size_t num_points = points.size();
     std::vector<std::vector<bool_t<C>>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {
-        naf_entries.emplace_back(compute_naf_batch(scalars[i], max_num_small_bits));
+        naf_entries.emplace_back(compute_naf(scalars[i], max_num_small_bits));
     }
 
-    std::array<typename G::affine_element, 1> generator_array = G::template derive_generators<1>();
-    typename G::affine_element offset_generator_start(generator_array[0]);
+    const auto offset_generators = compute_offset_generators(num_rounds);
 
-    uint256_t offset_multiplier = uint256_t(1) << uint256_t(num_rounds - 1);
-
-    typename G::affine_element offset_generator_end = typename G::element(offset_generator_start) * offset_multiplier;
-
-    element accumulator(offset_generator_start);
-    accumulator = accumulator + point_table.get_initial_entry();
+    element accumulator = offset_generators.first + point_table.get_initial_entry();
 
     for (size_t i = 1; i < num_rounds; ++i) {
         std::vector<bool_t<C>> nafs;
@@ -521,7 +335,7 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::mixed_batch_mul(const std::ve
         accumulator = element(out_x, out_y);
     }
 
-    accumulator = accumulator - element(offset_generator_end);
+    accumulator = accumulator - offset_generators.second;
     return accumulator;
 }
 
@@ -555,26 +369,11 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator*(const Fr& scalar) c
 
     std::vector<bool_t<C>> naf_entries = compute_naf(scalar);
 
-    uint512_t reconstructed_positive(0);
-    uint512_t reconstructed_negative(0);
-    for (size_t i = 0; i < num_rounds; ++i) {
-        reconstructed_positive += reconstructed_positive;
-        reconstructed_negative += reconstructed_negative;
+    const auto offset_generators = compute_offset_generators(num_rounds);
 
-        if (naf_entries[i].get_value()) {
-            reconstructed_negative += uint512_t(1);
-        } else {
-            reconstructed_positive += uint512_t(1);
-        }
-    }
-    uint512_t reconstructed = reconstructed_positive - reconstructed_negative;
-    if (naf_entries[num_rounds].get_value()) {
-        reconstructed -= uint512_t(1);
-    }
+    element accumulator = *this + offset_generators.first;
 
-    element accumulator = (*this).dbl();
-
-    for (size_t i = 0; i < num_rounds; ++i) {
+    for (size_t i = 1; i < num_rounds; ++i) {
         bool_t<C> predicate = naf_entries[i];
         bigfield y_test = y.conditional_negate(predicate);
         element to_add(x, y_test);
@@ -586,9 +385,7 @@ element<C, Fq, Fr, T, G> element<C, Fq, Fr, T, G>::operator*(const Fr& scalar) c
     Fq out_x = accumulator.x.conditional_select(skew_output.x, naf_entries[num_rounds]);
     Fq out_y = accumulator.y.conditional_select(skew_output.y, naf_entries[num_rounds]);
 
-    out_x.self_reduce();
-    out_y.self_reduce();
-    return element(out_x, out_y);
+    return element(out_x, out_y) - element(offset_generators.second);
 }
 
 } // namespace stdlib

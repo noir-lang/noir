@@ -132,13 +132,20 @@ template <typename Composer, typename T> class bigfield {
     bigfield operator-() const { return bigfield(get_context(), uint256_t(0)) - *this; }
 
     bigfield sqr() const;
-    bigfield madd(const bigfield& to_mul, const bigfield& to_add) const;
+    bigfield madd(const bigfield& to_mul, const std::vector<bigfield>& to_add) const;
+    bigfield sqradd(const std::vector<bigfield>& to_add) const;
+    static bigfield div(const std::vector<bigfield>& numerators, const bigfield& denominator);
 
-    static void evaluate_madd(const bigfield& left,
-                              const bigfield& right_mul,
-                              const bigfield& right_add,
-                              const bigfield& quotient,
-                              const bigfield& remainder);
+    static void evaluate_multiply_add(const bigfield& left,
+                                      const bigfield& right_mul,
+                                      const std::vector<bigfield>& to_add,
+                                      const bigfield& quotient,
+                                      const std::vector<bigfield>& remainders);
+
+    static void evaluate_square_add(const bigfield& left,
+                                    const std::vector<bigfield>& to_add,
+                                    const bigfield& quotient,
+                                    const bigfield& remainder);
 
     static void evaluate_product(const bigfield& left,
                                  const bigfield& right,
@@ -148,6 +155,7 @@ template <typename Composer, typename T> class bigfield {
     static void evaluate_square(const bigfield& left, const bigfield& quotient, const bigfield& remainder);
 
     void assert_is_in_field() const;
+    void assert_is_not_equal(const bigfield& other) const;
 
     uint512_t get_value() const;
     uint512_t get_maximum_value() const;

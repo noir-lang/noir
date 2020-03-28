@@ -268,7 +268,7 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     ComposerContext* ctx =
         (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
-    if ((to_mul.witness_index == UINT32_MAX) || (to_add.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
+    if ((to_mul.witness_index == UINT32_MAX) && (to_add.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
         return ((*this) * to_mul + to_add).normalize();
     }
 
@@ -279,9 +279,11 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     barretenberg::fr q_3 = to_add.multiplicative_constant;
     barretenberg::fr q_c = additive_constant * to_mul.additive_constant + to_add.additive_constant;
 
-    barretenberg::fr a = ctx->get_variable(witness_index);
-    barretenberg::fr b = ctx->get_variable(to_mul.witness_index);
-    barretenberg::fr c = ctx->get_variable(to_add.witness_index);
+    barretenberg::fr a = witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(witness_index);
+    barretenberg::fr b =
+        to_mul.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(to_mul.witness_index);
+    barretenberg::fr c =
+        to_add.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(to_add.witness_index);
 
     barretenberg::fr out = a * b * q_m + a * q_1 + b * q_2 + c * q_3 + q_c;
 
@@ -289,9 +291,9 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index,
-        to_mul.witness_index,
-        to_add.witness_index,
+        witness_index == UINT32_MAX ? ctx->zero_idx : witness_index,
+        to_mul.witness_index == UINT32_MAX ? ctx->zero_idx : to_mul.witness_index,
+        to_add.witness_index == UINT32_MAX ? ctx->zero_idx : to_add.witness_index,
         result.witness_index,
         q_m,
         q_1,
@@ -309,18 +311,19 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
 {
     ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
-    if ((add_a.witness_index == UINT32_MAX) || (add_b.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
+    if ((add_a.witness_index == UINT32_MAX) && (add_b.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
         return ((*this) + add_a + add_b).normalize();
     }
-
     barretenberg::fr q_1 = multiplicative_constant;
     barretenberg::fr q_2 = add_a.multiplicative_constant;
     barretenberg::fr q_3 = add_b.multiplicative_constant;
     barretenberg::fr q_c = additive_constant + add_a.additive_constant + add_b.additive_constant;
 
-    barretenberg::fr a = ctx->get_variable(witness_index);
-    barretenberg::fr b = ctx->get_variable(add_a.witness_index);
-    barretenberg::fr c = ctx->get_variable(add_b.witness_index);
+    barretenberg::fr a = witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(witness_index);
+    barretenberg::fr b =
+        add_a.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(add_a.witness_index);
+    barretenberg::fr c =
+        add_b.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(add_b.witness_index);
 
     barretenberg::fr out = a * q_1 + b * q_2 + c * q_3 + q_c;
 
@@ -328,9 +331,9 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index,
-        add_a.witness_index,
-        add_b.witness_index,
+        witness_index == UINT32_MAX ? ctx->zero_idx : witness_index,
+        add_a.witness_index == UINT32_MAX ? ctx->zero_idx : add_a.witness_index,
+        add_b.witness_index == UINT32_MAX ? ctx->zero_idx : add_b.witness_index,
         result.witness_index,
         barretenberg::fr(0),
         q_1,
@@ -366,6 +369,30 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
 
     context->create_add_gate(gate_coefficients);
     return result;
+}
+
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero()
+{
+    if (witness_index == UINT32_MAX) {
+        return;
+    }
+    ComposerContext* ctx = context;
+    barretenberg::fr inverse_value = get_value().invert();
+
+    field_t<ComposerContext> inverse(witness_t<ComposerContext>(ctx, inverse_value));
+
+    // (a * mul_const + add_const) * b - 1 = 0
+    const waffle::poly_triple gate_coefficients{
+        witness_index,           // input value
+        inverse.witness_index,   // inverse
+        ctx->zero_idx,           // no output
+        multiplicative_constant, // a * b * mul_const
+        barretenberg::fr(0),     // a * 0
+        additive_constant,       // b * mul_const
+        barretenberg::fr(0),     // c * 0
+        barretenberg::fr(-1),    // -1
+    };
+    context->create_poly_gate(gate_coefficients);
 }
 
 template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero()

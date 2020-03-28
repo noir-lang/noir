@@ -28,13 +28,15 @@ namespace stdlib {
 namespace bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FrParams> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params, barretenberg::g1> g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params, barretenberg::g1>
+    g1;
 
 } // namespace bn254
 namespace alt_bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::field_t<typename waffle::TurboComposer> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params, barretenberg::g1> g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::Bn254G1Params, barretenberg::g1>
+    g1;
 } // namespace alt_bn254
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
@@ -304,7 +306,7 @@ TEST(stdlib_biggroup, test_twin_mul)
         stdlib::bn254::g1 P_b = convert_inputs(&composer, input_b);
         stdlib::bn254::fr x_b = convert_inputs(&composer, scalar_b);
 
-        stdlib::bn254::g1 c = stdlib::bn254::g1::twin_mul(P_a, x_a, P_b, x_b);
+        stdlib::bn254::g1 c = stdlib::bn254::g1::batch_mul({ P_a, P_b }, { x_a, x_b });
         barretenberg::g1::element input_c = (barretenberg::g1::element(input_a) * scalar_a);
         barretenberg::g1::element input_d = (barretenberg::g1::element(input_b) * scalar_b);
         barretenberg::g1::affine_element expected(input_c + input_d);
@@ -348,7 +350,7 @@ TEST(stdlib_biggroup, test_triple_mul)
         stdlib::bn254::g1 P_c = convert_inputs(&composer, input_c);
         stdlib::bn254::fr x_c = convert_inputs(&composer, scalar_c);
 
-        stdlib::bn254::g1 c = stdlib::bn254::g1::triple_mul(P_a, x_a, P_b, x_b, P_c, x_c);
+        stdlib::bn254::g1 c = stdlib::bn254::g1::batch_mul({ P_a, P_b, P_c }, { x_a, x_b, x_c });
         barretenberg::g1::element input_e = (barretenberg::g1::element(input_a) * scalar_a);
         barretenberg::g1::element input_f = (barretenberg::g1::element(input_b) * scalar_b);
         barretenberg::g1::element input_g = (barretenberg::g1::element(input_c) * scalar_c);
@@ -398,7 +400,7 @@ TEST(stdlib_biggroup, test_quad_mul)
         stdlib::bn254::g1 P_d = convert_inputs(&composer, input_d);
         stdlib::bn254::fr x_d = convert_inputs(&composer, scalar_d);
 
-        stdlib::bn254::g1 c = stdlib::bn254::g1::quad_mul(P_a, x_a, P_b, x_b, P_c, x_c, P_d, x_d);
+        stdlib::bn254::g1 c = stdlib::bn254::g1::batch_mul({ P_a, P_b, P_c, P_d }, { x_a, x_b, x_c, x_d });
         barretenberg::g1::element input_e = (barretenberg::g1::element(input_a) * scalar_a);
         barretenberg::g1::element input_f = (barretenberg::g1::element(input_b) * scalar_b);
         barretenberg::g1::element input_g = (barretenberg::g1::element(input_c) * scalar_c);
@@ -449,7 +451,7 @@ TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
         stdlib::alt_bn254::g1 P_d = convert_inputs_alt_bn254(&composer, input_d);
         stdlib::alt_bn254::fr x_d = witness_t(&composer, scalar_d);
 
-        stdlib::alt_bn254::g1 c = stdlib::alt_bn254::g1::quad_mul(P_a, x_a, P_b, x_b, P_c, x_c, P_d, x_d);
+        stdlib::alt_bn254::g1 c = stdlib::alt_bn254::g1::batch_mul({ P_a, P_b, P_c, P_d }, { x_a, x_b, x_c, x_d });
         barretenberg::g1::element input_e = (barretenberg::g1::element(input_a) * scalar_a);
         barretenberg::g1::element input_f = (barretenberg::g1::element(input_b) * scalar_b);
         barretenberg::g1::element input_g = (barretenberg::g1::element(input_c) * scalar_c);
@@ -538,7 +540,7 @@ TEST(stdlib_biggroup, test_one_secp256r1)
 
 TEST(stdlib_biggroup, test_batch_mul)
 {
-    const size_t num_points = 21;
+    const size_t num_points = 5;
     waffle::TurboComposer composer = waffle::TurboComposer();
     std::vector<barretenberg::g1::affine_element> points;
     std::vector<barretenberg::fr> scalars;

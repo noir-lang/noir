@@ -15,6 +15,7 @@ struct Bn254G2Params {
                                 { 0xafb4737da84c6140, 0x6043dd5a5802d8c4, 0x09e950fc52a02f86, 0x14fef0833aea7b6b } };
     static constexpr fq2 one_y{ { 0x619dfa9d886be9f6, 0xfe7fd297f59e9b78, 0xff9e1a62231b7dfe, 0x28fd7eebae9e4206 },
                                 { 0x64095b56c71856ee, 0xdc57f922327d3cbb, 0x55f935be33351076, 0x0da4a0e693fd6482 } };
+    static constexpr fq2 a = fq2::zero();
     static constexpr fq2 b = fq2::twist_coeff_b();
 };
 
