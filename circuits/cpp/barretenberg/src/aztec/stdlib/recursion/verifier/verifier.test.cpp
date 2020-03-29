@@ -10,6 +10,9 @@
 #include <ecc/curves/bn254/fq12.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
 
+#include "../../hash/pedersen/pedersen.hpp"
+#include "../../hash/blake2s/blake2s.hpp"
+
 #include "program_settings.hpp"
 
 using namespace plonk;
@@ -24,19 +27,30 @@ void create_inner_circuit(waffle::TurboComposer& composer)
         a = (a * b) + b + a;
         a = a.madd(b, a);
     }
+    stdlib::pedersen::compress(a, b);
+    byte_array_ct to_hash(&composer, "nonsense test data");
+    stdlib::blake2s(to_hash);
+
+    barretenberg::fr bigfield_data = fr::random_element();
+    barretenberg::fr bigfield_data_a{ bigfield_data.data[0], bigfield_data.data[1], 0, 0 };
+    barretenberg::fr bigfield_data_b{ bigfield_data.data[2], bigfield_data.data[3], 0, 0 };
+
+    fq_ct big_a(field_ct(witness_ct(&composer, bigfield_data_a.to_montgomery_form())),
+                field_ct(witness_ct(&composer, 0)));
+    fq_ct big_b(field_ct(witness_ct(&composer, bigfield_data_b.to_montgomery_form())),
+                field_ct(witness_ct(&composer, 0)));
+    big_a* big_b;
 }
 
 // Ok, so we need to create a recursive circuit...
 stdlib::recursion::recursion_output<group_ct> create_outer_circuit(waffle::TurboComposer& inner_composer,
                                                                    waffle::TurboComposer& outer_composer)
 {
-    // (ノಠ益ಠ)ノ彡┻━┻
     waffle::UnrolledTurboProver prover = inner_composer.create_unrolled_prover();
 
     std::shared_ptr<waffle::verification_key> verification_key = inner_composer.compute_verification_key();
 
     waffle::plonk_proof recursive_proof = prover.construct_proof();
-
     transcript::Manifest recursive_manifest =
         waffle::TurboComposer::create_unrolled_manifest(prover.key->num_public_inputs);
 

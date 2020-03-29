@@ -19,7 +19,7 @@ bigfield<C, T>::bigfield(C* parent_context)
                           Limb(barretenberg::fr(0)),
                           Limb(barretenberg::fr(0)),
                           Limb(barretenberg::fr(0)) }
-    , prime_basis_limb(context)
+    , prime_basis_limb(context, 0)
 {}
 
 template <typename C, typename T>
@@ -267,7 +267,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator-(const
     result.binary_basis_limbs[2].maximum_value = binary_basis_limbs[2].maximum_value + t2 + to_add_2;
     result.binary_basis_limbs[3].maximum_value = binary_basis_limbs[3].maximum_value - t3 + to_add_3;
 
-    uint512_t constant_to_add_mod_p = constant_to_add % prime_basis.modulus;
+    uint512_t constant_to_add_mod_p = (constant_to_add) % prime_basis.modulus;
     field_t prime_basis_to_add(ctx, barretenberg::fr(constant_to_add_mod_p.lo));
     result.prime_basis_limb = prime_basis_limb + prime_basis_to_add - other.prime_basis_limb;
     return result;
@@ -408,7 +408,6 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
             witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     };
-
     evaluate_square_add(*this, to_add, quotient, remainder);
     return remainder;
 }
@@ -470,8 +469,8 @@ bigfield<C, T> bigfield<C, T>::div(const std::vector<bigfield>& numerators, cons
     bool numerator_constant = true;
     for (const auto& numerator_element : numerators) {
         ctx = (ctx == nullptr) ? numerator_element.get_context() : ctx;
-        numerator_values += numerator_element.get_value();
         numerator_element.reduction_check();
+        numerator_values += numerator_element.get_value();
         numerator_constant = numerator_constant && (numerator_element.is_constant());
     }
 
@@ -801,7 +800,7 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
     const uint256_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
 
     uint256_t max_a0(0);
-    uint256_t max_a1(1);
+    uint256_t max_a1(0);
     for (size_t i = 0; i < to_add.size(); ++i) {
         max_a0 += to_add[i].binary_basis_limbs[0].maximum_value +
                   (to_add[i].binary_basis_limbs[1].maximum_value << NUM_LIMB_BITS);

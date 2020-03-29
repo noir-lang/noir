@@ -505,6 +505,12 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
         bool has_singleton;
     };
 };
+
+template <typename C, typename Fq, typename Fr, typename G>
+inline std::ostream& operator<<(std::ostream& os, element<C, Fq, Fr, G> const& v)
+{
+    return os << "{ " << v.x << " , " << v.y << " }";
+}
 } // namespace stdlib
 } // namespace plonk
 

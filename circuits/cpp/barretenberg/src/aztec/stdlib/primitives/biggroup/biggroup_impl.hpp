@@ -277,10 +277,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
 
     std::vector<element> points;
     std::vector<Fr> scalars;
-    for (size_t i = 0; i < num_small_points; ++i) {
-        points.push_back(small_points[i]);
-        scalars.push_back(small_scalars[i]);
-    }
+    std::vector<element> endo_points;
+    std::vector<Fr> endo_scalars;
     for (size_t i = 0; i < num_big_points; ++i) {
         Fr scalar = big_scalars[i];
         barretenberg::fr k = scalar.get_value();
@@ -292,14 +290,20 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
         ctx->assert_equal((scalar_k1 - scalar_k2 * barretenberg::fr::beta()).witness_index,
                           scalar.normalize().witness_index);
         scalars.push_back(scalar_k1);
-        scalars.push_back(scalar_k2);
+        endo_scalars.push_back(scalar_k2);
         element point = big_points[i];
         points.push_back(point);
         point.y = -point.y;
         point.x = point.x * Fq(ctx, uint256_t(barretenberg::fq::beta()));
         point.y.self_reduce();
-        points.push_back(point);
+        endo_points.push_back(point);
     }
+    for (size_t i = 0; i < num_small_points; ++i) {
+        points.push_back(small_points[i]);
+        scalars.push_back(small_scalars[i]);
+    }
+    std::copy(endo_points.begin(), endo_points.end(), std::back_inserter(points));
+    std::copy(endo_scalars.begin(), endo_scalars.end(), std::back_inserter(scalars));
 
     ASSERT(big_scalars.size() == num_big_points);
     ASSERT(small_scalars.size() == num_small_points);
@@ -312,7 +316,6 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
     for (size_t i = 0; i < num_points; ++i) {
         naf_entries.emplace_back(compute_naf(scalars[i], max_num_small_bits));
     }
-
     const auto offset_generators = compute_offset_generators(num_rounds);
 
     element accumulator = offset_generators.first + point_table.get_initial_entry();
