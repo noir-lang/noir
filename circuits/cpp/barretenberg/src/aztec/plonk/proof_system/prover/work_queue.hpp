@@ -11,7 +11,7 @@
 namespace waffle {
 class work_queue {
   public:
-    enum WorkType { FFT, IFFT, PAIRED_IFFT_FFT, SCALAR_MULTIPLICATION };
+    enum WorkType { FFT, IFFT, SCALAR_MULTIPLICATION };
 
     struct work_item {
         WorkType work_type;
@@ -52,19 +52,8 @@ class work_queue {
                 transcript->add_element(item.tag, result.to_buffer());
                 break;
             }
-            // similar in cost to fft
-            case WorkType::PAIRED_IFFT_FFT: {
-                barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
-                barretenberg::polynomial& wire = witness->wires.at(item.tag);
-                wire.ifft(key->small_domain);
-                barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], key->n, 4 * key->n + 4);
-                wire_fft.coset_fft(key->large_domain);
-                wire_fft.add_lagrange_base_coefficient(wire_fft[0]);
-                wire_fft.add_lagrange_base_coefficient(wire_fft[1]);
-                wire_fft.add_lagrange_base_coefficient(wire_fft[2]);
-                wire_fft.add_lagrange_base_coefficient(wire_fft[3]);
-                break;
-            }
+            // About 20% of the cost of a scalar multiplication. For WASM, might be a bit more expensive
+            // due to the need to copy memory between web workers
             case WorkType::FFT: {
                 barretenberg::polynomial& wire = witness->wires.at(item.tag);
                 barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
