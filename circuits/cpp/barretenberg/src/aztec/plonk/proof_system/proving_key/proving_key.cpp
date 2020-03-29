@@ -63,6 +63,9 @@ proving_key::proving_key(const size_t num_gates,
     memset((void*)&quotient_mid[0], 0x00, sizeof(barretenberg::fr) * 2 * n);
     memset((void*)&quotient_large[0], 0x00, sizeof(barretenberg::fr) * 4 * n);
 
+    for (size_t i = 0; i < 5; ++i) {
+        round_multiplications.push_back(std::vector<prover_multiplication_state>());
+    }
     // size_t memory = opening_poly.get_max_size() * 32;
     // memory += (linear_poly.get_max_size() * 32);
     // memory += (shifted_opening_poly.get_max_size() * 32);
@@ -125,6 +128,7 @@ proving_key::proving_key(const proving_key& other)
     , shifted_opening_poly(other.shifted_opening_poly)
     , linear_poly(other.linear_poly)
     , pippenger_runtime_state(n)
+    , round_multiplications(other.round_multiplications.begin(), other.round_multiplications.end())
 {}
 
 proving_key::proving_key(proving_key&& other)
@@ -147,6 +151,8 @@ proving_key::proving_key(proving_key&& other)
     , shifted_opening_poly(std::move(other.shifted_opening_poly))
     , linear_poly(std::move(other.linear_poly))
     , pippenger_runtime_state(std::move(other.pippenger_runtime_state))
+    , round_multiplications(std::move(other.round_multiplications))
+
 {}
 
 proving_key& proving_key::operator=(proving_key&& other)
@@ -170,6 +176,7 @@ proving_key& proving_key::operator=(proving_key&& other)
     shifted_opening_poly = std::move(other.shifted_opening_poly);
     linear_poly = std::move(other.linear_poly);
     pippenger_runtime_state = std::move(other.pippenger_runtime_state);
+    round_multiplications = std::move(other.round_multiplications);
     return *this;
 }
 } // namespace waffle

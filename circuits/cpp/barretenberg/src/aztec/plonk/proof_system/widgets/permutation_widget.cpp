@@ -176,12 +176,13 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
         aligned_free(accumulators[(k - 1) * 2 + 1]);
     }
 
-    g1::element Z = barretenberg::scalar_multiplication::pippenger_unsafe(
-        z.get_coefficients(), key->reference_string->get_monomials(), n, key->pippenger_runtime_state);
-    g1::affine_element Z_affine;
-    Z_affine = g1::affine_element(Z);
-
-    transcript.add_element("Z", Z_affine.to_buffer());
+    prover_multiplication_state mul_state{
+        "Z",
+        z.get_coefficients(),
+        key->reference_string->get_monomials(),
+        n,
+    };
+    key->round_multiplications[1].push_back(mul_state);
 }
 
 template <size_t program_width>
