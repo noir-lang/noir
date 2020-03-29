@@ -44,24 +44,26 @@ ProverPermutationWidget<program_width>& ProverPermutationWidget<program_width>::
 
 template <size_t program_width>
 void ProverPermutationWidget<program_width>::compute_round_commitments(transcript::Transcript& transcript,
-                                                                       const size_t round_number)
+                                                                       const size_t round_number,
+                                                                       work_queue& queue)
 {
     if (round_number != 2) {
         return;
     }
     const size_t n = key->n;
-    polynomial& z = key->z;
+    polynomial& z = witness->wires.at("z");
+    polynomial& z_fft = key->wire_ffts.at("z_fft");
 
     fr* accumulators[(program_width == 1) ? 3 : program_width * 2];
     accumulators[0] = &z[1];
-    accumulators[1] = &key->z_fft[0];
-    accumulators[2] = &key->z_fft[n];
+    accumulators[1] = &z_fft[0];
+    accumulators[2] = &z_fft[n];
 
     if constexpr (program_width * 2 > 2) {
-        accumulators[3] = &key->z_fft[n + n];
+        accumulators[3] = &z_fft[n + n];
     }
     if constexpr (program_width > 2) {
-        accumulators[4] = &key->z_fft[n + n + n];
+        accumulators[4] = &z_fft[n + n + n];
         accumulators[5] = &key->opening_poly[0];
     }
     if constexpr (program_width > 3) {
@@ -176,23 +178,24 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
         aligned_free(accumulators[(k - 1) * 2 + 1]);
     }
 
-    prover_multiplication_state mul_state{
-        "Z",
+    queue.add_to_queue({
+        work_queue::WorkType::SCALAR_MULTIPLICATION,
         z.get_coefficients(),
-        key->reference_string->get_monomials(),
-        n,
-    };
-    key->round_multiplications[1].push_back(mul_state);
+        "Z",
+    });
+    queue.add_to_queue({
+        work_queue::WorkType::FFT,
+        nullptr,
+        "z",
+    });
 }
 
 template <size_t program_width>
 fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const fr& alpha_base,
                                                                          const transcript::Transcript& transcript)
 {
-    polynomial& z_fft = key->z_fft;
+    polynomial& z_fft = key->wire_ffts.at("z_fft");
 
-    // fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-    fr neg_alpha = -alpha_base;
     fr alpha_squared = alpha_base.sqr();
     fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
@@ -215,20 +218,6 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
     // \gamma).Z(X).alpha Once we divide by the vanishing polynomial, this will be a degree 3n polynomial.
 
-    // Multiply Z(X) by \alpha^2 when performing fft transform - we get this for free if we roll \alpha^2 into the
-    // multiplicative generator
-    z_fft.coset_fft_with_constant(key->large_domain, alpha_base);
-
-    // We actually want Z(X.w) as well as Z(X)! But that's easy to get. z_fft contains Z(X) evaluated at the 4n'th roots
-    // of unity. So z_fft(i) = Z(w^{i/4}) i.e. z_fft(i + 4) = Z(w^{i/4}.w)
-    // => if virtual term 'foo' contains a 4n fft of Z(X.w), then z_fft(i + 4) = foo(i)
-    // So all we need to do, to get Z(X.w) is to offset indexes to z_fft by 4.
-    // If `i >= 4n  4`, we need to wrap around to the start - so just append the 4 starting elements to the end of z_fft
-    z_fft.add_lagrange_base_coefficient(z_fft[0]);
-    z_fft.add_lagrange_base_coefficient(z_fft[1]);
-    z_fft.add_lagrange_base_coefficient(z_fft[2]);
-    z_fft.add_lagrange_base_coefficient(z_fft[3]);
-
     std::array<fr*, program_width> wire_ffts;
     std::array<fr*, program_width> sigma_ffts;
 
@@ -244,7 +233,6 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
         barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
 
     fr public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->small_domain.root);
-    public_input_delta *= alpha_base;
 
     polynomial& quotient_large = key->quotient_large;
     // Step 4: Set the quotient polynomial to be equal to
@@ -328,14 +316,14 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
             // We need to verify that Z(X) equals `1` when evaluated at the first element of our subgroup H
             // i.e. Z(X) starts at 1 and ends at 1
             // The `alpha^4` term is so that we can add this as a linearly independent term in our quotient polynomial
-            T0 = z_fft[i] + neg_alpha; // T0 = (Z(X) - 1).(\alpha^2)
-            T0 *= alpha_squared;       // T0 = (Z(X) - 1).(\alpha^4)
-            T0 *= l_1[i];              // T0 = (Z(X) - 1).(\alpha^2).L1(X)
+            T0 = z_fft[i] - fr(1); // T0 = (Z(X) - 1).(\alpha^2)
+            T0 *= alpha_squared;   // T0 = (Z(X) - 1).(\alpha^4)
+            T0 *= l_1[i];          // T0 = (Z(X) - 1).(\alpha^2).L1(X)
             numerator += T0;
 
             // Combine into quotient polynomial
             T0 = numerator - denominator;
-            quotient_large[i] = T0;
+            quotient_large[i] = T0 * alpha_base;
 
             // Update our working root of unity
             work_root *= key->large_domain.root;
@@ -349,7 +337,7 @@ fr ProverPermutationWidget<program_width>::compute_linear_contribution(const fr&
                                                                        const transcript::Transcript& transcript,
                                                                        polynomial& r)
 {
-    polynomial& z = key->z;
+    polynomial& z = witness->wires.at("z");
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
     barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
@@ -409,7 +397,7 @@ size_t ProverPermutationWidget<program_width>::compute_opening_poly_contribution
     barretenberg::fr* shifted_opening_poly,
     const bool use_linearisation)
 {
-    polynomial& z = key->z;
+    polynomial& z = witness->wires.at("z");
 
     const size_t num_sigma_evaluations = use_linearisation ? program_width - 1 : program_width;
     std::vector<fr*> sigmas(num_sigma_evaluations);
@@ -459,7 +447,7 @@ void ProverPermutationWidget<program_width>::compute_transcript_elements(transcr
     const size_t n = key->n;
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
     fr shifted_z = z_challenge * key->small_domain.root;
-    polynomial& z = key->z;
+    polynomial& z = witness->wires.at("z");
 
     for (size_t i = 0; i < program_width - 1; ++i) {
         std::string permutation_key = "sigma_" + std::to_string(i + 1);

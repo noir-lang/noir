@@ -2,6 +2,7 @@
 #include "../../transcript/transcript_wrappers.hpp"
 #include "../types/program_witness.hpp"
 #include "../verification_key/verification_key.hpp"
+#include "../prover/work_queue.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace transcript {
@@ -92,7 +93,7 @@ class ProverBaseWidget {
 
     virtual ~ProverBaseWidget() {}
 
-    virtual void compute_round_commitments(transcript::Transcript&, const size_t){};
+    virtual void compute_round_commitments(transcript::Transcript&, const size_t, work_queue&){};
 
     virtual barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                            const transcript::Transcript& transcript) = 0;

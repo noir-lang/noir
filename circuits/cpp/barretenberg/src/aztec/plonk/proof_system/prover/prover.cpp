@@ -18,7 +18,12 @@ ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key,
     , transcript(input_manifest, settings::hash_type, settings::num_challenge_bytes)
     , key(input_key)
     , witness(input_witness)
-{}
+    , queue(key.get(), witness.get(), &transcript)
+{
+    if (witness->wires.count("z") == 0) {
+        witness->wires.insert({ "z", polynomial(n, n) });
+    }
+}
 
 template <typename settings>
 ProverBase<settings>::ProverBase(ProverBase<settings>&& other)
@@ -26,6 +31,7 @@ ProverBase<settings>::ProverBase(ProverBase<settings>&& other)
     , transcript(other.transcript)
     , key(std::move(other.key))
     , witness(std::move(other.witness))
+    , queue(key.get(), witness.get(), &transcript)
 {
     for (size_t i = 0; i < other.widgets.size(); ++i) {
         widgets.emplace_back(std::move(other.widgets[i]));
@@ -44,51 +50,19 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
     transcript = other.transcript;
     key = std::move(other.key);
     witness = std::move(other.witness);
+    queue = work_queue(key.get(), witness.get(), &transcript);
     return *this;
-}
-
-template <typename settings> void ProverBase<settings>::compute_wire_coefficients()
-{
-    for (size_t i = 0; i < settings::program_width; ++i) {
-        std::string wire_tag = "w_" + std::to_string(i + 1);
-        barretenberg::polynomial& wire = witness->wires.at(wire_tag);
-        barretenberg::polynomial& wire_fft = key->wire_ffts.at(wire_tag + "_fft");
-        barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
-        wire.ifft(key->small_domain);
-    }
-}
-
-template <typename settings>
-void ProverBase<settings>::receive_round_commitments(const std::vector<std::string>& tags,
-                                                     const std::vector<g1::affine_element>& commitments)
-{
-    for (size_t i = 0; i < tags.size(); ++i) {
-        transcript.add_element(tags[i], commitments[i].to_buffer());
-    }
-}
-
-template <typename settings> void ProverBase<settings>::compute_round_commitments(const size_t round_index)
-{
-    auto multiplication_states = key->round_multiplications[round_index - 1];
-
-    for (auto mul_state : multiplication_states) {
-        barretenberg::g1::affine_element result(barretenberg::scalar_multiplication::pippenger_unsafe(
-            mul_state.scalars, mul_state.points, mul_state.num_multiplications, key->pippenger_runtime_state));
-        transcript.add_element(mul_state.tag, result.to_buffer());
-    }
 }
 
 template <typename settings> void ProverBase<settings>::compute_wire_pre_commitments()
 {
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        prover_multiplication_state mul_state{
-            "W_" + std::to_string(i + 1),
+        queue.add_to_queue({
+            work_queue::WorkType::SCALAR_MULTIPLICATION,
             witness->wires.at(wire_tag).get_coefficients(),
-            key->reference_string->get_monomials(),
-            n,
-        };
-        key->round_multiplications[0].push_back(mul_state);
+            "W_" + std::to_string(i + 1),
+        });
     }
 
     // add public inputs
@@ -102,26 +76,19 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
 
 template <typename settings> void ProverBase<settings>::compute_quotient_pre_commitment()
 {
-    std::array<g1::element, settings::program_width> T;
     for (size_t i = 0; i < settings::program_width; ++i) {
         const size_t offset = n * i;
-        prover_multiplication_state mul_state{
-            "T_" + std::to_string(i + 1),
+        queue.add_to_queue({
+            work_queue::WorkType::SCALAR_MULTIPLICATION,
             &key->quotient_large.get_coefficients()[offset],
-            key->reference_string->get_monomials(),
-            n,
-        };
-        key->round_multiplications[2].push_back(mul_state);
+            "T_" + std::to_string(i + 1),
+        });
     }
-}
-
-template <typename settings> void ProverBase<settings>::init_quotient_polynomials()
-{
-    n = key->n;
 }
 
 template <typename settings> void ProverBase<settings>::execute_preamble_round()
 {
+    queue.flush_queue();
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(n),
                              static_cast<uint8_t>(n >> 8),
@@ -133,14 +100,22 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
                              static_cast<uint8_t>(key->num_public_inputs >> 24) });
     transcript.apply_fiat_shamir("init");
+
+    for (size_t i = 0; i < settings::program_width; ++i) {
+        std::string wire_tag = "w_" + std::to_string(i + 1);
+        barretenberg::polynomial& wire = witness->wires.at(wire_tag);
+        barretenberg::polynomial& wire_fft = key->wire_ffts.at(wire_tag + "_fft");
+        barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
+        queue.add_to_queue({ work_queue::WorkType::IFFT, nullptr, wire_tag });
+    }
 }
 
 template <typename settings> void ProverBase<settings>::execute_first_round()
 {
+    queue.flush_queue();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    init_quotient_polynomials();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -149,7 +124,6 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    compute_wire_coefficients();
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -160,7 +134,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #endif
     compute_wire_pre_commitments();
     for (auto& widget : widgets) {
-        widget->compute_round_commitments(transcript, 1);
+        widget->compute_round_commitments(transcript, 1, queue);
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -171,6 +145,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 
 template <typename settings> void ProverBase<settings>::execute_second_round()
 {
+    queue.flush_queue();
     transcript.apply_fiat_shamir("beta");
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -184,7 +159,12 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
     start = std::chrono::steady_clock::now();
 #endif
     for (auto& widget : widgets) {
-        widget->compute_round_commitments(transcript, 2);
+        widget->compute_round_commitments(transcript, 2, queue);
+    }
+
+    for (size_t i = 0; i < settings::program_width; ++i) {
+        std::string wire_tag = "w_" + std::to_string(i + 1);
+        queue.add_to_queue({ work_queue::WorkType::FFT, nullptr, wire_tag });
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -195,21 +175,11 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 
 template <typename settings> void ProverBase<settings>::execute_third_round()
 {
+    queue.flush_queue();
     transcript.apply_fiat_shamir("alpha");
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    for (size_t i = 0; i < settings::program_width; ++i) {
-        std::string wire_tag = "w_" + std::to_string(i + 1);
-        barretenberg::polynomial& wire_fft = key->wire_ffts.at(wire_tag + "_fft");
-        barretenberg::polynomial& wire = witness->wires.at(wire_tag);
-        barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, 4 * n + 4);
-        wire_fft.coset_fft(key->large_domain);
-        wire_fft.add_lagrange_base_coefficient(wire_fft[0]);
-        wire_fft.add_lagrange_base_coefficient(wire_fft[1]);
-        wire_fft.add_lagrange_base_coefficient(wire_fft[2]);
-        wire_fft.add_lagrange_base_coefficient(wire_fft[3]);
-    }
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -219,9 +189,6 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    polynomial& z = key->z;
-    polynomial& z_fft = key->z_fft;
-    barretenberg::polynomial_arithmetic::copy_polynomial(&z[0], &z_fft[0], n, 4 * n + 4);
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -297,6 +264,7 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 
 template <typename settings> void ProverBase<settings>::execute_fourth_round()
 {
+    queue.flush_queue();
     transcript.apply_fiat_shamir("z"); // end of 3rd round
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -311,6 +279,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 
 template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
+    queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -445,20 +414,16 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
     start = std::chrono::steady_clock::now();
 #endif
 
-    prover_multiplication_state pi_z{
-        "PI_Z",
+    queue.add_to_queue({
+        work_queue::WorkType::SCALAR_MULTIPLICATION,
         opening_poly.get_coefficients(),
-        key->reference_string->get_monomials(),
-        n,
-    };
-    key->round_multiplications[4].push_back(pi_z);
-    prover_multiplication_state pi_z_omega{
-        "PI_Z_OMEGA",
+        "PI_Z",
+    });
+    queue.add_to_queue({
+        work_queue::WorkType::SCALAR_MULTIPLICATION,
         shifted_opening_poly.get_coefficients(),
-        key->reference_string->get_monomials(),
-        n,
-    };
-    key->round_multiplications[4].push_back(pi_z_omega);
+        "PI_Z_OMEGA",
+    });
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -514,15 +479,16 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
 template <typename settings> waffle::plonk_proof ProverBase<settings>::construct_proof()
 {
     execute_preamble_round();
+    queue.process_queue();
     execute_first_round();
-    compute_round_commitments(1);
+    queue.process_queue();
     execute_second_round();
-    compute_round_commitments(2);
+    queue.process_queue();
     execute_third_round();
-    compute_round_commitments(3);
+    queue.process_queue();
     execute_fourth_round();
     execute_fifth_round();
-    compute_round_commitments(5);
+    queue.process_queue();
 
     waffle::plonk_proof result;
     result.proof_data = transcript.export_transcript();

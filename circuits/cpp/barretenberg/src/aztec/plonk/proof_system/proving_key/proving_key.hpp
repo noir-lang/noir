@@ -6,12 +6,6 @@
 #include <polynomials/polynomial.hpp>
 
 namespace waffle {
-struct prover_multiplication_state {
-    std::string tag;
-    barretenberg::fr* scalars;
-    barretenberg::g1::affine_element* points;
-    const size_t num_multiplications;
-};
 
 struct proving_key {
   public:
@@ -47,8 +41,6 @@ struct proving_key {
 
     std::shared_ptr<ProverReferenceString> reference_string;
 
-    barretenberg::polynomial z;
-    barretenberg::polynomial z_fft;
     barretenberg::polynomial lagrange_1;
     barretenberg::polynomial opening_poly;
     barretenberg::polynomial shifted_opening_poly;
@@ -58,7 +50,6 @@ struct proving_key {
     barretenberg::polynomial quotient_large;
 
     barretenberg::scalar_multiplication::unsafe_pippenger_runtime_state pippenger_runtime_state;
-    std::vector<std::vector<prover_multiplication_state>> round_multiplications;
 
     static constexpr size_t min_thread_block = 4UL;
 };
