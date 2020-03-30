@@ -10,6 +10,7 @@
 #include "../widgets/turbo_fixed_base_widget.hpp"
 #include "../widgets/turbo_logic_widget.hpp"
 #include "../widgets/turbo_range_widget.hpp"
+#include "../widgets/permutation_widget.hpp"
 
 namespace waffle {
 class settings_base {
@@ -102,10 +103,15 @@ class standard_verifier_settings : public standard_settings {
                                                                      const transcript::StandardTranscript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        return VerifierArithmeticWidget<barretenberg::fr,
-                                        barretenberg::g1::affine_element,
-                                        transcript::StandardTranscript>::
+        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
+                                                            barretenberg::g1::affine_element,
+                                                            transcript::StandardTranscript>::
             compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = VerifierArithmeticWidget<barretenberg::fr,
+                                                      barretenberg::g1::affine_element,
+                                                      transcript::StandardTranscript>::
+            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        return updated_alpha_base;
     }
 };
 
@@ -143,10 +149,15 @@ class unrolled_standard_verifier_settings : public standard_settings {
                                                                      const transcript::StandardTranscript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
+        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
+                                                            barretenberg::g1::affine_element,
+                                                            transcript::StandardTranscript>::
+            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+
         return VerifierArithmeticWidget<barretenberg::fr,
                                         barretenberg::g1::affine_element,
                                         transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
     }
 };
 
@@ -194,10 +205,15 @@ class mimc_verifier_settings : public standard_settings {
                                                                      const transcript::StandardTranscript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        barretenberg::fr updated_alpha_base = VerifierArithmeticWidget<barretenberg::fr,
-                                                                       barretenberg::g1::affine_element,
-                                                                       transcript::StandardTranscript>::
+        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
+                                                            barretenberg::g1::affine_element,
+                                                            transcript::StandardTranscript>::
             compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+
+        updated_alpha_base = VerifierArithmeticWidget<barretenberg::fr,
+                                                      barretenberg::g1::affine_element,
+                                                      transcript::StandardTranscript>::
+            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base =
             VerifierMiMCWidget<barretenberg::fr, barretenberg::g1::affine_element, transcript::StandardTranscript>::
                 compute_quotient_evaluation_contribution(
@@ -260,10 +276,15 @@ class turbo_verifier_settings : public turbo_settings {
                                                                      const transcript::StandardTranscript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        barretenberg::fr updated_alpha_base = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                                           barretenberg::g1::affine_element,
-                                                                           transcript::StandardTranscript>::
+        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
+                                                            barretenberg::g1::affine_element,
+                                                            transcript::StandardTranscript>::
             compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+
+        updated_alpha_base = VerifierTurboFixedBaseWidget<barretenberg::fr,
+                                                          barretenberg::g1::affine_element,
+                                                          transcript::StandardTranscript>::
+            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = VerifierTurboRangeWidget<barretenberg::fr,
                                                       barretenberg::g1::affine_element,
                                                       transcript::StandardTranscript>::
@@ -331,10 +352,15 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
                                                                      const transcript::StandardTranscript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        barretenberg::fr updated_alpha_base = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                                           barretenberg::g1::affine_element,
-                                                                           transcript::StandardTranscript>::
+        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
+                                                            barretenberg::g1::affine_element,
+                                                            transcript::StandardTranscript>::
             compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+
+        updated_alpha_base = VerifierTurboFixedBaseWidget<barretenberg::fr,
+                                                          barretenberg::g1::affine_element,
+                                                          transcript::StandardTranscript>::
+            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = VerifierTurboRangeWidget<barretenberg::fr,
                                                       barretenberg::g1::affine_element,
                                                       transcript::StandardTranscript>::

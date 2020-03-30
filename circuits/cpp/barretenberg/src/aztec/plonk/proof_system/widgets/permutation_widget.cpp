@@ -7,6 +7,8 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
 
+#include "../public_inputs/public_inputs.hpp"
+
 using namespace barretenberg;
 
 namespace waffle {
@@ -480,10 +482,118 @@ VerifierPermutationWidget<Field, Group, Transcript>::VerifierPermutationWidget()
 
 template <typename Field, typename Group, typename Transcript>
 Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
-    verification_key*, const Field& alpha_base, const Transcript&, Field&, const bool)
+    verification_key* key,
+    const Field& alpha,
+    const Transcript& transcript,
+    Field& t_eval,
+    const bool use_linearisation)
 {
 
-    return alpha_base;
+    Field alpha_cubed = alpha.sqr() * alpha;
+    Field z = transcript.get_challenge_field_element("z");
+    Field beta = transcript.get_challenge_field_element("beta", 0);
+    Field gamma = transcript.get_challenge_field_element("beta", 1);
+    Field z_beta = z * beta;
+
+    std::vector<Field> wire_evaluations;
+    std::vector<Field> sigma_evaluations;
+
+    const size_t num_sigma_evaluations = (use_linearisation ? key->program_width - 1 : key->program_width);
+
+    for (size_t i = 0; i < num_sigma_evaluations; ++i) {
+        std::string index = std::to_string(i + 1);
+        sigma_evaluations.emplace_back(transcript.get_field_element("sigma_" + index));
+    }
+
+    for (size_t i = 0; i < key->program_width; ++i) {
+        wire_evaluations.emplace_back(transcript.get_field_element("w_" + std::to_string(i + 1)));
+    }
+
+    Field z_pow = z;
+    for (size_t i = 0; i < key->domain.log2_size; ++i) {
+        z_pow *= z_pow;
+    }
+    Field numerator = z_pow - Field(1);
+
+    numerator *= key->domain.domain_inverse;
+    Field l_1 = numerator / (z - Field(1));
+    Field l_n_minus_1 = numerator / ((z * key->domain.root.sqr()) - Field(1));
+
+    Field z_1_shifted_eval = transcript.get_field_element("z_omega");
+
+    Field T0;
+    Field z_contribution = Field(1);
+    for (size_t i = 0; i < key->program_width; ++i) {
+        Field coset_generator = (i == 0) ? Field(1) : Field::coset_generator(i - 1);
+        T0 = z_beta * coset_generator;
+        T0 += wire_evaluations[i];
+        T0 += gamma;
+        z_contribution *= T0;
+    }
+    Field z_1_multiplicand = z_contribution * alpha;
+    T0 = l_1 * alpha_cubed;
+    z_1_multiplicand += T0;
+
+    Field sigma_contribution = Field(1);
+    for (size_t i = 0; i < key->program_width - 1; ++i) {
+        Field permutation_evaluation = transcript.get_field_element("sigma_" + std::to_string(i + 1));
+        T0 = permutation_evaluation * beta;
+        T0 += wire_evaluations[i];
+        T0 += gamma;
+        sigma_contribution *= T0;
+    }
+    sigma_contribution *= z_1_shifted_eval;
+    Field sigma_last_multiplicand = -(sigma_contribution * alpha);
+    sigma_last_multiplicand *= beta;
+
+    // reconstruct evaluation of quotient polynomial from prover messages
+    Field T1;
+    Field T2;
+    Field alpha_pow[4];
+    alpha_pow[0] = alpha;
+    for (size_t i = 1; i < 4; ++i) {
+        alpha_pow[i] = alpha_pow[i - 1] * alpha_pow[0];
+    }
+
+    sigma_contribution = Field(1);
+
+    for (size_t i = 0; i < key->program_width - 1; ++i) {
+        T0 = sigma_evaluations[i] * beta;
+        T1 = wire_evaluations[i] + gamma;
+        T0 += T1;
+        sigma_contribution *= T0;
+    }
+
+    std::vector<Field> public_inputs = transcript.get_field_element_vector("public_inputs");
+
+    Field public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->domain.root);
+    T0 = wire_evaluations[key->program_width - 1] + gamma;
+    sigma_contribution *= T0;
+    sigma_contribution *= z_1_shifted_eval;
+    sigma_contribution *= alpha_pow[0];
+
+    T1 = z_1_shifted_eval - public_input_delta;
+    T1 *= l_n_minus_1;
+    T1 *= alpha_pow[1];
+
+    T2 = l_1 * alpha_pow[2];
+    T1 -= T2;
+    T1 -= sigma_contribution;
+
+    if (use_linearisation) {
+        Field linear_eval = transcript.get_field_element("r");
+        T1 += linear_eval;
+    }
+
+    t_eval += T1;
+
+    if (!use_linearisation) {
+        Field z_eval = transcript.get_field_element("z");
+        t_eval += (z_1_multiplicand * z_eval);
+        t_eval += (sigma_last_multiplicand * sigma_evaluations[key->program_width - 1]);
+    }
+
+    return alpha.sqr().sqr();
 }
 
 template <typename Field, typename Group, typename Transcript>
