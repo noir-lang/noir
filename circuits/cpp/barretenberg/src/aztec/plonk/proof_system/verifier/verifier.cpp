@@ -61,7 +61,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
     g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
 
-
     bool inputs_valid = T[0].on_curve() && Z_1.on_curve() && PI_Z.on_curve();
 
     if (!inputs_valid) {
@@ -146,17 +145,15 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
         T0 = nu_challenges[0] * linear_eval;
         batch_evaluation += T0;
-    } 
+    }
 
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         T0 = nu_challenges[i + nu_offset] * wire_evaluations[i];
         batch_evaluation += T0;
     }
 
-
     constexpr size_t nu_z_offset = (program_settings::use_linearisation) ? 2 * program_settings::program_width
                                                                          : 2 * program_settings::program_width + 1;
-
 
     size_t nu_ptr = nu_z_offset + 1;
 
@@ -182,18 +179,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::vector<fr> scalars;
     std::vector<g1::affine_element> elements;
 
-    elements.emplace_back(Z_1);
-    if constexpr (program_settings::use_linearisation) {
-        plonk_linear_terms linear_terms =
-            compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings::program_width>(
-                transcript, lagrange_evals.l_1);
-        linear_terms.z_1 *= nu_challenges[0];
-        linear_terms.z_1 += (nu_challenges[nu_z_offset] * u);
-        scalars.emplace_back(linear_terms.z_1);
-    } else {
-        T0 = nu_challenges[nu_z_offset] * u + nu_challenges[2 * program_settings::program_width];
-        scalars.emplace_back(T0);
-    }
 
     nu_ptr = nu_z_offset + 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
@@ -212,24 +197,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
-        elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)));
-        scalars.emplace_back(nu_challenges[program_settings::program_width + i + nu_offset]);
-    }
 
-    if constexpr (program_settings::use_linearisation) {
-        plonk_linear_terms linear_terms =
-            compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings::program_width>(
-                transcript, lagrange_evals.l_1);
-        elements.emplace_back(
-            key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
-        linear_terms.sigma_last *= nu_challenges[0];
-        scalars.emplace_back(linear_terms.sigma_last);
-    } else {
-        elements.emplace_back(
-            key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
-        scalars.emplace_back(nu_challenges[2 * program_settings::program_width - 1]);
-    }
 
     elements.emplace_back(g1::affine_one);
     scalars.emplace_back(batch_evaluation);
@@ -250,7 +218,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-    VerifierBaseWidget::challenge_coefficients<barretenberg::fr> coeffs{ alpha.sqr().sqr(), alpha, nu_ptr, 0 };
+    nu_ptr = program_settings::program_width + nu_offset;
+    VerifierBaseWidget::challenge_coefficients<barretenberg::fr> coeffs{ alpha, alpha, nu_ptr, 0 };
 
     program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, elements, scalars);
     size_t num_elements = elements.size();

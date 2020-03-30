@@ -645,14 +645,96 @@ size_t VerifierPermutationWidget<Field, Group, Transcript>::compute_batch_evalua
 
 template <typename Field, typename Group, typename Transcript>
 VerifierBaseWidget::challenge_coefficients<Field> VerifierPermutationWidget<Field, Group, Transcript>::
-    append_scalar_multiplication_inputs(verification_key*,
+    append_scalar_multiplication_inputs(verification_key* key,
                                         const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-                                        const Transcript&,
-                                        std::vector<Group>&,
-                                        std::vector<Field>&,
-                                        const bool)
+                                        const Transcript& transcript,
+                                        std::vector<Group>& elements,
+                                        std::vector<Field>& scalars,
+                                        const bool use_linearisation)
 {
-    return challenge;
+    size_t nu_shifted_z_offset = (use_linearisation) ? key->program_width - 1 : key->program_width + 1;
+    Field alpha_cubed = challenge.alpha_base * challenge.alpha_step.sqr();
+    Field u = transcript.get_challenge_field_element("separator");
+    Field shifted_z_eval = transcript.get_field_element("z_omega");
+
+    Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
+    std::vector<Field> nu_challenges(nu_shifted_z_offset + 1);
+    for (size_t i = 0; i < nu_shifted_z_offset + 1; i++) {
+        nu_challenges[i] = transcript.get_challenge_field_element("nu", challenge.nu_index + i);
+    }
+    Field z = transcript.get_challenge_field_element("z");
+    Field z_pow = z;
+    for (size_t i = 0; i < key->domain.log2_size; ++i) {
+        z_pow *= z_pow;
+    }
+    Field numerator = z_pow - Field(1);
+
+    numerator *= key->domain.domain_inverse;
+    Field l_1 = numerator / (z - Field(1));
+
+    Field beta = transcript.get_challenge_field_element("beta", 0);
+    Field gamma = transcript.get_challenge_field_element("beta", 1);
+    Field z_beta = z * beta;
+
+    std::vector<Field> wire_evaluations;
+    for (size_t i = 0; i < key->program_width; ++i) {
+        wire_evaluations.emplace_back(transcript.get_field_element("w_" + std::to_string(i + 1)));
+    }
+
+    g1::affine_element Z_1 = g1::affine_element::serialize_from_buffer(&transcript.get_element("Z")[0]);
+
+    elements.emplace_back(Z_1);
+    if (use_linearisation) {
+        Field T0;
+        Field z_contribution = Field(1);
+        for (size_t i = 0; i < key->program_width; ++i) {
+            Field coset_generator = (i == 0) ? Field(1) : Field::coset_generator(i - 1);
+            T0 = z_beta * coset_generator;
+            T0 += wire_evaluations[i];
+            T0 += gamma;
+            z_contribution *= T0;
+        }
+        Field z_1_multiplicand = z_contribution * challenge.alpha_base;
+        T0 = l_1 * alpha_cubed;
+        z_1_multiplicand += T0;
+        z_1_multiplicand *= linear_nu;
+        z_1_multiplicand += (nu_challenges[nu_shifted_z_offset] * u);
+        scalars.emplace_back(z_1_multiplicand);
+    } else {
+        Field T0 = nu_challenges[nu_shifted_z_offset] * u + nu_challenges[key->program_width];
+        scalars.emplace_back(T0);
+    }
+
+    for (size_t i = 0; i < key->program_width - 1; ++i) {
+        elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)));
+        scalars.emplace_back(nu_challenges[i]);
+    }
+
+    if (use_linearisation) {
+        Field sigma_contribution = Field(1);
+        for (size_t i = 0; i < key->program_width - 1; ++i) {
+            Field permutation_evaluation = transcript.get_field_element("sigma_" + std::to_string(i + 1));
+            Field T0 = permutation_evaluation * beta;
+            T0 += wire_evaluations[i];
+            T0 += gamma;
+            sigma_contribution *= T0;
+        }
+        sigma_contribution *= shifted_z_eval;
+        Field sigma_last_multiplicand = -(sigma_contribution * challenge.alpha_base);
+        sigma_last_multiplicand *= beta;
+        elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(key->program_width)));
+        sigma_last_multiplicand *= linear_nu;
+        scalars.emplace_back(sigma_last_multiplicand);
+    } else {
+        elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(key->program_width)));
+        scalars.emplace_back(nu_challenges[key->program_width - 1]);
+    }
+
+    return VerifierBaseWidget::challenge_coefficients<Field>{ challenge.alpha_base * challenge.alpha_step.sqr() *
+                                                                  challenge.alpha_step,
+                                                              challenge.alpha_step,
+                                                              challenge.nu_index + nu_shifted_z_offset + 1,
+                                                              challenge.linear_nu_index };
 }
 
 template class VerifierPermutationWidget<barretenberg::fr,
