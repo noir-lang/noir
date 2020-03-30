@@ -41,6 +41,7 @@ if(WASM)
         barretenberg.wasm
         $<TARGET_OBJECTS:schnorr_objects>
         $<TARGET_OBJECTS:ecc_objects>
+        $<TARGET_OBJECTS:proof_system_objects>
         $<TARGET_OBJECTS:rollup_client_proofs_objects>
     )
 

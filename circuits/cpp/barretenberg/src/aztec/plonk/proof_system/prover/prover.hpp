@@ -33,8 +33,8 @@ template <typename settings> class ProverBase {
     void compute_opening_elements();
 
     barretenberg::fr compute_linearisation_coefficients();
-    waffle::plonk_proof export_proof();
-    waffle::plonk_proof construct_proof();
+    waffle::plonk_proof& export_proof();
+    waffle::plonk_proof& construct_proof();
 
     size_t get_circuit_size() const { return n; }
 
@@ -66,6 +66,9 @@ template <typename settings> class ProverBase {
 
     work_queue queue;
     bool uses_quotient_mid;
+
+  private:
+    waffle::plonk_proof proof;
 };
 extern template class ProverBase<unrolled_standard_settings>;
 extern template class ProverBase<unrolled_turbo_settings>;

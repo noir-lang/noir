@@ -16,7 +16,7 @@ rollup::tx::tx_note create_tx_note(uint8_t const* owner_buf, uint32_t value, uin
 
 extern "C" {
 
-WASM_EXPORT void init_keys(barretenberg::g1::affine_element point_table, uint32_t num_points, uint8_t const* g2x)
+WASM_EXPORT void init_keys(barretenberg::g1::affine_element* point_table, uint32_t num_points, uint8_t const* g2x)
 {
     auto crs_factory =
         std::make_unique<waffle::PointTableReferenceStringFactory>(point_table, num_points, (char*)g2x);
@@ -41,8 +41,7 @@ WASM_EXPORT plonk::stdlib::types::turbo::Prover* new_create_note_prover(uint8_t 
                                    uint32_t value,
                                    uint8_t const* viewing_key_buf,
                                    uint8_t const* sig_s,
-                                   uint8_t const* sig_e,
-                                   uint8_t* proof_data_buf)
+                                   uint8_t const* sig_e)
 {
     auto note = create_tx_note(owner_buf, value, viewing_key_buf);
 
@@ -55,9 +54,6 @@ WASM_EXPORT plonk::stdlib::types::turbo::Prover* new_create_note_prover(uint8_t 
 
     auto heapProver = new plonk::stdlib::types::turbo::Prover(std::move(prover));
     return heapProver;
-
-    // *(uint32_t*)proof_data_buf = static_cast<uint32_t>(proof_data.size());
-    // std::copy(proof_data.begin(), proof_data.end(), proof_data_buf + 4);
 }
 
 WASM_EXPORT void delete_create_note_prover(plonk::stdlib::types::turbo::Prover* prover) {
