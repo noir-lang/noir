@@ -102,37 +102,4 @@ void verify_proofs_bench(State& state) noexcept
 }
 BENCHMARK(verify_proofs_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
 
-void compute_wire_coefficients(State& state) noexcept
-{
-    for (auto _ : state) {
-        size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
-                     static_cast<size_t>(numeric::get_msb(START));
-        provers[idx].reset();
-        provers[idx].init_quotient_polynomials();
-        provers[idx].compute_wire_coefficients();
-    }
-}
-BENCHMARK(compute_wire_coefficients)->RangeMultiplier(2)->Range(START, MAX_GATES);
-
-void compute_wire_commitments(State& state) noexcept
-{
-    for (auto _ : state) {
-        size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
-                     static_cast<size_t>(numeric::get_msb(START));
-        provers[idx].reset();
-        provers[idx].compute_wire_commitments();
-    }
-}
-BENCHMARK(compute_wire_commitments)->RangeMultiplier(2)->Range(START, MAX_GATES);
-
-void compute_z_coefficients(State& state) noexcept
-{
-    for (auto _ : state) {
-        size_t idx = static_cast<size_t>(numeric::get_msb((uint64_t)state.range(0))) -
-                     static_cast<size_t>(numeric::get_msb(START));
-        provers[idx].compute_z_coefficients();
-    }
-}
-BENCHMARK(compute_z_coefficients)->RangeMultiplier(2)->Range(START, MAX_GATES);
-
 BENCHMARK_MAIN();

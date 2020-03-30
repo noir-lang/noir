@@ -1,6 +1,9 @@
 #pragma once
 
 namespace barretenberg {
+
+// constexpr void mac_wasm(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t carr)
+
 template <class T>
 constexpr std::pair<uint64_t, uint64_t> field<T>::mul_wide(const uint64_t a, const uint64_t b) noexcept
 {

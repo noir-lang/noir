@@ -6,6 +6,7 @@
 #include <polynomials/polynomial.hpp>
 
 namespace waffle {
+
 struct proving_key {
   public:
     proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
@@ -40,8 +41,6 @@ struct proving_key {
 
     std::shared_ptr<ProverReferenceString> reference_string;
 
-    barretenberg::polynomial z;
-    barretenberg::polynomial z_fft;
     barretenberg::polynomial lagrange_1;
     barretenberg::polynomial opening_poly;
     barretenberg::polynomial shifted_opening_poly;
@@ -51,6 +50,7 @@ struct proving_key {
     barretenberg::polynomial quotient_large;
 
     barretenberg::scalar_multiplication::unsafe_pippenger_runtime_state pippenger_runtime_state;
+
     static constexpr size_t min_thread_block = 4UL;
 };
 } // namespace waffle

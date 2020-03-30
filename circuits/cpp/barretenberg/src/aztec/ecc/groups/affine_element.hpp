@@ -54,7 +54,7 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
         return result;
     }
 
-    inline std::vector<uint8_t> to_buffer()
+    inline std::vector<uint8_t> to_buffer() const
     {
         std::vector<uint8_t> buffer(sizeof(affine_element));
         affine_element::serialize_to_buffer(*this, &buffer[0]);

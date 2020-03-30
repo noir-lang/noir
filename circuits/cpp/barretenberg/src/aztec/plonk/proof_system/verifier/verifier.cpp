@@ -34,6 +34,7 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
 
 template <typename program_settings> bool VerifierBase<program_settings>::verify_proof(const waffle::plonk_proof& proof)
 {
+    key->program_width = program_settings::program_width;
     transcript::StandardTranscript transcript = transcript::StandardTranscript(
         proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
 
@@ -59,8 +60,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     g1::affine_element Z_1 = g1::affine_element::serialize_from_buffer(&transcript.get_element("Z")[0]);
     g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
     g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
-
-    fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
 
     bool inputs_valid = T[0].on_curve() && Z_1.on_curve() && PI_Z.on_curve();
 
@@ -98,7 +97,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
 
     // reconstruct challenges
-    fr alpha_pow[4];
+    // fr alpha_pow[4];
 
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(key->n),
@@ -115,73 +114,18 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
 
-    fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     fr t_eval = fr::zero();
 
     barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
         barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->domain);
 
-    // compute the terms we need to derive R(X)
-    plonk_linear_terms linear_terms =
-        compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings>(transcript,
-                                                                                                 lagrange_evals.l_1);
-
-    // reconstruct evaluation of quotient polynomial from prover messages
-    fr T0;
-    fr T1;
-    fr T2;
-    fr::__copy(alpha, alpha_pow[0]);
-    for (size_t i = 1; i < 4; ++i) {
-        alpha_pow[i] = alpha_pow[i - 1] * alpha_pow[0];
-    }
-
-    fr sigma_contribution = fr::one();
-
-    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
-        T0 = sigma_evaluations[i] * beta;
-        T1 = wire_evaluations[i] + gamma;
-        T0 += T1;
-        sigma_contribution *= T0;
-    }
-
-    std::vector<barretenberg::fr> public_inputs =
-        barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
-
-    fr public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->domain.root);
-    T0 = wire_evaluations[program_settings::program_width - 1] + gamma;
-    sigma_contribution *= T0;
-    sigma_contribution *= z_1_shifted_eval;
-    sigma_contribution *= alpha_pow[0];
-
-    T1 = z_1_shifted_eval - public_input_delta;
-    T1 *= lagrange_evals.l_n_minus_1;
-    T1 *= alpha_pow[1];
-
-    T2 = lagrange_evals.l_1 * alpha_pow[2];
-    T1 -= T2;
-    T1 -= sigma_contribution;
-
-    if constexpr (program_settings::use_linearisation) {
-        fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
-        T1 += linear_eval;
-    }
-    t_eval += T1;
-
-    fr alpha_base = alpha.sqr().sqr();
-
+    fr alpha_base = alpha;
     alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
 
-    if constexpr (!program_settings::use_linearisation) {
-        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z")[0]);
-        t_eval += (linear_terms.z_1 * z_eval);
-        t_eval += (linear_terms.sigma_last * sigma_evaluations[program_settings::program_width - 1]);
-    }
-
-    T0 = lagrange_evals.vanishing_poly.invert();
+    fr T0 = lagrange_evals.vanishing_poly.invert();
     t_eval *= T0;
     transcript.add_element("t", t_eval.to_buffer());
 
@@ -194,38 +138,22 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
     fr u = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
 
-    fr batch_evaluation;
-    fr::__copy(t_eval, batch_evaluation);
+    fr batch_evaluation = t_eval;
 
     constexpr size_t nu_offset = program_settings::use_linearisation ? 1 : 0;
     if constexpr (program_settings::use_linearisation) {
         fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
         T0 = nu_challenges[0] * linear_eval;
         batch_evaluation += T0;
-    } else {
-        fr z_eval = fr::serialize_from_buffer(&transcript.get_element("z")[0]);
-        T0 = z_eval * nu_challenges[2 * program_settings::program_width];
-        batch_evaluation += T0;
-        T0 = nu_challenges[2 * program_settings::program_width - 1] *
-             sigma_evaluations[program_settings::program_width - 1];
-        batch_evaluation += T0;
     }
+
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         T0 = nu_challenges[i + nu_offset] * wire_evaluations[i];
         batch_evaluation += T0;
     }
 
-    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
-        T0 = nu_challenges[program_settings::program_width + i + nu_offset] * sigma_evaluations[i];
-        batch_evaluation += T0;
-    }
-
     constexpr size_t nu_z_offset = (program_settings::use_linearisation) ? 2 * program_settings::program_width
                                                                          : 2 * program_settings::program_width + 1;
-
-    T0 = nu_challenges[nu_z_offset] * u;
-    T0 *= z_1_shifted_eval;
-    batch_evaluation += T0;
 
     size_t nu_ptr = nu_z_offset + 1;
 
@@ -239,6 +167,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
+    nu_ptr = program_settings::program_width + nu_offset;
     program_settings::compute_batch_evaluation_contribution(key.get(), batch_evaluation, nu_ptr, transcript);
 
     batch_evaluation.self_neg();
@@ -250,15 +179,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::vector<fr> scalars;
     std::vector<g1::affine_element> elements;
 
-    elements.emplace_back(Z_1);
-    if constexpr (program_settings::use_linearisation) {
-        linear_terms.z_1 *= nu_challenges[0];
-        linear_terms.z_1 += (nu_challenges[nu_z_offset] * u);
-        scalars.emplace_back(linear_terms.z_1);
-    } else {
-        T0 = nu_challenges[nu_z_offset] * u + nu_challenges[2 * program_settings::program_width];
-        scalars.emplace_back(T0);
-    }
 
     nu_ptr = nu_z_offset + 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
@@ -277,21 +197,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-    for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
-        elements.emplace_back(key->permutation_selectors.at("SIGMA_" + std::to_string(i + 1)));
-        scalars.emplace_back(nu_challenges[program_settings::program_width + i + nu_offset]);
-    }
 
-    if constexpr (program_settings::use_linearisation) {
-        elements.emplace_back(
-            key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
-        linear_terms.sigma_last *= nu_challenges[0];
-        scalars.emplace_back(linear_terms.sigma_last);
-    } else {
-        elements.emplace_back(
-            key->permutation_selectors.at("SIGMA_" + std::to_string(program_settings::program_width)));
-        scalars.emplace_back(nu_challenges[2 * program_settings::program_width - 1]);
-    }
 
     elements.emplace_back(g1::affine_one);
     scalars.emplace_back(batch_evaluation);
@@ -312,7 +218,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-    VerifierBaseWidget::challenge_coefficients<barretenberg::fr> coeffs{ alpha.sqr().sqr(), alpha, nu_ptr, 0 };
+    nu_ptr = program_settings::program_width + nu_offset;
+    VerifierBaseWidget::challenge_coefficients<barretenberg::fr> coeffs{ alpha, alpha, nu_ptr, 0 };
 
     program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, elements, scalars);
     size_t num_elements = elements.size();
