@@ -1,6 +1,5 @@
 #include "fr.hpp"
 #include <gtest/gtest.h>
-#include <sys/random.h>
 
 using namespace barretenberg;
 
@@ -254,12 +253,7 @@ TEST(fr, neg)
 
 TEST(fr, split_into_endomorphism_scalars)
 {
-    fr input = { 0, 0, 0, 0 };
-    int got_entropy = getentropy((void*)&input.data[0], 32);
-    EXPECT_EQ(got_entropy, 0);
-    input.data[3] &= 0x0fffffffffffffff;
-
-    fr k = { input.data[0], input.data[1], input.data[2], input.data[3] };
+    fr k = fr::random_element();
     fr k1 = { 0, 0, 0, 0 };
     fr k2 = { 0, 0, 0, 0 };
 

@@ -5,6 +5,7 @@
 #include "../types/program_settings.hpp"
 #include "../types/program_witness.hpp"
 #include "../widgets/base_widget.hpp"
+#include "./work_queue.hpp"
 
 namespace waffle {
 
@@ -26,19 +27,29 @@ template <typename settings> class ProverBase {
     void execute_fourth_round();
     void execute_fifth_round();
 
-    void compute_permutation_lagrange_base_full();
-    void compute_wire_coefficients();
-    void compute_z_coefficients();
-    void compute_wire_commitments();
-    void compute_z_commitment();
-    void compute_quotient_commitment();
-    void compute_permutation_grand_product_coefficients();
-    void compute_arithmetisation_coefficients();
+    void compute_wire_pre_commitments();
+    void compute_quotient_pre_commitment();
     void init_quotient_polynomials();
     void compute_opening_elements();
 
     barretenberg::fr compute_linearisation_coefficients();
+    waffle::plonk_proof export_proof();
     waffle::plonk_proof construct_proof();
+
+    size_t get_circuit_size() const { return n; }
+
+    size_t get_num_queued_scalar_multiplications() const { return queue.get_num_queued_scalar_multiplications(); }
+
+    barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const
+    {
+        return queue.get_scalar_multiplication_data(work_item_number);
+    }
+
+    void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number)
+    {
+        queue.put_scalar_multiplication_data(result, work_item_number);
+    }
+
     void reset();
 
     size_t n;
@@ -47,20 +58,15 @@ template <typename settings> class ProverBase {
     std::vector<uint32_t> sigma_2_mapping;
     std::vector<uint32_t> sigma_3_mapping;
 
-    // Hmm, mixing runtime polymorphism and zero-knowledge proof generation. This seems fine...
-    // TODO: note from future self: totally not fine. Replace with template parameters
     std::vector<std::unique_ptr<ProverBaseWidget>> widgets;
     transcript::StandardTranscript transcript;
 
     std::shared_ptr<proving_key> key;
     std::shared_ptr<program_witness> witness;
 
+    work_queue queue;
     bool uses_quotient_mid;
-
-  private:
-    barretenberg::g1::element pippenger_unsafe(barretenberg::fr* scalars, const size_t num_initial_points);
 };
-
 extern template class ProverBase<unrolled_standard_settings>;
 extern template class ProverBase<unrolled_turbo_settings>;
 extern template class ProverBase<standard_settings>;

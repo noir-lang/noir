@@ -2,6 +2,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/permutation_widget.hpp>
 
 using namespace barretenberg;
 
@@ -743,9 +744,13 @@ UnrolledProver StandardComposer::create_unrolled_prover()
     compute_proving_key();
     compute_witness();
     UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+
+    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(widget));
 
     return output_state;
@@ -757,9 +762,12 @@ Prover StandardComposer::preprocess()
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(widget));
     return output_state;
 }

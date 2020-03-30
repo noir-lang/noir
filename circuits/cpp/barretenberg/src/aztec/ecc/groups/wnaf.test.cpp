@@ -1,9 +1,13 @@
 #include "../curves/bn254/fr.hpp"
 #include "wnaf.hpp"
 #include <gtest/gtest.h>
-#include <sys/random.h>
+#include <numeric/random/engine.hpp>
 
 using namespace barretenberg;
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 namespace {
 
@@ -46,18 +50,16 @@ TEST(wnaf, wnaf_zero)
 
 TEST(wnaf, wnaf_fixed)
 {
-    uint64_t rand_buffer[2]{ 0 };
-    int got_entropy = getentropy((void*)&rand_buffer[0], 16);
-    EXPECT_EQ(got_entropy, 0);
-    rand_buffer[1] &= 0x7fffffffffffffffUL;
+    uint256_t buffer = engine.get_random_uint256();
+    buffer.data[1] &= 0x7fffffffffffffffUL;
     uint64_t wnaf[WNAF_SIZE(5)] = { 0 };
     bool skew = false;
-    wnaf::fixed_wnaf<1, 5>(rand_buffer, wnaf, skew, 0);
+    wnaf::fixed_wnaf<1, 5>(&buffer.data[0], wnaf, skew, 0);
     uint64_t recovered_hi;
     uint64_t recovered_lo;
     recover_fixed_wnaf(wnaf, skew, recovered_hi, recovered_lo, 5);
-    EXPECT_EQ(rand_buffer[0], recovered_lo);
-    EXPECT_EQ(rand_buffer[1], recovered_hi);
+    EXPECT_EQ(buffer.data[0], recovered_lo);
+    EXPECT_EQ(buffer.data[1], recovered_hi);
 }
 
 TEST(wnaf, wnaf_fixed_simple_lo)
@@ -88,14 +90,11 @@ TEST(wnaf, wnaf_fixed_simple_hi)
 
 TEST(wnaf, wnaf_fixed_with_endo_split)
 {
-    uint64_t rand_buffer[4];
-    int got_entropy = getentropy((void*)&rand_buffer[0], 32);
-    EXPECT_EQ(got_entropy, 0);
-    rand_buffer[3] &= 0x0fffffffffffffffUL;
+    uint256_t buffer = engine.get_random_uint256();
+    buffer.data[3] &= 0x0fffffffffffffffUL;
 
     fr k{ 0, 0, 0, 0 };
-    fr::__copy(*(fr*)&rand_buffer[0], k);
-    // k.self_to_montgomery_form();
+    fr::__copy(*(fr*)&buffer.data[0], k);
     fr k1{ 0, 0, 0, 0 };
     ;
     fr k2{ 0, 0, 0, 0 };

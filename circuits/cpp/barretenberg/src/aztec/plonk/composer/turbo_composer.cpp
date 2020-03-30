@@ -1,6 +1,7 @@
 #include "turbo_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
+#include <plonk/proof_system/widgets/permutation_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
@@ -1139,6 +1140,8 @@ TurboProver TurboComposer::create_prover()
 
     TurboProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboRangeWidget> range_widget =
@@ -1146,6 +1149,7 @@ TurboProver TurboComposer::create_prover()
     std::unique_ptr<ProverTurboLogicWidget> logic_widget =
         std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(fixed_base_widget));
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));
@@ -1160,6 +1164,8 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
 
     UnrolledTurboProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboRangeWidget> range_widget =
@@ -1167,6 +1173,7 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
     std::unique_ptr<ProverTurboLogicWidget> logic_widget =
         std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(fixed_base_widget));
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));

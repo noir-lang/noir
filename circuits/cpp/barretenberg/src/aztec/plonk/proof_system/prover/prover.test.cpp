@@ -271,10 +271,14 @@ waffle::Prover generate_test_data(const size_t n)
     key->constraint_selector_ffts.insert({ "q_3_fft", std::move(q_3_fft) });
     key->constraint_selector_ffts.insert({ "q_m_fft", std::move(q_m_fft) });
     key->constraint_selector_ffts.insert({ "q_c_fft", std::move(q_c_fft) });
+    std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
+
     std::unique_ptr<waffle::ProverArithmeticWidget> widget =
         std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());
 
     waffle::Prover state = waffle::Prover(key, witness, create_manifest());
+    state.widgets.emplace_back(std::move(permutation_widget));
     state.widgets.emplace_back(std::move(widget));
     return state;
 }
@@ -287,9 +291,13 @@ TEST(prover, compute_quotient_polynomial)
     waffle::Prover state = prover_helpers::generate_test_data(n);
 
     state.execute_preamble_round();
+    state.queue.process_queue();
     state.execute_first_round();
+    state.queue.process_queue();
     state.execute_second_round();
+    state.queue.process_queue();
     state.execute_third_round();
+    state.queue.process_queue();
 
     // check that the max degree of our quotient polynomial is 3n
     for (size_t i = 3 * n; i < 4 * n; ++i) {

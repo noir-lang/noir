@@ -132,7 +132,7 @@ recursion_output<Group> verify_proof(Composer* context,
     lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations(z_challenge, key->domain);
 
     plonk_linear_terms linear_terms =
-        compute_linear_terms<field_t, Transcript, program_settings>(transcript, lagrange_evals.l_1);
+        compute_linear_terms<field_t, Transcript, program_settings::program_width>(transcript, lagrange_evals.l_1);
 
     // reconstruct evaluation of quotient polynomial from prover messages
     field_t T0;

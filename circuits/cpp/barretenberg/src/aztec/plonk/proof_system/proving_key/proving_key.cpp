@@ -23,20 +23,20 @@ proving_key::proving_key(const size_t num_gates,
     barretenberg::polynomial w_2_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
     barretenberg::polynomial w_3_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
     barretenberg::polynomial w_4_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
-    z = barretenberg::polynomial(n, n + 1);
-    z_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
+    barretenberg::polynomial z_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
 
     memset((void*)&w_1_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
     memset((void*)&w_2_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
     memset((void*)&w_3_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
     memset((void*)&w_4_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
-    memset((void*)&z[0], 0x00, sizeof(barretenberg::fr) * n);
     memset((void*)&z_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
+    // memset((void*)&z[0], 0x00, sizeof(barretenberg::fr) * n);
 
     wire_ffts.insert({ "w_1_fft", std::move(w_1_fft) });
     wire_ffts.insert({ "w_2_fft", std::move(w_2_fft) });
     wire_ffts.insert({ "w_3_fft", std::move(w_3_fft) });
     wire_ffts.insert({ "w_4_fft", std::move(w_4_fft) });
+    wire_ffts.insert({ "z_fft", std::move(z_fft) });
 
     lagrange_1 = barretenberg::polynomial(4 * n, 4 * n + 8);
     barretenberg::polynomial_arithmetic::compute_lagrange_polynomial_fft(
@@ -91,7 +91,7 @@ void proving_key::reset()
     barretenberg::polynomial w_2_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
     barretenberg::polynomial w_3_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
     barretenberg::polynomial w_4_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
-    z_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
+    barretenberg::polynomial z_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
 
     memset((void*)&w_1_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
     memset((void*)&w_2_fft[0], 0x00, sizeof(barretenberg::fr) * (4 * n + 4));
@@ -103,6 +103,7 @@ void proving_key::reset()
     wire_ffts.insert({ "w_2_fft", std::move(w_2_fft) });
     wire_ffts.insert({ "w_3_fft", std::move(w_3_fft) });
     wire_ffts.insert({ "w_4_fft", std::move(w_4_fft) });
+    wire_ffts.insert({ "z_fft", std::move(z_fft) });
 }
 
 proving_key::proving_key(const proving_key& other)
@@ -118,8 +119,6 @@ proving_key::proving_key(const proving_key& other)
     , mid_domain(other.mid_domain)
     , large_domain(other.large_domain)
     , reference_string(other.reference_string)
-    , z(other.z)
-    , z_fft(other.z_fft)
     , lagrange_1(other.lagrange_1)
     , opening_poly(other.opening_poly)
     , shifted_opening_poly(other.shifted_opening_poly)
@@ -140,13 +139,12 @@ proving_key::proving_key(proving_key&& other)
     , mid_domain(std::move(other.mid_domain))
     , large_domain(std::move(other.large_domain))
     , reference_string(std::move(other.reference_string))
-    , z(std::move(other.z))
-    , z_fft(std::move(other.z_fft))
     , lagrange_1(std::move(other.lagrange_1))
     , opening_poly(std::move(other.opening_poly))
     , shifted_opening_poly(std::move(other.shifted_opening_poly))
     , linear_poly(std::move(other.linear_poly))
     , pippenger_runtime_state(std::move(other.pippenger_runtime_state))
+
 {}
 
 proving_key& proving_key::operator=(proving_key&& other)
@@ -163,8 +161,6 @@ proving_key& proving_key::operator=(proving_key&& other)
     mid_domain = std::move(other.mid_domain);
     large_domain = std::move(other.large_domain);
     reference_string = std::move(other.reference_string);
-    z = std::move(other.z);
-    z_fft = std::move(other.z_fft);
     lagrange_1 = std::move(other.lagrange_1);
     opening_poly = std::move(other.opening_poly);
     shifted_opening_poly = std::move(other.shifted_opening_poly);
