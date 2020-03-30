@@ -380,14 +380,13 @@ template <class Params> struct alignas(32) field {
                                                const uint64_t borrow_in,
                                                uint64_t& borrow_out) noexcept;
 
-    BBERG_INLINE static constexpr void square_accumulate(const uint64_t a,
-                                                         const uint64_t b,
-                                                         const uint64_t c,
-                                                         const uint64_t carry_in_lo,
-                                                         const uint64_t carry_in_hi,
-                                                         uint64_t& out,
-                                                         uint64_t& carry_lo,
-                                                         uint64_t& carry_hi) noexcept;
+    BBERG_INLINE static constexpr uint64_t square_accumulate(const uint64_t a,
+                                                             const uint64_t b,
+                                                             const uint64_t c,
+                                                             const uint64_t carry_in_lo,
+                                                             const uint64_t carry_in_hi,
+                                                             uint64_t& carry_lo,
+                                                             uint64_t& carry_hi) noexcept;
     BBERG_INLINE constexpr field reduce() const noexcept;
     BBERG_INLINE constexpr field add(const field& other) const noexcept;
     BBERG_INLINE constexpr field subtract(const field& other) const noexcept;
