@@ -20,7 +20,6 @@ template <typename settings> class ProverBase {
     ProverBase& operator=(const ProverBase& other) = delete;
     ProverBase& operator=(ProverBase&& other);
 
-
     void execute_preamble_round();
     void execute_first_round();
     void execute_second_round();
@@ -34,7 +33,23 @@ template <typename settings> class ProverBase {
     void compute_opening_elements();
 
     barretenberg::fr compute_linearisation_coefficients();
+    waffle::plonk_proof export_proof();
     waffle::plonk_proof construct_proof();
+
+    size_t get_circuit_size() const { return n; }
+
+    size_t get_num_queued_scalar_multiplications() const { return queue.get_num_queued_scalar_multiplications(); }
+
+    barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const
+    {
+        return queue.get_scalar_multiplication_data(work_item_number);
+    }
+
+    void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number)
+    {
+        queue.put_scalar_multiplication_data(result, work_item_number);
+    }
+
     void reset();
 
     size_t n;

@@ -33,23 +33,64 @@ class work_queue {
     work_queue& operator=(const work_queue& other) = default;
     work_queue& operator=(work_queue&& other) = default;
 
-    void flush_queue() { work_item_queue = std::vector<work_item>(); }
+    size_t get_num_queued_scalar_multiplications() const
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
+                if (count == work_item_number) {
+                    return item.mul_scalars;
+                }
+                ++count;
+            }
+        }
+        return nullptr;
+    }
+
+    void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number)
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
+                if (count == work_item_number) {
+                    transcript->add_element(item.tag, result.to_buffer());
+                    return;
+                }
+                ++count;
+            }
+        }
+    }
+
+    void flush_queue() { process_queue(true); }
 
     void add_to_queue(const work_item& item) { work_item_queue.push_back(item); }
 
-    void process_queue()
+    void process_queue(const size_t skip_multiplications = false)
     {
         for (const auto& item : work_item_queue) {
             switch (item.work_type) {
             // most expensive op
             case WorkType::SCALAR_MULTIPLICATION: {
-                barretenberg::g1::affine_element result(
-                    barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
-                                                                          key->reference_string->get_monomials(),
-                                                                          key->small_domain.size,
-                                                                          key->pippenger_runtime_state));
+                if (!skip_multiplications) {
+                    barretenberg::g1::affine_element result(
+                        barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
+                                                                              key->reference_string->get_monomials(),
+                                                                              key->small_domain.size,
+                                                                              key->pippenger_runtime_state));
 
-                transcript->add_element(item.tag, result.to_buffer());
+                    transcript->add_element(item.tag, result.to_buffer());
+                }
                 break;
             }
             // About 20% of the cost of a scalar multiplication. For WASM, might be a bit more expensive
@@ -75,6 +116,7 @@ class work_queue {
             }
             }
         }
+        work_item_queue = std::vector<work_item>();
     }
 
     std::vector<work_item> get_queue() const { return work_item_queue; }

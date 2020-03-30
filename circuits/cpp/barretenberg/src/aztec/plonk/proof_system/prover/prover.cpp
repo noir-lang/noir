@@ -476,6 +476,13 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     return t_eval;
 }
 
+template <typename settings> waffle::plonk_proof ProverBase<settings>::export_proof()
+{
+    waffle::plonk_proof result;
+    result.proof_data = transcript.export_transcript();
+    return result;
+}
+
 template <typename settings> waffle::plonk_proof ProverBase<settings>::construct_proof()
 {
     execute_preamble_round();
@@ -489,10 +496,7 @@ template <typename settings> waffle::plonk_proof ProverBase<settings>::construct
     execute_fourth_round();
     execute_fifth_round();
     queue.process_queue();
-
-    waffle::plonk_proof result;
-    result.proof_data = transcript.export_transcript();
-    return result;
+    return export_proof();
 }
 
 template <typename settings> void ProverBase<settings>::reset()
