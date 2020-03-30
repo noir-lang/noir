@@ -15,9 +15,9 @@ void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
-void create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
+void create_note_circuit(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
 
-std::vector<uint8_t> create_note_proof(tx_note const& note, crypto::schnorr::signature const& sig);
+Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature const& sig);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

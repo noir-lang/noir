@@ -8,37 +8,39 @@ using namespace barretenberg;
 
 extern "C" {
 
-WASM_EXPORT void* bbmalloc(size_t size) {
+WASM_EXPORT void* bbmalloc(size_t size)
+{
     return aligned_alloc(64, size);
 }
 
-WASM_EXPORT void bbfree(void* ptr) {
+WASM_EXPORT void bbfree(void* ptr)
+{
     aligned_free(ptr);
 }
 
-WASM_EXPORT void pippenger_unsafe(fr* scalars, size_t from, size_t range, uint8_t* points, size_t num_points, g1::element* result)
+WASM_EXPORT g1::affine_element* create_pippenger_point_table(uint8_t* points, size_t num_points)
 {
-    static size_t monomials_size = 0;
-    static g1::affine_element* monomials = 0;
+    g1::affine_element* monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
+        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
 
-    if (monomials_size < num_points) {
-        aligned_free(monomials);
-        monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
-            64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
+    monomials[0] = barretenberg::g1::affine_one;
 
-        monomials[0] = barretenberg::g1::affine_one;
+    barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, num_points * 64);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
 
-        barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, num_points * 64);
-        barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
-    }
-
-    scalar_multiplication::unsafe_pippenger_runtime_state state(range);
-    *result = scalar_multiplication::pippenger_unsafe(scalars, monomials + from * 2, range, state);
+    return monomials;
 }
 
-WASM_EXPORT void g1_sum(g1::element* points, const size_t num_points, g1::element* result) {
+WASM_EXPORT void pippenger_unsafe(
+    fr* scalars, size_t from, size_t range, g1::affine_element* point_table, g1::element* result)
+{
+    scalar_multiplication::unsafe_pippenger_runtime_state state(range);
+    *result = scalar_multiplication::pippenger_unsafe(scalars, point_table + from * 2, range, state);
+}
+
+WASM_EXPORT void g1_sum(g1::element* points, const size_t num_points, g1::element* result)
+{
     result->self_set_infinity();
     *result = std::accumulate(points, points + num_points, *result);
 }
-
 }

@@ -13,12 +13,13 @@ using namespace rollup::tx;
 
 TEST(client_proofs, test_create_c_bindings)
 {
+    constexpr size_t num_points = 32768;
     std::ifstream transcript;
     transcript.open("../srs_db/transcript00.dat", std::ifstream::binary);
-    std::vector<uint8_t> monomials(32768 * 64);
+    std::vector<uint8_t> monomials(num_points * 64);
     std::vector<uint8_t> g2x(128);
     transcript.seekg(28);
-    transcript.read((char*)monomials.data(), 32768 * 64);
+    transcript.read((char*)monomials.data(), num_points * 64);
     transcript.seekg(28 + 1024 * 1024 * 64);
     transcript.read((char*)g2x.data(), 128);
     transcript.close();
