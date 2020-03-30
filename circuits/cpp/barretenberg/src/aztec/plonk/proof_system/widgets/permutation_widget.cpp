@@ -598,9 +598,49 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
 
 template <typename Field, typename Group, typename Transcript>
 size_t VerifierPermutationWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
-    verification_key*, Field&, const size_t nu_index, const Transcript&, const bool)
+    verification_key* key,
+    Field& batch_eval,
+    const size_t nu_index,
+    const Transcript& transcript,
+    const bool use_linearisation)
 {
-    return nu_index;
+    Field u = transcript.get_challenge_field_element("separator");
+    Field shifted_z_eval = transcript.get_field_element("z_omega");
+
+    const size_t num_sigma_evaluations = use_linearisation ? key->program_width - 1 : key->program_width;
+    std::vector<Field> sigmas(num_sigma_evaluations);
+    for (size_t i = 0; i < num_sigma_evaluations; ++i) {
+        sigmas[i] = transcript.get_field_element("sigma_" + std::to_string(i + 1));
+    }
+
+    size_t nu_shifted_z_offset = (use_linearisation) ? key->program_width - 1 : key->program_width + 1;
+    std::vector<barretenberg::fr> nu_challenges(nu_shifted_z_offset + 1);
+    for (size_t i = 0; i < nu_shifted_z_offset + 1; i++) {
+        nu_challenges[i] = transcript.get_challenge_field_element("nu", nu_index + i);
+    }
+
+    Field T0;
+    Field quotient_temp = Field(0);
+
+    for (size_t k = 0; k < key->program_width - 1; ++k) {
+        T0 = sigmas[k] * nu_challenges[k];
+        quotient_temp += T0;
+    }
+
+    if (!use_linearisation) {
+        Field z_eval = transcript.get_field_element("z");
+        T0 = sigmas[key->program_width - 1] * nu_challenges[key->program_width - 1];
+        quotient_temp += T0;
+        T0 = z_eval * nu_challenges[key->program_width];
+        quotient_temp += T0;
+    }
+
+    Field shifted_batch_eval = shifted_z_eval * nu_challenges[nu_shifted_z_offset];
+
+    batch_eval += quotient_temp;
+    batch_eval += (shifted_batch_eval * u);
+
+    return nu_index + nu_shifted_z_offset + 1;
 };
 
 template <typename Field, typename Group, typename Transcript>
