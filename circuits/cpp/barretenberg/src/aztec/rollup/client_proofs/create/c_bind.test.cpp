@@ -6,10 +6,24 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <srs/io.hpp>
 
 using namespace barretenberg;
 using namespace rollup::client_proofs::create;
 using namespace rollup::tx;
+
+g1::affine_element* create_pippenger_point_table(uint8_t* points, size_t num_points)
+{
+    g1::affine_element* monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
+        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
+
+    monomials[0] = barretenberg::g1::affine_one;
+
+    barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, num_points * 64);
+    barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
+
+    return monomials;
+}
 
 TEST(client_proofs, test_create_c_bindings)
 {
@@ -24,7 +38,8 @@ TEST(client_proofs, test_create_c_bindings)
     transcript.read((char*)g2x.data(), 128);
     transcript.close();
 
-    init_keys(monomials.data(), static_cast<uint32_t>(monomials.size()), g2x.data());
+    auto point_table = create_pippenger_point_table(monomials.data(), num_points);
+    init_keys((uint8_t*)point_table, num_points, g2x.data());
 
     auto user = create_user_context();
 
@@ -45,13 +60,15 @@ TEST(client_proofs, test_create_c_bindings)
     auto owner_buf = note.owner.to_buffer();
     auto viewing_key_buf = note.secret.to_buffer();
     std::vector<uint8_t> result(1024 * 10);
-    create_note_proof(
-        owner_buf.data(), note.value, viewing_key_buf.data(), signature.s.data(), signature.e.data(), result.data());
+    auto prover = new_create_note_prover(
+        owner_buf.data(), note.value, viewing_key_buf.data(), signature.s.data(), signature.e.data());
 
-    uint32_t proof_length = *(uint32_t*)result.data();
-    std::vector<uint8_t> proof_data(&result[4], &result[4] + proof_length);
+    auto& proof = prover->construct_proof();
 
-    bool verified = verify_proof(proof_data.data(), proof_length);
+    bool verified = verify_proof(proof.proof_data.data(), (uint32_t)proof.proof_data.size());
+
+    delete_create_note_prover(prover);
+    aligned_free(point_table);
 
     EXPECT_TRUE(verified);
 }
