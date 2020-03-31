@@ -71,7 +71,8 @@ void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
 
 Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature const& sig)
 {
-    Composer composer(proving_key, nullptr);
+    auto pk = std::shared_ptr<waffle::proving_key>(new waffle::proving_key(*proving_key));
+    Composer composer(pk, nullptr);
     create_note_circuit(composer, note, sig);
 
     info("composer gates: ", composer.get_num_gates());
