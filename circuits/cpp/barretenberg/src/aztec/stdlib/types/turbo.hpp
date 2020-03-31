@@ -27,10 +27,6 @@ typedef stdlib::uint32<Composer> uint32_ct;
 typedef stdlib::uint64<Composer> uint64_ct;
 typedef stdlib::bit_array<Composer> bit_array_ct;
 
-// typedef stdlib::merkle_tree::fr_hash_path fr_hash_path;
-// typedef stdlib::merkle_tree::hash_path<Composer> hash_path;
-// typedef stdlib::merkle_tree::LevelDbStore leveldb_store;
-
 struct point {
     field_ct x;
     field_ct y;

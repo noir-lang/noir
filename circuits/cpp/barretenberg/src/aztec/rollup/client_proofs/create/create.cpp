@@ -8,8 +8,6 @@ namespace client_proofs {
 namespace create {
 
 using namespace plonk;
-using namespace rollup::tx;
-using namespace plonk::stdlib::types::turbo;
 using namespace pedersen_note;
 
 typedef std::pair<private_note, public_note> note_pair;

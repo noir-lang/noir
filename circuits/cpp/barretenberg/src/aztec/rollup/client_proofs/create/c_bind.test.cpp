@@ -60,7 +60,7 @@ TEST(client_proofs, test_create_c_bindings)
     auto owner_buf = note.owner.to_buffer();
     auto viewing_key_buf = note.secret.to_buffer();
     std::vector<uint8_t> result(1024 * 10);
-    auto prover = new_create_note_prover(
+    Prover* prover = (Prover*)new_create_note_prover(
         owner_buf.data(), note.value, viewing_key_buf.data(), signature.s.data(), signature.e.data());
 
     auto& proof = prover->construct_proof();
