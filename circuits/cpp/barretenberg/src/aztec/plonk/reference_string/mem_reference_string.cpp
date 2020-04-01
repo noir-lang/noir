@@ -5,6 +5,10 @@
 #include <srs/io.hpp>
 #include <sstream>
 
+#ifndef NO_MULTITHREADING
+#include <omp.h>
+#endif
+
 namespace waffle {
 
 VerifierMemReferenceString::VerifierMemReferenceString(char const* buffer)
@@ -25,8 +29,14 @@ VerifierMemReferenceString::~VerifierMemReferenceString()
 
 MemReferenceString::MemReferenceString(const size_t num_points, char const* buffer, size_t)
 {
+#ifndef NO_MULTITHREADING
+    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
+#else
+    const size_t num_threads = 1;
+#endif
+    const size_t prefetch_overflow = 16 * num_threads;
     monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
-        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
+        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + prefetch_overflow)));
 
     monomials[0] = barretenberg::g1::affine_one;
 
