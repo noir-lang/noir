@@ -1,10 +1,10 @@
+#include "c_bind.hpp"
 #include "./scalar_multiplication.hpp"
+#include "point_table.hpp"
 #include <srs/io.hpp>
 #include <common/log.hpp>
 
 using namespace barretenberg;
-
-#define WASM_EXPORT __attribute__((visibility("default")))
 
 extern "C" {
 
@@ -20,15 +20,7 @@ WASM_EXPORT void bbfree(void* ptr)
 
 WASM_EXPORT g1::affine_element* create_pippenger_point_table(uint8_t* points, size_t num_points)
 {
-    g1::affine_element* monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
-        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
-
-    monomials[0] = barretenberg::g1::affine_one;
-
-    barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, num_points * 64);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
-
-    return monomials;
+    return scalar_multiplication::new_pippenger_point_table(points, num_points);
 }
 
 WASM_EXPORT void pippenger_unsafe(

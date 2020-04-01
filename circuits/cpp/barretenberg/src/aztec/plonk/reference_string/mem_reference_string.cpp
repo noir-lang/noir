@@ -1,9 +1,13 @@
 #include "mem_reference_string.hpp"
 #include <common/streams.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/point_table.hpp>
 #include <srs/io.hpp>
 #include <sstream>
+
+#ifndef NO_MULTITHREADING
+#include <omp.h>
+#endif
 
 namespace waffle {
 
@@ -25,13 +29,7 @@ VerifierMemReferenceString::~VerifierMemReferenceString()
 
 MemReferenceString::MemReferenceString(const size_t num_points, char const* buffer)
 {
-    monomials_ = (barretenberg::g1::affine_element*)(aligned_alloc(
-        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
-
-    monomials_[0] = barretenberg::g1::affine_one;
-
-    barretenberg::io::read_g1_elements_from_buffer(&monomials_[1], buffer, num_points * 64);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials_, monomials_, num_points);
+    monomials_ = barretenberg::scalar_multiplication::new_pippenger_point_table((uint8_t*)buffer, num_points);
 }
 
 MemReferenceString::~MemReferenceString()

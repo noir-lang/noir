@@ -1,29 +1,15 @@
 #include "../../tx/user_context.hpp"
 #include "c_bind.h"
+#include <ecc/curves/bn254/scalar_multiplication/c_bind.hpp>
 #include "create.hpp"
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <fstream>
 #include <gtest/gtest.h>
-#include <plonk/reference_string/file_reference_string.hpp>
-#include <srs/io.hpp>
 
 using namespace barretenberg;
 using namespace rollup::client_proofs::create;
 using namespace rollup::tx;
-
-g1::affine_element* create_pippenger_point_table(uint8_t* points, size_t num_points)
-{
-    g1::affine_element* monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
-        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + 2)));
-
-    monomials[0] = barretenberg::g1::affine_one;
-
-    barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, num_points * 64);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
-
-    return monomials;
-}
 
 TEST(client_proofs, test_create_c_bindings)
 {
