@@ -20,7 +20,8 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
 #else
     const size_t num_threads = 1;
 #endif
-    point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
+    const size_t prefetch_overflow = 16 * num_threads;
+    point_schedule = (uint64_t*)(aligned_alloc(64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
     buckets = (g1::element*)(aligned_alloc(64, num_threads * (num_buckets + num_threads) * sizeof(g1::element)));
     round_counts = (uint64_t*)(aligned_alloc(32, MAX_NUM_ROUNDS * sizeof(uint64_t)));
