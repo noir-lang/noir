@@ -3,6 +3,10 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <srs/io.hpp>
 
+#ifndef NO_MULTITHREADING
+#include <omp.h>
+#endif
+
 namespace waffle {
 
 VerifierFileReferenceString::VerifierFileReferenceString(std::string const& path)

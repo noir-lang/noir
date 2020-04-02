@@ -106,29 +106,29 @@ fr ProverMiMCWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base * alpha.sqr();
 }
 
-size_t ProverMiMCWidget::compute_opening_poly_contribution(
-    const size_t nu_index, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
+void ProverMiMCWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
+                                                         const bool use_linearisation)
 {
+    polynomial& poly = key->opening_poly;
+
     if (use_linearisation) {
 
-        fr nu_base = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
+        fr nu_base = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_mimc_coefficient")[0]);
 
         ITERATE_OVER_DOMAIN_START(key->small_domain);
         poly[i] += (q_mimc_coefficient[i] * nu_base);
         ITERATE_OVER_DOMAIN_END;
 
-        return nu_index + 1;
+        return;
     }
 
     std::array<barretenberg::fr, 2> nu_powers;
-    nu_powers[0] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
-    nu_powers[1] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 1)[0]);
+    nu_powers[0] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_mimc_coefficient")[0]);
+    nu_powers[1] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_mimc_selector")[0]);
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     poly[i] += (q_mimc_coefficient[i] * nu_powers[0]);
     poly[i] += (q_mimc_selector[i] * nu_powers[1]);
     ITERATE_OVER_DOMAIN_END;
-
-    return nu_index + 2;
 }
 
 // ###
@@ -169,44 +169,43 @@ Field VerifierMiMCWidget<Field, Group, Transcript>::compute_quotient_evaluation_
 }
 
 template <typename Field, typename Group, typename Transcript>
-size_t VerifierMiMCWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(verification_key*,
-                                                                                           Field& batch_eval,
-                                                                                           const size_t nu_index,
-                                                                                           const Transcript& transcript,
-                                                                                           const bool use_linearisation)
+void VerifierMiMCWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(verification_key*,
+                                                                                         Field& batch_eval,
+                                                                                         const Transcript& transcript,
+                                                                                         const bool use_linearisation)
 {
     Field q_mimc_coefficient_eval = transcript.get_field_element("q_mimc_coefficient");
 
     if (use_linearisation) {
-        fr nu_base = transcript.get_challenge_field_element("nu", nu_index);
+        fr nu_base = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
         batch_eval += (q_mimc_coefficient_eval * nu_base);
-
-        return nu_index + 1;
+        return;
     }
 
     Field q_mimc_selector_eval = transcript.get_field_element("q_mimc_selector");
 
     std::array<Field, 5> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element("nu", nu_index);
-    nu_challenges[1] = transcript.get_challenge_field_element("nu", nu_index + 1);
+    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
+    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_mimc_selector");
 
     batch_eval += (q_mimc_coefficient_eval * nu_challenges[0]);
     batch_eval += (q_mimc_selector_eval * nu_challenges[1]);
 
-    return nu_index + 2;
+    return;
 }
 
 template <typename Field, typename Group, typename Transcript>
-VerifierBaseWidget::challenge_coefficients<Field> VerifierMiMCWidget<Field, Group, Transcript>::
-    append_scalar_multiplication_inputs(verification_key* key,
-                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-                                        const Transcript& transcript,
-                                        std::vector<Group>& points,
-                                        std::vector<Field>& scalars,
-                                        const bool use_linearisation)
+Field VerifierMiMCWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(verification_key* key,
+                                                                                        const Field& alpha_base,
+                                                                                        const Transcript& transcript,
+                                                                                        std::vector<Group>& points,
+                                                                                        std::vector<Field>& scalars,
+                                                                                        const bool use_linearisation)
 {
+    Field alpha_step = transcript.get_challenge_field_element("alpha");
+
     if (use_linearisation) {
-        Field nu_base = transcript.get_challenge_field_element("nu", challenge.nu_index);
+        Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
 
         if (key->constraint_selectors.at("Q_MIMC_COEFFICIENT").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_MIMC_COEFFICIENT"));
@@ -218,12 +217,11 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierMiMCWidget<Field, Grou
         Field w_o_shifted_eval = transcript.get_field_element("w_3_omega");
         Field q_mimc_coefficient_eval = transcript.get_field_element("q_mimc_coefficient");
 
-        Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
+        Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
 
         Field mimc_T0 = w_l_eval + w_o_eval + q_mimc_coefficient_eval;
         Field mimc_a = (mimc_T0.sqr() * mimc_T0) - w_r_eval;
-        Field q_mimc_term =
-            ((w_r_eval.sqr() * mimc_T0 - w_o_shifted_eval) * challenge.alpha_step + mimc_a) * challenge.alpha_base;
+        Field q_mimc_term = ((w_r_eval.sqr() * mimc_T0 - w_o_shifted_eval) * alpha_step + mimc_a) * alpha_base;
         q_mimc_term = q_mimc_term * linear_nu;
 
         if (key->constraint_selectors.at("Q_MIMC_SELECTOR").on_curve()) {
@@ -231,15 +229,12 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierMiMCWidget<Field, Grou
             scalars.push_back(q_mimc_term);
         }
 
-        return VerifierBaseWidget::challenge_coefficients<Field>{ challenge.alpha_base * challenge.alpha_step.sqr(),
-                                                                  challenge.alpha_step,
-                                                                  challenge.nu_index + 1,
-                                                                  challenge.linear_nu_index };
+        return alpha_base * alpha_step.sqr();
     }
 
     std::array<Field, 5> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element("nu", challenge.nu_index);
-    nu_challenges[1] = transcript.get_challenge_field_element("nu", challenge.nu_index + 1);
+    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
+    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_mimc_selector");
 
     if (key->constraint_selectors.at("Q_MIMC_COEFFICIENT").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_MIMC_COEFFICIENT"));
@@ -250,10 +245,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierMiMCWidget<Field, Grou
         scalars.push_back(nu_challenges[1]);
     }
 
-    return VerifierBaseWidget::challenge_coefficients<Field>{ challenge.alpha_base * challenge.alpha_step.sqr(),
-                                                              challenge.alpha_step,
-                                                              challenge.nu_index + 2,
-                                                              challenge.linear_nu_index };
+    return alpha_base * alpha_step.sqr();
 }
 
 template class VerifierMiMCWidget<barretenberg::fr, barretenberg::g1::affine_element, transcript::StandardTranscript>;

@@ -51,6 +51,8 @@ struct proving_key {
 
     barretenberg::scalar_multiplication::unsafe_pippenger_runtime_state pippenger_runtime_state;
 
+    size_t opening_poly_challenge_index;
+    size_t shifted_opening_poly_challenge_index;
     static constexpr size_t min_thread_block = 4UL;
 };
 } // namespace waffle

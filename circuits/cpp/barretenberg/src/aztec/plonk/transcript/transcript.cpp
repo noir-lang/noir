@@ -55,7 +55,21 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript,
             }
         }
     }
+    compute_challenge_map();
     // printf("input buffer size = %lu \n", count);
+}
+
+void Transcript::compute_challenge_map()
+{
+    size_t index_counter = 0;
+    challenge_map = std::map<std::string, size_t>();
+    for (const auto& manifest : manifest.get_round_manifests()) {
+        if (manifest.map_challenges) {
+            for (const auto& element : manifest.elements) {
+                challenge_map.insert({ element.name, index_counter++ });
+            }
+        }
+    }
 }
 
 void Transcript::add_element(const std::string& element_name, const std::vector<uint8_t>& buffer)
@@ -158,6 +172,14 @@ std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(cons
     // printf("getting challenge %s \n", challenge_name.c_str());
     ASSERT(challenges.count(challenge_name) == 1);
     return challenges.at(challenge_name)[idx].data;
+}
+
+std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge_from_map(
+    const std::string& challenge_name, const std::string& challenge_map_name) const
+{
+    const auto key = challenge_map.at(challenge_map_name);
+    const auto value = challenges.at(challenge_name)[key];
+    return value.data;
 }
 
 size_t Transcript::get_num_challenges(const std::string& challenge_name) const

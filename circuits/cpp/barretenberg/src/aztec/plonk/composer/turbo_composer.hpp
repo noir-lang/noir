@@ -104,10 +104,6 @@ class TurboComposer : public ComposerBase {
                                                     { "w_2", fr_size, false },
                                                     { "w_3", fr_size, false },
                                                     { "w_4", fr_size, false },
-                                                    { "w_1_omega", fr_size, false },
-                                                    { "w_2_omega", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
-                                                    { "w_4_omega", fr_size, false },
                                                     { "z_omega", fr_size, false },
                                                     { "sigma_1", fr_size, false },
                                                     { "sigma_2", fr_size, false },
@@ -116,9 +112,14 @@ class TurboComposer : public ComposerBase {
                                                     { "q_ecc_1", fr_size, false },
                                                     { "q_c", fr_size, false },
                                                     { "r", fr_size, false },
+                                                    { "w_1_omega", fr_size, false },
+                                                    { "w_2_omega", fr_size, false },
+                                                    { "w_3_omega", fr_size, false },
+                                                    { "w_4_omega", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  20),
+                                                  12,
+                                                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
@@ -150,17 +151,18 @@ class TurboComposer : public ComposerBase {
               transcript::Manifest::RoundManifest(
                   {
                       { "w_1", fr_size, false },       { "w_2", fr_size, false },       { "w_3", fr_size, false },
-                      { "w_4", fr_size, false },       { "w_1_omega", fr_size, false }, { "w_2_omega", fr_size, false },
-                      { "w_3_omega", fr_size, false }, { "w_4_omega", fr_size, false }, { "z", fr_size, false },
-                      { "z_omega", fr_size, false },   { "sigma_1", fr_size, false },   { "sigma_2", fr_size, false },
-                      { "sigma_3", fr_size, false },   { "sigma_4", fr_size, false },   { "q_1", fr_size, false },
-                      { "q_2", fr_size, false },       { "q_3", fr_size, false },       { "q_4", fr_size, false },
-                      { "q_5", fr_size, false },       { "q_m", fr_size, false },       { "q_c", fr_size, false },
-                      { "q_arith", fr_size, false },   { "q_logic", fr_size, false },   { "q_range", fr_size, false },
-                      { "q_ecc_1", fr_size, false },   { "t", fr_size, true },
+                      { "w_4", fr_size, false },       { "z_omega", fr_size, false },   { "sigma_1", fr_size, false },
+                      { "sigma_2", fr_size, false },   { "sigma_3", fr_size, false },   { "sigma_4", fr_size, false },
+                      { "q_1", fr_size, false },       { "q_2", fr_size, false },       { "q_3", fr_size, false },
+                      { "q_4", fr_size, false },       { "q_5", fr_size, false },       { "q_m", fr_size, false },
+                      { "q_c", fr_size, false },       { "q_arith", fr_size, false },   { "q_logic", fr_size, false },
+                      { "q_range", fr_size, false },   { "q_ecc_1", fr_size, false },   { "w_1_omega", fr_size, false },
+                      { "w_2_omega", fr_size, false }, { "w_3_omega", fr_size, false }, { "w_4_omega", fr_size, false },
+                      { "z", fr_size, false },         { "t", fr_size, true },
                   },
                   "nu",
-                  32),
+                  20,
+                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
