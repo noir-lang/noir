@@ -13,12 +13,14 @@ static constexpr size_t num_generators = 128;
 static constexpr size_t bit_length = 256;
 static constexpr size_t quad_length = bit_length / 2;
 static std::array<grumpkin::g1::affine_element, num_generators> generators;
-static std::array<std::array<fixed_base_ladder, quad_length>, num_generators> ladders;
-static std::array<std::array<fixed_base_ladder, quad_length>, num_generators> hash_ladders;
+static std::vector<std::array<fixed_base_ladder, quad_length>> ladders;
+static std::vector<std::array<fixed_base_ladder, quad_length>> hash_ladders;
 static bool inited = false;
 
 const auto init = []() {
     generators = grumpkin::g1::derive_generators<num_generators>();
+    ladders.resize(num_generators);
+    hash_ladders.resize(num_generators);
     constexpr size_t first_generator_segment = 126;
     constexpr size_t second_generator_segment = 2;
     for (size_t i = 0; i < num_generators; ++i) {

@@ -1,5 +1,6 @@
 #include <srs/io.hpp>
 #include "point_table.hpp"
+#include <common/log.hpp>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -14,7 +15,7 @@ g1::affine_element* new_pippenger_point_table(uint8_t* points, size_t num_points
 
     monomials[0] = barretenberg::g1::affine_one;
 
-    barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, num_points * 64);
+    barretenberg::io::read_g1_elements_from_buffer(&monomials[1], (char*)points, (num_points-1) * 64);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
 
     return monomials;

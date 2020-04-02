@@ -40,6 +40,7 @@ if(WASM)
     add_executable(
         barretenberg.wasm
         $<TARGET_OBJECTS:schnorr_objects>
+        $<TARGET_OBJECTS:pedersen_objects>
         $<TARGET_OBJECTS:ecc_objects>
         $<TARGET_OBJECTS:proof_system_objects>
         $<TARGET_OBJECTS:rollup_client_proofs_objects>
@@ -48,7 +49,7 @@ if(WASM)
     target_link_options(
         barretenberg.wasm
         PRIVATE
-        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--global-base=8192 -Wl,--allow-undefined
+        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=8388608
     )
 
     target_link_libraries(

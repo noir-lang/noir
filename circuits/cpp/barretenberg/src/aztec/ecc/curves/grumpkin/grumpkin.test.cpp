@@ -332,7 +332,7 @@ TEST(grumpkin, group_exponentiation_consistency_check)
 TEST(grumpkin, derive_generators)
 {
     constexpr size_t num_generators = 128;
-    std::array<grumpkin::g1::affine_element, num_generators> result = grumpkin::g1::derive_generators<num_generators>();
+    auto result = grumpkin::g1::derive_generators<num_generators>();
 
     const auto is_unique = [&result](const grumpkin::g1::affine_element& y, const size_t j) {
         for (size_t i = 0; i < result.size(); ++i) {

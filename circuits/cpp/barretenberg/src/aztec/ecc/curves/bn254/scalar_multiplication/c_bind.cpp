@@ -2,7 +2,6 @@
 #include "./scalar_multiplication.hpp"
 #include "point_table.hpp"
 #include <srs/io.hpp>
-#include <common/log.hpp>
 
 using namespace barretenberg;
 

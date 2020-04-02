@@ -476,7 +476,7 @@ TEST(secp256k1, group_exponentiation_consistency_check)
 TEST(secp256k1, derive_generators)
 {
     constexpr size_t num_generators = 128;
-    std::array<secp256k1::g1::affine_element, num_generators> result =
+    auto result =
         secp256k1::g1::derive_generators<num_generators>();
 
     const auto is_unique = [&result](const secp256k1::g1::affine_element& y, const size_t j) {

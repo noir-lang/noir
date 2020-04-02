@@ -71,9 +71,7 @@ void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
 
 Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature const& sig)
 {
-    // Create copy of proving key so we can mutate it and throw it away when destroying the prover.
-    auto pk = std::shared_ptr<waffle::proving_key>(new waffle::proving_key(*proving_key));
-    Composer composer(pk, nullptr);
+    Composer composer(proving_key, nullptr);
     create_note_circuit(composer, note, sig);
 
     info("composer gates: ", composer.get_num_gates());
@@ -85,8 +83,7 @@ Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature co
 
 bool verify_proof(waffle::plonk_proof const& proof)
 {
-    auto vk = std::shared_ptr<waffle::verification_key>(new waffle::verification_key(*verification_key));
-    Verifier verifier(vk, Composer::create_manifest(3));
+    Verifier verifier(verification_key, Composer::create_manifest(3));
     return verifier.verify_proof(proof);
 }
 

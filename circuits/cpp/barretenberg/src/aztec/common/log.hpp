@@ -3,7 +3,7 @@
 
 extern "C" {
 #ifdef __wasm__
-void logstr(char const* str);
+void logstr(char const*);
 #else
 #include <iostream>
 inline void logstr(char const* str)

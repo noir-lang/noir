@@ -25,12 +25,8 @@ inline size_t point_table_buf_size(size_t num_points) {
 }
 
 template<typename T>
-inline T* point_table_alloc(size_t num_points, bool zero=false) {
-    T* ptr = (T*)aligned_alloc(64, point_table_buf_size<T>(num_points));
-    if (zero) {
-      memset(ptr, 0, point_table_buf_size<T>(num_points));
-    }
-    return ptr;
+inline T* point_table_alloc(size_t num_points) {
+    return (T*)aligned_alloc(64, point_table_buf_size<T>(num_points));
 }
 
 g1::affine_element* new_pippenger_point_table(uint8_t* points, size_t num_points);
