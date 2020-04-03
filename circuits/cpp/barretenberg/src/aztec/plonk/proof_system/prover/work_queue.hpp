@@ -10,8 +10,15 @@
 
 namespace waffle {
 class work_queue {
+
   public:
     enum WorkType { FFT, IFFT, SCALAR_MULTIPLICATION };
+
+    struct work_item_info {
+        size_t num_scalar_multiplications;
+        size_t num_ffts;
+        size_t num_iffts;
+    };
 
     struct work_item {
         WorkType work_type;
@@ -33,15 +40,23 @@ class work_queue {
     work_queue& operator=(const work_queue& other) = default;
     work_queue& operator=(work_queue&& other) = default;
 
-    size_t get_num_queued_scalar_multiplications() const
+    work_item_info get_queued_work_item_info() const
     {
-        size_t count = 0;
+        size_t scalar_mul_count = 0;
+        size_t fft_count = 0;
+        size_t ifft_count = 0;
         for (const auto& item : work_item_queue) {
             if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
-                ++count;
+                ++scalar_mul_count;
+            }
+            if (item.work_type == WorkType::FFT) {
+                ++fft_count;
+            }
+            if (item.work_type == WorkType::IFFT) {
+                ++ifft_count;
             }
         }
-        return count;
+        return work_item_info{ scalar_mul_count, fft_count, ifft_count };
     }
 
     barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const
@@ -58,6 +73,73 @@ class work_queue {
         return nullptr;
     }
 
+    barretenberg::fr* get_ifft_data(const size_t work_item_number) const
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::IFFT) {
+                if (count == work_item_number) {
+                    barretenberg::polynomial& wire = witness->wires.at(item.tag);
+                    return wire.get_coefficients();
+                }
+                ++count;
+            }
+        }
+        return nullptr;
+    }
+
+    void put_ifft_data(barretenberg::fr* result, const size_t work_item_number)
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::IFFT) {
+                if (count == work_item_number) {
+                    barretenberg::polynomial& wire = witness->wires.at(item.tag);
+                    memcpy((void*)wire.get_coefficients(), result, key->n * sizeof(barretenberg::fr));
+                    return;
+                }
+                ++count;
+            }
+        }
+    }
+
+    barretenberg::fr* get_fft_data(const size_t work_item_number) const
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::FFT) {
+                if (count == work_item_number) {
+                    barretenberg::polynomial& wire = witness->wires.at(item.tag);
+                    barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
+                    barretenberg::polynomial_arithmetic::copy_polynomial(
+                        &wire[0], &wire_fft[0], key->n, 4 * key->n + 4);
+                    return wire_fft.get_coefficients();
+                }
+                ++count;
+            }
+        }
+        return nullptr;
+    }
+
+    void put_fft_data(barretenberg::fr* result, const size_t work_item_number)
+    {
+        size_t count = 0;
+        for (const auto& item : work_item_queue) {
+            if (item.work_type == WorkType::FFT) {
+                if (count == work_item_number) {
+                    barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
+                    memcpy((void*)wire_fft.get_coefficients(), result, key->n * 4 * sizeof(barretenberg::fr));
+                    wire_fft.add_lagrange_base_coefficient(wire_fft[0]);
+                    wire_fft.add_lagrange_base_coefficient(wire_fft[1]);
+                    wire_fft.add_lagrange_base_coefficient(wire_fft[2]);
+                    wire_fft.add_lagrange_base_coefficient(wire_fft[3]);
+                    return;
+                }
+                ++count;
+            }
+        }
+    }
+
     void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number)
     {
         size_t count = 0;
@@ -72,25 +154,23 @@ class work_queue {
         }
     }
 
-    void flush_queue() { process_queue(true); }
+    void flush_queue() { work_item_queue = std::vector<work_item>(); }
 
     void add_to_queue(const work_item& item) { work_item_queue.push_back(item); }
 
-    void process_queue(const size_t skip_multiplications = false)
+    void process_queue()
     {
         for (const auto& item : work_item_queue) {
             switch (item.work_type) {
             // most expensive op
             case WorkType::SCALAR_MULTIPLICATION: {
-                if (!skip_multiplications) {
-                    barretenberg::g1::affine_element result(
-                        barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
-                                                                              key->reference_string->get_monomials(),
-                                                                              key->small_domain.size,
-                                                                              key->pippenger_runtime_state));
+                barretenberg::g1::affine_element result(
+                    barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
+                                                                          key->reference_string->get_monomials(),
+                                                                          key->small_domain.size,
+                                                                          key->pippenger_runtime_state));
 
-                    transcript->add_element(item.tag, result.to_buffer());
-                }
+                transcript->add_element(item.tag, result.to_buffer());
                 break;
             }
             // About 20% of the cost of a scalar multiplication. For WASM, might be a bit more expensive
