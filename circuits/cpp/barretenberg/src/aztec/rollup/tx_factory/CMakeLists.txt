@@ -8,4 +8,5 @@ target_link_libraries(
     rollup_tx
     schnorr
     pedersen
+    env
 )

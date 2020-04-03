@@ -16,4 +16,5 @@ target_link_libraries(
     noir_cli
     PRIVATE
     noir
+    env
 )

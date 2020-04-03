@@ -73,6 +73,7 @@ function(barretenberg_module MODULE_NAME)
             ${ARGN}
             gtest
             gtest_main
+            env
         )
 
         if(NOT WASM)
@@ -106,6 +107,7 @@ function(barretenberg_module MODULE_NAME)
             ${MODULE_LINK_NAME}
             ${ARGN}
             benchmark
+            env
         )
 
         add_custom_target(

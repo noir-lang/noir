@@ -1,17 +1,10 @@
 #pragma once
 #include <sstream>
 
-extern "C" {
-#ifdef __wasm__
-void logstr(char const*);
-#else
-#include <iostream>
-inline void logstr(char const* str)
-{
-    std::cout << str << std::endl;
-}
-#endif
-}
+// To be provided by the environment.
+// For barretenberg.wasm, this is provided by the JavaScript environment.
+// For anything other than barretenberg.wasm, this is provided in the env module.
+extern "C" void logstr(char const*);
 
 namespace {
 inline void format_chain(std::ostream&) {}

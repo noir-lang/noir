@@ -1,6 +1,5 @@
 #include "runtime_states.hpp"
 #include "point_table.hpp"
-#include <common/log.hpp>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -11,7 +10,6 @@ namespace scalar_multiplication {
 
 pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points)
 {
-    info("enter ", __func__);
     constexpr size_t MAX_NUM_ROUNDS = 256;
     num_points = num_initial_points * 2;
     const size_t num_buckets = static_cast<size_t>(
@@ -32,7 +30,6 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
     memset((void*)skew_table, 0x00, static_cast<size_t>(num_points) * sizeof(bool));
     memset((void*)buckets, 0xff, num_threads * (num_buckets + num_threads) * sizeof(g1::element));
     memset((void*)round_counts, 0x00, MAX_NUM_ROUNDS * sizeof(uint64_t));
-    info("exit ", __func__);
 }
 
 pippenger_runtime_state::pippenger_runtime_state(pippenger_runtime_state&& other)
