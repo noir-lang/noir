@@ -50,7 +50,10 @@ template <typename settings> class ProverBase {
         return queue.get_ifft_data(work_item_number);
     }
 
-    barretenberg::fr* get_fft_data(const size_t work_item_number) const { return queue.get_fft_data(work_item_number); }
+    work_queue::queued_fft_inputs get_fft_data(const size_t work_item_number) const
+    {
+        return queue.get_fft_data(work_item_number);
+    }
 
     void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number)
     {

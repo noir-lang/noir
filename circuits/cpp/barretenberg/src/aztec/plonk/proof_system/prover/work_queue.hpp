@@ -12,7 +12,7 @@ namespace waffle {
 class work_queue {
 
   public:
-    enum WorkType { FFT, IFFT, SCALAR_MULTIPLICATION };
+    enum WorkType { FFT, SMALL_FFT, IFFT, SCALAR_MULTIPLICATION };
 
     struct work_item_info {
         size_t num_scalar_multiplications;
@@ -24,6 +24,13 @@ class work_queue {
         WorkType work_type;
         barretenberg::fr* mul_scalars;
         std::string tag;
+        barretenberg::fr constant;
+        const size_t index;
+    };
+
+    struct queued_fft_inputs {
+        barretenberg::fr* data;
+        barretenberg::fr shift_factor;
     };
 
     work_queue(proving_key* prover_key = nullptr,
@@ -49,7 +56,7 @@ class work_queue {
             if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
                 ++scalar_mul_count;
             }
-            if (item.work_type == WorkType::FFT) {
+            if (item.work_type == WorkType::SMALL_FFT) {
                 ++fft_count;
             }
             if (item.work_type == WorkType::IFFT) {
@@ -103,36 +110,33 @@ class work_queue {
         }
     }
 
-    barretenberg::fr* get_fft_data(const size_t work_item_number) const
+    queued_fft_inputs get_fft_data(const size_t work_item_number) const
     {
         size_t count = 0;
         for (const auto& item : work_item_queue) {
-            if (item.work_type == WorkType::FFT) {
+            if (item.work_type == WorkType::SMALL_FFT) {
                 if (count == work_item_number) {
                     barretenberg::polynomial& wire = witness->wires.at(item.tag);
-                    barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
-                    barretenberg::polynomial_arithmetic::copy_polynomial(
-                        &wire[0], &wire_fft[0], key->n, 4 * key->n + 4);
-                    return wire_fft.get_coefficients();
+                    return { wire.get_coefficients(), key->large_domain.root * barretenberg::fr(item.index) };
                 }
                 ++count;
             }
         }
-        return nullptr;
+        return { nullptr, barretenberg::fr(0) };
     }
 
     void put_fft_data(barretenberg::fr* result, const size_t work_item_number)
     {
         size_t count = 0;
         for (const auto& item : work_item_queue) {
-            if (item.work_type == WorkType::FFT) {
+            if (item.work_type == WorkType::SMALL_FFT) {
                 if (count == work_item_number) {
+                    const size_t n = key->n;
                     barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
-                    memcpy((void*)wire_fft.get_coefficients(), result, key->n * 4 * sizeof(barretenberg::fr));
-                    wire_fft.add_lagrange_base_coefficient(wire_fft[0]);
-                    wire_fft.add_lagrange_base_coefficient(wire_fft[1]);
-                    wire_fft.add_lagrange_base_coefficient(wire_fft[2]);
-                    wire_fft.add_lagrange_base_coefficient(wire_fft[3]);
+                    for (size_t i = 0; i < n; ++i) {
+                        wire_fft[4 * i + item.index] = result[i];
+                    }
+                    wire_fft[4 * n + item.index] = result[0];
                     return;
                 }
                 ++count;
@@ -156,7 +160,49 @@ class work_queue {
 
     void flush_queue() { work_item_queue = std::vector<work_item>(); }
 
-    void add_to_queue(const work_item& item) { work_item_queue.push_back(item); }
+    void add_to_queue(const work_item& item)
+    {
+#if defined(__wasm__)
+        if (item.work_type == WorkType::FFT) {
+            const auto large_root = key->large_domain.root;
+            barretenberg::fr coset_shifts[4]{
+                barretenberg::fr(1), large_root, large_root.sqr(), large_root.sqr() * large_root
+            };
+            work_item_queue.push_back({
+                WorkType::SMALL_FFT,
+                nullptr,
+                item.tag,
+                coset_shifts[0],
+                0,
+            });
+            work_item_queue.push_back({
+                WorkType::SMALL_FFT,
+                nullptr,
+                item.tag,
+                coset_shifts[1],
+                1,
+            });
+            work_item_queue.push_back({
+                WorkType::SMALL_FFT,
+                nullptr,
+                item.tag,
+                coset_shifts[2],
+                2,
+            });
+            work_item_queue.push_back({
+                WorkType::SMALL_FFT,
+                nullptr,
+                item.tag,
+                coset_shifts[3],
+                3,
+            });
+        } else {
+            work_item_queue.push_back(item);
+        }
+#else
+        work_item_queue.push_back(item);
+#endif
+    }
 
     void process_queue()
     {
@@ -175,6 +221,20 @@ class work_queue {
             }
             // About 20% of the cost of a scalar multiplication. For WASM, might be a bit more expensive
             // due to the need to copy memory between web workers
+            case WorkType::SMALL_FFT: {
+                const size_t n = key->n;
+                barretenberg::polynomial& wire = witness->wires.at(item.tag);
+                barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
+
+                barretenberg::polynomial wire_copy(wire, n);
+                wire_copy.coset_fft_with_generator_shift(key->small_domain, item.constant);
+
+                for (size_t i = 0; i < n; ++i) {
+                    wire_fft[4 * i + item.index] = wire_copy[i];
+                }
+                wire_fft[4 * n + item.index] = wire_copy[0];
+                break;
+            }
             case WorkType::FFT: {
                 barretenberg::polynomial& wire = witness->wires.at(item.tag);
                 barretenberg::polynomial& wire_fft = key->wire_ffts.at(item.tag + "_fft");
