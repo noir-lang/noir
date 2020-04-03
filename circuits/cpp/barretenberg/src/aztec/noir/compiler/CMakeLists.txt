@@ -1,4 +1,4 @@
-barretenberg_module(noir stdlib_uint)
+barretenberg_module(noir stdlib_primitives)
 
 target_include_directories(
   noir_objects

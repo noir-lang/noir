@@ -1,10 +1,6 @@
 #pragma once
 #include <sstream>
-
-// To be provided by the environment.
-// For barretenberg.wasm, this is provided by the JavaScript environment.
-// For anything other than barretenberg.wasm, this is provided in the env module.
-extern "C" void logstr(char const*);
+#include <env/logstr.hpp>
 
 namespace {
 inline void format_chain(std::ostream&) {}

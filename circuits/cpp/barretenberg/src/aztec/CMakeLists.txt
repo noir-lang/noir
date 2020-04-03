@@ -38,12 +38,31 @@ if(BENCHMARKS)
 endif()
 
 if(WASM)
+    # Well, this is awkward. We can't build a wasm module by just linking to the libraries as that produces, nothing.
+    # There are a couple of other ways to avoiding listing all the object files here and leveraging the dependency
+    # tree, but they come with the problem that they will import the 'env' object files. We explicitly want to avoid
+    # that as functions in 'env' should be implemented in JS itself.
+    # It turns out that just explicitly telling the wasm module which object files to include was easiest.
     add_executable(
         barretenberg.wasm
+        $<TARGET_OBJECTS:srs_objects>
+        $<TARGET_OBJECTS:numeric_objects>
+        $<TARGET_OBJECTS:blake2s_objects>
+        $<TARGET_OBJECTS:keccak_objects>
         $<TARGET_OBJECTS:schnorr_objects>
         $<TARGET_OBJECTS:pedersen_objects>
         $<TARGET_OBJECTS:ecc_objects>
+        $<TARGET_OBJECTS:polynomials_objects>
+        $<TARGET_OBJECTS:composer_objects>
         $<TARGET_OBJECTS:proof_system_objects>
+        $<TARGET_OBJECTS:transcript_objects>
+        $<TARGET_OBJECTS:reference_string_objects>
+        $<TARGET_OBJECTS:stdlib_primitives_objects>
+        $<TARGET_OBJECTS:stdlib_schnorr_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_objects>
+        $<TARGET_OBJECTS:stdlib_blake2s_objects>
+        $<TARGET_OBJECTS:rollup_tx_objects>
+        $<TARGET_OBJECTS:rollup_pedersen_note_objects>
         $<TARGET_OBJECTS:rollup_client_proofs_objects>
     )
 
@@ -51,11 +70,5 @@ if(WASM)
         barretenberg.wasm
         PRIVATE
         -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=8388608
-    )
-
-    target_link_libraries(
-        barretenberg.wasm
-        PRIVATE
-        rollup_client_proofs
     )
 endif()

@@ -1,1 +1,0 @@
-barretenberg_module(stdlib_bool composer)

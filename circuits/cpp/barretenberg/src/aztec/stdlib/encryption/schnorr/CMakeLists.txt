@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_schnorr stdlib_blake2s stdlib_bit_array)
+barretenberg_module(stdlib_schnorr stdlib_blake2s stdlib_primitives)
