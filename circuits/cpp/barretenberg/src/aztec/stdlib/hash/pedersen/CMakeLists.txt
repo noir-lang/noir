@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_pedersen stdlib_field pedersen)
+barretenberg_module(stdlib_pedersen stdlib_primitives pedersen)
