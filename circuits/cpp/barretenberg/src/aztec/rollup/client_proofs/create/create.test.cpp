@@ -29,7 +29,7 @@ TEST(client_proofs, test_create)
         crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
             std::string(message.begin(), message.end()), { user.private_key, user.public_key });
 
-    create_note_proof(composer, note, signature);
+    create_note_circuit(composer, note, signature);
 
     Prover prover = composer.create_prover();
     waffle::plonk_proof proof = prover.construct_proof();

@@ -1,4 +1,5 @@
-#include "./runtime_states.hpp"
+#include "runtime_states.hpp"
+#include "point_table.hpp"
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -108,9 +109,10 @@ unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(const size_t num_
 #else
     const size_t num_threads = 1;
 #endif
+    const size_t prefetch_overflow = 16 * num_threads;
     const size_t num_rounds =
         static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
-    point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
+    point_schedule = (uint64_t*)(aligned_alloc(64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
     point_pairs_1 = (g1::affine_element*)(aligned_alloc(
         64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));

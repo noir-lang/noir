@@ -123,6 +123,8 @@ proving_key::proving_key(const proving_key& other)
     , opening_poly(other.opening_poly)
     , shifted_opening_poly(other.shifted_opening_poly)
     , linear_poly(other.linear_poly)
+    , quotient_mid(other.quotient_mid)
+    , quotient_large(other.quotient_large)
     , pippenger_runtime_state(n)
 {}
 
