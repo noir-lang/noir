@@ -70,6 +70,8 @@ template <class T> field<T> field<T>::asm_mul_with_coarse_reduction(const field&
     constexpr uint64_t modulus_1 = modulus.data[1];
     constexpr uint64_t modulus_2 = modulus.data[2];
     constexpr uint64_t modulus_3 = modulus.data[3];
+    constexpr uint64_t zero_ref = 0;
+
     /**
      * Registers: rax:rdx = multiplication accumulator
      *            %r12, %r13, %r14, %r15, %rax: work registers for `r`
@@ -90,7 +92,7 @@ template <class T> field<T> field<T>::asm_mul_with_coarse_reduction(const field&
               [ modulus_2 ] "m"(modulus_2),
               [ modulus_3 ] "m"(modulus_3),
               [ r_inv ] "m"(r_inv),
-              [ zero_reference ] "m"(zero_reference)
+              [ zero_reference ] "m"(zero_ref)
             : "%rdx", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
     return r;
 }
@@ -102,7 +104,7 @@ template <class T> void field<T>::asm_self_mul_with_coarse_reduction(const field
     constexpr uint64_t modulus_1 = modulus.data[1];
     constexpr uint64_t modulus_2 = modulus.data[2];
     constexpr uint64_t modulus_3 = modulus.data[3];
-
+    constexpr uint64_t zero_ref = 0;
     /**
      * Registers: rax:rdx = multiplication accumulator
      *            %r12, %r13, %r14, %r15, %rax: work registers for `r`
@@ -122,7 +124,7 @@ template <class T> void field<T>::asm_self_mul_with_coarse_reduction(const field
               [ modulus_2 ] "m"(modulus_2),
               [ modulus_3 ] "m"(modulus_3),
               [ r_inv ] "m"(r_inv),
-              [ zero_reference ] "m"(zero_reference)
+              [ zero_reference ] "m"(zero_ref)
             : "%rdx", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "cc", "memory");
 }
 
@@ -134,6 +136,7 @@ template <class T> field<T> field<T>::asm_sqr_with_coarse_reduction(const field&
     constexpr uint64_t modulus_1 = modulus.data[1];
     constexpr uint64_t modulus_2 = modulus.data[2];
     constexpr uint64_t modulus_3 = modulus.data[3];
+    constexpr uint64_t zero_ref = 0;
 
     /**
      * Registers: rax:rdx = multiplication accumulator
@@ -149,7 +152,7 @@ template <class T> field<T> field<T>::asm_sqr_with_coarse_reduction(const field&
             :
             : "r"(&a),
               "r"(&r),
-              [ zero_reference ] "m"(zero_reference),
+              [ zero_reference ] "m"(zero_ref),
               [ modulus_0 ] "m"(modulus_0),
               [ modulus_1 ] "m"(modulus_1),
               [ modulus_2 ] "m"(modulus_2),
@@ -166,6 +169,7 @@ template <class T> void field<T>::asm_self_sqr_with_coarse_reduction(const field
     constexpr uint64_t modulus_1 = modulus.data[1];
     constexpr uint64_t modulus_2 = modulus.data[2];
     constexpr uint64_t modulus_3 = modulus.data[3];
+    constexpr uint64_t zero_ref = 0;
 
     /**
      * Registers: rax:rdx = multiplication accumulator
@@ -180,7 +184,7 @@ template <class T> void field<T>::asm_self_sqr_with_coarse_reduction(const field
             STORE_FIELD_ELEMENT("%0", "%%r12", "%%r13", "%%r14", "%%r15")
             :
             : "r"(&a),
-              [ zero_reference ] "m"(zero_reference),
+              [ zero_reference ] "m"(zero_ref),
               [ modulus_0 ] "m"(modulus_0),
               [ modulus_1 ] "m"(modulus_1),
               [ modulus_2 ] "m"(modulus_2),
