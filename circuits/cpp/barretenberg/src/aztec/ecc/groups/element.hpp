@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <common/inline.hpp>
+#include <common/mem.hpp>
 #include <numeric/random/engine.hpp>
 #include <numeric/uint256/uint256.hpp>
 #include <random>
