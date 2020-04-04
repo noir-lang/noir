@@ -25,6 +25,7 @@ class StandardTranscript : public Transcript {
     std::vector<barretenberg::fr> get_field_element_vector(const std::string& element_name) const;
 
     barretenberg::fr get_challenge_field_element(const std::string& challenge_name, const size_t idx = 0) const;
+    barretenberg::fr get_challenge_field_element_from_map(const std::string& challenge_name, const std::string& challenge_map_name) const;
 };
 
 } // namespace transcript

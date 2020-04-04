@@ -6,17 +6,15 @@ template <typename Field, typename Group, typename Transcript> class VerifierSeq
   public:
     VerifierSequentialWidget();
 
-    static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-        const Transcript& transcript,
-        std::vector<Group>& points,
-        std::vector<Field>& scalars,
-        const bool use_linearisation);
+    static Field append_scalar_multiplication_inputs(verification_key* key,
+                                              const Field& challenge,
+                                              const Transcript& transcript,
+                                              std::vector<Group>& points,
+                                              std::vector<Field>& scalars,
+                                              const bool use_linearisation);
 
-    static size_t compute_batch_evaluation_contribution(verification_key*,
+    static void compute_batch_evaluation_contribution(verification_key*,
                                                         Field& batch_eval,
-                                                        const size_t nu_index,
                                                         const Transcript& transcript,
                                                         const bool use_linearisation);
 
@@ -45,8 +43,7 @@ class ProverSequentialWidget : public ProverBaseWidget {
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
 
-    size_t compute_opening_poly_contribution(
-        const size_t, const transcript::Transcript&, barretenberg::fr*, barretenberg::fr*, const bool) override;
+    void compute_opening_poly_contribution(const transcript::Transcript&, const bool) override;
 
     void compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation) override;
 

@@ -26,6 +26,7 @@ class standard_settings : public settings_base {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr size_t program_width = 3;
+    static constexpr size_t num_shifted_wire_evaluations = 1;
     static constexpr uint64_t wire_shift_settings = 0b0100;
     static constexpr bool uses_quotient_mid = true;
     static constexpr uint32_t permutation_shift = 30;
@@ -38,6 +39,7 @@ class unrolled_standard_settings : public settings_base {
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
     static constexpr size_t program_width = 3;
+    static constexpr size_t num_shifted_wire_evaluations = 1;
     static constexpr uint64_t wire_shift_settings = 0b0100;
     static constexpr bool uses_quotient_mid = true;
     static constexpr uint32_t permutation_shift = 30;
@@ -50,6 +52,7 @@ class turbo_settings : public settings_base {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr size_t program_width = 4;
+    static constexpr size_t num_shifted_wire_evaluations = 4;
     static constexpr uint64_t wire_shift_settings = 0b1111;
     static constexpr bool uses_quotient_mid = false;
     static constexpr uint32_t permutation_shift = 30;
@@ -62,6 +65,7 @@ class unrolled_turbo_settings : public settings_base {
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
     static constexpr size_t program_width = 4;
+    static constexpr size_t num_shifted_wire_evaluations = 4;
     static constexpr uint64_t wire_shift_settings = 0b1111;
     static constexpr bool uses_quotient_mid = false;
     static constexpr uint32_t permutation_shift = 30;
@@ -71,100 +75,80 @@ class unrolled_turbo_settings : public settings_base {
 
 class standard_verifier_settings : public standard_settings {
   public:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::g1 g1;
+    typedef transcript::StandardTranscript Transcript;
+    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
-    static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<barretenberg::fr>& challenge,
-        const transcript::StandardTranscript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars)
-    {
-        auto updated_challenge = VerifierPermutationWidget<barretenberg::fr,
-                                                           barretenberg::g1::affine_element,
-                                                           transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, challenge, transcript, points, scalars, use_linearisation);
 
-        updated_challenge.nu_index += 1;
-        return VerifierArithmeticWidget<barretenberg::fr,
-                                        barretenberg::g1::affine_element,
-                                        transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
+    static fr append_scalar_multiplication_inputs(verification_key* key,
+                                                  const fr& alpha_base,
+                                                  const Transcript& transcript,
+                                                  std::vector<g1::affine_element>& points,
+                                                  std::vector<fr>& scalars)
+    {
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
+            key, alpha_base, transcript, points, scalars, use_linearisation);
+
+        return ArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
     }
 
-    static size_t compute_batch_evaluation_contribution(verification_key* key,
-                                                        barretenberg::fr& batch_eval,
-                                                        const size_t nu_index,
-                                                        const transcript::StandardTranscript& transcript)
+    static void compute_batch_evaluation_contribution(verification_key* key,
+                                                      fr& batch_eval,
+                                                      const Transcript& transcript)
     {
-        auto updated_nu_index = VerifierPermutationWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, nu_index, transcript, use_linearisation);
-        ++updated_nu_index;
-        return VerifierArithmeticWidget<barretenberg::fr,
-                                        barretenberg::g1::affine_element,
-                                        transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
+        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        ArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
-                                                                     const barretenberg::fr& alpha_base,
-                                                                     const transcript::StandardTranscript& transcript,
-                                                                     barretenberg::fr& t_eval)
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& t_eval)
     {
-        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
-                                                            barretenberg::g1::affine_element,
-                                                            transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = VerifierArithmeticWidget<barretenberg::fr,
-                                                      barretenberg::g1::affine_element,
-                                                      transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = ArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
 };
 
 class unrolled_standard_verifier_settings : public standard_settings {
   public:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::g1 g1;
+    typedef transcript::StandardTranscript Transcript;
+    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+
     static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr bool use_linearisation = false;
-    static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<barretenberg::fr>& challenge,
-        const transcript::StandardTranscript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars)
+    static fr append_scalar_multiplication_inputs(verification_key* key,
+                                                  const fr& alpha_base,
+                                                  const Transcript& transcript,
+                                                  std::vector<barretenberg::g1::affine_element>& points,
+                                                  std::vector<barretenberg::fr>& scalars)
     {
-        auto updated_challenge = VerifierPermutationWidget<barretenberg::fr,
-                                                           barretenberg::g1::affine_element,
-                                                           transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, challenge, transcript, points, scalars, use_linearisation);
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
+            key, alpha_base, transcript, points, scalars, use_linearisation);
 
-        updated_challenge.nu_index += 1;
-
-        return VerifierArithmeticWidget<barretenberg::fr,
-                                        barretenberg::g1::affine_element,
-                                        transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
+        return ArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
     }
 
-    static size_t compute_batch_evaluation_contribution(verification_key* key,
-                                                        barretenberg::fr& batch_eval,
-                                                        const size_t nu_index,
-                                                        const transcript::StandardTranscript& transcript)
+    static void compute_batch_evaluation_contribution(verification_key* key,
+                                                      barretenberg::fr& batch_eval,
+                                                      const Transcript& transcript)
     {
-        auto updated_nu_index = VerifierPermutationWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, nu_index, transcript, use_linearisation);
-        ++updated_nu_index;
-        return VerifierArithmeticWidget<barretenberg::fr,
-                                        barretenberg::g1::affine_element,
-                                        transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
+        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        ArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -177,254 +161,180 @@ class unrolled_standard_verifier_settings : public standard_settings {
                                                             transcript::StandardTranscript>::
             compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
 
-        return VerifierArithmeticWidget<barretenberg::fr,
-                                        barretenberg::g1::affine_element,
-                                        transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        return ArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
     }
 };
 
 class mimc_verifier_settings : public standard_settings {
   public:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::g1 g1;
+    typedef transcript::StandardTranscript Transcript;
+    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+    typedef VerifierMiMCWidget<fr, g1::affine_element, Transcript> MiMCWidget;
+
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
-    static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<barretenberg::fr>& challenge,
-        const transcript::StandardTranscript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars)
+    static fr append_scalar_multiplication_inputs(verification_key* key,
+                                                  const fr& alpha_base,
+                                                  const Transcript& transcript,
+                                                  std::vector<barretenberg::g1::affine_element>& points,
+                                                  std::vector<barretenberg::fr>& scalars)
     {
 
-        auto updated_challenge = VerifierPermutationWidget<barretenberg::fr,
-                                                           barretenberg::g1::affine_element,
-                                                           transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, challenge, transcript, points, scalars, use_linearisation);
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
+            key, alpha_base, transcript, points, scalars, use_linearisation);
 
-        updated_challenge.nu_index += 1;
-
-        updated_challenge = VerifierArithmeticWidget<barretenberg::fr,
-                                                     barretenberg::g1::affine_element,
-                                                     transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
-        updated_challenge =
-            VerifierMiMCWidget<barretenberg::fr, barretenberg::g1::affine_element, transcript::StandardTranscript>::
-                append_scalar_multiplication_inputs(
-                    key, updated_challenge, transcript, points, scalars, use_linearisation);
-        return updated_challenge;
+        updated_alpha = ArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        updated_alpha = MiMCWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        return updated_alpha;
     }
 
-    static size_t compute_batch_evaluation_contribution(verification_key* key,
-                                                        barretenberg::fr& batch_eval,
-                                                        const size_t nu_index,
-                                                        const transcript::StandardTranscript& transcript)
+    static void compute_batch_evaluation_contribution(verification_key* key,
+                                                      fr& batch_eval,
+                                                      const Transcript& transcript)
     {
-        auto updated_nu_index = VerifierPermutationWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, nu_index, transcript, use_linearisation);
-        ++updated_nu_index;
-        updated_nu_index = VerifierArithmeticWidget<barretenberg::fr,
-                                                    barretenberg::g1::affine_element,
-                                                    transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        updated_nu_index =
-            VerifierMiMCWidget<barretenberg::fr, barretenberg::g1::affine_element, transcript::StandardTranscript>::
-                compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        return updated_nu_index;
+        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        ArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        MiMCWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
-                                                                     const barretenberg::fr& alpha_base,
-                                                                     const transcript::StandardTranscript& transcript,
-                                                                     barretenberg::fr& t_eval)
+    static fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                       const fr& alpha_base,
+                                                       const Transcript& transcript,
+                                                       fr& t_eval)
     {
-        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
-                                                            barretenberg::g1::affine_element,
-                                                            transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+        auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
 
-        updated_alpha_base = VerifierArithmeticWidget<barretenberg::fr,
-                                                      barretenberg::g1::affine_element,
-                                                      transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base =
-            VerifierMiMCWidget<barretenberg::fr, barretenberg::g1::affine_element, transcript::StandardTranscript>::
-                compute_quotient_evaluation_contribution(
-                    key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = ArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = MiMCWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
 };
 
 class turbo_verifier_settings : public turbo_settings {
   public:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::g1 g1;
+    typedef transcript::StandardTranscript Transcript;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
+    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
-    static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<barretenberg::fr>& challenge,
-        const transcript::StandardTranscript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars)
+    static fr append_scalar_multiplication_inputs(verification_key* key,
+                                                  const fr& alpha_base,
+                                                  const transcript::StandardTranscript& transcript,
+                                                  std::vector<g1::affine_element>& points,
+                                                  std::vector<fr>& scalars)
     {
-        auto updated_challenge = VerifierPermutationWidget<barretenberg::fr,
-                                                           barretenberg::g1::affine_element,
-                                                           transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, challenge, transcript, points, scalars, use_linearisation);
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
+            key, alpha_base, transcript, points, scalars, use_linearisation);
 
-        updated_challenge.nu_index += 4;
-        updated_challenge = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                         barretenberg::g1::affine_element,
-                                                         transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
-        updated_challenge = VerifierTurboRangeWidget<barretenberg::fr,
-                                                     barretenberg::g1::affine_element,
-                                                     transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
-        updated_challenge = VerifierTurboLogicWidget<barretenberg::fr,
-                                                     barretenberg::g1::affine_element,
-                                                     transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
-        return updated_challenge;
+        updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        return updated_alpha;
     }
 
-    static size_t compute_batch_evaluation_contribution(verification_key* key,
-                                                        barretenberg::fr& batch_eval,
-                                                        const size_t nu_index,
-                                                        const transcript::StandardTranscript& transcript)
+    static void compute_batch_evaluation_contribution(verification_key* key,
+                                                      barretenberg::fr& batch_eval,
+                                                      const Transcript& transcript)
     {
-        auto updated_nu_index = VerifierPermutationWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, nu_index, transcript, use_linearisation);
-        updated_nu_index += 4;
-        updated_nu_index = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                        barretenberg::g1::affine_element,
-                                                        transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        updated_nu_index = VerifierTurboRangeWidget<barretenberg::fr,
-                                                    barretenberg::g1::affine_element,
-                                                    transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        updated_nu_index = VerifierTurboLogicWidget<barretenberg::fr,
-                                                    barretenberg::g1::affine_element,
-                                                    transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-
-        return updated_nu_index;
+        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
-                                                                     const barretenberg::fr& alpha_base,
-                                                                     const transcript::StandardTranscript& transcript,
-                                                                     barretenberg::fr& t_eval)
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& t_eval)
     {
-        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
-                                                            barretenberg::g1::affine_element,
-                                                            transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
+        auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
 
-        updated_alpha_base = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = VerifierTurboRangeWidget<barretenberg::fr,
-                                                      barretenberg::g1::affine_element,
-                                                      transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = VerifierTurboLogicWidget<barretenberg::fr,
-                                                      barretenberg::g1::affine_element,
-                                                      transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
 };
 
 class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
   public:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::g1 g1;
+    typedef transcript::StandardTranscript Transcript;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
+    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
     static constexpr bool use_linearisation = false;
-    static VerifierBaseWidget::challenge_coefficients<barretenberg::fr> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<barretenberg::fr>& challenge,
-        const transcript::StandardTranscript& transcript,
-        std::vector<barretenberg::g1::affine_element>& points,
-        std::vector<barretenberg::fr>& scalars)
+    static fr append_scalar_multiplication_inputs(verification_key* key,
+                                                  const fr& alpha_base,
+                                                  const Transcript& transcript,
+                                                  std::vector<barretenberg::g1::affine_element>& points,
+                                                  std::vector<barretenberg::fr>& scalars)
     {
-        auto updated_challenge = VerifierPermutationWidget<barretenberg::fr,
-                                                           barretenberg::g1::affine_element,
-                                                           transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, challenge, transcript, points, scalars, use_linearisation);
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
+            key, alpha_base, transcript, points, scalars, use_linearisation);
 
-        updated_challenge.nu_index += 4;
+        updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
 
-        updated_challenge = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                         barretenberg::g1::affine_element,
-                                                         transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
+        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
 
-        updated_challenge = VerifierTurboRangeWidget<barretenberg::fr,
-                                                     barretenberg::g1::affine_element,
-                                                     transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
-
-        updated_challenge = VerifierTurboLogicWidget<barretenberg::fr,
-                                                     barretenberg::g1::affine_element,
-                                                     transcript::StandardTranscript>::
-            append_scalar_multiplication_inputs(key, updated_challenge, transcript, points, scalars, use_linearisation);
-        return updated_challenge;
+        updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        return updated_alpha;
     }
 
-    static size_t compute_batch_evaluation_contribution(verification_key* key,
-                                                        barretenberg::fr& batch_eval,
-                                                        const size_t nu_index,
-                                                        const transcript::StandardTranscript& transcript)
+    static void compute_batch_evaluation_contribution(verification_key* key,
+                                                      barretenberg::fr& batch_eval,
+                                                      const Transcript& transcript)
     {
-        auto updated_nu_index = VerifierPermutationWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, nu_index, transcript, use_linearisation);
-        updated_nu_index += 4;
-        updated_nu_index = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                        barretenberg::g1::affine_element,
-                                                        transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        updated_nu_index = VerifierTurboRangeWidget<barretenberg::fr,
-                                                    barretenberg::g1::affine_element,
-                                                    transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        updated_nu_index = VerifierTurboLogicWidget<barretenberg::fr,
-                                                    barretenberg::g1::affine_element,
-                                                    transcript::StandardTranscript>::
-            compute_batch_evaluation_contribution(key, batch_eval, updated_nu_index, transcript, use_linearisation);
-        return updated_nu_index;
+        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
                                                                      const barretenberg::fr& alpha_base,
-                                                                     const transcript::StandardTranscript& transcript,
+                                                                     const Transcript& transcript,
                                                                      barretenberg::fr& t_eval)
     {
-        auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
-                                                            barretenberg::g1::affine_element,
-                                                            transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, use_linearisation);
-
-        updated_alpha_base = VerifierTurboFixedBaseWidget<barretenberg::fr,
-                                                          barretenberg::g1::affine_element,
-                                                          transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = VerifierTurboRangeWidget<barretenberg::fr,
-                                                      barretenberg::g1::affine_element,
-                                                      transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = VerifierTurboLogicWidget<barretenberg::fr,
-                                                      barretenberg::g1::affine_element,
-                                                      transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
 };

@@ -3,7 +3,9 @@
 #include "affine_element.hpp"
 #include "wnaf.hpp"
 #include <array>
+#include <vector>
 #include <common/inline.hpp>
+#include <common/mem.hpp>
 #include <numeric/random/engine.hpp>
 #include <numeric/uint256/uint256.hpp>
 #include <random>
@@ -31,17 +33,17 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     constexpr element dbl() const noexcept;
     constexpr void self_dbl() noexcept;
-    BBERG_INLINE constexpr void self_mixed_add_or_sub(const affine_element<Fq, Fr, Params>& other,
+    constexpr void self_mixed_add_or_sub(const affine_element<Fq, Fr, Params>& other,
                                                       const uint64_t predicate) noexcept;
 
-    BBERG_INLINE constexpr element operator+(const element& other) const noexcept;
-    BBERG_INLINE constexpr element operator+(const affine_element<Fq, Fr, Params>& other) const noexcept;
-    BBERG_INLINE constexpr element operator+=(const element& other) noexcept;
-    BBERG_INLINE constexpr element operator+=(const affine_element<Fq, Fr, Params>& other) noexcept;
+    constexpr element operator+(const element& other) const noexcept;
+    constexpr element operator+(const affine_element<Fq, Fr, Params>& other) const noexcept;
+    constexpr element operator+=(const element& other) noexcept;
+    constexpr element operator+=(const affine_element<Fq, Fr, Params>& other) noexcept;
 
     constexpr element operator-(const element& other) const noexcept;
     constexpr element operator-(const affine_element<Fq, Fr, Params>& other) const noexcept;
-    BBERG_INLINE constexpr element operator-() const noexcept;
+    constexpr element operator-() const noexcept;
     constexpr element operator-=(const element& other) noexcept;
     constexpr element operator-=(const affine_element<Fq, Fr, Params>& other) noexcept;
 

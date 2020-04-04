@@ -96,9 +96,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         return false;
     }
 
-    // reconstruct challenges
-    // fr alpha_pow[4];
-
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(key->n),
                              static_cast<uint8_t>(key->n >> 8),
@@ -127,48 +124,47 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     fr T0 = lagrange_evals.vanishing_poly.invert();
     t_eval *= T0;
+
     transcript.add_element("t", t_eval.to_buffer());
 
     transcript.apply_fiat_shamir("nu");
     transcript.apply_fiat_shamir("separator");
 
-    std::vector<fr> nu_challenges;
-    for (size_t i = 0; i < transcript.get_num_challenges("nu"); ++i) {
-        nu_challenges.emplace_back(fr::serialize_from_buffer(transcript.get_challenge("nu", i).begin()));
-    }
     fr u = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
 
     fr batch_evaluation = t_eval;
 
-    constexpr size_t nu_offset = program_settings::use_linearisation ? 1 : 0;
+    fr linear_challenge(0);
+    if (program_settings::use_linearisation) {
+        linear_challenge = fr::serialize_from_buffer(transcript.get_challenge_from_map("nu", "r").begin());
+    }
+
     if constexpr (program_settings::use_linearisation) {
         fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
-        T0 = nu_challenges[0] * linear_eval;
+        T0 = linear_challenge * linear_eval;
         batch_evaluation += T0;
     }
 
     for (size_t i = 0; i < program_settings::program_width; ++i) {
-        T0 = nu_challenges[i + nu_offset] * wire_evaluations[i];
+        const std::string wire_key = "w_" + std::to_string(i + 1);
+        fr wire_challenge = fr::serialize_from_buffer(transcript.get_challenge_from_map("nu", wire_key).begin());
+        T0 = wire_challenge * wire_evaluations[i];
         batch_evaluation += T0;
     }
-
-    constexpr size_t nu_z_offset = (program_settings::use_linearisation) ? 2 * program_settings::program_width
-                                                                         : 2 * program_settings::program_width + 1;
-
-    size_t nu_ptr = nu_z_offset + 1;
 
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
-            fr wire_shifted_eval =
-                fr::serialize_from_buffer(&transcript.get_element("w_" + std::to_string(i + 1) + "_omega")[0]);
-            T0 = wire_shifted_eval * nu_challenges[nu_ptr++];
+            const std::string wire_key = "w_" + std::to_string(i + 1) + "_omega";
+            fr wire_challenge =
+                fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "w_" + std::to_string(i + 1))[0]);
+            fr wire_shifted_eval = fr::serialize_from_buffer(&transcript.get_element(wire_key)[0]);
+            T0 = wire_shifted_eval * wire_challenge;
             T0 *= u;
             batch_evaluation += T0;
         }
     }
 
-    nu_ptr = program_settings::program_width + nu_offset;
-    program_settings::compute_batch_evaluation_contribution(key.get(), batch_evaluation, nu_ptr, transcript);
+    program_settings::compute_batch_evaluation_contribution(key.get(), batch_evaluation, transcript);
 
     batch_evaluation.self_neg();
 
@@ -179,33 +175,28 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     std::vector<fr> scalars;
     std::vector<g1::affine_element> elements;
 
-
-    nu_ptr = nu_z_offset + 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
+        const std::string wire_key = "w_" + std::to_string(i + 1);
         if (W[i].on_curve()) {
             elements.emplace_back(W[i]);
+            fr wire_challenge = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", wire_key)[0]);
             if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
-                T0 = nu_challenges[nu_ptr] * u;
-                T0 += nu_challenges[i + nu_offset];
+                T0 = wire_challenge * u;
+                T0 += wire_challenge;
                 scalars.emplace_back(T0);
             } else {
-                scalars.emplace_back(nu_challenges[i + nu_offset]);
+                scalars.emplace_back(wire_challenge);
             }
         }
-        if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
-            ++nu_ptr;
-        }
     }
-
-
 
     elements.emplace_back(g1::affine_one);
     scalars.emplace_back(batch_evaluation);
 
-    if (PI_Z_OMEGA.on_curve()) {
-        elements.emplace_back(PI_Z_OMEGA);
-        scalars.emplace_back(z_omega_scalar);
-    }
+    // if (PI_Z_OMEGA.on_curve()) {
+    elements.emplace_back(PI_Z_OMEGA);
+    scalars.emplace_back(z_omega_scalar);
+    // }
 
     elements.emplace_back(PI_Z);
     scalars.emplace_back(z_challenge);
@@ -218,10 +209,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-    nu_ptr = program_settings::program_width + nu_offset;
-    VerifierBaseWidget::challenge_coefficients<barretenberg::fr> coeffs{ alpha, alpha, nu_ptr, 0 };
-
-    program_settings::append_scalar_multiplication_inputs(key.get(), coeffs, transcript, elements, scalars);
+    program_settings::append_scalar_multiplication_inputs(key.get(), alpha, transcript, elements, scalars);
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(&elements[0], &elements[0], num_elements);

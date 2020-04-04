@@ -127,14 +127,15 @@ class StandardComposer : public ComposerBase {
               transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                     { "w_2", fr_size, false },
                                                     { "w_3", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
                                                     { "z_omega", fr_size, false },
                                                     { "sigma_1", fr_size, false },
                                                     { "sigma_2", fr_size, false },
                                                     { "r", fr_size, false },
+                                                    { "w_3_omega", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  10),
+                                                  7,
+                                                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
@@ -161,8 +162,6 @@ class StandardComposer : public ComposerBase {
               transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                     { "w_2", fr_size, false },
                                                     { "w_3", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
-                                                    { "z", fr_size, false },
                                                     { "z_omega", fr_size, false },
                                                     { "sigma_1", fr_size, false },
                                                     { "sigma_2", fr_size, false },
@@ -172,9 +171,12 @@ class StandardComposer : public ComposerBase {
                                                     { "q_3", fr_size, false },
                                                     { "q_m", fr_size, false },
                                                     { "q_c", fr_size, false },
+                                                    { "z", fr_size, false },
+                                                    { "w_3_omega", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  18),
+                                                  12,
+                                                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;

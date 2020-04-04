@@ -27,14 +27,14 @@ TEST(stdlib_sha256, test_55_bytes)
     EXPECT_EQ(output[5].get_value(), 0xbde22ab0U);
     EXPECT_EQ(output[6].get_value(), 0x54a8fac7U);
     EXPECT_EQ(output[7].get_value(), 0x93791fc7U);
+    printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
     Verifier verifier = composer.create_verifier();
-
+    printf("constructing proof \n");
     waffle::plonk_proof proof = prover.construct_proof();
-
+    printf("constructed proof \n");
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
@@ -57,13 +57,14 @@ TEST(stdlib_sha256, test_NIST_vector_one)
     EXPECT_EQ(output[5].get_value(), 0x96177A9CU);
     EXPECT_EQ(output[6].get_value(), 0xB410FF61U);
     EXPECT_EQ(output[7].get_value(), 0xF20015ADU);
+    printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
     Verifier verifier = composer.create_verifier();
-
+    printf("constructing proof \n");
     waffle::plonk_proof proof = prover.construct_proof();
+    printf("constructed proof \n");
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -87,13 +88,14 @@ TEST(stdlib_sha256, test_NIST_vector_two)
     EXPECT_EQ(output[5].get_value(), 0x64FF2167U);
     EXPECT_EQ(output[6].get_value(), 0xF6ECEDD4U);
     EXPECT_EQ(output[7].get_value(), 0x19DB06C1U);
+    printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
     Verifier verifier = composer.create_verifier();
-
+    printf("constructing proof \n");
     waffle::plonk_proof proof = prover.construct_proof();
+    printf("constructed proof \n");
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
@@ -126,10 +128,10 @@ TEST(stdlib_sha256, test_NIST_vector_three)
     EXPECT_EQ(output[5].get_value(), 0x7dc4b5aaU);
     EXPECT_EQ(output[6].get_value(), 0xe11204c0U);
     EXPECT_EQ(output[7].get_value(), 0x8ffe732bU);
+    printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
 
-    printf("composer gates = %zu\n", composer.get_num_gates());
     Verifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();

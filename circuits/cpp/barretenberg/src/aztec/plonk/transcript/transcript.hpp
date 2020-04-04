@@ -35,7 +35,10 @@ class Transcript {
                const size_t challenge_bytes = 32)
         : num_challenge_bytes(challenge_bytes)
         , hasher(hash_type)
-        , manifest(input_manifest){};
+        , manifest(input_manifest)
+    {
+        compute_challenge_map();
+    }
 
     Transcript(const std::vector<uint8_t>& input_transcript,
                const Manifest input_manifest,
@@ -48,11 +51,17 @@ class Transcript {
     void apply_fiat_shamir(const std::string& challenge_name);
 
     std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge(const std::string& challenge_name, const size_t idx = 0) const;
+
+    std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge_from_map(const std::string& challenge_name,
+                                                                 const std::string& challenge_map_name) const;
+
     size_t get_num_challenges(const std::string& challenge_name) const;
 
     std::vector<uint8_t> get_element(const std::string& element_name) const;
 
     std::vector<uint8_t> export_transcript() const;
+
+    void compute_challenge_map();
 
   private:
     size_t current_round = 0;
@@ -65,6 +74,7 @@ class Transcript {
     challenge current_challenge;
 
     Manifest manifest;
+    std::map<std::string, size_t> challenge_map;
 };
 
 } // namespace transcript
