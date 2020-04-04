@@ -280,25 +280,27 @@ template <class T> constexpr void field<T>::self_reduce_once() noexcept
 
 template <class T> constexpr field<T> field<T>::pow(const uint256_t& exponent) const noexcept
 {
-    if (*this == zero()) {
-        return zero();
-    }
-    if (exponent == uint256_t(0)) {
-        return one();
-    }
-    if (exponent == uint256_t(1)) {
-        return *this;
-    }
 
     field accumulator{ data[0], data[1], data[2], data[3] };
+    field to_mul{ data[0], data[1], data[2], data[3] };
     const uint64_t maximum_set_bit = exponent.get_msb();
 
-    for (uint64_t i = maximum_set_bit - 1; i < maximum_set_bit; --i) {
+    for (int i = static_cast<int>(maximum_set_bit) - 1; i >= 0; --i) {
         accumulator.self_sqr();
-        if (exponent.get_bit(i)) {
-            accumulator *= *this;
+        if (exponent.get_bit(static_cast<uint64_t>(i))) {
+            accumulator *= to_mul;
         }
     }
+
+    if (*this == zero()) {
+        accumulator = zero();
+    } else if (exponent == uint256_t(0)) {
+        accumulator = one();
+    }
+    // else if (exponent == uint256_t(1))
+    // {
+    //     accumulator = to_mul;
+    // }
     return accumulator;
 }
 

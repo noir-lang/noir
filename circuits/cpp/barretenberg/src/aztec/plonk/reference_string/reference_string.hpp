@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <common/mem.hpp>
 #include <ecc/curves/bn254/g1.hpp>
 #include <ecc/curves/bn254/g2.hpp>
 

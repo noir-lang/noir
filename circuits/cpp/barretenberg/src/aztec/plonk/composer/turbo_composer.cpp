@@ -1049,7 +1049,6 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
     poly_coefficients[13] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
     poly_coefficients[14] = circuit_proving_key->permutation_selectors.at("sigma_4").get_coefficients();
 
-    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     std::vector<barretenberg::g1::affine_element> commitments;
     commitments.resize(15);
 
@@ -1058,7 +1057,7 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
             g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
                                                                 circuit_proving_key->reference_string->get_monomials(),
                                                                 circuit_proving_key->n,
-                                                                state));
+                                                                circuit_proving_key->pippenger_runtime_state));
     }
 
     auto crs = crs_factory_->get_verifier_crs();

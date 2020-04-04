@@ -1,4 +1,5 @@
 #include <benchmark/benchmark.h>
+#include <common/mem.hpp>
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
@@ -142,7 +143,7 @@ void unsafe_pippenger_bench(State& state) noexcept
     uint64_t i = 0;
     for (auto _ : state) {
         state.PauseTiming();
-        scalar_multiplication::unsafe_pippenger_runtime_state run_state(num_points);
+        scalar_multiplication::pippenger_runtime_state run_state(num_points);
         state.ResumeTiming();
 
         uint64_t before = rdtsc();

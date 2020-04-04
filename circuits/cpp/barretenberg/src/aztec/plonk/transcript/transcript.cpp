@@ -1,9 +1,12 @@
 #include "transcript.hpp"
 #include <common/assert.hpp>
+#include <common/net.hpp>
 #include <crypto/blake2s/blake2s.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <iomanip>
 #include <iostream>
+#include <vector>
+#include <array>
 
 namespace transcript {
 
@@ -11,6 +14,12 @@ std::array<uint8_t, Keccak256Hasher::PRNG_OUTPUT_SIZE> Keccak256Hasher::hash(std
 {
     keccak256 hash_result = ethash_keccak256(&buffer[0], buffer.size());
     std::array<uint8_t, PRNG_OUTPUT_SIZE> result;
+
+    for (auto& word : hash_result.word64s) {
+        if (is_little_endian()) {
+            word = __builtin_bswap64(word);
+        }
+    }
     for (size_t i = 0; i < 4; ++i) {
         for (size_t j = 0; j < 8; ++j) {
             uint8_t byte = static_cast<uint8_t>(hash_result.word64s[i] >> (56 - (j * 8)));
