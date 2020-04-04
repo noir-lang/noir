@@ -78,18 +78,6 @@ struct affine_product_runtime_state {
 struct pippenger_runtime_state {
     uint64_t* point_schedule;
     bool* skew_table;
-    g1::element* buckets;
-    uint64_t* round_counts;
-    uint64_t num_points;
-    pippenger_runtime_state(const size_t num_initial_points);
-    pippenger_runtime_state(pippenger_runtime_state&& other);
-    pippenger_runtime_state& operator=(pippenger_runtime_state&& other);
-    ~pippenger_runtime_state();
-};
-
-struct unsafe_pippenger_runtime_state {
-    uint64_t* point_schedule;
-    bool* skew_table;
     g1::affine_element* point_pairs_1;
     g1::affine_element* point_pairs_2;
     fq* scratch_space;
@@ -99,10 +87,10 @@ struct unsafe_pippenger_runtime_state {
     uint64_t* round_counts;
     uint64_t num_points;
 
-    unsafe_pippenger_runtime_state(const size_t num_initial_points);
-    unsafe_pippenger_runtime_state(unsafe_pippenger_runtime_state&& other);
-    unsafe_pippenger_runtime_state& operator=(unsafe_pippenger_runtime_state&& other);
-    ~unsafe_pippenger_runtime_state();
+    pippenger_runtime_state(const size_t num_initial_points);
+    pippenger_runtime_state(pippenger_runtime_state&& other);
+    pippenger_runtime_state& operator=(pippenger_runtime_state&& other);
+    ~pippenger_runtime_state();
 
     affine_product_runtime_state get_affine_product_runtime_state(const size_t num_threads, const size_t thread_index);
 };

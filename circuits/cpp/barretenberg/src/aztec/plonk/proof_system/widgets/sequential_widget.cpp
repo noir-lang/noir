@@ -79,20 +79,20 @@ fr ProverSequentialWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base;
 }
 
-size_t ProverSequentialWidget::compute_opening_poly_contribution(
-    const size_t nu_index, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
+void ProverSequentialWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
+                                                               const bool use_linearisation)
 {
     if (use_linearisation) {
-        return nu_index;
+        return;
     }
 
-    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
+    polynomial& poly = key->opening_poly;
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_3_next")[0]);
 
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     poly[i] += (q_3_next[i] * nu);
     ITERATE_OVER_DOMAIN_END;
-
-    return nu_index + 1;
 }
 
 void ProverSequentialWidget::compute_transcript_elements(transcript::Transcript& transcript,
@@ -138,39 +138,39 @@ Field VerifierSequentialWidget<Field, Group, Transcript>::compute_quotient_evalu
 }
 
 template <typename Field, typename Group, typename Transcript>
-size_t VerifierSequentialWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
-    verification_key*, Field& batch_eval, const size_t nu_index, const Transcript& transcript, bool use_linearisation)
+void VerifierSequentialWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
+    verification_key*, Field& batch_eval, const Transcript& transcript, bool use_linearisation)
 {
     if (use_linearisation) {
-        return nu_index;
+        return;
     }
 
     Field q_3_omega_eval = transcript.get_field_element("q_3_omega");
 
-    Field nu = transcript.get_challenge_field_element("nu", nu_index);
+    Field nu = transcript.get_challenge_field_element_from_map("nu", "q_3_omega");
 
     batch_eval += (q_3_omega_eval * nu);
-
-    return nu_index + 1;
 };
 
 template <typename Field, typename Group, typename Transcript>
-VerifierBaseWidget::challenge_coefficients<Field> VerifierSequentialWidget<Field, Group, Transcript>::
-    append_scalar_multiplication_inputs(verification_key* key,
-                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-                                        const Transcript& transcript,
-                                        std::vector<Group>& points,
-                                        std::vector<Field>& scalars,
-                                        const bool use_linearisation)
+Field VerifierSequentialWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+    verification_key* key,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    std::vector<Group>& points,
+    std::vector<Field>& scalars,
+    const bool use_linearisation)
 {
+    Field alpha_step = transcript.get_challenge_field_element("alpha");
+
     if (use_linearisation) {
         Field w_o_shifted_eval = transcript.get_field_element("w_3_omega");
 
-        Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
+        Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
 
-        Field old_alpha = (challenge.alpha_base * (challenge.alpha_step.invert()));
+        Field old_alpha = (alpha_base * (alpha_step.invert()));
 
-        // Q_M term = w_l * w_r * challenge.alpha_base * nu
+        // Q_M term = w_l * w_r * alpha_base * nu
         Field q_o_next_term;
         q_o_next_term = w_o_shifted_eval * old_alpha;
         q_o_next_term *= linear_nu;
@@ -180,20 +180,16 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierSequentialWidget<Field
             scalars.push_back(q_o_next_term);
         }
 
-        return VerifierBaseWidget::challenge_coefficients<Field>{
-            challenge.alpha_base, challenge.alpha_step, challenge.nu_index, challenge.linear_nu_index
-        };
+        return alpha_base;
     }
 
-    Field nu_base = transcript.get_challenge_field_element("nu", challenge.nu_index);
+    Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_3_next");
 
     if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
         scalars.push_back(nu_base);
     }
-    return VerifierBaseWidget::challenge_coefficients<Field>{
-        challenge.alpha_base, challenge.alpha_step, challenge.nu_index + 1, challenge.linear_nu_index
-    };
+    return alpha_base;
 }
 
 template class VerifierSequentialWidget<barretenberg::fr,

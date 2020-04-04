@@ -1,5 +1,6 @@
 #pragma once
 #include <numeric/uint256/uint256.hpp>
+#include <vector>
 
 namespace barretenberg {
 namespace group_elements {
@@ -32,7 +33,10 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr bool operator==(const affine_element& other) const noexcept;
 
-    constexpr affine_element operator-() const noexcept { return { x, -y }; }
+    constexpr affine_element operator-() const noexcept
+    {
+        return { x, -y };
+    }
 
     static void serialize_to_buffer(const affine_element& value, uint8_t* buffer)
     {

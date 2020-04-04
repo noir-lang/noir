@@ -285,9 +285,20 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
     std::vector<fr> nu_challenges;
-    for (size_t i = 0; i < transcript.get_num_challenges("nu"); ++i) {
-        nu_challenges.emplace_back(fr::serialize_from_buffer(transcript.get_challenge("nu", i).begin()));
+    std::vector<fr> shifted_nu_challenges;
+
+    if constexpr (settings::use_linearisation) {
+        nu_challenges.emplace_back(fr::serialize_from_buffer(transcript.get_challenge_from_map("nu", "r").begin()));
     }
+    for (size_t i = 0; i < settings::program_width; ++i) {
+        if (settings::requires_shifted_wire(settings::wire_shift_settings, i)) {
+            shifted_nu_challenges.emplace_back(fr::serialize_from_buffer(
+                transcript.get_challenge_from_map("nu", "w_" + std::to_string(i + 1)).begin()));
+        }
+        nu_challenges.emplace_back(
+            fr::serialize_from_buffer(transcript.get_challenge_from_map("nu", "w_" + std::to_string(i + 1)).begin()));
+    }
+
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
     fr* r = key->linear_poly.get_coefficients();
 
@@ -311,10 +322,6 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 
     polynomial& quotient_large = key->quotient_large;
 
-    constexpr size_t nu_offset = (settings::use_linearisation ? 1 : 0);
-    constexpr size_t nu_z_offset =
-        (settings::use_linearisation) ? 2 * settings::program_width : 2 * settings::program_width + 1;
-
     ITERATE_OVER_DOMAIN_START(key->small_domain);
 
     fr T0;
@@ -327,7 +334,7 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
         quotient_temp += T0;
     }
     for (size_t k = 0; k < settings::program_width; ++k) {
-        T0 = wires[k][i] * nu_challenges[k + nu_offset];
+        T0 = wires[k][i] * nu_challenges[k + settings::use_linearisation];
         quotient_temp += T0;
     }
     shifted_opening_poly[i] = 0;
@@ -336,41 +343,38 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 
     ITERATE_OVER_DOMAIN_END;
 
-    constexpr size_t shifted_nu_offset = nu_z_offset + 1;
     if constexpr (settings::wire_shift_settings > 0) {
         ITERATE_OVER_DOMAIN_START(key->small_domain);
-        size_t nu_ptr = shifted_nu_offset;
+        size_t nu_ptr = 0;
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 0)) {
             fr T0;
-            T0 = nu_challenges[nu_ptr++] * wires[0][i];
+            T0 = shifted_nu_challenges[nu_ptr++] * wires[0][i];
             shifted_opening_poly[i] += T0;
         }
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 1)) {
             fr T0;
-            T0 = nu_challenges[nu_ptr++] * wires[1][i];
+            T0 = shifted_nu_challenges[nu_ptr++] * wires[1][i];
             shifted_opening_poly[i] += T0;
         }
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 2)) {
             fr T0;
-            T0 = nu_challenges[nu_ptr++] * wires[2][i];
+            T0 = shifted_nu_challenges[nu_ptr++] * wires[2][i];
             shifted_opening_poly[i] += T0;
         }
         if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 3)) {
             fr T0;
-            T0 = nu_challenges[nu_ptr++] * wires[3][i];
+            T0 = shifted_nu_challenges[nu_ptr++] * wires[3][i];
             shifted_opening_poly[i] += T0;
         }
         for (size_t k = 4; k < settings::program_width; ++k) {
             if (settings::requires_shifted_wire(settings::wire_shift_settings, k)) {
                 fr T0;
-                T0 = nu_challenges[nu_ptr++] * wires[k][i];
+                T0 = shifted_nu_challenges[nu_ptr++] * wires[k][i];
                 shifted_opening_poly[i] += T0;
             }
         }
         ITERATE_OVER_DOMAIN_END;
     }
-
-    size_t nu_ptr = settings::program_width + nu_offset;
 
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -382,15 +386,7 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #endif
     // Currently code assumes permutation_widget is first.
     for (size_t i = 0; i < widgets.size(); ++i) {
-        nu_ptr = widgets[i]->compute_opening_poly_contribution(
-            nu_ptr, transcript, &opening_poly[0], &shifted_opening_poly[0], settings::use_linearisation);
-        if (i == 0) {
-            for (size_t i = 0; i < settings::program_width; ++i) {
-                if (settings::requires_shifted_wire(settings::wire_shift_settings, i)) {
-                    ++nu_ptr;
-                }
-            }
-        }
+        widgets[i]->compute_opening_poly_contribution(transcript, settings::use_linearisation);
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -472,7 +468,6 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         transcript.add_element("r", linear_eval.to_buffer());
     }
     transcript.add_element("t", t_eval.to_buffer());
-
     return t_eval;
 }
 

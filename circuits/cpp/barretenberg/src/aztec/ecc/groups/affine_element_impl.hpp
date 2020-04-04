@@ -75,21 +75,21 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::set_infinity() co
 template <class Fq, class Fr, class T> constexpr void affine_element<Fq, Fr, T>::self_set_infinity() noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        y.data[0] = 0;
-        y.data[1] = 0;
-        y.data[2] = 0;
-        y.data[3] = 0;
+        x.data[0] = 0;
+        x.data[1] = 0;
+        x.data[2] = 0;
+        x.data[3] = 0;
     } else {
-        y.self_set_msb();
+        x.self_set_msb();
     }
 }
 
 template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>::is_point_at_infinity() const noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        return ((y.data[0] | y.data[1] | y.data[2] | y.data[3]) == 0);
+        return ((x.data[0] | x.data[1] | x.data[2] | x.data[3]) == 0);
     } else {
-        return (y.is_msb_set());
+        return (x.is_msb_set());
     }
 }
 

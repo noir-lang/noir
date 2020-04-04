@@ -38,7 +38,8 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                                                 { "r", fr_size, false },
                                                 { "t", fr_size, true } },
                                               "nu",
-                                              10),
+                                              10,
+                                              true),
           transcript::Manifest::RoundManifest(
               { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
@@ -267,7 +268,6 @@ waffle::Prover generate_test_data(const size_t n)
 
     std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
-
 
     std::unique_ptr<waffle::ProverArithmeticWidget> widget =
         std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());

@@ -21,4 +21,10 @@ barretenberg::fr StandardTranscript::get_challenge_field_element(const std::stri
 {
     return barretenberg::fr::serialize_from_buffer(&(get_challenge(challenge_name, idx))[0]);
 }
+
+barretenberg::fr StandardTranscript::get_challenge_field_element_from_map(const std::string& challenge_name,
+                                                                          const std::string& challenge_map_name) const
+{
+    return barretenberg::fr::serialize_from_buffer(&(get_challenge_from_map(challenge_name, challenge_map_name))[0]);
+}
 } // namespace transcript

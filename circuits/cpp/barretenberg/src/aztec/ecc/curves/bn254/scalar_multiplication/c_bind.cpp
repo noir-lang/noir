@@ -1,6 +1,7 @@
 #include "c_bind.hpp"
 #include "./scalar_multiplication.hpp"
 #include "point_table.hpp"
+#include <common/mem.hpp>
 #include <srs/io.hpp>
 
 using namespace barretenberg;
@@ -25,7 +26,7 @@ WASM_EXPORT g1::affine_element* create_pippenger_point_table(uint8_t* points, si
 WASM_EXPORT void pippenger_unsafe(
     fr* scalars, size_t from, size_t range, g1::affine_element* point_table, g1::element* result)
 {
-    scalar_multiplication::unsafe_pippenger_runtime_state state(range);
+    scalar_multiplication::pippenger_runtime_state state(range);
     *result = scalar_multiplication::pippenger_unsafe(scalars, point_table + from * 2, range, state);
 }
 
