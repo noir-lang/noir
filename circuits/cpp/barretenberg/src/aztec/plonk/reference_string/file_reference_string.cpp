@@ -1,6 +1,6 @@
 #include "file_reference_string.hpp"
 #include <ecc/curves/bn254/pairing.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/point_table.hpp>
 #include <srs/io.hpp>
 
 #ifndef NO_MULTITHREADING
@@ -25,17 +25,7 @@ VerifierFileReferenceString::~VerifierFileReferenceString()
 
 FileReferenceString::FileReferenceString(const size_t num_points, std::string const& path)
 {
-#ifndef NO_MULTITHREADING
-    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
-#else
-    const size_t num_threads = 1;
-#endif
-    const size_t prefetch_overflow = 16 * num_threads;
-
-    monomials = (barretenberg::g1::affine_element*)(aligned_alloc(
-        64, sizeof(barretenberg::g1::affine_element) * (2 * num_points + prefetch_overflow)));
-    barretenberg::io::read_transcript_g1(monomials, num_points, path);
-    barretenberg::scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_points);
+    monomials = barretenberg::scalar_multiplication::new_pippenger_point_table_from_path(path, num_points);
 }
 
 FileReferenceString::~FileReferenceString()

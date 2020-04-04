@@ -104,6 +104,11 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
                                           const uint64_t predicate) noexcept;
 };
 
+template <class Fq, class Fr, class Params>
+std::ostream& operator<<(std::ostream& os, element<Fq, Fr, Params> const& e) {
+    return os << "x:" << e.x << " y:" << e.y << " z:" << e.z;
+}
+
 // constexpr element<Fq, Fr, Params>::one = element<Fq, Fr, Params>{ Params::one_x, Params::one_y, Fq::one() };
 // constexpr element<Fq, Fr, Params>::point_at_infinity = one.set_infinity();
 // constexpr element<Fq, Fr, Params>::curve_b = Params::b;

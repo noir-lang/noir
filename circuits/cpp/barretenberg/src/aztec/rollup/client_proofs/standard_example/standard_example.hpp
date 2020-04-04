@@ -1,23 +1,20 @@
 #pragma once
-#include "../../tx/tx_note.hpp"
-#include <crypto/schnorr/schnorr.hpp>
 #include <plonk/reference_string/mem_reference_string.hpp>
-#include <stdlib/types/turbo.hpp>
+#include <stdlib/types/standard.hpp>
 
 namespace rollup {
 namespace client_proofs {
-namespace create {
+namespace standard_example {
 
-using namespace rollup::tx;
-using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::types::standard;
 
 void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
-void create_note_circuit(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
+void build_circuit(Composer& composer);
 
-Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature const& sig);
+Prover new_prover();
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

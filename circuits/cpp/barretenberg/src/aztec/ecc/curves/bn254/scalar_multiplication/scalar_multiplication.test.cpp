@@ -1,4 +1,5 @@
 #include "scalar_multiplication.hpp"
+#include "point_table.hpp"
 #include <chrono>
 #include <gtest/gtest.h>
 #include <srs/io.hpp>
@@ -11,6 +12,7 @@
 #define BARRETENBERG_SRS_PATH "../srs_db"
 
 using namespace barretenberg;
+using namespace barretenberg::scalar_multiplication;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -20,12 +22,11 @@ auto& engine = numeric::random::get_debug_engine();
 TEST(scalar_multiplication, reduce_buckets_simple)
 {
     constexpr size_t num_points = 128;
-    std::array<g1::affine_element, num_points> monomials;
     g2::affine_element g2_x;
-    io::read_transcript(&monomials[0], g2_x, num_points / 2, BARRETENBERG_SRS_PATH);
-    scalar_multiplication::generate_pippenger_point_table(&monomials[0], &monomials[0], num_points / 2);
+    io::read_transcript_g2(g2_x, BARRETENBERG_SRS_PATH);
+    auto monomials = scalar_multiplication::new_pippenger_point_table_from_path(BARRETENBERG_SRS_PATH, num_points / 2);
 
-    std::array<uint64_t, num_points> point_schedule;
+    std::vector<uint64_t> point_schedule(scalar_multiplication::point_table_size(num_points / 2));
     std::array<bool, num_points> bucket_empty_status;
     // 16 buckets, each bucket has one point
     std::array<uint64_t, num_points> transcript;
@@ -198,6 +199,8 @@ TEST(scalar_multiplication, reduce_buckets_simple)
         EXPECT_EQ((output[i].x == expected[i].x), true);
         EXPECT_EQ((output[i].y == expected[i].y), true);
     }
+
+    aligned_free(monomials);
 }
 
 TEST(scalar_multiplication, reduce_buckets)
@@ -229,11 +232,8 @@ TEST(scalar_multiplication, reduce_buckets)
 
     fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
 
-    fr source_scalar = fr::random_element();
     for (size_t i = 0; i < num_initial_points; ++i) {
-        // source_scalar.self_sqr();
-        source_scalar = fr::random_element();
-        fr::__copy(source_scalar, scalars[i]);
+        scalars[i] = fr::random_element();
     }
 
     // scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
@@ -786,8 +786,7 @@ TEST(scalar_multiplication, pippenger_unsafe)
 
     fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    g1::affine_element* points = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
         scalars[i] = fr::random_element();

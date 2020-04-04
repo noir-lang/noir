@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_mimc stdlib_field)
+barretenberg_module(stdlib_mimc stdlib_primitives)

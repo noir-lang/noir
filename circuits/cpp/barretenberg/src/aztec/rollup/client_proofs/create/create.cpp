@@ -1,14 +1,13 @@
 #include "create.hpp"
 #include "../../pedersen_note/pedersen_note.hpp"
 #include <stdlib/encryption/schnorr/schnorr.hpp>
+#include <common/log.hpp>
 
 namespace rollup {
 namespace client_proofs {
 namespace create {
 
 using namespace plonk;
-using namespace rollup::tx;
-using namespace plonk::stdlib::types::turbo;
 using namespace pedersen_note;
 
 typedef std::pair<private_note, public_note> note_pair;
@@ -41,7 +40,7 @@ void verify_signature(Composer& composer,
     stdlib::schnorr::verify_signature(message2, owner_pub_key, signature);
 }
 
-void create_note_proof(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig)
+void create_note_circuit(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig)
 {
     note_pair note_data = create_note_pair(composer, note);
     verify_signature(composer, note_data.second, note.owner, sig);
@@ -54,7 +53,7 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
     crypto::schnorr::signature sig;
 
     Composer composer(std::move(crs_factory));
-    create_note_proof(composer, note, sig);
+    create_note_circuit(composer, note, sig);
     proving_key = composer.compute_proving_key();
 }
 
@@ -65,20 +64,21 @@ void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
     crypto::schnorr::signature sig;
 
     Composer composer(std::move(crs_factory));
-    create_note_proof(composer, note, sig);
+    create_note_circuit(composer, note, sig);
     proving_key = composer.compute_proving_key();
     verification_key = composer.compute_verification_key();
 }
 
-std::vector<uint8_t> create_note_proof(tx_note const& note, crypto::schnorr::signature const& sig)
+Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature const& sig)
 {
     Composer composer(proving_key, nullptr);
-    create_note_proof(composer, note, sig);
+    create_note_circuit(composer, note, sig);
+
+    info("composer gates: ", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
-    waffle::plonk_proof proof = prover.construct_proof();
 
-    return proof.proof_data;
+    return prover;
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)

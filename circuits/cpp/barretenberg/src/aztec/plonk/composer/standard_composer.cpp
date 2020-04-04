@@ -755,7 +755,7 @@ UnrolledProver StandardComposer::create_unrolled_prover()
     return output_state;
 }
 
-Prover StandardComposer::preprocess()
+Prover StandardComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();

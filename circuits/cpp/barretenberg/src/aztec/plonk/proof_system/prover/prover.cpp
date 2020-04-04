@@ -471,14 +471,13 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     return t_eval;
 }
 
-template <typename settings> waffle::plonk_proof ProverBase<settings>::export_proof()
+template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_proof()
 {
-    waffle::plonk_proof result;
-    result.proof_data = transcript.export_transcript();
-    return result;
+    proof.proof_data = transcript.export_transcript();
+    return proof;
 }
 
-template <typename settings> waffle::plonk_proof ProverBase<settings>::construct_proof()
+template <typename settings> waffle::plonk_proof& ProverBase<settings>::construct_proof()
 {
     execute_preamble_round();
     queue.process_queue();
