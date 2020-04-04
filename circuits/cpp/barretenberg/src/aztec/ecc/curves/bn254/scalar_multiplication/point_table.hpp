@@ -1,5 +1,6 @@
 #pragma once
 #include "./scalar_multiplication.hpp"
+#include <common/mem.hpp>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
