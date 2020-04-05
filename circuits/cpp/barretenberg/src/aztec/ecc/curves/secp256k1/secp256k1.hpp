@@ -1,7 +1,7 @@
 #pragma once
 
-#include <numeric/uintx/uintx.hpp>
 #include <numeric/uint256/uint256.hpp>
+#include <numeric/uintx/uintx.hpp>
 
 #include "../../fields/field.hpp"
 #include "../../groups/group.hpp"
@@ -36,16 +36,27 @@ struct Secp256k1FqParams {
     static constexpr uint64_t modulus_2 = 0xFFFFFFFFFFFFFFFFULL;
     static constexpr uint64_t modulus_3 = 0xFFFFFFFFFFFFFFFFULL;
 
-    static constexpr uint64_t r_squared_0 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[0];
-    static constexpr uint64_t r_squared_1 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[1];
-    static constexpr uint64_t r_squared_2 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[2];
-    static constexpr uint64_t r_squared_3 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[3];
+    static constexpr uint64_t r_squared_0 = 8392367050913ULL;
+    static constexpr uint64_t r_squared_1 = 1;
+    static constexpr uint64_t r_squared_2 = 0;
+    static constexpr uint64_t r_squared_3 = 0;
 
-    static constexpr uint64_t r_inv = get_r_inv(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3));
+    static constexpr uint64_t coset_generators_0[8]{
+        0x300000b73ULL, 0x400000f44ULL, 0x500001315ULL, 0x6000016e6ULL,
+        0x700001ab7ULL, 0x800001e88ULL, 0x900002259ULL, 0xa0000262aULL,
+    };
+    static constexpr uint64_t coset_generators_1[8]{
+        0, 0, 0, 0, 0, 0, 0, 0,
+    };
+    static constexpr uint64_t coset_generators_2[8]{
+        0, 0, 0, 0, 0, 0, 0, 0,
+    };
+    static constexpr uint64_t coset_generators_3[8]{
+        0, 0, 0, 0, 0, 0, 0, 0,
+    };
+
+    static constexpr uint64_t r_inv =
+        15580212934572586289ULL;
 
     static constexpr uint64_t cube_root_0 = 0UL;
     static constexpr uint64_t cube_root_1 = 0UL;
@@ -64,16 +75,28 @@ struct Secp256k1FrParams {
     static constexpr uint64_t modulus_2 = 0xFFFFFFFFFFFFFFFEULL;
     static constexpr uint64_t modulus_3 = 0xFFFFFFFFFFFFFFFFULL;
 
-    static constexpr uint64_t r_squared_0 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[0];
-    static constexpr uint64_t r_squared_1 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[1];
-    static constexpr uint64_t r_squared_2 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[2];
-    static constexpr uint64_t r_squared_3 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[3];
+    static constexpr uint64_t r_squared_0 = 9902555850136342848ULL;
+    static constexpr uint64_t r_squared_1 = 8364476168144746616ULL;
+    static constexpr uint64_t r_squared_2 = 16616019711348246470ULL;
+    static constexpr uint64_t r_squared_3 = 11342065889886772165ULL;
 
-    static constexpr uint64_t r_inv = get_r_inv(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3));
+    static constexpr uint64_t r_inv =
+        5408259542528602431ULL;
+
+    static constexpr uint64_t coset_generators_0[8]{
+        0x40e4273feef0b9bbULL, 0x8111c8b31eba787aULL, 0xc13f6a264e843739ULL, 0x16d0b997e4df5f8ULL,
+        0x419aad0cae17b4b7ULL, 0x81c84e7fdde17376ULL, 0xc1f5eff30dab3235ULL, 0x22391663d74f0f4ULL,
+    };
+    static constexpr uint64_t coset_generators_1[8]{
+        0x5a95af7e9394ded5ULL, 0x9fe6d297e44c3e99ULL, 0xe537f5b135039e5dULL, 0x2a8918ca85bafe22ULL,
+        0x6fda3be3d6725de6ULL, 0xb52b5efd2729bdaaULL, 0xfa7c821677e11d6eULL, 0x3fcda52fc8987d33ULL,
+    };
+    static constexpr uint64_t coset_generators_2[8]{
+        0x6ULL, 0x7ULL, 0x8ULL, 0xaULL, 0xbULL, 0xcULL, 0xdULL, 0xfULL,
+    };
+    static constexpr uint64_t coset_generators_3[8]{
+        0, 0, 0, 0, 0, 0, 0, 0,
+    };
 
     static constexpr uint64_t cube_root_0 = 0UL;
     static constexpr uint64_t cube_root_1 = 0UL;

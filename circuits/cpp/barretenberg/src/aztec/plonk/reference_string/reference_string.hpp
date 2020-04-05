@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <common/mem.hpp>
 #include <ecc/curves/bn254/g1.hpp>
 #include <ecc/curves/bn254/g2.hpp>
 
@@ -13,43 +14,27 @@ namespace waffle {
 
 class VerifierReferenceString {
   public:
-    VerifierReferenceString();
-    VerifierReferenceString(const size_t num_points, std::string const& path);
-    VerifierReferenceString(const VerifierReferenceString& other);
-    VerifierReferenceString(VerifierReferenceString&& other);
+    virtual ~VerifierReferenceString(){};
 
-    VerifierReferenceString& operator=(const VerifierReferenceString& other);
-    VerifierReferenceString& operator=(VerifierReferenceString&& other);
+    virtual barretenberg::g2::affine_element get_g2x() const = 0;
 
-    ~VerifierReferenceString();
-
-    barretenberg::g2::affine_element g2_x;
-
-    barretenberg::pairing::miller_lines* precomputed_g2_lines;
-
-    size_t degree;
+    virtual barretenberg::pairing::miller_lines const* get_precomputed_g2_lines() const = 0;
 };
 
-class ReferenceString {
+class ProverReferenceString {
   public:
-    ReferenceString();
-    ReferenceString(const size_t num_points, std::string const& path);
-    ReferenceString(const ReferenceString& other);
-    ReferenceString(ReferenceString&& other);
+    virtual ~ProverReferenceString(){};
 
-    ReferenceString& operator=(const ReferenceString& other);
-    ReferenceString& operator=(ReferenceString&& other);
+    virtual barretenberg::g1::affine_element* get_monomials() = 0;
+};
 
-    ~ReferenceString();
-
-    ReferenceString get_verifier_reference_string() const;
-
-    barretenberg::g1::affine_element* monomials;
-    barretenberg::g2::affine_element g2_x;
-
-    barretenberg::pairing::miller_lines* precomputed_g2_lines;
-
-    size_t degree;
+class ReferenceStringFactory {
+  public:
+    ReferenceStringFactory() = default;
+    ReferenceStringFactory(ReferenceStringFactory&& other) = default;
+    virtual ~ReferenceStringFactory() {}
+    virtual std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree) = 0;
+    virtual std::shared_ptr<VerifierReferenceString> get_verifier_crs() = 0;
 };
 
 } // namespace waffle

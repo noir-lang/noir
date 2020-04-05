@@ -22,6 +22,7 @@ else()
     message(STATUS "Using optimized assembly for field arithmetic.")
 endif()
 
+add_subdirectory(env)
 add_subdirectory(numeric)
 add_subdirectory(srs)
 add_subdirectory(ecc)
@@ -30,29 +31,44 @@ add_subdirectory(polynomials)
 add_subdirectory(plonk)
 add_subdirectory(stdlib)
 add_subdirectory(noir)
+add_subdirectory(rollup)
 
-if(NOT WASM)
+if(BENCHMARKS)
     add_subdirectory(plonk_bench)
-    add_subdirectory(rollup)
 endif()
 
 if(WASM)
+    # Well, this is awkward. We can't build a wasm module by just linking to the libraries as that produces, nothing.
+    # There are a couple of other ways to avoiding listing all the object files here and leveraging the dependency
+    # tree, but they come with the problem that they will import the 'env' object files. We explicitly want to avoid
+    # that as functions in 'env' should be implemented in JS itself.
+    # It turns out that just explicitly telling the wasm module which object files to include was easiest.
     add_executable(
         barretenberg.wasm
+        $<TARGET_OBJECTS:srs_objects>
+        $<TARGET_OBJECTS:numeric_objects>
+        $<TARGET_OBJECTS:blake2s_objects>
+        $<TARGET_OBJECTS:keccak_objects>
         $<TARGET_OBJECTS:schnorr_objects>
+        $<TARGET_OBJECTS:pedersen_objects>
         $<TARGET_OBJECTS:ecc_objects>
+        $<TARGET_OBJECTS:polynomials_objects>
+        $<TARGET_OBJECTS:composer_objects>
+        $<TARGET_OBJECTS:proof_system_objects>
+        $<TARGET_OBJECTS:transcript_objects>
+        $<TARGET_OBJECTS:reference_string_objects>
+        $<TARGET_OBJECTS:stdlib_primitives_objects>
+        $<TARGET_OBJECTS:stdlib_schnorr_objects>
+        $<TARGET_OBJECTS:stdlib_pedersen_objects>
+        $<TARGET_OBJECTS:stdlib_blake2s_objects>
+        $<TARGET_OBJECTS:rollup_tx_objects>
+        $<TARGET_OBJECTS:rollup_pedersen_note_objects>
+        $<TARGET_OBJECTS:rollup_client_proofs_objects>
     )
 
     target_link_options(
         barretenberg.wasm
         PRIVATE
-        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory
-    )
-
-    target_link_libraries(
-        barretenberg.wasm
-        PRIVATE
-        schnorr
-        ecc
+        -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=8388608
     )
 endif()

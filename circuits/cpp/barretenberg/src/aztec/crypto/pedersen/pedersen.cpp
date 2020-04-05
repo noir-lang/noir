@@ -13,11 +13,14 @@ static constexpr size_t num_generators = 128;
 static constexpr size_t bit_length = 256;
 static constexpr size_t quad_length = bit_length / 2;
 static std::array<grumpkin::g1::affine_element, num_generators> generators;
-static std::array<std::array<fixed_base_ladder, quad_length>, num_generators> ladders;
-static std::array<std::array<fixed_base_ladder, quad_length>, num_generators> hash_ladders;
+static std::vector<std::array<fixed_base_ladder, quad_length>> ladders;
+static std::vector<std::array<fixed_base_ladder, quad_length>> hash_ladders;
+static bool inited = false;
 
 const auto init = []() {
     generators = grumpkin::g1::derive_generators<num_generators>();
+    ladders.resize(num_generators);
+    hash_ladders.resize(num_generators);
     constexpr size_t first_generator_segment = 126;
     constexpr size_t second_generator_segment = 2;
     for (size_t i = 0; i < num_generators; ++i) {
@@ -33,8 +36,9 @@ const auto init = []() {
                 ladders[i * 2 + 1][j + (quad_length - second_generator_segment)];
         }
     }
+    inited = true;
     return 1;
-}();
+};
 } // namespace
 
 void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, fixed_base_ladder* ladder)
@@ -98,6 +102,9 @@ void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, fi
 
 const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t num_bits)
 {
+    if (!inited) {
+        init();
+    }
     // find n, such that 2n + 1 >= num_bits
     size_t n;
     if (num_bits == 0) {
@@ -114,6 +121,9 @@ const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t n
 
 const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits)
 {
+    if (!inited) {
+        init();
+    }
     // find n, such that 2n + 1 >= num_bits
     size_t n;
     if (num_bits == 0) {
@@ -130,6 +140,9 @@ const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const siz
 
 grumpkin::g1::affine_element get_generator(const size_t generator_index)
 {
+    if (!inited) {
+        init();
+    }
     return generators[generator_index];
 }
 
@@ -176,6 +189,9 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
 
 grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
 {
+    if (!inited) {
+        init();
+    }
     grumpkin::g1::element out[8];
 
 #ifndef NO_MULTITHREADING
@@ -195,6 +211,9 @@ grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
 
 grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index)
 {
+    if (!inited) {
+        init();
+    }
 #ifndef NO_MULTITHREADING
     grumpkin::fq in[2] = { left, right };
     grumpkin::g1::element out[2];
@@ -280,6 +299,9 @@ grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
                                                       const grumpkin::fq& right,
                                                       const size_t hash_index)
 {
+    if (!inited) {
+        init();
+    }
     grumpkin::g1::element first = hash_single(left, hash_index);
     grumpkin::g1::element second = hash_single(right, hash_index + 1);
     first = first + second;

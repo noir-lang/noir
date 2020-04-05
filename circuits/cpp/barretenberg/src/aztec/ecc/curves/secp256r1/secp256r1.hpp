@@ -1,7 +1,7 @@
 #pragma once
 
-#include <numeric/uintx/uintx.hpp>
 #include <numeric/uint256/uint256.hpp>
+#include <numeric/uintx/uintx.hpp>
 
 #include "../../fields/field.hpp"
 #include "../../groups/group.hpp"
@@ -36,17 +36,28 @@ struct Secp256r1FqParams {
     static constexpr uint64_t modulus_2 = 0X0000000000000000ULL;
     static constexpr uint64_t modulus_3 = 0xFFFFFFFF00000001ULL;
 
-    static constexpr uint64_t r_squared_0 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[0];
-    static constexpr uint64_t r_squared_1 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[1];
-    static constexpr uint64_t r_squared_2 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[2];
-    static constexpr uint64_t r_squared_3 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[3];
+    static constexpr uint64_t r_squared_0 = 3ULL;
+    static constexpr uint64_t r_squared_1 = 18446744056529682431ULL;
+    static constexpr uint64_t r_squared_2 = 18446744073709551614ULL;
+    static constexpr uint64_t r_squared_3 = 21474836477ULL;
 
-    static constexpr uint64_t r_inv = get_r_inv(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3));
+    static constexpr uint64_t r_inv = 1;
 
+    static constexpr uint64_t coset_generators_0[8]{
+        0x3ULL, 0x4ULL, 0x5ULL, 0x6ULL, 0x7ULL, 0x8ULL, 0x9ULL, 0xaULL,
+    };
+    static constexpr uint64_t coset_generators_1[8]{
+        0xfffffffd00000000ULL, 0xfffffffc00000000ULL, 0xfffffffb00000000ULL, 0xfffffffa00000000ULL,
+        0xfffffff900000000ULL, 0xfffffff800000000ULL, 0xfffffff700000000ULL, 0xfffffff600000000ULL,
+    };
+    static constexpr uint64_t coset_generators_2[8]{
+        0xffffffffffffffffULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL,
+        0xffffffffffffffffULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL,
+    };
+    static constexpr uint64_t coset_generators_3[8]{
+        0x2fffffffcULL, 0x3fffffffbULL, 0x4fffffffaULL, 0x5fffffff9ULL,
+        0x6fffffff8ULL, 0x7fffffff7ULL, 0x8fffffff6ULL, 0x9fffffff5ULL,
+    };
     static constexpr uint64_t cube_root_0 = 0UL;
     static constexpr uint64_t cube_root_1 = 0UL;
     static constexpr uint64_t cube_root_2 = 0UL;
@@ -64,16 +75,28 @@ struct Secp256r1FrParams {
     static constexpr uint64_t modulus_2 = 0xFFFFFFFFFFFFFFFFULL;
     static constexpr uint64_t modulus_3 = 0xFFFFFFFF00000000ULL;
 
-    static constexpr uint64_t r_squared_0 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[0];
-    static constexpr uint64_t r_squared_1 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[1];
-    static constexpr uint64_t r_squared_2 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[2];
-    static constexpr uint64_t r_squared_3 =
-        get_r_squared(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3)).data[3];
+    static constexpr uint64_t r_squared_0 = 9449762124159643298ULL;
+    static constexpr uint64_t r_squared_1 = 5087230966250696614ULL;
+    static constexpr uint64_t r_squared_2 = 2901921493521525849ULL;
+    static constexpr uint64_t r_squared_3 = 7413256579398063648ULL;
 
-    static constexpr uint64_t r_inv = get_r_inv(uint256_t(modulus_0, modulus_1, modulus_2, modulus_3));
+    static constexpr uint64_t r_inv = 14758798090332847183ULL;
+
+    static constexpr uint64_t coset_generators_0[8]{
+        0x55eb74ab1949fac9ULL, 0x6231a9e81ce6d578ULL, 0x6e77df252083b027ULL, 0x7abe146224208ad6ULL,
+        0x8704499f27bd6585ULL, 0x934a7edc2b5a4034ULL, 0x9f90b4192ef71ae3ULL, 0xabd6e9563293f592ULL,
+    };
+    static constexpr uint64_t coset_generators_1[8]{
+        0xd5af25406e5aaa5dULL, 0x18c82a92c7430bd8ULL, 0x5be12fe5202b6d53ULL, 0x9efa35377913ceceULL,
+        0xe2133a89d1fc3049ULL, 0x252c3fdc2ae491c4ULL, 0x6845452e83ccf33fULL, 0xab5e4a80dcb554baULL,
+    };
+    static constexpr uint64_t coset_generators_2[8]{
+        0x1ULL, 0x2ULL, 0x2ULL, 0x2ULL, 0x2ULL, 0x3ULL, 0x3ULL, 0x3ULL,
+    };
+    static constexpr uint64_t coset_generators_3[8]{
+        0x6fffffff9ULL, 0x7fffffff8ULL, 0x8fffffff7ULL, 0x9fffffff6ULL,
+        0xafffffff5ULL, 0xbfffffff4ULL, 0xcfffffff3ULL, 0xdfffffff2ULL,
+    };
 
     static constexpr uint64_t cube_root_0 = 0UL;
     static constexpr uint64_t cube_root_1 = 0UL;

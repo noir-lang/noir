@@ -2,6 +2,7 @@
 #include "../widgets/arithmetic_widget.hpp"
 #include "prover.hpp"
 #include <gtest/gtest.h>
+#include <plonk/reference_string/file_reference_string.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
 
 /*
@@ -91,7 +92,8 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                                                 { "r", fr_size, false },
                                                 { "t", fr_size, true } },
                                               "nu",
-                                              10),
+                                              10,
+                                              true),
           transcript::Manifest::RoundManifest(
               { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
@@ -106,7 +108,8 @@ waffle::Prover generate_test_data(const size_t n)
 
     // even indices = mul gates, odd incides = add gates
 
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, "../srs_db");
+    auto reference_string = std::make_shared<waffle::FileReferenceString>(n, "../srs_db");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, reference_string);
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
 
     polynomial w_l;
@@ -269,10 +272,14 @@ waffle::Prover generate_test_data(const size_t n)
     key->constraint_selector_ffts.insert({ "q_3_fft", std::move(q_3_fft) });
     key->constraint_selector_ffts.insert({ "q_m_fft", std::move(q_m_fft) });
     key->constraint_selector_ffts.insert({ "q_c_fft", std::move(q_c_fft) });
+    std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
+
     std::unique_ptr<waffle::ProverArithmeticWidget> widget =
         std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());
 
     waffle::Prover state = waffle::Prover(key, witness, create_manifest());
+    state.widgets.emplace_back(std::move(permutation_widget));
     state.widgets.emplace_back(std::move(widget));
     return state;
 }
@@ -285,9 +292,13 @@ TEST(prover, compute_quotient_polynomial)
     waffle::Prover state = prover_helpers::generate_test_data(n);
 
     state.execute_preamble_round();
+    state.queue.process_queue();
     state.execute_first_round();
+    state.queue.process_queue();
     state.execute_second_round();
+    state.queue.process_queue();
     state.execute_third_round();
+    state.queue.process_queue();
 
     // check that the max degree of our quotient polynomial is 3n
     for (size_t i = 3 * n; i < 4 * n; ++i) {

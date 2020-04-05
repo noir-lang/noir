@@ -24,4 +24,4 @@ target_compile_options(
 
 link_libraries(leveldb)
 
-barretenberg_module(stdlib_merkle_tree stdlib_byte_array stdlib_field stdlib_blake2s stdlib_pedersen)
+barretenberg_module(stdlib_merkle_tree stdlib_primitives stdlib_blake2s stdlib_pedersen)

@@ -497,20 +497,20 @@ fr ProverTurboLogicWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_d * alpha;
 }
 
-size_t ProverTurboLogicWidget::compute_opening_poly_contribution(
-    const size_t nu_index, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
+void ProverTurboLogicWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
+                                                               const bool use_linearisation)
 {
     if (use_linearisation) {
-        return nu_index;
+        return;
     }
 
-    fr nu = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
+    polynomial& poly = key->opening_poly;
+
+    fr nu = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_logic")[0]);
 
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     poly[i] += (q_logic[i] * nu);
     ITERATE_OVER_DOMAIN_END;
-
-    return nu_index + 1;
 }
 // ###
 
@@ -684,35 +684,31 @@ Field VerifierTurboLogicWidget<Field, Group, Transcript>::compute_quotient_evalu
 }
 
 template <typename Field, typename Group, typename Transcript>
-size_t VerifierTurboLogicWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
-    verification_key*,
-    Field& batch_eval,
-    const size_t nu_index,
-    const Transcript& transcript,
-    const bool use_linearisation)
+void VerifierTurboLogicWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
+    verification_key*, Field& batch_eval, const Transcript& transcript, const bool use_linearisation)
 {
     if (use_linearisation) {
-        return nu_index;
+        return;
     }
 
     Field q_logic_eval = transcript.get_field_element("q_logic");
 
-    Field nu_base = transcript.get_challenge_field_element("nu", nu_index);
+    Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_logic");
 
     batch_eval += (q_logic_eval * nu_base);
-
-    return nu_index + 1;
 }
 
 template <typename Field, typename Group, typename Transcript>
-VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field, Group, Transcript>::
-    append_scalar_multiplication_inputs(verification_key* key,
-                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-                                        const Transcript& transcript,
-                                        std::vector<Group>& points,
-                                        std::vector<Field>& scalars,
-                                        const bool use_linearisation)
+Field VerifierTurboLogicWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+    verification_key* key,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    std::vector<Group>& points,
+    std::vector<Field>& scalars,
+    const bool use_linearisation)
 {
+    Field alpha_step = transcript.get_challenge_field_element("alpha");
+
     if (use_linearisation) {
         Field w_4_eval = transcript.get_field_element("w_4");
         Field w_1_eval = transcript.get_field_element("w_1");
@@ -723,16 +719,16 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field
         Field w_4_omega_eval = transcript.get_field_element("w_4_omega");
         Field q_c_eval = transcript.get_field_element("q_c");
 
-        Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
+        Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
 
         const Field six = Field(6);
         const Field eighty_one = Field(81);
         const Field eighty_three = Field(83);
 
-        Field alpha_a = challenge.alpha_base;
-        Field alpha_b = alpha_a * challenge.alpha_step;
-        Field alpha_c = alpha_b * challenge.alpha_step;
-        Field alpha_d = alpha_c * challenge.alpha_step;
+        Field alpha_a = alpha_base;
+        Field alpha_b = alpha_a * alpha_step;
+        Field alpha_c = alpha_b * alpha_step;
+        Field alpha_d = alpha_c * alpha_step;
 
         Field delta_sum;
         Field delta_squared_sum;
@@ -768,7 +764,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field
         // identity = 2(ab - w)
         T4 = w_3_eval + w_3_eval;
         identity -= T4;
-        identity *= challenge.alpha_step;
+        identity *= alpha_step;
 
         // T4 = 4w
         T4 += T4;
@@ -785,7 +781,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field
         // identity = (identity + a(a - 1)(a - 2)(a - 3)) * alpha
         T0 *= T2;
         identity += T0;
-        identity *= challenge.alpha_step;
+        identity *= alpha_step;
 
         // T3 = b^2 - b
         T3 -= T1;
@@ -799,7 +795,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field
         // identity = (identity + b(b - 1)(b - 2)(b - 3)) * alpha
         T1 *= T3;
         identity += T1;
-        identity *= challenge.alpha_step;
+        identity *= alpha_step;
 
         // T0 = 3(a + b)
         T0 = delta_sum + delta_sum;
@@ -862,32 +858,28 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboLogicWidget<Field
 
         // identity = q_logic * alpha_base * (identity + T2)
         identity += T2;
-        identity *= challenge.alpha_base;
+        identity *= alpha_base;
         identity *= linear_nu;
 
         if (key->constraint_selectors.at("Q_LOGIC_SELECTOR").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
             scalars.push_back(identity);
         }
-        return VerifierBaseWidget::challenge_coefficients<Field>{
-            alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_index, challenge.linear_nu_index
-        };
+        return alpha_d * alpha_step;
     }
 
-    Field nu_base = transcript.get_challenge_field_element("nu", challenge.nu_index);
+    Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_logic");
 
     if (key->constraint_selectors.at("Q_LOGIC_SELECTOR").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
         scalars.push_back(nu_base);
     }
-    Field alpha_a = challenge.alpha_base;
-    Field alpha_b = alpha_a * challenge.alpha_step;
-    Field alpha_c = alpha_b * challenge.alpha_step;
-    Field alpha_d = alpha_c * challenge.alpha_step;
+    Field alpha_a = alpha_base;
+    Field alpha_b = alpha_a * alpha_step;
+    Field alpha_c = alpha_b * alpha_step;
+    Field alpha_d = alpha_c * alpha_step;
 
-    return VerifierBaseWidget::challenge_coefficients<Field>{
-        alpha_d * challenge.alpha_step, challenge.alpha_step, challenge.nu_index + 1, challenge.linear_nu_index
-    };
+    return alpha_d * alpha_step;
 }
 
 template class VerifierTurboLogicWidget<barretenberg::fr,

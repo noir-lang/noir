@@ -93,7 +93,6 @@ template <class Params> struct alignas(32) field {
         // numerator = (-field(3)).sqrt() - field(1); constexpr field result = two_inv * numerator;
         constexpr field result =
             field(Params::cube_root_0, Params::cube_root_1, Params::cube_root_2, Params::cube_root_3);
-        static_assert((result * result * result) == field(1));
         return result;
     }
 
@@ -103,8 +102,13 @@ template <class Params> struct alignas(32) field {
 
     static constexpr field coset_generator(const size_t idx)
     {
-        constexpr std::array<field, COSET_GENERATOR_SIZE> generators = compute_coset_generators();
-        return generators[idx];
+        const field result{
+            Params::coset_generators_0[idx],
+            Params::coset_generators_1[idx],
+            Params::coset_generators_2[idx],
+            Params::coset_generators_3[idx],
+        };
+        return result;
     }
 
     BBERG_INLINE constexpr field operator*(const field& other) const noexcept;
@@ -247,7 +251,7 @@ template <class Params> struct alignas(32) field {
      * We pre-compute scalars g1 = (2^256 * b1) / n, g2 = (2^256 * b2) / n, to avoid having to perform long division
      * on 512-bit scalars
      **/
-    BBERG_INLINE static void split_into_endomorphism_scalars(const field& k, field& k1, field& k2)
+    static void split_into_endomorphism_scalars(const field& k, field& k1, field& k2)
     {
         field input = k.reduce_once();
         // uint64_t lambda_reduction[4] = { 0 };
@@ -400,14 +404,13 @@ template <class Params> struct alignas(32) field {
                                                const uint64_t borrow_in,
                                                uint64_t& borrow_out) noexcept;
 
-    BBERG_INLINE static constexpr void square_accumulate(const uint64_t a,
-                                                         const uint64_t b,
-                                                         const uint64_t c,
-                                                         const uint64_t carry_in_lo,
-                                                         const uint64_t carry_in_hi,
-                                                         uint64_t& out,
-                                                         uint64_t& carry_lo,
-                                                         uint64_t& carry_hi) noexcept;
+    BBERG_INLINE static constexpr uint64_t square_accumulate(const uint64_t a,
+                                                             const uint64_t b,
+                                                             const uint64_t c,
+                                                             const uint64_t carry_in_lo,
+                                                             const uint64_t carry_in_hi,
+                                                             uint64_t& carry_lo,
+                                                             uint64_t& carry_hi) noexcept;
     BBERG_INLINE constexpr field reduce() const noexcept;
     BBERG_INLINE constexpr field add(const field& other) const noexcept;
     BBERG_INLINE constexpr field subtract(const field& other) const noexcept;
@@ -452,5 +455,5 @@ template <class Params> struct alignas(32) field {
 
 } // namespace barretenberg
 
-#include "field_impl_x64.hpp"
 #include "./field_impl.hpp"
+#include "field_impl_x64.hpp"

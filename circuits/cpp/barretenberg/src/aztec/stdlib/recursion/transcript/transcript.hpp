@@ -312,6 +312,15 @@ template <typename Composer> class Transcript {
         return challenge_values[static_cast<size_t>(cache_idx)][challenge_idx];
     }
 
+    field_pt get_challenge_field_element_from_map(const std::string& challenge_name,
+                                                  const std::string& challenge_map_name) const
+    {
+        const size_t challenge_idx = transcript_base.get_challenge_index_from_map(challenge_map_name);
+        const int cache_idx = check_challenge_cache(challenge_name, challenge_idx);
+        ASSERT(cache_idx != -1);
+        return challenge_values[static_cast<size_t>(cache_idx)][challenge_idx];
+    }
+
     group_pt get_group_element(const std::string& element_name) const
     {
         int cache_idx = check_group_element_cache(element_name);

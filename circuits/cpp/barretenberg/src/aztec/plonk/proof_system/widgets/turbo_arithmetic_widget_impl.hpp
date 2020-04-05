@@ -255,29 +255,30 @@ fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base
     return alpha_base * alpha.sqr();
 }
 
-size_t ProverTurboArithmeticWidget::compute_opening_poly_contribution(
-    const size_t nu_index, const transcript::Transcript& transcript, fr* poly, fr*, const bool use_linearisation)
+void ProverTurboArithmeticWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
+                                                                    const bool use_linearisation)
 {
+    polynomial& poly = key->opening_poly;
+
     if (use_linearisation) {
 
-        fr nu_base = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
+        fr nu_base = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_arith")[0]);
 
         ITERATE_OVER_DOMAIN_START(key->small_domain);
         poly[i] += (q_arith[i] * nu_base);
         ITERATE_OVER_DOMAIN_END;
-
-        return nu_index + 1;
+        return;
     }
 
     std::array<barretenberg::fr, 8> nu_challenges;
-    nu_challenges[0] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index)[0]);
-    nu_challenges[1] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 1)[0]);
-    nu_challenges[2] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 2)[0]);
-    nu_challenges[3] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 3)[0]);
-    nu_challenges[4] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 4)[0]);
-    nu_challenges[5] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 5)[0]);
-    nu_challenges[6] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 6)[0]);
-    nu_challenges[7] = fr::serialize_from_buffer(&transcript.get_challenge("nu", nu_index + 7)[0]);
+    nu_challenges[0] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_1")[0]);
+    nu_challenges[1] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_2")[0]);
+    nu_challenges[2] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_3")[0]);
+    nu_challenges[3] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_4")[0]);
+    nu_challenges[4] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_5")[0]);
+    nu_challenges[5] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_m")[0]);
+    nu_challenges[6] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_c")[0]);
+    nu_challenges[7] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_arith")[0]);
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     poly[i] += (q_1[i] * nu_challenges[0]);
     poly[i] += (q_2[i] * nu_challenges[1]);
@@ -288,8 +289,6 @@ size_t ProverTurboArithmeticWidget::compute_opening_poly_contribution(
     poly[i] += (q_c[i] * nu_challenges[6]);
     poly[i] += (q_arith[i] * nu_challenges[7]);
     ITERATE_OVER_DOMAIN_END;
-
-    return nu_index + 8;
 } // namespace waffle
 
 // ###
@@ -431,20 +430,15 @@ Field VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_quotient_
 }
 
 template <typename Field, typename Group, typename Transcript>
-size_t VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
-    verification_key*,
-    Field& batch_eval,
-    const size_t nu_index,
-    const Transcript& transcript,
-    const bool use_linearisation)
+void VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
+    verification_key*, Field& batch_eval, const Transcript& transcript, const bool use_linearisation)
 {
     Field q_arith_eval = transcript.get_field_element("q_arith");
 
-    Field nu_base = transcript.get_challenge_field_element("nu", nu_index);
-
     if (use_linearisation) {
+        Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_arith");
         batch_eval = batch_eval + (nu_base * q_arith_eval);
-        return nu_index + 1;
+        return;
     }
 
     const Field q_1_eval = transcript.get_field_element("q_1");
@@ -456,14 +450,14 @@ size_t VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_batch_ev
     const Field q_c_eval = transcript.get_field_element("q_c");
 
     std::array<Field, 8> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element("nu", nu_index);
-    nu_challenges[1] = transcript.get_challenge_field_element("nu", nu_index + 1);
-    nu_challenges[2] = transcript.get_challenge_field_element("nu", nu_index + 2);
-    nu_challenges[3] = transcript.get_challenge_field_element("nu", nu_index + 3);
-    nu_challenges[4] = transcript.get_challenge_field_element("nu", nu_index + 4);
-    nu_challenges[5] = transcript.get_challenge_field_element("nu", nu_index + 5);
-    nu_challenges[6] = transcript.get_challenge_field_element("nu", nu_index + 6);
-    nu_challenges[7] = transcript.get_challenge_field_element("nu", nu_index + 7);
+    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_1");
+    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_2");
+    nu_challenges[2] = transcript.get_challenge_field_element_from_map("nu", "q_3");
+    nu_challenges[3] = transcript.get_challenge_field_element_from_map("nu", "q_4");
+    nu_challenges[4] = transcript.get_challenge_field_element_from_map("nu", "q_5");
+    nu_challenges[5] = transcript.get_challenge_field_element_from_map("nu", "q_m");
+    nu_challenges[6] = transcript.get_challenge_field_element_from_map("nu", "q_c");
+    nu_challenges[7] = transcript.get_challenge_field_element_from_map("nu", "q_arith");
 
     batch_eval += (q_1_eval * nu_challenges[0]);
     batch_eval += (q_2_eval * nu_challenges[1]);
@@ -473,18 +467,19 @@ size_t VerifierTurboArithmeticWidget<Field, Group, Transcript>::compute_batch_ev
     batch_eval += (q_m_eval * nu_challenges[5]);
     batch_eval += (q_c_eval * nu_challenges[6]);
     batch_eval += (q_arith_eval * nu_challenges[7]);
-    return nu_index + 8;
 }
 
 template <typename Field, typename Group, typename Transcript>
-VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboArithmeticWidget<Field, Group, Transcript>::
-    append_scalar_multiplication_inputs(verification_key* key,
-                                        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-                                        const Transcript& transcript,
-                                        std::vector<Group>& points,
-                                        std::vector<Field>& scalars,
-                                        const bool use_linearisation)
+Field VerifierTurboArithmeticWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+    verification_key* key,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    std::vector<Group>& points,
+    std::vector<Field>& scalars,
+    const bool use_linearisation)
 {
+    Field alpha_step = transcript.get_challenge_field_element("alpha");
+
     if (use_linearisation) {
         Field w_l_eval = transcript.get_field_element("w_1");
         Field w_r_eval = transcript.get_field_element("w_2");
@@ -493,49 +488,49 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboArithmeticWidget<
 
         Field q_arith_eval = transcript.get_field_element("q_arith");
 
-        Field linear_nu = transcript.get_challenge_field_element("nu", challenge.linear_nu_index);
-        Field nu_base = transcript.get_challenge_field_element("nu", challenge.nu_index);
+        Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
+        Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_arith");
 
-        Field q_l_term = w_l_eval * q_arith_eval * challenge.alpha_base * linear_nu;
+        Field q_l_term = w_l_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_1").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_1"));
             scalars.push_back(q_l_term);
         }
 
-        Field q_r_term = w_r_eval * q_arith_eval * challenge.alpha_base * linear_nu;
+        Field q_r_term = w_r_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_2").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_2"));
             scalars.push_back(q_r_term);
         }
 
-        Field q_o_term = w_o_eval * q_arith_eval * challenge.alpha_base * linear_nu;
+        Field q_o_term = w_o_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_3").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_3"));
             scalars.push_back(q_o_term);
         }
 
-        Field q_4_term = w_4_eval * q_arith_eval * challenge.alpha_base * linear_nu;
+        Field q_4_term = w_4_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_4").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_4"));
             scalars.push_back(q_4_term);
         }
 
         const Field minus_two = -Field(2);
-        Field q_5_term = (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * challenge.alpha_base *
-                         challenge.alpha_step * linear_nu * q_arith_eval;
+        Field q_5_term =
+            (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * alpha_base * alpha_step * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_5").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_5"));
             scalars.push_back(q_5_term);
         }
 
-        // Q_M term = w_l * w_r * challenge.alpha_base * nu
-        Field q_m_term = w_l_eval * w_r_eval * challenge.alpha_base * linear_nu * q_arith_eval;
+        // Q_M term = w_l * w_r * alpha_base * nu
+        Field q_m_term = w_l_eval * w_r_eval * alpha_base * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_M").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_M"));
             scalars.push_back(q_m_term);
         }
 
-        Field q_c_term = challenge.alpha_base * linear_nu * q_arith_eval;
+        Field q_c_term = alpha_base * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_C").on_curve()) {
             points.push_back(key->constraint_selectors.at("Q_C"));
             scalars.push_back(q_c_term);
@@ -546,21 +541,18 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboArithmeticWidget<
             scalars.push_back(nu_base);
         }
 
-        return VerifierBaseWidget::challenge_coefficients<Field>{ challenge.alpha_base * challenge.alpha_step.sqr(),
-                                                                  challenge.alpha_step,
-                                                                  challenge.nu_index + 1,
-                                                                  challenge.linear_nu_index };
+        return alpha_base * alpha_step.sqr();
     }
 
     std::array<Field, 8> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element("nu", challenge.nu_index);
-    nu_challenges[1] = transcript.get_challenge_field_element("nu", challenge.nu_index + 1);
-    nu_challenges[2] = transcript.get_challenge_field_element("nu", challenge.nu_index + 2);
-    nu_challenges[3] = transcript.get_challenge_field_element("nu", challenge.nu_index + 3);
-    nu_challenges[4] = transcript.get_challenge_field_element("nu", challenge.nu_index + 4);
-    nu_challenges[5] = transcript.get_challenge_field_element("nu", challenge.nu_index + 5);
-    nu_challenges[6] = transcript.get_challenge_field_element("nu", challenge.nu_index + 6);
-    nu_challenges[7] = transcript.get_challenge_field_element("nu", challenge.nu_index + 7);
+    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_1");
+    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_2");
+    nu_challenges[2] = transcript.get_challenge_field_element_from_map("nu", "q_3");
+    nu_challenges[3] = transcript.get_challenge_field_element_from_map("nu", "q_4");
+    nu_challenges[4] = transcript.get_challenge_field_element_from_map("nu", "q_5");
+    nu_challenges[5] = transcript.get_challenge_field_element_from_map("nu", "q_m");
+    nu_challenges[6] = transcript.get_challenge_field_element_from_map("nu", "q_c");
+    nu_challenges[7] = transcript.get_challenge_field_element_from_map("nu", "q_arith");
 
     if (key->constraint_selectors.at("Q_1").on_curve()) {
         points.push_back(key->constraint_selectors.at("Q_1"));
@@ -602,10 +594,7 @@ VerifierBaseWidget::challenge_coefficients<Field> VerifierTurboArithmeticWidget<
         scalars.push_back(nu_challenges[7]);
     }
 
-    return VerifierBaseWidget::challenge_coefficients<Field>{ challenge.alpha_base * challenge.alpha_step.sqr(),
-                                                              challenge.alpha_step,
-                                                              challenge.nu_index + 8,
-                                                              challenge.linear_nu_index };
+    return alpha_base * alpha_step.sqr();
 }
 
 template class VerifierTurboArithmeticWidget<barretenberg::fr,

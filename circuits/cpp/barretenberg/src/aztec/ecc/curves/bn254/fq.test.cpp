@@ -1,7 +1,6 @@
 #include "fq.hpp"
 #include "pseudorandom.hpp"
 #include <gtest/gtest.h>
-#include <sys/random.h>
 
 using namespace barretenberg;
 
@@ -344,12 +343,7 @@ TEST(fq, neg)
 
 TEST(fq, split_into_endomorphism_scalars)
 {
-    fq input = 0;
-    int got_entropy = getentropy((void*)&input.data[0], 32);
-    EXPECT_EQ(got_entropy, 0);
-    input.data[3] &= 0x0fffffffffffffff;
-
-    fq k = { input.data[0], input.data[1], input.data[2], input.data[3] };
+    fq k = fq::random_element();
     fq k1 = 0;
     fq k2 = 0;
 
@@ -467,3 +461,5 @@ TEST(fq, r_inv)
     uint64_t result = Bn254FqParams::r_inv;
     EXPECT_EQ(result, expected);
 }
+
+//   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e

@@ -11,7 +11,8 @@ TEST(turbo_arithmetic_widget, quotient_polynomial_satisfiability)
     const size_t num_gates = 4;
 
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
-    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(num_gates, 0, "../srs_db");
+    auto crs = std::make_unique<FileReferenceStringFactory>("../srs_db");
+    std::shared_ptr<proving_key> key = std::make_shared<proving_key>(num_gates, 0, crs->get_prover_crs(num_gates));
 
     polynomial w_1(num_gates);
     polynomial w_2(num_gates);

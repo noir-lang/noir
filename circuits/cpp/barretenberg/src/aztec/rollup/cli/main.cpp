@@ -1,12 +1,12 @@
+#include "../prover/create.hpp"
+#include "../prover/destroy.hpp"
+#include "../prover/join.hpp"
+#include "../prover/join_split.hpp"
+#include "../prover/rollup_context.hpp"
+#include "../prover/split.hpp"
+#include "../prover/timer.hpp"
 #include "../tx/batch_tx.hpp"
 #include "../tx/user_context.hpp"
-#include "create.hpp"
-#include "destroy.hpp"
-#include "join.hpp"
-#include "join_split.hpp"
-#include "rollup_context.hpp"
-#include "split.hpp"
-#include "timer.hpp"
 
 char const* DATA_DB_PATH = "/tmp/rollup_prover";
 char const* NULLIFIER_DB_PATH = "/tmp/rollup_prover_nullifier";
@@ -36,8 +36,8 @@ void reset_db(std::string const& id)
 {
     std::string data_db_path = "/tmp/" + id;
     std::string nullifier_db_path = "/tmp/" + id + "_nullifier";
-    leveldb::DestroyDB(data_db_path, leveldb::Options());
-    leveldb::DestroyDB(nullifier_db_path, leveldb::Options());
+    leveldb_store::destroy(data_db_path);
+    leveldb_store::destroy(nullifier_db_path);
 }
 
 circuit_keys create_circuit_keys(size_t batch_size)

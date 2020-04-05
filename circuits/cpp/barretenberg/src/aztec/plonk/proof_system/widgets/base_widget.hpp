@@ -1,7 +1,8 @@
 #pragma once
+#include "../../transcript/transcript_wrappers.hpp"
 #include "../types/program_witness.hpp"
 #include "../verification_key/verification_key.hpp"
-#include "../../transcript/transcript_wrappers.hpp"
+#include "../prover/work_queue.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace transcript {
@@ -92,16 +93,15 @@ class ProverBaseWidget {
 
     virtual ~ProverBaseWidget() {}
 
+    virtual void compute_round_commitments(transcript::Transcript&, const size_t, work_queue&){};
+
     virtual barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                            const transcript::Transcript& transcript) = 0;
     virtual barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
                                                          const transcript::Transcript& transcript,
                                                          barretenberg::polynomial& r) = 0;
-    virtual size_t compute_opening_poly_contribution(const size_t nu_index,
-                                                     const transcript::Transcript& transcript,
-                                                     barretenberg::fr* poly,
-                                                     barretenberg::fr* shifted_poly,
-                                                     const bool use_linearisation) = 0;
+    virtual void compute_opening_poly_contribution(const transcript::Transcript& transcript,
+                                                   const bool use_linearisation) = 0;
     virtual void compute_transcript_elements(transcript::Transcript&, const bool) = 0;
 
     proving_key* key;

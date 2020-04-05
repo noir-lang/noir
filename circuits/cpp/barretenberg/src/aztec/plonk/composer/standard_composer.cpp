@@ -2,6 +2,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/permutation_widget.hpp>
 
 using namespace barretenberg;
 
@@ -579,7 +580,8 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
         }
         old_epicycles = new_epicycles;
     }
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs_path);
+    auto crs = crs_factory_->get_prover_crs(new_n);
+    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
     polynomial poly_q_1(new_n);
@@ -655,17 +657,20 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
     poly_coefficients[6] = circuit_proving_key->permutation_selectors.at("sigma_2").get_coefficients();
     poly_coefficients[7] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
 
-    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     std::vector<barretenberg::g1::affine_element> commitments;
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
-        commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
+        commitments[i] =
+            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
+                                                                circuit_proving_key->reference_string->get_monomials(),
+                                                                circuit_proving_key->n,
+                                                                circuit_proving_key->pippenger_runtime_state));
     }
 
+    auto crs = crs_factory_->get_verifier_crs();
     circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs_path);
+        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
@@ -738,23 +743,30 @@ UnrolledProver StandardComposer::create_unrolled_prover()
     compute_proving_key();
     compute_witness();
     UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+
+    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(widget));
 
     return output_state;
 }
 
-Prover StandardComposer::preprocess()
+Prover StandardComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(widget));
     return output_state;
 }

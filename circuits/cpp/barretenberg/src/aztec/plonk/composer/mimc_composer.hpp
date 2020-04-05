@@ -14,7 +14,6 @@ struct mimc_quadruplet {
 class MiMCComposer : public StandardComposer {
   public:
     MiMCComposer(const size_t size_hint = 0)
-        : StandardComposer()
     {
         q_mimc_coefficient.reserve(size_hint);
         q_mimc_selector.reserve(size_hint);
@@ -198,7 +197,7 @@ class MiMCComposer : public StandardComposer {
                                                     { "q_mimc_coefficient", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  10),
+                                                  10, true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;

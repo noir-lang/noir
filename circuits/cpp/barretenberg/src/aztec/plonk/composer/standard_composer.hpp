@@ -1,12 +1,12 @@
 #pragma once
 #include "composer_base.hpp"
+#include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/transcript/manifest.hpp>
 
 namespace waffle {
 class StandardComposer : public ComposerBase {
   public:
     StandardComposer(const size_t size_hint = 0)
-        : ComposerBase()
     {
         features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
         w_l.reserve(size_hint);
@@ -19,6 +19,43 @@ class StandardComposer : public ComposerBase {
         q_c.reserve(size_hint);
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     };
+
+    StandardComposer(std::string const& crs_path, const size_t size_hint = 0)
+        : StandardComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)),
+                           size_hint){};
+
+    StandardComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
+        : ComposerBase(std::move(crs_factory))
+    {
+        features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
+        w_l.reserve(size_hint);
+        w_r.reserve(size_hint);
+        w_o.reserve(size_hint);
+        q_m.reserve(size_hint);
+        q_1.reserve(size_hint);
+        q_2.reserve(size_hint);
+        q_3.reserve(size_hint);
+        q_c.reserve(size_hint);
+        zero_idx = put_constant_variable(barretenberg::fr::zero());
+    }
+
+    StandardComposer(std::shared_ptr<proving_key> const& p_key,
+                     std::shared_ptr<verification_key> const& v_key,
+                     size_t size_hint = 0)
+        : ComposerBase(p_key, v_key)
+    {
+        features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
+        w_l.reserve(size_hint);
+        w_r.reserve(size_hint);
+        w_o.reserve(size_hint);
+        q_m.reserve(size_hint);
+        q_1.reserve(size_hint);
+        q_2.reserve(size_hint);
+        q_3.reserve(size_hint);
+        q_c.reserve(size_hint);
+        zero_idx = put_constant_variable(barretenberg::fr::zero());
+    }
+
     StandardComposer(StandardComposer&& other) = default;
     StandardComposer& operator=(StandardComposer&& other) = default;
     ~StandardComposer() {}
@@ -29,7 +66,8 @@ class StandardComposer : public ComposerBase {
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual std::shared_ptr<program_witness> compute_witness() override;
     Verifier create_verifier();
-    Prover preprocess();
+    Prover preprocess() { return create_prover(); };
+    Prover create_prover();
     UnrolledVerifier create_unrolled_verifier();
     UnrolledProver create_unrolled_prover();
 
@@ -89,14 +127,15 @@ class StandardComposer : public ComposerBase {
               transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                     { "w_2", fr_size, false },
                                                     { "w_3", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
                                                     { "z_omega", fr_size, false },
                                                     { "sigma_1", fr_size, false },
                                                     { "sigma_2", fr_size, false },
                                                     { "r", fr_size, false },
+                                                    { "w_3_omega", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  10),
+                                                  7,
+                                                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
@@ -123,8 +162,6 @@ class StandardComposer : public ComposerBase {
               transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
                                                     { "w_2", fr_size, false },
                                                     { "w_3", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
-                                                    { "z", fr_size, false },
                                                     { "z_omega", fr_size, false },
                                                     { "sigma_1", fr_size, false },
                                                     { "sigma_2", fr_size, false },
@@ -134,9 +171,12 @@ class StandardComposer : public ComposerBase {
                                                     { "q_3", fr_size, false },
                                                     { "q_m", fr_size, false },
                                                     { "q_c", fr_size, false },
+                                                    { "z", fr_size, false },
+                                                    { "w_3_omega", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  18),
+                                                  12,
+                                                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;

@@ -1,4 +1,5 @@
 #include "scalar_multiplication.hpp"
+#include "point_table.hpp"
 #include <chrono>
 #include <gtest/gtest.h>
 #include <srs/io.hpp>
@@ -6,9 +7,12 @@
 
 #include <numeric/random/engine.hpp>
 
+#include <common/mem.hpp>
+
 #define BARRETENBERG_SRS_PATH "../srs_db"
 
 using namespace barretenberg;
+using namespace barretenberg::scalar_multiplication;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -18,12 +22,11 @@ auto& engine = numeric::random::get_debug_engine();
 TEST(scalar_multiplication, reduce_buckets_simple)
 {
     constexpr size_t num_points = 128;
-    std::array<g1::affine_element, num_points> monomials;
     g2::affine_element g2_x;
-    io::read_transcript(&monomials[0], g2_x, num_points / 2, BARRETENBERG_SRS_PATH);
-    scalar_multiplication::generate_pippenger_point_table(&monomials[0], &monomials[0], num_points / 2);
+    io::read_transcript_g2(g2_x, BARRETENBERG_SRS_PATH);
+    auto monomials = scalar_multiplication::new_pippenger_point_table_from_path(BARRETENBERG_SRS_PATH, num_points / 2);
 
-    std::array<uint64_t, num_points> point_schedule;
+    std::vector<uint64_t> point_schedule(scalar_multiplication::point_table_size(num_points / 2));
     std::array<bool, num_points> bucket_empty_status;
     // 16 buckets, each bucket has one point
     std::array<uint64_t, num_points> transcript;
@@ -196,6 +199,8 @@ TEST(scalar_multiplication, reduce_buckets_simple)
         EXPECT_EQ((output[i].x == expected[i].x), true);
         EXPECT_EQ((output[i].y == expected[i].y), true);
     }
+
+    aligned_free(monomials);
 }
 
 TEST(scalar_multiplication, reduce_buckets)
@@ -227,15 +232,12 @@ TEST(scalar_multiplication, reduce_buckets)
 
     fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
 
-    fr source_scalar = fr::random_element();
     for (size_t i = 0; i < num_initial_points; ++i) {
-        // source_scalar.self_sqr();
-        source_scalar = fr::random_element();
-        fr::__copy(source_scalar, scalars[i]);
+        scalars[i] = fr::random_element();
     }
 
     // scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
-    scalar_multiplication::unsafe_pippenger_runtime_state state(num_initial_points);
+    scalar_multiplication::pippenger_runtime_state state(num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     scalar_multiplication::compute_wnaf_states(
@@ -353,7 +355,7 @@ TEST(scalar_multiplication, reduce_buckets_basic)
         fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::unsafe_pippenger_runtime_state state(num_initial_points);
+    scalar_multiplication::pippenger_runtime_state state(num_initial_points);
     scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -455,7 +457,7 @@ TEST(scalar_multiplication, construct_addition_chains)
         fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::unsafe_pippenger_runtime_state state(num_initial_points);
+    scalar_multiplication::pippenger_runtime_state state(num_initial_points);
     scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -542,7 +544,7 @@ TEST(scalar_multiplication, radix_sort)
         fr::__copy(source_scalar, scalars[i]);
     }
 
-    scalar_multiplication::unsafe_pippenger_runtime_state state(target_degree);
+    scalar_multiplication::pippenger_runtime_state state(target_degree);
     scalar_multiplication::compute_wnaf_states(
         state.point_schedule, state.skew_table, state.round_counts, scalars, target_degree);
 
@@ -689,6 +691,41 @@ TEST(scalar_multiplication, pippenger)
     EXPECT_EQ(result == expected, true);
 }
 
+TEST(scalar_multiplication, pippenger_edge_case_dbl)
+{
+    constexpr size_t num_points = 128;
+
+    fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
+
+    g1::affine_element* points =
+        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+
+    g1::affine_element point = g1::affine_element(g1::element::random_element());
+    for (size_t i = 0; i < num_points; ++i) {
+        scalars[i] = fr::random_element();
+        points[i] = point;
+    }
+
+    g1::element expected;
+    expected.self_set_infinity();
+    for (size_t i = 0; i < num_points; ++i) {
+        g1::element temp = points[i] * scalars[i];
+        expected += temp;
+    }
+    if (!expected.is_point_at_infinity()) {
+        expected = expected.normalize();
+    }
+    scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
+    g1::element result = scalar_multiplication::pippenger(scalars, points, num_points, state);
+    result = result.normalize();
+
+    aligned_free(scalars);
+    aligned_free(points);
+
+    EXPECT_EQ(result == expected, true);
+}
+
 TEST(scalar_multiplication, pippenger_short_inputs)
 {
     constexpr size_t num_points = 8192;
@@ -749,8 +786,7 @@ TEST(scalar_multiplication, pippenger_unsafe)
 
     fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    g1::affine_element* points = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
         scalars[i] = fr::random_element();
@@ -766,7 +802,7 @@ TEST(scalar_multiplication, pippenger_unsafe)
     expected = expected.normalize();
     scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
 
-    scalar_multiplication::unsafe_pippenger_runtime_state state(num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
     g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points, state);
     result = result.normalize();
 
@@ -819,7 +855,7 @@ TEST(scalar_multiplication, pippenger_unsafe_short_inputs)
     }
     expected = expected.normalize();
     scalar_multiplication::generate_pippenger_point_table(points, points, num_points);
-    scalar_multiplication::unsafe_pippenger_runtime_state state(num_points);
+    scalar_multiplication::pippenger_runtime_state state(num_points);
 
     g1::element result = scalar_multiplication::pippenger_unsafe(scalars, points, num_points, state);
     result = result.normalize();

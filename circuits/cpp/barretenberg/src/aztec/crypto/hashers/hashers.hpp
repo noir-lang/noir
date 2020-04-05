@@ -1,9 +1,9 @@
 #include "../blake2s/blake2s.hpp"
-#include "../sha256/sha256.hpp"
 #include "../keccak/keccak.hpp"
+#include "../sha256/sha256.hpp"
 
-#include <vector>
 #include "memory.h"
+#include <vector>
 struct KeccakHasher {
     static std::vector<uint8_t> hash(const std::vector<uint8_t>& message)
     {

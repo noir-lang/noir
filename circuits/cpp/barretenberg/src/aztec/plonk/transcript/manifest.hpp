@@ -11,10 +11,15 @@ class Manifest {
         bool derived_by_verifier;
     };
     struct RoundManifest {
-        RoundManifest(std::initializer_list<ManifestEntry> element_names, const std::string challenge_name, const size_t num_challenges_in)
+        RoundManifest(std::initializer_list<ManifestEntry> element_names,
+                      const std::string challenge_name,
+                      const size_t num_challenges_in,
+                      bool map_challenges_in = false)
             : elements(element_names)
             , challenge(challenge_name)
-            , num_challenges(num_challenges_in){};
+            , num_challenges(num_challenges_in)
+            , map_challenges(map_challenges_in)
+        {}
 
         bool includes_element(const std::string& element_name)
         {
@@ -29,6 +34,7 @@ class Manifest {
         std::vector<ManifestEntry> elements;
         std::string challenge;
         size_t num_challenges;
+        bool map_challenges;
     };
     Manifest(std::initializer_list<RoundManifest> _round_manifests)
         : round_manifests(_round_manifests)
@@ -38,8 +44,10 @@ class Manifest {
 
     RoundManifest get_round_manifest(const size_t idx) const { return round_manifests[idx]; }
 
+    std::vector<RoundManifest> get_round_manifests() const { return round_manifests; }
+
   private:
     std::vector<RoundManifest> round_manifests;
     size_t num_rounds;
-};
+}; // namespace transcript
 } // namespace transcript

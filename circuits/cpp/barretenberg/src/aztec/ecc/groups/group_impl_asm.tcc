@@ -59,8 +59,14 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
                                                                                             affine_element* dest,
                                                                                             uint64_t predicate)
 {
+    constexpr uint256_t twice_modulus = coordinate_field::modulus + coordinate_field::modulus;
+
+    constexpr uint64_t twice_modulus_0 = twice_modulus.data[0];
+    constexpr uint64_t twice_modulus_1 = twice_modulus.data[1];
+    constexpr uint64_t twice_modulus_2 = twice_modulus.data[2];
+    constexpr uint64_t twice_modulus_3 = twice_modulus.data[3];
+
     if constexpr (GroupParams::small_elements) {
-        constexpr uint256_t twice_modulus = coordinate_field::modulus + coordinate_field::modulus;
 #if defined __AVX__ && defined USE_AVX
         ASSERT((((uintptr_t)src & 0x1f) == 0));
         ASSERT((((uintptr_t)dest & 0x1f) == 0));
@@ -92,10 +98,10 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
                              : "r"(src),
                                "r"(dest),
                                "r"(predicate),
-                               [ modulus_0 ] "i"(twice_modulus.data[0]),
-                               [ modulus_1 ] "i"(twice_modulus.data[1]),
-                               [ modulus_2 ] "i"(twice_modulus.data[2]),
-                               [ modulus_3 ] "i"(twice_modulus.data[3])
+                               [ modulus_0 ] "i"(twice_modulus_0),
+                               [ modulus_1 ] "i"(twice_modulus_1),
+                               [ modulus_2 ] "i"(twice_modulus_2),
+                               [ modulus_3 ] "i"(twice_modulus_3)
                              : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "%ymm0", "memory", "cc");
 #else
         __asm__ __volatile__("xorq %%r8, %%r8                              \n\t"
@@ -132,10 +138,10 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
                              : "r"(src),
                                "r"(dest),
                                "r"(predicate),
-                               [ modulus_0 ] "i"(twice_modulus.data[0]),
-                               [ modulus_1 ] "i"(twice_modulus.data[1]),
-                               [ modulus_2 ] "i"(twice_modulus.data[2]),
-                               [ modulus_3 ] "i"(twice_modulus.data[3])
+                               [ modulus_0 ] "i"(twice_modulus_0),
+                               [ modulus_1 ] "i"(twice_modulus_1),
+                               [ modulus_2 ] "i"(twice_modulus_2),
+                               [ modulus_3 ] "i"(twice_modulus_3)
                              : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "memory", "cc");
 #endif
     } else {

@@ -1,11 +1,6 @@
 #pragma once
-#include <cstddef>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <memory.h>
 #include <numeric/bitop/get_msb.hpp>
-#include <vector>
 
 namespace barretenberg {
 namespace wnaf {

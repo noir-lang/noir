@@ -2,9 +2,9 @@
 
 #include "../fr.hpp"
 #include "../g1.hpp"
+#include "./runtime_states.hpp"
 #include <stddef.h>
 #include <stdint.h>
-#include "./runtime_states.hpp"
 
 namespace barretenberg {
 namespace scalar_multiplication {
@@ -95,22 +95,6 @@ void generate_pippenger_point_table(g1::affine_element* points, g1::affine_eleme
 
 void organize_buckets(uint64_t* point_schedule, const uint64_t* round_counts, const size_t num_points);
 
-void scalar_multiplication_round_inner(multiplication_thread_state& state,
-                                       const size_t num_points,
-                                       const uint64_t bucket_offset,
-                                       g1::affine_element* points);
-
-g1::element scalar_multiplication_internal(pippenger_runtime_state& state,
-                                           g1::affine_element* points,
-                                           const size_t num_points);
-
-g1::element pippenger(fr* scalars, g1::affine_element* points, const size_t num_points, pippenger_runtime_state& state);
-
-g1::element pippenger_unsafe(fr* scalars,
-                             g1::affine_element* points,
-                             const size_t num_initial_points,
-                             unsafe_pippenger_runtime_state& state);
-
 inline void count_bits(uint32_t* bucket_counts,
                        uint32_t* bit_offsets,
                        const uint32_t num_buckets,
@@ -131,10 +115,37 @@ inline void count_bits(uint32_t* bucket_counts,
 uint32_t construct_addition_chains(affine_product_runtime_state& state, bool empty_bucket_counts = true);
 
 void add_affine_points(g1::affine_element* points, const size_t num_points, fq* scratch_space);
+void add_affine_points_with_edge_cases(g1::affine_element* points, const size_t num_points, fq* scratch_space);
 
-void evaluate_addition_chains(affine_product_runtime_state& state, const size_t max_bucket_bits);
+void evaluate_addition_chains(affine_product_runtime_state& state,
+                              const size_t max_bucket_bits,
+                              bool handle_edge_cases);
 
-g1::affine_element* reduce_buckets(affine_product_runtime_state& state, bool first_round = true);
+g1::element pippenger_internal(g1::affine_element* points,
+                               fr* scalars,
+                               const size_t num_initial_points,
+                               pippenger_runtime_state& state,
+                               bool handle_edge_cases);
+
+g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
+                                      g1::affine_element* points,
+                                      const size_t num_points,
+                                      bool handle_edge_cases = false);
+
+g1::affine_element* reduce_buckets(affine_product_runtime_state& state,
+                                   bool first_round = true,
+                                   bool handle_edge_cases = false);
+
+g1::element pippenger(fr* scalars,
+                      g1::affine_element* points,
+                      const size_t num_points,
+                      pippenger_runtime_state& state,
+                      bool handle_edge_cases = true);
+
+g1::element pippenger_unsafe(fr* scalars,
+                             g1::affine_element* points,
+                             const size_t num_initial_points,
+                             pippenger_runtime_state& state);
 
 } // namespace scalar_multiplication
 } // namespace barretenberg

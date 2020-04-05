@@ -25,13 +25,14 @@ function(barretenberg_module MODULE_NAME)
         )
 
         add_library(
-            ${MODULE_NAME} STATIC
+            ${MODULE_NAME}
+            STATIC
             $<TARGET_OBJECTS:${MODULE_NAME}_objects>
         )
 
         target_link_libraries(
             ${MODULE_NAME}
-            INTERFACE
+            PUBLIC
             ${ARGN}
         )
 

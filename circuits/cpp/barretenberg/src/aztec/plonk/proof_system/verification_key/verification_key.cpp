@@ -2,11 +2,13 @@
 
 namespace waffle {
 
-verification_key::verification_key(const size_t num_gates, const size_t num_inputs, std::string const& crs_path)
+verification_key::verification_key(const size_t num_gates,
+                                   const size_t num_inputs,
+                                   std::shared_ptr<VerifierReferenceString> const& crs)
     : n(num_gates)
     , num_public_inputs(num_inputs)
     , domain(n)
-    , reference_string(n, crs_path)
+    , reference_string(crs)
 {}
 
 verification_key::verification_key(const verification_key& other)

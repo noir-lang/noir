@@ -25,7 +25,7 @@ template <typename coordinate_field, typename subgroup_field, typename GroupPara
     static constexpr coordinate_field curve_a = GroupParams::a;
     static constexpr coordinate_field curve_b = GroupParams::b;
 
-    template <size_t N> static inline std::array<affine_element, N> derive_generators()
+    template <size_t N> static inline auto derive_generators()
     {
         std::array<affine_element, N> generators;
         size_t count = 0;

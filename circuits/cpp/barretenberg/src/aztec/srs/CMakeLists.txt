@@ -1,1 +1,1 @@
-barretenberg_module(srs)
+barretenberg_module(srs env)

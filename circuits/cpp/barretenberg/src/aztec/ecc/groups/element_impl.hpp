@@ -1,5 +1,4 @@
 #pragma once
-#include <common/mem.hpp>
 
 namespace barretenberg {
 namespace group_elements {
@@ -69,7 +68,7 @@ template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_d
             return;
         }
     } else {
-        if (y.is_msb_set_word()) {
+        if (x.is_msb_set_word()) {
             self_set_infinity();
             return;
         }
@@ -150,9 +149,12 @@ constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq
             return;
         }
     } else {
-        if (y.is_msb_set_word()) {
-            conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
-            z = Fq::one();
+        const bool edge_case_trigger = x.is_msb_set() | other.x.is_msb_set();
+        if (edge_case_trigger) {
+            if (x.is_msb_set()) {
+                conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
+                z = Fq::one();
+            }
             return;
         }
     }
@@ -239,8 +241,11 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const affine_element
             return *this;
         }
     } else {
-        if (y.is_msb_set_word()) {
-            *this = { other.x, other.y, Fq::one() };
+        const bool edge_case_trigger = x.is_msb_set() | other.x.is_msb_set();
+        if (edge_case_trigger) {
+            if (x.is_msb_set()) {
+                *this = { other.x, other.y, Fq::one() };
+            }
             return *this;
         }
     }
@@ -356,8 +361,8 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const element& other
             return *this;
         }
     } else {
-        bool p1_zero = y.is_msb_set();
-        bool p2_zero = other.y.is_msb_set();
+        bool p1_zero = x.is_msb_set();
+        bool p2_zero = other.x.is_msb_set();
         if (__builtin_expect((p1_zero || p2_zero), 0)) {
             if (p1_zero && !p2_zero) {
                 *this = other;
@@ -485,21 +490,21 @@ template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T> element<Fq, 
 template <class Fq, class Fr, class T> constexpr void element<Fq, Fr, T>::self_set_infinity() noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        y.data[0] = 0;
-        y.data[1] = 0;
-        y.data[2] = 0;
-        y.data[3] = 0;
+        x.data[0] = 0;
+        x.data[1] = 0;
+        x.data[2] = 0;
+        x.data[3] = 0;
     } else {
-        y.self_set_msb();
+        x.self_set_msb();
     }
 }
 
 template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::is_point_at_infinity() const noexcept
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
-        return ((y.data[0] | y.data[1] | y.data[2] | y.data[3]) == 0);
+        return ((x.data[0] | x.data[1] | x.data[2] | x.data[3]) == 0);
     } else {
-        return (y.is_msb_set());
+        return (x.is_msb_set());
     }
 }
 
@@ -554,26 +559,6 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_element(numeric::random::Engine* e
     }
 }
 
-// template <class Fq, class Fr, class T>
-// template <typename = typename std::enable_if<T::can_hash_to_curve>>
-// element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(
-//     std::mt19937_64* engine, std::uniform_int_distribution<uint64_t>* dist) noexcept
-// {
-//     bool found_one = false;
-//     Fq yy;
-//     Fq x;
-//     Fq y;
-//     Fq t0;
-//     while (!found_one) {
-//         x = Fq::random_element(engine, dist);
-//         yy = x.sqr() * x + T::b;
-//         y = yy.sqrt();
-//         t0 = y.sqr();
-//         found_one = (yy == t0);
-//     }
-//     return { x, y, Fq::one() };
-// }
-
 template <class Fq, class Fr, class T>
 element<Fq, Fr, T> element<Fq, Fr, T>::mul_without_endomorphism(const Fr& exponent) const noexcept
 {
@@ -611,20 +596,13 @@ element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& exponent)
     constexpr size_t lookup_size = 8;
     constexpr size_t num_rounds = 32;
     constexpr size_t num_wnaf_bits = 4;
-    element* precomp_table = (element*)(aligned_alloc(64, sizeof(element) * lookup_size));
-    affine_element<Fq, Fr, T>* lookup_table =
-        (affine_element<Fq, Fr, T>*)(aligned_alloc(64, sizeof(element) * lookup_size));
+    std::array<element, lookup_size> lookup_table;
 
-    element d2 = dbl();
-    precomp_table[0] = element(*this);
+    element d2 = element(*this);
+    d2.self_dbl();
+    lookup_table[0] = element(*this);
     for (size_t i = 1; i < lookup_size; ++i) {
-        precomp_table[i] = precomp_table[i - 1] + d2;
-    }
-
-    batch_normalize(precomp_table, lookup_size);
-
-    for (size_t i = 0; i < lookup_size; ++i) {
-        lookup_table[i] = { precomp_table[i].x, precomp_table[i].y };
+        lookup_table[i] = lookup_table[i - 1] + d2;
     }
 
     uint64_t wnaf_table[num_rounds * 2];
@@ -633,55 +611,47 @@ element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& exponent)
 
     bool skew = false;
     bool endo_skew = false;
-    wnaf::fixed_wnaf<2, num_wnaf_bits>(&endo_scalar.data[0], &wnaf_table[0], skew, 0);
-    wnaf::fixed_wnaf<2, num_wnaf_bits>(&endo_scalar.data[2], &wnaf_table[1], endo_skew, 0);
+
+    wnaf::fixed_wnaf(&endo_scalar.data[0], &wnaf_table[0], skew, 0, 2, num_wnaf_bits);
+    wnaf::fixed_wnaf(&endo_scalar.data[2], &wnaf_table[1], endo_skew, 0, 2, num_wnaf_bits);
 
     element work_element{ T::one_x, T::one_y, Fq::one() };
-    element dummy_element{ T::one_x, T::one_y, Fq::one() };
-    affine_element<Fq, Fr, T> temporary;
     work_element.self_set_infinity();
 
     uint64_t wnaf_entry;
     uint64_t index;
     bool sign;
-    for (size_t i = 0; i < num_rounds; ++i) {
-        wnaf_entry = wnaf_table[2 * i];
+
+    for (size_t i = 0; i < num_rounds * 2; ++i) {
+        wnaf_entry = wnaf_table[i];
         index = wnaf_entry & 0x0fffffffU;
         sign = static_cast<bool>((wnaf_entry >> 31) & 1);
-        work_element.self_mixed_add_or_sub(lookup_table[index], sign);
+        const bool is_odd = ((i & 1) == 1);
+        auto to_add = lookup_table[static_cast<size_t>(index)];
+        to_add.y.self_conditional_negate(sign ^ is_odd);
+        if (is_odd) {
+            to_add.x *= Fq::beta();
+        }
+        work_element += to_add;
 
-        wnaf_entry = wnaf_table[2 * i + 1];
-        index = wnaf_entry & 0x0fffffffU;
-        sign = static_cast<bool>((wnaf_entry >> 31) & 1);
-        temporary = { lookup_table[index].x * Fq::beta(), lookup_table[index].y };
-        work_element.self_mixed_add_or_sub(temporary, !sign);
-
-        if (i != num_rounds - 1) {
-            work_element.self_dbl();
-            work_element.self_dbl();
-            work_element.self_dbl();
-            work_element.self_dbl();
+        if (i != ((2 * num_rounds) - 1) && is_odd) {
+            for (size_t j = 0; j < 4; ++j) {
+                work_element.self_dbl();
+            }
         }
     }
-    temporary = -lookup_table[0];
+
+    auto temporary = -lookup_table[0];
     if (skew) {
         work_element += temporary;
-    } else {
-        // grotty attempt at making this constant-time
-        dummy_element += temporary;
     }
 
-    temporary = { lookup_table[0].x * Fq::beta(), lookup_table[0].y };
+    temporary = { lookup_table[0].x * Fq::beta(), lookup_table[0].y, lookup_table[0].z };
 
     if (endo_skew) {
         work_element += temporary;
-    } else {
-        // grotty attempt at making this constant-time
-        dummy_element += temporary;
     }
 
-    aligned_free(precomp_table);
-    aligned_free(lookup_table);
     return work_element;
 }
 
@@ -690,22 +660,20 @@ void element<Fq, Fr, T>::conditional_negate_affine(const affine_element<Fq, Fr, 
                                                    affine_element<Fq, Fr, T>& dest,
                                                    const uint64_t predicate) noexcept
 {
-    dest = {
-        src.x,
-        predicate ? -src.y : src.y,
-    };
+    dest = { src.x, predicate ? -src.y : src.y };
 }
 
 template <typename Fq, typename Fr, typename T>
 void element<Fq, Fr, T>::batch_normalize(element* elements, const size_t num_elements) noexcept
 {
-    Fq* temporaries = new Fq[num_elements * 2];
+    std::vector<Fq> temporaries;
+    temporaries.reserve(num_elements * 2);
     Fq accumulator = Fq::one();
 
     // Iterate over the points, computing the product of their z-coordinates.
     // At each iteration, store the currently-accumulated z-coordinate in `temporaries`
     for (size_t i = 0; i < num_elements; ++i) {
-        temporaries[i] = accumulator;
+        temporaries.emplace_back(accumulator);
         if (!elements[i].is_point_at_infinity()) {
             accumulator *= elements[i].z;
         }
@@ -746,8 +714,6 @@ void element<Fq, Fr, T>::batch_normalize(element* elements, const size_t num_ele
         }
         elements[i].z = Fq::one();
     }
-
-    delete[] temporaries;
 }
 } // namespace group_elements
 } // namespace barretenberg

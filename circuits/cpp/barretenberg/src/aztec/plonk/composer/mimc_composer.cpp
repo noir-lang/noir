@@ -3,6 +3,7 @@
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/mimc_widget.hpp>
+#include <plonk/proof_system/widgets/permutation_widget.hpp>
 
 using namespace barretenberg;
 
@@ -198,7 +199,8 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
         q_mimc_selector.emplace_back(fr::zero());
     }
 
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs_path);
+    auto crs = crs_factory_->get_prover_crs(new_n);
+    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
@@ -312,17 +314,20 @@ std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
     poly_coefficients[9] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
-    scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
 
     commitments.resize(10);
 
     for (size_t i = 0; i < 10; ++i) {
-        commitments[i] = g1::affine_element(scalar_multiplication::pippenger(
-            poly_coefficients[i], circuit_proving_key->reference_string.monomials, circuit_proving_key->n, state));
+        commitments[i] =
+            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
+                                                                circuit_proving_key->reference_string->get_monomials(),
+                                                                circuit_proving_key->n,
+                                                                circuit_proving_key->pippenger_runtime_state));
     }
 
+    auto crs = crs_factory_->get_verifier_crs();
     circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs_path);
+        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
@@ -394,11 +399,14 @@ Prover MiMCComposer::preprocess()
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverMiMCWidget> mimc_widget =
         std::make_unique<ProverMiMCWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> arithmetic_widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
+    output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(arithmetic_widget));
     output_state.widgets.emplace_back(std::move(mimc_widget));
     return output_state;

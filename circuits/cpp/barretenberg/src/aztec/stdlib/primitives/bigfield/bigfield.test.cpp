@@ -5,18 +5,18 @@
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 
-#include "./bigfield.hpp"
 #include "../bool/bool.hpp"
-#include "../field/field.hpp"
 #include "../byte_array/byte_array.hpp"
+#include "../field/field.hpp"
+#include "./bigfield.hpp"
 
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 
-#include <polynomials/polynomial_arithmetic.hpp>
 #include <memory>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 namespace test_stdlib_bigfield {
 using namespace barretenberg;
@@ -591,7 +591,7 @@ TEST(stdlib_bigfield, byte_array_constructors)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_bigfield, test_div_against_constants)
+TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;

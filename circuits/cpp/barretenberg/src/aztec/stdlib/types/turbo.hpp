@@ -31,10 +31,6 @@ typedef stdlib::bit_array<Composer> bit_array_ct;
 typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq_ct;
 typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> group_ct;
 
-// typedef stdlib::merkle_tree::fr_hash_path fr_hash_path;
-// typedef stdlib::merkle_tree::hash_path<Composer> hash_path;
-// typedef stdlib::merkle_tree::LevelDbStore leveldb_store;
-
 struct point {
     field_ct x;
     field_ct y;

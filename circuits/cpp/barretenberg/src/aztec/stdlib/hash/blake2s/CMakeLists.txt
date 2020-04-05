@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_blake2s stdlib_uint blake2s)
+barretenberg_module(stdlib_blake2s stdlib_primitives blake2s)

@@ -1,11 +1,17 @@
 #include "leveldb_store.hpp"
+#include "leveldb_tx.hpp"
 #include "memory_store.hpp"
 #include <gtest/gtest.h>
+#include <leveldb/db.h>
 #include <stdlib/types/turbo.hpp>
-#include <sys/random.h>
+#include <numeric/random/engine.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 static std::vector<std::string> VALUES = []() {
     std::vector<std::string> values(1024);
@@ -177,8 +183,7 @@ TEST(stdlib_merkle_tree, test_leveldb_update_1024_random)
 
     for (size_t i = 0; i < 1024; i++) {
         LevelDbStore::index_t index;
-        int got_entropy = getentropy((void*)&index, sizeof(index));
-        ASSERT(got_entropy == 0);
+        index = engine.get_random_uint128();
         db.update_element(index, VALUES[i]);
         entries.push_back(std::make_pair(index, VALUES[i]));
     }

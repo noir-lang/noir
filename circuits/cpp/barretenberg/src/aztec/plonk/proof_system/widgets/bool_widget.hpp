@@ -14,19 +14,17 @@ template <typename Field, typename Group, typename Transcript> class VerifierBoo
     inline static Field compute_quotient_evaluation_contribution(
         verification_key*, const Field&, const Transcript&, Field&, const bool);
 
-    inline static size_t compute_batch_evaluation_contribution(verification_key*,
+    inline static void compute_batch_evaluation_contribution(verification_key*,
                                                         Field& batch_eval,
-                                                        const size_t nu_index,
                                                         const Transcript& transcript,
                                                         const bool use_linearisation);
 
-    inline static VerifierBaseWidget::challenge_coefficients<Field> append_scalar_multiplication_inputs(
-        verification_key* key,
-        const VerifierBaseWidget::challenge_coefficients<Field>& challenge,
-        const Transcript& transcript,
-        std::vector<Group>& points,
-        std::vector<Field>& scalars,
-        const bool use_linearisation);
+    inline static Field append_scalar_multiplication_inputs(verification_key* key,
+                                                     const Field& alpha_base,
+                                                     const Transcript& transcript,
+                                                     std::vector<Group>& points,
+                                                     std::vector<Field>& scalars,
+                                                     const bool use_linearisation);
 };
 
 extern template class VerifierBoolWidget<barretenberg::fr,
@@ -47,11 +45,7 @@ class ProverBoolWidget : public ProverBaseWidget {
                                                  const transcript::Transcript& transcript,
                                                  barretenberg::polynomial& r) override;
 
-    inline size_t compute_opening_poly_contribution(const size_t nu_index,
-                                             const transcript::Transcript&,
-                                             barretenberg::fr*,
-                                             barretenberg::fr*,
-                                             const bool) override;
+    inline void compute_opening_poly_contribution(const transcript::Transcript&, const bool) override;
 
     inline void compute_transcript_elements(transcript::Transcript&, const bool) override;
 

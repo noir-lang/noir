@@ -1,4 +1,7 @@
-#include "./runtime_states.hpp"
+#include "runtime_states.hpp"
+#include "point_table.hpp"
+
+#include <common/mem.hpp>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -12,104 +15,16 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
     constexpr size_t MAX_NUM_ROUNDS = 256;
     num_points = num_initial_points * 2;
     const size_t num_buckets = static_cast<size_t>(
-        (1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(num_initial_points)) + 1);
-    const size_t num_rounds =
-        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
-#ifndef NO_MULTITHREADING
-    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
-#else
-    const size_t num_threads = 1;
-#endif
-    point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
-    skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
-    buckets = (g1::element*)(aligned_alloc(64, num_threads * (num_buckets + num_threads) * sizeof(g1::element)));
-    round_counts = (uint64_t*)(aligned_alloc(32, MAX_NUM_ROUNDS * sizeof(uint64_t)));
-    memset((void*)point_schedule, 0x00, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t));
-    memset((void*)skew_table, 0x00, static_cast<size_t>(num_points) * sizeof(bool));
-    memset((void*)buckets, 0xff, num_threads * (num_buckets + num_threads) * sizeof(g1::element));
-    memset((void*)round_counts, 0x00, MAX_NUM_ROUNDS * sizeof(uint64_t));
-}
-
-pippenger_runtime_state::pippenger_runtime_state(pippenger_runtime_state&& other)
-{
-    point_schedule = other.point_schedule;
-    skew_table = other.skew_table;
-    buckets = other.buckets;
-    round_counts = other.round_counts;
-
-    other.point_schedule = nullptr;
-    other.skew_table = nullptr;
-    other.buckets = nullptr;
-    other.round_counts = nullptr;
-
-    num_points = other.num_points;
-}
-
-pippenger_runtime_state& pippenger_runtime_state::operator=(pippenger_runtime_state&& other)
-{
-    if (point_schedule) {
-        aligned_free(point_schedule);
-    }
-
-    if (skew_table) {
-        aligned_free(skew_table);
-    }
-
-    if (buckets) {
-        aligned_free(buckets);
-    }
-
-    if (round_counts) {
-        aligned_free(round_counts);
-    }
-
-    point_schedule = other.point_schedule;
-    skew_table = other.skew_table;
-    buckets = other.buckets;
-    round_counts = other.round_counts;
-
-    other.point_schedule = nullptr;
-    other.skew_table = nullptr;
-    other.buckets = nullptr;
-    other.round_counts = nullptr;
-
-    num_points = other.num_points;
-    return *this;
-}
-
-pippenger_runtime_state::~pippenger_runtime_state()
-{
-    if (point_schedule) {
-        aligned_free(point_schedule);
-    }
-
-    if (skew_table) {
-        aligned_free(skew_table);
-    }
-
-    if (buckets) {
-        aligned_free(buckets);
-    }
-
-    if (round_counts) {
-        aligned_free(round_counts);
-    }
-}
-
-unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(const size_t num_initial_points)
-{
-    constexpr size_t MAX_NUM_ROUNDS = 256;
-    num_points = num_initial_points * 2;
-    const size_t num_buckets = static_cast<size_t>(
         1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
 #ifndef NO_MULTITHREADING
     const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
 #else
     const size_t num_threads = 1;
 #endif
+    const size_t prefetch_overflow = 16 * num_threads;
     const size_t num_rounds =
         static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
-    point_schedule = (uint64_t*)(aligned_alloc(64, static_cast<size_t>(num_points) * num_rounds * sizeof(uint64_t)));
+    point_schedule = (uint64_t*)(aligned_alloc(64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
     point_pairs_1 = (g1::affine_element*)(aligned_alloc(
         64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));
@@ -147,7 +62,7 @@ unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(const size_t num_
     memset((void*)round_counts, 0, MAX_NUM_ROUNDS * sizeof(uint64_t));
 }
 
-unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(unsafe_pippenger_runtime_state&& other)
+pippenger_runtime_state::pippenger_runtime_state(pippenger_runtime_state&& other)
 {
     point_schedule = other.point_schedule;
     skew_table = other.skew_table;
@@ -172,7 +87,7 @@ unsafe_pippenger_runtime_state::unsafe_pippenger_runtime_state(unsafe_pippenger_
     num_points = other.num_points;
 }
 
-unsafe_pippenger_runtime_state& unsafe_pippenger_runtime_state::operator=(unsafe_pippenger_runtime_state&& other)
+pippenger_runtime_state& pippenger_runtime_state::operator=(pippenger_runtime_state&& other)
 {
     if (point_schedule) {
         aligned_free(point_schedule);
@@ -234,8 +149,8 @@ unsafe_pippenger_runtime_state& unsafe_pippenger_runtime_state::operator=(unsafe
     return *this;
 }
 
-affine_product_runtime_state unsafe_pippenger_runtime_state::get_affine_product_runtime_state(const size_t num_threads,
-                                                                                              const size_t thread_index)
+affine_product_runtime_state pippenger_runtime_state::get_affine_product_runtime_state(const size_t num_threads,
+                                                                                       const size_t thread_index)
 {
     // if (!point_pairs_1) {
     //     init();
@@ -255,7 +170,7 @@ affine_product_runtime_state unsafe_pippenger_runtime_state::get_affine_product_
     return product_state;
 }
 
-unsafe_pippenger_runtime_state::~unsafe_pippenger_runtime_state()
+pippenger_runtime_state::~pippenger_runtime_state()
 {
     if (point_schedule) {
         aligned_free(point_schedule);

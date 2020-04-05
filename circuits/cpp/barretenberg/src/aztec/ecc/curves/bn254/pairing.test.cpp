@@ -33,9 +33,13 @@ TEST(pairing, reduced_ate_pairing_check_against_constants)
             uint256_t(0x31d7525fa8914a4c, 0xe1ed738718e2e8b8, 0x18305c749a9d97a2, 0x20534d878e1e9db0) } }
     };
 
+#if defined(__wasm__)
+    const fq12 result = pairing::reduced_ate_pairing(P, Q);
+#else
     constexpr fq12 result = pairing::reduced_ate_pairing(P, Q);
-
     static_assert(result == expected); // test to see if compiler can evaluate bilinear pairing at compile time
+#endif
+
     EXPECT_EQ(result, expected);
 }
 

@@ -190,7 +190,6 @@ TEST(secp256r1, check_group_modulus)
     EXPECT_EQ(result == secp256r1::g1::one, true);
 }
 
-
 TEST(secp256r1, add_exception_test_infinity)
 {
     secp256r1::g1::element lhs = secp256r1::g1::element::random_element();
@@ -406,7 +405,7 @@ TEST(secp256r1, group_exponentiation_consistency_check)
 TEST(secp256r1, derive_generators)
 {
     constexpr size_t num_generators = 128;
-    std::array<secp256r1::g1::affine_element, num_generators> result =
+    auto result =
         secp256r1::g1::derive_generators<num_generators>();
 
     const auto is_unique = [&result](const secp256r1::g1::affine_element& y, const size_t j) {
