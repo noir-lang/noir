@@ -21,9 +21,11 @@ namespace plonk {
 namespace stdlib {
 namespace recursion {
 
-template <typename Group> struct recursion_output {
+template <typename Field, typename Group> struct recursion_output {
     Group P0;
     Group P1;
+    // the public inputs of the inner ciruit are now private inputs of the outer circuit!
+    std::vector<Field> public_inputs;
 };
 
 template <typename Composer> struct lagrange_evaluations {
@@ -54,6 +56,7 @@ lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>&
 
 template <typename Composer, typename program_settings>
 recursion_output<
+    field_t<Composer>,
     element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>
 verify_proof(Composer* context,
              std::shared_ptr<waffle::verification_key> key,
@@ -220,7 +223,11 @@ verify_proof(Composer* context,
     group_pt lhs = group_pt::batch_mul({ PI_Z_OMEGA }, { u }, 128);
     lhs = lhs + PI_Z;
     lhs = (-lhs).normalize();
-    return recursion_output<group_pt>{ rhs, lhs };
+    return recursion_output<field_pt, group_pt>{
+        rhs,
+        lhs,
+        transcript.get_field_element_vector("public_inputs"),
+    };
 }
 
 } // namespace recursion
