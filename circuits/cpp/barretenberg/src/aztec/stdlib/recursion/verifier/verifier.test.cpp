@@ -51,6 +51,7 @@ stdlib::recursion::recursion_output<group_ct> create_outer_circuit(waffle::Turbo
     std::shared_ptr<waffle::verification_key> verification_key = inner_composer.compute_verification_key();
 
     waffle::plonk_proof recursive_proof = prover.construct_proof();
+
     transcript::Manifest recursive_manifest =
         waffle::TurboComposer::create_unrolled_manifest(prover.key->num_public_inputs);
 
@@ -79,16 +80,14 @@ TEST(stdlib_verifier, test_recursive_proof_composition)
     P[1].x = barretenberg::fq(output.P1.x.get_value().lo);
     P[1].y = barretenberg::fq(output.P1.y.get_value().lo);
 
-    barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
-        P, prover.key->reference_string.precomputed_g2_lines, 2);
-
-    EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
-
     std::cout << "creating verifier" << std::endl;
     waffle::TurboVerifier verifier = outer_composer.create_verifier();
-    std::cout << "created verifier" << std::endl;
 
-    std::cout << "creating proof" << std::endl;
+    barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
+        P, verifier.key->reference_string->get_precomputed_g2_lines(), 2);
+    EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
+
+    std::cout << "validated. creating proof" << std::endl;
     waffle::plonk_proof proof = prover.construct_proof();
     std::cout << "created proof" << std::endl;
 

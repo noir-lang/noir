@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_verifier ecc transcript proof_system stdlib_bool stdlib_field stdlib_byte_array stdlib_pedersen stdlib_blake2s)
+barretenberg_module(stdlib_verifier ecc transcript proof_system stdlib_primitives stdlib_pedersen stdlib_blake2s)

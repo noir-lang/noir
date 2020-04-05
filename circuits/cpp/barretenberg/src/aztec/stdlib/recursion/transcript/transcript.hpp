@@ -187,7 +187,7 @@ template <typename Composer> class Transcript {
                       byte_counter,
                       manifest_element.num_bytes);
             } else if (manifest_element.num_bytes == 64) {
-                group_pt point = get_group_element(manifest_element.name);
+                group_pt point = get_circuit_group_element(manifest_element.name);
 
                 field_pt y_hi =
                     point.y.binary_basis_limbs[2].element + (point.y.binary_basis_limbs[3].element * fq_pt::shift_1);
@@ -321,7 +321,14 @@ template <typename Composer> class Transcript {
         return challenge_values[static_cast<size_t>(cache_idx)][challenge_idx];
     }
 
-    group_pt get_group_element(const std::string& element_name) const
+    barretenberg::g1::affine_element get_group_element(const std::string& element_name) const
+    {
+        barretenberg::g1::affine_element value =
+            barretenberg::g1::affine_element::serialize_from_buffer(&(transcript_base.get_element(element_name))[0]);
+        return value;
+    }
+
+    group_pt get_circuit_group_element(const std::string& element_name) const
     {
         int cache_idx = check_group_element_cache(element_name);
         if (cache_idx != -1) {

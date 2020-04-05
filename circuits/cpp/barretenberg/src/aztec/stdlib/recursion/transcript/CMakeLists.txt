@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_transcript ecc stdlib_bool stdlib_field stdlib_byte_array stdlib_pedersen stdlib_blake2s transcript)
+barretenberg_module(stdlib_transcript ecc stdlib_primitives stdlib_pedersen stdlib_blake2s transcript)

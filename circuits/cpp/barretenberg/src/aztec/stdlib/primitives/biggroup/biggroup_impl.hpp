@@ -164,7 +164,8 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
     // validate correctness of NAF
     if constexpr (!Fr::is_composite) {
         Fr accumulator(ctx, uint256_t(0));
-        for (size_t i = 0; i < num_rounds; i += 2) {
+        const size_t num_even_rounds = (num_rounds >> 1) << 1;
+        for (size_t i = 0; i < num_even_rounds; i += 2) {
             accumulator = accumulator + accumulator;
             accumulator = accumulator + accumulator;
             Fr hi = Fr(1) - (static_cast<Fr>(naf_entries[i]) * Fr(2));

@@ -46,7 +46,7 @@ transcript::Manifest create_manifest(const size_t num_public_inputs)
                                                 { "r", fr_size, false },
                                                 { "t", fr_size, true } },
                                               "nu",
-                                              25),
+                                              20),
           transcript::Manifest::RoundManifest(
               { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
@@ -226,7 +226,7 @@ TEST(stdlib_transcript, validate_transcript)
     };
 
     const auto check_group_element = [&normal_transcript, &recursive_transcript](const std::string& element_name) {
-        group_t recursive_value = recursive_transcript.get_group_element(element_name);
+        group_t recursive_value = recursive_transcript.get_circuit_group_element(element_name);
         barretenberg::g1::affine_element expected =
             barretenberg::g1::affine_element::serialize_from_buffer(&normal_transcript.get_element(element_name)[0]);
         barretenberg::g1::affine_element result{ recursive_value.x.get_value().lo, recursive_value.y.get_value().lo };

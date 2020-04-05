@@ -119,55 +119,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
         barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->domain);
 
-    // TODO LOCAL CHANGES INTEGRATE
-    // compute the terms we need to derive R(X)
-    // plonk_linear_terms linear_terms =
-    //     compute_linear_terms<barretenberg::fr, transcript::StandardTranscript, program_settings>(transcript,
-    //                                                                                              lagrange_evals.l_1);
-
-    // // reconstruct evaluation of quotient polynomial from prover messages
-    // fr T0;
-    // fr T1;
-    // fr T2;
-    // fr::__copy(alpha, alpha_pow[0]);
-    // for (size_t i = 1; i < 4; ++i) {
-    //     alpha_pow[i] = alpha_pow[i - 1] * alpha_pow[0];
-    // }
-
-    // fr sigma_contribution = fr::one();
-
-    // for (size_t i = 0; i < program_settings::program_width - 1; ++i) {
-    //     T0 = sigma_evaluations[i] * beta;
-    //     T1 = wire_evaluations[i] + gamma;
-    //     T0 += T1;
-    //     sigma_contribution *= T0;
-    // }
-
-    // std::vector<barretenberg::fr> public_inputs =
-    //     barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
-
-    // fr public_input_delta = compute_public_input_delta<barretenberg::fr>(public_inputs, beta, gamma, key->domain.root);
-    // T0 = wire_evaluations[program_settings::program_width - 1] + gamma;
-    // sigma_contribution *= T0;
-    // sigma_contribution *= z_1_shifted_eval;
-    // sigma_contribution *= alpha_pow[0];
-
-    // T1 = z_1_shifted_eval - public_input_delta;
-    // T1 *= lagrange_evals.l_n_minus_1;
-    // T1 *= alpha_pow[1];
-
-    // T2 = lagrange_evals.l_1 * alpha_pow[2];
-    // T1 -= T2;
-    // T1 -= sigma_contribution;
-
-    // if constexpr (program_settings::use_linearisation) {
-    //     fr linear_eval = fr::serialize_from_buffer(&transcript.get_element("r")[0]);
-    //     T1 += linear_eval;
-    // }
-    // t_eval += T1;
-
-    // fr alpha_base = alpha.sqr().sqr();
-
     fr alpha_base = alpha;
     alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
 

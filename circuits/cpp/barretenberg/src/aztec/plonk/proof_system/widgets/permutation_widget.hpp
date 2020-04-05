@@ -13,16 +13,16 @@ template <typename Field, typename Group, typename Transcript> class VerifierPer
                                                           const bool use_linearisation);
 
     static Field append_scalar_multiplication_inputs(verification_key*,
-                                              const Field& alpha_base,
-                                              const Transcript& transcript,
-                                              std::vector<Group>& points,
-                                              std::vector<Field>& scalars,
-                                              const bool use_linearisation);
+                                                     const Field& alpha_base,
+                                                     const Transcript& transcript,
+                                                     std::vector<Group>& points,
+                                                     std::vector<Field>& scalars,
+                                                     const bool use_linearisation);
 
     static void compute_batch_evaluation_contribution(verification_key*,
-                                                        Field& batch_eval,
-                                                        const Transcript& transcript,
-                                                        const bool use_linearisation);
+                                                      Field& batch_eval,
+                                                      const Transcript& transcript,
+                                                      const bool use_linearisation);
 };
 
 extern template class VerifierPermutationWidget<barretenberg::fr,
@@ -55,3 +55,5 @@ extern template class ProverPermutationWidget<3>;
 extern template class ProverPermutationWidget<4>;
 
 } // namespace waffle
+
+#include "./permutation_widget_impl.hpp"
