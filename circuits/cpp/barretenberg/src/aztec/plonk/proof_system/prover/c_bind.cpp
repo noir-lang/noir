@@ -86,17 +86,22 @@ WASM_EXPORT size_t prover_export_proof(waffle::TurboProver* prover, uint8_t** pr
     return proof_data.size();
 }
 
-WASM_EXPORT void coset_fft_with_generator_shift(size_t circuit_size, fr* coefficients, fr* constant) {
-    evaluation_domain domain(circuit_size);
-    domain.compute_lookup_table();
-    // info("constant ", *constant);
-    polynomial_arithmetic::coset_fft_with_generator_shift(coefficients, domain, *constant);
+WASM_EXPORT void coset_fft_with_generator_shift(fr* coefficients, fr* constant, evaluation_domain* domain) {
+    polynomial_arithmetic::coset_fft_with_generator_shift(coefficients, *domain, *constant);
 }
 
-WASM_EXPORT void ifft(size_t circuit_size, fr* coefficients) {
-    evaluation_domain domain(circuit_size);
-    domain.compute_lookup_table();
-    polynomial_arithmetic::ifft(coefficients, domain);
+WASM_EXPORT void ifft(fr* coefficients, evaluation_domain* domain) {
+    polynomial_arithmetic::ifft(coefficients, *domain);
+}
+
+WASM_EXPORT void* new_evaluation_domain(size_t circuit_size) {
+    auto domain = new evaluation_domain(circuit_size);
+    domain->compute_lookup_table();
+    return domain;
+}
+
+WASM_EXPORT void delete_evaluation_domain(void* domain) {
+    delete reinterpret_cast<evaluation_domain*>(domain);
 }
 
 }
