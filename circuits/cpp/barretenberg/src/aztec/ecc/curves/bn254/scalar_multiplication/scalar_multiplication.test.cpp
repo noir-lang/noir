@@ -1,5 +1,5 @@
 #include "scalar_multiplication.hpp"
-#include "point_table.hpp"
+#include "pippenger.hpp"
 #include <chrono>
 #include <gtest/gtest.h>
 #include <srs/io.hpp>
@@ -24,7 +24,8 @@ TEST(scalar_multiplication, reduce_buckets_simple)
     constexpr size_t num_points = 128;
     g2::affine_element g2_x;
     io::read_transcript_g2(g2_x, BARRETENBERG_SRS_PATH);
-    auto monomials = scalar_multiplication::new_pippenger_point_table_from_path(BARRETENBERG_SRS_PATH, num_points / 2);
+    auto pippenger = Pippenger(BARRETENBERG_SRS_PATH, num_points / 2);
+    auto monomials = pippenger.get_point_table();
 
     std::vector<uint64_t> point_schedule(scalar_multiplication::point_table_size(num_points / 2));
     std::array<bool, num_points> bucket_empty_status;
@@ -199,8 +200,6 @@ TEST(scalar_multiplication, reduce_buckets_simple)
         EXPECT_EQ((output[i].x == expected[i].x), true);
         EXPECT_EQ((output[i].y == expected[i].y), true);
     }
-
-    aligned_free(monomials);
 }
 
 TEST(scalar_multiplication, reduce_buckets)

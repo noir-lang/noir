@@ -3,6 +3,7 @@
  */
 #pragma once
 #include "reference_string.hpp"
+#include <ecc/curves/bn254/scalar_multiplication/pippenger.hpp>
 
 namespace barretenberg {
 namespace pairing {
@@ -16,7 +17,7 @@ using namespace barretenberg;
 
 class VerifierMemReferenceString : public VerifierReferenceString {
   public:
-    VerifierMemReferenceString(char const* g2x);
+    VerifierMemReferenceString(uint8_t const* g2x);
     ~VerifierMemReferenceString();
 
     g2::affine_element get_g2x() const { return g2_x; }
@@ -30,22 +31,25 @@ class VerifierMemReferenceString : public VerifierReferenceString {
 
 class MemReferenceString : public ProverReferenceString {
   public:
-    MemReferenceString(const size_t num_points, char const* buffer);
-    ~MemReferenceString();
+    MemReferenceString(const size_t num_points, uint8_t const* buffer)
+      : pippenger_(buffer, num_points)
+    {}
 
-    g1::affine_element* get_monomials() { return monomials_; }
+    g1::affine_element* get_monomials() { return pippenger_.get_point_table(); }
 
   private:
-    g1::affine_element* monomials_;
+    scalar_multiplication::Pippenger pippenger_;
 };
 
 class MemReferenceStringFactory : public ReferenceStringFactory {
   public:
-    MemReferenceStringFactory(char const* buffer, size_t num_points, char const* g2x)
+    MemReferenceStringFactory(uint8_t const* buffer, size_t num_points, uint8_t const* g2x)
         : buffer_(buffer)
         , num_points_(num_points)
         , g2x_(g2x)
     {}
+
+    MemReferenceStringFactory(MemReferenceStringFactory&& other) = default;
 
     std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree)
     {
@@ -59,9 +63,9 @@ class MemReferenceStringFactory : public ReferenceStringFactory {
     }
 
   private:
-    char const* buffer_;
+    uint8_t const* buffer_;
     size_t num_points_;
-    char const* g2x_;
+    uint8_t const* g2x_;
 };
 
 } // namespace waffle

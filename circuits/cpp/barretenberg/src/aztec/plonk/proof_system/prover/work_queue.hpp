@@ -15,9 +15,9 @@ class work_queue {
     enum WorkType { FFT, SMALL_FFT, IFFT, SCALAR_MULTIPLICATION };
 
     struct work_item_info {
-        size_t num_scalar_multiplications;
-        size_t num_ffts;
-        size_t num_iffts;
+        uint32_t num_scalar_multiplications;
+        uint32_t num_ffts;
+        uint32_t num_iffts;
     };
 
     struct work_item {
@@ -49,9 +49,9 @@ class work_queue {
 
     work_item_info get_queued_work_item_info() const
     {
-        size_t scalar_mul_count = 0;
-        size_t fft_count = 0;
-        size_t ifft_count = 0;
+        uint32_t scalar_mul_count = 0;
+        uint32_t fft_count = 0;
+        uint32_t ifft_count = 0;
         for (const auto& item : work_item_queue) {
             if (item.work_type == WorkType::SCALAR_MULTIPLICATION) {
                 ++scalar_mul_count;
@@ -86,6 +86,7 @@ class work_queue {
         for (const auto& item : work_item_queue) {
             if (item.work_type == WorkType::IFFT) {
                 if (count == work_item_number) {
+                    auto w = witness->wires.at(item.tag);
                     barretenberg::polynomial& wire = witness->wires.at(item.tag);
                     return wire.get_coefficients();
                 }
@@ -117,7 +118,7 @@ class work_queue {
             if (item.work_type == WorkType::SMALL_FFT) {
                 if (count == work_item_number) {
                     barretenberg::polynomial& wire = witness->wires.at(item.tag);
-                    return { wire.get_coefficients(), key->large_domain.root * barretenberg::fr(item.index) };
+                    return { wire.get_coefficients(), key->large_domain.root.pow(static_cast<uint64_t>(item.index)) };
                 }
                 ++count;
             }

@@ -152,9 +152,7 @@ class ComposerBase {
     {}
     ComposerBase(std::shared_ptr<proving_key> const& p_key, std::shared_ptr<verification_key> const& v_key)
         : n(0)
-        , computed_proving_key(true)
         , circuit_proving_key(p_key)
-        , computed_verification_key(v_key.get() != nullptr)
         , circuit_verification_key(v_key)
     {}
     ComposerBase(ComposerBase&& other) = default;
@@ -232,10 +230,7 @@ class ComposerBase {
     std::vector<std::vector<epicycle>> wire_epicycles;
     size_t features = static_cast<size_t>(Features::SAD_TROMBONE);
 
-    bool computed_proving_key = false;
     std::shared_ptr<proving_key> circuit_proving_key;
-
-    bool computed_verification_key = false;
     std::shared_ptr<verification_key> circuit_verification_key;
 
     bool computed_witness = false;

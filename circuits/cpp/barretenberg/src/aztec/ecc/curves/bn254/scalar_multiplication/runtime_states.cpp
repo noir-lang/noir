@@ -1,5 +1,4 @@
 #include "runtime_states.hpp"
-#include "point_table.hpp"
 
 #include <common/mem.hpp>
 

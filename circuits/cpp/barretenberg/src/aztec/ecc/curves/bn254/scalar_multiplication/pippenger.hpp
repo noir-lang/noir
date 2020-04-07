@@ -30,8 +30,25 @@ inline T* point_table_alloc(size_t num_points) {
     return (T*)aligned_alloc(64, point_table_buf_size<T>(num_points));
 }
 
-g1::affine_element* new_pippenger_point_table(uint8_t* points, size_t num_points);
 
-g1::affine_element* new_pippenger_point_table_from_path(std::string const& path, size_t num_points);
+class Pippenger {
+public:
+    Pippenger(uint8_t const* points, size_t num_points);
+
+    Pippenger(std::string const& path, size_t num_points);
+
+    ~Pippenger();
+
+    g1::element pippenger_unsafe(fr* scalars, size_t from, size_t range);
+
+    g1::affine_element* get_point_table() const { return monomials_; }
+
+    size_t get_num_points() const { return num_points_; }
+
+private:
+    g1::affine_element* monomials_;
+    size_t num_points_;
+};
+
 }
 } // namespace barretenberg

@@ -160,7 +160,7 @@ void MiMCComposer::create_dummy_gates()
 
 std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
 {
-    if (computed_proving_key) {
+    if (circuit_proving_key) {
         return circuit_proving_key;
     }
     ASSERT(wire_epicycles.size() == variables.size());
@@ -287,16 +287,15 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     circuit_proving_key->constraint_selector_ffts.insert({ "q_3_fft", std::move(poly_q_3_fft) });
 
     compute_sigma_permutations<3>(circuit_proving_key.get());
-    computed_proving_key = true;
     return circuit_proving_key;
 }
 
 std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
 {
-    if (computed_verification_key) {
+    if (circuit_verification_key) {
         return circuit_verification_key;
     }
-    if (!computed_proving_key) {
+    if (!circuit_proving_key) {
         compute_proving_key();
     }
 
@@ -341,7 +340,6 @@ std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[8] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[9] });
 
-    computed_verification_key = true;
     return circuit_verification_key;
 }
 
