@@ -180,7 +180,7 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
         accumulator -= field_t<C>(naf_entries[num_rounds]);
         accumulator.assert_equal(scalar);
     } else {
-        const auto reconstruct_half_naf = [ctx](bool_t<C>* nafs, const size_t half_round_length) {
+        const auto reconstruct_half_naf = [](bool_t<C>* nafs, const size_t half_round_length) {
             field_t<C> negative_accumulator(0);
             field_t<C> positive_accumulator(0);
             for (size_t i = 0; i < half_round_length; ++i) {
