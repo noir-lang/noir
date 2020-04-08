@@ -183,11 +183,15 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
         work_queue::WorkType::SCALAR_MULTIPLICATION,
         z.get_coefficients(),
         "Z",
+        barretenberg::fr(0),
+        0,
     });
     queue.add_to_queue({
         work_queue::WorkType::FFT,
         nullptr,
         "z",
+        barretenberg::fr(0),
+        0,
     });
 }
 

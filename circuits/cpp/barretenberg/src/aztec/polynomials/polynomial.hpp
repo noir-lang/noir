@@ -33,6 +33,8 @@ class polynomial {
                    const size_t domain_extension);
 
     void coset_fft_with_constant(const evaluation_domain& domain, const barretenberg::fr& costant);
+    void coset_fft_with_generator_shift(const evaluation_domain& domain, const fr& constant);
+
     void ifft(const evaluation_domain& domain);
     void ifft_with_constant(const evaluation_domain& domain, const barretenberg::fr& constant);
     void coset_ifft(const evaluation_domain& domain);

@@ -6,14 +6,14 @@
 
 namespace rollup {
 namespace client_proofs {
-namespace create {
+namespace create_note {
 
 using namespace rollup::tx;
 using namespace plonk::stdlib::types::turbo;
 
-void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
-
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
+
+void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void create_note_circuit(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
 

@@ -17,7 +17,7 @@ TEST(reference_string, mem_file_consistency)
     transcript.close();
 
     auto mem_crs = std::make_unique<waffle::MemReferenceStringFactory>(
-        (char*)monomials.data(), monomials.size(), (char*)g2x.data());
+        monomials.data(), monomials.size(), g2x.data());
     auto mem_prover = mem_crs->get_prover_crs(23123);
     auto mem_verifier = mem_crs->get_verifier_crs();
 
@@ -25,7 +25,7 @@ TEST(reference_string, mem_file_consistency)
     auto file_prover = file_crs->get_prover_crs(23123);
     auto file_verifier = file_crs->get_verifier_crs();
 
-    EXPECT_EQ(memcmp(mem_prover->get_monomials(), file_prover->get_monomials(), 23123 * 64), 0);
+    EXPECT_EQ(memcmp(mem_prover->get_monomials(), file_prover->get_monomials(), 23123 * 2 * 64), 0);
     EXPECT_EQ(mem_verifier->get_g2x(), file_verifier->get_g2x());
     EXPECT_EQ(memcmp(mem_verifier->get_precomputed_g2_lines(),
                      file_verifier->get_precomputed_g2_lines(),

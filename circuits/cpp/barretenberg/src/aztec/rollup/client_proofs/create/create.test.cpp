@@ -7,7 +7,7 @@
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
-using namespace rollup::client_proofs::create;
+using namespace rollup::client_proofs::create_note;
 using namespace rollup::tx;
 
 TEST(client_proofs, test_create)

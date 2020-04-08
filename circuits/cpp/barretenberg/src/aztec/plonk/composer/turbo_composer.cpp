@@ -7,6 +7,7 @@
 #include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_range_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <plonk/composer/turbo/compute_verification_key.hpp>
 
 using namespace barretenberg;
 
@@ -860,7 +861,7 @@ uint32_t TurboComposer::put_constant_variable(const barretenberg::fr& variable)
 
 std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
 {
-    if (computed_proving_key) {
+    if (circuit_proving_key) {
         return circuit_proving_key;
     }
     create_dummy_gate();
@@ -1018,70 +1019,21 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     circuit_proving_key->constraint_selector_ffts.insert({ "q_logic_fft", std::move(poly_q_logic_fft) });
 
     compute_sigma_permutations<4>(circuit_proving_key.get());
-    computed_proving_key = true;
     return circuit_proving_key;
 }
 
 std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
 {
-    if (computed_verification_key) {
+    if (circuit_verification_key) {
         return circuit_verification_key;
     }
-    if (!computed_proving_key) {
+    if (!circuit_proving_key) {
         compute_proving_key();
     }
 
-    std::array<fr*, 15> poly_coefficients;
-    poly_coefficients[0] = circuit_proving_key->constraint_selectors.at("q_1").get_coefficients();
-    poly_coefficients[1] = circuit_proving_key->constraint_selectors.at("q_2").get_coefficients();
-    poly_coefficients[2] = circuit_proving_key->constraint_selectors.at("q_3").get_coefficients();
-    poly_coefficients[3] = circuit_proving_key->constraint_selectors.at("q_4").get_coefficients();
-    poly_coefficients[4] = circuit_proving_key->constraint_selectors.at("q_5").get_coefficients();
-    poly_coefficients[5] = circuit_proving_key->constraint_selectors.at("q_m").get_coefficients();
-    poly_coefficients[6] = circuit_proving_key->constraint_selectors.at("q_c").get_coefficients();
-    poly_coefficients[7] = circuit_proving_key->constraint_selectors.at("q_arith").get_coefficients();
-    poly_coefficients[8] = circuit_proving_key->constraint_selectors.at("q_ecc_1").get_coefficients();
-    poly_coefficients[9] = circuit_proving_key->constraint_selectors.at("q_range").get_coefficients();
-    poly_coefficients[10] = circuit_proving_key->constraint_selectors.at("q_logic").get_coefficients();
-
-    poly_coefficients[11] = circuit_proving_key->permutation_selectors.at("sigma_1").get_coefficients();
-    poly_coefficients[12] = circuit_proving_key->permutation_selectors.at("sigma_2").get_coefficients();
-    poly_coefficients[13] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
-    poly_coefficients[14] = circuit_proving_key->permutation_selectors.at("sigma_4").get_coefficients();
-
-    std::vector<barretenberg::g1::affine_element> commitments;
-    commitments.resize(15);
-
-    for (size_t i = 0; i < 15; ++i) {
-        commitments[i] =
-            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
-                                                                circuit_proving_key->reference_string->get_monomials(),
-                                                                circuit_proving_key->n,
-                                                                circuit_proving_key->pippenger_runtime_state));
-    }
-
-    auto crs = crs_factory_->get_verifier_crs();
     circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
+        turbo_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
 
-    circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_3", commitments[2] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_4", commitments[3] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_5", commitments[4] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_M", commitments[5] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_C", commitments[6] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_ARITHMETIC_SELECTOR", commitments[7] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_FIXED_BASE_SELECTOR", commitments[8] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_RANGE_SELECTOR", commitments[9] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_LOGIC_SELECTOR", commitments[10] });
-
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_1", commitments[11] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[12] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[13] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_4", commitments[14] });
-
-    computed_verification_key = true;
     return circuit_verification_key;
 }
 

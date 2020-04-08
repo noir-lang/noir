@@ -461,6 +461,12 @@ void coset_fft_with_constant(fr* coeffs, const evaluation_domain& domain, const 
     fft(coeffs, domain);
 }
 
+void coset_fft_with_generator_shift(fr* coeffs, const evaluation_domain& domain, const fr& constant)
+{
+    scale_by_generator(coeffs, coeffs, domain, fr::one(), domain.generator * constant, domain.generator_size);
+    fft(coeffs, domain);
+}
+
 void ifft_with_constant(fr* coeffs, const evaluation_domain& domain, const fr& value)
 {
     fft_inner_parallel(coeffs, domain, domain.root_inverse, domain.get_inverse_round_roots());

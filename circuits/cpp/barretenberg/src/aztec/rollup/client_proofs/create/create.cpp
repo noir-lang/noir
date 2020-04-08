@@ -2,10 +2,11 @@
 #include "../../pedersen_note/pedersen_note.hpp"
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <common/log.hpp>
+#include <plonk/composer/turbo/compute_verification_key.hpp>
 
 namespace rollup {
 namespace client_proofs {
-namespace create {
+namespace create_note {
 
 using namespace plonk;
 using namespace pedersen_note;
@@ -57,16 +58,14 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
     proving_key = composer.compute_proving_key();
 }
 
-void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
+void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
 {
-    // Junk data required just to create proving key.
-    tx_note note;
-    crypto::schnorr::signature sig;
-
-    Composer composer(std::move(crs_factory));
-    create_note_circuit(composer, note, sig);
-    proving_key = composer.compute_proving_key();
-    verification_key = composer.compute_verification_key();
+    if (!proving_key) {
+        std::abort();
+    }
+    // Patch the 'nothing' reference string fed to init_proving_key.
+    proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n);
+    verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
 }
 
 Prover new_create_note_prover(tx_note const& note, crypto::schnorr::signature const& sig)

@@ -1,6 +1,5 @@
 #include "file_reference_string.hpp"
 #include <ecc/curves/bn254/pairing.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/point_table.hpp>
 #include <srs/io.hpp>
 
 #ifndef NO_MULTITHREADING
@@ -21,16 +20,6 @@ VerifierFileReferenceString::VerifierFileReferenceString(std::string const& path
 VerifierFileReferenceString::~VerifierFileReferenceString()
 {
     aligned_free(precomputed_g2_lines);
-}
-
-FileReferenceString::FileReferenceString(const size_t num_points, std::string const& path)
-{
-    monomials = barretenberg::scalar_multiplication::new_pippenger_point_table_from_path(path, num_points);
-}
-
-FileReferenceString::~FileReferenceString()
-{
-    aligned_free(monomials);
 }
 
 } // namespace waffle
