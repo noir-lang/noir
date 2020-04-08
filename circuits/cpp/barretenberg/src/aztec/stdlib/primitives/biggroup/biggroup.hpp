@@ -11,7 +11,7 @@ namespace stdlib {
 template <typename Composer, class Fq, class Fr, class NativeGroup> class element {
   public:
     element();
-    element(const NativeGroup::affine_element& input);
+    element(const typename NativeGroup::affine_element& input);
     element(const Fq& x, const Fq& y);
 
     element(const element& other);
