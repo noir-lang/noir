@@ -33,8 +33,12 @@ class ReferenceStringFactory {
     ReferenceStringFactory() = default;
     ReferenceStringFactory(ReferenceStringFactory&& other) = default;
     virtual ~ReferenceStringFactory() {}
-    virtual std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree) = 0;
-    virtual std::shared_ptr<VerifierReferenceString> get_verifier_crs() = 0;
+    virtual std::shared_ptr<ProverReferenceString> get_prover_crs(size_t) {
+      return nullptr;
+    }
+    virtual std::shared_ptr<VerifierReferenceString> get_verifier_crs() {
+      return nullptr;
+    }
 };
 
 } // namespace waffle

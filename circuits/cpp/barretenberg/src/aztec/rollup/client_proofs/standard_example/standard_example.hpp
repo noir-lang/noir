@@ -8,9 +8,9 @@ namespace standard_example {
 
 using namespace plonk::stdlib::types::standard;
 
-void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
-
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
+
+void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void build_circuit(Composer& composer);
 

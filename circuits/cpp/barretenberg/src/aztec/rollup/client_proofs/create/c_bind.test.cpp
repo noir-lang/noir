@@ -6,26 +6,16 @@
 #include <crypto/schnorr/schnorr.hpp>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <srs/io.hpp>
+#include <plonk/reference_string/pippenger_reference_string.hpp>
 
 using namespace barretenberg;
-using namespace rollup::client_proofs::create;
+using namespace rollup::client_proofs::create_note;
 using namespace rollup::tx;
 
 TEST(client_proofs, test_create_c_bindings)
 {
-    constexpr size_t num_points = 32768;
-    std::ifstream transcript;
-    transcript.open("../srs_db/transcript00.dat", std::ifstream::binary);
-    std::vector<uint8_t> monomials(num_points * 64);
-    std::vector<uint8_t> g2x(128);
-    transcript.seekg(28);
-    transcript.read((char*)monomials.data(), num_points * 64);
-    transcript.seekg(28 + 1024 * 1024 * 64);
-    transcript.read((char*)g2x.data(), 128);
-    transcript.close();
-
-    auto point_table = create_pippenger_point_table(monomials.data(), num_points);
-    init_keys((uint8_t*)point_table, num_points, g2x.data());
+    create_note__init_proving_key();
 
     auto user = create_user_context();
 
@@ -46,15 +36,27 @@ TEST(client_proofs, test_create_c_bindings)
     auto owner_buf = note.owner.to_buffer();
     auto viewing_key_buf = note.secret.to_buffer();
     std::vector<uint8_t> result(1024 * 10);
-    Prover* prover = (Prover*)new_create_note_prover(
+    Prover* prover = (Prover*)create_note__new_prover(
         owner_buf.data(), note.value, viewing_key_buf.data(), signature.s.data(), signature.e.data());
+
+    scalar_multiplication::Pippenger pippenger("../srs_db", 32768);
+    prover->key->reference_string = std::make_shared<waffle::PippengerReferenceString>(&pippenger);
 
     auto& proof = prover->construct_proof();
 
-    bool verified = verify_proof(proof.proof_data.data(), (uint32_t)proof.proof_data.size());
+    // Read g2x.
+    std::vector<uint8_t> g2x(128);
+    std::ifstream transcript;
+    transcript.open("../srs_db/transcript00.dat", std::ifstream::binary);
+    transcript.seekg(28 + 1024 * 1024 * 64);
+    transcript.read((char*)g2x.data(), 128);
+    transcript.close();
 
-    delete_create_note_prover(prover);
-    aligned_free(point_table);
+    create_note__init_verification_key(&pippenger, g2x.data());
+
+    bool verified = create_note__verify_proof(proof.proof_data.data(), (uint32_t)proof.proof_data.size());
+
+    create_note__delete_prover(prover);
 
     EXPECT_TRUE(verified);
 }
