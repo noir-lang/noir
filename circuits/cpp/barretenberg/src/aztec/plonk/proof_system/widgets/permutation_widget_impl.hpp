@@ -1,4 +1,5 @@
-#include "permutation_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
@@ -237,7 +238,7 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
     std::vector<barretenberg::fr> public_inputs =
         barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
 
-    fr public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->small_domain.root);
+    fr public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 
     polynomial& quotient_large = key->quotient_large;
     // Step 4: Set the quotient polynomial to be equal to
@@ -419,8 +420,8 @@ void ProverPermutationWidget<program_width>::compute_opening_poly_contribution(c
         nu_challenges.push_back(fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "z_omega")[0]));
     }
 
-    barretenberg::fr shifted_nu_challenge =
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "z_omega")[0]);
+    // barretenberg::fr shifted_nu_challenge =
+    //     fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "z_omega")[0]);
 
     ITERATE_OVER_DOMAIN_START(key->small_domain);
 
@@ -433,14 +434,13 @@ void ProverPermutationWidget<program_width>::compute_opening_poly_contribution(c
     }
 
     if (!use_linearisation) {
-        // TODO: fix overlapping nu_powers
         T0 = sigmas[program_width - 1][i] * nu_challenges[program_width - 1];
         opening_poly_temp += T0;
         T0 = z[i] * nu_challenges[program_width];
         opening_poly_temp += T0;
     }
 
-    shifted_opening_poly[i] += z[i] * shifted_nu_challenge;
+    shifted_opening_poly[i] += z[i]; // * shifted_nu_challenge;
 
     opening_poly[i] += opening_poly_temp;
 
@@ -573,7 +573,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
 
     std::vector<Field> public_inputs = transcript.get_field_element_vector("public_inputs");
 
-    Field public_input_delta = compute_public_input_delta(public_inputs, beta, gamma, key->domain.root);
+    Field public_input_delta = compute_public_input_delta<Field>(public_inputs, beta, gamma, key->domain.root);
     T0 = wire_evaluations[key->program_width - 1] + gamma;
     sigma_contribution *= T0;
     sigma_contribution *= z_1_shifted_eval;
@@ -633,7 +633,7 @@ void VerifierPermutationWidget<Field, Group, Transcript>::compute_batch_evaluati
         quotient_temp += T0;
     }
 
-    Field shifted_batch_eval = shifted_z_eval * transcript.get_challenge_field_element_from_map("nu", "z_omega");
+    Field shifted_batch_eval = shifted_z_eval; // * transcript.get_challenge_field_element_from_map("nu", "z_omega");
 
     batch_eval += quotient_temp;
     batch_eval += (shifted_batch_eval * u);
@@ -673,10 +673,10 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
         wire_evaluations.emplace_back(transcript.get_field_element("w_" + std::to_string(i + 1)));
     }
 
-    g1::affine_element Z_1 = g1::affine_element::serialize_from_buffer(&transcript.get_element("Z")[0]);
+    g1::affine_element Z_1 = transcript.get_group_element("Z");
 
     elements.emplace_back(Z_1);
-    Field z_omega_challenge = transcript.get_challenge_field_element_from_map("nu", "z_omega");
+    // Field z_omega_challenge = transcript.get_challenge_field_element_from_map("nu", "z_omega");
     if (use_linearisation) {
         Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
         Field T0;
@@ -692,10 +692,11 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
         T0 = l_1 * alpha_cubed;
         z_1_multiplicand += T0;
         z_1_multiplicand *= linear_nu;
-        z_1_multiplicand += (u * z_omega_challenge);
+        z_1_multiplicand += u; // (u * z_omega_challenge);
         scalars.emplace_back(z_1_multiplicand);
     } else {
-        Field T0 = z_omega_challenge * u + transcript.get_challenge_field_element_from_map("nu", "z_omega");
+        Field T0 = u + transcript.get_challenge_field_element_from_map("nu", "z_omega");
+        //        Field T0 = z_omega_challenge * u + transcript.get_challenge_field_element_from_map("nu", "z_omega");
         scalars.emplace_back(T0);
     }
 

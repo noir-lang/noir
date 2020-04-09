@@ -1,6 +1,4 @@
-#include "./public_inputs.hpp"
-
-using namespace barretenberg;
+#pragma once
 
 namespace waffle {
 
@@ -115,30 +113,30 @@ namespace waffle {
  * the memory cells on the second column map to our public inputs. We can then use traditional copy constraints to map
  * these cells to other locations in program memory.
  **/
-fr compute_public_input_delta(const std::vector<barretenberg::fr>& inputs,
-                              const fr& beta,
-                              const fr& gamma,
-                              const fr& subgroup_generator)
+template <typename Field>
+Field compute_public_input_delta(const std::vector<Field>& inputs,
+                                 const Field& beta,
+                                 const Field& gamma,
+                                 const Field& subgroup_generator)
 {
-    fr numerator = fr::one();
-    fr denominator = fr::one();
+    Field numerator = Field(1);
+    Field denominator = Field(1);
 
-    fr work_root = fr::one();
-    fr T0;
-    fr T1;
-    fr T2;
+    Field work_root = Field(1);
+    Field T0;
+    Field T1;
+    Field T2;
     for (const auto& witness : inputs) {
         T0 = witness + gamma;
         T1 = work_root * beta;
-        T2 = T1 * fr::coset_generator(0);
+        T2 = T1 * Field::coset_generator(0);
         T1 += T0;
         T2 += T0;
         numerator *= T2;
         denominator *= T1;
         work_root *= subgroup_generator;
     }
-    denominator = denominator.invert();
-    T0 = denominator * numerator;
+    T0 = numerator / denominator;
     return T0;
 }
 } // namespace waffle

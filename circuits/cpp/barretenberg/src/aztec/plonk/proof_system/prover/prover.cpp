@@ -94,15 +94,15 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
 {
     queue.flush_queue();
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(n),
-                             static_cast<uint8_t>(n >> 8),
+                           { static_cast<uint8_t>(n >> 24),
                              static_cast<uint8_t>(n >> 16),
-                             static_cast<uint8_t>(n >> 24) });
+                             static_cast<uint8_t>(n >> 8),
+                             static_cast<uint8_t>(n) });
     transcript.add_element("public_input_size",
-                           { static_cast<uint8_t>(key->num_public_inputs),
-                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                           { static_cast<uint8_t>(key->num_public_inputs >> 24),
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
-                             static_cast<uint8_t>(key->num_public_inputs >> 24) });
+                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                             static_cast<uint8_t>(key->num_public_inputs) });
     transcript.apply_fiat_shamir("init");
 
     for (size_t i = 0; i < settings::program_width; ++i) {

@@ -97,15 +97,15 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     }
 
     transcript.add_element("circuit_size",
-                           { static_cast<uint8_t>(key->n),
-                             static_cast<uint8_t>(key->n >> 8),
+                           { static_cast<uint8_t>(key->n >> 24),
                              static_cast<uint8_t>(key->n >> 16),
-                             static_cast<uint8_t>(key->n >> 24) });
+                             static_cast<uint8_t>(key->n >> 8),
+                             static_cast<uint8_t>(key->n) });
     transcript.add_element("public_input_size",
-                           { static_cast<uint8_t>(key->num_public_inputs),
-                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                           { static_cast<uint8_t>(key->num_public_inputs >> 24),
                              static_cast<uint8_t>(key->num_public_inputs >> 16),
-                             static_cast<uint8_t>(key->num_public_inputs >> 24) });
+                             static_cast<uint8_t>(key->num_public_inputs >> 8),
+                             static_cast<uint8_t>(key->num_public_inputs) });
     transcript.apply_fiat_shamir("init");
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");

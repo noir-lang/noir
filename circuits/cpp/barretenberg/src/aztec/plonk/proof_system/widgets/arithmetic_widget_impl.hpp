@@ -1,4 +1,5 @@
-#include "arithmetic_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>

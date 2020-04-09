@@ -1,15 +1,22 @@
 #include "pedersen.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <numeric/random/engine.hpp>
+
 #include <gtest/gtest.h>
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;
 using namespace plonk;
 
+typedef stdlib::byte_array<waffle::TurboComposer> byte_array;
 typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
+
+namespace {
+auto& engine = numeric::random::get_debug_engine();
+}
 
 TEST(stdlib_pedersen, test_pedersen)
 {
@@ -25,6 +32,7 @@ TEST(stdlib_pedersen, test_pedersen)
     if ((right_in.from_montgomery_form().data[0] & 1) == 0) {
         right_in += fr::one();
     }
+
     field_t left = public_witness_t(&composer, left_in);
     field_t right = witness_t(&composer, right_in);
 
@@ -125,10 +133,10 @@ TEST(stdlib_pedersen, test_pedersen)
     hash_output = hash_output_left + hash_output_right;
     hash_output = hash_output.normalize();
 
-    EXPECT_EQ((out.get_value() == hash_output.x), true);
+    EXPECT_EQ(out.get_value(), hash_output.x);
 
     fr compress_native = crypto::pedersen::compress_native(left.get_value(), right.get_value());
-    EXPECT_EQ((out.get_value() == compress_native), true);
+    EXPECT_EQ(out.get_value(), compress_native);
 }
 
 TEST(stdlib_pedersen, test_pedersen_large)
@@ -199,4 +207,90 @@ TEST(stdlib_pedersen, test_pedersen_large_unrolled)
     EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_pedersen, test_compress_byte_array)
+{
+    const size_t num_input_bytes = 351;
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    std::vector<uint8_t> input;
+    input.reserve(num_input_bytes);
+    for (size_t i = 0; i < num_input_bytes; ++i) {
+        input.push_back(engine.get_random_uint8());
+    }
+
+    std::vector<uint8_t> native_output = crypto::pedersen::compress_native(input);
+
+    byte_array circuit_input(&composer, input);
+    byte_array result = plonk::stdlib::pedersen::compress(circuit_input);
+    byte_array expected(&composer, native_output);
+
+    EXPECT_EQ(result.get_value(), expected.get_value());
+
+    waffle::UnrolledTurboProver prover = composer.create_unrolled_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    waffle::UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_pedersen, test_multi_compress)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    for (size_t i = 0; i < 7; ++i) {
+        std::vector<barretenberg::fr> inputs;
+        inputs.push_back(barretenberg::fr::random_element());
+        inputs.push_back(barretenberg::fr::random_element());
+        inputs.push_back(barretenberg::fr::random_element());
+        inputs.push_back(barretenberg::fr::random_element());
+
+        if (i == 1) {
+            inputs[0] = barretenberg::fr(0);
+        }
+        if (i == 2) {
+            inputs[1] = barretenberg::fr(0);
+            inputs[2] = barretenberg::fr(0);
+        }
+        if (i == 3) {
+            inputs[3] = barretenberg::fr(0);
+        }
+        if (i == 4) {
+            inputs[0] = barretenberg::fr(0);
+            inputs[3] = barretenberg::fr(0);
+        }
+        if (i == 5) {
+            inputs[0] = barretenberg::fr(0);
+            inputs[1] = barretenberg::fr(0);
+            inputs[2] = barretenberg::fr(0);
+            inputs[3] = barretenberg::fr(0);
+        }
+        if (i == 6) {
+            inputs[1] = barretenberg::fr(1);
+        }
+        std::vector<field_t> witnesses;
+        for (auto input : inputs) {
+            witnesses.push_back(witness_t(&composer, input));
+        }
+
+        barretenberg::fr expected = crypto::pedersen::compress_native(inputs);
+
+        field_t result = plonk::stdlib::pedersen::compress(witnesses, true);
+        EXPECT_EQ(result.get_value(), expected);
+    }
+
+    waffle::UnrolledTurboProver prover = composer.create_unrolled_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    waffle::UnrolledTurboVerifier verifier = composer.create_unrolled_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
 } // namespace test_stdlib_pedersen

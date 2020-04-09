@@ -111,6 +111,12 @@ template <class base_field, class Params> struct alignas(32) field2 {
 
         return result;
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const field2& a)
+    {
+        os << a.c0 << " , " << a.c1;
+        return os;
+    }
 };
 
 } // namespace barretenberg

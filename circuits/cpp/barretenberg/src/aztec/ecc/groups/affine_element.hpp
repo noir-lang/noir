@@ -65,6 +65,11 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
         return buffer;
     }
 
+    friend std::ostream& operator<<(std::ostream& os, const affine_element& a)
+    {
+        os << "{ " << a.x << ", " << a.y << " }";
+        return os;
+    }
     Fq x;
     Fq y;
 };

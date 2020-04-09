@@ -16,9 +16,13 @@ template <typename coordinate_field, typename subgroup_field, typename GroupPara
     typedef group_elements::element<coordinate_field, subgroup_field, GroupParams> element;
     typedef group_elements::affine_element<coordinate_field, subgroup_field, GroupParams> affine_element;
 
+    static constexpr bool USE_ENDOMORPHISM = GroupParams::USE_ENDOMORPHISM;
+    static constexpr bool has_a = GroupParams::has_a;
+
     static constexpr element one{ GroupParams::one_x, GroupParams::one_y, coordinate_field::one() };
     static constexpr element point_at_infinity = one.set_infinity();
     static constexpr affine_element affine_one{ GroupParams::one_x, GroupParams::one_y };
+    static constexpr coordinate_field curve_a = GroupParams::a;
     static constexpr coordinate_field curve_b = GroupParams::b;
 
     template <size_t N> static inline auto derive_generators()

@@ -31,24 +31,6 @@ field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barrete
     witness_index = static_cast<uint32_t>(-1);
 }
 
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(const field_t& other)
-    : context(other.context)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-}
-
-template <typename ComposerContext>
-field_t<ComposerContext>::field_t(field_t&& other)
-    : context(other.context)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-}
-
 template <typename ComposerContext> field_t<ComposerContext>::field_t(const bool_t<ComposerContext>& other)
 {
     context = (other.context == nullptr) ? nullptr : other.context;
@@ -98,24 +80,6 @@ template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<Co
     result.witness_index = witness_index;
     context->create_bool_gate(witness_index);
     return result;
-}
-
-template <typename ComposerContext> field_t<ComposerContext>& field_t<ComposerContext>::operator=(const field_t& other)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-    context = (other.context == nullptr ? nullptr : other.context);
-    return *this;
-}
-
-template <typename ComposerContext> field_t<ComposerContext>& field_t<ComposerContext>::operator=(field_t&& other)
-{
-    barretenberg::fr::__copy(other.additive_constant, additive_constant);
-    barretenberg::fr::__copy(other.multiplicative_constant, multiplicative_constant);
-    witness_index = other.witness_index;
-    context = (other.context == nullptr ? nullptr : other.context);
-    return *this;
 }
 
 template <typename ComposerContext>
@@ -304,8 +268,8 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     ComposerContext* ctx =
         (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
-    if ((to_mul.witness_index == UINT32_MAX) || (to_add.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
-        return ((*this) * to_mul + to_add).normalize();
+    if ((to_mul.witness_index == UINT32_MAX) && (to_add.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
+        return ((*this) * to_mul + to_add);
     }
 
     // (a * Q_a  + R_a) * (b * Q_b + R_b) + (c * Q_c  R_c) = result
@@ -315,9 +279,11 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     barretenberg::fr q_3 = to_add.multiplicative_constant;
     barretenberg::fr q_c = additive_constant * to_mul.additive_constant + to_add.additive_constant;
 
-    barretenberg::fr a = ctx->get_variable(witness_index);
-    barretenberg::fr b = ctx->get_variable(to_mul.witness_index);
-    barretenberg::fr c = ctx->get_variable(to_add.witness_index);
+    barretenberg::fr a = witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(witness_index);
+    barretenberg::fr b =
+        to_mul.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(to_mul.witness_index);
+    barretenberg::fr c =
+        to_add.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(to_add.witness_index);
 
     barretenberg::fr out = a * b * q_m + a * q_1 + b * q_2 + c * q_3 + q_c;
 
@@ -325,9 +291,9 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index,
-        to_mul.witness_index,
-        to_add.witness_index,
+        witness_index == UINT32_MAX ? ctx->zero_idx : witness_index,
+        to_mul.witness_index == UINT32_MAX ? ctx->zero_idx : to_mul.witness_index,
+        to_add.witness_index == UINT32_MAX ? ctx->zero_idx : to_add.witness_index,
         result.witness_index,
         q_m,
         q_1,
@@ -345,18 +311,19 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
 {
     ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
-    if ((add_a.witness_index == UINT32_MAX) || (add_b.witness_index == UINT32_MAX) || (witness_index == UINT32_MAX)) {
+    if ((add_a.witness_index == UINT32_MAX) && (add_b.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
         return ((*this) + add_a + add_b).normalize();
     }
-
     barretenberg::fr q_1 = multiplicative_constant;
     barretenberg::fr q_2 = add_a.multiplicative_constant;
     barretenberg::fr q_3 = add_b.multiplicative_constant;
     barretenberg::fr q_c = additive_constant + add_a.additive_constant + add_b.additive_constant;
 
-    barretenberg::fr a = ctx->get_variable(witness_index);
-    barretenberg::fr b = ctx->get_variable(add_a.witness_index);
-    barretenberg::fr c = ctx->get_variable(add_b.witness_index);
+    barretenberg::fr a = witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(witness_index);
+    barretenberg::fr b =
+        add_a.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(add_a.witness_index);
+    barretenberg::fr c =
+        add_b.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(add_b.witness_index);
 
     barretenberg::fr out = a * q_1 + b * q_2 + c * q_3 + q_c;
 
@@ -364,9 +331,9 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index,
-        add_a.witness_index,
-        add_b.witness_index,
+        witness_index == UINT32_MAX ? ctx->zero_idx : witness_index,
+        add_a.witness_index == UINT32_MAX ? ctx->zero_idx : add_a.witness_index,
+        add_b.witness_index == UINT32_MAX ? ctx->zero_idx : add_b.witness_index,
         result.witness_index,
         barretenberg::fr(0),
         q_1,
@@ -402,6 +369,45 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
 
     context->create_add_gate(gate_coefficients);
     return result;
+}
+
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero()
+{
+    if (witness_index == UINT32_MAX) {
+        ASSERT(additive_constant == barretenberg::fr(0));
+        return;
+    }
+    ComposerContext* ctx = context;
+    const waffle::poly_triple gate_coefficients{
+        witness_index,           ctx->zero_idx,       ctx->zero_idx,       barretenberg::fr(0),
+        multiplicative_constant, barretenberg::fr(0), barretenberg::fr(0), additive_constant,
+    };
+    context->create_poly_gate(gate_coefficients);
+}
+
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero()
+{
+    if (witness_index == UINT32_MAX) {
+        ASSERT(additive_constant != barretenberg::fr(0));
+        return;
+    }
+    ComposerContext* ctx = context;
+    barretenberg::fr inverse_value = get_value().invert();
+
+    field_t<ComposerContext> inverse(witness_t<ComposerContext>(ctx, inverse_value));
+
+    // (a * mul_const + add_const) * b - 1 = 0
+    const waffle::poly_triple gate_coefficients{
+        witness_index,           // input value
+        inverse.witness_index,   // inverse
+        ctx->zero_idx,           // no output
+        multiplicative_constant, // a * b * mul_const
+        barretenberg::fr(0),     // a * 0
+        additive_constant,       // b * mul_const
+        barretenberg::fr(0),     // c * 0
+        barretenberg::fr(-1),    // -1
+    };
+    context->create_poly_gate(gate_coefficients);
 }
 
 template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero()
@@ -502,6 +508,14 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     ctx->create_poly_gate(gate_coefficients);
 
     return result;
+}
+
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::conditional_negate(const bool_t<ComposerContext>& predicate) const
+{
+    field_t<ComposerContext> predicate_field(predicate);
+    field_t<ComposerContext> multiplicand = -(predicate_field + predicate_field);
+    return multiplicand.madd(*this, *this);
 }
 
 template <typename ComposerContext>

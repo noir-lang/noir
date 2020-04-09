@@ -119,6 +119,7 @@ struct Secp256k1G1Params {
     static constexpr bool has_a = false;
 
     static constexpr fq b = fq(7);
+    static constexpr fq a = fq(0);
 
     static constexpr fq one_x =
         fq(0x59F2815B16F81798UL, 0x029BFCDB2DCE28D9UL, 0x55A06295CE870B07UL, 0x79BE667EF9DCBBACUL).to_montgomery_form();

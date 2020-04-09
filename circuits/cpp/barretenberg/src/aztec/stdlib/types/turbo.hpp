@@ -5,6 +5,8 @@
 #include <stdlib/primitives/byte_array/byte_array.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
+#include <stdlib/primitives/bigfield/bigfield.hpp>
+#include <stdlib/primitives/biggroup/biggroup.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -26,6 +28,8 @@ typedef stdlib::uint16<Composer> uint16_ct;
 typedef stdlib::uint32<Composer> uint32_ct;
 typedef stdlib::uint64<Composer> uint64_ct;
 typedef stdlib::bit_array<Composer> bit_array_ct;
+typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq_ct;
+typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> group_ct;
 
 struct point {
     field_ct x;

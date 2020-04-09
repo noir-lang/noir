@@ -1,4 +1,5 @@
-#include "turbo_logic_widget.hpp"
+#pragma once
+
 #include "../proving_key/proving_key.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/transcript/transcript.hpp>
@@ -542,9 +543,9 @@ Field VerifierTurboLogicWidget<Field, Group, Transcript>::compute_quotient_evalu
     Field q_logic_eval = transcript.get_field_element("q_logic");
     Field q_c_eval = transcript.get_field_element("q_c");
 
-    constexpr Field six = Field(6);
-    constexpr Field eighty_one = Field(81);
-    constexpr Field eighty_three = Field(83);
+    const Field six = Field(6);
+    const Field eighty_one = Field(81);
+    const Field eighty_three = Field(83);
 
     Field delta_sum;
     Field delta_squared_sum;
@@ -720,9 +721,9 @@ Field VerifierTurboLogicWidget<Field, Group, Transcript>::append_scalar_multipli
 
         Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
 
-        constexpr Field six = Field(6);
-        constexpr Field eighty_one = Field(81);
-        constexpr Field eighty_three = Field(83);
+        const Field six = Field(6);
+        const Field eighty_one = Field(81);
+        const Field eighty_three = Field(83);
 
         Field alpha_a = alpha_base;
         Field alpha_b = alpha_a * alpha_step;

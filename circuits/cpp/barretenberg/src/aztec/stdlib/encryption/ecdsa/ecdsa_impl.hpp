@@ -27,7 +27,7 @@ bool_t<Composer> verify_signature(const stdlib::byte_array<Composer>& message,
     Fr u1 = z / s;
     Fr u2 = r / s;
 
-    G1 result = G1::twin_mul(G1::one(ctx), u1, public_key, u2);
+    G1 result = G1::batch_mul({ G1::one(ctx), public_key }, { u1, u2 });
     result.x.assert_is_in_field();
 
     field_t<Composer> result_x_lo =

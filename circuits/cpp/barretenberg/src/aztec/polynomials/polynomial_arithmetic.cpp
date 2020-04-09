@@ -733,6 +733,7 @@ barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluatio
     numerator = numerator * domain.domain_inverse;
     result.l_1 = numerator * denominators[1];
     result.l_n_minus_1 = numerator * denominators[2];
+
     return result;
 }
 

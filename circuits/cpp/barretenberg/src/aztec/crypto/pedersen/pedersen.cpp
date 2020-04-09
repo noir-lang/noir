@@ -181,6 +181,9 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
         uint64_t predicate = (entry >> 31U) & 1U;
         accumulator.self_mixed_add_or_sub(point_to_add, predicate);
     }
+    if (in == barretenberg::fr(0)) {
+        accumulator.self_set_infinity();
+    }
     return accumulator;
 }
 
@@ -231,6 +234,67 @@ grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right
     r = r.normalize();
     return r.x;
 #endif
+}
+
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
+{
+    std::vector<grumpkin::g1::element> out(inputs.size());
+    if (!inited) {
+        init();
+    }
+#ifndef NO_MULTITHREADING
+#pragma omp parallel for
+#endif
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        out[i] = hash_single(inputs[i], i);
+    }
+
+    grumpkin::g1::element r = out[0];
+    for (size_t i = 1; i < inputs.size(); ++i) {
+        r = out[i] + r;
+    }
+    r = r.normalize();
+    return r.is_point_at_infinity() ? grumpkin::fq(0) : r.x;
+}
+
+std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)
+{
+    const size_t num_bytes = input.size();
+    const size_t bytes_per_element = 31;
+    size_t num_elements = (num_bytes % bytes_per_element != 0) + (num_bytes / bytes_per_element);
+
+    const auto slice = [](const std::vector<uint8_t>& data, const size_t start, const size_t slice_size) {
+        uint256_t result(0);
+        for (size_t i = 0; i < slice_size; ++i) {
+            result = (result << uint256_t(8));
+            result += uint256_t(data[i + start]);
+        }
+        return grumpkin::fq(result);
+    };
+
+    std::vector<grumpkin::fq> elements;
+    for (size_t i = 0; i < num_elements; ++i) {
+        size_t bytes_to_slice = 0;
+        if (i == num_elements - 1) {
+            bytes_to_slice = num_bytes - (i * bytes_per_element);
+        } else {
+            bytes_to_slice = bytes_per_element;
+        }
+        grumpkin::fq element = slice(input, i * bytes_per_element, bytes_to_slice);
+        elements.emplace_back(element);
+    }
+
+    grumpkin::fq result_fq = compress_native(elements);
+    uint256_t result_u256(result_fq);
+
+    std::vector<uint8_t> result_buffer;
+    result_buffer.reserve(32);
+    for (size_t i = 0; i < 32; ++i) {
+        const uint64_t shift = (31 - i) * 8;
+        uint256_t shifted = result_u256 >> uint256_t(shift);
+        result_buffer.push_back(static_cast<uint8_t>(shifted.data[0]));
+    }
+    return result_buffer;
 }
 
 grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,

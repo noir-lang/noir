@@ -37,7 +37,7 @@ class standard_settings : public settings_base {
 class unrolled_standard_settings : public settings_base {
   public:
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t program_width = 3;
     static constexpr size_t num_shifted_wire_evaluations = 1;
     static constexpr uint64_t wire_shift_settings = 0b0100;
@@ -63,7 +63,7 @@ class turbo_settings : public settings_base {
 class unrolled_turbo_settings : public settings_base {
   public:
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t program_width = 4;
     static constexpr size_t num_shifted_wire_evaluations = 4;
     static constexpr uint64_t wire_shift_settings = 0b1111;
@@ -127,7 +127,7 @@ class unrolled_standard_verifier_settings : public standard_settings {
     typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr bool use_linearisation = false;
     static fr append_scalar_multiplication_inputs(verification_key* key,
@@ -290,7 +290,7 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Blake2s;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr bool use_linearisation = false;
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
