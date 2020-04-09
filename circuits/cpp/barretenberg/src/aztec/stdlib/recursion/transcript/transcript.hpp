@@ -124,11 +124,11 @@ template <typename Composer> class Transcript {
     void apply_fiat_shamir(const std::string& challenge_name)
     {
         const size_t bytes_per_element = 31;
-        const auto split = [&, bytes_per_element](field_pt& work_element,
-                                                  std::vector<field_pt>& element_buffer,
-                                                  const field_pt& element,
-                                                  size_t& current_byte_counter,
-                                                  const size_t num_bytes) {
+        const auto split = [&](field_pt& work_element,
+                               std::vector<field_pt>& element_buffer,
+                               const field_pt& element,
+                               size_t& current_byte_counter,
+                               const size_t num_bytes) {
             uint256_t element_u256(element.get_value());
             size_t hi_bytes = bytes_per_element - current_byte_counter;
             if (hi_bytes >= num_bytes) {

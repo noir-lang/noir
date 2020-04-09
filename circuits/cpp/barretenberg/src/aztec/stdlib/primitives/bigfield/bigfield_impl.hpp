@@ -688,20 +688,22 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
     };
     const size_t lhs_overload_count = get_overload_count(get_maximum_value());
     const size_t rhs_overload_count = get_overload_count(other.get_maximum_value());
+    field_t<C> prime_basis(get_context(), barretenberg::fr(modulus));
 
     field_t<C> diff = prime_basis_limb - other.prime_basis_limb;
-    field_t<C> prime_basis(get_context(), barretenberg::fr(modulus));
     field_t<C> prime_basis_accumulator = prime_basis;
-    for (size_t i = 0; i < lhs_overload_count; ++i) {
-        diff = diff * (diff + prime_basis_accumulator);
+
+    field_t<C> comparison_product = diff;
+    for (size_t i = 0; i < rhs_overload_count; ++i) {
+        comparison_product = comparison_product * (diff + prime_basis_accumulator);
         prime_basis_accumulator += prime_basis;
     }
     prime_basis_accumulator = prime_basis;
-    for (size_t i = 0; i < rhs_overload_count; ++i) {
-        diff = diff * (diff - prime_basis_accumulator);
+    for (size_t i = 0; i < lhs_overload_count; ++i) {
+        comparison_product = comparison_product * (diff - prime_basis_accumulator);
         prime_basis_accumulator += prime_basis;
     }
-    diff.assert_is_zero();
+    comparison_product.assert_is_zero();
 }
 
 template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const bigfield& other) const

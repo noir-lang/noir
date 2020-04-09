@@ -190,21 +190,15 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
             }
             return std::make_pair(positive_accumulator, negative_accumulator);
         };
-        const size_t midpoint = num_rounds / 2;
+        const size_t midpoint = num_rounds - Fr::NUM_LIMB_BITS * 2;
         auto hi_accumulators = reconstruct_half_naf(&naf_entries[0], midpoint);
         auto lo_accumulators = reconstruct_half_naf(&naf_entries[midpoint], num_rounds - midpoint);
 
         lo_accumulators.second = lo_accumulators.second + field_t<C>(naf_entries[num_rounds]);
 
-        Fr reconstructed_lo =
-            Fr(lo_accumulators.first, field_t<C>(ctx, 0)) - Fr(lo_accumulators.second, field_t<C>(ctx, 0));
-        Fr reconstructed_hi =
-            Fr(hi_accumulators.first, field_t<C>(ctx, 0)) - Fr(hi_accumulators.second, field_t<C>(ctx, 0));
-
-        Fr hi_shift(ctx, uint256_t(1) << uint256_t(num_rounds - midpoint));
-
-        Fr accumulator = reconstructed_lo + (reconstructed_hi * hi_shift);
-
+        Fr reconstructed_positive = Fr(lo_accumulators.first, hi_accumulators.first);
+        Fr reconstructed_negative = Fr(lo_accumulators.second, hi_accumulators.second);
+        Fr accumulator = reconstructed_positive - reconstructed_negative;
         accumulator.assert_equal(scalar);
     }
     return naf_entries;
