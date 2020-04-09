@@ -269,7 +269,7 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
         (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
     if ((to_mul.witness_index == UINT32_MAX) && (to_add.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
-        return ((*this) * to_mul + to_add).normalize();
+        return ((*this) * to_mul + to_add);
     }
 
     // (a * Q_a  + R_a) * (b * Q_b + R_b) + (c * Q_c  R_c) = result

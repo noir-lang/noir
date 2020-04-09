@@ -239,7 +239,9 @@ grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
 {
     std::vector<grumpkin::g1::element> out(inputs.size());
-
+    if (!inited) {
+        init();
+    }
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
 #endif

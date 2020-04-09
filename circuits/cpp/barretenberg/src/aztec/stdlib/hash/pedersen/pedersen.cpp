@@ -63,9 +63,10 @@ point hash_single(const field_ct& in, const size_t hash_index, const bool valida
 
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
 
-    grumpkin::g1::element* multiplication_transcript =
-        static_cast<grumpkin::g1::element*>(aligned_alloc(64, sizeof(grumpkin::g1::element) * (num_quads + 1)));
-    fr* accumulator_transcript = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
+    std::vector<grumpkin::g1::element> multiplication_transcript;
+    multiplication_transcript.resize(num_quads + 1);
+    std::vector<fr> accumulator_transcript;
+    accumulator_transcript.resize(num_quads + 1);
 
     if (skew) {
         multiplication_transcript[0] = origin_points[1];
