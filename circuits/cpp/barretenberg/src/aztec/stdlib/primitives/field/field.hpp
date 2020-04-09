@@ -21,7 +21,15 @@ template <typename ComposerContext> class field_t {
         witness_index = static_cast<uint32_t>(-1);
     }
 
-    field_t(const uint64_t value)
+    field_t(const unsigned long long value)
+        : context(nullptr)
+    {
+        additive_constant = barretenberg::fr(value);
+        multiplicative_constant = barretenberg::fr(0);
+        witness_index = static_cast<uint32_t>(-1);
+    }
+
+    field_t(const unsigned long value)
         : context(nullptr)
     {
         additive_constant = barretenberg::fr(value);

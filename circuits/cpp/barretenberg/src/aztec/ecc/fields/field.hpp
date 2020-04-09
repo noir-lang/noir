@@ -35,7 +35,13 @@ template <class Params> struct alignas(32) field {
     //     self_to_montgomery_form();
     // }
 
-    constexpr field(const uint64_t input) noexcept
+    constexpr field(const unsigned long input) noexcept
+        : data{ input, 0, 0, 0 }
+    {
+        self_to_montgomery_form();
+    }
+
+    constexpr field(const unsigned long long input) noexcept
         : data{ input, 0, 0, 0 }
     {
         self_to_montgomery_form();
