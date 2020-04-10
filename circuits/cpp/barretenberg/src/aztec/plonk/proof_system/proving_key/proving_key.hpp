@@ -7,6 +7,12 @@
 
 namespace waffle {
 
+enum LookupType {
+    NONE,
+    ABSOLUTE_LOOKUP,
+    RELATIVE_LOOKUP,
+};
+
 struct proving_key {
   public:
     proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
@@ -25,6 +31,7 @@ struct proving_key {
 
     size_t n;
     size_t num_public_inputs;
+    size_t num_lookup_tables;
 
     std::map<std::string, barretenberg::polynomial> constraint_selectors;
     std::map<std::string, barretenberg::polynomial> constraint_selector_ffts;
@@ -50,6 +57,10 @@ struct proving_key {
     barretenberg::polynomial quotient_large;
 
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
+
+    std::vector<LookupType> lookup_mapping;
+    std::vector<size_t> table_indices;
+    barretenberg::fr lookup_table_step_size;
 
     size_t opening_poly_challenge_index;
     size_t shifted_opening_poly_challenge_index;
