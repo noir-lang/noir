@@ -123,6 +123,12 @@ template <typename Composer> class Transcript {
 
     void apply_fiat_shamir(const std::string& challenge_name)
     {
+        const size_t num_challenges = get_manifest().get_round_manifest(current_round).num_challenges;
+
+        if (num_challenges == 0) {
+            ++current_round;
+            return;
+        }
         const size_t bytes_per_element = 31;
         const auto split = [&](field_pt& work_element,
                                std::vector<field_pt>& element_buffer,
@@ -232,8 +238,6 @@ template <typename Composer> class Transcript {
         byte_array<Composer> compressed_buffer(T0);
 
         byte_array<Composer> base_hash = blake2s(compressed_buffer);
-
-        const size_t num_challenges = get_manifest().get_round_manifest(current_round).num_challenges;
 
         byte_array<Composer> first(field_pt(0), 16);
         first.write(base_hash.slice(0, 16));

@@ -97,6 +97,7 @@ verify_proof(Composer* context,
     transcript.add_field_element("public_input_size", public_input_size);
 
     transcript.apply_fiat_shamir("init");
+    transcript.apply_fiat_shamir("eta");
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
