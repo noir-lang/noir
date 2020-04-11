@@ -286,24 +286,27 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
             fr T0;
             fr T1;
             fr T2;
+            fr T3;
             size_t start = j * key->small_domain.thread_size;
             size_t end = (j + 1) * key->small_domain.thread_size;
             // fr accumulating_beta = beta_constant.pow(start + 1);
 
-            fr next_f = lookup_index_selector[start] * eta_cube + lagrange_base_wires[2][start] * eta_sqr +
-                        lagrange_base_wires[1][start] * eta + lagrange_base_wires[0][start];
+            fr next_f = lagrange_base_wires[2][start] * eta_sqr + lagrange_base_wires[1][start] * eta +
+                        lagrange_base_wires[0][start];
             fr next_table = lagrange_base_tables[0][start] + lagrange_base_tables[1][start] * eta +
                             lagrange_base_tables[2][start] * eta_sqr + lagrange_base_tables[3][start] * eta_cube;
             for (size_t i = start; i < end; ++i) {
-                T0 = lookup_index_selector[i + 1];
-                T0 *= eta;
-                T0 += lagrange_base_wires[2][i + 1];
+                // T0 = lookup_index_selector[i + 1];
+                // T0 *= eta;
+                T0 = lagrange_base_wires[2][i + 1];
                 T0 *= eta;
                 T0 += lagrange_base_wires[1][i + 1];
                 T0 *= eta;
                 T0 += lagrange_base_wires[0][i + 1];
-                T2 = (next_f - T0 * step_size) * half;
-                T1 = next_f;
+
+                T3 = next_f + (lookup_index_selector[i] * eta_cube);
+                T2 = (T3 - T0 * step_size) * half;
+                T1 = T3;
 
                 next_f = T0;
 
@@ -313,6 +316,8 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
                 accumulators[0][i] += T1;
                 accumulators[0][i] -= T2;
                 accumulators[0][i] *= lookup_selector[i];
+
+                // std::cout << "accumulators[0][" << i << "] = " << accumulators[0][i] << std::endl;
                 accumulators[0][i] += gamma;
 
                 T0 = lagrange_base_tables[3][i + 1];
@@ -514,8 +519,11 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
             T0 *= eta;
             T0 += wire_ffts[0][i + 4];
 
-            T1 = next_fs[i & 0x03UL];
-            T2 = next_fs[i & 0x03UL];
+            T1 = lookup_index_fft[i];
+            T1 *= eta_cube;
+            T1 += next_fs[i & 0x03UL];
+
+            T2 = T1;
             T2 -= T0 * step_size;
             T2 *= half;
 
@@ -525,9 +533,7 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
             numerator += T1;
             numerator += T1;
             numerator -= T2;
-            T0 = lookup_index_fft[i];
-            T0 *= eta_cube;
-            numerator += T0;
+
             numerator *= lookup_fft[i];
             numerator += gamma;
 

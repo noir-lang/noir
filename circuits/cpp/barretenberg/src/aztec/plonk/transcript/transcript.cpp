@@ -190,6 +190,13 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         }
     }
 
+    // DEBUG REMOVE
+    for (auto& foo : round_challenges) {
+        for (size_t i = 0; i < 32; ++i) {
+            foo.data[i] = 0;
+        }
+        foo.data[23] = 1;
+    }
     current_challenge = round_challenges[round_challenges.size() - 1];
 
     challenges.insert({ challenge_name, round_challenges });

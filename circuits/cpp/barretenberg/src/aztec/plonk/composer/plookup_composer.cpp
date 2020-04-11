@@ -1184,7 +1184,9 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
         tables_size += table.size;
         lookups_size += table.lookup_gates.size();
     }
-    const size_t total_num_gates = std::max(n + public_inputs.size(), tables_size + lookups_size);
+
+    const size_t filled_gates = n + public_inputs.size();
+    const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
     size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
     if ((1UL << log2_n) != (total_num_gates + 1)) {
@@ -1192,7 +1194,7 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     }
     size_t new_n = 1UL << log2_n;
 
-    for (size_t i = total_num_gates; i < new_n; ++i) {
+    for (size_t i = filled_gates; i < new_n; ++i) {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
         w_o.emplace_back(zero_idx);
