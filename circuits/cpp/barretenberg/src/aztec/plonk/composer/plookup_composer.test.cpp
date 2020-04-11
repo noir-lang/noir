@@ -191,15 +191,14 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
     auto transcript = waffle::create_dummy_ultra_transcript();
 
     waffle::ProverPLookupWidget widget(key.get(), witness.get());
-
-    widget.compute_sorted_list_commitment(transcript);
-
     {
         const size_t n = key->small_domain.size;
         key->wire_ffts.at("w_1_fft") = polynomial(witness->wires.at("w_1"), 4 * n + 4);
         key->wire_ffts.at("w_2_fft") = polynomial(witness->wires.at("w_2"), 4 * n + 4);
         key->wire_ffts.at("w_3_fft") = polynomial(witness->wires.at("w_3"), 4 * n + 4);
     }
+
+    widget.compute_sorted_list_commitment(transcript);
 
     widget.compute_grand_product_commitment(transcript);
 
@@ -334,15 +333,15 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
     auto transcript = waffle::create_dummy_ultra_transcript();
 
     waffle::ProverPLookupWidget widget(key.get(), witness.get());
-
-    widget.compute_sorted_list_commitment(transcript);
-
     {
         const size_t n = key->small_domain.size;
         key->wire_ffts.at("w_1_fft") = polynomial(witness->wires.at("w_1"), 4 * n + 4);
         key->wire_ffts.at("w_2_fft") = polynomial(witness->wires.at("w_2"), 4 * n + 4);
         key->wire_ffts.at("w_3_fft") = polynomial(witness->wires.at("w_3"), 4 * n + 4);
     }
+
+    widget.compute_sorted_list_commitment(transcript);
+
 
     widget.compute_grand_product_commitment(transcript);
 
@@ -407,4 +406,36 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
     for (size_t i = 0; i < key->small_domain.size - 1; ++i) {
         EXPECT_EQ(quotient_poly[i * 4], fr(0));
     }
+}
+
+TEST(plookup_composer, test_relative_lookup_proof)
+{
+    const size_t table_size = 256;
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    composer.plookup_step_size = fr(4);
+    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
+
+    for (size_t i = 0; i < 16; ++i) {
+        for (size_t j = 0; j < 16; ++j) {
+            uint64_t left = static_cast<uint64_t>(j);
+            uint64_t right = static_cast<uint64_t>(i);
+            uint32_t left_idx = composer.add_variable(fr(left));
+            uint32_t right_idx = composer.add_variable(fr(right));
+
+            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, { left_idx, right_idx });
+
+            uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
+            composer.create_big_add_gate(
+                { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
+        }
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
 }

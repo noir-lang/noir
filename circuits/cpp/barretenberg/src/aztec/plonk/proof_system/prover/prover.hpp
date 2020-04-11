@@ -26,6 +26,7 @@ template <typename settings> class ProverBase {
     void execute_third_round();
     void execute_fourth_round();
     void execute_fifth_round();
+    void execute_sixth_round();
 
     void compute_wire_pre_commitments();
     void compute_quotient_pre_commitment();

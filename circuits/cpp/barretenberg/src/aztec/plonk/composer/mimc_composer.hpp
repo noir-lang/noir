@@ -177,6 +177,7 @@ class MiMCComposer : public StandardComposer {
         const transcript::Manifest output = transcript::Manifest(
             { transcript::Manifest::RoundManifest(
                   { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
+              transcript::Manifest::RoundManifest({}, "eta", 0),
               transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
                                                     { "W_1", g1_size, false },
                                                     { "W_2", g1_size, false },
@@ -197,7 +198,8 @@ class MiMCComposer : public StandardComposer {
                                                     { "q_mimc_coefficient", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  10, true),
+                                                  10,
+                                                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;

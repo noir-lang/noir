@@ -146,6 +146,15 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 template <typename settings> void ProverBase<settings>::execute_second_round()
 {
     queue.flush_queue();
+    transcript.apply_fiat_shamir("eta");
+    for (auto& widget : widgets) {
+        widget->compute_round_commitments(transcript, 2, queue);
+    }
+}
+
+template <typename settings> void ProverBase<settings>::execute_third_round()
+{
+    queue.flush_queue();
     transcript.apply_fiat_shamir("beta");
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -159,7 +168,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
     start = std::chrono::steady_clock::now();
 #endif
     for (auto& widget : widgets) {
-        widget->compute_round_commitments(transcript, 2, queue);
+        widget->compute_round_commitments(transcript, 3, queue);
     }
 
     for (size_t i = 0; i < settings::program_width; ++i) {
@@ -173,7 +182,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 #endif
 }
 
-template <typename settings> void ProverBase<settings>::execute_third_round()
+template <typename settings> void ProverBase<settings>::execute_fourth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("alpha");
@@ -262,10 +271,10 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #endif
 }
 
-template <typename settings> void ProverBase<settings>::execute_fourth_round()
+template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
     queue.flush_queue();
-    transcript.apply_fiat_shamir("z"); // end of 3rd round
+    transcript.apply_fiat_shamir("z"); // end of 4th round
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
@@ -277,7 +286,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #endif
 }
 
-template <typename settings> void ProverBase<settings>::execute_fifth_round()
+template <typename settings> void ProverBase<settings>::execute_sixth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
@@ -488,7 +497,9 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::construc
     execute_third_round();
     queue.process_queue();
     execute_fourth_round();
+    queue.process_queue();
     execute_fifth_round();
+    execute_sixth_round();
     queue.process_queue();
     return export_proof();
 }

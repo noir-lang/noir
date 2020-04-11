@@ -49,7 +49,7 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
                                                                        const size_t round_number,
                                                                        work_queue& queue)
 {
-    if (round_number != 2) {
+    if (round_number != 3) {
         return;
     }
     const size_t n = key->n;

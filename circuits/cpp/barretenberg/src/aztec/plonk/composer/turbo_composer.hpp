@@ -87,6 +87,7 @@ class TurboComposer : public ComposerBase {
         const transcript::Manifest output = transcript::Manifest(
             { transcript::Manifest::RoundManifest(
                   { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
+              transcript::Manifest::RoundManifest({}, "eta", 0),
               transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
                                                     { "W_1", g1_size, false },
                                                     { "W_2", g1_size, false },
@@ -135,6 +136,7 @@ class TurboComposer : public ComposerBase {
         const transcript::Manifest output = transcript::Manifest(
             { transcript::Manifest::RoundManifest(
                   { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
+              transcript::Manifest::RoundManifest({}, "eta", 0),
               transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
                                                     { "W_1", g1_size, false },
                                                     { "W_2", g1_size, false },

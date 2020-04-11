@@ -107,6 +107,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
                              static_cast<uint8_t>(key->num_public_inputs >> 8),
                              static_cast<uint8_t>(key->num_public_inputs) });
     transcript.apply_fiat_shamir("init");
+    transcript.apply_fiat_shamir("eta");
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
@@ -238,8 +239,10 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
 template class VerifierBase<unrolled_standard_verifier_settings>;
 template class VerifierBase<unrolled_turbo_verifier_settings>;
+template class VerifierBase<unrolled_plookup_verifier_settings>;
 template class VerifierBase<standard_verifier_settings>;
 template class VerifierBase<mimc_verifier_settings>;
 template class VerifierBase<turbo_verifier_settings>;
+template class VerifierBase<plookup_verifier_settings>;
 
 } // namespace waffle

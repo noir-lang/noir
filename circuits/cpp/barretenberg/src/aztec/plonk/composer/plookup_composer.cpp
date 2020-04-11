@@ -1030,6 +1030,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     add_selector(poly_q_5, "q_5");
     add_selector(poly_q_m, "q_m");
     add_selector(poly_q_c, "q_c");
+    add_selector(poly_q_arith, "q_arith");
     add_selector(poly_q_ecc_1, "q_ecc_1");
     add_selector(poly_q_range, "q_range");
     add_selector(poly_q_logic, "q_logic");
@@ -1125,8 +1126,8 @@ std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
     poly_coefficients[16] = circuit_proving_key->permutation_selectors.at("table_value_2").get_coefficients();
     poly_coefficients[17] = circuit_proving_key->permutation_selectors.at("table_value_3").get_coefficients();
     poly_coefficients[18] = circuit_proving_key->permutation_selectors.at("table_value_4").get_coefficients();
-    poly_coefficients[19] = circuit_proving_key->permutation_selectors.at("table_value_index").get_coefficients();
-    poly_coefficients[20] = circuit_proving_key->permutation_selectors.at("table_value_type").get_coefficients();
+    poly_coefficients[19] = circuit_proving_key->permutation_selectors.at("table_index").get_coefficients();
+    poly_coefficients[20] = circuit_proving_key->permutation_selectors.at("table_type").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
     commitments.resize(21);
@@ -1143,6 +1144,7 @@ std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
     circuit_verification_key =
         std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
+    circuit_verification_key->lookup_table_step_size = plookup_step_size;
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
     circuit_verification_key->constraint_selectors.insert({ "Q_3", commitments[2] });
@@ -1160,10 +1162,10 @@ std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[13] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_4", commitments[14] });
 
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_0", commitments[15] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_1", commitments[16] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_2", commitments[17] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_3", commitments[18] });
+    circuit_verification_key->permutation_selectors.insert({ "TABLE_1", commitments[15] });
+    circuit_verification_key->permutation_selectors.insert({ "TABLE_2", commitments[16] });
+    circuit_verification_key->permutation_selectors.insert({ "TABLE_3", commitments[17] });
+    circuit_verification_key->permutation_selectors.insert({ "TABLE_4", commitments[18] });
 
     circuit_verification_key->permutation_selectors.insert({ "TABLE_INDEX", commitments[19] });
     circuit_verification_key->permutation_selectors.insert({ "TABLE_TYPE", commitments[20] });
@@ -1255,7 +1257,6 @@ PLookupProver PLookupComposer::create_prover()
     output_state.widgets.emplace_back(std::move(fixed_base_widget));
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));
-
     return output_state;
 }
 
