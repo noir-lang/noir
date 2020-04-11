@@ -10,6 +10,8 @@ struct proving_key;
 struct verification_key;
 struct program_witness;
 
+enum LookupTableId { XOR, AND, PEDERSEN, AES_SBOX, AES_MIX_INTO_SPARSE_FORM, AES_MIX_FROM_SPARSE_FORM };
+
 struct add_triple {
     uint32_t a;
     uint32_t b;
@@ -219,6 +221,15 @@ class ComposerBase {
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx);
 
     template <size_t program_width> void compute_sigma_permutations(proving_key* key);
+
+    void add_selector(polynomial& small, const std::string& tag)
+    {
+        small.ifft(circuit_proving_key->small_domain);
+        polynomial large(small, circuit_proving_key->n * 4);
+        large.coset_fft(circuit_proving_key->large_domain);
+        circuit_proving_key->constraint_selectors.insert({ tag, std::move(small) });
+        circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
+    }
 
   public:
     size_t n;

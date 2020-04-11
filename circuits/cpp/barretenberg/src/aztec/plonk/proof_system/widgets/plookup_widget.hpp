@@ -31,28 +31,28 @@ extern template class VerifierPLookupWidget<barretenberg::fr,
 
 class ProverPLookupWidget : public ProverBaseWidget {
   public:
-    ProverPLookupWidget(proving_key*, program_witness*);
-    ProverPLookupWidget(const ProverPLookupWidget& other);
-    ProverPLookupWidget(ProverPLookupWidget&& other);
-    ProverPLookupWidget& operator=(const ProverPLookupWidget& other);
-    ProverPLookupWidget& operator=(ProverPLookupWidget&& other);
+    inline ProverPLookupWidget(proving_key*, program_witness*);
+    inline ProverPLookupWidget(const ProverPLookupWidget& other);
+    inline ProverPLookupWidget(ProverPLookupWidget&& other);
+    inline ProverPLookupWidget& operator=(const ProverPLookupWidget& other);
+    inline ProverPLookupWidget& operator=(ProverPLookupWidget&& other);
 
-    void compute_sorted_list_commitment(transcript::Transcript& transcript);
+    inline void compute_sorted_list_commitment(transcript::Transcript& transcript);
 
-    void compute_grand_product_commitment(transcript::Transcript& transcript);
+    inline void compute_grand_product_commitment(transcript::Transcript& transcript);
 
-    void compute_round_commitments(transcript::Transcript& transcript,
-                                   const size_t round_number,
-                                   work_queue& queue) override;
+    inline void compute_round_commitments(transcript::Transcript& transcript,
+                                          const size_t round_number,
+                                          work_queue& queue) override;
 
-    barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::Transcript& transcript) override;
-    barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
-                                                 const transcript::Transcript& transcript,
-                                                 barretenberg::polynomial& r) override;
-    void compute_opening_poly_contribution(const transcript::Transcript&, const bool) override;
+    inline barretenberg::fr compute_quotient_contribution(const barretenberg::fr& alpha_base,
+                                                          const transcript::Transcript& transcript) override;
+    inline barretenberg::fr compute_linear_contribution(const barretenberg::fr& alpha_base,
+                                                        const transcript::Transcript& transcript,
+                                                        barretenberg::polynomial& r) override;
+    inline void compute_opening_poly_contribution(const transcript::Transcript&, const bool) override;
 
-    void compute_transcript_elements(transcript::Transcript&, const bool) override;
+    inline void compute_transcript_elements(transcript::Transcript&, const bool) override;
 };
 
 } // namespace waffle

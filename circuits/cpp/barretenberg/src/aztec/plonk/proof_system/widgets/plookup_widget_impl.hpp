@@ -84,18 +84,6 @@ struct lookup_entry {
         result = result || (eq_check && data[3].data[0] < other.data[3].data[0]);
 
         eq_check = eq_check && (data[3].data[0] == other.data[3].data[0]);
-        result = result || (eq_check && data[2].data[3] < other.data[2].data[3]);
-
-        eq_check = eq_check && (data[2].data[3] == other.data[2].data[3]);
-        result = result || (eq_check && data[2].data[2] < other.data[2].data[2]);
-
-        eq_check = eq_check && (data[2].data[2] == other.data[2].data[2]);
-        result = result || (eq_check && data[2].data[1] < other.data[2].data[1]);
-
-        eq_check = eq_check && (data[2].data[1] == other.data[2].data[1]);
-        result = result || (eq_check && data[2].data[0] < other.data[2].data[0]);
-
-        eq_check = eq_check && (data[2].data[0] == other.data[2].data[0]);
         result = result || (eq_check && data[1].data[3] < other.data[1].data[3]);
 
         eq_check = eq_check && (data[1].data[3] == other.data[1].data[3]);
@@ -119,6 +107,18 @@ struct lookup_entry {
         eq_check = eq_check && (data[0].data[1] == other.data[0].data[1]);
         result = result || (eq_check && data[0].data[0] < other.data[0].data[0]);
 
+        eq_check = eq_check && (data[0].data[0] == other.data[0].data[0]);
+        result = result || (eq_check && data[2].data[3] < other.data[2].data[3]);
+
+        eq_check = eq_check && (data[2].data[3] == other.data[2].data[3]);
+        result = result || (eq_check && data[2].data[2] < other.data[2].data[2]);
+
+        eq_check = eq_check && (data[2].data[2] == other.data[2].data[2]);
+        result = result || (eq_check && data[2].data[1] < other.data[2].data[1]);
+
+        eq_check = eq_check && (data[2].data[1] == other.data[2].data[1]);
+        result = result || (eq_check && data[2].data[0] < other.data[2].data[0]);
+
         return result;
     }
     fr data[4];
@@ -126,7 +126,6 @@ struct lookup_entry {
 
 void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript& transcript)
 {
-
     polynomial& s = witness->wires.at("s");
     const auto& lookup_mapping = key->lookup_mapping;
     const auto& table_indices = key->table_indices;
@@ -156,15 +155,15 @@ void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript&
 
     for (size_t i = 0; i < key->small_domain.size; ++i) {
         switch (lookup_mapping[i]) {
-        case ABSOLUTE_LOOKUP: {
+        case LookupType::ABSOLUTE_LOOKUP: {
             unsorted_lists[table_indices[i]].emplace_back(
                 lookup_entry(w_1[i], w_2[i], w_3[i], table_values[table_indices[i]]));
             break;
         }
-        case RELATIVE_LOOKUP: {
-            auto t0 = w_1[i + 1] - w_1[i] * step_size;
-            auto t1 = w_2[i + 1] - w_2[i] * step_size;
-            auto t2 = w_3[i + 1] - w_3[i] * step_size;
+        case LookupType::RELATIVE_LOOKUP: {
+            auto t0 = w_1[i] - w_1[i + 1] * step_size;
+            auto t1 = w_2[i] - w_2[i + 1] * step_size;
+            auto t2 = w_3[i] - w_3[i + 1] * step_size;
             unsorted_lists[table_indices[i]].emplace_back(lookup_entry(t0, t1, t2, table_values[table_indices[i]]));
             break;
         }
@@ -176,10 +175,10 @@ void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript&
     }
 
     std::array<fr*, 4> lagrange_base_tables{
-        &key->permutation_selectors_lagrange_base.at("table_value_0")[0],
         &key->permutation_selectors_lagrange_base.at("table_value_1")[0],
         &key->permutation_selectors_lagrange_base.at("table_value_2")[0],
         &key->permutation_selectors_lagrange_base.at("table_value_3")[0],
+        &key->permutation_selectors_lagrange_base.at("table_value_4")[0],
     };
 
     for (size_t i = 0; i < key->small_domain.size; ++i) {
@@ -193,7 +192,19 @@ void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript&
     }
 
     for (size_t i = 1; i < num_lookup_tables + 1; ++i) {
+        for (auto& item : unsorted_lists[i]) {
+            item.data[0] = item.data[0].from_montgomery_form();
+            item.data[1] = item.data[1].from_montgomery_form();
+            item.data[2] = item.data[2].from_montgomery_form();
+            item.data[3] = item.data[3].from_montgomery_form();
+        }
         std::sort(unsorted_lists[i].begin(), unsorted_lists[i].end());
+        for (auto& item : unsorted_lists[i]) {
+            item.data[0] = item.data[0].to_montgomery_form();
+            item.data[1] = item.data[1].to_montgomery_form();
+            item.data[2] = item.data[2].to_montgomery_form();
+            item.data[3] = item.data[3].to_montgomery_form();
+        }
     }
 
     size_t num_set_union_elements = 0;
@@ -202,8 +213,10 @@ void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript&
     }
     size_t offset = key->small_domain.size - num_set_union_elements;
     size_t count = offset;
+
     for (size_t i = 1; i < unsorted_lists.size(); ++i) {
         auto list = unsorted_lists[i];
+
         for (auto element : list) {
             s[count] = element.data[0] + element.data[1] * eta + element.data[2] * eta_sqr + element.data[3] * eta_cube;
             ++count;
@@ -214,6 +227,9 @@ void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript&
     }
 
     s[key->small_domain.size] = s[0];
+
+    polynomial s_lagrange_base(s, key->small_domain.size);
+    witness->wires.insert({ "s_lagrange_base", s_lagrange_base });
     s.ifft(key->small_domain);
 }
 
@@ -221,9 +237,8 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
 {
     const size_t n = key->n;
     polynomial& z = witness->wires.at("z_lookup");
-    polynomial& s = witness->wires.at("s");
+    polynomial& s = witness->wires.at("s_lagrange_base");
     polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
-    s.fft(key->small_domain);
 
     fr* accumulators[4];
     accumulators[0] = &z[1];
@@ -241,10 +256,10 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
     // beta = fr(1);
     std::array<fr*, 3> lagrange_base_wires;
     std::array<fr*, 4> lagrange_base_tables{
-        &key->permutation_selectors_lagrange_base.at("table_value_0")[0],
         &key->permutation_selectors_lagrange_base.at("table_value_1")[0],
         &key->permutation_selectors_lagrange_base.at("table_value_2")[0],
         &key->permutation_selectors_lagrange_base.at("table_value_3")[0],
+        &key->permutation_selectors_lagrange_base.at("table_value_4")[0],
     };
 
     fr* lookup_selector = &key->permutation_selectors_lagrange_base.at("table_type")[0];
@@ -287,9 +302,7 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
                 T0 += lagrange_base_wires[1][i + 1];
                 T0 *= eta;
                 T0 += lagrange_base_wires[0][i + 1];
-                // T0 *= (lookup_selector[i] - two);
-                T2 = (T0 - step_size * next_f) * half;
-                // std::cout << "witness foo = " << next_f << std::endl;
+                T2 = (next_f - T0 * step_size) * half;
                 T1 = next_f;
 
                 next_f = T0;
@@ -300,7 +313,6 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
                 accumulators[0][i] += T1;
                 accumulators[0][i] -= T2;
                 accumulators[0][i] *= lookup_selector[i];
-                // std::cout << "accumulator = " << accumulators[0][i] << std::endl;
                 accumulators[0][i] += gamma;
 
                 T0 = lagrange_base_tables[3][i + 1];
@@ -310,7 +322,7 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
                 T0 += lagrange_base_tables[1][i + 1];
                 T0 *= eta;
                 T0 += lagrange_base_tables[0][i + 1];
-                // std::cout << "T0 = " << T0 << std::endl;
+
                 accumulators[1][i] = T0 * beta + next_table;
                 next_table = T0;
                 accumulators[1][i] += gamma_beta_constant;
@@ -365,7 +377,6 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
     z[0] = fr::one();
 
     z.ifft(key->small_domain);
-    s.ifft(key->small_domain);
 }
 
 void ProverPLookupWidget::compute_round_commitments(transcript::Transcript& transcript,
@@ -442,15 +453,13 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
     fr* s_fft = &key->wire_ffts.at("s_fft")[0];
 
     std::array<fr*, 4> table_ffts{
-        &key->permutation_selector_ffts.at("table_value_0_fft")[0],
         &key->permutation_selector_ffts.at("table_value_1_fft")[0],
         &key->permutation_selector_ffts.at("table_value_2_fft")[0],
         &key->permutation_selector_ffts.at("table_value_3_fft")[0],
+        &key->permutation_selector_ffts.at("table_value_4_fft")[0],
     };
     fr* lookup_fft = &key->permutation_selector_ffts.at("table_type_fft")[0];
     fr* lookup_index_fft = &key->permutation_selector_ffts.at("table_index_fft")[0];
-
-    const polynomial& l_1 = key->lagrange_1;
 
     polynomial& quotient_large = key->quotient_large;
 
@@ -458,8 +467,10 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
     const fr half = fr(2).invert();
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
 
+    const polynomial& l_1 = key->lagrange_1;
     const fr delta_factor = gamma_beta_constant.pow(key->small_domain.size - 1);
     const fr alpha_sqr = alpha.sqr();
+
     const fr beta_constant = beta + fr(1);
     const auto step_size = key->lookup_table_step_size;
 
@@ -505,8 +516,7 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
 
             T1 = next_fs[i & 0x03UL];
             T2 = next_fs[i & 0x03UL];
-            T2 *= step_size;
-            T2 = T0 - T2;
+            T2 -= T0 * step_size;
             T2 *= half;
 
             next_fs[i & 0x03UL] = T0;
@@ -581,20 +591,20 @@ void ProverPLookupWidget::compute_opening_poly_contribution(const transcript::Tr
     fr* s = &witness->wires.at("s")[0];
 
     std::array<fr*, 4> tables{
-        &key->permutation_selectors.at("table_value_0")[0],
         &key->permutation_selectors.at("table_value_1")[0],
         &key->permutation_selectors.at("table_value_2")[0],
         &key->permutation_selectors.at("table_value_3")[0],
+        &key->permutation_selectors.at("table_value_4")[0],
     };
     fr* table_index_selector = &key->permutation_selectors.at("table_index")[0];
     fr* table_selector = &key->permutation_selectors.at("table_type")[0];
 
     // const size_t num_challenges = num_sigma_evaluations + (!use_linearisation ? 1 : 0);
     std::array<barretenberg::fr, 8> nu_challenges{
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_0")[0]),
         fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_1")[0]),
         fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_2")[0]),
         fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_3")[0]),
+        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_4")[0]),
         fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_index")[0]),
         fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_type")[0]),
         fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "s")[0]),
@@ -626,16 +636,13 @@ void ProverPLookupWidget::compute_opening_poly_contribution(const transcript::Tr
 
 void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& transcript, const bool)
 {
-    // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in the
-    // transcript
+    // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in
+    // the transcript
     const size_t n = key->n;
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
     fr shifted_z = z_challenge * key->small_domain.root;
 
-    fr evaluation = key->permutation_selectors.at("table_value_0").evaluate(z_challenge, n);
-    transcript.add_element("table_value_0", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_1").evaluate(z_challenge, n);
+    fr evaluation = key->permutation_selectors.at("table_value_1").evaluate(z_challenge, n);
     transcript.add_element("table_value_1", evaluation.to_buffer());
 
     evaluation = key->permutation_selectors.at("table_value_2").evaluate(z_challenge, n);
@@ -644,8 +651,8 @@ void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& tr
     evaluation = key->permutation_selectors.at("table_value_3").evaluate(z_challenge, n);
     transcript.add_element("table_value_3", evaluation.to_buffer());
 
-    evaluation = key->permutation_selectors.at("table_value_0").evaluate(shifted_z, n);
-    transcript.add_element("table_value_0_omega", evaluation.to_buffer());
+    evaluation = key->permutation_selectors.at("table_value_4").evaluate(z_challenge, n);
+    transcript.add_element("table_value_4", evaluation.to_buffer());
 
     evaluation = key->permutation_selectors.at("table_value_1").evaluate(shifted_z, n);
     transcript.add_element("table_value_1_omega", evaluation.to_buffer());
@@ -655,6 +662,9 @@ void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& tr
 
     evaluation = key->permutation_selectors.at("table_value_3").evaluate(shifted_z, n);
     transcript.add_element("table_value_3_omega", evaluation.to_buffer());
+
+    evaluation = key->permutation_selectors.at("table_value_4").evaluate(shifted_z, n);
+    transcript.add_element("table_value_4_omega", evaluation.to_buffer());
 
     evaluation = key->permutation_selectors.at("table_index").evaluate(z_challenge, n);
     transcript.add_element("table_index", evaluation.to_buffer());
@@ -890,7 +900,8 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplicat
         scalars.emplace_back(z_1_multiplicand);
     } else {
         Field T0 = u + transcript.get_challenge_field_element_from_map("nu", "z_omega");
-        //        Field T0 = z_omega_challenge * u + transcript.get_challenge_field_element_from_map("nu", "z_omega");
+        //        Field T0 = z_omega_challenge * u + transcript.get_challenge_field_element_from_map("nu",
+        //        "z_omega");
         scalars.emplace_back(T0);
     }
 

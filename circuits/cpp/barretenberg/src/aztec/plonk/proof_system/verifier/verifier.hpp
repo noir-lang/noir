@@ -34,5 +34,7 @@ typedef VerifierBase<unrolled_turbo_verifier_settings> UnrolledTurboVerifier;
 typedef VerifierBase<standard_verifier_settings> Verifier;
 typedef VerifierBase<mimc_verifier_settings> MiMCVerifier;
 typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
+typedef VerifierBase<turbo_verifier_settings> PLookupVerifier;
+typedef VerifierBase<unrolled_turbo_verifier_settings> UnrolledPLookupVerifier;
 
 } // namespace waffle

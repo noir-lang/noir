@@ -150,17 +150,17 @@ void create_dummy_circuit(std::shared_ptr<proving_key>& key, std::shared_ptr<pro
 
     key->wire_ffts.insert({ "z_lookup_fft", (z_lookup_fft) });
     key->wire_ffts.insert({ "s_fft", (s_fft) });
-    key->permutation_selectors_lagrange_base.insert({ "table_value_0", std::move(table_value_0) });
-    key->permutation_selectors_lagrange_base.insert({ "table_value_1", std::move(table_value_1) });
-    key->permutation_selectors_lagrange_base.insert({ "table_value_2", std::move(table_value_2) });
-    key->permutation_selectors_lagrange_base.insert({ "table_value_3", std::move(table_value_3) });
+    key->permutation_selectors_lagrange_base.insert({ "table_value_1", std::move(table_value_0) });
+    key->permutation_selectors_lagrange_base.insert({ "table_value_2", std::move(table_value_1) });
+    key->permutation_selectors_lagrange_base.insert({ "table_value_3", std::move(table_value_2) });
+    key->permutation_selectors_lagrange_base.insert({ "table_value_4", std::move(table_value_3) });
     key->permutation_selectors_lagrange_base.insert({ "table_type", std::move(table_type) });
     key->permutation_selectors_lagrange_base.insert({ "table_index", std::move(table_index) });
 
-    key->permutation_selector_ffts.insert({ "table_value_0_fft", std::move(table_value_0_fft) });
-    key->permutation_selector_ffts.insert({ "table_value_1_fft", std::move(table_value_1_fft) });
-    key->permutation_selector_ffts.insert({ "table_value_2_fft", std::move(table_value_2_fft) });
-    key->permutation_selector_ffts.insert({ "table_value_3_fft", std::move(table_value_3_fft) });
+    key->permutation_selector_ffts.insert({ "table_value_1_fft", std::move(table_value_0_fft) });
+    key->permutation_selector_ffts.insert({ "table_value_2_fft", std::move(table_value_1_fft) });
+    key->permutation_selector_ffts.insert({ "table_value_3_fft", std::move(table_value_2_fft) });
+    key->permutation_selector_ffts.insert({ "table_value_4_fft", std::move(table_value_3_fft) });
     key->permutation_selector_ffts.insert({ "table_type_fft", std::move(table_type_fft) });
     key->permutation_selector_ffts.insert({ "table_index_fft", std::move(table_index_fft) });
 }
