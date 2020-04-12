@@ -1,4 +1,6 @@
 #include "plookup_composer.hpp"
+#include "plookup_tables.hpp"
+
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/proof_system/widgets/permutation_widget.hpp>
@@ -1331,7 +1333,63 @@ PLookupComposer::LookupTable& PLookupComposer::get_table(const LookupTableId id)
             return table;
         }
     }
-    throw;
+    // Hmm. table doesn't exist! try to create it
+    switch (id) {
+    case AES_SPARSE_MAP: {
+        initialize_precomputed_table(AES_SPARSE_MAP, 256, &aes_tables::generate_aes_sparse_map);
+        return get_table(id);
+    }
+    case AES_SBOX_MAP: {
+        initialize_precomputed_table(AES_SBOX_MAP, 256, &aes_tables::generate_aes_sbox_map);
+        return get_table(id);
+    }
+    case AES_SPARSE_NORMALIZE: {
+        initialize_precomputed_table(
+            AES_SPARSE_NORMALIZE, 9 * 9 * 9 * 9, &aes_tables::generate_aes_sparse_normalization_map);
+        return get_table(id);
+    }
+    default: {
+        throw;
+    }
+    }
+}
+
+void PLookupComposer::validate_lookup(const LookupTableId id, const std::array<uint32_t, 3> indices)
+{
+    LookupTable& table = get_table(id);
+
+    table.lookup_gates.push_back(std::make_pair(static_cast<uint32_t>(n), LookupType::ABSOLUTE_LOOKUP));
+
+    q_lookup_type.emplace_back(fr::one());
+    q_lookup_index.emplace_back(fr(table.table_index));
+    w_l.emplace_back(indices[0]);
+    w_r.emplace_back(indices[1]);
+    w_o.emplace_back(indices[2]);
+    w_4.emplace_back(zero_idx);
+    q_1.emplace_back(fr(0));
+    q_2.emplace_back(fr(0));
+    q_3.emplace_back(fr(0));
+    q_c.emplace_back(fr(0));
+    q_arith.emplace_back(fr(0));
+    q_4.emplace_back(fr(0));
+    q_5.emplace_back(fr(0));
+    q_ecc_1.emplace_back(fr(0));
+    q_range.emplace_back(fr(0));
+    q_logic.emplace_back(fr(0));
+
+    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+
+    ASSERT(wire_epicycles.size() > indices[0]);
+    ASSERT(wire_epicycles.size() > indices[1]);
+    ASSERT(wire_epicycles.size() > indices[2]);
+
+    wire_epicycles[static_cast<size_t>(indices[0])].emplace_back(left);
+    wire_epicycles[static_cast<size_t>(indices[1])].emplace_back(right);
+    wire_epicycles[static_cast<size_t>(indices[2])].emplace_back(out);
+
+    ++n;
 }
 
 uint32_t PLookupComposer::read_from_table(const LookupTableId id, const std::pair<uint32_t, uint32_t> key)

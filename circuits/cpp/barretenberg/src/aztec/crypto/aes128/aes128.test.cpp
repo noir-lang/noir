@@ -31,7 +31,7 @@ TEST(aes128, verify_cipher)
     };
     uint8_t state[16]{ 0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a };
 
-    uint8_t round_key[176];
+    uint64_t round_key[176];
     crypto::aes128::expand_key(key, round_key);
     crypto::aes128::aes128_cipher(state, round_key);
 

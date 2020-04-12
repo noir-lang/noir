@@ -10,7 +10,7 @@ struct proving_key;
 struct verification_key;
 struct program_witness;
 
-enum LookupTableId { XOR, AND, PEDERSEN, AES_SBOX, AES_MIX_INTO_SPARSE_FORM, AES_MIX_FROM_SPARSE_FORM };
+enum LookupTableId { XOR, AND, PEDERSEN, AES_SPARSE_MAP, AES_SBOX_MAP, AES_SPARSE_NORMALIZE };
 
 struct add_triple {
     uint32_t a;

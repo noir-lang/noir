@@ -53,6 +53,7 @@ class PLookupComposer : public ComposerBase {
     std::vector<uint32_t> read_sequence_from_table(const LookupTableId id,
                                                    const std::vector<std::pair<uint32_t, uint32_t>>& key_indices);
 
+    void validate_lookup(const LookupTableId id, const std::array<uint32_t, 3> keys);
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
 
