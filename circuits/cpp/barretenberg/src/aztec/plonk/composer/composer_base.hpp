@@ -115,29 +115,29 @@ class ComposerBase {
         FIXED_OUTPUT_WIRE = 0x800,
     };
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
-    struct epicycle {
+    struct cycle_node {
         uint32_t gate_index;
         WireType wire_type;
 
-        epicycle(const uint32_t a, const WireType b)
+        cycle_node(const uint32_t a, const WireType b)
             : gate_index(a)
             , wire_type(b)
         {}
-        epicycle(const epicycle& other)
+        cycle_node(const cycle_node& other)
             : gate_index(other.gate_index)
             , wire_type(other.wire_type)
         {}
-        epicycle(epicycle&& other)
+        cycle_node(cycle_node&& other)
             : gate_index(other.gate_index)
             , wire_type(other.wire_type)
         {}
-        epicycle& operator=(const epicycle& other)
+        cycle_node& operator=(const cycle_node& other)
         {
             gate_index = other.gate_index;
             wire_type = other.wire_type;
             return *this;
         }
-        bool operator==(const epicycle& other) const
+        bool operator==(const cycle_node& other) const
         {
             return ((gate_index == other.gate_index) && (wire_type == other.wire_type));
         }
@@ -190,14 +190,14 @@ class ComposerBase {
     virtual uint32_t add_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);
-        wire_epicycles.push_back(std::vector<epicycle>());
+        wire_copy_cycles.push_back(std::vector<cycle_node>());
         return static_cast<uint32_t>(variables.size()) - 1U;
     }
 
     virtual uint32_t add_public_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);
-        wire_epicycles.push_back(std::vector<epicycle>());
+        wire_copy_cycles.push_back(std::vector<cycle_node>());
         const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
         public_inputs.emplace_back(index);
         return index;
@@ -227,7 +227,7 @@ class ComposerBase {
     std::vector<size_t> gate_flags;
     std::vector<uint32_t> public_inputs;
     std::vector<barretenberg::fr> variables;
-    std::vector<std::vector<epicycle>> wire_epicycles;
+    std::vector<std::vector<cycle_node>> wire_copy_cycles;
     size_t features = static_cast<size_t>(Features::SAD_TROMBONE);
 
     std::shared_ptr<proving_key> circuit_proving_key;
