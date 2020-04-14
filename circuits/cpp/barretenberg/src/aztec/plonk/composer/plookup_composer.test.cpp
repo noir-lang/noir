@@ -342,7 +342,6 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 
     widget.compute_sorted_list_commitment(transcript);
 
-
     widget.compute_grand_product_commitment(transcript);
 
     {
@@ -423,6 +422,35 @@ TEST(plookup_composer, test_relative_lookup_proof)
             uint32_t right_idx = composer.add_variable(fr(right));
 
             uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, { left_idx, right_idx });
+
+            uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
+            composer.create_big_add_gate(
+                { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
+        }
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(plookup_composer, test_no_lookup_proof)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    composer.plookup_step_size = fr(4);
+
+    for (size_t i = 0; i < 16; ++i) {
+        for (size_t j = 0; j < 16; ++j) {
+            uint64_t left = static_cast<uint64_t>(j);
+            uint64_t right = static_cast<uint64_t>(i);
+            uint32_t left_idx = composer.add_variable(fr(left));
+            uint32_t right_idx = composer.add_variable(fr(right));
+            uint32_t result_idx = composer.add_variable(fr(left ^ right));
 
             uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
             composer.create_big_add_gate(

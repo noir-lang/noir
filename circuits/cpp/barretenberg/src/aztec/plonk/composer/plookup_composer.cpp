@@ -937,7 +937,9 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         tables_size += table.size;
         lookups_size += table.lookup_gates.size();
     }
-    const size_t total_num_gates = std::max(n + public_inputs.size(), tables_size + lookups_size);
+
+    const size_t filled_gates = n + public_inputs.size();
+    const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
     size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
     if ((1UL << log2_n) != (total_num_gates + 1)) {
@@ -945,7 +947,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     }
     size_t new_n = 1UL << log2_n;
 
-    for (size_t i = total_num_gates; i < new_n; ++i) {
+    for (size_t i = filled_gates; i < new_n; ++i) {
         q_m.emplace_back(fr::zero());
         q_1.emplace_back(fr::zero());
         q_2.emplace_back(fr::zero());
@@ -1059,6 +1061,14 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
             poly_q_table_4[offset] = table_index;
             ++offset;
         }
+    }
+
+    std::vector<waffle::lookup_entry> test;
+    for (size_t i = 0; i < new_n; ++i) {
+        test.emplace_back(waffle::lookup_entry(poly_q_table_1[i].from_montgomery_form(),
+                                               poly_q_table_2[i].from_montgomery_form(),
+                                               poly_q_table_3[i].from_montgomery_form(),
+                                               poly_q_table_4[i].from_montgomery_form()));
     }
 
     add_lookup_selector(poly_q_table_1, "table_value_1");
@@ -1369,6 +1379,7 @@ void PLookupComposer::validate_lookup(const LookupTableId id, const std::array<u
     q_1.emplace_back(fr(0));
     q_2.emplace_back(fr(0));
     q_3.emplace_back(fr(0));
+    q_m.emplace_back(fr(0));
     q_c.emplace_back(fr(0));
     q_arith.emplace_back(fr(0));
     q_4.emplace_back(fr(0));
@@ -1418,6 +1429,7 @@ uint32_t PLookupComposer::read_from_table(const LookupTableId id, const std::pai
     q_1.emplace_back(fr(0));
     q_2.emplace_back(fr(0));
     q_3.emplace_back(fr(0));
+    q_m.emplace_back(fr(0));
     q_c.emplace_back(fr(0));
     q_arith.emplace_back(fr(0));
     q_4.emplace_back(fr(0));
@@ -1467,6 +1479,7 @@ std::pair<uint32_t, uint32_t> PLookupComposer::read_from_table(const LookupTable
     q_1.emplace_back(fr(0));
     q_2.emplace_back(fr(0));
     q_3.emplace_back(fr(0));
+    q_m.emplace_back(fr(0));
     q_c.emplace_back(fr(0));
     q_arith.emplace_back(fr(0));
     q_4.emplace_back(fr(0));
@@ -1546,6 +1559,7 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTabl
         q_1.emplace_back(fr(0));
         q_2.emplace_back(fr(0));
         q_3.emplace_back(fr(0));
+        q_m.emplace_back(fr(0));
         q_c.emplace_back(fr(0));
         q_arith.emplace_back(fr(0));
         q_4.emplace_back(fr(0));

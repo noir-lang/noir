@@ -2,6 +2,79 @@
 
 namespace waffle {
 
+struct table_entry {
+    table_entry(const fr& a, const fr& b, const fr& c)
+        : data{ a, b, c }
+    {}
+
+    table_entry() {}
+
+    table_entry(const table_entry& other)
+        : data{ other.data[0], other.data[1], other.data[2] }
+    {}
+
+    table_entry(table_entry&& other)
+        : data{ other.data[0], other.data[1], other.data[2] }
+    {}
+
+    table_entry& operator=(const table_entry& other)
+    {
+        data[0] = other.data[0];
+        data[1] = other.data[1];
+        data[2] = other.data[2];
+        return *this;
+    }
+
+    table_entry& operator=(table_entry&& other)
+    {
+        data[0] = other.data[0];
+        data[1] = other.data[1];
+        data[2] = other.data[2];
+        return *this;
+    }
+
+    bool operator<(const table_entry& other) const
+    {
+        bool result = (data[1].data[3] < other.data[1].data[3]);
+
+        bool eq_check = (data[1].data[3] == other.data[1].data[3]);
+        result = result || (eq_check && data[1].data[2] < other.data[1].data[2]);
+
+        eq_check = eq_check && (data[1].data[2] == other.data[1].data[2]);
+        result = result || (eq_check && data[1].data[1] < other.data[1].data[1]);
+
+        eq_check = eq_check && (data[1].data[1] == other.data[1].data[1]);
+        result = result || (eq_check && data[1].data[0] < other.data[1].data[0]);
+
+        eq_check = eq_check && (data[1].data[0] == other.data[1].data[0]);
+        result = result || (eq_check && data[0].data[3] < other.data[0].data[3]);
+
+        eq_check = eq_check && (data[0].data[3] == other.data[0].data[3]);
+        result = result || (eq_check && data[0].data[2] < other.data[0].data[2]);
+
+        eq_check = eq_check && (data[0].data[2] == other.data[0].data[2]);
+        result = result || (eq_check && data[0].data[1] < other.data[0].data[1]);
+
+        eq_check = eq_check && (data[0].data[1] == other.data[0].data[1]);
+        result = result || (eq_check && data[0].data[0] < other.data[0].data[0]);
+
+        eq_check = eq_check && (data[0].data[0] == other.data[0].data[0]);
+        result = result || (eq_check && data[2].data[3] < other.data[2].data[3]);
+
+        eq_check = eq_check && (data[2].data[3] == other.data[2].data[3]);
+        result = result || (eq_check && data[2].data[2] < other.data[2].data[2]);
+
+        eq_check = eq_check && (data[2].data[2] == other.data[2].data[2]);
+        result = result || (eq_check && data[2].data[1] < other.data[2].data[1]);
+
+        eq_check = eq_check && (data[2].data[1] == other.data[2].data[1]);
+        result = result || (eq_check && data[2].data[0] < other.data[2].data[0]);
+
+        return result;
+    }
+    fr data[3];
+};
+
 namespace aes_tables {
 static constexpr uint64_t sparse_base = 9;
 static constexpr uint8_t sbox[256] = {
@@ -102,16 +175,21 @@ inline void generate_aes_sbox_map(const size_t,
                                   std::vector<fr>& column_3)
 {
     const uint64_t num_entries = 256;
+    std::vector<table_entry> table;
     for (uint64_t i = 0; i < num_entries; ++i) {
         uint64_t first = map_into_sparse_form((uint8_t)i);
         uint8_t sbox_value = sbox[(uint8_t)i];
         uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
         uint64_t second = map_into_sparse_form(sbox_value);
         uint64_t third = map_into_sparse_form((uint8_t)(sbox_value ^ swizzled));
+        table.emplace_back(table_entry(fr{ first, 0, 0, 0 }, fr{ second, 0, 0, 0 }, fr{ third, 0, 0, 0 }));
+    }
 
-        column_1.emplace_back(fr(first));
-        column_2.emplace_back(fr(second));
-        column_3.emplace_back(fr(third));
+    std::sort(table.begin(), table.end());
+    for (const auto& entry : table) {
+        column_1.emplace_back(entry.data[0].to_montgomery_form());
+        column_2.emplace_back(entry.data[1].to_montgomery_form());
+        column_3.emplace_back(entry.data[2].to_montgomery_form());
     }
 }
 } // namespace aes_tables

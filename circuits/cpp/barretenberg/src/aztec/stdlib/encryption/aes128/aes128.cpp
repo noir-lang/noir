@@ -46,8 +46,8 @@ field_pt normalize_sparse_form(waffle::PLookupComposer* ctx, field_pt& byte)
         out_lo_idx,
         out_hi_idx,
         out_idx,
-        fr(multiplier),
         fr(1),
+        fr(multiplier),
         fr(-1),
         fr(0),
     });
@@ -63,6 +63,7 @@ byte_pair apply_aes_sbox_map(waffle::PLookupComposer* ctx, field_pt& input)
     uint64_t value = uint256_t(input.get_value()).data[0];
 
     uint8_t byte = crypto::aes128::map_from_sparse_form(value);
+
     uint8_t sbox_value = crypto::aes128::sbox[byte];
     uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
 
@@ -94,9 +95,6 @@ std::array<field_pt, 16> convert_into_sparse_bytes(waffle::PLookupComposer* ctx,
             field_pt sparse(ctx);
             sparse.witness_index = ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP,
                                                         { bytes[j * 8 + i].witness_index, ctx->zero_idx });
-
-            uint64_t test_value = uint256_t(ctx->get_variable(sparse.witness_index)).data[0];
-            uint64_t expected = crypto::aes128::map_into_sparse_form((uint8_t)byte);
 
             sparse_bytes[j * 8 + i] = sparse;
         }

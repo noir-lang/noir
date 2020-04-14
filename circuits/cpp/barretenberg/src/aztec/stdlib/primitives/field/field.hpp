@@ -115,9 +115,6 @@ template <typename ComposerContext> class field_t {
     field_t operator-() const
     {
         field_t result(*this);
-        // if (witness_index == UINT32_MAX) {
-        //     result.additive_constant -= result.additive_constant;
-        // } else {
         result.multiplicative_constant = -multiplicative_constant;
         result.additive_constant = -additive_constant;
 

@@ -9,7 +9,7 @@
 using namespace barretenberg;
 using namespace plonk;
 
-TEST(stdlib_aes128, encrypt_buffer_cbc)
+TEST(stdlib_aes128, encrypt_64_bytes)
 {
     typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
     typedef plonk::stdlib::witness_t<waffle::PLookupComposer> witness_pt;
@@ -37,10 +37,12 @@ TEST(stdlib_aes128, encrypt_buffer_cbc)
     waffle::PLookupComposer composer = waffle::PLookupComposer();
     composer.plookup_step_size = fr(4);
 
-    std::vector<field_pt> in_field{ witness_pt(&composer, fr(convert_bytes(in))),
-                                    witness_pt(&composer, fr(convert_bytes(in + 16))),
-                                    witness_pt(&composer, fr(convert_bytes(in + 32))),
-                                    witness_pt(&composer, fr(convert_bytes(in + 48))) };
+    std::vector<field_pt> in_field{
+        witness_pt(&composer, fr(convert_bytes(in))),
+        witness_pt(&composer, fr(convert_bytes(in + 16))),
+        witness_pt(&composer, fr(convert_bytes(in + 32))),
+        witness_pt(&composer, fr(convert_bytes(in + 48))),
+    };
 
     field_pt key_field(witness_pt(&composer, fr(convert_bytes(key))));
     field_pt iv_field(witness_pt(&composer, fr(convert_bytes(iv))));

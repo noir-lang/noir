@@ -481,6 +481,8 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
     const fr beta_constant = beta + fr(1);
     const auto step_size = key->lookup_table_step_size;
 
+    const size_t block_mask = key->large_domain.size - 1;
+
     // Step 4: Set the quotient polynomial to be equal to
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
     // \gamma).Z(X).alpha
@@ -500,18 +502,18 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
         std::array<fr, 4> next_fs;
         std::array<fr, 4> next_ts;
         for (size_t i = 0; i < 4; ++i) {
-            next_fs[i] = wire_ffts[2][start + i];
+            next_fs[i] = wire_ffts[2][(start + i) & block_mask];
             next_fs[i] *= eta;
-            next_fs[i] += wire_ffts[1][start + i];
+            next_fs[i] += wire_ffts[1][(start + i) & block_mask];
             next_fs[i] *= eta;
-            next_fs[i] += wire_ffts[0][start + i];
-            next_ts[i] = table_ffts[3][start + i];
+            next_fs[i] += wire_ffts[0][(start + i) & block_mask];
+            next_ts[i] = table_ffts[3][(start + i) & block_mask];
             next_ts[i] *= eta;
-            next_ts[i] += table_ffts[2][start + i];
+            next_ts[i] += table_ffts[2][(start + i) & block_mask];
             next_ts[i] *= eta;
-            next_ts[i] += table_ffts[1][start + i];
+            next_ts[i] += table_ffts[1][(start + i) & block_mask];
             next_ts[i] *= eta;
-            next_ts[i] += table_ffts[0][start + i];
+            next_ts[i] += table_ffts[0][(start + i) & block_mask];
         }
         for (size_t i = start; i < end; ++i) {
 
@@ -539,13 +541,13 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
             numerator *= lookup_fft[i];
             numerator += gamma;
 
-            T0 = table_ffts[3][i + 4];
+            T0 = table_ffts[3][(i + 4) & block_mask];
             T0 *= eta;
-            T0 += table_ffts[2][i + 4];
+            T0 += table_ffts[2][(i + 4) & block_mask];
             T0 *= eta;
-            T0 += table_ffts[1][i + 4];
+            T0 += table_ffts[1][(i + 4) & block_mask];
             T0 *= eta;
-            T0 += table_ffts[0][i + 4];
+            T0 += table_ffts[0][(i + 4) & block_mask];
 
             T1 = beta;
             T1 *= T0;
@@ -557,7 +559,7 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
             numerator *= T1;
             numerator *= beta_constant;
 
-            denominator = s_fft[i + 4];
+            denominator = s_fft[(i + 4) & block_mask];
             denominator *= beta;
             denominator += s_fft[i];
             denominator += gamma_beta_constant;
@@ -570,7 +572,7 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
             numerator -= T0;
 
             denominator -= T1;
-            denominator *= z_fft[i + 4];
+            denominator *= z_fft[(i + 4) & block_mask];
             denominator += T1 * delta_factor;
 
             // Combine into quotient polynomial
@@ -945,11 +947,17 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplicat
         scalars.push_back(nu_challenges[5]);
     }
 
-    elements.push_back(transcript.get_group_element("S"));
-    scalars.push_back(nu_challenges[6] * u_plus_one);
+    const auto S = transcript.get_group_element("S");
+    if (S.on_curve()) {
+        elements.push_back(S);
+        scalars.push_back(nu_challenges[6] * u_plus_one);
+    }
 
-    elements.push_back(transcript.get_group_element("Z_LOOKUP"));
-    scalars.push_back(nu_challenges[7] * u_plus_one);
+    const auto Z = transcript.get_group_element("Z_LOOKUP");
+    if (Z.on_curve()) {
+        elements.push_back(Z);
+        scalars.push_back(nu_challenges[7] * u_plus_one);
+    }
 
     return alpha_base * alpha.sqr() * alpha;
 }
