@@ -911,16 +911,16 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
                          WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
 
-        std::vector<cycle_node>& old_cycle_nodes = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
+        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
 
-        std::vector<cycle_node> new_cycle_nodes;
+        std::vector<cycle_node> new_cycle;
 
-        new_cycle_nodes.emplace_back(left);
-        new_cycle_nodes.emplace_back(right);
-        for (size_t i = 0; i < old_cycle_nodes.size(); ++i) {
-            new_cycle_nodes.emplace_back(old_cycle_nodes[i]);
+        new_cycle.emplace_back(left);
+        new_cycle.emplace_back(right);
+        for (size_t i = 0; i < old_cycle.size(); ++i) {
+            new_cycle.emplace_back(old_cycle[i]);
         }
-        old_cycle_nodes = new_cycle_nodes;
+        old_cycle = new_cycle;
     }
 
     polynomial poly_q_m(new_n);

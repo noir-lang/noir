@@ -127,7 +127,6 @@ Field compute_public_input_delta(const std::vector<Field>& inputs,
     Field T1;
     Field T2;
     Field T3;
-    std::cout << "work roots:" << std::endl;
     for (const auto& witness : inputs) {
         std::cout << work_root << std::endl;
         T0 = witness + gamma;
