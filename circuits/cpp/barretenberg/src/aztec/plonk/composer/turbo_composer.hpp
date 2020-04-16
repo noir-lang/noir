@@ -4,6 +4,20 @@
 namespace waffle {
 class TurboComposer : public ComposerBase {
   public:
+    enum TurboSelectors
+    {
+        QM = 0,
+        QC = 1,
+        Q1 = 2,
+        Q2 = 3,
+        Q3 = 4,
+        Q4 = 5,
+        Q5 = 6,
+        QARITH = 7,
+        QECC_1 = 8,
+        QRANGE = 9,
+        QLOGIC = 10,
+    };
     TurboComposer();
     TurboComposer(std::string const& crs_path, const size_t size_hint = 0);
     TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
@@ -65,18 +79,6 @@ class TurboComposer : public ComposerBase {
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
-
-    std::vector<barretenberg::fr> q_m;
-    std::vector<barretenberg::fr> q_c;
-    std::vector<barretenberg::fr> q_1;
-    std::vector<barretenberg::fr> q_2;
-    std::vector<barretenberg::fr> q_3;
-    std::vector<barretenberg::fr> q_4;
-    std::vector<barretenberg::fr> q_5;
-    std::vector<barretenberg::fr> q_arith;
-    std::vector<barretenberg::fr> q_ecc_1;
-    std::vector<barretenberg::fr> q_range;
-    std::vector<barretenberg::fr> q_logic;
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
