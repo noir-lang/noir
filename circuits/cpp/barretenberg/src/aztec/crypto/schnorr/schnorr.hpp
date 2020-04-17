@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <string>
 
+#include <common/streams.hpp>
 #include <crypto/blake2s/blake2s.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/sha256/sha256.hpp>
@@ -38,6 +39,11 @@ signature_b construct_signature_b(const std::string& message, const key_pair<Fr,
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 typename G1::affine_element ecrecover(const std::string& message, const signature_b& sig);
+
+inline std::ostream& operator<<(std::ostream& os, signature const& sig) {
+    os << "{ " << sig.s << ", " << sig.e << " }";
+    return os;
+}
 
 } // namespace schnorr
 } // namespace crypto

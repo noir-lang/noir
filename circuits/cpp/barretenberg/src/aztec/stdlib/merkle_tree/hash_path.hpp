@@ -44,6 +44,25 @@ inline fr get_hash_path_root(fr_hash_path const& input)
     return compress_native({ input[input.size() - 1].first, input[input.size() - 1].second });
 }
 
+inline fr_hash_path deserialize_hash_path(uint8_t* buffer, size_t depth)
+{
+    fr_hash_path path;
+    for (size_t i = 0; i < depth; ++i) {
+        auto lhs = fr::serialize_from_buffer(buffer + (i * 64));
+        auto rhs = fr::serialize_from_buffer(buffer + (i * 64) + 32);
+        path.push_back(std::make_pair(lhs, rhs));
+    }
+    return path;
+}
+
+inline void serialize_hash_path(fr_hash_path const& path, uint8_t* buffer)
+{
+    for (size_t i = 0; i < path.size(); ++i) {
+        fr::serialize_to_buffer(path[i].first, &buffer[i * 64]);
+        fr::serialize_to_buffer(path[i].second, &buffer[i * 64 + 32]);
+    }
+}
+
 } // namespace merkle_tree
 } // namespace stdlib
 } // namespace plonk
