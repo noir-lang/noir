@@ -36,7 +36,6 @@ WASM_EXPORT void join_split__encrypt_note(uint8_t* note_buffer, uint8_t* output)
 
 WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf, uint32_t buf_length)
 {
-    info("ENTERING JSNP");
     auto tx =
         rollup::client_proofs::join_split::join_split_tx::from_buffer({ join_split_buf, join_split_buf + buf_length });
 
