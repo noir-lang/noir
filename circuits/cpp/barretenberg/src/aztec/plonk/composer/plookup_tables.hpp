@@ -126,10 +126,7 @@ constexpr uint8_t map_from_sparse_form(const uint64_t input)
     return (uint8_t)output;
 }
 
-inline void generate_aes_sparse_map(const size_t,
-                                    std::vector<fr>& column_1,
-                                    std::vector<fr>& column_2,
-                                    std::vector<fr>& column_3)
+inline bool generate_aes_sparse_map(std::vector<fr>& column_1, std::vector<fr>& column_2, std::vector<fr>& column_3)
 {
     const uint64_t entries = 256;
     for (uint64_t i = 0; i < entries; ++i) {
@@ -139,10 +136,16 @@ inline void generate_aes_sparse_map(const size_t,
         column_2.emplace_back(fr(0));
         column_3.emplace_back(fr(right));
     }
+    return true;
 }
 
-inline void generate_aes_sparse_normalization_map(const size_t,
-                                                  std::vector<fr>& column_1,
+inline std::array<barretenberg::fr, 2> get_aes_sparse_values_from_key(const std::array<uint64_t, 2> key)
+{
+    uint64_t sparse = map_into_sparse_form(uint8_t(key[0]));
+    return { fr(sparse), fr(0) };
+}
+
+inline bool generate_aes_sparse_normalization_map(std::vector<fr>& column_1,
                                                   std::vector<fr>& column_2,
                                                   std::vector<fr>& column_3)
 {
@@ -167,30 +170,40 @@ inline void generate_aes_sparse_normalization_map(const size_t,
             }
         }
     }
+    return true;
 }
 
-inline void generate_aes_sbox_map(const size_t,
-                                  std::vector<fr>& column_1,
-                                  std::vector<fr>& column_2,
-                                  std::vector<fr>& column_3)
+inline std::array<barretenberg::fr, 2> get_aes_sparse_normalization_values_from_key(const std::array<uint64_t, 2> key)
+{
+    uint64_t byte = map_from_sparse_form(key[0]);
+    return { fr(map_into_sparse_form((uint8_t)byte)), fr(0) };
+}
+
+inline bool generate_aes_sbox_map(std::vector<fr>& column_1, std::vector<fr>& column_2, std::vector<fr>& column_3)
 {
     const uint64_t num_entries = 256;
-    std::vector<table_entry> table;
+
     for (uint64_t i = 0; i < num_entries; ++i) {
         uint64_t first = map_into_sparse_form((uint8_t)i);
         uint8_t sbox_value = sbox[(uint8_t)i];
         uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
         uint64_t second = map_into_sparse_form(sbox_value);
         uint64_t third = map_into_sparse_form((uint8_t)(sbox_value ^ swizzled));
-        table.emplace_back(table_entry(fr{ first, 0, 0, 0 }, fr{ second, 0, 0, 0 }, fr{ third, 0, 0, 0 }));
+
+        column_1.emplace_back(fr(first));
+        column_2.emplace_back(fr(second));
+        column_3.emplace_back(fr(third));
     }
 
-    std::sort(table.begin(), table.end());
-    for (const auto& entry : table) {
-        column_1.emplace_back(entry.data[0].to_montgomery_form());
-        column_2.emplace_back(entry.data[1].to_montgomery_form());
-        column_3.emplace_back(entry.data[2].to_montgomery_form());
-    }
+    return true;
+}
+
+inline std::array<barretenberg::fr, 2> get_aes_sbox_values_from_key(const std::array<uint64_t, 2> key)
+{
+    uint64_t byte = sbox[map_from_sparse_form(key[0])];
+    uint8_t sbox_value = sbox[(uint8_t)byte];
+    uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
+    return { fr(sbox_value), fr(swizzled) };
 }
 } // namespace aes_tables
 } // namespace waffle

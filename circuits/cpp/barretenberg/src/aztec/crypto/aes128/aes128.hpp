@@ -42,6 +42,7 @@ static constexpr uint8_t sbox[256] = {
     0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42,
     0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
 };
+
 constexpr uint64_t map_into_sparse_form(const uint8_t input)
 {
     uint64_t out = 0UL;
@@ -69,13 +70,6 @@ constexpr uint8_t map_from_sparse_form(const uint64_t input)
         target -= slice;
         target /= sparse_base;
     }
-
-    if (output >= 256) {
-        std::cout << "error bad output. value and count are " << output << " : " << count << std::endl;
-    }
-    // if (count > 9) {
-    //     std::cout << "odd count > 8, count = " << std::to_string(count) << std::endl;
-    // }
 
     return (uint8_t)output;
 }

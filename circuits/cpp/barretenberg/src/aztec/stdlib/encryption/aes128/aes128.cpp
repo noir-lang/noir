@@ -93,8 +93,8 @@ std::array<field_pt, 16> convert_into_sparse_bytes(waffle::PLookupComposer* ctx,
             bytes[j * 8 + i] = witness_pt(ctx, fr(byte));
 
             field_pt sparse(ctx);
-            sparse.witness_index = ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP,
-                                                        { bytes[j * 8 + i].witness_index, ctx->zero_idx });
+            sparse.witness_index =
+                ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP, bytes[j * 8 + i].witness_index);
 
             sparse_bytes[j * 8 + i] = sparse;
         }
@@ -109,7 +109,6 @@ std::array<field_pt, 16> convert_into_sparse_bytes(waffle::PLookupComposer* ctx,
         scalar = scalar * T1;
         scalar = scalar.add_two(bytes[i] * T0, bytes[i + 1]);
     }
-
     scalar.assert_equal(block_data);
     return sparse_bytes;
 }
@@ -125,8 +124,8 @@ field_pt convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_pt* spars
 
         bytes[i] = witness_pt(ctx, fr(byte));
 
-        uint32_t index =
-            ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP, { bytes[i].witness_index, ctx->zero_idx });
+        uint32_t index = ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP, bytes[i].witness_index);
+
         ctx->assert_equal(index, sparse_bytes[i].witness_index);
     }
 

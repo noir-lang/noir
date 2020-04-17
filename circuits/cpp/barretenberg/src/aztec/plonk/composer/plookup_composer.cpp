@@ -1054,6 +1054,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
 
     for (const auto& table : lookup_tables) {
         const fr table_index(table.table_index);
+
         for (size_t i = 0; i < table.size; ++i) {
             poly_q_table_1[offset] = table.column_1[i];
             poly_q_table_2[offset] = table.column_2[i];
@@ -1061,14 +1062,6 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
             poly_q_table_4[offset] = table_index;
             ++offset;
         }
-    }
-
-    std::vector<waffle::lookup_entry> test;
-    for (size_t i = 0; i < new_n; ++i) {
-        test.emplace_back(waffle::lookup_entry(poly_q_table_1[i].from_montgomery_form(),
-                                               poly_q_table_2[i].from_montgomery_form(),
-                                               poly_q_table_3[i].from_montgomery_form(),
-                                               poly_q_table_4[i].from_montgomery_form()));
     }
 
     add_lookup_selector(poly_q_table_1, "table_value_1");
@@ -1083,21 +1076,21 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
     circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
 
-    auto& lookup_mapping = circuit_proving_key->lookup_mapping;
-    auto& table_indices = circuit_proving_key->table_indices;
+    // auto& lookup_mapping = circuit_proving_key->lookup_mapping;
+    // auto& table_indices = circuit_proving_key->table_indices;
 
-    lookup_mapping.resize(new_n);
-    table_indices.resize(new_n);
-    for (size_t i = 0; i < new_n; ++i) {
-        lookup_mapping[i] = LookupType::NONE;
-    }
+    // lookup_mapping.resize(new_n);
+    // table_indices.resize(new_n);
+    // for (size_t i = 0; i < new_n; ++i) {
+    //     lookup_mapping[i] = LookupType::NONE;
+    // }
 
-    for (const auto& table : lookup_tables) {
-        for (const auto& lookup_entry : table.lookup_gates) {
-            lookup_mapping[lookup_entry.first] = lookup_entry.second;
-            table_indices[lookup_entry.first] = table.table_index;
-        }
-    }
+    // for (const auto& table : lookup_tables) {
+    //     for (const auto& lookup_entry : table.lookup_gates) {
+    //         lookup_mapping[lookup_entry.first] = lookup_entry.second;
+    //         table_indices[lookup_entry.first] = table.table_index;
+    //     }
+    // }
 
     circuit_proving_key->num_lookup_tables = lookup_tables.size();
     circuit_proving_key->lookup_table_step_size = plookup_step_size;
@@ -1219,19 +1212,75 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     polynomial poly_w_2(new_n);
     polynomial poly_w_3(new_n);
     polynomial poly_w_4(new_n);
-    polynomial s(new_n + 1);
+    polynomial s_1(new_n);
+    polynomial s_2(new_n);
+    polynomial s_3(new_n);
+    polynomial s_4(new_n);
     polynomial z_lookup(new_n + 1);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(fr::zero(), poly_w_1[i]);
-        fr::__copy(variables[public_inputs[i]], poly_w_2[i]);
-        fr::__copy(fr::zero(), poly_w_3[i]);
-        fr::__copy(fr::zero(), poly_w_4[i]);
+        poly_w_1[i] = fr(0);
+        poly_w_2[i] = variables[public_inputs[i]];
+        poly_w_3[i] = fr(0);
+        poly_w_4[i] = fr(0);
     }
     for (size_t i = public_inputs.size(); i < new_n; ++i) {
-        fr::__copy(variables[w_l[i - public_inputs.size()]], poly_w_1.at(i));
-        fr::__copy(variables[w_r[i - public_inputs.size()]], poly_w_2.at(i));
-        fr::__copy(variables[w_o[i - public_inputs.size()]], poly_w_3.at(i));
-        fr::__copy(variables[w_4[i - public_inputs.size()]], poly_w_4.at(i));
+        poly_w_1[i] = variables[w_l[i - public_inputs.size()]];
+        poly_w_2[i] = variables[w_r[i - public_inputs.size()]];
+        poly_w_3[i] = variables[w_o[i - public_inputs.size()]];
+        poly_w_4[i] = variables[w_4[i - public_inputs.size()]];
+    }
+
+    size_t count = new_n - tables_size - lookups_size;
+    for (size_t i = 0; i < count; ++i) {
+        s_1[i] = fr::zero();
+        s_2[i] = fr::zero();
+        s_3[i] = fr::zero();
+        s_4[i] = fr::zero();
+    }
+
+    for (auto& table : lookup_tables) {
+        const fr table_index(table.table_index);
+        auto& lookup_gates = table.lookup_gates;
+        for (size_t i = 0; i < table.size; ++i) {
+            if (table.use_twin_keys) {
+                // std::cout << "a " << table.column_1[i].from_montgomery_form().data[0] << ", "
+                //           << table.column_2[i].from_montgomery_form().data[0] << ", "
+                //           << table.column_3[i].from_montgomery_form().data[0] << ", " << std::endl;
+
+                lookup_gates.push_back({
+                    {
+                        table.column_1[i].from_montgomery_form().data[0],
+                        table.column_2[i].from_montgomery_form().data[0],
+                    },
+                    {
+                        table.column_3[i],
+                        fr(0),
+                    },
+                });
+            } else {
+                lookup_gates.push_back({
+                    {
+                        table.column_1[i].from_montgomery_form().data[0],
+                        0,
+                    },
+                    {
+                        table.column_2[i],
+                        table.column_3[i],
+                    },
+                });
+            }
+        }
+
+        std::sort(lookup_gates.begin(), lookup_gates.end());
+
+        for (const auto& entry : lookup_gates) {
+            const auto components = entry.to_sorted_list_components(table.use_twin_keys);
+            s_1[count] = components[0];
+            s_2[count] = components[1];
+            s_3[count] = components[2];
+            s_4[count] = table_index;
+            ++count;
+        }
     }
 
     witness = std::make_shared<program_witness>();
@@ -1239,7 +1288,10 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     witness->wires.insert({ "w_2", std::move(poly_w_2) });
     witness->wires.insert({ "w_3", std::move(poly_w_3) });
     witness->wires.insert({ "w_4", std::move(poly_w_4) });
-    witness->wires.insert({ "s", std::move(s) });
+    witness->wires.insert({ "s", std::move(s_1) });
+    witness->wires.insert({ "s_2", std::move(s_2) });
+    witness->wires.insert({ "s_3", std::move(s_3) });
+    witness->wires.insert({ "s_4", std::move(s_4) });
     witness->wires.insert({ "z_lookup", std::move(z_lookup) });
 
     computed_witness = true;
@@ -1317,12 +1369,10 @@ UnrolledPLookupVerifier PLookupComposer::create_unrolled_verifier()
     return output_state;
 }
 
-void PLookupComposer::initialize_precomputed_table(const LookupTableId id,
-                                                   const size_t size,
-                                                   void (*generator)(size_t,
-                                                                     std::vector<barretenberg::fr>&,
-                                                                     std::vector<barretenberg::fr>&,
-                                                                     std::vector<barretenberg::fr>&))
+void PLookupComposer::initialize_precomputed_table(
+    const LookupTableId id,
+    bool (*generator)(std::vector<fr>&, std ::vector<fr>&, std::vector<fr>&),
+    std::array<fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>))
 {
     for (auto table : lookup_tables) {
         ASSERT(table.id != id);
@@ -1330,9 +1380,9 @@ void PLookupComposer::initialize_precomputed_table(const LookupTableId id,
     LookupTable new_table;
     new_table.id = id;
     new_table.table_index = lookup_tables.size() + 1;
-    new_table.size = size;
-    generator(size, new_table.column_1, new_table.column_2, new_table.column_3);
-
+    new_table.use_twin_keys = generator(new_table.column_1, new_table.column_2, new_table.column_3);
+    new_table.size = new_table.column_1.size();
+    new_table.get_values_from_key = get_values_from_key;
     lookup_tables.emplace_back(new_table);
 }
 
@@ -1346,16 +1396,19 @@ PLookupComposer::LookupTable& PLookupComposer::get_table(const LookupTableId id)
     // Hmm. table doesn't exist! try to create it
     switch (id) {
     case AES_SPARSE_MAP: {
-        initialize_precomputed_table(AES_SPARSE_MAP, 256, &aes_tables::generate_aes_sparse_map);
+        initialize_precomputed_table(
+            AES_SPARSE_MAP, &aes_tables::generate_aes_sparse_map, &aes_tables::get_aes_sparse_values_from_key);
         return get_table(id);
     }
     case AES_SBOX_MAP: {
-        initialize_precomputed_table(AES_SBOX_MAP, 256, &aes_tables::generate_aes_sbox_map);
+        initialize_precomputed_table(
+            AES_SBOX_MAP, &aes_tables::generate_aes_sbox_map, &aes_tables::get_aes_sbox_values_from_key);
         return get_table(id);
     }
     case AES_SPARSE_NORMALIZE: {
-        initialize_precomputed_table(
-            AES_SPARSE_NORMALIZE, 9 * 9 * 9 * 9, &aes_tables::generate_aes_sparse_normalization_map);
+        initialize_precomputed_table(AES_SPARSE_NORMALIZE,
+                                     &aes_tables::generate_aes_sparse_normalization_map,
+                                     &aes_tables::get_aes_sparse_normalization_values_from_key);
         return get_table(id);
     }
     default: {
@@ -1368,7 +1421,14 @@ void PLookupComposer::validate_lookup(const LookupTableId id, const std::array<u
 {
     LookupTable& table = get_table(id);
 
-    table.lookup_gates.push_back(std::make_pair(static_cast<uint32_t>(n), LookupType::ABSOLUTE_LOOKUP));
+    table.lookup_gates.push_back({ {
+                                       variables[indices[0]].from_montgomery_form().data[0],
+                                       variables[indices[1]].from_montgomery_form().data[0],
+                                   },
+                                   {
+                                       variables[indices[2]],
+                                       fr(0),
+                                   } });
 
     q_lookup_type.emplace_back(fr::one());
     q_lookup_index.emplace_back(fr(table.table_index));
@@ -1403,27 +1463,32 @@ void PLookupComposer::validate_lookup(const LookupTableId id, const std::array<u
     ++n;
 }
 
-uint32_t PLookupComposer::read_from_table(const LookupTableId id, const std::pair<uint32_t, uint32_t> key)
+uint32_t PLookupComposer::read_from_table(const LookupTableId id,
+                                          const uint32_t first_key_idx,
+                                          const uint32_t second_key_idx)
 {
+    const std::array<uint32_t, 2> key_indices{
+        first_key_idx,
+        second_key_idx == UINT32_MAX ? zero_idx : second_key_idx,
+    };
+
+    const std::array<uint64_t, 2> keys{
+        variables[key_indices[0]].from_montgomery_form().data[0],
+        variables[key_indices[1]].from_montgomery_form().data[0],
+    };
+
     LookupTable& table = get_table(id);
-    const uint64_t table_bits = numeric::get_msb(table.size) / 2;
-    const uint64_t table_step = 1ULL << table_bits;
-    const uint256_t left_val = variables[key.first];
-    const uint256_t right_val = variables[key.second];
-    const size_t index = static_cast<size_t>(left_val.data[0]) + static_cast<size_t>(right_val.data[0]) * table_step;
 
-    ASSERT(table.column_1[index] == variables[key.first]);
-    ASSERT(table.column_2[index] == variables[key.second]);
-    const fr value = table.column_3[index];
+    const auto values = table.get_values_from_key(keys);
 
-    uint32_t value_index = add_variable(value);
+    const uint32_t value_index = add_variable(table.get_values_from_key(keys)[0]);
 
-    table.lookup_gates.push_back(std::make_pair(static_cast<uint32_t>(n), LookupType::ABSOLUTE_LOOKUP));
+    table.lookup_gates.push_back({ keys, values });
 
     q_lookup_type.emplace_back(fr::one());
     q_lookup_index.emplace_back(fr(table.table_index));
-    w_l.emplace_back(key.first);
-    w_r.emplace_back(key.second);
+    w_l.emplace_back(key_indices[0]);
+    w_r.emplace_back(key_indices[1]);
     w_o.emplace_back(value_index);
     w_4.emplace_back(zero_idx);
     q_1.emplace_back(fr(0));
@@ -1442,12 +1507,12 @@ uint32_t PLookupComposer::read_from_table(const LookupTableId id, const std::pai
     epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
     epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
 
-    ASSERT(wire_epicycles.size() > key.first);
-    ASSERT(wire_epicycles.size() > key.second);
+    ASSERT(wire_epicycles.size() > key_indices[0]);
+    ASSERT(wire_epicycles.size() > key_indices[1]);
     ASSERT(wire_epicycles.size() > value_index);
 
-    wire_epicycles[static_cast<size_t>(key.first)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(key.second)].emplace_back(right);
+    wire_epicycles[static_cast<size_t>(key_indices[0])].emplace_back(left);
+    wire_epicycles[static_cast<size_t>(key_indices[1])].emplace_back(right);
     wire_epicycles[static_cast<size_t>(value_index)].emplace_back(out);
 
     ++n;
@@ -1455,106 +1520,74 @@ uint32_t PLookupComposer::read_from_table(const LookupTableId id, const std::pai
     return value_index;
 }
 
-std::pair<uint32_t, uint32_t> PLookupComposer::read_from_table(const LookupTableId id, const uint32_t key)
-{
-    LookupTable& table = get_table(id);
-
-    const uint256_t left_val = variables[key];
-    const size_t index = static_cast<size_t>(left_val.data[0]);
-
-    ASSERT(table.column_1[index] == variables[key]);
-    const fr value_1 = table.column_2[index];
-    const fr value_2 = table.column_3[index];
-
-    const auto value_indices = std::make_pair(add_variable(value_1), add_variable(value_2));
-
-    table.lookup_gates.push_back(std::make_pair(static_cast<uint32_t>(n), LookupType::ABSOLUTE_LOOKUP));
-
-    q_lookup_type.emplace_back(fr::one());
-    q_lookup_index.emplace_back(fr(table.table_index));
-    w_l.emplace_back(key);
-    w_r.emplace_back(value_indices.first);
-    w_o.emplace_back(value_indices.second);
-    w_4.emplace_back(zero_idx);
-    q_1.emplace_back(fr(0));
-    q_2.emplace_back(fr(0));
-    q_3.emplace_back(fr(0));
-    q_m.emplace_back(fr(0));
-    q_c.emplace_back(fr(0));
-    q_arith.emplace_back(fr(0));
-    q_4.emplace_back(fr(0));
-    q_5.emplace_back(fr(0));
-    q_ecc_1.emplace_back(fr(0));
-    q_range.emplace_back(fr(0));
-    q_logic.emplace_back(fr(0));
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > key);
-    ASSERT(wire_epicycles.size() > value_indices.first);
-    ASSERT(wire_epicycles.size() > value_indices.second);
-
-    wire_epicycles[static_cast<size_t>(key)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(value_indices.first)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(value_indices.second)].emplace_back(out);
-
-    ++n;
-
-    return value_indices;
-}
-
 std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTableId id,
-                                                                const std::vector<std::pair<uint32_t, uint32_t>>& keys)
+                                                                const std::vector<std::array<uint32_t, 2>>& key_indices)
 {
-    std::vector<uint32_t> value_indices;
+    const size_t num_lookups = key_indices.size();
+
     LookupTable& table = get_table(id);
 
-    const size_t num_lookups = keys.size();
+    if (num_lookups == 0) {
+        return std::vector<uint32_t>();
+    }
+    std::vector<uint32_t> value_indices;
+
+    std::vector<std::array<uint64_t, 2>> keys;
+    keys.reserve(key_indices.size());
+
+    std::array<uint64_t, 2> previous_key{
+        variables[key_indices[0][0]].from_montgomery_form().data[0],
+        variables[key_indices[0][1]].from_montgomery_form().data[0],
+    };
+
+    const uint64_t step = plookup_step_size.from_montgomery_form().data[0];
 
     std::vector<fr> lookup_values;
+    lookup_values.resize(num_lookups);
+
     for (size_t i = 0; i < num_lookups; ++i) {
-        uint256_t left_val;
-        uint256_t right_val;
-        if (i < num_lookups - 1) {
-            left_val = (variables[keys[i].first] - variables[keys[i + 1].first] * plookup_step_size);
-            right_val = (variables[keys[i].second] - variables[keys[i + 1].second] * plookup_step_size);
+        std::array<uint64_t, 2> difference_key{};
+        std::array<uint64_t, 2> key{};
+        fr value;
+
+        if (i == num_lookups - 1) {
+            difference_key = previous_key;
+            key = previous_key;
         } else {
-            left_val = variables[keys[i].first];
-            right_val = variables[keys[i].second];
+            difference_key = {
+                variables[key_indices[i + 1][0]].from_montgomery_form().data[0],
+                variables[key_indices[i + 1][1]].from_montgomery_form().data[0],
+            };
+            key = {
+                previous_key[0] - difference_key[0] * step,
+                previous_key[1] - difference_key[1] * step,
+            };
         }
 
-        const uint64_t table_bits = numeric::get_msb(table.size) / 2;
-        const uint64_t table_step = 1ULL << table_bits;
+        value = table.get_values_from_key(key)[0];
+        lookup_values[num_lookups - 1 - i] = (value);
 
-        const size_t index =
-            static_cast<size_t>(left_val.data[0]) + static_cast<size_t>(right_val.data[0]) * table_step;
+        previous_key = difference_key;
 
-        ASSERT(table.column_1[index] == left_val);
-        ASSERT(table.column_2[index] == right_val);
-
-        const fr value = table.column_3[index];
-        lookup_values.emplace_back(value);
+        table.lookup_gates.push_back({
+            key,
+            { value, fr(0) },
+        });
     }
+
     for (size_t i = num_lookups - 2; i < num_lookups; --i) {
         lookup_values[i] += plookup_step_size * lookup_values[i + 1];
     }
 
     for (size_t i = 0; i < num_lookups; ++i) {
-        uint32_t value_index = add_variable(lookup_values[i]);
+        const uint32_t value_idx = add_variable(lookup_values[i]);
+        value_indices.push_back(value_idx);
 
-        if (i < num_lookups - 1) {
-            table.lookup_gates.push_back(std::make_pair(static_cast<uint32_t>(n), LookupType::RELATIVE_LOOKUP));
-            q_lookup_type.emplace_back(fr(2));
-        } else {
-            table.lookup_gates.push_back(std::make_pair(static_cast<uint32_t>(n), LookupType::ABSOLUTE_LOOKUP));
-            q_lookup_type.emplace_back(fr(1));
-        }
+        q_lookup_type.emplace_back(i == (num_lookups - 1) ? fr(1) : fr(2));
         q_lookup_index.emplace_back(fr(table.table_index));
-        w_l.emplace_back(keys[i].first);
-        w_r.emplace_back(keys[i].second);
-        w_o.emplace_back(value_index);
+        w_l.emplace_back(key_indices[i][0]);
+        w_r.emplace_back(key_indices[i][1]);
+        w_o.emplace_back(value_idx);
         w_4.emplace_back(zero_idx);
         q_1.emplace_back(fr(0));
         q_2.emplace_back(fr(0));
@@ -1572,18 +1605,16 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTabl
         epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
         epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
 
-        ASSERT(wire_epicycles.size() > keys[i].first);
-        ASSERT(wire_epicycles.size() > keys[i].second);
-        ASSERT(wire_epicycles.size() > value_index);
+        ASSERT(wire_epicycles.size() > key_indices[i][0]);
+        ASSERT(wire_epicycles.size() > key_indices[i][1]);
+        ASSERT(wire_epicycles.size() > value_idx);
 
-        wire_epicycles[static_cast<size_t>(keys[i].first)].emplace_back(left);
-        wire_epicycles[static_cast<size_t>(keys[i].second)].emplace_back(right);
-        wire_epicycles[static_cast<size_t>(value_index)].emplace_back(out);
+        wire_epicycles[static_cast<size_t>(key_indices[i][0])].emplace_back(left);
+        wire_epicycles[static_cast<size_t>(key_indices[i][1])].emplace_back(right);
+        wire_epicycles[static_cast<size_t>(value_idx)].emplace_back(out);
 
         ++n;
-        value_indices.push_back(value_index);
     }
-
     return value_indices;
 }
 

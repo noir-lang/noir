@@ -11,31 +11,34 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-void generate_xor_table(const size_t size,
-                        std::vector<fr>& column_1,
-                        std::vector<fr>& column_2,
-                        std::vector<fr>& column_3)
+bool generate_xor_table(std::vector<fr>& column_1, std::vector<fr>& column_2, std::vector<fr>& column_3)
 {
-    const size_t num_bits = numeric::get_msb(static_cast<uint64_t>(size));
+    const size_t num_bits = numeric::get_msb(static_cast<uint64_t>(256));
     const size_t num_entries = 1UL << (num_bits / 2);
+
     for (size_t i = 0; i < num_entries; ++i) {
         for (size_t j = 0; j < num_entries; ++j) {
             uint64_t left = static_cast<uint64_t>(j);
             uint64_t right = static_cast<uint64_t>(i);
             uint64_t output = left ^ right;
-            column_1.emplace_back(fr(left));
-            column_2.emplace_back(fr(right));
+            column_1.emplace_back(fr(right));
+            column_2.emplace_back(fr(left));
             column_3.emplace_back(fr(output));
         }
     }
+    return true;
+}
+
+std::array<barretenberg::fr, 2> get_values_from_key(const std::array<uint64_t, 2> key)
+{
+    return { fr(key[0] ^ key[1]), fr(0) };
 }
 
 TEST(plookup_composer, read_from_table_with_key_pair)
 {
-    const size_t table_size = 256;
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
+    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {
@@ -44,38 +47,18 @@ TEST(plookup_composer, read_from_table_with_key_pair)
             uint32_t left_idx = composer.add_variable(fr(left));
             uint32_t right_idx = composer.add_variable(fr(right));
 
-            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, { left_idx, right_idx });
+            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, left_idx, right_idx);
 
             EXPECT_EQ(composer.get_variable(result_idx), fr(left ^ right));
         }
     }
 }
 
-TEST(plookup_composer, read_from_table_with_single_key)
-{
-    const size_t table_size = 256;
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
-
-    for (size_t j = 0; j < 16; ++j) {
-        uint64_t left = static_cast<uint64_t>(j);
-        uint64_t right = static_cast<uint64_t>(0);
-        uint32_t left_idx = composer.add_variable(fr(left));
-
-        auto result_indices = composer.read_from_table(waffle::LookupTableId::XOR, left_idx);
-
-        EXPECT_EQ(composer.get_variable(result_indices.first), fr(right));
-        EXPECT_EQ(composer.get_variable(result_indices.second), fr(left ^ right));
-    }
-}
-
 TEST(plookup_composer, read_sequence_from_table)
 {
-    const size_t table_size = 256;
     waffle::PLookupComposer composer = waffle::PLookupComposer();
     composer.plookup_step_size = fr(4);
-    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
+    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; i += 2) {
         for (size_t j = 0; j < 16; j += 2) {
@@ -147,10 +130,9 @@ TEST(plookup_composer, read_sequence_from_table)
 
 TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
 {
-    const size_t table_size = 256;
     waffle::PLookupComposer composer = waffle::PLookupComposer();
     composer.plookup_step_size = fr(4);
-    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
+    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {
@@ -159,7 +141,7 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
             uint32_t left_idx = composer.add_variable(fr(left));
             uint32_t right_idx = composer.add_variable(fr(right));
 
-            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, { left_idx, right_idx });
+            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, left_idx, right_idx);
 
             uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
             composer.create_big_add_gate(
@@ -175,10 +157,6 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
         auto& selector = origin ? key->permutation_selector_ffts.at(tag) : key->constraint_selector_ffts.at(tag);
         selector.coset_ifft(key->large_domain);
         selector.fft(key->large_domain);
-        selector[key->large_domain.size] = selector[0];
-        selector[key->large_domain.size + 1] = selector[1];
-        selector[key->large_domain.size + 2] = selector[2];
-        selector[key->large_domain.size + 3] = selector[3];
     };
 
     adjust_ffts("table_value_1_fft", true);
@@ -231,10 +209,6 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
                 poly_fft[i] = 0;
             }
             poly_fft.fft(key->large_domain);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
         };
 
         adjust_witness_fft("w_1", true);
@@ -267,10 +241,9 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
 
 TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 {
-    const size_t table_size = 256;
     waffle::PLookupComposer composer = waffle::PLookupComposer();
     composer.plookup_step_size = fr(4);
-    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
+    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; i += 2) {
         for (size_t j = 0; j < 16; j += 2) {
@@ -409,10 +382,9 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 
 TEST(plookup_composer, test_relative_lookup_proof)
 {
-    const size_t table_size = 256;
     waffle::PLookupComposer composer = waffle::PLookupComposer();
     composer.plookup_step_size = fr(4);
-    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, table_size, &generate_xor_table);
+    composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {
@@ -421,7 +393,7 @@ TEST(plookup_composer, test_relative_lookup_proof)
             uint32_t left_idx = composer.add_variable(fr(left));
             uint32_t right_idx = composer.add_variable(fr(right));
 
-            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, { left_idx, right_idx });
+            uint32_t result_idx = composer.read_from_table(waffle::LookupTableId::XOR, left_idx, right_idx);
 
             uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
             composer.create_big_add_gate(

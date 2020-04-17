@@ -7,13 +7,35 @@ class PLookupComposer : public ComposerBase {
 
   public:
     struct LookupTable {
+        struct KeyEntry {
+            std::array<uint64_t, 2> key;
+            std::array<barretenberg::fr, 2> value;
+            bool operator<(const KeyEntry& other) const
+            {
+                return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
+            }
+
+            std::array<fr, 3> to_sorted_list_components(const bool use_two_keys) const
+            {
+                return {
+                    fr(key[0]),
+                    use_two_keys ? fr(key[1]) : value[0],
+                    use_two_keys ? value[0] : value[1],
+                };
+            }
+        };
+
         LookupTableId id;
         size_t table_index;
         size_t size;
+        bool use_twin_keys;
+
         std::vector<fr> column_1;
-        std::vector<fr> column_2;
         std::vector<fr> column_3;
-        std::vector<std::pair<uint32_t, LookupType>> lookup_gates;
+        std::vector<fr> column_2;
+        std::vector<KeyEntry> lookup_gates;
+
+        std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
     };
 
     PLookupComposer();
@@ -38,20 +60,20 @@ class PLookupComposer : public ComposerBase {
     UnrolledPLookupProver create_unrolled_prover();
     UnrolledPLookupVerifier create_unrolled_verifier();
 
-    void initialize_precomputed_table(const LookupTableId id,
-                                      const size_t size,
-                                      void (*generator)(size_t,
-                                                        std::vector<barretenberg::fr>&,
-                                                        std::vector<barretenberg::fr>&,
-                                                        std::vector<barretenberg::fr>&));
+    void initialize_precomputed_table(
+        const LookupTableId id,
+        bool (*generator)(std::vector<barretenberg::fr>&,
+                          std::vector<barretenberg::fr>&,
+                          std::vector<barretenberg::fr>&),
+        std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
 
     LookupTable& get_table(const LookupTableId id);
 
-    uint32_t read_from_table(const LookupTableId id, const std::pair<uint32_t, uint32_t> key);
-    std::pair<uint32_t, uint32_t> read_from_table(const LookupTableId id, const uint32_t key);
+    uint32_t read_from_table(const LookupTableId id, const uint32_t key_a, const uint32_t key_b = UINT32_MAX);
+    // std::pair<uint32_t, uint32_t> read_from_table(const LookupTableId id, const uint32_t key);
 
     std::vector<uint32_t> read_sequence_from_table(const LookupTableId id,
-                                                   const std::vector<std::pair<uint32_t, uint32_t>>& key_indices);
+                                                   const std::vector<std::array<uint32_t, 2>>& key_indices);
 
     void validate_lookup(const LookupTableId id, const std::array<uint32_t, 3> keys);
     void create_dummy_gate();

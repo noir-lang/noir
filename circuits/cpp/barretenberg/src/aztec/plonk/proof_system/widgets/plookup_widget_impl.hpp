@@ -37,201 +37,28 @@ ProverPLookupWidget& ProverPLookupWidget::operator=(ProverPLookupWidget&& other)
     return *this;
 }
 
-struct lookup_entry {
-    lookup_entry(const fr& a, const fr& b, const fr& c, const fr& d)
-        : data{ a, b, c, d }
-    {}
-
-    lookup_entry() {}
-
-    lookup_entry(const lookup_entry& other)
-        : data{ other.data[0], other.data[1], other.data[2], other.data[3] }
-    {}
-
-    lookup_entry(lookup_entry&& other)
-        : data{ other.data[0], other.data[1], other.data[2], other.data[3] }
-    {}
-
-    lookup_entry& operator=(const lookup_entry& other)
-    {
-        data[0] = other.data[0];
-        data[1] = other.data[1];
-        data[2] = other.data[2];
-        data[3] = other.data[3];
-        return *this;
-    }
-
-    lookup_entry& operator=(lookup_entry&& other)
-    {
-        data[0] = other.data[0];
-        data[1] = other.data[1];
-        data[2] = other.data[2];
-        data[3] = other.data[3];
-        return *this;
-    }
-
-    bool operator<(const lookup_entry& other) const
-    {
-        bool result = (data[3].data[3] < other.data[3].data[3]);
-
-        bool eq_check = data[3].data[3] == other.data[3].data[3];
-        result = result || (eq_check && data[3].data[2] < other.data[3].data[2]);
-
-        eq_check = eq_check && (data[3].data[2] == other.data[3].data[2]);
-        result = result || (eq_check && data[3].data[1] < other.data[3].data[1]);
-
-        eq_check = eq_check && (data[3].data[1] == other.data[3].data[1]);
-        result = result || (eq_check && data[3].data[0] < other.data[3].data[0]);
-
-        eq_check = eq_check && (data[3].data[0] == other.data[3].data[0]);
-        result = result || (eq_check && data[1].data[3] < other.data[1].data[3]);
-
-        eq_check = eq_check && (data[1].data[3] == other.data[1].data[3]);
-        result = result || (eq_check && data[1].data[2] < other.data[1].data[2]);
-
-        eq_check = eq_check && (data[1].data[2] == other.data[1].data[2]);
-        result = result || (eq_check && data[1].data[1] < other.data[1].data[1]);
-
-        eq_check = eq_check && (data[1].data[1] == other.data[1].data[1]);
-        result = result || (eq_check && data[1].data[0] < other.data[1].data[0]);
-
-        eq_check = eq_check && (data[1].data[0] == other.data[1].data[0]);
-        result = result || (eq_check && data[0].data[3] < other.data[0].data[3]);
-
-        eq_check = eq_check && (data[0].data[3] == other.data[0].data[3]);
-        result = result || (eq_check && data[0].data[2] < other.data[0].data[2]);
-
-        eq_check = eq_check && (data[0].data[2] == other.data[0].data[2]);
-        result = result || (eq_check && data[0].data[1] < other.data[0].data[1]);
-
-        eq_check = eq_check && (data[0].data[1] == other.data[0].data[1]);
-        result = result || (eq_check && data[0].data[0] < other.data[0].data[0]);
-
-        eq_check = eq_check && (data[0].data[0] == other.data[0].data[0]);
-        result = result || (eq_check && data[2].data[3] < other.data[2].data[3]);
-
-        eq_check = eq_check && (data[2].data[3] == other.data[2].data[3]);
-        result = result || (eq_check && data[2].data[2] < other.data[2].data[2]);
-
-        eq_check = eq_check && (data[2].data[2] == other.data[2].data[2]);
-        result = result || (eq_check && data[2].data[1] < other.data[2].data[1]);
-
-        eq_check = eq_check && (data[2].data[1] == other.data[2].data[1]);
-        result = result || (eq_check && data[2].data[0] < other.data[2].data[0]);
-
-        return result;
-    }
-    fr data[4];
-};
-
 void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript& transcript)
 {
-    polynomial& s = witness->wires.at("s");
-    const auto& lookup_mapping = key->lookup_mapping;
-    const auto& table_indices = key->table_indices;
-    const auto step_size = key->lookup_table_step_size;
-    const auto num_lookup_tables = key->num_lookup_tables;
+    auto& s_1 = witness->wires.at("s");
+    fr* s_2 = &witness->wires.at("s_2")[0];
+    fr* s_3 = &witness->wires.at("s_3")[0];
+    fr* s_4 = &witness->wires.at("s_4")[0];
 
     const auto eta = fr::serialize_from_buffer(transcript.get_challenge("eta", 0).begin());
 
-    const auto eta_sqr = eta.sqr();
-    const auto eta_cube = eta_sqr * eta;
-    // const auto beta = fr::serialize_from_buffer(transcript.get_challenge("beta", 0).begin());
-    // const auto gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    fr T0 = s_4[i];
+    T0 *= eta;
+    T0 += s_3[i];
+    T0 *= eta;
+    T0 += s_2[i];
+    T0 *= eta;
+    s_1[i] += T0;
+    ITERATE_OVER_DOMAIN_END;
 
-    std::vector<fr> table_values;
-    for (size_t i = 0; i < num_lookup_tables + 1; ++i) {
-        table_values.push_back(fr(i));
-    }
-
-    std::vector<std::vector<lookup_entry>> unsorted_lists;
-    for (size_t i = 0; i < num_lookup_tables + 1; ++i) {
-        unsorted_lists.emplace_back(std::vector<lookup_entry>());
-    }
-
-    fr* w_1 = &key->wire_ffts.at("w_1_fft")[0];
-    fr* w_2 = &key->wire_ffts.at("w_2_fft")[0];
-    fr* w_3 = &key->wire_ffts.at("w_3_fft")[0];
-
-    const size_t block_mask = key->small_domain.size - 1;
-    for (size_t i = 0; i < key->small_domain.size; ++i) {
-        switch (lookup_mapping[i]) {
-        case LookupType::ABSOLUTE_LOOKUP: {
-            unsorted_lists[table_indices[i]].emplace_back(
-                lookup_entry(w_1[i], w_2[i], w_3[i], table_values[table_indices[i]]));
-            break;
-        }
-        case LookupType::RELATIVE_LOOKUP: {
-            auto t0 = w_1[i] - w_1[(i + 1) & block_mask] * step_size;
-            auto t1 = w_2[i] - w_2[(i + 1) & block_mask] * step_size;
-            auto t2 = w_3[i] - w_3[(i + 1) & block_mask] * step_size;
-            unsorted_lists[table_indices[i]].emplace_back(lookup_entry(t0, t1, t2, table_values[table_indices[i]]));
-            break;
-        }
-        default: {
-            unsorted_lists[0].emplace_back(fr::zero(), fr::zero(), fr::zero(), fr::zero());
-            break;
-        }
-        }
-    }
-
-    std::array<fr*, 4> lagrange_base_tables{
-        &key->permutation_selectors_lagrange_base.at("table_value_1")[0],
-        &key->permutation_selectors_lagrange_base.at("table_value_2")[0],
-        &key->permutation_selectors_lagrange_base.at("table_value_3")[0],
-        &key->permutation_selectors_lagrange_base.at("table_value_4")[0],
-    };
-
-    for (size_t i = 0; i < key->small_domain.size; ++i) {
-        uint256_t index(lagrange_base_tables[3][i]);
-        if (index != uint256_t(0)) {
-            unsorted_lists[static_cast<size_t>(index.data[0])].emplace_back(lagrange_base_tables[0][i],
-                                                                            lagrange_base_tables[1][i],
-                                                                            lagrange_base_tables[2][i],
-                                                                            lagrange_base_tables[3][i]);
-        }
-    }
-
-    for (size_t i = 1; i < num_lookup_tables + 1; ++i) {
-        for (auto& item : unsorted_lists[i]) {
-            item.data[0] = item.data[0].from_montgomery_form();
-            item.data[1] = item.data[1].from_montgomery_form();
-            item.data[2] = item.data[2].from_montgomery_form();
-            item.data[3] = item.data[3].from_montgomery_form();
-        }
-        std::sort(unsorted_lists[i].begin(), unsorted_lists[i].end());
-        for (auto& item : unsorted_lists[i]) {
-            item.data[0] = item.data[0].to_montgomery_form();
-            item.data[1] = item.data[1].to_montgomery_form();
-            item.data[2] = item.data[2].to_montgomery_form();
-            item.data[3] = item.data[3].to_montgomery_form();
-        }
-    }
-
-    size_t num_set_union_elements = 0;
-    for (size_t i = 1; i < unsorted_lists.size(); ++i) {
-        num_set_union_elements += unsorted_lists[i].size();
-    }
-    size_t offset = key->small_domain.size - num_set_union_elements;
-    size_t count = offset;
-
-    for (size_t i = 1; i < unsorted_lists.size(); ++i) {
-        auto list = unsorted_lists[i];
-
-        for (auto element : list) {
-            s[count] = element.data[0] + element.data[1] * eta + element.data[2] * eta_sqr + element.data[3] * eta_cube;
-            ++count;
-        }
-    }
-    for (size_t i = 0; i < offset; ++i) {
-        s[i] = fr::zero();
-    }
-
-    s[key->small_domain.size] = s[0];
-
-    polynomial s_lagrange_base(s, key->small_domain.size);
+    polynomial s_lagrange_base(s_1, key->small_domain.size);
     witness->wires.insert({ "s_lagrange_base", s_lagrange_base });
-    s.ifft(key->small_domain);
+    s_1.ifft(key->small_domain);
 }
 
 void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcript& transcript)
