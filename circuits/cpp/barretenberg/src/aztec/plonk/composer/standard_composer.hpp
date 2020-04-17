@@ -95,7 +95,6 @@ class StandardComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    uint32_t zero_idx = 0;
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;

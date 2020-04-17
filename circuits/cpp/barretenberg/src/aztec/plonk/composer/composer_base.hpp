@@ -166,6 +166,8 @@ class ComposerBase {
     virtual std::shared_ptr<proving_key> compute_proving_key();
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual std::shared_ptr<program_witness> compute_witness() = 0;
+    template <class program_settings> std::shared_ptr<program_witness> compute_witness_base();
+    uint32_t zero_idx = 0;
 
     virtual bool supports_feature(const Features target_feature)
     {
@@ -248,5 +250,7 @@ class ComposerBase {
 
 extern template void ComposerBase::compute_sigma_permutations<3>(proving_key* key);
 extern template void ComposerBase::compute_sigma_permutations<4>(proving_key* key);
+extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<standard_settings>();
+extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<turbo_settings>();
 
 } // namespace waffle
