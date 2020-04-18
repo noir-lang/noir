@@ -1,7 +1,6 @@
 #include "join_split_tx.hpp"
 #include "tx_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
-#include <common/net.hpp>
 
 namespace rollup {
 namespace client_proofs {
@@ -9,72 +8,83 @@ namespace join_split {
 
 using namespace barretenberg;
 
-std::vector<uint8_t> join_split_tx::to_buffer() {
-    std::vector<uint8_t> buf(4636);
-    auto buffer = buf.data();
-    grumpkin::g1::affine_element::serialize_to_buffer(owner_pub_key, buffer);
-    buffer += 64;
-    *reinterpret_cast<uint32_t*>(buffer) = htonl(public_input);
-    buffer += 4;
-    *reinterpret_cast<uint32_t*>(buffer) = htonl(public_output);
-    buffer += 4;
-    *reinterpret_cast<uint32_t*>(buffer) = htonl(num_input_notes);
-    buffer += 4;
-
-    merkle_tree::serialize_hash_path(input_note_hash_paths[0], buffer);
-    buffer += 32 * 64;
-    merkle_tree::serialize_hash_path(input_note_hash_paths[1], buffer);
-    buffer += 32 * 64;
-
-    serialize_tx_note(input_note[0], buffer);
-    buffer += 100;
-    serialize_tx_note(input_note[1], buffer);
-    buffer += 100;
-    serialize_tx_note(output_note[0], buffer);
-    buffer += 100;
-    serialize_tx_note(output_note[1], buffer);
-    buffer += 100;
-
-    std::copy(signature.s.begin(), signature.s.end(), buffer);
-    buffer += 32;
-    std::copy(signature.e.begin(), signature.e.end(), buffer);
-
+std::vector<uint8_t> join_split_tx::to_buffer()
+{
+    std::vector<uint8_t> buf;
+    // Reserve full amount now for optimal efficiency.
+    buf.reserve(64 + (4 * 3) + (64 * 32 * 2) + (100 * 4) + 64);
+    write(buf, *this);
     return buf;
 }
 
-join_split_tx join_split_tx::from_buffer(std::vector<uint8_t> buf)
+join_split_tx join_split_tx::from_buffer(uint8_t* buf)
 {
-    auto buffer = buf.data();
     join_split_tx tx;
-
-    tx.owner_pub_key = grumpkin::g1::affine_element::serialize_from_buffer(buffer);
-    buffer += 64;
-    tx.public_input = ntohl(*reinterpret_cast<uint32_t*>(buffer));
-    buffer += 4;
-    tx.public_output = ntohl(*reinterpret_cast<uint32_t*>(buffer));
-    buffer += 4;
-    tx.num_input_notes = ntohl(*reinterpret_cast<uint32_t*>(buffer));
-    buffer += 4;
-
-    tx.input_note_hash_paths[0] = merkle_tree::deserialize_hash_path(buffer, 32);
-    buffer += 32 * 64;
-    tx.input_note_hash_paths[1] = merkle_tree::deserialize_hash_path(buffer, 32);
-    buffer += 32 * 64;
-
-    tx.input_note[0] = deserialize_tx_note(buffer);
-    buffer += 100;
-    tx.input_note[1] = deserialize_tx_note(buffer);
-    buffer += 100;
-    tx.output_note[0] = deserialize_tx_note(buffer);
-    buffer += 100;
-    tx.output_note[1] = deserialize_tx_note(buffer);
-    buffer += 100;
-
-    std::copy(buffer, buffer + 32, tx.signature.s.data());
-    buffer += 32;
-    std::copy(buffer, buffer + 32, tx.signature.e.data());
-
+    tx.input_path[0].resize(32);
+    tx.input_path[1].resize(32);
+    read(buf, tx);
     return tx;
+}
+
+void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
+{
+    write(buf, tx.owner_pub_key);
+    ::write(buf, tx.public_input);
+    ::write(buf, tx.public_output);
+    ::write(buf, tx.num_input_notes);
+    write(buf, tx.input_index);
+    write(buf, tx.merkle_root);
+    write(buf, tx.input_path);
+    write(buf, tx.input_note);
+    write(buf, tx.output_note);
+    write(buf, tx.signature);
+}
+
+void read(uint8_t*& it, join_split_tx& tx)
+{
+    read(it, tx.owner_pub_key);
+    ::read(it, tx.public_input);
+    ::read(it, tx.public_output);
+    ::read(it, tx.num_input_notes);
+    read(it, tx.input_index);
+    read(it, tx.merkle_root);
+    read(it, tx.input_path);
+    read(it, tx.input_note);
+    read(it, tx.output_note);
+    read(it, tx.signature);
+}
+
+bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
+{
+    return
+        lhs.owner_pub_key == rhs.owner_pub_key &&
+        lhs.public_input == rhs.public_input &&
+        lhs.public_output == rhs.public_output &&
+        lhs.num_input_notes == rhs.num_input_notes &&
+        lhs.input_index == rhs.input_index &&
+        lhs.merkle_root == rhs.merkle_root &&
+        lhs.input_path == rhs.input_path &&
+        lhs.input_note == rhs.input_note &&
+        lhs.output_note == rhs.output_note &&
+        lhs.signature == rhs.signature;
+}
+
+std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
+{
+    return os << "owner: " << tx.owner_pub_key << "\n"
+              << "public_input: " << tx.public_input << "\n"
+              << "public_output: " << tx.public_output << "\n"
+              << "num_input_notes: " << tx.num_input_notes << "\n"
+              << "in_index1: " << tx.input_index[0] << "\n"
+              << "in_index2: " << tx.input_index[1] << "\n"
+              << "merkle_root: " << tx.merkle_root << "\n"
+              << "in_path1: " << tx.input_path[0] << "\n"
+              << "in_path2: " << tx.input_path[1] << "\n"
+              << "in_note1: " << tx.input_note[0] << "\n"
+              << "in_note2: " << tx.input_note[1] << "\n"
+              << "out_note1: " << tx.output_note[0] << "\n"
+              << "out_note2: " << tx.output_note[1] << "\n"
+              << "signature: " << tx.signature << "\n";
 }
 
 } // namespace join_split

@@ -9,35 +9,27 @@ namespace join_split {
 
 using namespace plonk::stdlib;
 
-class join_split_tx {
-public:
-    std::vector<uint8_t> to_buffer();
-    static join_split_tx from_buffer(std::vector<uint8_t> buffer);
-
+struct join_split_tx {
     grumpkin::g1::affine_element owner_pub_key;
     uint32_t public_input;
     uint32_t public_output;
     uint32_t num_input_notes;
-    merkle_tree::fr_hash_path input_note_hash_paths[2];
-    tx_note input_note[2];
-    tx_note output_note[2];
+    std::array<uint32_t, 2> input_index;
+    barretenberg::fr merkle_root;
+    std::array<merkle_tree::fr_hash_path, 2> input_path;
+    std::array<tx_note, 2> input_note;
+    std::array<tx_note, 2> output_note;
     crypto::schnorr::signature signature;
+
+    std::vector<uint8_t> to_buffer();
+    static join_split_tx from_buffer(uint8_t* buf);
 };
 
-inline std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
-{
-    return os << "owner: " << tx.owner_pub_key << "\n"
-              << "public_input: " << tx.public_input << "\n"
-              << "public_output: " << tx.public_output << "\n"
-              << "num_input_notes: " << tx.num_input_notes << "\n"
-              << "in_path1: " << tx.input_note_hash_paths[0] << "\n"
-              << "in_path2: " << tx.input_note_hash_paths[1] << "\n"
-              << "in_note1: " << tx.input_note[0] << "\n"
-              << "in_note2: " << tx.input_note[1] << "\n"
-              << "out_note1: " << tx.output_note[0] << "\n"
-              << "out_note2: " << tx.output_note[1] << "\n"
-              << "signature: " << tx.signature << "\n";
-}
+void read(uint8_t*& it, join_split_tx& tx);
+void write(std::vector<uint8_t>& buf, join_split_tx const& tx);
+
+bool operator==(join_split_tx const& lhs, join_split_tx const& rhs);
+std::ostream& operator<<(std::ostream& os, join_split_tx const& tx);
 
 } // namespace join_split
 } // namespace client_proofs

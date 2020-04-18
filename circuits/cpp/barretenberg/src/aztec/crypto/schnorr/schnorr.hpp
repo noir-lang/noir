@@ -5,6 +5,7 @@
 #include <string>
 
 #include <common/streams.hpp>
+#include <common/serialize.hpp>
 #include <crypto/blake2s/blake2s.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/sha256/sha256.hpp>
@@ -40,9 +41,23 @@ signature_b construct_signature_b(const std::string& message, const key_pair<Fr,
 template <typename Hash, typename Fq, typename Fr, typename G1>
 typename G1::affine_element ecrecover(const std::string& message, const signature_b& sig);
 
+inline bool operator==(signature const& lhs, signature const& rhs) {
+    return lhs.s == rhs.s && lhs.e == rhs.e;
+}
+
 inline std::ostream& operator<<(std::ostream& os, signature const& sig) {
     os << "{ " << sig.s << ", " << sig.e << " }";
     return os;
+}
+
+inline void read(uint8_t*& it, signature& sig) {
+    read(it, sig.s);
+    read(it, sig.e);
+}
+
+inline void write(std::vector<uint8_t>& buf, signature const& sig) {
+    write(buf, sig.s);
+    write(buf, sig.e);
 }
 
 } // namespace schnorr

@@ -29,18 +29,16 @@ WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t cons
 
 WASM_EXPORT void join_split__encrypt_note(uint8_t* note_buffer, uint8_t* output)
 {
-    auto note = rollup::client_proofs::join_split::deserialize_tx_note(note_buffer);
+    rollup::client_proofs::join_split::tx_note note;
+    read(note_buffer, note);
     auto encrypted = rollup::client_proofs::join_split::encrypt_note(note);
     grumpkin::g1::affine_element::serialize_to_buffer(encrypted, output);
 }
 
-WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf, uint32_t buf_length)
+WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf)
 {
-    auto tx =
-        rollup::client_proofs::join_split::join_split_tx::from_buffer({ join_split_buf, join_split_buf + buf_length });
-
+    auto tx = rollup::client_proofs::join_split::join_split_tx::from_buffer(join_split_buf);
     info(tx);
-
     return 0;
 
     // auto prover = rollup::client_proofs::join_split::new_join_split_prover(note, sig);
