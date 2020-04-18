@@ -12,7 +12,7 @@ std::vector<uint8_t> join_split_tx::to_buffer()
 {
     std::vector<uint8_t> buf;
     // Reserve full amount now for optimal efficiency.
-    buf.reserve(64 + (4 * 3) + (64 * 32 * 2) + (100 * 4) + 64);
+    buf.reserve(64 + (4 * 5) + 32 + (64 * 32 * 2) + (100 * 4) + 64);
     write(buf, *this);
     return buf;
 }
@@ -56,17 +56,18 @@ void read(uint8_t*& it, join_split_tx& tx)
 
 bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
 {
-    return
-        lhs.owner_pub_key == rhs.owner_pub_key &&
-        lhs.public_input == rhs.public_input &&
-        lhs.public_output == rhs.public_output &&
-        lhs.num_input_notes == rhs.num_input_notes &&
-        lhs.input_index == rhs.input_index &&
-        lhs.merkle_root == rhs.merkle_root &&
-        lhs.input_path == rhs.input_path &&
-        lhs.input_note == rhs.input_note &&
-        lhs.output_note == rhs.output_note &&
-        lhs.signature == rhs.signature;
+    // clang-format off
+    return lhs.owner_pub_key == rhs.owner_pub_key
+        && lhs.public_input == rhs.public_input
+        && lhs.public_output == rhs.public_output
+        && lhs.num_input_notes == rhs.num_input_notes
+        && lhs.input_index == rhs.input_index
+        && lhs.merkle_root == rhs.merkle_root
+        && lhs.input_path == rhs.input_path
+        && lhs.input_note == rhs.input_note
+        && lhs.output_note == rhs.output_note
+        && lhs.signature == rhs.signature;
+    // clang-format on
 }
 
 std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)

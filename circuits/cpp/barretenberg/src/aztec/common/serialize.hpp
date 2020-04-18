@@ -8,9 +8,9 @@ inline void read(uint8_t*& it, uint8_t& value) {
     it += 1;
 }
 
-inline void write(std::vector<uint8_t>& buf, uint8_t value) {
-    buf.resize(buf.size() + 1);
-    *(buf.end() - 1) = value;
+inline void write(uint8_t*& it, uint8_t value) {
+    *it = value;
+    it += 1;
 }
 
 inline void read(uint8_t*& it, uint16_t& value) {
@@ -18,9 +18,9 @@ inline void read(uint8_t*& it, uint16_t& value) {
     it += 2;
 }
 
-inline void write(std::vector<uint8_t>& buf, uint16_t value) {
-    buf.resize(buf.size() + 2);
-    *reinterpret_cast<uint16_t*>(&*buf.end() - 2) = htons(value);
+inline void write(uint8_t*& it, uint16_t value) {
+    *reinterpret_cast<uint16_t*>(it) = htons(value);
+    it += 2;
 }
 
 inline void read(uint8_t*& it, uint32_t& value) {
@@ -28,9 +28,9 @@ inline void read(uint8_t*& it, uint32_t& value) {
     it += 4;
 }
 
-inline void write(std::vector<uint8_t>& buf, uint32_t value) {
-    buf.resize(buf.size() + 4);
-    *reinterpret_cast<uint32_t*>(&*buf.end() - 4) = htonl(value);
+inline void write(uint8_t*& it, uint32_t value) {
+    *reinterpret_cast<uint32_t*>(it) = htonl(value);
+    it += 4;
 }
 
 inline void read(uint8_t*& it, uint64_t& value) {
@@ -38,9 +38,16 @@ inline void read(uint8_t*& it, uint64_t& value) {
     it += 8;
 }
 
-inline void write(std::vector<uint8_t>& buf, uint64_t value) {
-    buf.resize(buf.size() + 8);
-    *reinterpret_cast<uint64_t*>(&*buf.end() - 8) = htonll(value);
+inline void write(uint8_t*& it, uint64_t value) {
+    *reinterpret_cast<uint64_t*>(it) = htonll(value);
+    it += 8;
+}
+
+template<typename T>
+inline std::enable_if_t<std::is_integral_v<T>> write(std::vector<uint8_t>& buf, T value) {
+    buf.resize(buf.size() + sizeof(T));
+    auto ptr = &*buf.end() - sizeof(T);
+    ::write(ptr, value);
 }
 
 namespace std {
@@ -51,9 +58,16 @@ inline void read(uint8_t*& it, std::array<uint8_t, N>& value) {
 }
 
 template<size_t N>
+inline void write(uint8_t*& buf, std::array<uint8_t, N> const& value) {
+    std::copy(value.begin(), value.end(), buf);
+    buf += N;
+}
+
+template<size_t N>
 inline void write(std::vector<uint8_t>& buf, std::array<uint8_t, N> const& value) {
     buf.resize(buf.size() + N);
-    std::copy(value.begin(), value.end(), buf.end()-N);
+    auto ptr = &*buf.end() - N;
+    write(ptr, value);
 }
 
 template<typename T, size_t N>
@@ -63,8 +77,8 @@ typename std::enable_if_t<std::is_integral_v<T>> read(uint8_t*& it, std::array<T
     }
 }
 
-template<typename T, size_t N>
-inline std::enable_if_t<std::is_integral_v<T>> write(std::vector<uint8_t>& buf, std::array<T, N> const& value) {
+template<typename B, typename T, size_t N>
+inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::array<T, N> const& value) {
     for (size_t i=0; i<N; ++i) {
         ::write(buf, value[i]);
     }
@@ -77,8 +91,8 @@ inline std::enable_if_t<!std::is_integral_v<T>> read(uint8_t*& it, std::array<T,
     }
 }
 
-template<typename T, size_t N>
-inline std::enable_if_t<!std::is_integral_v<T>> write(std::vector<uint8_t>& buf, std::array<T, N> const& value) {
+template<typename B, typename T, size_t N>
+inline std::enable_if_t<!std::is_integral_v<T>> write(B& buf, std::array<T, N> const& value) {
     for (size_t i=0; i<N; ++i) {
         write(buf, value[i]);
     }

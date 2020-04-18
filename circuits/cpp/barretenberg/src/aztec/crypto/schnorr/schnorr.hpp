@@ -55,7 +55,8 @@ inline void read(uint8_t*& it, signature& sig) {
     read(it, sig.e);
 }
 
-inline void write(std::vector<uint8_t>& buf, signature const& sig) {
+template<typename B>
+inline void write(B& buf, signature const& sig) {
     write(buf, sig.s);
     write(buf, sig.e);
 }
