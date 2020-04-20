@@ -37,7 +37,6 @@ WASM_EXPORT void join_split__sign_4_notes(uint8_t* note_buffer, uint8_t* pk_buff
     std::array<tx_note, 4> notes;
     read(note_buffer, notes);
     auto signature = sign_notes(notes, { private_key, public_key });
-    info(signature);
     write(output, signature);
 }
 
@@ -52,13 +51,9 @@ WASM_EXPORT void join_split__encrypt_note(uint8_t* note_buffer, uint8_t* output)
 WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf)
 {
     auto tx = join_split_tx::from_buffer(join_split_buf);
-    info(tx);
-    return 0;
-
-    // auto prover = new_join_split_prover(note, sig);
-
-    // auto heapProver = new Prover(std::move(prover));
-    // return heapProver;
+    auto prover = new_join_split_prover(tx);
+    auto heapProver = new Prover(std::move(prover));
+    return heapProver;
 }
 
 WASM_EXPORT void join_split__delete_prover(void* prover)
