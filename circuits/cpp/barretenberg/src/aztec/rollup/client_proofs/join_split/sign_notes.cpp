@@ -14,15 +14,12 @@ signature sign_notes(std::array<tx_note, 4> const& notes, key_pair<grumpkin::fr,
     std::array<grumpkin::fq, 8> to_compress;
     for (size_t i = 0; i < 4; ++i) {
         auto encrypted = encrypt_note(notes[i]);
-        info("native encrypted note ", i, ": ", encrypted);
         to_compress[i * 2] = encrypted.x;
         to_compress[i * 2 + 1] = encrypted.y;
     }
     fr compressed = compress_eight_native(to_compress);
-    std::cout << "native compressed " << compressed << std::endl;
     std::vector<uint8_t> message(sizeof(fr));
     fr::serialize_to_buffer(compressed, &message[0]);
-    std::cout << "signing " << message << std::endl;
     crypto::schnorr::signature signature =
         crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
             std::string(message.begin(), message.end()), keys);

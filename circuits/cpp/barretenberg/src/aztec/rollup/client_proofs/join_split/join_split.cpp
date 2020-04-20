@@ -83,11 +83,11 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     composer.assert_equal(input_note1_data.first.owner.x.witness_index, input_note2_data.first.owner.x.witness_index);
     composer.assert_equal(input_note1_data.first.owner.y.witness_index, input_note2_data.first.owner.y.witness_index);
 
-    // // Verify that the given signature was signed over all 4 notes using the input note owners private key.
-    // std::array<public_note, 4> notes = {
-    //     input_note1_data.second, input_note2_data.second, output_note1_data.second, output_note2_data.second
-    // };
-    // verify_signature(composer, notes, tx.input_note[0].owner, tx.signature);
+    // Verify that the given signature was signed over all 4 notes using the input note owners private key.
+    std::array<public_note, 4> notes = {
+        input_note1_data.second, input_note2_data.second, output_note1_data.second, output_note2_data.second
+    };
+    verify_signature(composer, notes, tx.input_note[0].owner, tx.signature);
 
     field_ct merkle_root = public_witness_ct(&composer, tx.merkle_root);
     field_ct nullifier1 = process_input_note(
@@ -136,7 +136,7 @@ Prover new_join_split_prover(join_split_tx const& tx)
 
 bool verify_proof(waffle::plonk_proof const& proof)
 {
-    Verifier verifier(verification_key, Composer::create_manifest(7));
+    Verifier verifier(verification_key, Composer::create_manifest(9));
     return verifier.verify_proof(proof);
 }
 
