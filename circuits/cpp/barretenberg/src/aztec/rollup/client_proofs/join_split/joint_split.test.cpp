@@ -46,12 +46,26 @@ class client_proofs_join_split : public ::testing::Test {
         tree->update_element(1, create_leaf_data(enc_note2));
     }
 
+    bool sign_and_verify(join_split_tx& tx)
+    {
+        tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
+                                  { user.private_key, user.public_key });
+
+        auto prover = new_join_split_prover(tx);
+        auto proof = prover.construct_proof();
+        return verify_proof(proof);
+    }
+
     rollup::tx::user_context user;
     std::unique_ptr<merkle_tree::LevelDbStore> tree;
 };
 
 TEST_F(client_proofs_join_split, test_0_input_notes)
 {
+    tx_note gibberish = { user.public_key, 0, fr::random_element() };
+    tx_note output_note1 = { user.public_key, 20, user.note_secret };
+    tx_note output_note2 = { user.public_key, 10, user.note_secret };
+
     join_split_tx tx;
     tx.owner_pub_key = user.public_key;
     tx.public_input = 30;
@@ -61,26 +75,19 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
     tx.merkle_root = tree->root();
     // We can't have zero field elements in our hash paths or it breaks. Why?
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(0) };
-
-    tx_note gibberish = { user.public_key, 0, fr::random_element() };
     tx.input_note = { gibberish, gibberish };
-
-    tx_note output_note1 = { user.public_key, 20, user.note_secret };
-    tx_note output_note2 = { user.public_key, 10, user.note_secret };
     tx.output_note = { output_note1, output_note2 };
 
-    tx.signature =
-        sign_notes({ gibberish, gibberish, output_note1, output_note2 }, { user.private_key, user.public_key });
-
-    auto prover = new_join_split_prover(tx);
-    auto proof = prover.construct_proof();
-    auto verified = verify_proof(proof);
-
-    EXPECT_TRUE(verified);
+    EXPECT_TRUE(sign_and_verify(tx));
 }
 
 TEST_F(client_proofs_join_split, test_2_input_notes)
 {
+    tx_note input_note1 = { user.public_key, 100, user.note_secret };
+    tx_note input_note2 = { user.public_key, 50, user.note_secret };
+    tx_note output_note1 = { user.public_key, 70, user.note_secret };
+    tx_note output_note2 = { user.public_key, 80, user.note_secret };
+
     join_split_tx tx;
     tx.owner_pub_key = user.public_key;
     tx.public_input = 0;
@@ -89,21 +96,29 @@ TEST_F(client_proofs_join_split, test_2_input_notes)
     tx.input_index = { 0, 1 };
     tx.merkle_root = tree->root();
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
-
-    tx_note input_note1 = { user.public_key, 100, user.note_secret };
-    tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx.input_note = { input_note1, input_note2 };
-
-    tx_note output_note1 = { user.public_key, 70, user.note_secret };
-    tx_note output_note2 = { user.public_key, 80, user.note_secret };
     tx.output_note = { output_note1, output_note2 };
 
-    tx.signature =
-        sign_notes({ input_note1, input_note2, output_note1, output_note2 }, { user.private_key, user.public_key });
+    EXPECT_TRUE(sign_and_verify(tx));
+}
 
-    auto prover = new_join_split_prover(tx);
-    auto proof = prover.construct_proof();
-    auto verified = verify_proof(proof);
+TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
+{
+    tx_note input_note1 = { user.public_key, 100, user.note_secret };
+    tx_note input_note2 = { user.public_key, 51, user.note_secret };
+    tx_note output_note1 = { user.public_key, 70, user.note_secret };
+    tx_note output_note2 = { user.public_key, 80, user.note_secret };
 
-    EXPECT_TRUE(verified);
+    join_split_tx tx;
+    tx.owner_pub_key = user.public_key;
+    tx.public_input = 0;
+    tx.public_output = 0;
+    tx.num_input_notes = 2;
+    tx.input_index = { 0, 1 };
+    tx.merkle_root = tree->root();
+    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
+    tx.input_note = { input_note1, input_note2 };
+    tx.output_note = { output_note1, output_note2 };
+
+    EXPECT_FALSE(sign_and_verify(tx));
 }

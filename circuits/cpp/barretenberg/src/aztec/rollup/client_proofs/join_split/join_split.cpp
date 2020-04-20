@@ -75,8 +75,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         field_ct(input_note1_data.first.value) + field_ct(input_note2_data.first.value) + field_ct(public_input);
     field_ct total_out_value =
         field_ct(output_note1_data.first.value) + field_ct(output_note2_data.first.value) + field_ct(public_output);
-    // total_in_value = total_in_value.normalize();
-    // total_out_value = total_out_value.normalize();
     composer.assert_equal(total_in_value.witness_index, total_out_value.witness_index);
 
     // Verify input notes have the same owner.
