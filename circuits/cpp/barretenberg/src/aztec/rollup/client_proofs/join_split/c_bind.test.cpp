@@ -13,6 +13,6 @@ using namespace barretenberg;
 using namespace rollup::client_proofs::join_split;
 using namespace rollup::tx;
 
-TEST(client_proofs_join_split, test_create_c_bindings)
+TEST(client_proofs_join_split_c_bind, test_create_c_bindings)
 {
 }

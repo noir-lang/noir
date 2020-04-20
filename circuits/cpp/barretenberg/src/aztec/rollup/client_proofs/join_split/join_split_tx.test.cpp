@@ -12,7 +12,7 @@
 using namespace barretenberg;
 using namespace rollup::client_proofs::join_split;
 
-TEST(client_proofs_join_split, test_serialization)
+TEST(client_proofs_join_split_tx, test_serialization)
 {
   join_split_tx tx;
   tx.owner_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();

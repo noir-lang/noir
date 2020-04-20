@@ -7,6 +7,8 @@
 #include "note_pair.hpp"
 #include "verify_signature.hpp"
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace client_proofs {
 namespace join_split {
@@ -81,11 +83,11 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     composer.assert_equal(input_note1_data.first.owner.x.witness_index, input_note2_data.first.owner.x.witness_index);
     composer.assert_equal(input_note1_data.first.owner.y.witness_index, input_note2_data.first.owner.y.witness_index);
 
-    // Verify that the given signature was signed over all 4 notes using the input note owners private key.
-    std::array<public_note, 4> notes = {
-        input_note1_data.second, input_note2_data.second, output_note1_data.second, output_note2_data.second
-    };
-    verify_signature(composer, notes, tx.input_note[0].owner, tx.signature);
+    // // Verify that the given signature was signed over all 4 notes using the input note owners private key.
+    // std::array<public_note, 4> notes = {
+    //     input_note1_data.second, input_note2_data.second, output_note1_data.second, output_note2_data.second
+    // };
+    // verify_signature(composer, notes, tx.input_note[0].owner, tx.signature);
 
     field_ct merkle_root = public_witness_ct(&composer, tx.merkle_root);
     field_ct nullifier1 = process_input_note(
@@ -101,6 +103,8 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
 {
     // Junk data required just to create proving key.
     join_split_tx tx;
+    tx.input_path[0].resize(32);
+    tx.input_path[1].resize(32);
 
     Composer composer(std::move(crs_factory));
     join_split_circuit(composer, tx);
@@ -123,6 +127,7 @@ Prover new_join_split_prover(join_split_tx const& tx)
     join_split_circuit(composer, tx);
 
     info("composer gates: ", composer.get_num_gates());
+    info("public inputs: ", composer.public_inputs.size());
 
     Prover prover = composer.create_prover();
 
