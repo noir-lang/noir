@@ -14,7 +14,7 @@ TEST(mimc_composer, test_mimc_gate_proof)
     fr x = fr::random_element();
     fr k = fr::random_element();
 
-    uint32_t x_in_idx = composer.add_variable(x);
+    uint32_t x_in_idx = composer.add_public_variable(x);
     uint32_t k_idx = composer.add_variable(k);
     uint32_t x_out_idx;
     uint32_t x_cubed_idx = 0;

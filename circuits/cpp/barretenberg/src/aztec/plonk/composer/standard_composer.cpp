@@ -566,23 +566,24 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
         q_c.emplace_back(fr::zero());
     }
 
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<cycle_node>& old_cycle_nodes = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<cycle_node> new_cycle_nodes;
-
-        new_cycle_nodes.emplace_back(left);
-        new_cycle_nodes.emplace_back(right);
-        for (size_t i = 0; i < old_cycle_nodes.size(); ++i) {
-            new_cycle_nodes.emplace_back(old_cycle_nodes[i]);
-        }
-        old_cycle_nodes = new_cycle_nodes;
-    }
     auto crs = crs_factory_->get_prover_crs(new_n);
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
+
+    for (size_t i = 0; i < public_inputs.size(); ++i) {
+        cycle_node left{ static_cast<uint32_t>(circuit_proving_key->small_domain.size + i - public_inputs.size()), WireType::LEFT };
+        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
+
+        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
+
+        std::vector<cycle_node> new_cycle;
+
+        new_cycle.emplace_back(left);
+        new_cycle.emplace_back(right);
+        for (size_t i = 0; i < old_cycle.size(); ++i) {
+            new_cycle.emplace_back(old_cycle[i]);
+        }
+        old_cycle = new_cycle;
+    }
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
     polynomial poly_q_1(new_n);
@@ -591,7 +592,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_q_m[i] = fr::zero();
-        poly_q_1[i] = fr::one();
+        poly_q_1[i] = fr::zero();
         poly_q_2[i] = fr::zero();
         poly_q_3[i] = fr::zero();
         poly_q_c[i] = fr::zero();
@@ -675,7 +676,7 @@ std::shared_ptr<program_witness> StandardComposer::compute_witness()
     polynomial poly_w_2 = polynomial(new_n);
     polynomial poly_w_3 = polynomial(new_n);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(fr::zero(), poly_w_1[i]);
+        fr::__copy(variables[public_inputs[i]], poly_w_1[i]);
         fr::__copy(variables[public_inputs[i]], poly_w_2[i]);
         fr::__copy(fr::zero(), poly_w_3[i]);
     }
