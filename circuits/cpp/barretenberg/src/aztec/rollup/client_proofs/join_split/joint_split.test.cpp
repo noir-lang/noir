@@ -59,9 +59,10 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
     tx.num_input_notes = 0;
     tx.input_index = { 0, 0 };
     tx.merkle_root = tree->root();
-    tx.input_path = { merkle_tree::fr_hash_path(32), merkle_tree::fr_hash_path(32) };
+    // We can't have zero field elements in our hash paths or it breaks. Why?
+    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(0) };
 
-    tx_note gibberish = { user.public_key, 123, fr::random_element() };
+    tx_note gibberish = { user.public_key, 0, fr::random_element() };
     tx.input_note = { gibberish, gibberish };
 
     tx_note output_note1 = { user.public_key, 20, user.note_secret };
