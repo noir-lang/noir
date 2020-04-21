@@ -32,6 +32,11 @@ if(WASM)
     set(PROFILING OFF)
 endif()
 
+if(MEMORY_CHECKS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(STATUS "Compiling with memory checks.")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+endif()
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 20)
