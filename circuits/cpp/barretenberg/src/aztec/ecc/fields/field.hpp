@@ -470,8 +470,8 @@ void read(uint8_t*& it, field<Params>& value) {
     value = result.to_montgomery_form();
 }
 
-template <class Params>
-void write(std::vector<uint8_t>& buf, field<Params> const& value) {
+template <typename B, class Params>
+void write(B& buf, field<Params> const& value) {
     const field input = value.from_montgomery_form();
     ::write(buf, input.data[3]);
     ::write(buf, input.data[2]);

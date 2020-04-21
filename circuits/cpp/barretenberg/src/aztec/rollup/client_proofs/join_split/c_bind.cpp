@@ -45,7 +45,8 @@ WASM_EXPORT void join_split__encrypt_note(uint8_t* note_buffer, uint8_t* output)
     tx_note note;
     read(note_buffer, note);
     auto encrypted = encrypt_note(note);
-    grumpkin::g1::affine_element::serialize_to_buffer(encrypted, output);
+    write(output, encrypted.x);
+    write(output, encrypted.y);
 }
 
 WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf)
