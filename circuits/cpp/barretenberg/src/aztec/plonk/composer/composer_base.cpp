@@ -48,19 +48,14 @@ template <size_t program_width> void ComposerBase::compute_sigma_permutations(pr
         }
     }
 
+    for (size_t i = 0; i < num_public_inputs; ++i) {
+        sigma_mappings[0][i] = static_cast<uint32_t>(i + key->small_domain.size);
+    }
     for (size_t i = 0; i < program_width; ++i) {
         std::string index = std::to_string(i + 1);
         barretenberg::polynomial sigma_polynomial(key->n);
         compute_permutation_lagrange_base_single<standard_settings>(
             sigma_polynomial, sigma_mappings[i], key->small_domain);
-
-        if (i == 0) {
-            barretenberg::fr work_root = barretenberg::fr::one();
-            for (size_t j = 0; j < num_public_inputs; ++j) {
-                sigma_polynomial[j] = work_root;
-                work_root *= key->small_domain.root;
-            }
-        }
 
         barretenberg::polynomial sigma_polynomial_lagrange_base(sigma_polynomial);
         key->permutation_selectors_lagrange_base.insert(

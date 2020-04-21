@@ -907,8 +907,7 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        cycle_node left{ static_cast<uint32_t>(circuit_proving_key->small_domain.size + i - public_inputs.size()),
-                         WireType::LEFT };
+        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
 
         std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
