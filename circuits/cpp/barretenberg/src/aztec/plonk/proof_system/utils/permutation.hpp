@@ -59,7 +59,6 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
 
     if (is_public_input) {
         output[i] *= barretenberg::fr::external_coset_generator();
-        std::cout << output[i] << std::endl;
     } else {
         // isolate the highest 2 bits of `permutation[i]` and shunt them down into the 2 least significant bits
         const uint32_t column_index =
