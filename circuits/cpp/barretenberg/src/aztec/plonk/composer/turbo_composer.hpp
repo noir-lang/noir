@@ -28,7 +28,7 @@ class TurboComposer : public ComposerBase {
     TurboComposer& operator=(TurboComposer&& other) = default;
     ~TurboComposer() {}
 
-    std::shared_ptr<proving_key> compute_proving_key() override;
+    virtual std::shared_ptr<proving_key> compute_proving_key() override;
     std::shared_ptr<verification_key> compute_verification_key() override;
     std::shared_ptr<program_witness> compute_witness() override;
 

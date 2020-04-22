@@ -83,8 +83,6 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key()
         ++log2_n;
     }
     size_t new_n = 1UL << log2_n;
-
-
     auto crs = crs_factory_->get_prover_crs(new_n);
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
@@ -104,36 +102,40 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key()
         }
         old_cycle = new_cycle;
     }
-std::cout << "here" << std::endl;
 
-    for (size_t i = 0; i < selector_names.size(); ++i)
-    {   
+    for (size_t i = 0; i < selector_num; ++i) {
+
         std::vector<barretenberg::fr>& coeffs = selectors[i];
+        ASSERT(n == coeffs.size());
+        ASSERT(n == coeffs.size());
         for (size_t j = total_num_gates; j < new_n; ++j) {
-        coeffs.emplace_back(fr::zero());
-        polynomial poly(new_n);
-        for (size_t j = 0; j < public_inputs.size(); ++j)
-        {
-            poly[j] = fr::zero();
+            coeffs.emplace_back(fr::zero());
         }
-        for (size_t j = public_inputs.size(); j < new_n; ++j)
-        {
-            poly[j] = coeffs[j - public_inputs.size()];
+        polynomial poly(new_n);
+
+        for (size_t k = 0; k < public_inputs.size(); ++k) {
+            poly[k] = fr::zero();
+        }
+        for (size_t k = public_inputs.size(); k < new_n; ++k) {
+            poly[k] = coeffs[k - public_inputs.size()];
         }
 
         poly.ifft(circuit_proving_key->small_domain);
-        polynomial poly_fft(poly, circuit_proving_key->large_domain.size);
-        poly.coset_fft(circuit_proving_key->large_domain);
+        polynomial poly_fft(poly, new_n * 4);
 
-    circuit_proving_key->constraint_selectors.insert({ selector_names[i], std::move(poly) });
-    circuit_proving_key->constraint_selector_ffts.insert({ selector_names[i] + "_fft", std::move(poly_fft) });
 
+        if (use_mid_for_selectorfft[i]){
+
+            poly_fft.coset_fft(circuit_proving_key->mid_domain);
+        }
+            
+        else
+            poly_fft.coset_fft(circuit_proving_key->large_domain);
+        circuit_proving_key->constraint_selectors.insert({ selector_names[i], std::move(poly) });
+        circuit_proving_key->constraint_selector_ffts.insert({ selector_names[i] + "_fft", std::move(poly_fft) });
+    
     }
-    }
-std::cout << "here" << std::endl;
 
-
-    //compute_sigma_permutations(circuit_proving_key.get());
 
     return circuit_proving_key;
 }
