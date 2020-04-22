@@ -731,8 +731,7 @@ TEST(scalar_multiplication, pippenger_short_inputs)
 
     fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    g1::affine_element* points = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
         points[i] = g1::affine_element(g1::element::random_element());
@@ -906,6 +905,10 @@ TEST(scalar_multiplication, pippenger_zero_points)
 
     scalar_multiplication::pippenger_runtime_state state(0);
     g1::element result = scalar_multiplication::pippenger(scalars, points, 0, state);
+
+    aligned_free(scalars);
+    aligned_free(points);
+
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }
 
@@ -921,5 +924,9 @@ TEST(scalar_multiplication, pippenger_mul_by_zero)
 
     scalar_multiplication::pippenger_runtime_state state(1);
     g1::element result = scalar_multiplication::pippenger(scalars, points, 1, state);
+
+    aligned_free(scalars);
+    aligned_free(points);
+
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }
