@@ -577,40 +577,7 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
 
 std::shared_ptr<program_witness> StandardComposer::compute_witness()
 {
-    if (computed_witness) {
-        return witness;
-    }
-    witness = std::make_shared<program_witness>();
-
-    const size_t total_num_gates = n + public_inputs.size();
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
-    for (size_t i = total_num_gates; i < new_n; ++i) {
-        w_l.emplace_back(zero_idx);
-        w_r.emplace_back(zero_idx);
-        w_o.emplace_back(zero_idx);
-    }
-    polynomial poly_w_1 = polynomial(new_n);
-    polynomial poly_w_2 = polynomial(new_n);
-    polynomial poly_w_3 = polynomial(new_n);
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(variables[public_inputs[i]], poly_w_1[i]);
-        fr::__copy(variables[public_inputs[i]], poly_w_2[i]);
-        fr::__copy(fr::zero(), poly_w_3[i]);
-    }
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
-        fr::__copy(variables[w_l[i - public_inputs.size()]], poly_w_1.at(i));
-        fr::__copy(variables[w_r[i - public_inputs.size()]], poly_w_2.at(i));
-        fr::__copy(variables[w_o[i - public_inputs.size()]], poly_w_3.at(i));
-    }
-    witness->wires.insert({ "w_1", std::move(poly_w_1) });
-    witness->wires.insert({ "w_2", std::move(poly_w_2) });
-    witness->wires.insert({ "w_3", std::move(poly_w_3) });
-    computed_witness = true;
-    return witness;
+    return ComposerBase::compute_witness_base<standard_settings>();
 }
 
 Verifier StandardComposer::create_verifier()

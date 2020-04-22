@@ -78,7 +78,7 @@ class StandardComposer : public ComposerBase {
 
     void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b);
 
-    virtual std::shared_ptr<proving_key> compute_proving_key();
+    virtual std::shared_ptr<proving_key> compute_proving_key() override;
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual std::shared_ptr<program_witness> compute_witness() override;
     Verifier create_verifier();
@@ -111,7 +111,6 @@ class StandardComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    uint32_t zero_idx = 0;
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
