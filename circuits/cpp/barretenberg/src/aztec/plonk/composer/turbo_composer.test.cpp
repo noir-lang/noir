@@ -15,7 +15,6 @@ TEST(turbo_composer, base_case)
     composer.add_public_variable(a);
 
     waffle::TurboProver prover = composer.create_prover();
-
     waffle::TurboVerifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();

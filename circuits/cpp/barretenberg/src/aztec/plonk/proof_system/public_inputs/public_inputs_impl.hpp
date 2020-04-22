@@ -128,6 +128,7 @@ Field compute_public_input_delta(const std::vector<Field>& inputs,
     Field T2;
     Field T3;
     for (const auto& witness : inputs) {
+        std::cout << work_root << std::endl;
         T0 = witness + gamma;
         T1 = work_root * beta;
         T2 = T1 * Field::coset_generator(0);
