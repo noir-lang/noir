@@ -153,6 +153,27 @@ constexpr uint256_t uint256_t::slice(const uint64_t start, const uint64_t end) c
     return ((*this) >> start) & mask;
 }
 
+constexpr uint256_t uint256_t::pow(const uint256_t& exponent) const
+{
+    uint256_t accumulator{ data[0], data[1], data[2], data[3] };
+    uint256_t to_mul{ data[0], data[1], data[2], data[3] };
+    const uint64_t maximum_set_bit = exponent.get_msb();
+
+    for (int i = static_cast<int>(maximum_set_bit) - 1; i >= 0; --i) {
+        accumulator *= accumulator;
+        if (exponent.get_bit(static_cast<uint64_t>(i))) {
+            accumulator *= to_mul;
+        }
+    }
+
+    if (*this == uint256_t(0)) {
+        accumulator = uint256_t(0);
+    } else if (exponent == uint256_t(0)) {
+        accumulator = uint256_t(1);
+    }
+    return accumulator;
+}
+
 constexpr bool uint256_t::get_bit(const uint64_t bit_index) const
 {
     const size_t idx = static_cast<size_t>(bit_index >> 6);

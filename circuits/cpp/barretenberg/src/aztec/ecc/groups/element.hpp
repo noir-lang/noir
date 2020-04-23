@@ -34,7 +34,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     constexpr element dbl() const noexcept;
     constexpr void self_dbl() noexcept;
     constexpr void self_mixed_add_or_sub(const affine_element<Fq, Fr, Params>& other,
-                                                      const uint64_t predicate) noexcept;
+                                         const uint64_t predicate) noexcept;
 
     constexpr element operator+(const element& other) const noexcept;
     constexpr element operator+(const affine_element<Fq, Fr, Params>& other) const noexcept;
@@ -104,7 +104,6 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
                                           affine_element<Fq, Fr, Params>& out,
                                           const uint64_t predicate) noexcept;
 
-
     friend std::ostream& operator<<(std::ostream& os, const element& a)
     {
         os << "{ " << a.x << ", " << a.y << ", " << a.z << " }";
@@ -112,8 +111,8 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     }
 };
 
-template <class Fq, class Fr, class Params>
-std::ostream& operator<<(std::ostream& os, element<Fq, Fr, Params> const& e) {
+template <class Fq, class Fr, class Params> std::ostream& operator<<(std::ostream& os, element<Fq, Fr, Params> const& e)
+{
     return os << "x:" << e.x << " y:" << e.y << " z:" << e.z;
 }
 

@@ -26,7 +26,7 @@ template <typename ComposerContext>
 field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barretenberg::fr& value)
     : context(parent_context)
 {
-    barretenberg::fr::__copy(value, additive_constant);
+    additive_constant = value;
     multiplicative_constant = barretenberg::fr::zero();
     witness_index = static_cast<uint32_t>(-1);
 }

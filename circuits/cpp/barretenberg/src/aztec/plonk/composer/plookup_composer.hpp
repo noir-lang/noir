@@ -8,8 +8,8 @@ class PLookupComposer : public ComposerBase {
   public:
     struct LookupTable {
         struct KeyEntry {
-            std::array<uint64_t, 2> key;
-            std::array<barretenberg::fr, 2> value;
+            std::array<uint64_t, 2> key{ 0, 0 };
+            std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
             bool operator<(const KeyEntry& other) const
             {
                 return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
@@ -120,7 +120,7 @@ class PLookupComposer : public ComposerBase {
 
     std::vector<LookupTable> lookup_tables;
 
-    fr plookup_step_size;
+    barretenberg::fr plookup_step_size = barretenberg::fr(0);
 
     std::vector<barretenberg::fr> q_m;
     std::vector<barretenberg::fr> q_c;

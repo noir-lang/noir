@@ -1243,10 +1243,6 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
         auto& lookup_gates = table.lookup_gates;
         for (size_t i = 0; i < table.size; ++i) {
             if (table.use_twin_keys) {
-                // std::cout << "a " << table.column_1[i].from_montgomery_form().data[0] << ", "
-                //           << table.column_2[i].from_montgomery_form().data[0] << ", "
-                //           << table.column_3[i].from_montgomery_form().data[0] << ", " << std::endl;
-
                 lookup_gates.push_back({
                     {
                         table.column_1[i].from_montgomery_form().data[0],
@@ -1409,6 +1405,67 @@ PLookupComposer::LookupTable& PLookupComposer::get_table(const LookupTableId id)
         initialize_precomputed_table(AES_SPARSE_NORMALIZE,
                                      &aes_tables::generate_aes_sparse_normalization_map,
                                      &aes_tables::get_aes_sparse_normalization_values_from_key);
+        return get_table(id);
+    }
+    case SHA256_BASE7_ROTATE6: {
+        initialize_precomputed_table(SHA256_BASE7_ROTATE6,
+                                     &sha256_tables::generate_sparse_map_with_rotate<7, 6>,
+                                     &sha256_tables::get_sha256_sparse_map_values_from_key<7, 6>);
+        return get_table(id);
+    }
+    case SHA256_BASE7_ROTATE3: {
+        initialize_precomputed_table(SHA256_BASE7_ROTATE3,
+                                     &sha256_tables::generate_sparse_map_with_rotate<7, 3>,
+                                     &sha256_tables::get_sha256_sparse_map_values_from_key<7, 3>);
+        return get_table(id);
+    }
+    case SHA256_BASE4_ROTATE2: {
+        initialize_precomputed_table(SHA256_BASE4_ROTATE2,
+                                     &sha256_tables::generate_sparse_map_with_rotate<4, 2>,
+                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 2>);
+        return get_table(id);
+    }
+    case SHA256_BASE4_ROTATE6: {
+        initialize_precomputed_table(SHA256_BASE4_ROTATE6,
+                                     &sha256_tables::generate_sparse_map_with_rotate<4, 6>,
+                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 6>);
+        return get_table(id);
+    }
+    case SHA256_BASE4_ROTATE7: {
+        initialize_precomputed_table(SHA256_BASE4_ROTATE7,
+                                     &sha256_tables::generate_sparse_map_with_rotate<4, 7>,
+                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 7>);
+        return get_table(id);
+    }
+    case SHA256_BASE4_ROTATE8: {
+        initialize_precomputed_table(SHA256_BASE4_ROTATE8,
+                                     &sha256_tables::generate_sparse_map_with_rotate<4, 8>,
+                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 8>);
+        return get_table(id);
+    }
+    case SHA256_BASE7_NORMALIZE: {
+        initialize_precomputed_table(SHA256_BASE7_NORMALIZE,
+                                     &sha256_tables::generate_output_sparse_map<7, 4>,
+                                     &sha256_tables::get_output_sparse_map_values_from_key<7>);
+        return get_table(id);
+    }
+    case SHA256_BASE4_NORMALIZE: {
+        initialize_precomputed_table(SHA256_BASE4_NORMALIZE,
+                                     &sha256_tables::generate_output_sparse_map<4, 6>,
+                                     &sha256_tables::get_output_sparse_map_values_from_key<4>);
+
+        return get_table(id);
+    }
+    case SHA256_PARTA_NORMALIZE: {
+        initialize_precomputed_table(SHA256_PARTA_NORMALIZE,
+                                     &sha256_tables::generate_sha256_part_a_output_map,
+                                     &sha256_tables::get_sha256_part_a_output_values_from_key);
+        return get_table(id);
+    }
+    case SHA256_PARTB_NORMALIZE: {
+        initialize_precomputed_table(SHA256_PARTB_NORMALIZE,
+                                     &sha256_tables::generate_sha256_part_b_output_map,
+                                     &sha256_tables::get_sha256_part_b_output_values_from_key);
         return get_table(id);
     }
     default: {

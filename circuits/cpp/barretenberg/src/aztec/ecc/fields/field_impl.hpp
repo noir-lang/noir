@@ -297,10 +297,6 @@ template <class T> constexpr field<T> field<T>::pow(const uint256_t& exponent) c
     } else if (exponent == uint256_t(0)) {
         accumulator = one();
     }
-    // else if (exponent == uint256_t(1))
-    // {
-    //     accumulator = to_mul;
-    // }
     return accumulator;
 }
 
