@@ -11,7 +11,6 @@ namespace waffle {
 void StandardComposer::create_add_gate(const add_triple& in)
 {
     STANDARD_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -21,15 +20,6 @@ void StandardComposer::create_add_gate(const add_triple& in)
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
     ++n;
 }
 
@@ -37,8 +27,8 @@ void StandardComposer::create_big_add_gate(const add_quad& in)
 {
     // (a terms + b terms = temp)
     // (c terms + d  terms + temp = 0 )
-    fr t0 = variables[in.a] * in.a_scaling;
-    fr t1 = variables[in.b] * in.b_scaling;
+    fr t0 = get_variable(in.a) * in.a_scaling;
+    fr t1 = get_variable(in.b) * in.b_scaling;
     fr temp = t0 + t1;
     uint32_t temp_idx = add_variable(temp);
 
@@ -53,8 +43,8 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     STANDARD_SELECTOR_REFS
     // (a terms + b terms = temp)
     // (c terms + d  terms + temp = 0 )
-    fr t0 = variables[in.a] * in.a_scaling;
-    fr t1 = variables[in.b] * in.b_scaling;
+    fr t0 = get_variable(in.a) * in.a_scaling;
+    fr t1 = get_variable(in.b) * in.b_scaling;
     fr temp = t0 + t1;
     uint32_t temp_idx = add_variable(temp);
 
@@ -67,13 +57,6 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(temp_idx)].emplace_back(out);
-
     ++n;
 
     w_l.emplace_back(temp_idx);
@@ -85,18 +68,11 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(in.d_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    left = { static_cast<uint32_t>(n), WireType::LEFT };
-    right = { static_cast<uint32_t>(n), WireType::RIGHT };
-    out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_copy_cycles[static_cast<size_t>(temp_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(out);
-
     ++n;
 
     // in.d must be between 0 and 3
     // i.e. in.d * (in.d - 1) * (in.d - 2) = 0
-    fr temp_2 = variables[in.d].sqr() - variables[in.d];
+    fr temp_2 = get_variable(in.d).sqr() - get_variable(in.d);
     uint32_t temp_2_idx = add_variable(temp_2);
     w_l.emplace_back(in.d);
     w_r.emplace_back(in.d);
@@ -106,13 +82,6 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_2.emplace_back(fr::zero());
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
-
-    left = { static_cast<uint32_t>(n), WireType::LEFT };
-    right = { static_cast<uint32_t>(n), WireType::RIGHT };
-    out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(temp_2_idx)].emplace_back(out);
 
     ++n;
 
@@ -126,11 +95,6 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(fr::zero());
 
-    left = { static_cast<uint32_t>(n), WireType::LEFT };
-    right = { static_cast<uint32_t>(n), WireType::RIGHT };
-    wire_copy_cycles[static_cast<size_t>(temp_2_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(right);
-
     ++n;
 }
 
@@ -142,10 +106,10 @@ void StandardComposer::create_big_add_gate_with_bit_extraction(const add_quad& i
     // r = (-2*delta*delta + 9*delta - 7)*delta
     // r =
 
-    fr delta = variables[in.d];
+    fr delta = get_variable(in.d);
     delta += delta;
     delta += delta;
-    delta = variables[in.c] - delta;
+    delta = get_variable(in.c) - delta;
 
     uint32_t delta_idx = add_variable(delta);
     constexpr fr neg_four = -(fr(4));
@@ -171,7 +135,7 @@ void StandardComposer::create_big_add_gate_with_bit_extraction(const add_quad& i
 
     // ain.a1 + bin.b2 + cin.c3 + din.c4 + r_1 = 0
 
-    fr r_2 = (r_1 + (variables[in.d] * in.d_scaling));
+    fr r_2 = (r_1 + (get_variable(in.d) * in.d_scaling));
     uint32_t r_2_idx = add_variable(r_2);
     create_add_gate(add_triple{ in.d, r_1_idx, r_2_idx, in.d_scaling, fr::one(), fr::neg_one(), fr::zero() });
 
@@ -181,7 +145,7 @@ void StandardComposer::create_big_add_gate_with_bit_extraction(const add_quad& i
 
 void StandardComposer::create_big_mul_gate(const mul_quad& in)
 {
-    fr temp = ((variables[in.c] * in.c_scaling) + (variables[in.d] * in.d_scaling));
+    fr temp = ((get_variable(in.c) * in.c_scaling) + (get_variable(in.d) * in.d_scaling));
     uint32_t temp_idx = add_variable(temp);
     create_add_gate(add_triple{ in.c, in.d, temp_idx, in.c_scaling, in.d_scaling, fr::neg_one(), fr::zero() });
 
@@ -192,9 +156,6 @@ void StandardComposer::create_big_mul_gate(const mul_quad& in)
 void StandardComposer::create_mul_gate(const mul_triple& in)
 {
     STANDARD_SELECTOR_REFS
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -204,24 +165,12 @@ void StandardComposer::create_mul_gate(const mul_triple& in)
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
     ++n;
 }
 
 void StandardComposer::create_bool_gate(const uint32_t variable_index)
 {
     STANDARD_SELECTOR_REFS
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
@@ -232,22 +181,12 @@ void StandardComposer::create_bool_gate(const uint32_t variable_index)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_copy_cycles.size() > variable_index);
-    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(out);
     ++n;
 }
 
 void StandardComposer::create_poly_gate(const poly_triple& in)
 {
     STANDARD_SELECTOR_REFS
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -257,21 +196,12 @@ void StandardComposer::create_poly_gate(const poly_triple& in)
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
     ++n;
 }
 
 std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
 {
-    fr target = variables[witness_index].from_montgomery_form();
+    fr target = get_variable(witness_index).from_montgomery_form();
 
     std::vector<uint32_t> accumulators;
 
@@ -295,12 +225,12 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
 
         if (i == num_bits - 1) {
             accumulators.push_back(quad_idx);
-            accumulator = variables[quad_idx];
+            accumulator = get_variable(quad_idx);
             accumulator_idx = quad_idx;
         } else {
             fr new_accumulator = accumulator + accumulator;
             new_accumulator = new_accumulator + new_accumulator;
-            new_accumulator = new_accumulator + variables[quad_idx];
+            new_accumulator = new_accumulator + get_variable(quad_idx);
             uint32_t new_accumulator_idx = add_variable(new_accumulator);
             create_add_gate(add_triple{
                 accumulator_idx, quad_idx, new_accumulator_idx, four, fr::one(), fr::neg_one(), fr::zero() });
@@ -319,8 +249,8 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
 {
     waffle::accumulator_triple accumulators;
 
-    const fr left_witness_value = variables[a].from_montgomery_form();
-    const fr right_witness_value = variables[b].from_montgomery_form();
+    const fr left_witness_value = get_variable(a).from_montgomery_form();
+    const fr right_witness_value = get_variable(b).from_montgomery_form();
 
     fr left_accumulator = fr::zero();
     fr right_accumulator = fr::zero();
@@ -376,9 +306,9 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
                                       fr::neg_one(),
                                       fr::zero() });
 
-        fr left_quad = variables[left_lo_idx] + variables[left_hi_idx] + variables[left_hi_idx];
-        fr right_quad = variables[right_lo_idx] + variables[right_hi_idx] + variables[right_hi_idx];
-        fr out_quad = variables[out_lo_idx] + variables[out_hi_idx] + variables[out_hi_idx];
+        fr left_quad = get_variable(left_lo_idx) + get_variable(left_hi_idx) + get_variable(left_hi_idx);
+        fr right_quad = get_variable(right_lo_idx) + get_variable(right_hi_idx) + get_variable(right_hi_idx);
+        fr out_quad = get_variable(out_lo_idx) + get_variable(out_hi_idx) + get_variable(out_hi_idx);
 
         uint32_t left_quad_idx = add_variable(left_quad);
         uint32_t right_quad_idx = add_variable(right_quad);
@@ -437,7 +367,6 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
 void StandardComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     STANDARD_SELECTOR_REFS
-    gate_flags.push_back(0);
 
     w_l.emplace_back(witness_index);
     w_r.emplace_back(zero_idx);
@@ -447,14 +376,6 @@ void StandardComposer::fix_witness(const uint32_t witness_index, const barretenb
     q_2.emplace_back(fr::zero());
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(-witness_value);
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-
-    ASSERT(wire_copy_cycles.size() > witness_index);
-    ASSERT(wire_copy_cycles.size() > zero_idx);
-    ASSERT(wire_copy_cycles.size() > zero_idx);
-    wire_copy_cycles[static_cast<size_t>(witness_index)].emplace_back(left);
-
     ++n;
 }
 
@@ -488,7 +409,6 @@ waffle::accumulator_triple StandardComposer::create_xor_constraint(const uint32_
 void StandardComposer::create_dummy_gates()
 {
     STANDARD_SELECTOR_REFS
-    gate_flags.push_back(0);
     // add in a dummy gate to ensure that all of our polynomials are not zero and not identical
     constexpr fr one = fr(1);
     constexpr fr two = fr(2);
@@ -513,15 +433,6 @@ void StandardComposer::create_dummy_gates()
     w_r.emplace_back(b_idx);
     w_o.emplace_back(c_idx);
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_copy_cycles.size() > a_idx);
-    ASSERT(wire_copy_cycles.size() > b_idx);
-    ASSERT(wire_copy_cycles.size() > c_idx);
-    wire_copy_cycles[static_cast<size_t>(a_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(b_idx)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(c_idx)].emplace_back(out);
     ++n;
 
     // add a second dummy gate the ensure our permutation polynomials are also
@@ -536,15 +447,6 @@ void StandardComposer::create_dummy_gates()
     w_r.emplace_back(a_idx);
     w_o.emplace_back(b_idx);
 
-    left = { static_cast<uint32_t>(n), WireType::LEFT };
-    right = { static_cast<uint32_t>(n), WireType::RIGHT };
-    out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_copy_cycles.size() > c_idx);
-    ASSERT(wire_copy_cycles.size() > a_idx);
-    ASSERT(wire_copy_cycles.size() > b_idx);
-    wire_copy_cycles[static_cast<size_t>(c_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(a_idx)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(b_idx)].emplace_back(out);
     ++n;
 }
 

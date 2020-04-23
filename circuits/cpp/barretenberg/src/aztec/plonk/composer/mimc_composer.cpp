@@ -76,12 +76,6 @@ void MiMCComposer::create_mimc_gate(const mimc_quadruplet& in)
     q_mimc_coefficient.emplace_back(in.mimc_constant);
     q_mimc_selector.emplace_back(fr::one());
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_copy_cycles[static_cast<size_t>(in.k_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.x_cubed_idx)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.x_in_idx)].emplace_back(out);
     ++n;
 }
 
@@ -99,19 +93,12 @@ void MiMCComposer::create_noop_gate()
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
 
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
     if (current_output_wire != static_cast<uint32_t>(-1)) {
         w_o.emplace_back(current_output_wire);
-        wire_copy_cycles[static_cast<size_t>(current_output_wire)].emplace_back(out);
         current_output_wire = static_cast<uint32_t>(-1);
     } else {
         w_o.emplace_back(zero_idx);
-        wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(out);
     }
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(right);
 
     ++n;
 }
@@ -138,12 +125,6 @@ void MiMCComposer::create_dummy_gates()
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(out);
 
     ++n;
 
@@ -157,14 +138,6 @@ void MiMCComposer::create_dummy_gates()
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
-
-    // add a permutation on zero_idx to ensure SIGMA_1, SIGMA_2, SIGMA_3 are well formed
-    left = { static_cast<uint32_t>(n), WireType::LEFT };
-    right = { static_cast<uint32_t>(n), WireType::RIGHT };
-    out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(out);
     ++n;
 }
 
@@ -221,22 +194,6 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     polynomial poly_q_3(new_n);
     polynomial poly_q_mimc_coefficient(new_n);
     polynomial poly_q_mimc_selector(new_n);
-
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<cycle_node> new_cycle;
-
-        new_cycle.emplace_back(left);
-        new_cycle.emplace_back(right);
-        for (size_t i = 0; i < old_cycle.size(); ++i) {
-            new_cycle.emplace_back(old_cycle[i]);
-        }
-        old_cycle = new_cycle;
-    }
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_q_m[i] = fr::zero();
@@ -366,8 +323,6 @@ std::shared_ptr<program_witness> MiMCComposer::compute_witness()
         w_o.emplace_back(current_output_wire);
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
-        cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-        wire_copy_cycles[static_cast<size_t>(current_output_wire)].emplace_back(out);
         ++offset;
     }
 

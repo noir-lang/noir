@@ -659,3 +659,4 @@ TEST(turbo_composer, big_add_gate_with_bit_extract)
 
     EXPECT_EQ(result, true);
 }
+

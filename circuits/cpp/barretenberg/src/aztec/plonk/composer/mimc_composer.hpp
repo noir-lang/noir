@@ -29,7 +29,6 @@ class MiMCComposer : public StandardComposer {
         : StandardComposer(7, size_hint, MIMC_SEL_NAMES,{false,false,false,false,false,true,true})
     {
         MIMC_SELECTOR_REFS
-        features |= static_cast<size_t>(Features::MIMC_SELECTORS);
         q_mimc_coefficient.push_back(barretenberg::fr::zero());
         q_mimc_selector.push_back(barretenberg::fr::zero());
     };

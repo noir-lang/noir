@@ -76,7 +76,6 @@ void TurboComposer::create_dummy_gate()
 {
 
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     uint32_t idx = add_variable(fr{ 1, 1, 1, 1 }.to_montgomery_form());
     w_l.emplace_back(idx);
     w_r.emplace_back(idx);
@@ -93,24 +92,12 @@ void TurboComposer::create_dummy_gate()
     q_c.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(fourth);
-
     ++n;
 }
 
 void TurboComposer::create_add_gate(const add_triple& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -126,26 +113,12 @@ void TurboComposer::create_add_gate(const add_triple& in)
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-
     ++n;
 }
 
 void TurboComposer::create_big_add_gate(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -161,29 +134,12 @@ void TurboComposer::create_big_add_gate(const add_quad& in)
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > in.d);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -199,29 +155,12 @@ void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > in.d);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void TurboComposer::create_big_mul_gate(const mul_quad& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -237,22 +176,6 @@ void TurboComposer::create_big_mul_gate(const mul_quad& in)
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > in.d);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
@@ -261,7 +184,6 @@ void TurboComposer::create_big_mul_gate(const mul_quad& in)
 void TurboComposer::create_balanced_add_gate(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -277,31 +199,12 @@ void TurboComposer::create_balanced_add_gate(const add_quad& in)
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > in.d);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void TurboComposer::create_mul_gate(const mul_triple& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -317,29 +220,12 @@ void TurboComposer::create_mul_gate(const mul_triple& in)
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > zero_idx);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-
     ++n;
 }
 
 void TurboComposer::create_bool_gate(const uint32_t variable_index)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
@@ -356,25 +242,12 @@ void TurboComposer::create_bool_gate(const uint32_t variable_index)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_copy_cycles.size() > variable_index);
-    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(out);
-
     ++n;
 }
 
 void TurboComposer::create_poly_gate(const poly_triple& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -391,20 +264,6 @@ void TurboComposer::create_poly_gate(const poly_triple& in)
     q_4.emplace_back(fr::zero());
     q_5.emplace_back(fr::zero());
     q_ecc_1.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > zero_idx);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-
     ++n;
 }
 
@@ -412,7 +271,6 @@ void TurboComposer::create_poly_gate(const poly_triple& in)
 void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -430,22 +288,6 @@ void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_ecc_1.emplace_back(in.q_y_2);
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > in.d);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
@@ -454,7 +296,6 @@ void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
                                                           const fixed_group_init_quad& init)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -472,29 +313,12 @@ void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_ecc_1.emplace_back(in.q_y_2);
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_copy_cycles.size() > in.a);
-    ASSERT(wire_copy_cycles.size() > in.b);
-    ASSERT(wire_copy_cycles.size() > in.c);
-    ASSERT(wire_copy_cycles.size() > in.d);
-
-    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     TURBO_SELECTOR_REFS
-    gate_flags.push_back(0);
 
     w_l.emplace_back(witness_index);
     w_r.emplace_back(zero_idx);
@@ -511,14 +335,6 @@ void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg
     q_ecc_1.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
-
-    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
-
-    ASSERT(wire_copy_cycles.size() > witness_index);
-    ASSERT(wire_copy_cycles.size() > zero_idx);
-    ASSERT(wire_copy_cycles.size() > zero_idx);
-    wire_copy_cycles[static_cast<size_t>(witness_index)].emplace_back(left);
-
     ++n;
 }
 
@@ -585,7 +401,7 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
      *
      **/
 
-    const fr witness_value = variables[witness_index].from_montgomery_form();
+    const fr witness_value = get_variable(witness_index).from_montgomery_form();
 
     // one gate accmulates 4 quads, or 8 bits.
     // # gates = (bits / 8)
@@ -596,16 +412,12 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
     // hmm
     std::vector<uint32_t>* wires[4]{ &w_4, &w_o, &w_r, &w_l };
 
-    // hmmm
-    WireType wire_types[4]{ WireType::FOURTH, WireType::OUTPUT, WireType::RIGHT, WireType::LEFT };
-
     const size_t num_quads = (num_quad_gates << 2);
     const size_t forced_zero_threshold = 1 + (((num_quads << 1) - num_bits) >> 1);
     std::vector<uint32_t> accumulators;
     fr accumulator = fr::zero();
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
-        const size_t gate_index = n + (i / 4);
         uint32_t accumulator_index;
         if (i < forced_zero_threshold) {
             accumulator_index = zero_idx;
@@ -624,10 +436,6 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
 
         // hmmmm
         (*(wires + (i & 3)))->emplace_back(accumulator_index);
-        const size_t wire_index = i & 3;
-
-        wire_copy_cycles[accumulator_index].emplace_back(
-            cycle_node(static_cast<uint32_t>(gate_index), wire_types[wire_index]));
     }
     size_t used_gates = (num_quads + 1) / 4;
 
@@ -739,8 +547,8 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
      *
      **/
 
-    const fr left_witness_value = variables[a].from_montgomery_form();
-    const fr right_witness_value = variables[b].from_montgomery_form();
+    const fr left_witness_value = get_variable(a).from_montgomery_form();
+    const fr right_witness_value = get_variable(b).from_montgomery_form();
 
     // one gate accmulates 1 quads, or 2 bits.
     // # gates = (bits / 2)
@@ -756,13 +564,8 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
     w_r.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
 
-    wire_copy_cycles[zero_idx].emplace_back(cycle_node(static_cast<uint32_t>(n), WireType::LEFT));
-    wire_copy_cycles[zero_idx].emplace_back(cycle_node(static_cast<uint32_t>(n), WireType::RIGHT));
-    wire_copy_cycles[zero_idx].emplace_back(cycle_node(static_cast<uint32_t>(n), WireType::FOURTH));
-
     // w_l, w_r, w_4 should now point to 1 gate ahead of w_o
     for (size_t i = 0; i < num_quads; ++i) {
-        const size_t gate_index = n + i + 1;
         uint32_t left_accumulator_index;
         uint32_t right_accumulator_index;
         uint32_t out_accumulator_index;
@@ -812,17 +615,7 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
         w_r.emplace_back(right_accumulator_index);
         w_4.emplace_back(out_accumulator_index);
         w_o.emplace_back(product_index);
-
-        wire_copy_cycles[left_accumulator_index].emplace_back(
-            cycle_node(static_cast<uint32_t>(gate_index), WireType::LEFT));
-        wire_copy_cycles[right_accumulator_index].emplace_back(
-            cycle_node(static_cast<uint32_t>(gate_index), WireType::RIGHT));
-        wire_copy_cycles[out_accumulator_index].emplace_back(
-            cycle_node(static_cast<uint32_t>(gate_index), WireType::FOURTH));
-        wire_copy_cycles[product_index].emplace_back(
-            cycle_node(static_cast<uint32_t>(gate_index - 1), WireType::OUTPUT));
     }
-
     w_o.emplace_back(zero_idx);
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
