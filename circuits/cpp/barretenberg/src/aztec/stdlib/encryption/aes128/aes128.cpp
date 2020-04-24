@@ -39,8 +39,8 @@ field_pt normalize_sparse_form(waffle::PLookupComposer* ctx, field_pt& byte)
     uint32_t out_lo_idx = ctx->add_variable(fr(out_lo));
     uint32_t out_hi_idx = ctx->add_variable(fr(out_hi));
 
-    ctx->validate_lookup(waffle::LookupTableId::AES_SPARSE_NORMALIZE, { in_lo_idx, ctx->zero_idx, out_lo_idx });
-    ctx->validate_lookup(waffle::LookupTableId::AES_SPARSE_NORMALIZE, { in_hi_idx, ctx->zero_idx, out_hi_idx });
+    ctx->validate_lookup(waffle::PLookupTableId::AES_SPARSE_NORMALIZE, { in_lo_idx, ctx->zero_idx, out_lo_idx });
+    ctx->validate_lookup(waffle::PLookupTableId::AES_SPARSE_NORMALIZE, { in_hi_idx, ctx->zero_idx, out_hi_idx });
 
     ctx->create_add_gate({
         out_lo_idx,
@@ -73,7 +73,7 @@ byte_pair apply_aes_sbox_map(waffle::PLookupComposer* ctx, field_pt& input)
     uint32_t left_idx = ctx->add_variable(fr(left));
     uint32_t right_idx = ctx->add_variable(fr(right));
 
-    ctx->validate_lookup(waffle::LookupTableId::AES_SBOX_MAP, { input.witness_index, left_idx, right_idx });
+    ctx->validate_lookup(waffle::PLookupTableId::AES_SBOX_MAP, { input.witness_index, left_idx, right_idx });
 
     byte_pair result{ field_pt(ctx), field_pt(ctx) };
     result.first.witness_index = left_idx;
@@ -94,7 +94,7 @@ std::array<field_pt, 16> convert_into_sparse_bytes(waffle::PLookupComposer* ctx,
 
             field_pt sparse(ctx);
             sparse.witness_index =
-                ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP, bytes[j * 8 + i].witness_index);
+                ctx->read_from_table(waffle::PLookupTableId::AES_SPARSE_MAP, bytes[j * 8 + i].witness_index);
 
             sparse_bytes[j * 8 + i] = sparse;
         }
@@ -124,7 +124,7 @@ field_pt convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_pt* spars
 
         bytes[i] = witness_pt(ctx, fr(byte));
 
-        uint32_t index = ctx->read_from_table(waffle::LookupTableId::AES_SPARSE_MAP, bytes[i].witness_index);
+        uint32_t index = ctx->read_from_table(waffle::PLookupTableId::AES_SPARSE_MAP, bytes[i].witness_index);
 
         ctx->assert_equal(index, sparse_bytes[i].witness_index);
     }
@@ -259,15 +259,20 @@ void shift_rows(byte_pair* state)
 
 void mix_column_and_add_round_key(byte_pair* column_pairs, field_pt* round_key, uint64_t round)
 {
+
+    // c0.2 + c1.2 + c0.1 + c2.1 + c3.1 (3.1, 0.1, 1.2) (0.2, 2.1)
     auto t0 = column_pairs[0].second.add_two(column_pairs[1].second, column_pairs[2].first);
     auto t1 = column_pairs[3].first.add_two(column_pairs[0].first, round_key[(round * 16U)]);
 
+    // c2.2 + c1.1 + c1.2 + c0.1 + c3.1  (3.1, 0.1, 1.2) (2.2, 1.1)
     auto t2 = column_pairs[1].second.add_two(column_pairs[2].second, column_pairs[0].first);
     auto t3 = column_pairs[3].first.add_two(column_pairs[1].first, round_key[(round * 16U) + 1]);
 
+    // 2.2 + 2.1 + 3.2 + 0.1 + 1.1 = (2.1, 1.1, 3.2) (2.2, 0.1)
     auto t4 = column_pairs[2].second.add_two(column_pairs[3].second, column_pairs[0].first);
     auto t5 = column_pairs[1].first.add_two(column_pairs[2].first, round_key[(round * 16U) + 2]);
 
+    // (3.2, 0.2, 1.1, 2.1, 3.1) = (2.1, 1.1, 3.2) (3.1, 0.2)
     auto t6 = column_pairs[3].second.add_two(column_pairs[0].second, column_pairs[1].first);
     auto t7 = column_pairs[2].first.add_two(column_pairs[3].first, round_key[(round * 16U) + 3]);
 

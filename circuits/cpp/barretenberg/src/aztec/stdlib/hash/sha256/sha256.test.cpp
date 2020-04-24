@@ -7,6 +7,7 @@
 
 #include <numeric/random/engine.hpp>
 #include <numeric/bitop/rotate.hpp>
+#include <numeric/bitop/sparse_form.hpp>
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -94,11 +95,11 @@ TEST(stdlib_sha256_plookup, convert_into_sparse_ch_form)
         const auto converted = plonk::stdlib::convert_into_sparse_ch_form(element);
 
         const uint64_t result_normal = uint256_t(converted.normal.get_value()).data[0];
-        const uint64_t result_sparse = waffle::sha256_tables::map_from_sparse_form<7>(converted.sparse.get_value());
+        const uint64_t result_sparse = numeric::map_from_sparse_form<7>(converted.sparse.get_value());
 
-        const uint64_t result_rot6 = waffle::sha256_tables::map_from_sparse_form<7>(converted.rot6.get_value());
-        const uint64_t result_rot11 = waffle::sha256_tables::map_from_sparse_form<7>(converted.rot11.get_value());
-        const uint64_t result_rot25 = waffle::sha256_tables::map_from_sparse_form<7>(converted.rot25.get_value());
+        const uint64_t result_rot6 = numeric::map_from_sparse_form<7>(converted.rot6.get_value());
+        const uint64_t result_rot11 = numeric::map_from_sparse_form<7>(converted.rot11.get_value());
+        const uint64_t result_rot25 = numeric::map_from_sparse_form<7>(converted.rot25.get_value());
 
         EXPECT_EQ(input, result_normal);
         EXPECT_EQ(input, result_sparse);
@@ -131,11 +132,11 @@ TEST(stdlib_sha256_plookup, convert_into_sparse_maj_form)
         const auto converted = plonk::stdlib::convert_into_sparse_maj_form(element);
 
         const uint64_t result_normal = uint256_t(converted.normal.get_value()).data[0];
-        const uint64_t result_sparse = waffle::sha256_tables::map_from_sparse_form<4>(converted.sparse.get_value());
+        const uint64_t result_sparse = numeric::map_from_sparse_form<4>(converted.sparse.get_value());
 
-        const uint64_t result_rot2 = waffle::sha256_tables::map_from_sparse_form<4>(converted.rot2.get_value());
-        const uint64_t result_rot13 = waffle::sha256_tables::map_from_sparse_form<4>(converted.rot13.get_value());
-        const uint64_t result_rot22 = waffle::sha256_tables::map_from_sparse_form<4>(converted.rot22.get_value());
+        const uint64_t result_rot2 = numeric::map_from_sparse_form<4>(converted.rot2.get_value());
+        const uint64_t result_rot13 = numeric::map_from_sparse_form<4>(converted.rot13.get_value());
+        const uint64_t result_rot22 = numeric::map_from_sparse_form<4>(converted.rot22.get_value());
 
         EXPECT_EQ(input, result_normal);
         EXPECT_EQ(input, result_sparse);
@@ -183,7 +184,7 @@ TEST(stdlib_sha256_plookup, normalize_sparse_form_base7)
                                   numeric::rotate32((uint32_t)in_g, 25);
 
         const auto result = plonk::stdlib::normalize_sparse_form<7, 4>(sparse_sum.normalize(),
-                                                                       waffle::LookupTableId::SHA256_BASE7_NORMALIZE);
+                                                                       waffle::PLookupTableId::SHA256_BASE7_NORMALIZE);
 
         // const uint256_t expected(in_e ^ in_f ^ in_g);
 
@@ -226,9 +227,9 @@ TEST(stdlib_sha256_plookup, normalize_sparse_form_parta)
         auto sparse_sum = e_ch.sparse + f_ch.sparse + f_ch.sparse + g_ch.sparse + g_ch.sparse + g_ch.sparse;
         sparse_sum = sparse_sum.normalize();
         const uint256_t native_sparse[3]{
-            waffle::sha256_tables::map_into_sparse_form<7>(in_e),
-            waffle::sha256_tables::map_into_sparse_form<7>(in_f),
-            waffle::sha256_tables::map_into_sparse_form<7>(in_g),
+            numeric::map_into_sparse_form<7>(in_e),
+            numeric::map_into_sparse_form<7>(in_f),
+            numeric::map_into_sparse_form<7>(in_g),
         };
 
         auto native_add = native_sparse[0] + native_sparse[1] + native_sparse[1] + native_sparse[2] + native_sparse[2] +
@@ -254,7 +255,7 @@ TEST(stdlib_sha256_plookup, normalize_sparse_form_parta)
         }
 
         const auto result =
-            plonk::stdlib::normalize_sparse_form<7, 4>(sparse_sum, waffle::LookupTableId::SHA256_PARTA_NORMALIZE);
+            plonk::stdlib::normalize_sparse_form<7, 4>(sparse_sum, waffle::PLookupTableId::SHA256_PARTA_NORMALIZE);
 
         // const uint256_t expected(in_e ^ in_f ^ in_g);
 
@@ -297,9 +298,9 @@ TEST(stdlib_sha256_plookup, normalize_sparse_form_partb)
         auto sparse_sum = e_maj.sparse + f_maj.sparse + g_maj.sparse;
         sparse_sum = sparse_sum.normalize();
         const uint256_t native_sparse[3]{
-            waffle::sha256_tables::map_into_sparse_form<4>(in_e),
-            waffle::sha256_tables::map_into_sparse_form<4>(in_f),
-            waffle::sha256_tables::map_into_sparse_form<4>(in_g),
+            numeric::map_into_sparse_form<4>(in_e),
+            numeric::map_into_sparse_form<4>(in_f),
+            numeric::map_into_sparse_form<4>(in_g),
         };
 
         EXPECT_EQ(e_maj.sparse.get_value(), native_sparse[0]);
@@ -325,7 +326,7 @@ TEST(stdlib_sha256_plookup, normalize_sparse_form_partb)
         }
 
         const auto result =
-            plonk::stdlib::normalize_sparse_form<4, 6>(sparse_sum, waffle::LookupTableId::SHA256_PARTB_NORMALIZE);
+            plonk::stdlib::normalize_sparse_form<4, 6>(sparse_sum, waffle::PLookupTableId::SHA256_PARTB_NORMALIZE);
 
         // const uint256_t expected(in_e ^ in_f ^ in_g);
 

@@ -1,5 +1,4 @@
 #include "plookup_composer.hpp"
-#include "plookup_tables.hpp"
 
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
@@ -1364,14 +1363,14 @@ UnrolledPLookupVerifier PLookupComposer::create_unrolled_verifier()
 }
 
 void PLookupComposer::initialize_precomputed_table(
-    const LookupTableId id,
+    const PLookupTableId id,
     bool (*generator)(std::vector<fr>&, std ::vector<fr>&, std::vector<fr>&),
     std::array<fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>))
 {
     for (auto table : lookup_tables) {
         ASSERT(table.id != id);
     }
-    LookupTable new_table;
+    PLookupTable new_table;
     new_table.id = id;
     new_table.table_index = lookup_tables.size() + 1;
     new_table.use_twin_keys = generator(new_table.column_1, new_table.column_2, new_table.column_3);
@@ -1380,9 +1379,9 @@ void PLookupComposer::initialize_precomputed_table(
     lookup_tables.emplace_back(new_table);
 }
 
-PLookupComposer::LookupTable& PLookupComposer::get_table(const LookupTableId id)
+PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
 {
-    for (LookupTable& table : lookup_tables) {
+    for (PLookupTable& table : lookup_tables) {
         if (table.id == id) {
             return table;
         }
@@ -1390,80 +1389,67 @@ PLookupComposer::LookupTable& PLookupComposer::get_table(const LookupTableId id)
     // Hmm. table doesn't exist! try to create it
     switch (id) {
     case AES_SPARSE_MAP: {
-        initialize_precomputed_table(
-            AES_SPARSE_MAP, &aes_tables::generate_aes_sparse_map, &aes_tables::get_aes_sparse_values_from_key);
+        lookup_tables.emplace_back(
+            std::move(aes_tables::generate_aes_sparse_table(AES_SPARSE_MAP, lookup_tables.size())));
         return get_table(id);
     }
     case AES_SBOX_MAP: {
-        initialize_precomputed_table(
-            AES_SBOX_MAP, &aes_tables::generate_aes_sbox_map, &aes_tables::get_aes_sbox_values_from_key);
+        lookup_tables.emplace_back(std::move(aes_tables::generate_aes_sbox_table(AES_SBOX_MAP, lookup_tables.size())));
         return get_table(id);
     }
     case AES_SPARSE_NORMALIZE: {
-        initialize_precomputed_table(AES_SPARSE_NORMALIZE,
-                                     &aes_tables::generate_aes_sparse_normalization_map,
-                                     &aes_tables::get_aes_sparse_normalization_values_from_key);
+        lookup_tables.emplace_back(
+            std::move(aes_tables::generate_aes_sparse_normalization_table(AES_SPARSE_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE7_ROTATE6: {
-        initialize_precomputed_table(SHA256_BASE7_ROTATE6,
-                                     &sha256_tables::generate_sparse_map_with_rotate<7, 6>,
-                                     &sha256_tables::get_sha256_sparse_map_values_from_key<7, 6>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_table_with_rotation<7, 6>(SHA256_BASE7_ROTATE6, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE7_ROTATE3: {
-        initialize_precomputed_table(SHA256_BASE7_ROTATE3,
-                                     &sha256_tables::generate_sparse_map_with_rotate<7, 3>,
-                                     &sha256_tables::get_sha256_sparse_map_values_from_key<7, 3>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_table_with_rotation<7, 3>(SHA256_BASE7_ROTATE3, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE4_ROTATE2: {
-        initialize_precomputed_table(SHA256_BASE4_ROTATE2,
-                                     &sha256_tables::generate_sparse_map_with_rotate<4, 2>,
-                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 2>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_table_with_rotation<4, 2>(SHA256_BASE4_ROTATE2, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE4_ROTATE6: {
-        initialize_precomputed_table(SHA256_BASE4_ROTATE6,
-                                     &sha256_tables::generate_sparse_map_with_rotate<4, 6>,
-                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 6>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_table_with_rotation<4, 6>(SHA256_BASE4_ROTATE6, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE4_ROTATE7: {
-        initialize_precomputed_table(SHA256_BASE4_ROTATE7,
-                                     &sha256_tables::generate_sparse_map_with_rotate<4, 7>,
-                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 7>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_table_with_rotation<4, 7>(SHA256_BASE4_ROTATE7, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE4_ROTATE8: {
-        initialize_precomputed_table(SHA256_BASE4_ROTATE8,
-                                     &sha256_tables::generate_sparse_map_with_rotate<4, 8>,
-                                     &sha256_tables::get_sha256_sparse_map_values_from_key<4, 8>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_table_with_rotation<4, 8>(SHA256_BASE4_ROTATE8, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE7_NORMALIZE: {
-        initialize_precomputed_table(SHA256_BASE7_NORMALIZE,
-                                     &sha256_tables::generate_output_sparse_map<7, 4>,
-                                     &sha256_tables::get_output_sparse_map_values_from_key<7>);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_normalization_table<7, 4>(SHA256_BASE7_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_BASE4_NORMALIZE: {
-        initialize_precomputed_table(SHA256_BASE4_NORMALIZE,
-                                     &sha256_tables::generate_output_sparse_map<4, 6>,
-                                     &sha256_tables::get_output_sparse_map_values_from_key<4>);
-
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sparse_normalization_table<4, 6>(SHA256_BASE4_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_PARTA_NORMALIZE: {
-        initialize_precomputed_table(SHA256_PARTA_NORMALIZE,
-                                     &sha256_tables::generate_sha256_part_a_output_map,
-                                     &sha256_tables::get_sha256_part_a_output_values_from_key);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sha256_part_a_normalization_table(SHA256_PARTA_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
     case SHA256_PARTB_NORMALIZE: {
-        initialize_precomputed_table(SHA256_PARTB_NORMALIZE,
-                                     &sha256_tables::generate_sha256_part_b_output_map,
-                                     &sha256_tables::get_sha256_part_b_output_values_from_key);
+        lookup_tables.emplace_back(std::move(
+            sha256_tables::generate_sha256_part_b_normalization_table(SHA256_PARTB_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
     default: {
@@ -1472,9 +1458,9 @@ PLookupComposer::LookupTable& PLookupComposer::get_table(const LookupTableId id)
     }
 }
 
-void PLookupComposer::validate_lookup(const LookupTableId id, const std::array<uint32_t, 3> indices)
+void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> indices)
 {
-    LookupTable& table = get_table(id);
+    PLookupTable& table = get_table(id);
 
     table.lookup_gates.push_back({ {
                                        variables[indices[0]].from_montgomery_form().data[0],
@@ -1518,7 +1504,7 @@ void PLookupComposer::validate_lookup(const LookupTableId id, const std::array<u
     ++n;
 }
 
-uint32_t PLookupComposer::read_from_table(const LookupTableId id,
+uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
                                           const uint32_t first_key_idx,
                                           const uint32_t second_key_idx)
 {
@@ -1532,7 +1518,7 @@ uint32_t PLookupComposer::read_from_table(const LookupTableId id,
         variables[key_indices[1]].from_montgomery_form().data[0],
     };
 
-    LookupTable& table = get_table(id);
+    PLookupTable& table = get_table(id);
 
     const auto values = table.get_values_from_key(keys);
 
@@ -1575,12 +1561,12 @@ uint32_t PLookupComposer::read_from_table(const LookupTableId id,
     return value_index;
 }
 
-std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTableId id,
+std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
                                                                 const std::vector<std::array<uint32_t, 2>>& key_indices)
 {
     const size_t num_lookups = key_indices.size();
 
-    LookupTable& table = get_table(id);
+    PLookupTable& table = get_table(id);
 
     if (num_lookups == 0) {
         return std::vector<uint32_t>();
@@ -1646,10 +1632,10 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTabl
         w_o.emplace_back(value_idx);
         w_4.emplace_back(zero_idx);
         q_1.emplace_back(fr(0));
-        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : table.column_1_step_size));
+        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_1_step_size));
         q_3.emplace_back(fr(0));
-        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : table.column_2_step_size));
-        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : table.column_3_step_size));
+        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_2_step_size));
+        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_3_step_size));
         q_arith.emplace_back(fr(0));
         q_4.emplace_back(fr(0));
         q_5.emplace_back(fr(0));

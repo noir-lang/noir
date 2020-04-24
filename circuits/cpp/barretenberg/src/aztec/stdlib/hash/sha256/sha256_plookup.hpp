@@ -31,7 +31,7 @@ struct sparse_maj_value {
 template <uint64_t base, uint64_t num_bits>
 field_t<waffle::PLookupComposer> normalize_sparse_form(
     const field_t<waffle::PLookupComposer>& input,
-    waffle::LookupTableId table_id = waffle::LookupTableId::SHA256_BASE7_NORMALIZE);
+    waffle::PLookupTableId table_id = waffle::PLookupTableId::SHA256_BASE7_NORMALIZE);
 
 sparse_maj_value convert_into_sparse_maj_form(const field_t<waffle::PLookupComposer>& a);
 sparse_ch_value convert_into_sparse_ch_form(const field_t<waffle::PLookupComposer>& e);

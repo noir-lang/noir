@@ -10,24 +10,6 @@ struct proving_key;
 struct verification_key;
 struct program_witness;
 
-enum LookupTableId {
-    XOR,
-    AND,
-    PEDERSEN,
-    AES_SPARSE_MAP,
-    AES_SBOX_MAP,
-    AES_SPARSE_NORMALIZE,
-    SHA256_BASE7_ROTATE6,
-    SHA256_BASE7_ROTATE3,
-    SHA256_BASE4_ROTATE2,
-    SHA256_BASE4_ROTATE6,
-    SHA256_BASE4_ROTATE7,
-    SHA256_BASE4_ROTATE8,
-    SHA256_BASE7_NORMALIZE,
-    SHA256_PARTA_NORMALIZE,
-    SHA256_BASE4_NORMALIZE,
-    SHA256_PARTB_NORMALIZE,
-};
 
 struct add_triple {
     uint32_t a;

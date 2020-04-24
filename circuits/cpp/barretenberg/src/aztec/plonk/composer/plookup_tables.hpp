@@ -2,84 +2,66 @@
 
 #include <ecc/curves/bn254/fr.hpp>
 #include <numeric/bitop/rotate.hpp>
+#include <numeric/bitop/sparse_form.hpp>
 
 namespace waffle {
 
-struct table_entry {
-    table_entry(const barretenberg::fr& a, const barretenberg::fr& b, const barretenberg::fr& c)
-        : data{ a, b, c }
-    {}
+enum PLookupTableId {
+    XOR,
+    AND,
+    PEDERSEN,
+    AES_SPARSE_MAP,
+    AES_SBOX_MAP,
+    AES_SPARSE_NORMALIZE,
+    SHA256_BASE7_ROTATE6,
+    SHA256_BASE7_ROTATE3,
+    SHA256_BASE4_ROTATE2,
+    SHA256_BASE4_ROTATE6,
+    SHA256_BASE4_ROTATE7,
+    SHA256_BASE4_ROTATE8,
+    SHA256_BASE7_NORMALIZE,
+    SHA256_PARTA_NORMALIZE,
+    SHA256_BASE4_NORMALIZE,
+    SHA256_PARTB_NORMALIZE,
+};
 
-    table_entry() {}
+struct PLookupTable {
+    struct KeyEntry {
+        std::array<uint64_t, 2> key{ 0, 0 };
+        std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
+        bool operator<(const KeyEntry& other) const
+        {
+            return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
+        }
 
-    table_entry(const table_entry& other)
-        : data{ other.data[0], other.data[1], other.data[2] }
-    {}
+        std::array<barretenberg::fr, 3> to_sorted_list_components(const bool use_two_keys) const
+        {
+            return {
+                barretenberg::fr(key[0]),
+                use_two_keys ? barretenberg::fr(key[1]) : value[0],
+                use_two_keys ? value[0] : value[1],
+            };
+        }
+    };
 
-    table_entry(table_entry&& other)
-        : data{ other.data[0], other.data[1], other.data[2] }
-    {}
+    PLookupTableId id;
+    size_t table_index;
+    size_t size;
+    bool use_twin_keys;
 
-    table_entry& operator=(const table_entry& other)
-    {
-        data[0] = other.data[0];
-        data[1] = other.data[1];
-        data[2] = other.data[2];
-        return *this;
-    }
+    barretenberg::fr column_1_step_size = barretenberg::fr(0);
+    barretenberg::fr column_2_step_size = barretenberg::fr(0);
+    barretenberg::fr column_3_step_size = barretenberg::fr(0);
+    std::vector<barretenberg::fr> column_1;
+    std::vector<barretenberg::fr> column_3;
+    std::vector<barretenberg::fr> column_2;
+    std::vector<KeyEntry> lookup_gates;
 
-    table_entry& operator=(table_entry&& other)
-    {
-        data[0] = other.data[0];
-        data[1] = other.data[1];
-        data[2] = other.data[2];
-        return *this;
-    }
-
-    bool operator<(const table_entry& other) const
-    {
-        bool result = (data[1].data[3] < other.data[1].data[3]);
-
-        bool eq_check = (data[1].data[3] == other.data[1].data[3]);
-        result = result || (eq_check && data[1].data[2] < other.data[1].data[2]);
-
-        eq_check = eq_check && (data[1].data[2] == other.data[1].data[2]);
-        result = result || (eq_check && data[1].data[1] < other.data[1].data[1]);
-
-        eq_check = eq_check && (data[1].data[1] == other.data[1].data[1]);
-        result = result || (eq_check && data[1].data[0] < other.data[1].data[0]);
-
-        eq_check = eq_check && (data[1].data[0] == other.data[1].data[0]);
-        result = result || (eq_check && data[0].data[3] < other.data[0].data[3]);
-
-        eq_check = eq_check && (data[0].data[3] == other.data[0].data[3]);
-        result = result || (eq_check && data[0].data[2] < other.data[0].data[2]);
-
-        eq_check = eq_check && (data[0].data[2] == other.data[0].data[2]);
-        result = result || (eq_check && data[0].data[1] < other.data[0].data[1]);
-
-        eq_check = eq_check && (data[0].data[1] == other.data[0].data[1]);
-        result = result || (eq_check && data[0].data[0] < other.data[0].data[0]);
-
-        eq_check = eq_check && (data[0].data[0] == other.data[0].data[0]);
-        result = result || (eq_check && data[2].data[3] < other.data[2].data[3]);
-
-        eq_check = eq_check && (data[2].data[3] == other.data[2].data[3]);
-        result = result || (eq_check && data[2].data[2] < other.data[2].data[2]);
-
-        eq_check = eq_check && (data[2].data[2] == other.data[2].data[2]);
-        result = result || (eq_check && data[2].data[1] < other.data[2].data[1]);
-
-        eq_check = eq_check && (data[2].data[1] == other.data[2].data[1]);
-        result = result || (eq_check && data[2].data[0] < other.data[2].data[0]);
-
-        return result;
-    }
-    barretenberg::fr data[3];
+    std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 };
 
 namespace aes_tables {
-static constexpr uint64_t sparse_base = 9;
+static constexpr uint64_t AES_BASE = 9;
 static constexpr uint8_t sbox[256] = {
     // 0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9,
@@ -98,354 +80,235 @@ static constexpr uint8_t sbox[256] = {
     0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
 };
 
-constexpr uint64_t map_into_sparse_form(const uint8_t input)
-{
-    uint64_t out = 0UL;
-    uint64_t converted = (uint64_t)input;
-    uint64_t base_accumulator = 1;
-    for (uint64_t i = 0; i < 8; ++i) {
-        uint64_t sparse_bit = ((converted >> i) & 1ULL);
-        out += (sparse_bit * base_accumulator);
-        base_accumulator *= sparse_base;
-    }
-    return out;
-}
-
-constexpr uint8_t map_from_sparse_form(const uint64_t input)
-{
-    uint64_t target = input;
-    uint64_t output = 0;
-
-    uint64_t count = 0;
-    while (target > 0) {
-        uint64_t slice = (target % sparse_base);
-        uint64_t bit = slice & 1ULL;
-        output += (bit << count);
-        ++count;
-        target -= slice;
-        target /= sparse_base;
-    }
-
-    return (uint8_t)output;
-}
-
-inline bool generate_aes_sparse_map(std::vector<barretenberg::fr>& column_1,
-                                    std::vector<barretenberg::fr>& column_2,
-                                    std::vector<barretenberg::fr>& column_3)
-{
-    const uint64_t entries = 256;
-    for (uint64_t i = 0; i < entries; ++i) {
-        uint64_t left = i;
-        uint64_t right = map_into_sparse_form((uint8_t)i);
-        column_1.emplace_back(barretenberg::fr(left));
-        column_2.emplace_back(barretenberg::fr(0));
-        column_3.emplace_back(barretenberg::fr(right));
-    }
-    return true;
-}
-
 inline std::array<barretenberg::fr, 2> get_aes_sparse_values_from_key(const std::array<uint64_t, 2> key)
 {
-    uint64_t sparse = map_into_sparse_form(uint8_t(key[0]));
+    const auto sparse = numeric::map_into_sparse_form<AES_BASE>(uint64_t(key[0]));
     return { barretenberg::fr(sparse), barretenberg::fr(0) };
 }
 
-inline bool generate_aes_sparse_normalization_map(std::vector<barretenberg::fr>& column_1,
-                                                  std::vector<barretenberg::fr>& column_2,
-                                                  std::vector<barretenberg::fr>& column_3)
+inline PLookupTable generate_aes_sparse_table(PLookupTableId id, const size_t table_index)
 {
-    for (uint64_t i = 0; i < sparse_base; ++i) {
-        uint64_t i_raw = i * sparse_base * sparse_base * sparse_base;
-        uint64_t i_normalized = ((i & 1UL) == 1UL) * sparse_base * sparse_base * sparse_base;
-        for (uint64_t j = 0; j < sparse_base; ++j) {
-            uint64_t j_raw = j * sparse_base * sparse_base;
-            uint64_t j_normalized = ((j & 1UL) == 1UL) * sparse_base * sparse_base;
-            for (uint64_t k = 0; k < sparse_base; ++k) {
-                uint64_t k_raw = k * sparse_base;
-                uint64_t k_normalized = ((k & 1UL) == 1UL) * sparse_base;
-                for (uint64_t m = 0; m < sparse_base; ++m) {
-                    uint64_t m_raw = m;
-                    uint64_t m_normalized = ((m & 1UL) == 1UL);
-                    uint64_t left = i_raw + j_raw + k_raw + m_raw;
-                    uint64_t right = i_normalized + j_normalized + k_normalized + m_normalized;
-                    column_1.emplace_back(left);
-                    column_2.emplace_back(barretenberg::fr(0));
-                    column_3.emplace_back(right);
-                }
-            }
-        }
+    PLookupTable table;
+    table.id = id;
+    table.table_index = table_index;
+    table.size = 256;
+    table.use_twin_keys = true;
+    for (uint64_t i = 0; i < table.size; ++i) {
+        uint64_t left = i;
+        const auto right = numeric::map_into_sparse_form<AES_BASE>((uint8_t)i);
+        table.column_1.emplace_back(barretenberg::fr(left));
+        table.column_2.emplace_back(barretenberg::fr(0));
+        table.column_3.emplace_back(barretenberg::fr(right));
     }
-    return true;
+    table.get_values_from_key = &get_aes_sparse_values_from_key;
+
+    table.column_1_step_size = barretenberg::fr(0);
+    table.column_2_step_size = barretenberg::fr(0);
+    table.column_3_step_size = barretenberg::fr(0);
+    return table;
 }
 
 inline std::array<barretenberg::fr, 2> get_aes_sparse_normalization_values_from_key(const std::array<uint64_t, 2> key)
 {
-    uint64_t byte = map_from_sparse_form(key[0]);
-    return { barretenberg::fr(map_into_sparse_form((uint8_t)byte)), barretenberg::fr(0) };
+    const auto byte = numeric::map_from_sparse_form<AES_BASE>(key[0]);
+    return { barretenberg::fr(numeric::map_into_sparse_form<AES_BASE>(byte)), barretenberg::fr(0) };
 }
 
-inline bool generate_aes_sbox_map(std::vector<barretenberg::fr>& column_1,
-                                  std::vector<barretenberg::fr>& column_2,
-                                  std::vector<barretenberg::fr>& column_3)
+inline PLookupTable generate_aes_sparse_normalization_table(PLookupTableId id, const size_t table_index)
 {
-    const uint64_t num_entries = 256;
-
-    for (uint64_t i = 0; i < num_entries; ++i) {
-        uint64_t first = map_into_sparse_form((uint8_t)i);
-        uint8_t sbox_value = sbox[(uint8_t)i];
-        uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
-        uint64_t second = map_into_sparse_form(sbox_value);
-        uint64_t third = map_into_sparse_form((uint8_t)(sbox_value ^ swizzled));
-
-        column_1.emplace_back(barretenberg::fr(first));
-        column_2.emplace_back(barretenberg::fr(second));
-        column_3.emplace_back(barretenberg::fr(third));
+    PLookupTable table;
+    table.id = id;
+    table.table_index = table_index;
+    for (uint64_t i = 0; i < AES_BASE; ++i) {
+        uint64_t i_raw = i * AES_BASE * AES_BASE * AES_BASE;
+        uint64_t i_normalized = ((i & 1UL) == 1UL) * AES_BASE * AES_BASE * AES_BASE;
+        for (uint64_t j = 0; j < AES_BASE; ++j) {
+            uint64_t j_raw = j * AES_BASE * AES_BASE;
+            uint64_t j_normalized = ((j & 1UL) == 1UL) * AES_BASE * AES_BASE;
+            for (uint64_t k = 0; k < AES_BASE; ++k) {
+                uint64_t k_raw = k * AES_BASE;
+                uint64_t k_normalized = ((k & 1UL) == 1UL) * AES_BASE;
+                for (uint64_t m = 0; m < AES_BASE; ++m) {
+                    uint64_t m_raw = m;
+                    uint64_t m_normalized = ((m & 1UL) == 1UL);
+                    uint64_t left = i_raw + j_raw + k_raw + m_raw;
+                    uint64_t right = i_normalized + j_normalized + k_normalized + m_normalized;
+                    table.column_1.emplace_back(left);
+                    table.column_2.emplace_back(barretenberg::fr(0));
+                    table.column_3.emplace_back(right);
+                }
+            }
+        }
     }
+    table.size = table.column_1.size();
+    table.use_twin_keys = true;
+    table.get_values_from_key = &get_aes_sparse_normalization_values_from_key;
 
-    return true;
+    table.column_1_step_size = barretenberg::fr(-6561);
+    table.column_2_step_size = barretenberg::fr(0);
+    table.column_3_step_size = barretenberg::fr(-16);
+    return table;
 }
 
 inline std::array<barretenberg::fr, 2> get_aes_sbox_values_from_key(const std::array<uint64_t, 2> key)
 {
-    uint64_t byte = sbox[map_from_sparse_form(key[0])];
+    const auto byte = sbox[numeric::map_from_sparse_form<AES_BASE>(key[0])];
     uint8_t sbox_value = sbox[(uint8_t)byte];
     uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
     return { barretenberg::fr(sbox_value), barretenberg::fr(swizzled) };
 }
 
-// inline bool generate_7bit_xor_table(std::vector<barretenberg::fr>& column_1, std::vector<barretenberg::fr>& column_2,
-// std::vector<barretenberg::fr>& column_3)
-// {
-//     const uint64_t num_entries = 16384;
+inline PLookupTable generate_aes_sbox_table(PLookupTableId id, const size_t table_index)
+{
+    PLookupTable table;
+    table.id = id;
+    table.table_index = table_index;
+    table.size = 256;
+    table.use_twin_keys = true;
+    for (uint64_t i = 0; i < table.size; ++i) {
+        const auto first = numeric::map_into_sparse_form<AES_BASE>((uint8_t)i);
+        uint8_t sbox_value = sbox[(uint8_t)i];
+        uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
+        const auto second = numeric::map_into_sparse_form<AES_BASE>(sbox_value);
+        const auto third = numeric::map_into_sparse_form<AES_BASE>((uint8_t)(sbox_value ^ swizzled));
 
-//     for (uint64_t i = 0; i < 128; ++i) {
-//         for (uint64_t j = 0; j < 128; ++j) {
-//             uint64_t first = i;
-//             uint64_t second = j;
-//             uint64_t third = first ^ second;
+        table.column_1.emplace_back(barretenberg::fr(first));
+        table.column_2.emplace_back(barretenberg::fr(second));
+        table.column_3.emplace_back(barretenberg::fr(third));
+    }
+    table.get_values_from_key = get_aes_sbox_values_from_key;
 
-//             column_1.emplace_back(fr(first));
-//             column_2.emplace_back(fr(second));
-//             column_3.emplace_back(fr(third));
-//         }
-//     }
-
-//     return true;
-// }
-
-// inline std::array<barretenberg::fr, 2> get_7bit_xor_values_from_key(const std::array<uint64_t, 2> key)
-// {
-//     return fr(key[0] ^ key[1]);
-// }
-
-// inline bool generate_4bit_xor_table(std::vector<barretenberg::fr>& column_1, std::vector<barretenberg::fr>& column_2,
-// std::vector<barretenberg::fr>& column_3)
-// {
-//     const uint64_t num_entries = 256;
-
-//     for (uint64_t i = 0; i < 16; ++i) {
-//         for (uint64_t j = 0; j < 16; ++j) {
-//             uint64_t first = i;
-//             uint64_t second = j;
-//             uint64_t third = first ^ second;
-
-//             column_1.emplace_back(fr(first));
-//             column_2.emplace_back(fr(second));
-//             column_3.emplace_back(fr(third));
-//         }
-//     }
-
-//     return true;
-// }
-
-// inline std::array<barretenberg::fr, 2> get_4bit_xor_values_from_key(const std::array<uint64_t, 2> key)
-// {
-//     return fr(key[0] ^ key[1]);
-// }
-
-// inline bool generate_7bit_and_table(std::vector<barretenberg::fr>& column_1, std::vector<barretenberg::fr>& column_2,
-// std::vector<barretenberg::fr>& column_3)
-// {
-//     const uint64_t num_entries = 16384;
-
-//     for (uint64_t i = 0; i < 128; ++i) {
-//         for (uint64_t j = 0; j < 128; ++j) {
-//             uint64_t first = i;
-//             uint64_t second = j;
-//             uint64_t third = first & second;
-
-//             column_1.emplace_back(fr(first));
-//             column_2.emplace_back(fr(second));
-//             column_3.emplace_back(fr(third));
-//         }
-//     }
-
-//     return true;
-// }
-
-// inline std::array<barretenberg::fr, 2> get_7bit_and_values_from_key(const std::array<uint64_t, 2> key)
-// {
-//     return fr(key[0] & key[1]);
-// }
-
-// inline bool generate_4bit_and_table(std::vector<barretenberg::fr>& column_1, std::vector<barretenberg::fr>& column_2,
-// std::vector<barretenberg::fr>& column_3)
-// {
-//     const uint64_t num_entries = 256;
-
-//     for (uint64_t i = 0; i < 16; ++i) {
-//         for (uint64_t j = 0; j < 16; ++j) {
-//             uint64_t first = i;
-//             uint64_t second = j;
-//             uint64_t third = first & second;
-
-//             column_1.emplace_back(fr(first));
-//             column_2.emplace_back(fr(second));
-//             column_3.emplace_back(fr(third));
-//         }
-//     }
-
-//     return true;
-// }
-
-// inline std::array<barretenberg::fr, 2> get_4bit_and_values_from_key(const std::array<uint64_t, 2> key)
-// {
-//     return fr(key[0] & key[1]);
-// }
+    table.column_1_step_size = barretenberg::fr(0);
+    table.column_2_step_size = barretenberg::fr(0);
+    table.column_3_step_size = barretenberg::fr(0);
+    return table;
+}
 } // namespace aes_tables
 
 namespace sha256_tables {
-template <uint64_t base> constexpr uint256_t map_into_sparse_form(const uint64_t input)
-{
-    uint256_t out = 0UL;
-    uint64_t converted = (uint64_t)input;
-    uint256_t base_accumulator = 1;
-    for (uint64_t i = 0; i < 32; ++i) {
-        uint64_t sparse_bit = ((converted >> i) & 1ULL);
-        out += (uint256_t(sparse_bit) * base_accumulator);
-        base_accumulator *= base;
-    }
-    return out;
-}
-
-template <uint64_t base> constexpr uint64_t map_from_sparse_form(const uint256_t input)
-{
-    uint256_t target = input;
-    uint64_t output = 0;
-
-    uint64_t count = 0;
-    while (target > 0) {
-        uint64_t slice = (target % base).data[0];
-        uint64_t bit = slice & 1ULL;
-        output += (bit << count);
-        ++count;
-        target -= slice;
-        target = target / base;
-    }
-
-    return output;
-}
-
-template <uint64_t base, uint64_t num_rotated_bits>
-inline bool generate_sparse_map_with_rotate(std::vector<barretenberg::fr>& column_1,
-                                            std::vector<barretenberg::fr>& column_2,
-                                            std::vector<barretenberg::fr>& column_3)
-{
-    constexpr uint64_t bits_per_slice = 11;
-    for (uint64_t i = 0; i < 1U << bits_per_slice; ++i) {
-        const uint64_t source = i;
-        const auto target = map_into_sparse_form<base>(source);
-        const auto rotated = map_into_sparse_form<base>(numeric::rotate32((uint32_t)source, num_rotated_bits));
-        column_1.emplace_back(barretenberg::fr(source));
-        column_2.emplace_back(barretenberg::fr(target));
-        column_3.emplace_back(barretenberg::fr(rotated));
-    }
-    return true;
-}
 
 template <uint64_t base, uint64_t num_rotated_bits>
 inline std::array<barretenberg::fr, 2> get_sha256_sparse_map_values_from_key(const std::array<uint64_t, 2> key)
 {
-    const auto t1 = map_into_sparse_form<base>(numeric::rotate32((uint32_t)key[0], num_rotated_bits));
+    const auto t1 = numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)key[0], num_rotated_bits));
     return { barretenberg::fr(t1), barretenberg::fr(0) };
 }
 
-// template <uint64_t base, uint64_t num_shifted_bits>
-// inline bool generate_sparse_map_with_shift(std::vector<barretenberg::fr>& column_1,
-//                                            std::vector<barretenberg::fr>& column_2,
-//                                            std::vector<barretenberg::fr>& column_3)
-// {
-//     constexpr uint64_t bits_per_slice = 11;
-//     for (uint64_t i = 0; i < 1U << bits_per_slice; ++i) {
-//         const uint64_t source = i;
-//         const uint64_t target = map_into_sparse_form<bits_per_slice, base>(source);
-//         const uint64_t rotated = map_into_space_form<base>(rotate(source >> num_shifted_bits));
-//         column_1.emplace_back(fr(source));
-//         column_2.emplace_back(fr(target));
-//         column_3.emplace_back(fr(rotated));
-//     }
-// }
-
-// template <uint64_t base, uint64_t num_shifted_bits>
-// inline std::array<barretenberg::fr, 2> get_sparse_map_with_shift_values_from_key(
-//     const std::array<uint64_t, 2> key)
-// {
-//     const uint64_t target = map_into_sparse_form<base>(key[0]);
-//     return { fr(key), fr(key >> num_shifted_bits) };
-// }
-
-template <uint64_t base, uint64_t bits_per_slice>
-inline bool generate_output_sparse_map(std::vector<barretenberg::fr>& column_1,
-                                       std::vector<barretenberg::fr>& column_2,
-                                       std::vector<barretenberg::fr>& column_3)
+template <uint64_t base, uint64_t num_rotated_bits>
+inline PLookupTable generate_sparse_table_with_rotation(PLookupTableId id, const size_t table_index)
 {
-    uint64_t table_size = 1;
-    for (uint64_t i = 0; i < bits_per_slice; ++i) {
-        table_size *= base;
+    constexpr uint64_t bits_per_slice = 11;
+    PLookupTable table;
+    table.id = id;
+    table.table_index = table_index;
+    table.size = (1U << bits_per_slice);
+    table.use_twin_keys = true;
+
+    for (uint64_t i = 0; i < table.size; ++i) {
+        const uint64_t source = i;
+        const auto target = numeric::map_into_sparse_form<base>(source);
+        const auto rotated = numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)source, num_rotated_bits));
+        table.column_1.emplace_back(barretenberg::fr(source));
+        table.column_2.emplace_back(barretenberg::fr(target));
+        table.column_3.emplace_back(barretenberg::fr(rotated));
     }
 
-    // uint64_t accumulator = 0;
-    // uint64_t end = table_size / base;
+    table.get_values_from_key = &get_sha256_sparse_map_values_from_key<base, num_rotated_bits>;
 
-    // std::array<uint64_t, bits_per_slice> moduli{};
-    // moduli[0] = base;
-    // for (uint64_t i = 1; i < bits_per_slice; ++i)
-    // {
-    //     moduli[i] = moduli[i - 1] * base;
-    //}
-
-    for (size_t i = 0; i < table_size; ++i) {
-        column_1.emplace_back(barretenberg::fr(i));
-        column_2.emplace_back(barretenberg::fr(0));
-        column_3.emplace_back(barretenberg::fr(map_from_sparse_form<base>(i)));
+    uint256_t sparse_step_size = 1;
+    for (size_t i = 0; i < bits_per_slice; ++i) {
+        sparse_step_size *= base;
     }
-    // for (uint64_t i = 0; i < end; ++i) {
-    //     column_1.emplace_back(barretenberg::fr(i * base));
-    //     column_2.emplace_back(barretenberg::fr(0));
-    //     column_3.emplace_back(barretenberg::fr(accumulator));
+    table.column_1_step_size = barretenberg::fr(-(1 << 11));
+    table.column_2_step_size = barretenberg::fr(-sparse_step_size);
+    table.column_3_step_size = barretenberg::fr(-sparse_step_size);
 
-    //     ++accumulator;
-
-    //     for (uint64_t j = 1; j < base; ++j) {
-    //         column_1.emplace_back(barretenberg::fr(i * base) + j);
-    //         column_2.emplace_back(barretenberg::fr(0));
-    //         column_3.emplace_back(barretenberg::fr(accumulator));
-    //     }
-    // }
-    return true;
+    return table;
 }
 
 template <uint64_t base>
 inline std::array<barretenberg::fr, 2> get_output_sparse_map_values_from_key(const std::array<uint64_t, 2> key)
 {
-    const uint64_t target = map_from_sparse_form<base>(key[0]);
+    const uint64_t target = numeric::map_from_sparse_form<base>(key[0]);
     return { barretenberg::fr(target), barretenberg::fr(0) };
 }
 
-inline bool generate_sha256_part_a_output_map(std::vector<barretenberg::fr>& column_1,
-                                              std::vector<barretenberg::fr>& column_2,
-                                              std::vector<barretenberg::fr>& column_3)
+template <uint64_t base, uint64_t bits_per_slice>
+inline PLookupTable generate_sparse_normalization_table(PLookupTableId id, const size_t table_index)
 {
+    PLookupTable table;
+    table.size = 1;
+    table.use_twin_keys = true;
+    table.id = id;
+    table.table_index = table_index;
+    for (uint64_t i = 0; i < bits_per_slice; ++i) {
+        table.size *= base;
+    }
+
+    for (size_t i = 0; i < table.size; ++i) {
+        table.column_1.emplace_back(barretenberg::fr(i));
+        table.column_2.emplace_back(barretenberg::fr(0));
+        table.column_3.emplace_back(barretenberg::fr(numeric::map_from_sparse_form<base>(i)));
+    }
+
+    table.get_values_from_key = &get_output_sparse_map_values_from_key<base>;
+
+    table.column_1_step_size = barretenberg::fr(-(1 << bits_per_slice));
+    table.column_2_step_size = barretenberg::fr(0);
+    table.column_3_step_size = barretenberg::fr(-table.size);
+
+    return table;
+}
+
+inline std::array<barretenberg::fr, 2> get_sha256_part_a_output_values_from_key(const std::array<uint64_t, 2> key)
+{
+    constexpr uint64_t base = 7;
+    constexpr uint64_t bit_table[7]{
+        0, // e + 2f + 3g = 0 => e = 0, f = 0, g = 0 => t = 0
+        0, // e + 2f + 3g = 1 => e = 1, f = 0, g = 0 => t = 0
+        0, // e + 2f + 3g = 2 => e = 0, f = 1, g = 0 => t = 0
+        1, // e + 2f + 3g = 3 => e = 0, f = 0, g = 1 OR e = 1, f = 1, g = 0 => t = 1
+        0, // e + 2f + 3g = 4 => e = 1, f = 0, g = 1 => t = 0
+        1, // e + 2f + 3g = 5 => e = 0, f = 1, g = 1 => t = 1
+        1, // e + 2f + 3g = 6 => e = 1, f = 1, g = 1 => t = 1
+    };
+
+    uint64_t accumulator = 0;
+    uint64_t input = key[0];
+    uint64_t count = 0;
+    while (input > 0) {
+        uint64_t slice = input % base;
+        uint64_t bit = bit_table[static_cast<size_t>(slice)];
+        accumulator += (bit << count);
+        input -= slice;
+        input /= base;
+        ++count;
+    }
+    return { barretenberg::fr(accumulator), barretenberg::fr(0) };
+}
+
+inline PLookupTable generate_sha256_part_a_normalization_table(PLookupTableId id, const size_t table_index)
+{
+    constexpr uint64_t bit_table[7]{
+        0, // e + 2f + 3g = 0 => e = 0, f = 0, g = 0 => t = 0
+        0, // e + 2f + 3g = 1 => e = 1, f = 0, g = 0 => t = 0
+        0, // e + 2f + 3g = 2 => e = 0, f = 1, g = 0 => t = 0
+        1, // e + 2f + 3g = 3 => e = 0, f = 0, g = 1 OR e = 1, f = 1, g = 0 => t = 1
+        0, // e + 2f + 3g = 4 => e = 1, f = 0, g = 1 => t = 0
+        1, // e + 2f + 3g = 5 => e = 0, f = 1, g = 1 => t = 1
+        1, // e + 2f + 3g = 6 => e = 1, f = 1, g = 1 => t = 1
+    };
+
+    constexpr uint64_t base = 7;
+    constexpr uint64_t base_sqr = base * base;
+    constexpr uint64_t base_cube = base * base * base;
+
+    PLookupTable table;
+    table.id = id;
+    table.table_index = table_index;
+    table.use_twin_keys = true;
+    table.size = base_cube * base;
+
     /**
      * t = (e & f) ^ (~e & g)
      *
@@ -498,20 +361,6 @@ inline bool generate_sha256_part_a_output_map(std::vector<barretenberg::fr>& col
      * If we map e, f, g into a base-7 sparse form, then we can evaluate (e & f) ^ (~e & g) as described above.
      *
      **/
-    const uint64_t bit_table[7]{
-        0, // e + 2f + 3g = 0 => e = 0, f = 0, g = 0 => t = 0
-        0, // e + 2f + 3g = 1 => e = 1, f = 0, g = 0 => t = 0
-        0, // e + 2f + 3g = 2 => e = 0, f = 1, g = 0 => t = 0
-        1, // e + 2f + 3g = 3 => e = 0, f = 0, g = 1 OR e = 1, f = 1, g = 0 => t = 1
-        0, // e + 2f + 3g = 4 => e = 1, f = 0, g = 1 => t = 0
-        1, // e + 2f + 3g = 5 => e = 0, f = 1, g = 1 => t = 1
-        1, // e + 2f + 3g = 6 => e = 1, f = 1, g = 1 => t = 1
-    };
-
-    constexpr uint64_t base = 7;
-    constexpr uint64_t base_sqr = base * base;
-    constexpr uint64_t base_cube = base * base * base;
-
     for (size_t i = 0; i < base; ++i) {
         const uint64_t i_value = i * base_cube;
         const uint64_t i_bit = bit_table[static_cast<size_t>(i)] << 3;
@@ -527,14 +376,20 @@ inline bool generate_sha256_part_a_output_map(std::vector<barretenberg::fr>& col
 
                     const uint64_t input = m_value + k_value + j_value + i_value;
                     const uint64_t output = m_bit + k_bit + j_bit + i_bit;
-                    column_1.emplace_back(barretenberg::fr(input));
-                    column_2.emplace_back(barretenberg::fr(0));
-                    column_3.emplace_back(barretenberg::fr(output));
+                    table.column_1.emplace_back(barretenberg::fr(input));
+                    table.column_2.emplace_back(barretenberg::fr(0));
+                    table.column_3.emplace_back(barretenberg::fr(output));
                 }
             }
         }
     }
-    return true;
+
+    table.get_values_from_key = &get_sha256_part_a_output_values_from_key;
+
+    table.column_1_step_size = barretenberg::fr(-(1 << 4));
+    table.column_2_step_size = barretenberg::fr(0);
+    table.column_3_step_size = barretenberg::fr(-2401);
+    return table;
 }
 
 inline barretenberg::fr get_sha256_part_a_output_values_from_key(const uint256_t key)
@@ -564,17 +419,14 @@ inline barretenberg::fr get_sha256_part_a_output_values_from_key(const uint256_t
     return barretenberg::fr(accumulator);
 }
 
-inline std::array<barretenberg::fr, 2> get_sha256_part_a_output_values_from_key(const std::array<uint64_t, 2> key)
+inline std::array<barretenberg::fr, 2> get_sha256_part_b_output_values_from_key(const std::array<uint64_t, 2> key)
 {
-    constexpr uint64_t base = 7;
-    constexpr uint64_t bit_table[7]{
-        0, // e + 2f + 3g = 0 => e = 0, f = 0, g = 0 => t = 0
-        0, // e + 2f + 3g = 1 => e = 1, f = 0, g = 0 => t = 0
-        0, // e + 2f + 3g = 2 => e = 0, f = 1, g = 0 => t = 0
-        1, // e + 2f + 3g = 3 => e = 0, f = 0, g = 1 OR e = 1, f = 1, g = 0 => t = 1
-        0, // e + 2f + 3g = 4 => e = 1, f = 0, g = 1 => t = 0
-        1, // e + 2f + 3g = 5 => e = 0, f = 1, g = 1 => t = 1
-        1, // e + 2f + 3g = 6 => e = 1, f = 1, g = 1 => t = 1
+    constexpr uint64_t base = 4;
+    constexpr uint64_t bit_table[4]{
+        0, // a + b + c = 0 => (a & b) ^ (a & c) ^ (b & c) = 0
+        0, // a + b + c = 1 => (a & b) ^ (a & c) ^ (b & c) = 0
+        1, // a + b + c = 2 => (a & b) ^ (a & c) ^ (b & c) = 1
+        1, // a + b + c = 3 => (a & b) ^ (a & c) ^ (b & c) = 0
     };
 
     uint64_t accumulator = 0;
@@ -591,9 +443,7 @@ inline std::array<barretenberg::fr, 2> get_sha256_part_a_output_values_from_key(
     return { barretenberg::fr(accumulator), barretenberg::fr(0) };
 }
 
-inline bool generate_sha256_part_b_output_map(std::vector<barretenberg::fr>& column_1,
-                                              std::vector<barretenberg::fr>& column_2,
-                                              std::vector<barretenberg::fr>& column_3)
+inline PLookupTable generate_sha256_part_b_normalization_table(PLookupTableId id, const size_t table_index)
 {
     /**
      * v = (a & b) ^ (a & c) ^ (b & c)
@@ -629,6 +479,11 @@ inline bool generate_sha256_part_b_output_map(std::vector<barretenberg::fr>& col
     constexpr uint64_t base_quad = base * base * base * base;
     constexpr uint64_t base_pent = base * base * base * base * base;
 
+    PLookupTable table;
+    table.use_twin_keys = true;
+    table.size = base_pent * base;
+    table.id = id;
+    table.table_index = table_index;
     for (size_t i = 0; i < base; ++i) {
         const uint64_t i_value = i * base_pent;
         const uint64_t i_bit = bit_table[static_cast<uint64_t>(i)] << 5;
@@ -651,16 +506,22 @@ inline bool generate_sha256_part_b_output_map(std::vector<barretenberg::fr>& col
                             const uint64_t input = p_value + l_value + m_value + k_value + j_value + i_value;
                             const uint64_t output = p_bit + l_bit + m_bit + k_bit + j_bit + i_bit;
 
-                            column_1.emplace_back(barretenberg::fr(input));
-                            column_2.emplace_back(barretenberg::fr(0));
-                            column_3.emplace_back(barretenberg::fr(output));
+                            table.column_1.emplace_back(barretenberg::fr(input));
+                            table.column_2.emplace_back(barretenberg::fr(0));
+                            table.column_3.emplace_back(barretenberg::fr(output));
                         }
                     }
                 }
             }
         }
     }
-    return true;
+
+    table.column_1_step_size = barretenberg::fr(-(1 << 4));
+    table.column_2_step_size = barretenberg::fr(0);
+    table.column_3_step_size = barretenberg::fr(-table.size);
+
+    table.get_values_from_key = &get_sha256_part_b_output_values_from_key;
+    return table;
 }
 
 inline barretenberg::fr get_sha256_part_b_output_values_from_key(const uint256_t key)
@@ -687,28 +548,5 @@ inline barretenberg::fr get_sha256_part_b_output_values_from_key(const uint256_t
     return barretenberg::fr(accumulator);
 }
 
-inline std::array<barretenberg::fr, 2> get_sha256_part_b_output_values_from_key(const std::array<uint64_t, 2> key)
-{
-    constexpr uint64_t base = 4;
-    constexpr uint64_t bit_table[4]{
-        0, // a + b + c = 0 => (a & b) ^ (a & c) ^ (b & c) = 0
-        0, // a + b + c = 1 => (a & b) ^ (a & c) ^ (b & c) = 0
-        1, // a + b + c = 2 => (a & b) ^ (a & c) ^ (b & c) = 1
-        1, // a + b + c = 3 => (a & b) ^ (a & c) ^ (b & c) = 0
-    };
-
-    uint64_t accumulator = 0;
-    uint64_t input = key[0];
-    uint64_t count = 0;
-    while (input > 0) {
-        uint64_t slice = input % base;
-        uint64_t bit = bit_table[static_cast<size_t>(slice)];
-        accumulator += (bit << count);
-        input -= slice;
-        input /= base;
-        ++count;
-    }
-    return { barretenberg::fr(accumulator), barretenberg::fr(0) };
-}
 } // namespace sha256_tables
 } // namespace waffle

@@ -19,7 +19,7 @@ constexpr size_t get_num_blocks(const size_t num_bits)
 
 template <uint64_t base, uint64_t num_bits>
 field_t<waffle::PLookupComposer> normalize_sparse_form(const field_t<waffle::PLookupComposer>& input,
-                                                       waffle::LookupTableId table_id)
+                                                       waffle::PLookupTableId table_id)
 {
     waffle::PLookupComposer* ctx = input.get_context();
 
@@ -28,14 +28,14 @@ field_t<waffle::PLookupComposer> normalize_sparse_form(const field_t<waffle::PLo
     bool is_constant = input.witness_index == UINT32_MAX;
 
     if (is_constant) {
-        if (table_id == waffle::LookupTableId::SHA256_PARTA_NORMALIZE) {
+        if (table_id == waffle::PLookupTableId::SHA256_PARTA_NORMALIZE) {
             fr output = waffle::sha256_tables::get_sha256_part_a_output_values_from_key(sparse);
             return field_t<waffle::PLookupComposer>(ctx, output);
-        } else if (table_id == waffle::LookupTableId::SHA256_PARTB_NORMALIZE) {
+        } else if (table_id == waffle::PLookupTableId::SHA256_PARTB_NORMALIZE) {
             fr output = waffle::sha256_tables::get_sha256_part_b_output_values_from_key(sparse);
             return field_t<waffle::PLookupComposer>(ctx, output);
         } else {
-            uint64_t output = waffle::sha256_tables::map_from_sparse_form<base>(sparse);
+            uint64_t output = numeric::map_from_sparse_form<base>(sparse);
             return field_t<waffle::PLookupComposer>(ctx, output);
         }
     }
@@ -92,8 +92,8 @@ field_t<waffle::PLookupComposer> choose(const sparse_ch_value& e, const sparse_c
     const auto t0 = e.sparse.add_two(f.sparse + f.sparse, g.sparse + g.sparse + g.sparse);
     const auto t1 = e.rot6.add_two(e.rot11, e.rot25);
 
-    const auto r0 = normalize_sparse_form<7, 4>(t0, waffle::LookupTableId::SHA256_PARTA_NORMALIZE);
-    const auto r1 = normalize_sparse_form<7, 4>(t1, waffle::LookupTableId::SHA256_BASE7_NORMALIZE);
+    const auto r0 = normalize_sparse_form<7, 4>(t0, waffle::PLookupTableId::SHA256_PARTA_NORMALIZE);
+    const auto r1 = normalize_sparse_form<7, 4>(t1, waffle::PLookupTableId::SHA256_BASE7_NORMALIZE);
 
     return r0 + r1;
 }
@@ -105,8 +105,8 @@ field_t<waffle::PLookupComposer> majority(const sparse_maj_value& a,
     const auto t0 = a.sparse.add_two(b.sparse, c.sparse);
     const auto t1 = a.rot2.add_two(a.rot13, a.rot22);
 
-    const auto r0 = normalize_sparse_form<4, 6>(t0, waffle::LookupTableId::SHA256_PARTB_NORMALIZE);
-    const auto r1 = normalize_sparse_form<4, 6>(t1, waffle::LookupTableId::SHA256_BASE4_NORMALIZE);
+    const auto r0 = normalize_sparse_form<4, 6>(t0, waffle::PLookupTableId::SHA256_PARTB_NORMALIZE);
+    const auto r1 = normalize_sparse_form<4, 6>(t1, waffle::PLookupTableId::SHA256_BASE4_NORMALIZE);
 
     return r0 + r1;
 }
@@ -131,14 +131,13 @@ sparse_maj_value convert_into_sparse_maj_form(const field_t<waffle::PLookupCompo
 
     if (a.witness_index == UINT32_MAX) {
         result.normal = field_t<waffle::PLookupComposer>(ctx, input);
-        result.sparse =
-            field_t<waffle::PLookupComposer>(ctx, fr(waffle::sha256_tables::map_into_sparse_form<4>(input)));
+        result.sparse = field_t<waffle::PLookupComposer>(ctx, fr(numeric::map_into_sparse_form<4>(input)));
         result.rot2 = field_t<waffle::PLookupComposer>(
-            ctx, fr(waffle::sha256_tables::map_into_sparse_form<4>(numeric::rotate32((uint32_t)input, 2))));
+            ctx, fr(numeric::map_into_sparse_form<4>(numeric::rotate32((uint32_t)input, 2))));
         result.rot13 = field_t<waffle::PLookupComposer>(
-            ctx, fr(waffle::sha256_tables::map_into_sparse_form<4>(numeric::rotate32((uint32_t)input, 13))));
+            ctx, fr(numeric::map_into_sparse_form<4>(numeric::rotate32((uint32_t)input, 13))));
         result.rot22 = field_t<waffle::PLookupComposer>(
-            ctx, fr(waffle::sha256_tables::map_into_sparse_form<4>(numeric::rotate32((uint32_t)input, 22))));
+            ctx, fr(numeric::map_into_sparse_form<4>(numeric::rotate32((uint32_t)input, 22))));
         return result;
     }
 
@@ -149,9 +148,9 @@ sparse_maj_value convert_into_sparse_maj_form(const field_t<waffle::PLookupCompo
     }
 
     std::array<field_t<waffle::PLookupComposer>, 3> s{
-        witness_t<waffle::PLookupComposer>(ctx, waffle::sha256_tables::map_into_sparse_form<4>(slice_values[0])),
-        witness_t<waffle::PLookupComposer>(ctx, waffle::sha256_tables::map_into_sparse_form<4>(slice_values[1])),
-        witness_t<waffle::PLookupComposer>(ctx, waffle::sha256_tables::map_into_sparse_form<4>(slice_values[2])),
+        witness_t<waffle::PLookupComposer>(ctx, numeric::map_into_sparse_form<4>(slice_values[0])),
+        witness_t<waffle::PLookupComposer>(ctx, numeric::map_into_sparse_form<4>(slice_values[1])),
+        witness_t<waffle::PLookupComposer>(ctx, numeric::map_into_sparse_form<4>(slice_values[2])),
     };
     std::array<field_t<waffle::PLookupComposer>, 3> s_rot{
         field_t<waffle::PLookupComposer>(ctx),
@@ -161,11 +160,11 @@ sparse_maj_value convert_into_sparse_maj_form(const field_t<waffle::PLookupCompo
 
     const std::array<uint32_t, 3> slice_indices{
         ctx->read_from_table(
-            waffle::LookupTableId::SHA256_BASE4_ROTATE2, input_slices[0].witness_index, s[0].witness_index),
+            waffle::PLookupTableId::SHA256_BASE4_ROTATE2, input_slices[0].witness_index, s[0].witness_index),
         ctx->read_from_table(
-            waffle::LookupTableId::SHA256_BASE4_ROTATE2, input_slices[1].witness_index, s[1].witness_index),
+            waffle::PLookupTableId::SHA256_BASE4_ROTATE2, input_slices[1].witness_index, s[1].witness_index),
         ctx->read_from_table(
-            waffle::LookupTableId::SHA256_BASE4_ROTATE2, input_slices[2].witness_index, s[2].witness_index),
+            waffle::PLookupTableId::SHA256_BASE4_ROTATE2, input_slices[2].witness_index, s[2].witness_index),
     };
 
     s_rot[0].witness_index = slice_indices[0];
@@ -222,14 +221,13 @@ sparse_ch_value convert_into_sparse_ch_form(const field_t<waffle::PLookupCompose
 
     if (e.witness_index == UINT32_MAX) {
         result.normal = field_t<waffle::PLookupComposer>(ctx, input);
-        result.sparse =
-            field_t<waffle::PLookupComposer>(ctx, fr(waffle::sha256_tables::map_into_sparse_form<7>(input)));
+        result.sparse = field_t<waffle::PLookupComposer>(ctx, fr(numeric::map_into_sparse_form<7>(input)));
         result.rot6 = field_t<waffle::PLookupComposer>(
-            ctx, fr(waffle::sha256_tables::map_into_sparse_form<7>(numeric::rotate32((uint32_t)input, 6))));
+            ctx, fr(numeric::map_into_sparse_form<7>(numeric::rotate32((uint32_t)input, 6))));
         result.rot11 = field_t<waffle::PLookupComposer>(
-            ctx, fr(waffle::sha256_tables::map_into_sparse_form<7>(numeric::rotate32((uint32_t)input, 11))));
+            ctx, fr(numeric::map_into_sparse_form<7>(numeric::rotate32((uint32_t)input, 11))));
         result.rot25 = field_t<waffle::PLookupComposer>(
-            ctx, fr(waffle::sha256_tables::map_into_sparse_form<7>(numeric::rotate32((uint32_t)input, 25))));
+            ctx, fr(numeric::map_into_sparse_form<7>(numeric::rotate32((uint32_t)input, 25))));
         return result;
     }
 
@@ -240,9 +238,9 @@ sparse_ch_value convert_into_sparse_ch_form(const field_t<waffle::PLookupCompose
     }
 
     std::array<field_t<waffle::PLookupComposer>, 3> s{
-        witness_t<waffle::PLookupComposer>(ctx, waffle::sha256_tables::map_into_sparse_form<7>(slice_values[0])),
-        witness_t<waffle::PLookupComposer>(ctx, waffle::sha256_tables::map_into_sparse_form<7>(slice_values[1])),
-        witness_t<waffle::PLookupComposer>(ctx, waffle::sha256_tables::map_into_sparse_form<7>(slice_values[2])),
+        witness_t<waffle::PLookupComposer>(ctx, numeric::map_into_sparse_form<7>(slice_values[0])),
+        witness_t<waffle::PLookupComposer>(ctx, numeric::map_into_sparse_form<7>(slice_values[1])),
+        witness_t<waffle::PLookupComposer>(ctx, numeric::map_into_sparse_form<7>(slice_values[2])),
     };
 
     std::array<field_t<waffle::PLookupComposer>, 3> s_rot{
@@ -253,11 +251,11 @@ sparse_ch_value convert_into_sparse_ch_form(const field_t<waffle::PLookupCompose
 
     const std::array<uint32_t, 3> slice_indices{
         ctx->read_from_table(
-            waffle::LookupTableId::SHA256_BASE7_ROTATE6, input_slices[0].witness_index, s[0].witness_index),
+            waffle::PLookupTableId::SHA256_BASE7_ROTATE6, input_slices[0].witness_index, s[0].witness_index),
         ctx->read_from_table(
-            waffle::LookupTableId::SHA256_BASE7_ROTATE6, input_slices[1].witness_index, s[1].witness_index),
+            waffle::PLookupTableId::SHA256_BASE7_ROTATE6, input_slices[1].witness_index, s[1].witness_index),
         ctx->read_from_table(
-            waffle::LookupTableId::SHA256_BASE7_ROTATE3, input_slices[2].witness_index, s[2].witness_index),
+            waffle::PLookupTableId::SHA256_BASE7_ROTATE3, input_slices[2].witness_index, s[2].witness_index),
     };
 
     s_rot[0].witness_index = slice_indices[0];

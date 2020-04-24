@@ -1,46 +1,12 @@
 #pragma once
 #include "composer_base.hpp"
+#include "plookup_tables.hpp"
 
 namespace waffle {
 
 class PLookupComposer : public ComposerBase {
 
   public:
-    struct LookupTable {
-        struct KeyEntry {
-            std::array<uint64_t, 2> key{ 0, 0 };
-            std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
-            bool operator<(const KeyEntry& other) const
-            {
-                return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
-            }
-
-            std::array<fr, 3> to_sorted_list_components(const bool use_two_keys) const
-            {
-                return {
-                    fr(key[0]),
-                    use_two_keys ? fr(key[1]) : value[0],
-                    use_two_keys ? value[0] : value[1],
-                };
-            }
-        };
-
-        LookupTableId id;
-        size_t table_index;
-        size_t size;
-        bool use_twin_keys;
-
-        barretenberg::fr column_1_step_size = barretenberg::fr(0);
-        barretenberg::fr column_2_step_size = barretenberg::fr(0);
-        barretenberg::fr column_3_step_size = barretenberg::fr(0);
-        std::vector<fr> column_1;
-        std::vector<fr> column_3;
-        std::vector<fr> column_2;
-        std::vector<KeyEntry> lookup_gates;
-
-        std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
-    };
-
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
     PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
@@ -64,21 +30,21 @@ class PLookupComposer : public ComposerBase {
     UnrolledPLookupVerifier create_unrolled_verifier();
 
     void initialize_precomputed_table(
-        const LookupTableId id,
+        const PLookupTableId id,
         bool (*generator)(std::vector<barretenberg::fr>&,
                           std::vector<barretenberg::fr>&,
                           std::vector<barretenberg::fr>&),
         std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
 
-    LookupTable& get_table(const LookupTableId id);
+    PLookupTable& get_table(const PLookupTableId id);
 
-    uint32_t read_from_table(const LookupTableId id, const uint32_t key_a, const uint32_t key_b = UINT32_MAX);
-    // std::pair<uint32_t, uint32_t> read_from_table(const LookupTableId id, const uint32_t key);
+    uint32_t read_from_table(const PLookupTableId id, const uint32_t key_a, const uint32_t key_b = UINT32_MAX);
+    // std::pair<uint32_t, uint32_t> read_from_table(const PLookupTableId id, const uint32_t key);
 
-    std::vector<uint32_t> read_sequence_from_table(const LookupTableId id,
+    std::vector<uint32_t> read_sequence_from_table(const PLookupTableId id,
                                                    const std::vector<std::array<uint32_t, 2>>& key_indices);
 
-    void validate_lookup(const LookupTableId id, const std::array<uint32_t, 3> keys);
+    void validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> keys);
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
 
@@ -121,7 +87,7 @@ class PLookupComposer : public ComposerBase {
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
 
-    std::vector<LookupTable> lookup_tables;
+    std::vector<PLookupTable> lookup_tables;
 
     std::vector<barretenberg::fr> q_m;
     std::vector<barretenberg::fr> q_c;
