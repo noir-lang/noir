@@ -36,6 +36,9 @@ class client_proofs_join_split : public ::testing::Test {
         tree = std::make_unique<merkle_tree::LevelDbStore>("/tmp/client_proofs_join_split_db", 32);
         user = rollup::tx::create_user_context();
 
+    }
+
+    void preload_two_notes() {
         tx_note note1 = { user.public_key, 100, user.note_secret };
         tx_note note2 = { user.public_key, 50, user.note_secret };
 
@@ -63,12 +66,12 @@ class client_proofs_join_split : public ::testing::Test {
 TEST_F(client_proofs_join_split, test_0_input_notes)
 {
     tx_note gibberish = { user.public_key, 0, fr::random_element() };
-    tx_note output_note1 = { user.public_key, 20, user.note_secret };
-    tx_note output_note2 = { user.public_key, 10, user.note_secret };
+    tx_note output_note1 = { user.public_key, 100, user.note_secret };
+    tx_note output_note2 = { user.public_key, 0, user.note_secret };
 
     join_split_tx tx;
     tx.owner_pub_key = user.public_key;
-    tx.public_input = 30;
+    tx.public_input = 100;
     tx.public_output = 0;
     tx.num_input_notes = 0;
     tx.input_index = { 0, 0 };
@@ -83,6 +86,8 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
 
 TEST_F(client_proofs_join_split, test_2_input_notes)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx_note output_note1 = { user.public_key, 70, user.note_secret };
@@ -93,10 +98,10 @@ TEST_F(client_proofs_join_split, test_2_input_notes)
     tx.public_input = 0;
     tx.public_output = 0;
     tx.num_input_notes = 2;
-    tx.input_index = { 0, 1 };
+    tx.input_index = { 1, 0 };
     tx.merkle_root = tree->root();
-    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
-    tx.input_note = { input_note1, input_note2 };
+    tx.input_path = { tree->get_hash_path(1), tree->get_hash_path(0) };
+    tx.input_note = { input_note2, input_note1 };
     tx.output_note = { output_note1, output_note2 };
 
     EXPECT_TRUE(sign_and_verify(tx));
@@ -104,6 +109,8 @@ TEST_F(client_proofs_join_split, test_2_input_notes)
 
 TEST_F(client_proofs_join_split, test_0_output_notes)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx_note output_note1 = { user.public_key, 0, user.note_secret };
@@ -125,6 +132,8 @@ TEST_F(client_proofs_join_split, test_0_output_notes)
 
 TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 51, user.note_secret };
     tx_note output_note1 = { user.public_key, 70, user.note_secret };
@@ -146,6 +155,8 @@ TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
 
 TEST_F(client_proofs_join_split, test_wrong_input_note_owner_fails)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { grumpkin::g1::element::random_element(), 50, user.note_secret };
     tx_note output_note1 = { user.public_key, 70, user.note_secret };
@@ -167,6 +178,8 @@ TEST_F(client_proofs_join_split, test_wrong_input_note_owner_fails)
 
 TEST_F(client_proofs_join_split, test_random_output_owners_succeeds)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx_note output_note1 = { grumpkin::g1::element::random_element(), 70, user.note_secret };
@@ -188,6 +201,8 @@ TEST_F(client_proofs_join_split, test_random_output_owners_succeeds)
 
 TEST_F(client_proofs_join_split, test_wrong_hash_path_fails)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx_note output_note1 = { user.public_key, 70, user.note_secret };
@@ -209,6 +224,8 @@ TEST_F(client_proofs_join_split, test_wrong_hash_path_fails)
 
 TEST_F(client_proofs_join_split, test_wrong_merkle_root_fails)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx_note output_note1 = { user.public_key, 70, user.note_secret };
@@ -230,6 +247,8 @@ TEST_F(client_proofs_join_split, test_wrong_merkle_root_fails)
 
 TEST_F(client_proofs_join_split, test_wrong_signature_fails)
 {
+    preload_two_notes();
+
     tx_note input_note1 = { user.public_key, 100, user.note_secret };
     tx_note input_note2 = { user.public_key, 50, user.note_secret };
     tx_note output_note1 = { user.public_key, 70, user.note_secret };
