@@ -11,22 +11,12 @@ enum StandardSelectors {
     Q2 = 3,
     Q3 = 4,
 };
+const static std::vector<std::string> STANDARD_SEL_NAMES = { "q_m", "q_c", "q_1", "q_2", "q_3" };
 
-#define STANDARD_SELECTOR_REFS                                                                                         \
-    auto& q_m = selectors[StandardSelectors::QM];                                                                      \
-    auto& q_c = selectors[StandardSelectors::QC];                                                                      \
-    auto& q_1 = selectors[StandardSelectors::Q1];                                                                      \
-    auto& q_2 = selectors[StandardSelectors::Q2];                                                                      \
-    auto& q_3 = selectors[StandardSelectors::Q3];
-
-#define STANDARD_SEL_NAMES                                                                                             \
-    {                                                                                                                  \
-        "q_m", "q_c", "q_1", "q_2", "q_3"                                                                              \
-    }
 class StandardComposer : public ComposerBase {
   public:
     StandardComposer(const size_t size_hint = 0)
-        : ComposerBase(5, size_hint, STANDARD_SEL_NAMES,{true,true,true,true,true})
+        : ComposerBase(5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -35,21 +25,24 @@ class StandardComposer : public ComposerBase {
     };
 
     // used for enabling MIMCComposer to access ComposerBase constructor
-    StandardComposer(const size_t selector_num, const size_t size_hint, const std::vector<std::string> selector_names, const std::vector<bool> use_mid_for_selectorfft)
-        : ComposerBase(selector_num, size_hint, selector_names,use_mid_for_selectorfft){
+    StandardComposer(const size_t selector_num,
+                     const size_t size_hint,
+                     const std::vector<std::string> selector_names,
+                     const std::vector<bool> use_mid_for_selectorfft)
+        : ComposerBase(selector_num, size_hint, selector_names, use_mid_for_selectorfft)
+    {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
         zero_idx = put_constant_variable(barretenberg::fr::zero());
-        };
-
+    };
 
     StandardComposer(std::string const& crs_path, const size_t size_hint = 0)
         : StandardComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)),
                            size_hint){};
 
     StandardComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
-        : ComposerBase(std::move(crs_factory), 5, size_hint, STANDARD_SEL_NAMES,{true,true,true,true,true})
+        : ComposerBase(std::move(crs_factory), 5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -60,7 +53,7 @@ class StandardComposer : public ComposerBase {
     StandardComposer(std::shared_ptr<proving_key> const& p_key,
                      std::shared_ptr<verification_key> const& v_key,
                      size_t size_hint = 0)
-        : ComposerBase(p_key, v_key, 5, size_hint, STANDARD_SEL_NAMES,{true,true,true,true,true})
+        : ComposerBase(p_key, v_key, 5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -107,8 +100,8 @@ class StandardComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-
-    // these are variables that we have used a gate on, to enforce that they are equal to a defined value
+    // these are variables that we have used a gate on, to enforce that they are
+    // equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)

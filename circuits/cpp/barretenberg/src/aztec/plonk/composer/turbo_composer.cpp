@@ -13,7 +13,7 @@ using namespace barretenberg;
 
 namespace waffle {
 
-#define TURBO_SELECTOR_REFS                                                                                                  \
+#define TURBO_SELECTOR_REFS                                                                                            \
     auto& q_m = selectors[TurboSelectors::QM];                                                                         \
     auto& q_c = selectors[TurboSelectors::QC];                                                                         \
     auto& q_1 = selectors[TurboSelectors::Q1];                                                                         \

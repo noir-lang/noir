@@ -6,15 +6,10 @@ enum MimcSelectors {
     QMIMC_SELEC = 6,
 };
 
-#define MIMC_SELECTOR_REFS                                                                                             \
-    auto& q_mimc_coefficient = selectors[MimcSelectors::QMIMC_COEFF];                                                  \
-    auto& q_mimc_selector = selectors[MimcSelectors::QMIMC_SELEC];
-
-#define MIMC_SEL_NAMES                                                                                                 \
-    {                                                                                                                  \
-        "q_m", "q_c", "q_1", "q_2", "q_3", "q_mimc_coefficient", "q_mimc_selector"                                     \
-    }
 namespace waffle {
+const static std::vector<std::string> MIMC_SEL_NAMES = {
+    "q_m", "q_c", "q_1", "q_2", "q_3", "q_mimc_coefficient", "q_mimc_selector"
+};
 struct mimc_quadruplet {
     uint32_t x_in_idx;
     uint32_t x_cubed_idx;
@@ -26,9 +21,10 @@ struct mimc_quadruplet {
 class MiMCComposer : public StandardComposer {
   public:
     MiMCComposer(const size_t size_hint = 0)
-        : StandardComposer(7, size_hint, MIMC_SEL_NAMES,{false,false,false,false,false,true,true})
+        : StandardComposer(7, size_hint, MIMC_SEL_NAMES, { false, false, false, false, false, true, true })
+        , q_mimc_coefficient(selectors[MimcSelectors::QMIMC_COEFF])
+        , q_mimc_selector(selectors[MimcSelectors::QMIMC_SELEC])
     {
-        MIMC_SELECTOR_REFS
         q_mimc_coefficient.push_back(barretenberg::fr::zero());
         q_mimc_selector.push_back(barretenberg::fr::zero());
     };
@@ -54,7 +50,6 @@ class MiMCComposer : public StandardComposer {
 
     std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -75,7 +70,6 @@ class MiMCComposer : public StandardComposer {
                                                const size_t num_bits,
                                                bool is_xor_gate)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -93,7 +87,6 @@ class MiMCComposer : public StandardComposer {
 
     void create_big_add_gate(const add_quad& in)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -109,7 +102,6 @@ class MiMCComposer : public StandardComposer {
     }
     void create_big_add_gate_with_bit_extraction(const add_quad& in)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -125,7 +117,6 @@ class MiMCComposer : public StandardComposer {
     }
     void create_big_mul_gate(const mul_quad& in)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -141,7 +132,6 @@ class MiMCComposer : public StandardComposer {
     }
     void create_balanced_add_gate(const add_quad& in)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -158,7 +148,6 @@ class MiMCComposer : public StandardComposer {
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
     {
-        MIMC_SELECTOR_REFS
         if (current_output_wire != static_cast<uint32_t>(-1)) {
             create_noop_gate();
         }
@@ -218,5 +207,9 @@ class MiMCComposer : public StandardComposer {
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
     }
+
+  protected:
+    std::vector<barretenberg::fr>& q_mimc_coefficient;
+    std::vector<barretenberg::fr>& q_mimc_selector;
 };
 } // namespace waffle

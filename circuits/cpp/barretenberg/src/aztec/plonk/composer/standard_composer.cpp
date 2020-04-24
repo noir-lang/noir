@@ -1,13 +1,20 @@
 #include "standard_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
+#include <plonk/composer/standard/compute_verification_key.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/permutation_widget.hpp>
-#include <plonk/composer/standard/compute_verification_key.hpp>
 
 using namespace barretenberg;
 
 namespace waffle {
+#define STANDARD_SELECTOR_REFS                                                                                         \
+    auto& q_m = selectors[StandardSelectors::QM];                                                                      \
+    auto& q_c = selectors[StandardSelectors::QC];                                                                      \
+    auto& q_1 = selectors[StandardSelectors::Q1];                                                                      \
+    auto& q_2 = selectors[StandardSelectors::Q2];                                                                      \
+    auto& q_3 = selectors[StandardSelectors::Q3];
+
 void StandardComposer::create_add_gate(const add_triple& in)
 {
     STANDARD_SELECTOR_REFS
@@ -409,7 +416,8 @@ waffle::accumulator_triple StandardComposer::create_xor_constraint(const uint32_
 void StandardComposer::create_dummy_gates()
 {
     STANDARD_SELECTOR_REFS
-    // add in a dummy gate to ensure that all of our polynomials are not zero and not identical
+    // add in a dummy gate to ensure that all of our polynomials are not zero and
+    // not identical
     constexpr fr one = fr(1);
     constexpr fr two = fr(2);
     constexpr fr three = fr(3);
@@ -456,7 +464,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
- ComposerBase::compute_proving_key();
+    ComposerBase::compute_proving_key();
 
     compute_sigma_permutations<3>(circuit_proving_key.get());
     return circuit_proving_key;
