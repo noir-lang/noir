@@ -586,6 +586,7 @@ Field VerifierTurboFixedBaseWidget<Field, Group, Transcript>::append_scalar_mult
 
         Field q_r_term = (q_r_term_ecc + q_r_term_arith) * linear_nu;
         if (key->constraint_selectors.at("Q_2").on_curve()) {
+            key->scalar_multiplication_indices.insert({ "Q_2", scalars.size() });
             points.push_back(key->constraint_selectors.at("Q_2"));
             scalars.push_back(q_r_term);
         }
@@ -635,6 +636,7 @@ Field VerifierTurboFixedBaseWidget<Field, Group, Transcript>::append_scalar_mult
 
         Field q_m_term = (q_m_term_ecc + q_m_term_arith) * linear_nu;
         if (key->constraint_selectors.at("Q_M").on_curve()) {
+            key->scalar_multiplication_indices.insert({ "Q_M", scalars.size() });
             points.push_back(key->constraint_selectors.at("Q_M"));
             scalars.push_back(q_m_term);
         }

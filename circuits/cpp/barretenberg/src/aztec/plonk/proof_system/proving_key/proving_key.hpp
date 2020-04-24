@@ -34,6 +34,7 @@ struct proving_key {
     size_t num_lookup_tables;
 
     std::map<std::string, barretenberg::polynomial> constraint_selectors;
+    std::map<std::string, barretenberg::polynomial> constraint_selectors_lagrange_base;
     std::map<std::string, barretenberg::polynomial> constraint_selector_ffts;
 
     std::map<std::string, barretenberg::polynomial> permutation_selectors;
@@ -60,7 +61,6 @@ struct proving_key {
 
     std::vector<LookupType> lookup_mapping;
     std::vector<size_t> table_indices;
-    barretenberg::fr lookup_table_step_size;
 
     size_t opening_poly_challenge_index;
     size_t shifted_opening_poly_challenge_index;

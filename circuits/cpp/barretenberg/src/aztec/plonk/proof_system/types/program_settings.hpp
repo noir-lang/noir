@@ -302,13 +302,13 @@ class plookup_verifier_settings : public turbo_settings {
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, points, scalars, use_linearisation);
-        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
         return updated_alpha;
     }
@@ -318,10 +318,10 @@ class plookup_verifier_settings : public turbo_settings {
                                                       const Transcript& transcript)
     {
         PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        PLookupWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        PLookupWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -331,13 +331,13 @@ class plookup_verifier_settings : public turbo_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
@@ -426,9 +426,6 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, points, scalars, use_linearisation);
 
-        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
-
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
 
@@ -436,6 +433,9 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
             key, updated_alpha, transcript, points, scalars, use_linearisation);
 
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, points, scalars, use_linearisation);
+
+        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
         return updated_alpha;
     }
@@ -445,10 +445,10 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
                                                       const Transcript& transcript)
     {
         PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        PLookupWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        PLookupWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -458,14 +458,15 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
         return updated_alpha_base;
     }
 };

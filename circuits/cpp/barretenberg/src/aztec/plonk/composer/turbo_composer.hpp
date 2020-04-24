@@ -112,7 +112,7 @@ class TurboComposer : public ComposerBase {
                                                     { "sigma_3", fr_size, false },
                                                     { "q_arith", fr_size, false },
                                                     { "q_ecc_1", fr_size, false },
-                                                    { "q_c", fr_size, false },
+                                                    { "q_m", fr_size, false },
                                                     { "r", fr_size, false },
                                                     { "w_1_omega", fr_size, false },
                                                     { "w_2_omega", fr_size, false },

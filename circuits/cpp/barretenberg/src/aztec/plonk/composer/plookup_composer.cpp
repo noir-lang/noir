@@ -1028,12 +1028,12 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     }
 
     add_selector(poly_q_1, "q_1");
-    add_selector(poly_q_2, "q_2");
+    add_selector(poly_q_2, "q_2", true);
     add_selector(poly_q_3, "q_3");
     add_selector(poly_q_4, "q_4");
     add_selector(poly_q_5, "q_5");
-    add_selector(poly_q_m, "q_m");
-    add_selector(poly_q_c, "q_c");
+    add_selector(poly_q_m, "q_m", true);
+    add_selector(poly_q_c, "q_c", true);
     add_selector(poly_q_arith, "q_arith");
     add_selector(poly_q_ecc_1, "q_ecc_1");
     add_selector(poly_q_range, "q_range");
@@ -1093,7 +1093,6 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     // }
 
     circuit_proving_key->num_lookup_tables = lookup_tables.size();
-    circuit_proving_key->lookup_table_step_size = plookup_step_size;
 
     compute_sigma_permutations<4>(circuit_proving_key.get());
     computed_proving_key = true;
@@ -1149,7 +1148,6 @@ std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
     circuit_verification_key =
         std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
 
-    circuit_verification_key->lookup_table_step_size = plookup_step_size;
     circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
     circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
     circuit_verification_key->constraint_selectors.insert({ "Q_3", commitments[2] });
@@ -1313,10 +1311,10 @@ PLookupProver PLookupComposer::create_prover()
         std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
     output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(plookup_widget));
     output_state.widgets.emplace_back(std::move(fixed_base_widget));
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));
+    output_state.widgets.emplace_back(std::move(plookup_widget));
     return output_state;
 }
 
@@ -1339,10 +1337,10 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
         std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
     output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(plookup_widget));
     output_state.widgets.emplace_back(std::move(fixed_base_widget));
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));
+    output_state.widgets.emplace_back(std::move(plookup_widget));
 
     return output_state;
 }
@@ -1597,7 +1595,8 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTabl
         variables[key_indices[0][1]].from_montgomery_form().data[0],
     };
 
-    const uint64_t step = plookup_step_size.from_montgomery_form().data[0];
+    const uint64_t step_1 = table.column_1_step_size.from_montgomery_form().data[0];
+    const uint64_t step_2 = table.column_2_step_size.from_montgomery_form().data[0];
 
     std::vector<fr> lookup_values;
     lookup_values.resize(num_lookups);
@@ -1616,8 +1615,8 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTabl
                 variables[key_indices[i + 1][1]].from_montgomery_form().data[0],
             };
             key = {
-                previous_key[0] - difference_key[0] * step,
-                previous_key[1] - difference_key[1] * step,
+                previous_key[0] - difference_key[0] * step_1,
+                previous_key[1] - difference_key[1] * step_2,
             };
         }
 
@@ -1633,24 +1632,24 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const LookupTabl
     }
 
     for (size_t i = num_lookups - 2; i < num_lookups; --i) {
-        lookup_values[i] += plookup_step_size * lookup_values[i + 1];
+        lookup_values[i] += table.column_3_step_size * lookup_values[i + 1];
     }
 
     for (size_t i = 0; i < num_lookups; ++i) {
         const uint32_t value_idx = add_variable(lookup_values[i]);
         value_indices.push_back(value_idx);
 
-        q_lookup_type.emplace_back(i == (num_lookups - 1) ? fr(1) : fr(2));
+        q_lookup_type.emplace_back(fr(1));
         q_lookup_index.emplace_back(fr(table.table_index));
         w_l.emplace_back(key_indices[i][0]);
         w_r.emplace_back(key_indices[i][1]);
         w_o.emplace_back(value_idx);
         w_4.emplace_back(zero_idx);
         q_1.emplace_back(fr(0));
-        q_2.emplace_back(fr(0));
+        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : table.column_1_step_size));
         q_3.emplace_back(fr(0));
-        q_m.emplace_back(fr(0));
-        q_c.emplace_back(fr(0));
+        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : table.column_2_step_size));
+        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : table.column_3_step_size));
         q_arith.emplace_back(fr(0));
         q_4.emplace_back(fr(0));
         q_5.emplace_back(fr(0));

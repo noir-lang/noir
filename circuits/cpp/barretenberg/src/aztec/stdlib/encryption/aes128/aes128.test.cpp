@@ -9,12 +9,6 @@
 using namespace barretenberg;
 using namespace plonk;
 
-// 680 mb s^-1 = 1 / 680 * 2^{20}  s
- // 32 ms
- // 1.4 ns
-
- // 3.2 * 10^{-2} / 1.4 * 10^-9
- // 2 * 10^7
 TEST(stdlib_aes128, encrypt_64_bytes)
 {
     typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
@@ -41,7 +35,6 @@ TEST(stdlib_aes128, encrypt_64_bytes)
     };
 
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.plookup_step_size = fr(4);
 
     std::vector<field_pt> in_field{
         witness_pt(&composer, fr(convert_bytes(in))),

@@ -239,8 +239,12 @@ class ComposerBase {
 
     template <size_t program_width> void compute_sigma_permutations(proving_key* key);
 
-    void add_selector(polynomial& small, const std::string& tag)
+    void add_selector(polynomial& small, const std::string& tag, bool preserve_lagrange_base = false)
     {
+        if (preserve_lagrange_base) {
+            polynomial lagrange_base(small, circuit_proving_key->n);
+            circuit_proving_key->constraint_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
+        }
         small.ifft(circuit_proving_key->small_domain);
         polynomial large(small, circuit_proving_key->n * 4);
         large.coset_fft(circuit_proving_key->large_domain);

@@ -57,7 +57,6 @@ TEST(plookup_composer, read_from_table_with_key_pair)
 TEST(plookup_composer, read_sequence_from_table)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.plookup_step_size = fr(4);
     composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; i += 2) {
@@ -131,7 +130,6 @@ TEST(plookup_composer, read_sequence_from_table)
 TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.plookup_step_size = fr(4);
     composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; ++i) {
@@ -165,6 +163,9 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
     adjust_ffts("table_value_4_fft", true);
     adjust_ffts("table_type_fft", true);
     adjust_ffts("table_index_fft", true);
+    adjust_ffts("q_2_fft", false);
+    adjust_ffts("q_m_fft", false);
+    adjust_ffts("q_c_fft", false);
 
     auto transcript = waffle::create_dummy_ultra_transcript();
 
@@ -242,7 +243,6 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
 TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.plookup_step_size = fr(4);
     composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; i += 2) {
@@ -383,7 +383,6 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 TEST(plookup_composer, test_relative_lookup_proof)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.plookup_step_size = fr(4);
     composer.initialize_precomputed_table(waffle::LookupTableId::XOR, &generate_xor_table, &get_values_from_key);
 
     for (size_t i = 0; i < 16; ++i) {
@@ -414,7 +413,6 @@ TEST(plookup_composer, test_relative_lookup_proof)
 TEST(plookup_composer, test_no_lookup_proof)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.plookup_step_size = fr(4);
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {

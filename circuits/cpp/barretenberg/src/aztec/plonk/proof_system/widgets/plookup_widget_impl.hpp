@@ -74,6 +74,10 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
     accumulators[2] = &z_fft[n];
     accumulators[3] = &z_fft[n + n];
 
+    fr* column_1_step_size = &key->constraint_selectors_lagrange_base.at("q_2")[0];
+    fr* column_2_step_size = &key->constraint_selectors_lagrange_base.at("q_m")[0];
+    fr* column_3_step_size = &key->constraint_selectors_lagrange_base.at("q_c")[0];
+
     fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
     fr eta_sqr = eta.sqr();
     fr eta_cube = eta_sqr * eta;
@@ -96,12 +100,8 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
         lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
     }
 
-    const fr two(2);
-    const fr half(two.invert());
-
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
     const fr beta_constant = beta + fr(1);
-    const auto step_size = key->lookup_table_step_size;
 
 #ifndef NO_MULTITHREADING
 #pragma omp parallel
@@ -120,33 +120,32 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
             // fr accumulating_beta = beta_constant.pow(start + 1);
             const size_t block_mask = key->small_domain.size - 1;
 
-            fr next_f = lagrange_base_wires[2][start] * eta_sqr + lagrange_base_wires[1][start] * eta +
-                        lagrange_base_wires[0][start];
             fr next_table = lagrange_base_tables[0][start] + lagrange_base_tables[1][start] * eta +
                             lagrange_base_tables[2][start] * eta_sqr + lagrange_base_tables[3][start] * eta_cube;
             for (size_t i = start; i < end; ++i) {
-                // T0 = lookup_index_selector[i + 1];
-                // T0 *= eta;
-                T0 = lagrange_base_wires[2][(i + 1) & block_mask];
+                // if (column_3_step_size[i] != fr(0)) {
+                //     std::cout << "3 nonzero" << std::endl;
+                // }
+                // if (column_2_step_size[i] != fr(0)) {
+                //     std::cout << "2 nonzero" << std::endl;
+                // }
+                // if (column_1_step_size[i] != fr(0)) {
+                //     std::cout << "1 nonzero" << std::endl;
+                // }
+
+                T0 = lookup_index_selector[i];
                 T0 *= eta;
-                T0 += lagrange_base_wires[1][(i + 1) & block_mask];
+                T0 += lagrange_base_wires[2][(i + 1) & block_mask] * column_3_step_size[i];
+                T0 += lagrange_base_wires[2][i];
                 T0 *= eta;
-                T0 += lagrange_base_wires[0][(i + 1) & block_mask];
+                T0 += lagrange_base_wires[1][(i + 1) & block_mask] * column_2_step_size[i];
+                T0 += lagrange_base_wires[1][i];
+                T0 *= eta;
+                T0 += lagrange_base_wires[0][(i + 1) & block_mask] * column_1_step_size[i];
+                T0 += lagrange_base_wires[0][i];
+                T0 *= lookup_selector[i];
 
-                T3 = next_f + (lookup_index_selector[i] * eta_cube);
-                T2 = (T3 - T0 * step_size) * half;
-                T1 = T3;
-
-                next_f = T0;
-
-                // T1 *= (lookup_selector[i] - one);
-                accumulators[0][i] = (T2 - T1) * lookup_selector[i];
-                accumulators[0][i] += T1;
-                accumulators[0][i] += T1;
-                accumulators[0][i] -= T2;
-                accumulators[0][i] *= lookup_selector[i];
-
-                // std::cout << "accumulators[0][" << i << "] = " << accumulators[0][i] << std::endl;
+                accumulators[0][i] = T0;
                 accumulators[0][i] += gamma;
 
                 T0 = lagrange_base_tables[3][(i + 1) & block_mask];
@@ -256,7 +255,6 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
     polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
 
     fr eta = fr::serialize_from_buffer(transcript.get_challenge("eta").begin());
-    fr eta_cube = eta.sqr() * eta;
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
     fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
@@ -292,13 +290,17 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
         &key->permutation_selector_ffts.at("table_value_3_fft")[0],
         &key->permutation_selector_ffts.at("table_value_4_fft")[0],
     };
+
+    fr* column_1_step_size = &key->constraint_selector_ffts.at("q_2_fft")[0];
+    fr* column_2_step_size = &key->constraint_selector_ffts.at("q_m_fft")[0];
+    fr* column_3_step_size = &key->constraint_selector_ffts.at("q_c_fft")[0];
+
     fr* lookup_fft = &key->permutation_selector_ffts.at("table_type_fft")[0];
     fr* lookup_index_fft = &key->permutation_selector_ffts.at("table_index_fft")[0];
 
     polynomial& quotient_large = key->quotient_large;
 
     const fr one(1);
-    const fr half = fr(2).invert();
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
 
     const polynomial& l_1 = key->lagrange_1;
@@ -306,7 +308,6 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
     const fr alpha_sqr = alpha.sqr();
 
     const fr beta_constant = beta + fr(1);
-    const auto step_size = key->lookup_table_step_size;
 
     const size_t block_mask = key->large_domain.size - 1;
 
@@ -326,14 +327,8 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
         fr denominator;
         fr numerator;
 
-        std::array<fr, 4> next_fs;
         std::array<fr, 4> next_ts;
         for (size_t i = 0; i < 4; ++i) {
-            next_fs[i] = wire_ffts[2][(start + i) & block_mask];
-            next_fs[i] *= eta;
-            next_fs[i] += wire_ffts[1][(start + i) & block_mask];
-            next_fs[i] *= eta;
-            next_fs[i] += wire_ffts[0][(start + i) & block_mask];
             next_ts[i] = table_ffts[3][(start + i) & block_mask];
             next_ts[i] *= eta;
             next_ts[i] += table_ffts[2][(start + i) & block_mask];
@@ -344,27 +339,18 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
         }
         for (size_t i = start; i < end; ++i) {
 
-            T0 = wire_ffts[2][i + 4];
+            T0 = lookup_index_fft[i];
             T0 *= eta;
-            T0 += wire_ffts[1][i + 4];
+            T0 += wire_ffts[2][(i + 4) & block_mask] * column_3_step_size[i];
+            T0 += wire_ffts[2][i];
             T0 *= eta;
-            T0 += wire_ffts[0][i + 4];
+            T0 += wire_ffts[1][(i + 4) & block_mask] * column_2_step_size[i];
+            T0 += wire_ffts[1][i];
+            T0 *= eta;
+            T0 += wire_ffts[0][(i + 4) & block_mask] * column_1_step_size[i];
+            T0 += wire_ffts[0][i];
 
-            T1 = lookup_index_fft[i];
-            T1 *= eta_cube;
-            T1 += next_fs[i & 0x03UL];
-
-            T2 = T1;
-            T2 -= T0 * step_size;
-            T2 *= half;
-
-            next_fs[i & 0x03UL] = T0;
-
-            numerator = (T2 - T1) * lookup_fft[i];
-            numerator += T1;
-            numerator += T1;
-            numerator -= T2;
-
+            numerator = T0;
             numerator *= lookup_fft[i];
             numerator += gamma;
 
@@ -419,7 +405,8 @@ fr ProverPLookupWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_base * alpha.sqr() * alpha;
 }
 
-void ProverPLookupWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript, const bool)
+void ProverPLookupWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
+                                                            const bool use_linearisation)
 {
     fr* opening_poly = &key->opening_poly[0];
     fr* shifted_opening_poly = &key->shifted_opening_poly[0];
@@ -469,9 +456,20 @@ void ProverPLookupWidget::compute_opening_poly_contribution(const transcript::Tr
     shifted_opening_poly[i] += s[i] * nu_challenges[6];
     shifted_opening_poly[i] += z_lookup[i] * nu_challenges[7];
     ITERATE_OVER_DOMAIN_END;
+
+    if (use_linearisation) {
+        const auto& q_2 = &key->constraint_selectors.at("q_2")[0];
+        const auto& q_m = &key->constraint_selectors.at("q_m")[0];
+        const auto nu_q_2 = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_2")[0]);
+        const auto nu_q_m = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_m")[0]);
+        ITERATE_OVER_DOMAIN_START(key->small_domain);
+        opening_poly[i] += q_2[i] * nu_q_2;
+        opening_poly[i] += q_m[i] * nu_q_m;
+        ITERATE_OVER_DOMAIN_END;
+    }
 }
 
-void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& transcript, const bool)
+void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation)
 {
     // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in
     // the transcript
@@ -520,6 +518,13 @@ void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& tr
 
     evaluation = witness->wires.at("s").evaluate(shifted_z, n);
     transcript.add_element("s_omega", evaluation.to_buffer());
+
+    if (use_linearisation) {
+        auto& q_2 = key->constraint_selectors.at("q_2");
+        auto& q_m = key->constraint_selectors.at("q_m");
+        transcript.add_element("q_2", q_2.evaluate(z_challenge, key->small_domain.size).to_buffer());
+        transcript.add_element("q_m", q_m.evaluate(z_challenge, key->small_domain.size).to_buffer());
+    }
     return;
 }
 
@@ -559,6 +564,9 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
         transcript.get_field_element("table_value_4_omega"),
     };
 
+    Field column_1_step_size = transcript.get_field_element("q_2");
+    Field column_2_step_size = transcript.get_field_element("q_m");
+    Field column_3_step_size = transcript.get_field_element("q_c");
     Field table_type_eval = transcript.get_field_element("table_type");
     Field table_index_eval = transcript.get_field_element("table_index");
 
@@ -573,8 +581,6 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     Field beta = transcript.get_challenge_field_element("beta", 0);
     Field gamma = transcript.get_challenge_field_element("beta", 1);
     Field eta = transcript.get_challenge_field_element("eta", 0);
-    Field eta_sqr = eta.sqr();
-    Field eta_cube = eta_sqr * eta;
     Field z_pow = z;
     for (size_t i = 0; i < key->domain.log2_size; ++i) {
         z_pow *= z_pow;
@@ -586,14 +592,12 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     Field l_n_minus_1 = l_numerator / ((z * key->domain.root.sqr()) - Field(1));
 
     const Field one(1);
-    const Field half = one / Field(2);
     const Field gamma_beta_constant = gamma * (one + beta);
 
     const Field delta_factor = gamma_beta_constant.pow(key->domain.size - 1);
     const Field alpha_sqr = alpha.sqr();
 
     const Field beta_constant = beta + one;
-    const Field step_size(key->lookup_table_step_size);
 
     Field T0;
     Field T1;
@@ -601,10 +605,15 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     Field denominator;
     Field numerator;
 
-    Field f_eval = wire_evaluations[2];
+    Field f_eval = table_index_eval;
     f_eval *= eta;
+    f_eval += shifted_wire_evaluations[2] * column_3_step_size;
+    f_eval += wire_evaluations[2];
+    f_eval *= eta;
+    f_eval += shifted_wire_evaluations[1] * column_2_step_size;
     f_eval += wire_evaluations[1];
     f_eval *= eta;
+    f_eval += shifted_wire_evaluations[0] * column_1_step_size;
     f_eval += wire_evaluations[0];
 
     Field table_eval = table_evaluations[3];
@@ -615,26 +624,7 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     table_eval *= eta;
     table_eval += table_evaluations[0];
 
-    T0 = shifted_wire_evaluations[2];
-    T0 *= eta;
-    T0 += shifted_wire_evaluations[1];
-    T0 *= eta;
-    T0 += shifted_wire_evaluations[0];
-
-    T1 = table_index_eval;
-    T1 *= eta_cube;
-    T1 += f_eval;
-
-    T2 = T1;
-    T2 -= T0 * step_size;
-    T2 *= half;
-
-    numerator = (T2 - T1) * table_type_eval;
-    numerator += T1;
-    numerator += T1;
-    numerator -= T2;
-
-    numerator *= table_type_eval;
+    numerator = f_eval * table_type_eval;
     numerator += gamma;
 
     T0 = shifted_table_evaluations[3];
@@ -678,7 +668,7 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
 
 template <typename Field, typename Group, typename Transcript>
 void VerifierPLookupWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
-    verification_key*, Field& batch_eval, const Transcript& transcript, const bool)
+    verification_key*, Field& batch_eval, const Transcript& transcript, const bool use_linearisation)
 {
     const Field u = transcript.get_challenge_field_element("separator");
 
@@ -725,6 +715,15 @@ void VerifierPLookupWidget<Field, Group, Transcript>::compute_batch_evaluation_c
     T0 += (shifted_z_lookup_eval * nu_challenges[7]);
 
     batch_eval += T0 * u;
+
+    if (use_linearisation) {
+        const Field q_2_eval = transcript.get_field_element("q_2");
+        const Field q_m_eval = transcript.get_field_element("q_m");
+        nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_2");
+        nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_m");
+        batch_eval += (q_2_eval * nu_challenges[0]);
+        batch_eval += (q_m_eval * nu_challenges[1]);
+    }
 };
 
 template <typename Field, typename Group, typename Transcript>
@@ -733,7 +732,7 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplicat
                                                                                            const Transcript& transcript,
                                                                                            std::vector<Group>& elements,
                                                                                            std::vector<Field>& scalars,
-                                                                                           const bool)
+                                                                                           const bool use_linearisation)
 {
     Field u = transcript.get_challenge_field_element("separator");
     Field alpha = transcript.get_challenge_field_element("alpha");
@@ -784,6 +783,22 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplicat
     if (Z.on_curve()) {
         elements.push_back(Z);
         scalars.push_back(nu_challenges[7] * u_plus_one);
+    }
+
+    if (use_linearisation) {
+        const Field q_2_eval = transcript.get_field_element("q_2");
+        const Field q_m_eval = transcript.get_field_element("q_m");
+
+        nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_2");
+        nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_m");
+
+        // TODO find non-hacky way of doing this
+        if (q_2_eval != fr(0)) {
+            scalars[key->scalar_multiplication_indices.at("Q_2")] += nu_challenges[0];
+        }
+        if (q_m_eval != fr(0)) {
+            scalars[key->scalar_multiplication_indices.at("Q_M")] += nu_challenges[1];
+        }
     }
 
     return alpha_base * alpha.sqr() * alpha;

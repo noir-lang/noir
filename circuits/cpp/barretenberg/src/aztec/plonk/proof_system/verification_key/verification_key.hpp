@@ -25,8 +25,7 @@ struct verification_key {
 
     std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
 
+    std::map<std::string, size_t> scalar_multiplication_indices;
     size_t program_width = 3;
-
-    barretenberg::fr lookup_table_step_size;
 };
 } // namespace waffle

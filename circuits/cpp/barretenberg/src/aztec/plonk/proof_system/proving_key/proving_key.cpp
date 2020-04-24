@@ -110,6 +110,7 @@ proving_key::proving_key(const proving_key& other)
     : n(other.n)
     , num_public_inputs(other.num_public_inputs)
     , constraint_selectors(other.constraint_selectors)
+    , constraint_selectors_lagrange_base(other.constraint_selectors_lagrange_base)
     , constraint_selector_ffts(other.constraint_selector_ffts)
     , permutation_selectors(other.permutation_selectors)
     , permutation_selectors_lagrange_base(other.permutation_selectors_lagrange_base)
@@ -132,6 +133,7 @@ proving_key::proving_key(proving_key&& other)
     : n(other.n)
     , num_public_inputs(other.num_public_inputs)
     , constraint_selectors(other.constraint_selectors)
+    , constraint_selectors_lagrange_base(other.constraint_selectors_lagrange_base)
     , constraint_selector_ffts(other.constraint_selector_ffts)
     , permutation_selectors(other.permutation_selectors)
     , permutation_selectors_lagrange_base(other.permutation_selectors_lagrange_base)
@@ -154,6 +156,7 @@ proving_key& proving_key::operator=(proving_key&& other)
     n = other.n;
     num_public_inputs = other.num_public_inputs;
     constraint_selectors = std::move(other.constraint_selectors);
+    constraint_selectors_lagrange_base = std::move(other.constraint_selectors_lagrange_base);
     constraint_selector_ffts = std::move(other.constraint_selector_ffts);
     permutation_selectors = std::move(other.permutation_selectors);
     permutation_selectors_lagrange_base = std::move(other.permutation_selectors_lagrange_base);

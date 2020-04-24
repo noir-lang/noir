@@ -30,6 +30,9 @@ class PLookupComposer : public ComposerBase {
         size_t size;
         bool use_twin_keys;
 
+        barretenberg::fr column_1_step_size = barretenberg::fr(0);
+        barretenberg::fr column_2_step_size = barretenberg::fr(0);
+        barretenberg::fr column_3_step_size = barretenberg::fr(0);
         std::vector<fr> column_1;
         std::vector<fr> column_3;
         std::vector<fr> column_2;
@@ -120,8 +123,6 @@ class PLookupComposer : public ComposerBase {
 
     std::vector<LookupTable> lookup_tables;
 
-    barretenberg::fr plookup_step_size = barretenberg::fr(0);
-
     std::vector<barretenberg::fr> q_m;
     std::vector<barretenberg::fr> q_c;
     std::vector<barretenberg::fr> q_1;
@@ -171,6 +172,8 @@ class PLookupComposer : public ComposerBase {
                                                     { "sigma_3", fr_size, false },
                                                     { "q_arith", fr_size, false },
                                                     { "q_ecc_1", fr_size, false },
+                                                    { "q_2", fr_size, false },
+                                                    { "q_m", fr_size, false },
                                                     { "q_c", fr_size, false },
                                                     { "table_value_1", fr_size, false },
                                                     { "table_value_2", fr_size, false },
@@ -193,7 +196,7 @@ class PLookupComposer : public ComposerBase {
                                                     { "z_lookup_omega", fr_size, false },
                                                     { "t", fr_size, true } },
                                                   "nu",
-                                                  20,
+                                                  22,
                                                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
