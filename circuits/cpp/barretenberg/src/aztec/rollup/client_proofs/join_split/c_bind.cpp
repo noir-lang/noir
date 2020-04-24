@@ -49,6 +49,24 @@ WASM_EXPORT void join_split__encrypt_note(uint8_t* note_buffer, uint8_t* output)
     write(output, encrypted.y);
 }
 
+WASM_EXPORT bool join_split__decrypt_note(uint8_t* encrypted_note_buf,
+                                          uint8_t* private_key_buf,
+                                          uint8_t* viewing_key_buf,
+                                          uint8_t* output)
+{
+    grumpkin::g1::affine_element encrypted_note;
+    read(encrypted_note_buf, encrypted_note.x);
+    read(encrypted_note_buf, encrypted_note.y);
+    grumpkin::fr private_key;
+    read(private_key_buf, private_key);
+    fr viewing_key;
+    read(viewing_key_buf, viewing_key);
+    uint32_t result;
+    bool success = decrypt_note(encrypted_note, private_key, viewing_key, result);
+    ::write(output, result);
+    return success;
+}
+
 WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf)
 {
     auto tx = join_split_tx::from_buffer(join_split_buf);
