@@ -40,7 +40,7 @@ field_ct process_input_note(Composer& composer,
 
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
     // tree to ensure notes will always have unique entries.
-    // [256 bits of encrypted note x coord][32 most sig bits of index][223 bits of note viewing key][1 bit is_real]
+    // [256 bits of encrypted note x coord][32 least sig bits of index][223 bits of note viewing key][1 bit is_real]
     byte_array_ct note_hash_data = byte_array_ct(&composer);
     note_hash_data.write(note.second.ciphertext.x)
         .write(byte_array_ct(index).slice(28, 4))
@@ -61,6 +61,12 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 
     field_ct input_note1_index = witness_ct(&composer, tx.input_index[0]);
     field_ct input_note2_index = witness_ct(&composer, tx.input_index[1]);
+
+    // Check we're not joining the same input note.
+    bool_ct indicies_equal = input_note1_index == input_note2_index;
+    bool_ct false_witness = witness_ct(&composer, false);
+    false_witness.normalize();
+    composer.assert_equal(indicies_equal.witness_index, false_witness.witness_index);
 
     note_pair input_note1_data = create_note_pair(composer, tx.input_note[0]);
     note_pair input_note2_data = create_note_pair(composer, tx.input_note[1]);

@@ -74,10 +74,10 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
     tx.public_input = 100;
     tx.public_output = 0;
     tx.num_input_notes = 0;
-    tx.input_index = { 0, 0 };
+    tx.input_index = { 0, 1 };
     tx.merkle_root = tree->root();
     // We can't have zero field elements in our hash paths or it breaks. Why?
-    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(0) };
+    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { gibberish, gibberish };
     tx.output_note = { output_note1, output_note2 };
 
@@ -128,6 +128,29 @@ TEST_F(client_proofs_join_split, test_0_output_notes)
     tx.output_note = { output_note1, output_note2 };
 
     EXPECT_TRUE(sign_and_verify(tx));
+}
+
+TEST_F(client_proofs_join_split, test_joining_same_note_fails)
+{
+    preload_two_notes();
+
+    tx_note input_note1 = { user.public_key, 100, user.note_secret };
+    tx_note input_note2 = { user.public_key, 100, user.note_secret };
+    tx_note output_note1 = { user.public_key, 200, user.note_secret };
+    tx_note output_note2 = { user.public_key, 0, user.note_secret };
+
+    join_split_tx tx;
+    tx.owner_pub_key = user.public_key;
+    tx.public_input = 0;
+    tx.public_output = 0;
+    tx.num_input_notes = 2;
+    tx.input_index = { 0, 0 };
+    tx.merkle_root = tree->root();
+    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(0) };
+    tx.input_note = { input_note1, input_note2 };
+    tx.output_note = { output_note1, output_note2 };
+
+    EXPECT_FALSE(sign_and_verify(tx));
 }
 
 TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)

@@ -34,7 +34,7 @@ bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
                   uint32_t& r)
 {
     grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
-    for (size_t value = 0; value <= 1000; ++value) {
+    for (uint32_t value = 0; value <= 1000; ++value) {
         grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<32>(uint256_t(value, 0, 0, 0), 0);
         grumpkin::g1::element p_2 = crypto::pedersen::fixed_base_scalar_mul<250>(viewing_key, 1);
 
