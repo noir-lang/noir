@@ -87,15 +87,15 @@ void TurboComposer::create_dummy_gate()
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(idx)].emplace_back(fourth);
 
     ++n;
 }
@@ -119,17 +119,17 @@ void TurboComposer::create_add_gate(const add_triple& in)
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
 
     ++n;
 }
@@ -153,20 +153,20 @@ void TurboComposer::create_big_add_gate(const add_quad& in)
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.d);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
 
     ++n;
 }
@@ -190,20 +190,20 @@ void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.d);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
 
     ++n;
 }
@@ -227,20 +227,20 @@ void TurboComposer::create_big_mul_gate(const mul_quad& in)
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.d);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
 
     ++n;
 }
@@ -266,20 +266,20 @@ void TurboComposer::create_balanced_add_gate(const add_quad& in)
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.d);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
 
     ++n;
 }
@@ -305,18 +305,18 @@ void TurboComposer::create_mul_gate(const mul_triple& in)
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > zero_idx);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > zero_idx);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
 
     ++n;
 }
@@ -343,14 +343,14 @@ void TurboComposer::create_bool_gate(const uint32_t variable_index)
     q_c.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
 
-    ASSERT(wire_epicycles.size() > variable_index);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(out);
+    ASSERT(wire_copy_cycles.size() > variable_index);
+    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(out);
 
     ++n;
 }
@@ -377,22 +377,23 @@ void TurboComposer::create_poly_gate(const poly_triple& in)
     q_5.emplace_back(fr::zero());
     q_ecc_1.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > zero_idx);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > zero_idx);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
 
     ++n;
 }
 
+// adds a grumpkin point, from a 2-bit lookup table, into an accumulator point
 void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
     gate_flags.push_back(0);
@@ -414,24 +415,25 @@ void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
     q_3.emplace_back(in.q_y_1);
     q_ecc_1.emplace_back(in.q_y_2);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.d);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
 
     ++n;
 }
 
+// adds a grumpkin point into an accumulator, while also initializing the accumulator
 void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
                                                           const fixed_group_init_quad& init)
 {
@@ -454,20 +456,20 @@ void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
     q_3.emplace_back(in.q_y_1);
     q_ecc_1.emplace_back(in.q_y_2);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
 
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    ASSERT(wire_copy_cycles.size() > in.d);
 
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(fourth);
 
     ++n;
 }
@@ -492,12 +494,12 @@ void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg
     q_range.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
 
-    ASSERT(wire_epicycles.size() > witness_index);
-    ASSERT(wire_epicycles.size() > zero_idx);
-    ASSERT(wire_epicycles.size() > zero_idx);
-    wire_epicycles[static_cast<size_t>(witness_index)].emplace_back(left);
+    ASSERT(wire_copy_cycles.size() > witness_index);
+    ASSERT(wire_copy_cycles.size() > zero_idx);
+    ASSERT(wire_copy_cycles.size() > zero_idx);
+    wire_copy_cycles[static_cast<size_t>(witness_index)].emplace_back(left);
 
     ++n;
 }
@@ -605,8 +607,8 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
         (*(wires + (i & 3)))->emplace_back(accumulator_index);
         const size_t wire_index = i & 3;
 
-        wire_epicycles[accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), wire_types[wire_index]));
+        wire_copy_cycles[accumulator_index].emplace_back(
+            cycle_node(static_cast<uint32_t>(gate_index), wire_types[wire_index]));
     }
     size_t used_gates = (num_quads + 1) / 4;
 
@@ -729,14 +731,14 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
     fr right_accumulator = fr::zero();
     fr out_accumulator = fr::zero();
 
-    // Step 1: populare 1st row accumulators with zero
+    // Step 1: populate 1st row accumulators with zero
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
 
-    wire_epicycles[zero_idx].emplace_back(epicycle(static_cast<uint32_t>(n), WireType::LEFT));
-    wire_epicycles[zero_idx].emplace_back(epicycle(static_cast<uint32_t>(n), WireType::RIGHT));
-    wire_epicycles[zero_idx].emplace_back(epicycle(static_cast<uint32_t>(n), WireType::FOURTH));
+    wire_copy_cycles[zero_idx].emplace_back(cycle_node(static_cast<uint32_t>(n), WireType::LEFT));
+    wire_copy_cycles[zero_idx].emplace_back(cycle_node(static_cast<uint32_t>(n), WireType::RIGHT));
+    wire_copy_cycles[zero_idx].emplace_back(cycle_node(static_cast<uint32_t>(n), WireType::FOURTH));
 
     // w_l, w_r, w_4 should now point to 1 gate ahead of w_o
     for (size_t i = 0; i < num_quads; ++i) {
@@ -791,13 +793,14 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
         w_4.emplace_back(out_accumulator_index);
         w_o.emplace_back(product_index);
 
-        wire_epicycles[left_accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), WireType::LEFT));
-        wire_epicycles[right_accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), WireType::RIGHT));
-        wire_epicycles[out_accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), WireType::FOURTH));
-        wire_epicycles[product_index].emplace_back(epicycle(static_cast<uint32_t>(gate_index - 1), WireType::OUTPUT));
+        wire_copy_cycles[left_accumulator_index].emplace_back(
+            cycle_node(static_cast<uint32_t>(gate_index), WireType::LEFT));
+        wire_copy_cycles[right_accumulator_index].emplace_back(
+            cycle_node(static_cast<uint32_t>(gate_index), WireType::RIGHT));
+        wire_copy_cycles[out_accumulator_index].emplace_back(
+            cycle_node(static_cast<uint32_t>(gate_index), WireType::FOURTH));
+        wire_copy_cycles[product_index].emplace_back(
+            cycle_node(static_cast<uint32_t>(gate_index - 1), WireType::OUTPUT));
     }
 
     w_o.emplace_back(zero_idx);
@@ -865,7 +868,7 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
         return circuit_proving_key;
     }
     create_dummy_gate();
-    ASSERT(wire_epicycles.size() == variables.size());
+    ASSERT(wire_copy_cycles.size() == variables.size());
     ASSERT(n == q_m.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
@@ -900,23 +903,24 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
         q_logic.emplace_back(fr::zero());
     }
 
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        epicycle left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<epicycle>& old_epicycles = wire_epicycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<epicycle> new_epicycles;
-
-        new_epicycles.emplace_back(left);
-        new_epicycles.emplace_back(right);
-        for (size_t i = 0; i < old_epicycles.size(); ++i) {
-            new_epicycles.emplace_back(old_epicycles[i]);
-        }
-        old_epicycles = new_epicycles;
-    }
     auto crs = crs_factory_->get_prover_crs(new_n);
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
+
+    for (size_t i = 0; i < public_inputs.size(); ++i) {
+        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
+        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
+
+        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
+
+        std::vector<cycle_node> new_cycle;
+
+        new_cycle.emplace_back(left);
+        new_cycle.emplace_back(right);
+        for (size_t i = 0; i < old_cycle.size(); ++i) {
+            new_cycle.emplace_back(old_cycle[i]);
+        }
+        old_cycle = new_cycle;
+    }
 
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
@@ -932,7 +936,7 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_q_m[i] = fr::zero();
-        poly_q_1[i] = fr::one();
+        poly_q_1[i] = fr::zero();
         poly_q_2[i] = fr::zero();
         poly_q_3[i] = fr::zero();
         poly_q_4[i] = fr::zero();
@@ -1062,7 +1066,7 @@ std::shared_ptr<program_witness> TurboComposer::compute_witness()
     polynomial poly_w_4(new_n);
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(fr::zero(), poly_w_1[i]);
+        fr::__copy(variables[public_inputs[i]], poly_w_1[i]);
         fr::__copy(variables[public_inputs[i]], poly_w_2[i]);
         fr::__copy(fr::zero(), poly_w_3[i]);
         fr::__copy(fr::zero(), poly_w_4[i]);

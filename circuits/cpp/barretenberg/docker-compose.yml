@@ -49,6 +49,8 @@ services:
       dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang
     image: aztecprotocol/barretenberg:x86_64-linux-clang
     tty: true
+    cap_add:
+      - SYS_PTRACE
 
   x86_64-win32-mingw:
     build:

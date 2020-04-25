@@ -2,6 +2,7 @@
 #include <array>
 #include <common/inline.hpp>
 #include <common/serialize.hpp>
+#include <common/assert.hpp>
 #include <cstdint>
 #include <iostream>
 #include <numeric/random/engine.hpp>
@@ -107,8 +108,20 @@ template <class Params> struct alignas(32) field {
     static constexpr field neg_one() { return -field(1); }
     static constexpr field one() { return field(1); }
 
+    static constexpr field external_coset_generator()
+    {
+        const field result{
+            Params::coset_generators_0[7],
+            Params::coset_generators_1[7],
+            Params::coset_generators_2[7],
+            Params::coset_generators_3[7],
+        };
+        return result;
+    }
+
     static constexpr field coset_generator(const size_t idx)
     {
+        ASSERT(idx < 7); // TODO: well-named constants for enforcing PI elements disjointess instead of this
         const field result{
             Params::coset_generators_0[idx],
             Params::coset_generators_1[idx],

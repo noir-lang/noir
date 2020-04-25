@@ -70,12 +70,12 @@ void MiMCComposer::create_mimc_gate(const mimc_quadruplet& in)
     q_mimc_coefficient.emplace_back(in.mimc_constant);
     q_mimc_selector.emplace_back(fr::one());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_epicycles[static_cast<size_t>(in.k_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.x_cubed_idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.x_in_idx)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    wire_copy_cycles[static_cast<size_t>(in.k_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.x_cubed_idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.x_in_idx)].emplace_back(out);
     ++n;
 }
 
@@ -91,19 +91,19 @@ void MiMCComposer::create_noop_gate()
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
     if (current_output_wire != static_cast<uint32_t>(-1)) {
         w_o.emplace_back(current_output_wire);
-        wire_epicycles[static_cast<size_t>(current_output_wire)].emplace_back(out);
+        wire_copy_cycles[static_cast<size_t>(current_output_wire)].emplace_back(out);
         current_output_wire = static_cast<uint32_t>(-1);
     } else {
         w_o.emplace_back(zero_idx);
-        wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(out);
+        wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(out);
     }
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(right);
 
     ++n;
 }
@@ -128,12 +128,12 @@ void MiMCComposer::create_dummy_gates()
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(out);
 
     ++n;
 
@@ -152,9 +152,9 @@ void MiMCComposer::create_dummy_gates()
     left = { static_cast<uint32_t>(n), WireType::LEFT };
     right = { static_cast<uint32_t>(n), WireType::RIGHT };
     out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(zero_idx)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(zero_idx)].emplace_back(out);
     ++n;
 }
 
@@ -163,7 +163,7 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    ASSERT(wire_epicycles.size() == variables.size());
+    ASSERT(wire_copy_cycles.size() == variables.size());
     ASSERT(n == q_m.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
@@ -211,23 +211,24 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     polynomial poly_q_mimc_selector(new_n);
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        epicycle left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
+        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
+        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
 
-        std::vector<epicycle>& old_epicycles = wire_epicycles[static_cast<size_t>(public_inputs[i])];
+        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
 
-        std::vector<epicycle> new_epicycles;
+        std::vector<cycle_node> new_cycle;
 
-        new_epicycles.emplace_back(left);
-        new_epicycles.emplace_back(right);
-        for (size_t i = 0; i < old_epicycles.size(); ++i) {
-            new_epicycles.emplace_back(old_epicycles[i]);
+        new_cycle.emplace_back(left);
+        new_cycle.emplace_back(right);
+        for (size_t i = 0; i < old_cycle.size(); ++i) {
+            new_cycle.emplace_back(old_cycle[i]);
         }
-        old_epicycles = new_epicycles;
+        old_cycle = new_cycle;
     }
+
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_q_m[i] = fr::zero();
-        poly_q_1[i] = fr::one();
+        poly_q_1[i] = fr::zero();
         poly_q_2[i] = fr::zero();
         poly_q_3[i] = fr::zero();
         poly_q_c[i] = fr::zero();
@@ -353,8 +354,8 @@ std::shared_ptr<program_witness> MiMCComposer::compute_witness()
         w_o.emplace_back(current_output_wire);
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
-        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-        wire_epicycles[static_cast<size_t>(current_output_wire)].emplace_back(out);
+        cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+        wire_copy_cycles[static_cast<size_t>(current_output_wire)].emplace_back(out);
         ++offset;
     }
 
@@ -375,7 +376,7 @@ std::shared_ptr<program_witness> MiMCComposer::compute_witness()
     polynomial poly_w_2(new_n);
     polynomial poly_w_3(new_n);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(fr::zero(), poly_w_1[i]);
+        fr::__copy(variables[public_inputs[i]], poly_w_1[i]);
         fr::__copy(variables[public_inputs[i]], poly_w_2[i]);
         fr::__copy(fr::zero(), poly_w_3[i]);
     }

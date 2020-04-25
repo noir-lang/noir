@@ -25,6 +25,7 @@ inline void aligned_free(void* mem)
 #if defined(__linux__) || defined(__wasm__)
 inline void* protected_aligned_alloc(size_t alignment, size_t size)
 {
+    size += alignment - (size % alignment);
     void* t = 0;
     t = aligned_alloc(alignment, size);
     if (t == 0) {

@@ -20,15 +20,15 @@ void StandardComposer::create_add_gate(const add_triple& in)
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
     ++n;
 }
 
@@ -66,12 +66,12 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(temp_idx)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(temp_idx)].emplace_back(out);
 
     ++n;
 
@@ -87,9 +87,9 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     left = { static_cast<uint32_t>(n), WireType::LEFT };
     right = { static_cast<uint32_t>(n), WireType::RIGHT };
     out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_epicycles[static_cast<size_t>(temp_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(temp_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(out);
 
     ++n;
 
@@ -109,9 +109,9 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
     left = { static_cast<uint32_t>(n), WireType::LEFT };
     right = { static_cast<uint32_t>(n), WireType::RIGHT };
     out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(temp_2_idx)].emplace_back(out);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(temp_2_idx)].emplace_back(out);
 
     ++n;
 
@@ -127,8 +127,8 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
 
     left = { static_cast<uint32_t>(n), WireType::LEFT };
     right = { static_cast<uint32_t>(n), WireType::RIGHT };
-    wire_epicycles[static_cast<size_t>(temp_2_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(temp_2_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.d)].emplace_back(right);
 
     ++n;
 }
@@ -202,15 +202,15 @@ void StandardComposer::create_mul_gate(const mul_triple& in)
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
     ++n;
 }
 
@@ -229,13 +229,13 @@ void StandardComposer::create_bool_gate(const uint32_t variable_index)
     q_3.emplace_back(fr::neg_one());
     q_c.emplace_back(fr::zero());
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_epicycles.size() > variable_index);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    ASSERT(wire_copy_cycles.size() > variable_index);
+    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(variable_index)].emplace_back(out);
     ++n;
 }
 
@@ -253,15 +253,15 @@ void StandardComposer::create_poly_gate(const poly_triple& in)
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    ASSERT(wire_copy_cycles.size() > in.a);
+    ASSERT(wire_copy_cycles.size() > in.b);
+    ASSERT(wire_copy_cycles.size() > in.c);
+    wire_copy_cycles[static_cast<size_t>(in.a)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(in.b)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(in.c)].emplace_back(out);
     ++n;
 }
 
@@ -443,12 +443,12 @@ void StandardComposer::fix_witness(const uint32_t witness_index, const barretenb
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(-witness_value);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
 
-    ASSERT(wire_epicycles.size() > witness_index);
-    ASSERT(wire_epicycles.size() > zero_idx);
-    ASSERT(wire_epicycles.size() > zero_idx);
-    wire_epicycles[static_cast<size_t>(witness_index)].emplace_back(left);
+    ASSERT(wire_copy_cycles.size() > witness_index);
+    ASSERT(wire_copy_cycles.size() > zero_idx);
+    ASSERT(wire_copy_cycles.size() > zero_idx);
+    wire_copy_cycles[static_cast<size_t>(witness_index)].emplace_back(left);
 
     ++n;
 }
@@ -506,15 +506,15 @@ void StandardComposer::create_dummy_gates()
     w_r.emplace_back(b_idx);
     w_o.emplace_back(c_idx);
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_epicycles.size() > a_idx);
-    ASSERT(wire_epicycles.size() > b_idx);
-    ASSERT(wire_epicycles.size() > c_idx);
-    wire_epicycles[static_cast<size_t>(a_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(b_idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(c_idx)].emplace_back(out);
+    cycle_node left{ static_cast<uint32_t>(n), WireType::LEFT };
+    cycle_node right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    cycle_node out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+    ASSERT(wire_copy_cycles.size() > a_idx);
+    ASSERT(wire_copy_cycles.size() > b_idx);
+    ASSERT(wire_copy_cycles.size() > c_idx);
+    wire_copy_cycles[static_cast<size_t>(a_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(b_idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(c_idx)].emplace_back(out);
     ++n;
 
     // add a second dummy gate the ensure our permutation polynomials are also
@@ -532,12 +532,12 @@ void StandardComposer::create_dummy_gates()
     left = { static_cast<uint32_t>(n), WireType::LEFT };
     right = { static_cast<uint32_t>(n), WireType::RIGHT };
     out = { static_cast<uint32_t>(n), WireType::OUTPUT };
-    ASSERT(wire_epicycles.size() > c_idx);
-    ASSERT(wire_epicycles.size() > a_idx);
-    ASSERT(wire_epicycles.size() > b_idx);
-    wire_epicycles[static_cast<size_t>(c_idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(a_idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(b_idx)].emplace_back(out);
+    ASSERT(wire_copy_cycles.size() > c_idx);
+    ASSERT(wire_copy_cycles.size() > a_idx);
+    ASSERT(wire_copy_cycles.size() > b_idx);
+    wire_copy_cycles[static_cast<size_t>(c_idx)].emplace_back(left);
+    wire_copy_cycles[static_cast<size_t>(a_idx)].emplace_back(right);
+    wire_copy_cycles[static_cast<size_t>(b_idx)].emplace_back(out);
     ++n;
 }
 
@@ -546,7 +546,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    ASSERT(wire_epicycles.size() == variables.size());
+    ASSERT(wire_copy_cycles.size() == variables.size());
     ASSERT(n == q_m.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
@@ -566,23 +566,24 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
         q_c.emplace_back(fr::zero());
     }
 
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        epicycle left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<epicycle>& old_epicycles = wire_epicycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<epicycle> new_epicycles;
-
-        new_epicycles.emplace_back(left);
-        new_epicycles.emplace_back(right);
-        for (size_t i = 0; i < old_epicycles.size(); ++i) {
-            new_epicycles.emplace_back(old_epicycles[i]);
-        }
-        old_epicycles = new_epicycles;
-    }
     auto crs = crs_factory_->get_prover_crs(new_n);
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
+
+    for (size_t i = 0; i < public_inputs.size(); ++i) {
+        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
+        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
+
+        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
+
+        std::vector<cycle_node> new_cycle;
+
+        new_cycle.emplace_back(left);
+        new_cycle.emplace_back(right);
+        for (size_t i = 0; i < old_cycle.size(); ++i) {
+            new_cycle.emplace_back(old_cycle[i]);
+        }
+        old_cycle = new_cycle;
+    }
     polynomial poly_q_m(new_n);
     polynomial poly_q_c(new_n);
     polynomial poly_q_1(new_n);
@@ -591,7 +592,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_q_m[i] = fr::zero();
-        poly_q_1[i] = fr::one();
+        poly_q_1[i] = fr::zero();
         poly_q_2[i] = fr::zero();
         poly_q_3[i] = fr::zero();
         poly_q_c[i] = fr::zero();
@@ -675,7 +676,7 @@ std::shared_ptr<program_witness> StandardComposer::compute_witness()
     polynomial poly_w_2 = polynomial(new_n);
     polynomial poly_w_3 = polynomial(new_n);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        fr::__copy(fr::zero(), poly_w_1[i]);
+        fr::__copy(variables[public_inputs[i]], poly_w_1[i]);
         fr::__copy(variables[public_inputs[i]], poly_w_2[i]);
         fr::__copy(fr::zero(), poly_w_3[i]);
     }

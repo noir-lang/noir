@@ -120,6 +120,11 @@ template <typename ComposerContext> class field_t {
         return field_t(barretenberg::fr::coset_generator(generator_idx));
     }
 
+    static field_t external_coset_generator()
+    {
+        return field_t(barretenberg::fr::external_coset_generator());
+    }
+
     field_t operator-() const
     {
         field_t result(*this);
