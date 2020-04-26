@@ -1,4 +1,5 @@
 FROM aztecprotocol/clang:9.0.0
 WORKDIR /usr/src/barretenberg
 COPY . .
-CMD mkdir build && cd build && cmake -DLINUX_CLANG=ON -DMEMORY_CHECKS=ON -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc) && make test
+RUN mkdir build && cd build && cmake -DLINUX_CLANG=ON -DMEMORY_CHECKS=ON -DDISABLE_HEAVY_TESTS=ON .. && ASAN_OPTIONS=detect_leaks=0 make -j$(nproc)
+CMD cd build && make test
