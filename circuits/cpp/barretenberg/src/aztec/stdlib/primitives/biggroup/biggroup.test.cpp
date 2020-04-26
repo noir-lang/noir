@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 #include "../bigfield/bigfield.hpp"
 #include "../biggroup/biggroup.hpp"
@@ -254,7 +254,7 @@ TEST(stdlib_biggroup, test_montgomery_ladder)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_mul)
+HEAVY_TEST(stdlib_biggroup, test_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -286,7 +286,7 @@ TEST(stdlib_biggroup, test_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_twin_mul)
+HEAVY_TEST(stdlib_biggroup, test_twin_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -326,7 +326,7 @@ TEST(stdlib_biggroup, test_twin_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_triple_mul)
+HEAVY_TEST(stdlib_biggroup, test_triple_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -372,7 +372,7 @@ TEST(stdlib_biggroup, test_triple_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_quad_mul)
+HEAVY_TEST(stdlib_biggroup, test_quad_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -423,7 +423,7 @@ TEST(stdlib_biggroup, test_quad_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
+HEAVY_TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -474,7 +474,7 @@ TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_one)
+HEAVY_TEST(stdlib_biggroup, test_one)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -506,7 +506,7 @@ TEST(stdlib_biggroup, test_one)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_one_secp256r1)
+HEAVY_TEST(stdlib_biggroup, test_one_secp256r1)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -538,7 +538,7 @@ TEST(stdlib_biggroup, test_one_secp256r1)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_batch_mul)
+HEAVY_TEST(stdlib_biggroup, test_batch_mul)
 {
     const size_t num_points = 5;
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -580,7 +580,7 @@ TEST(stdlib_biggroup, test_batch_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_batch_mul_short_scalars)
+HEAVY_TEST(stdlib_biggroup, test_batch_mul_short_scalars)
 {
     const size_t num_points = 11;
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -625,7 +625,7 @@ TEST(stdlib_biggroup, test_batch_mul_short_scalars)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_mixed_batch_mul)
+HEAVY_TEST(stdlib_biggroup, test_mixed_batch_mul)
 {
     const size_t num_big_points = 10;
     const size_t num_small_points = 11;

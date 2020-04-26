@@ -1,5 +1,5 @@
 #include "sha256.hpp"
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 #include <plonk/composer/standard_composer.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -173,7 +173,7 @@ TEST(stdlib_sha256, test_NIST_vector_four)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_sha256, test_NIST_vector_five)
+HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 {
     Composer composer = Composer();
 

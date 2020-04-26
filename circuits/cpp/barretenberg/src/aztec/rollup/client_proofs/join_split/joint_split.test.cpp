@@ -5,7 +5,7 @@
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib;
@@ -63,7 +63,7 @@ class client_proofs_join_split : public ::testing::Test {
     std::unique_ptr<merkle_tree::LevelDbStore> tree;
 };
 
-TEST_F(client_proofs_join_split, test_0_input_notes)
+HEAVY_TEST_F(client_proofs_join_split, test_0_input_notes)
 {
     tx_note gibberish = { user.public_key, 0, fr::random_element() };
     tx_note output_note1 = { user.public_key, 100, user.note_secret };
@@ -84,7 +84,7 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
     EXPECT_TRUE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_2_input_notes)
+HEAVY_TEST_F(client_proofs_join_split, test_2_input_notes)
 {
     preload_two_notes();
 
@@ -107,7 +107,7 @@ TEST_F(client_proofs_join_split, test_2_input_notes)
     EXPECT_TRUE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_0_output_notes)
+HEAVY_TEST_F(client_proofs_join_split, test_0_output_notes)
 {
     preload_two_notes();
 
@@ -130,7 +130,7 @@ TEST_F(client_proofs_join_split, test_0_output_notes)
     EXPECT_TRUE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_joining_same_note_fails)
+HEAVY_TEST_F(client_proofs_join_split, test_joining_same_note_fails)
 {
     preload_two_notes();
 
@@ -153,7 +153,7 @@ TEST_F(client_proofs_join_split, test_joining_same_note_fails)
     EXPECT_FALSE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
+HEAVY_TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
 {
     preload_two_notes();
 
@@ -176,7 +176,7 @@ TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
     EXPECT_FALSE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_wrong_input_note_owner_fails)
+HEAVY_TEST_F(client_proofs_join_split, test_wrong_input_note_owner_fails)
 {
     preload_two_notes();
 
@@ -199,7 +199,7 @@ TEST_F(client_proofs_join_split, test_wrong_input_note_owner_fails)
     EXPECT_FALSE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_random_output_owners_succeeds)
+HEAVY_TEST_F(client_proofs_join_split, test_random_output_owners_succeeds)
 {
     preload_two_notes();
 
@@ -222,7 +222,7 @@ TEST_F(client_proofs_join_split, test_random_output_owners_succeeds)
     EXPECT_TRUE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_wrong_hash_path_fails)
+HEAVY_TEST_F(client_proofs_join_split, test_wrong_hash_path_fails)
 {
     preload_two_notes();
 
@@ -245,7 +245,7 @@ TEST_F(client_proofs_join_split, test_wrong_hash_path_fails)
     EXPECT_FALSE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_wrong_merkle_root_fails)
+HEAVY_TEST_F(client_proofs_join_split, test_wrong_merkle_root_fails)
 {
     preload_two_notes();
 
@@ -268,7 +268,7 @@ TEST_F(client_proofs_join_split, test_wrong_merkle_root_fails)
     EXPECT_FALSE(sign_and_verify(tx));
 }
 
-TEST_F(client_proofs_join_split, test_wrong_signature_fails)
+HEAVY_TEST_F(client_proofs_join_split, test_wrong_signature_fails)
 {
     preload_two_notes();
 

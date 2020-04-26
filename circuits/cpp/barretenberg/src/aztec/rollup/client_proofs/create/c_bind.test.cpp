@@ -5,7 +5,7 @@
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <fstream>
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 #include <srs/io.hpp>
 #include <plonk/reference_string/pippenger_reference_string.hpp>
 
@@ -13,7 +13,7 @@ using namespace barretenberg;
 using namespace rollup::client_proofs::create_note;
 using namespace rollup::tx;
 
-TEST(client_proofs, test_create_c_bindings)
+HEAVY_TEST(client_proofs, test_create_c_bindings)
 {
     create_note__init_proving_key();
 

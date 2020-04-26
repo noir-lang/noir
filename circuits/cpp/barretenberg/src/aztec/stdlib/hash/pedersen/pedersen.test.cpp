@@ -2,8 +2,7 @@
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <numeric/random/engine.hpp>
-
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;
@@ -139,7 +138,7 @@ TEST(stdlib_pedersen, test_pedersen)
     EXPECT_EQ(out.get_value(), compress_native);
 }
 
-TEST(stdlib_pedersen, test_pedersen_large)
+HEAVY_TEST(stdlib_pedersen, test_pedersen_large)
 {
 
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -173,7 +172,7 @@ TEST(stdlib_pedersen, test_pedersen_large)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_pedersen, test_pedersen_large_unrolled)
+HEAVY_TEST(stdlib_pedersen, test_pedersen_large_unrolled)
 {
 
     waffle::TurboComposer composer = waffle::TurboComposer();

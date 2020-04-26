@@ -66,6 +66,14 @@ function(barretenberg_module MODULE_NAME)
             )
         endif()
 
+        if(DISABLE_HEAVY_TESTS)
+            target_compile_definitions(
+                ${MODULE_NAME}_test_objects
+                PRIVATE
+                -DDISABLE_HEAVY_TESTS=1
+            )
+        endif()
+
         target_link_libraries(
             ${MODULE_NAME}_tests
             PRIVATE
