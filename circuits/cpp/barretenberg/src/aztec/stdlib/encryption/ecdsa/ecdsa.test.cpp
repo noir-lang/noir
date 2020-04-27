@@ -5,7 +5,7 @@
 #include <crypto/ecdsa/ecdsa.hpp>
 
 #include <ecc/curves/secp256r1/secp256r1.hpp>
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 using namespace barretenberg;
 using namespace plonk;
@@ -55,7 +55,7 @@ stdlib::secp256r::fr convert_inputs(waffle::TurboComposer* ctx, const barretenbe
     return x;
 }
 
-TEST(stdlib_ecdsa, verify_signature)
+HEAVY_TEST(stdlib_ecdsa, verify_signature)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
 

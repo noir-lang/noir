@@ -8,6 +8,8 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 template <typename Composer>
 bool_t<Composer> check_membership(Composer& composer,
                                   field_t<Composer> const& root,

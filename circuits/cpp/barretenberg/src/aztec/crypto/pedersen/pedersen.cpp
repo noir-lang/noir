@@ -189,24 +189,8 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
 
 grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
 {
-    if (!inited) {
-        init();
-    }
-    grumpkin::g1::element out[8];
-
-#ifndef NO_MULTITHREADING
-#pragma omp parallel for num_threads(8)
-#endif
-    for (size_t i = 0; i < 8; ++i) {
-        out[i] = hash_single(inputs[i], 16 + i);
-    }
-
-    grumpkin::g1::element r = out[0];
-    for (size_t i = 1; i < 8; ++i) {
-        r = out[i] + r;
-    }
-    r = r.normalize();
-    return r.x;
+    std::vector<grumpkin::fq> converted(inputs.begin(), inputs.end());
+    return compress_native(converted);
 }
 
 grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index)

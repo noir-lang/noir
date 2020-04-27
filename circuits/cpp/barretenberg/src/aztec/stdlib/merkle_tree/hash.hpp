@@ -20,12 +20,7 @@ inline barretenberg::fr hash_value_native(std::string const& input)
 {
     std::vector<uint8_t> inputv(input.begin(), input.end());
     std::vector<uint8_t> output = blake2::blake2s(inputv);
-    barretenberg::fr result = barretenberg::fr::zero();
-    result.data[0] = htonll(*(uint64_t*)&output[24]);
-    result.data[1] = htonll(*(uint64_t*)&output[16]);
-    result.data[2] = htonll(*(uint64_t*)&output[8]);
-    result.data[3] = htonll(*(uint64_t*)&output[0]);
-    return result.to_montgomery_form();
+    return barretenberg::fr::serialize_from_buffer(output.data());
 }
 
 inline barretenberg::fr compress_native(std::vector<barretenberg::fr> const& input)

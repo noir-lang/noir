@@ -1,7 +1,7 @@
 #include "leveldb_store.hpp"
 #include "leveldb_tx.hpp"
 #include "memory_store.hpp"
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 #include <leveldb/db.h>
 #include <stdlib/types/turbo.hpp>
 #include <numeric/random/engine.hpp>
@@ -175,7 +175,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
     }
 }
 
-TEST(stdlib_merkle_tree, test_leveldb_update_1024_random)
+HEAVY_TEST(stdlib_merkle_tree, test_leveldb_update_1024_random)
 {
     leveldb::DestroyDB("/tmp/leveldb_test", leveldb::Options());
     LevelDbStore db("/tmp/leveldb_test", 128);

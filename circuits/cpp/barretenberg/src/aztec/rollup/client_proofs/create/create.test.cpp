@@ -3,14 +3,14 @@
 #include "create.hpp"
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::client_proofs::create_note;
 using namespace rollup::tx;
 
-TEST(client_proofs, test_create)
+HEAVY_TEST(client_proofs, test_create)
 {
     Composer composer = Composer("../srs_db");
     user_context user = create_user_context();

@@ -5,6 +5,5 @@ RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-s
 RUN sed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
 WORKDIR /usr/src/barretenberg
 COPY . .
-RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc)
+RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc) barretenberg.wasm noir_tests
 RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/noir/compiler/noir_tests -- --gtest_filter=noir.sha256_NIST_one
-ENTRYPOINT /bin/bash
