@@ -64,9 +64,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 
     // Check we're not joining the same input note.
     bool_ct indicies_equal = input_note1_index == input_note2_index;
-    bool_ct false_witness = witness_ct(&composer, false);
-    false_witness.normalize();
-    composer.assert_equal(indicies_equal.witness_index, false_witness.witness_index);
+    composer.assert_equal_constant(indicies_equal.witness_index, 0);
 
     note_pair input_note1_data = create_note_pair(composer, tx.input_note[0]);
     note_pair input_note2_data = create_note_pair(composer, tx.input_note[1]);
