@@ -73,12 +73,19 @@ template <size_t program_width> void ComposerBase::compute_sigma_permutations(pr
             cycle_node current_cycle_node = wire_copy_cycles[i][j];
             size_t cycle_node_index = j == wire_copy_cycles[i].size() - 1 ? 0 : j + 1;
             cycle_node next_cycle_node = wire_copy_cycles[i][cycle_node_index];
-            sigma_mappings[static_cast<uint32_t>(current_cycle_node.wire_type) >>
-                           30U][current_cycle_node.gate_index + num_public_inputs] =
-                next_cycle_node.gate_index + static_cast<uint32_t>(next_cycle_node.wire_type) + num_public_inputs;
+
+            const auto current_row = current_cycle_node.gate_index + num_public_inputs;
+            const auto next_row = next_cycle_node.gate_index + num_public_inputs;
+
+            const uint32_t current_column = static_cast<uint32_t>(current_cycle_node.wire_type) >> 30U;
+            const uint32_t next_column = static_cast<uint32_t>(next_cycle_node.wire_type) >> 30U;
+
+            sigma_mappings[current_column][current_row] = next_row + (next_column << 30U);
         }
     }
 
+    // This corresponds in the paper to modifying sigma to sigma' with the zeta_i values; this enforces public input
+    // consistency
     for (size_t i = 0; i < num_public_inputs; ++i) {
         sigma_mappings[0][i] = static_cast<uint32_t>(i + key->small_domain.size);
     }
@@ -111,26 +118,9 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key()
     auto crs = crs_factory_->get_prover_crs(new_n);
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<cycle_node> new_cycle;
-
-        new_cycle.emplace_back(left);
-        new_cycle.emplace_back(right);
-        for (size_t i = 0; i < old_cycle.size(); ++i) {
-            new_cycle.emplace_back(old_cycle[i]);
-        }
-        old_cycle = new_cycle;
-    }
-
     for (size_t i = 0; i < selector_num; ++i) {
 
         std::vector<barretenberg::fr>& coeffs = selectors[i];
-        ASSERT(n == coeffs.size());
         ASSERT(n == coeffs.size());
         for (size_t j = total_num_gates; j < new_n; ++j) {
             coeffs.emplace_back(fr::zero());
