@@ -1,6 +1,6 @@
+#include "leveldb_tree.hpp"
 #include "leveldb_store.hpp"
-#include "leveldb_tx.hpp"
-#include "merkle_tree.hpp"
+#include "membership.hpp"
 #include <gtest/gtest.h>
 #include <leveldb/db.h>
 
@@ -8,10 +8,13 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
+const std::string DB_PATH = "/tmp/leveldb_test";
+
 TEST(stdlib_merkle_tree, test_check_membership)
 {
-    leveldb::DestroyDB("/tmp/leveldb_test", leveldb::Options());
-    LevelDbStore db("/tmp/leveldb_test", 3);
+    LevelDbStore::destroy(DB_PATH);
+    LevelDbStore store(DB_PATH);
+    LevelDbTree db(store, 3);
 
     Composer composer = Composer();
 
@@ -37,8 +40,9 @@ TEST(stdlib_merkle_tree, test_check_membership)
 
 TEST(stdlib_merkle_tree, test_assert_check_membership)
 {
-    leveldb::DestroyDB("/tmp/leveldb_test", leveldb::Options());
-    LevelDbStore db("/tmp/leveldb_test", 3);
+    LevelDbStore::destroy(DB_PATH);
+    LevelDbStore store(DB_PATH);
+    LevelDbTree db(store, 3);
 
     Composer composer = Composer();
 
@@ -62,8 +66,9 @@ TEST(stdlib_merkle_tree, test_assert_check_membership)
 
 TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 {
-    leveldb::DestroyDB("/tmp/leveldb_test", leveldb::Options());
-    stdlib::merkle_tree::LevelDbStore db("/tmp/leveldb_test", 3);
+    LevelDbStore::destroy(DB_PATH);
+    LevelDbStore store(DB_PATH);
+    LevelDbTree db(store, 3);
 
     Composer composer = Composer();
 
@@ -87,8 +92,9 @@ TEST(stdlib_merkle_tree, test_assert_check_membership_fail)
 
 TEST(stdlib_merkle_tree, test_update_members)
 {
-    leveldb::DestroyDB("/tmp/leveldb_test", leveldb::Options());
-    stdlib::merkle_tree::LevelDbStore db("/tmp/leveldb_test", 3);
+    LevelDbStore::destroy(DB_PATH);
+    LevelDbStore store(DB_PATH);
+    LevelDbTree db(store, 3);
 
     Composer composer = Composer();
 

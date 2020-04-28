@@ -3,7 +3,7 @@
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/membership.hpp>
 #include "note_pair.hpp"
 #include "verify_signature.hpp"
 

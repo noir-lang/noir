@@ -7,15 +7,15 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
-class MemoryStore {
+class MemoryTree {
   public:
-    MemoryStore(size_t depth);
+    MemoryTree(size_t depth);
 
     fr_hash_path get_hash_path(size_t index);
 
-    void update_element(size_t index, std::string const& value);
+    void update_element(size_t index, std::vector<uint8_t> const& value);
 
-    std::string const& get_element(size_t index);
+    std::vector<uint8_t> const& get_element(size_t index);
 
     fr root() const { return root_; }
 
@@ -24,7 +24,7 @@ class MemoryStore {
     size_t total_size_;
     barretenberg::fr root_;
     std::vector<barretenberg::fr> hashes_;
-    std::vector<std::string> preimages_;
+    std::vector<std::vector<uint8_t>> preimages_;
 };
 
 } // namespace merkle_tree

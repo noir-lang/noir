@@ -474,7 +474,7 @@ template <class Params> struct alignas(32) field {
 };
 
 template <class Params>
-void read(uint8_t*& it, field<Params>& value) {
+void read(uint8_t const*& it, field<Params>& value) {
     field<Params> result{0, 0, 0, 0};
     ::read(it, result.data[3]);
     ::read(it, result.data[2]);

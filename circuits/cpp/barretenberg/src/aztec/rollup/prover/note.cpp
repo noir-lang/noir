@@ -35,10 +35,10 @@ byte_array_ct create_note_leaf(Composer& composer, public_note const& note)
     return value_byte_array;
 }
 
-std::string create_note_db_element(public_note const& note)
+std::vector<uint8_t> create_note_db_element(public_note const& note)
 {
     // TODO: Compress point.
-    std::string new_element = std::string(64, 0);
+    std::vector<uint8_t> new_element = std::vector<uint8_t>(64, 0);
     fr::serialize_to_buffer(note.ciphertext.x.get_value(), (uint8_t*)(&new_element[0]));
     fr::serialize_to_buffer(note.ciphertext.y.get_value(), (uint8_t*)(&new_element[32]));
     return new_element;

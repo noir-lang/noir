@@ -1,5 +1,5 @@
 #include "create.hpp"
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/membership.hpp>
 
 namespace rollup {
 namespace prover {
@@ -8,7 +8,7 @@ new_note_context create_new_note_context(rollup_context& ctx, field_ct const& in
 {
     uint128_t index_to_create = static_cast<uint128_t>(index_field.get_value());
 
-    std::string new_element = create_note_db_element(note_data.second);
+    std::vector<uint8_t> new_element = create_note_db_element(note_data.second);
 
     fr_hash_path old_path = ctx.data_db.get_hash_path(index_to_create);
     fr_hash_path new_path = stdlib::merkle_tree::get_new_hash_path(old_path, index_to_create, new_element);

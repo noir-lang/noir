@@ -1,17 +1,17 @@
-#include "memory_store.hpp"
+#include "memory_tree.hpp"
 #include "hash.hpp"
 
 namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-MemoryStore::MemoryStore(size_t depth)
+MemoryTree::MemoryTree(size_t depth)
     : depth_(depth)
 {
     ASSERT(depth_ >= 1 && depth <= 20);
     total_size_ = 1UL << depth_;
     hashes_.resize(total_size_ * 2 - 2);
-    std::string zero_element(64, 0);
+    std::vector<uint8_t> zero_element(64, 0);
     preimages_.resize(total_size_, zero_element);
 
     // Build the entire tree.
@@ -29,7 +29,7 @@ MemoryStore::MemoryStore(size_t depth)
     root_ = current;
 }
 
-fr_hash_path MemoryStore::get_hash_path(size_t index)
+fr_hash_path MemoryTree::get_hash_path(size_t index)
 {
     fr_hash_path path(depth_);
     size_t offset = 0;
@@ -44,7 +44,7 @@ fr_hash_path MemoryStore::get_hash_path(size_t index)
     return path;
 }
 
-void MemoryStore::update_element(size_t index, std::string const& value)
+void MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
 {
     preimages_[index] = value;
 
@@ -62,7 +62,7 @@ void MemoryStore::update_element(size_t index, std::string const& value)
     root_ = current;
 }
 
-std::string const& MemoryStore::get_element(size_t index)
+std::vector<uint8_t> const& MemoryTree::get_element(size_t index)
 {
     return preimages_[index];
 }

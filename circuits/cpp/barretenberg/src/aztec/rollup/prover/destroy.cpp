@@ -1,5 +1,5 @@
 #include "destroy.hpp"
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/membership.hpp>
 
 namespace rollup {
 namespace prover {

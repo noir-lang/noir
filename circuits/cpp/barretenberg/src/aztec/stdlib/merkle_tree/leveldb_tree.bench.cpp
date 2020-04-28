@@ -1,6 +1,6 @@
 #include "hash.hpp"
 #include "leveldb_store.hpp"
-#include "leveldb_tx.hpp"
+#include "leveldb_tree.hpp"
 #include <benchmark/benchmark.h>
 #include <leveldb/db.h>
 #include <numeric/random/engine.hpp>
@@ -14,11 +14,12 @@ auto& engine = numeric::random::get_debug_engine();
 
 constexpr size_t DEPTH = 128;
 constexpr size_t MAX = 4096;
+const std::string DB_PATH = "/tmp/leveldb_test";
 
-static std::vector<std::string> VALUES = []() {
-    std::vector<std::string> values(MAX);
+static std::vector<LevelDbTree::value_t> VALUES = []() {
+    std::vector<LevelDbTree::value_t> values(MAX);
     for (size_t i = 0; i < MAX; ++i) {
-        std::string v(64, 0);
+        LevelDbTree::value_t v(64, 0);
         *(size_t*)v.data() = i;
         values[i] = v;
     }
@@ -35,8 +36,10 @@ BENCHMARK(hash)->MinTime(5);
 
 void update_first_element(State& state) noexcept
 {
-    leveldb::DestroyDB("/tmp/leveldb_bench", leveldb::Options());
-    LevelDbStore db("/tmp/leveldb_bench", DEPTH);
+    LevelDbStore::destroy(DB_PATH);
+    LevelDbStore store(DB_PATH);
+    LevelDbTree db(store, DEPTH);
+
     for (auto _ : state) {
         db.update_element(0, VALUES[1]);
     }
@@ -47,8 +50,9 @@ void update_elements(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        leveldb::DestroyDB("/tmp/leveldb_bench", leveldb::Options());
-        LevelDbStore db("/tmp/leveldb_bench", DEPTH);
+        LevelDbStore::destroy(DB_PATH);
+        LevelDbStore store(DB_PATH);
+        LevelDbTree db(store, DEPTH);
         state.ResumeTiming();
         for (size_t i = 0; i < (size_t)state.range(0); ++i) {
             db.update_element(i, VALUES[i]);
@@ -61,11 +65,12 @@ void update_1024_random_elements(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
-        leveldb::DestroyDB("/tmp/leveldb_bench", leveldb::Options());
-        LevelDbStore db("/tmp/leveldb_bench", DEPTH);
+        LevelDbStore::destroy(DB_PATH);
+        LevelDbStore store(DB_PATH);
+        LevelDbTree db(store, DEPTH);
         for (size_t i = 0; i < 1024; i++) {
             state.PauseTiming();
-            LevelDbStore::index_t index = engine.get_random_uint128();
+            LevelDbTree::index_t index = engine.get_random_uint128();
             state.ResumeTiming();
             db.update_element(index, VALUES[i]);
         }

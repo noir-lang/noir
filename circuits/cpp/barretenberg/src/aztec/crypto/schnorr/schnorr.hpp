@@ -50,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& os, signature const& sig) {
     return os;
 }
 
-inline void read(uint8_t*& it, signature& sig) {
+inline void read(uint8_t const*& it, signature& sig) {
     read(it, sig.s);
     read(it, sig.e);
 }

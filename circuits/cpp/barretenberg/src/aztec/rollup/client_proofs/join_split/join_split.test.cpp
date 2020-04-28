@@ -5,6 +5,7 @@
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
+#include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include <common/test.hpp>
 
 using namespace barretenberg;
@@ -12,12 +13,12 @@ using namespace plonk::stdlib;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::client_proofs::join_split;
 
-std::string create_leaf_data(grumpkin::g1::affine_element const& enc_note)
+std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
 {
     std::vector<uint8_t> buf;
     write(buf, enc_note.x);
     write(buf, enc_note.y);
-    return std::string(buf.begin(), buf.end());
+    return buf;
 }
 
 class client_proofs_join_split : public ::testing::Test {
@@ -33,9 +34,9 @@ class client_proofs_join_split : public ::testing::Test {
     virtual void SetUp()
     {
         merkle_tree::LevelDbStore::destroy("/tmp/client_proofs_join_split_db");
-        tree = std::make_unique<merkle_tree::LevelDbStore>("/tmp/client_proofs_join_split_db", 32);
+        store = std::make_unique<merkle_tree::LevelDbStore>("/tmp/client_proofs_join_split_db");
+        tree = std::make_unique<merkle_tree::LevelDbTree>(*store, 32);
         user = rollup::tx::create_user_context();
-
     }
 
     void preload_two_notes() {
@@ -60,7 +61,8 @@ class client_proofs_join_split : public ::testing::Test {
     }
 
     rollup::tx::user_context user;
-    std::unique_ptr<merkle_tree::LevelDbStore> tree;
+    std::unique_ptr<merkle_tree::LevelDbStore> store;
+    std::unique_ptr<merkle_tree::LevelDbTree> tree;
 };
 
 HEAVY_TEST_F(client_proofs_join_split, test_0_input_notes)

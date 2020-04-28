@@ -31,7 +31,7 @@ inline std::ostream& operator<<(std::ostream& os, tx_note const& note)
     return os;
 }
 
-inline void read(uint8_t*& it, tx_note& note)
+inline void read(uint8_t const*& it, tx_note& note)
 {
     read(it, note.owner);
     ::read(it, note.value);

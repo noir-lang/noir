@@ -55,7 +55,7 @@ TEST(stdlib_byte_array, test_uint32_input_output_consistency)
 TEST(stdlib_byte_array, test_reverse)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
-    std::string expected = { 0x04, 0x03, 0x02, 0x01 };
+    std::vector<uint8_t> expected = { 0x04, 0x03, 0x02, 0x01 };
     byte_array arr(&composer, std::vector<uint8_t>{ 0x01, 0x02, 0x03, 0x04 });
 
     EXPECT_EQ(arr.size(), 4UL);
@@ -67,7 +67,7 @@ TEST(stdlib_byte_array, test_string_constructor)
     waffle::TurboComposer composer = waffle::TurboComposer();
     std::string a = "ascii";
     byte_array arr(&composer, a);
-    EXPECT_EQ(arr.get_value(), a);
+    EXPECT_EQ(arr.get_string(), a);
 }
 
 TEST(stdlib_byte_array, test_ostream_operator)

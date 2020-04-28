@@ -18,9 +18,9 @@ using namespace rollup::prover;
 
 rollup_context create_rollup_context(std::string const& id, Composer& composer)
 {
-    // TODO: We can't have distinct databases due to requiring atomicity. Change to use a single db with multiple trees.
-    leveldb_store data_db("/tmp/" + id, 32);
-    leveldb_store nullifier_db("/tmp/" + id + "_nullifier", 128);
+    leveldb_store store("/tmp/" + id);
+    leveldb_tree data_db(store, 32);
+    leveldb_tree nullifier_db(store, 128);
 
     return {
         composer,
@@ -35,9 +35,7 @@ rollup_context create_rollup_context(std::string const& id, Composer& composer)
 void reset_db(std::string const& id)
 {
     std::string data_db_path = "/tmp/" + id;
-    std::string nullifier_db_path = "/tmp/" + id + "_nullifier";
     leveldb_store::destroy(data_db_path);
-    leveldb_store::destroy(nullifier_db_path);
 }
 
 circuit_keys create_circuit_keys(size_t batch_size)
