@@ -95,12 +95,11 @@ We need to install `wasi-sdk` runtime to build the WASM version. We then hook a 
 the tests, which use `gtest`.
 
 #### OS X
-You may need to install `gsed` on OS X (`brew install gnu-sed`).
 
 ```
 cd ./src
 curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk-8.0-macos.tar.gz | tar zxfv -
-gsed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
+sed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
 ```
 
 #### Linux
@@ -116,7 +115,7 @@ To build:
 ```
 mkdir build-wasm && cd build-wasm
 cmake -DWASM=ON ..
-make
+make -j16 barretenberg.wasm
 ```
 
 There will be a binary at `./src/aztec/barretenberg.wasm` that can be copied to `barretenberg.js` for use in node and the browser.
