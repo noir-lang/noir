@@ -18,8 +18,8 @@ class WorldStateDb {
   public:
     WorldStateDb(std::string const& db_path)
         : store_(db_path)
-        , data_tree_(store_, 32, "0")
-        , nullifier_tree_(store_, 128, "1")
+        , data_tree_(store_, 32, 0)
+        , nullifier_tree_(store_, 128, 1)
         , trees_({ &data_tree_, &nullifier_tree_ })
     {
 

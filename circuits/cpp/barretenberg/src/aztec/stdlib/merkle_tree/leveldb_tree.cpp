@@ -16,10 +16,10 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
-LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth, std::string const& name)
+LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth, uint8_t tree_id)
     : store_(store)
     , depth_(depth)
-    , name_(name)
+    , tree_id_(tree_id)
 {
     ASSERT(depth_ >= 1 && depth <= 128);
     zero_hashes_.resize(depth);
@@ -37,7 +37,7 @@ LevelDbTree::LevelDbTree(LevelDbTree&& other)
     : store_(other.store_)
     , zero_hashes_(std::move(other.zero_hashes_))
     , depth_(other.depth_)
-    , name_(other.name_)
+    , tree_id_(other.tree_id_)
 {}
 
 LevelDbTree::~LevelDbTree() {}
@@ -45,15 +45,17 @@ LevelDbTree::~LevelDbTree() {}
 fr LevelDbTree::root() const
 {
     value_t root;
-    bool status = store_.get(name_ + ":root", root);
+    std::vector<uint8_t> key = { tree_id_ };
+    bool status = store_.get(key, root);
     return status ? from_buffer<fr>(root) : compress_native({ zero_hashes_.back(), zero_hashes_.back() });
 }
 
 LevelDbTree::index_t LevelDbTree::size() const
 {
     value_t size_buf;
-    bool status = store_.get(name_ + ":size", size_buf);
-    return status ? from_buffer<index_t>(size_buf) : 0;
+    std::vector<uint8_t> key = { tree_id_ };
+    bool status = store_.get(key, size_buf);
+    return status ? from_buffer<index_t>(size_buf, 32) : 0;
 }
 
 fr_hash_path LevelDbTree::get_hash_path(index_t index)
@@ -128,6 +130,7 @@ fr_hash_path LevelDbTree::get_hash_path(index_t index)
 LevelDbTree::value_t LevelDbTree::get_element(index_t index)
 {
     value_t leaf_key;
+    ::write(leaf_key, tree_id_);
     ::write(leaf_key, index);
 
     value_t data;
@@ -138,15 +141,18 @@ LevelDbTree::value_t LevelDbTree::get_element(index_t index)
 fr LevelDbTree::update_element(index_t index, value_t const& value)
 {
     value_t leaf_key;
+    ::write(leaf_key, tree_id_);
     ::write(leaf_key, index);
     store_.put(leaf_key, value);
 
     fr sha_leaf = hash_value_native(value);
     auto r = update_element(root(), sha_leaf, index, depth_);
-    store_.put(name_ + ":root", r.to_buffer());
 
-    index_t new_size = std::max(size(), index + 1);
-    store_.put(name_ + ":size", to_buffer<index_t>(new_size));
+    std::vector<uint8_t> meta_key = { tree_id_ };
+    std::vector<uint8_t> meta_buf;
+    write(meta_buf, r);
+    write(meta_buf, index + 1);
+    store_.put(meta_key, meta_buf);
 
     return r;
 }
