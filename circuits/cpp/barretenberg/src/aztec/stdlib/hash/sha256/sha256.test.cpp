@@ -2,7 +2,7 @@
 #include "sha256_plookup.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/standard_composer.hpp>
-#include <plonk/composer/plookup_tables.hpp>
+#include <plonk/composer/plookup_tables/plookup_tables.hpp>
 #include <stdlib/types/turbo.hpp>
 
 #include <numeric/random/engine.hpp>
@@ -21,6 +21,34 @@ using namespace plonk::stdlib::types::turbo;
 constexpr uint64_t ror(uint64_t val, uint64_t shift)
 {
     return (val >> (shift & 31U)) | (val << (32U - (shift & 31U)));
+}
+
+std::array<uint64_t, 64> extend_witness(std::array<uint64_t, 16>& in)
+{
+    std::array<uint64_t, 64> w;
+
+    for (size_t i = 0; i < 16; ++i) {
+        w[i] = in[i];
+    }
+
+    for (size_t i = 16; i < 64; ++i) {
+        uint64_t left = w[i - 15];
+        uint64_t right = w[i - 2];
+
+        uint64_t left_rot7 = numeric::rotate32((uint32_t)left, 7);
+        uint64_t left_rot18 = numeric::rotate32((uint32_t)left, 18);
+        uint64_t left_sh3 = left >> 3;
+
+        uint64_t right_rot17 = numeric::rotate32((uint32_t)right, 17);
+        uint64_t right_rot19 = numeric::rotate32((uint32_t)right, 19);
+        uint64_t right_sh10 = right >> 10;
+
+        uint64_t s0 = left_rot7 ^ left_rot18 ^ left_sh3;
+        uint64_t s1 = right_rot17 ^ right_rot19 ^ right_sh10;
+
+        w[i] = w[i - 16] + w[i - 7] + s0 + s1;
+    }
+    return w;
 }
 std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 {
@@ -80,379 +108,97 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
     return output;
 }
 
-TEST(stdlib_sha256_plookup, convert_into_sparse_ch_form)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t input = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> element;
-        if (i == 0) {
-            element = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, input);
-        } else {
-            element = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, input);
-        }
-        const auto converted = plonk::stdlib::convert_into_sparse_ch_form(element);
-
-        const uint64_t result_normal = uint256_t(converted.normal.get_value()).data[0];
-        const uint64_t result_sparse = numeric::map_from_sparse_form<7>(converted.sparse.get_value());
-
-        const uint64_t result_rot6 = numeric::map_from_sparse_form<7>(converted.rot6.get_value());
-        const uint64_t result_rot11 = numeric::map_from_sparse_form<7>(converted.rot11.get_value());
-        const uint64_t result_rot25 = numeric::map_from_sparse_form<7>(converted.rot25.get_value());
-
-        EXPECT_EQ(input, result_normal);
-        EXPECT_EQ(input, result_sparse);
-        EXPECT_EQ(numeric::rotate32((uint32_t)input, 6), result_rot6);
-        EXPECT_EQ(numeric::rotate32((uint32_t)input, 11), result_rot11);
-        EXPECT_EQ(numeric::rotate32((uint32_t)input, 25), result_rot25);
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, convert_into_sparse_maj_form)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t input = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> element;
-        if (i == 0) {
-            element = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, input);
-        } else {
-            element = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, input);
-        }
-
-        const auto converted = plonk::stdlib::convert_into_sparse_maj_form(element);
-
-        const uint64_t result_normal = uint256_t(converted.normal.get_value()).data[0];
-        const uint64_t result_sparse = numeric::map_from_sparse_form<4>(converted.sparse.get_value());
-
-        const uint64_t result_rot2 = numeric::map_from_sparse_form<4>(converted.rot2.get_value());
-        const uint64_t result_rot13 = numeric::map_from_sparse_form<4>(converted.rot13.get_value());
-        const uint64_t result_rot22 = numeric::map_from_sparse_form<4>(converted.rot22.get_value());
-
-        EXPECT_EQ(input, result_normal);
-        EXPECT_EQ(input, result_sparse);
-        EXPECT_EQ(numeric::rotate32((uint32_t)input, 2), result_rot2);
-        EXPECT_EQ(numeric::rotate32((uint32_t)input, 13), result_rot13);
-        EXPECT_EQ(numeric::rotate32((uint32_t)input, 22), result_rot22);
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, normalize_sparse_form_base7)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t in_e = engine.get_random_uint32();
-        uint64_t in_f = engine.get_random_uint32();
-        uint64_t in_g = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> e;
-        plonk::stdlib::field_t<waffle::PLookupComposer> f;
-        plonk::stdlib::field_t<waffle::PLookupComposer> g;
-        if (i == 0) {
-            e = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_g);
-        } else {
-            e = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_g);
-        }
-
-        const auto e_ch = plonk::stdlib::convert_into_sparse_ch_form(e);
-        const auto f_ch = plonk::stdlib::convert_into_sparse_ch_form(f);
-        const auto g_ch = plonk::stdlib::convert_into_sparse_ch_form(g);
-
-        const auto sparse_sum = e_ch.rot6 + f_ch.rot11 + g_ch.rot25;
-
-        const uint64_t expected = numeric::rotate32((uint32_t)in_e, 6) ^ numeric::rotate32((uint32_t)in_f, 11) ^
-                                  numeric::rotate32((uint32_t)in_g, 25);
-
-        const auto result = plonk::stdlib::normalize_sparse_form<7, 4>(sparse_sum.normalize(),
-                                                                       waffle::PLookupTableId::SHA256_BASE7_NORMALIZE);
-
-        // const uint256_t expected(in_e ^ in_f ^ in_g);
-
-        EXPECT_EQ(uint256_t(result.get_value()), uint256_t(expected));
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, normalize_sparse_form_parta)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t in_e = engine.get_random_uint32();
-        uint64_t in_f = engine.get_random_uint32();
-        uint64_t in_g = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> e;
-        plonk::stdlib::field_t<waffle::PLookupComposer> f;
-        plonk::stdlib::field_t<waffle::PLookupComposer> g;
-        if (i == 0) {
-            e = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_g);
-        } else {
-            e = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_g);
-        }
-
-        const auto e_ch = plonk::stdlib::convert_into_sparse_ch_form(e);
-        const auto f_ch = plonk::stdlib::convert_into_sparse_ch_form(f);
-        const auto g_ch = plonk::stdlib::convert_into_sparse_ch_form(g);
-
-        auto sparse_sum = e_ch.sparse + f_ch.sparse + f_ch.sparse + g_ch.sparse + g_ch.sparse + g_ch.sparse;
-        sparse_sum = sparse_sum.normalize();
-        const uint256_t native_sparse[3]{
-            numeric::map_into_sparse_form<7>(in_e),
-            numeric::map_into_sparse_form<7>(in_f),
-            numeric::map_into_sparse_form<7>(in_g),
-        };
-
-        auto native_add = native_sparse[0] + native_sparse[1] + native_sparse[1] + native_sparse[2] + native_sparse[2] +
-                          native_sparse[2];
-
-        const uint64_t bit_table[7]{
-            0, // e + 2f + 3g = 0 => e = 0, f = 0, g = 0 => t = 0
-            0, // e + 2f + 3g = 1 => e = 1, f = 0, g = 0 => t = 0
-            0, // e + 2f + 3g = 2 => e = 0, f = 1, g = 0 => t = 0
-            1, // e + 2f + 3g = 3 => e = 0, f = 0, g = 1 OR e = 1, f = 1, g = 0 => t = 1
-            0, // e + 2f + 3g = 4 => e = 1, f = 0, g = 1 => t = 0
-            1, // e + 2f + 3g = 5 => e = 0, f = 1, g = 1 => t = 1
-            1, // e + 2f + 3g = 6 => e = 1, f = 1, g = 1 => t = 1
-        };
-
-        const uint64_t expected = (in_e & in_f) ^ (~in_e & in_g);
-
-        for (size_t i = 0; i < 7; ++i) {
-            const auto foo = native_add % uint256_t(7);
-            const auto bar = bit_table[foo.data[0]];
-            native_add = (native_add - foo) / 7;
-            EXPECT_EQ(bar, ((expected >> i) & 1));
-        }
-
-        const auto result =
-            plonk::stdlib::normalize_sparse_form<7, 4>(sparse_sum, waffle::PLookupTableId::SHA256_PARTA_NORMALIZE);
-
-        // const uint256_t expected(in_e ^ in_f ^ in_g);
-
-        EXPECT_EQ(uint256_t(result.get_value()), uint256_t(expected));
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, normalize_sparse_form_partb)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t in_e = engine.get_random_uint32();
-        uint64_t in_f = engine.get_random_uint32();
-        uint64_t in_g = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> e;
-        plonk::stdlib::field_t<waffle::PLookupComposer> f;
-        plonk::stdlib::field_t<waffle::PLookupComposer> g;
-        if (i == 0) {
-            e = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_g);
-        } else {
-            e = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_g);
-        }
-
-        const auto e_maj = plonk::stdlib::convert_into_sparse_maj_form(e);
-        const auto f_maj = plonk::stdlib::convert_into_sparse_maj_form(f);
-        const auto g_maj = plonk::stdlib::convert_into_sparse_maj_form(g);
-
-        auto sparse_sum = e_maj.sparse + f_maj.sparse + g_maj.sparse;
-        sparse_sum = sparse_sum.normalize();
-        const uint256_t native_sparse[3]{
-            numeric::map_into_sparse_form<4>(in_e),
-            numeric::map_into_sparse_form<4>(in_f),
-            numeric::map_into_sparse_form<4>(in_g),
-        };
-
-        EXPECT_EQ(e_maj.sparse.get_value(), native_sparse[0]);
-        EXPECT_EQ(f_maj.sparse.get_value(), native_sparse[1]);
-        EXPECT_EQ(g_maj.sparse.get_value(), native_sparse[2]);
-
-        auto native_add = native_sparse[0] + native_sparse[1] + native_sparse[2];
-
-        constexpr uint64_t bit_table[4]{
-            0, // a + b + c = 0 => (a & b) ^ (a & c) ^ (b & c) = 0
-            0, // a + b + c = 1 => (a & b) ^ (a & c) ^ (b & c) = 0
-            1, // a + b + c = 2 => (a & b) ^ (a & c) ^ (b & c) = 1
-            1, // a + b + c = 3 => (a & b) ^ (a & c) ^ (b & c) = 0
-        };
-
-        const uint64_t expected = (in_e & in_f) ^ (in_e & in_g) ^ (in_f & in_g);
-
-        for (size_t i = 0; i < 16; ++i) {
-            const auto foo = native_add % uint256_t(4);
-            const auto bar = bit_table[foo.data[0]];
-            native_add = (native_add - foo) / 4;
-            EXPECT_EQ(bar, ((expected >> i) & 1));
-        }
-
-        const auto result =
-            plonk::stdlib::normalize_sparse_form<4, 6>(sparse_sum, waffle::PLookupTableId::SHA256_PARTB_NORMALIZE);
-
-        // const uint256_t expected(in_e ^ in_f ^ in_g);
-
-        EXPECT_EQ(uint256_t(result.get_value()), uint256_t(expected));
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, choose)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t in_e = engine.get_random_uint32();
-        uint64_t in_f = engine.get_random_uint32();
-        uint64_t in_g = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> e;
-        plonk::stdlib::field_t<waffle::PLookupComposer> f;
-        plonk::stdlib::field_t<waffle::PLookupComposer> g;
-        if (i == 0) {
-            e = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_g);
-        } else {
-            e = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_g);
-        }
-
-        const auto e_ch = plonk::stdlib::convert_into_sparse_ch_form(e);
-        const auto f_ch = plonk::stdlib::convert_into_sparse_ch_form(f);
-        const auto g_ch = plonk::stdlib::convert_into_sparse_ch_form(g);
-
-        const auto result = plonk::stdlib::choose(e_ch, f_ch, g_ch);
-
-        const uint64_t t0 = numeric::rotate32((uint32_t)in_e, 6) ^ numeric::rotate32((uint32_t)in_e, 11) ^
-                            numeric::rotate32((uint32_t)in_e, 25);
-        const uint64_t t1 = (in_e & in_f) ^ (~in_e & in_g);
-        const uint256_t expected(t0 + t1);
-
-        EXPECT_EQ(uint256_t(result.get_value()), expected);
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, majority)
-{
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    for (size_t i = 0; i < 2; ++i) {
-        uint64_t in_e = engine.get_random_uint32();
-        uint64_t in_f = engine.get_random_uint32();
-        uint64_t in_g = engine.get_random_uint32();
-        plonk::stdlib::field_t<waffle::PLookupComposer> e;
-        plonk::stdlib::field_t<waffle::PLookupComposer> f;
-        plonk::stdlib::field_t<waffle::PLookupComposer> g;
-        if (i == 0) {
-            e = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::field_t<waffle::PLookupComposer>(&composer, in_g);
-        } else {
-            e = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_e);
-            f = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_f);
-            g = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, in_g);
-        }
-
-        const auto e_maj = plonk::stdlib::convert_into_sparse_maj_form(e);
-        const auto f_maj = plonk::stdlib::convert_into_sparse_maj_form(f);
-        const auto g_maj = plonk::stdlib::convert_into_sparse_maj_form(g);
-
-        const auto result = plonk::stdlib::majority(e_maj, f_maj, g_maj);
-
-        const uint64_t t0 = numeric::rotate32((uint32_t)in_e, 2) ^ numeric::rotate32((uint32_t)in_e, 13) ^
-                            numeric::rotate32((uint32_t)in_e, 22);
-        const uint64_t t1 = (in_e & in_f) ^ (in_e & in_g) ^ (in_f & in_g);
-        const uint256_t expected(t0 + t1);
-
-        EXPECT_EQ(uint256_t(result.get_value()), expected);
-    }
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
-TEST(stdlib_sha256_plookup, test_round)
+TEST(stdlib_sha256_plookup, witness_extension)
 {
 
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    std::array<uint64_t, 64> w_inputs;
-    std::array<plonk::stdlib::field_t<waffle::PLookupComposer>, 64> w_elements;
+    std::array<uint64_t, 16> w_inputs;
+    std::array<plonk::stdlib::field_t<waffle::PLookupComposer>, 16> w_elements;
 
-    for (size_t i = 0; i < 64; ++i) {
+    for (size_t i = 0; i < 16; ++i) {
         w_inputs[i] = engine.get_random_uint32();
         w_elements[i] = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, barretenberg::fr(w_inputs[i]));
     }
 
-    const auto expected = inner_block(w_inputs);
+    const auto expected = extend_witness(w_inputs);
 
-    const std::array<plonk::stdlib::field_t<waffle::PLookupComposer>, 8> result =
-        plonk::stdlib::sha256_inner_block(w_elements);
+    const auto result = plonk::stdlib::extend_witness(w_elements);
     for (size_t i = 0; i < 8; ++i) {
         EXPECT_EQ(uint256_t(result[i].get_value()).data[0] & 0xffffffffUL,
                   uint256_t(expected[i]).data[0] & 0xffffffffUL);
     }
+    printf("composer gates = %zu\n", composer.get_num_gates());
 
     auto prover = composer.create_prover();
 
     auto verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+// TEST(stdlib_sha256_plookup, test_round)
+// {
+
+//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+//     std::array<uint64_t, 64> w_inputs;
+//     std::array<plonk::stdlib::field_t<waffle::PLookupComposer>, 64> w_elements;
+
+//     for (size_t i = 0; i < 64; ++i) {
+//         w_inputs[i] = engine.get_random_uint32();
+//         w_elements[i] = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, barretenberg::fr(w_inputs[i]));
+//     }
+
+//     const auto expected = inner_block(w_inputs);
+
+//     const std::array<plonk::stdlib::field_t<waffle::PLookupComposer>, 8> result =
+//         plonk::stdlib::sha256_inner_block(w_elements);
+//     for (size_t i = 0; i < 8; ++i) {
+//         EXPECT_EQ(uint256_t(result[i].get_value()).data[0] & 0xffffffffUL,
+//                   uint256_t(expected[i]).data[0] & 0xffffffffUL);
+//     }
+//     printf("composer gates = %zu\n", composer.get_num_gates());
+
+//     auto prover = composer.create_prover();
+
+//     auto verifier = composer.create_verifier();
+//     waffle::plonk_proof proof = prover.construct_proof();
+//     bool proof_result = verifier.verify_proof(proof);
+//     EXPECT_EQ(proof_result, true);
+// }
+
+TEST(stdlib_sha256, test_plookup_55_bytes)
+{
+    typedef plonk::stdlib::uint32<waffle::PLookupComposer> uint32_pt;
+    typedef plonk::stdlib::bit_array<waffle::PLookupComposer> bit_array_pt;
+
+    // 55 bytes is the largest number of bytes that can be hashed in a single block,
+    // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    bit_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
+
+    bit_array_pt output_bits = plonk::stdlib::sha256(input);
+
+    std::vector<uint32_pt> output = output_bits.to_uint32_vector();
+
+    EXPECT_EQ(output[0].get_value(), 0x51b2529fU);
+    EXPECT_EQ(output[1].get_value(), 0x872e839aU);
+    EXPECT_EQ(output[2].get_value(), 0xb686c3c2U);
+    EXPECT_EQ(output[3].get_value(), 0x483c872eU);
+    EXPECT_EQ(output[4].get_value(), 0x975bd672U);
+    EXPECT_EQ(output[5].get_value(), 0xbde22ab0U);
+    EXPECT_EQ(output[6].get_value(), 0x54a8fac7U);
+    EXPECT_EQ(output[7].get_value(), 0x93791fc7U);
+    printf("composer gates = %zu\n", composer.get_num_gates());
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+    printf("constructing proof \n");
+    waffle::plonk_proof proof = prover.construct_proof();
+    printf("constructed proof \n");
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
@@ -490,13 +236,16 @@ TEST(stdlib_sha256, test_55_bytes)
 
 TEST(stdlib_sha256, test_NIST_vector_one)
 {
-    Composer composer = Composer();
+    typedef plonk::stdlib::uint32<waffle::PLookupComposer> uint32_pt;
+    typedef plonk::stdlib::bit_array<waffle::PLookupComposer> bit_array_pt;
 
-    bit_array_ct input(&composer, "abc");
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    bit_array_ct output_bits = plonk::stdlib::sha256(input);
+    bit_array_pt input(&composer, "abc");
 
-    std::vector<uint32_ct> output = output_bits.to_uint32_vector();
+    bit_array_pt output_bits = plonk::stdlib::sha256(input);
+
+    std::vector<uint32_pt> output = output_bits.to_uint32_vector();
 
     EXPECT_EQ(output[0].get_value(), 0xBA7816BFU);
     EXPECT_EQ(output[1].get_value(), 0x8F01CFEAU);
@@ -508,9 +257,9 @@ TEST(stdlib_sha256, test_NIST_vector_one)
     EXPECT_EQ(output[7].get_value(), 0xF20015ADU);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
-    Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
     printf("constructing proof \n");
     waffle::plonk_proof proof = prover.construct_proof();
     printf("constructed proof \n");

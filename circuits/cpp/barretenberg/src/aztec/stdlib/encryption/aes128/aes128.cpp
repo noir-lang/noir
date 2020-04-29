@@ -22,94 +22,38 @@ struct byte_pair {
 field_pt normalize_sparse_form(waffle::PLookupComposer* ctx, field_pt& byte)
 {
     byte = byte.normalize();
-    uint64_t value = uint256_t(byte.get_value()).data[0];
-    uint64_t multiplier = sparse_base * sparse_base * sparse_base * sparse_base;
-    uint64_t lo = value % multiplier;
-    uint64_t hi = value / multiplier;
-
-    uint32_t in_lo_idx = ctx->add_variable(fr(lo));
-    uint32_t in_hi_idx = ctx->add_variable(fr(hi));
-
-    uint64_t out = crypto::aes128::normalize_sparse_form(value);
-
-    uint64_t out_lo = out % multiplier;
-    uint64_t out_hi = out / multiplier;
-
-    uint32_t out_idx = ctx->add_variable(fr(out));
-    uint32_t out_lo_idx = ctx->add_variable(fr(out_lo));
-    uint32_t out_hi_idx = ctx->add_variable(fr(out_hi));
-
-    ctx->validate_lookup(waffle::PLookupTableId::AES_SPARSE_NORMALIZE, { in_lo_idx, ctx->zero_idx, out_lo_idx });
-    ctx->validate_lookup(waffle::PLookupTableId::AES_SPARSE_NORMALIZE, { in_hi_idx, ctx->zero_idx, out_hi_idx });
-
-    ctx->create_add_gate({
-        out_lo_idx,
-        out_hi_idx,
-        out_idx,
-        fr(1),
-        fr(multiplier),
-        fr(-1),
-        fr(0),
-    });
-
-    field_pt result(ctx);
-    result.witness_index = out_idx;
-    return result;
+    const uint32_t result_index = ctx->read_sequence_from_table(
+        waffle::PLookupTableId::AES_SPARSE_NORMALIZE, byte.witness_index, ctx->zero_idx, 2)[2][0];
+    return field_pt::from_witness_index(ctx, result_index);
 }
 
 byte_pair apply_aes_sbox_map(waffle::PLookupComposer* ctx, field_pt& input)
 {
     input = input.normalize();
-    uint64_t value = uint256_t(input.get_value()).data[0];
 
-    uint8_t byte = crypto::aes128::map_from_sparse_form(value);
+    const std::array<uint32_t, 2> indices =
+        ctx->read_from_table(waffle::PLookupTableId::AES_SBOX_MAP, input.witness_index);
 
-    uint8_t sbox_value = crypto::aes128::sbox[byte];
-    uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
-
-    uint64_t left = crypto::aes128::map_into_sparse_form(sbox_value);
-    uint64_t right = crypto::aes128::map_into_sparse_form((uint8_t)(sbox_value ^ swizzled));
-
-    uint32_t left_idx = ctx->add_variable(fr(left));
-    uint32_t right_idx = ctx->add_variable(fr(right));
-
-    ctx->validate_lookup(waffle::PLookupTableId::AES_SBOX_MAP, { input.witness_index, left_idx, right_idx });
-
-    byte_pair result{ field_pt(ctx), field_pt(ctx) };
-    result.first.witness_index = left_idx;
-    result.second.witness_index = right_idx;
+    byte_pair result{
+        field_pt::from_witness_index(ctx, indices[0]),
+        field_pt::from_witness_index(ctx, indices[1]),
+    };
     return result;
 }
 
 std::array<field_pt, 16> convert_into_sparse_bytes(waffle::PLookupComposer* ctx, const field_pt& block_data)
-{ // `block_data` must be a 128 bit variable
+{
+    // `block_data` must be a 128 bit variable
     uint256_t buffer(block_data.get_value());
-    std::array<field_pt, 16> bytes;
     std::array<field_pt, 16> sparse_bytes;
 
-    for (uint64_t j = 0; j < 2; ++j) {
-        for (uint64_t i = 0; i < 8; ++i) {
-            uint64_t byte = (uint8_t)((buffer.data[1 - j] >> ((7 - i) * 8ULL)) & 255ULL);
-            bytes[j * 8 + i] = witness_pt(ctx, fr(byte));
+    const auto indices = ctx->read_sequence_from_table(
+        waffle::PLookupTableId::AES_SPARSE_MAP, block_data.witness_index, ctx->zero_idx, 16);
 
-            field_pt sparse(ctx);
-            sparse.witness_index =
-                ctx->read_from_table(waffle::PLookupTableId::AES_SPARSE_MAP, bytes[j * 8 + i].witness_index);
-
-            sparse_bytes[j * 8 + i] = sparse;
-        }
+    for (size_t i = 0; i < 16; ++i) {
+        sparse_bytes[15 - i] = field_pt::from_witness_index(ctx, indices[2][i]);
     }
 
-    field_pt scalar(ctx, fr(0));
-    field_pt accumulator(ctx, fr(1));
-    field_pt T0(ctx, fr(256));
-    field_pt T1 = T0 * T0;
-
-    for (size_t i = 0; i < 16; i += 2) {
-        scalar = scalar * T1;
-        scalar = scalar.add_two(bytes[i] * T0, bytes[i + 1]);
-    }
-    scalar.assert_equal(block_data);
     return sparse_bytes;
 }
 
@@ -117,28 +61,25 @@ field_pt convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_pt* spars
 {
     std::array<field_pt, 16> bytes;
 
-    for (uint64_t i = 0; i < 16; ++i) {
-        sparse_bytes[i] = sparse_bytes[i].normalize();
+    // compute target output
+    uint256_t accumulator = 0;
+    for (size_t i = 0; i < 16; ++i) {
         uint64_t sparse_byte = uint256_t(sparse_bytes[i].get_value()).data[0];
-        uint64_t byte = crypto::aes128::map_from_sparse_form(sparse_byte);
-
-        bytes[i] = witness_pt(ctx, fr(byte));
-
-        uint32_t index = ctx->read_from_table(waffle::PLookupTableId::AES_SPARSE_MAP, bytes[i].witness_index);
-
-        ctx->assert_equal(index, sparse_bytes[i].witness_index);
+        uint256_t byte = crypto::aes128::map_from_sparse_form(sparse_byte);
+        accumulator <<= 8;
+        accumulator += (byte);
     }
 
-    field_pt scalar(ctx, fr(0));
-    field_pt accumulator(ctx, fr(1));
-    field_pt T0(ctx, fr(256));
-    field_pt T1 = T0 * T0;
+    field_pt result = witness_pt(ctx, fr(accumulator));
 
-    for (size_t i = 0; i < 16; i += 2) {
-        scalar = scalar * T1;
-        scalar = scalar.add_two(bytes[i] * T0, bytes[i + 1]);
+    const auto indices =
+        ctx->read_sequence_from_table(waffle::PLookupTableId::AES_SPARSE_MAP, result.witness_index, ctx->zero_idx, 16);
+
+    for (size_t i = 0; i < 16; ++i) {
+        ctx->assert_equal(sparse_bytes[15 - i].witness_index, indices[2][i]);
     }
-    return scalar;
+
+    return result;
 }
 
 std::array<field_pt, 176> expand_key(waffle::PLookupComposer* ctx, const field_pt& key)
@@ -260,34 +201,18 @@ void shift_rows(byte_pair* state)
 void mix_column_and_add_round_key(byte_pair* column_pairs, field_pt* round_key, uint64_t round)
 {
 
-    // c0.2 + c1.2 + c0.1 + c2.1 + c3.1 (3.1, 0.1, 1.2) (0.2, 2.1)
-    auto t0 = column_pairs[0].second.add_two(column_pairs[1].second, column_pairs[2].first);
-    auto t1 = column_pairs[3].first.add_two(column_pairs[0].first, round_key[(round * 16U)]);
+    auto t0 = column_pairs[0].first.add_two(column_pairs[3].first, column_pairs[1].second);
+    auto t1 = column_pairs[1].first.add_two(column_pairs[2].first, column_pairs[3].second);
 
-    // c2.2 + c1.1 + c1.2 + c0.1 + c3.1  (3.1, 0.1, 1.2) (2.2, 1.1)
-    auto t2 = column_pairs[1].second.add_two(column_pairs[2].second, column_pairs[0].first);
-    auto t3 = column_pairs[3].first.add_two(column_pairs[1].first, round_key[(round * 16U) + 1]);
+    auto r0 = t0.add_two(column_pairs[2].first, column_pairs[0].second);
+    auto r1 = t0.add_two(column_pairs[1].first, column_pairs[2].second);
+    auto r2 = t1.add_two(column_pairs[0].first, column_pairs[2].second);
+    auto r3 = t1.add_two(column_pairs[0].second, column_pairs[3].first);
 
-    // 2.2 + 2.1 + 3.2 + 0.1 + 1.1 = (2.1, 1.1, 3.2) (2.2, 0.1)
-    auto t4 = column_pairs[2].second.add_two(column_pairs[3].second, column_pairs[0].first);
-    auto t5 = column_pairs[1].first.add_two(column_pairs[2].first, round_key[(round * 16U) + 2]);
-
-    // (3.2, 0.2, 1.1, 2.1, 3.1) = (2.1, 1.1, 3.2) (3.1, 0.2)
-    auto t6 = column_pairs[3].second.add_two(column_pairs[0].second, column_pairs[1].first);
-    auto t7 = column_pairs[2].first.add_two(column_pairs[3].first, round_key[(round * 16U) + 3]);
-
-    column_pairs[0].first = t0 + t1;
-    column_pairs[1].first = t2 + t3;
-    column_pairs[2].first = t4 + t5;
-    column_pairs[3].first = t6 + t7;
-    // uint64_t t0 = column_pairs[0].second + column_pairs[1].second + column_pairs[2].first + column_pairs[3].first;
-    // uint64_t t1 = column_pairs[1].second + column_pairs[2].second + column_pairs[0].first + column_pairs[3].first;
-    // uint64_t t2 = column_pairs[2].second + column_pairs[3].second + column_pairs[0].first + column_pairs[1].first;
-    // uint64_t t3 = column_pairs[3].second + column_pairs[0].second + column_pairs[1].first + column_pairs[2].first;
-    // column_pairs[0].first += t0;
-    // column_pairs[1].first += t1;
-    // column_pairs[2].first += t2;
-    // column_pairs[3].first += t3;
+    column_pairs[0].first = r0 + round_key[(round * 16U)];
+    column_pairs[1].first = r1 + round_key[(round * 16U) + 1];
+    column_pairs[2].first = r2 + round_key[(round * 16U) + 2];
+    column_pairs[3].first = r3 + round_key[(round * 16U) + 3];
 }
 
 void mix_columns_and_add_round_key(byte_pair* state_pairs, field_pt* round_key, uint64_t round)
@@ -324,7 +249,6 @@ void xor_with_iv(byte_pair* state, field_pt* iv)
 void aes128_cipher(waffle::PLookupComposer* ctx, byte_pair* state, field_pt* sparse_round_key)
 {
     add_round_key(state, sparse_round_key, 0);
-
     for (size_t i = 0; i < 16; ++i) {
         state[i].first = normalize_sparse_form(ctx, state[i].first);
     }
@@ -333,7 +257,6 @@ void aes128_cipher(waffle::PLookupComposer* ctx, byte_pair* state, field_pt* spa
         sub_bytes(ctx, state);
         shift_rows(state);
         mix_columns_and_add_round_key(state, sparse_round_key, round);
-
         for (size_t i = 0; i < 16; ++i) {
             state[i].first = normalize_sparse_form(ctx, state[i].first);
         }

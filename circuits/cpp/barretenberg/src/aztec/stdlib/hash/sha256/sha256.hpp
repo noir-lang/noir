@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <stdlib/primitives/uint/uint.hpp>
+#include "sha256_plookup.hpp"
 
 namespace waffle {
 class StandardComposer;

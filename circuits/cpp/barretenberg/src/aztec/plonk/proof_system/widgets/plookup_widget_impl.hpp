@@ -123,16 +123,6 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
             fr next_table = lagrange_base_tables[0][start] + lagrange_base_tables[1][start] * eta +
                             lagrange_base_tables[2][start] * eta_sqr + lagrange_base_tables[3][start] * eta_cube;
             for (size_t i = start; i < end; ++i) {
-                // if (column_3_step_size[i] != fr(0)) {
-                //     std::cout << "3 nonzero" << std::endl;
-                // }
-                // if (column_2_step_size[i] != fr(0)) {
-                //     std::cout << "2 nonzero" << std::endl;
-                // }
-                // if (column_1_step_size[i] != fr(0)) {
-                //     std::cout << "1 nonzero" << std::endl;
-                // }
-
                 T0 = lookup_index_selector[i];
                 T0 *= eta;
                 T0 += lagrange_base_wires[2][(i + 1) & block_mask] * column_3_step_size[i];
