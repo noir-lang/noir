@@ -2,7 +2,7 @@
 #include <numeric/bitop/get_msb.hpp>
 #include <numeric/random/engine.hpp>
 #include <type_traits>
-
+#include <vector>
 #include "field_impl_generic.hpp"
 
 #if (BBERG_NO_ASM == 0)
@@ -356,22 +356,32 @@ template <class T> constexpr field<T> field<T>::invert() const noexcept
 
 template <class T> void field<T>::batch_invert(field* coeffs, const size_t n) noexcept
 {
-    field* temporaries = new field[n];
+    std::vector<field> temporaries;
+    std::vector<bool> skipped;
+    temporaries.reserve(n);
+    skipped.reserve(n);
+
     field accumulator = one();
     for (size_t i = 0; i < n; ++i) {
-        temporaries[i] = accumulator;
-        accumulator = accumulator * coeffs[i];
+        temporaries.emplace_back(accumulator);
+        if (coeffs[i] == field(0)) {
+            skipped.emplace_back(true);
+        } else {
+            skipped.emplace_back(false);
+            accumulator *= coeffs[i];
+        }
     }
 
     accumulator = accumulator.invert();
 
     field T0;
     for (size_t i = n - 1; i < n; --i) {
-        T0 = accumulator * temporaries[i];
-        accumulator = accumulator * coeffs[i];
-        coeffs[i] = T0;
+        if (!skipped[i]) {
+            T0 = accumulator * temporaries[i];
+            accumulator *= coeffs[i];
+            coeffs[i] = T0;
+        }
     }
-    delete[] temporaries;
 }
 
 template <class T> constexpr field<T> field<T>::tonelli_shanks_sqrt() const noexcept
