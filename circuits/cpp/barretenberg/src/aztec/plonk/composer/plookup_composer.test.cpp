@@ -5,6 +5,8 @@
 #include "../proof_system/widgets/create_dummy_transcript.hpp"
 #include "../proof_system/widgets/plookup_widget.hpp"
 
+#include "./plookup_tables/sha256.hpp"
+
 using namespace barretenberg;
 
 namespace {
@@ -38,10 +40,152 @@ waffle::PLookupTable generate_xor_table()
     }
     table.get_values_from_key = &get_values_from_key;
 
-    table.column_1_step_size = fr(4);
-    table.column_2_step_size = fr(4);
-    table.column_3_step_size = fr(4);
+    table.column_1_step_size = fr(16);
+    table.column_2_step_size = fr(16);
+    table.column_3_step_size = fr(16);
     return table;
+}
+
+template <uint64_t base, uint64_t num_rotated_bits>
+std::array<barretenberg::fr, 2> get_sparse_map_values(const std::array<uint64_t, 2> key)
+{
+    const auto t0 = numeric::map_into_sparse_form<base>(key[0]);
+    const auto t1 = numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)key[0], num_rotated_bits));
+    return { barretenberg::fr(t0), barretenberg::fr(t1) };
+}
+
+waffle::PLookupTable generate_sparse_map()
+{
+    constexpr uint64_t base = 28;
+    constexpr uint64_t num_rotated_bits = 6;
+    constexpr uint64_t bits_per_slice = 11;
+    waffle::PLookupTable table;
+    table.id = waffle::PLookupTableId::SHA256_BASE28_ROTATE6;
+    table.table_index = 1;
+    table.size = (1U << bits_per_slice);
+    table.use_twin_keys = false;
+
+    for (uint64_t i = 0; i < table.size; ++i) {
+        const uint64_t source = i;
+        const auto target = numeric::map_into_sparse_form<base>(source);
+        const auto rotated = numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)source, num_rotated_bits));
+        table.column_1.emplace_back(barretenberg::fr(source));
+        table.column_2.emplace_back(barretenberg::fr(target));
+        table.column_3.emplace_back(barretenberg::fr(rotated));
+    }
+
+    table.get_values_from_key = &get_sparse_map_values<base, num_rotated_bits>;
+
+    uint256_t sparse_step_size = 1;
+    for (size_t i = 0; i < bits_per_slice; ++i) {
+        sparse_step_size *= base;
+    }
+    table.column_1_step_size = barretenberg::fr((1 << 11));
+    table.column_2_step_size = barretenberg::fr(sparse_step_size);
+    table.column_3_step_size = barretenberg::fr(0);
+
+    return table;
+}
+
+TEST(plookup_composer, read_from_table_with_single_key)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    composer.lookup_tables.emplace_back(std::move(generate_sparse_map()));
+
+    constexpr uint64_t bit_mask = (1 << 11) - 1;
+    for (size_t i = 0; i < 16; ++i) {
+        for (size_t j = 0; j < 16; ++j) {
+            uint64_t left = static_cast<uint64_t>(engine.get_random_uint32()) & bit_mask;
+            uint32_t left_idx = composer.add_variable(fr(left));
+
+            const std::array<uint32_t, 2> result_indices =
+                composer.read_from_table(waffle::PLookupTableId::SHA256_BASE28_ROTATE6, left_idx);
+
+            const auto expected_a = numeric::map_into_sparse_form<28>(left);
+            const auto expected_b = numeric::map_into_sparse_form<28>(numeric::rotate32((uint32_t)left, 6));
+
+            EXPECT_EQ(composer.get_variable(result_indices[0]), fr(expected_a));
+            EXPECT_EQ(composer.get_variable(result_indices[1]), fr(expected_b));
+        }
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(plookup_composer, read_sequence_with_single_key)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    composer.lookup_tables.emplace_back(std::move(generate_sparse_map()));
+
+    constexpr uint64_t base = 28;
+
+    for (size_t i = 0; i < 1; ++i) {
+        uint64_t left = static_cast<uint64_t>(engine.get_random_uint32());
+        uint32_t left_idx = composer.add_variable(fr(left));
+
+        const uint64_t bit_mask = (1 << 11) - 1;
+
+        uint64_t slices[3]{
+            left & bit_mask,
+            (left >> 11) & bit_mask,
+            (left >> 22) & bit_mask,
+        };
+
+        uint64_t expected_accumulators[3]{
+            (slices[2] << 22) + (slices[1] << 11) + slices[0],
+            (slices[2] << 11) + slices[1],
+            slices[2],
+        };
+
+        const auto indices =
+            composer.read_sequence_from_table(waffle::PLookupTableId::SHA256_BASE28_ROTATE6, left_idx, UINT32_MAX, 3);
+
+        const uint256_t expected_sparse = numeric::map_into_sparse_form<28>(left);
+
+        const fr expected_rotated[3]{
+            numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)slices[0], 6)),
+            numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)slices[1], 6)),
+            numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)slices[2], 6)),
+        };
+
+        const fr expected_sparse_accumulators[3]{
+            numeric::map_into_sparse_form<base>(expected_accumulators[0]),
+            numeric::map_into_sparse_form<base>(expected_accumulators[1]),
+            numeric::map_into_sparse_form<base>(expected_accumulators[2]),
+        };
+
+        EXPECT_EQ(composer.get_variable(indices[0][0]), left);
+        EXPECT_EQ(composer.get_variable(indices[1][0]), expected_sparse);
+        EXPECT_EQ(composer.get_variable(indices[0][0]), fr(expected_accumulators[0]));
+        EXPECT_EQ(composer.get_variable(indices[0][1]), fr(expected_accumulators[1]));
+        EXPECT_EQ(composer.get_variable(indices[0][2]), fr(expected_accumulators[2]));
+
+        EXPECT_EQ(composer.get_variable(indices[1][0]), expected_sparse_accumulators[0]);
+        EXPECT_EQ(composer.get_variable(indices[1][1]), expected_sparse_accumulators[1]);
+        EXPECT_EQ(composer.get_variable(indices[1][2]), expected_sparse_accumulators[2]);
+
+        EXPECT_EQ(composer.get_variable(indices[2][0]), expected_rotated[0]);
+        EXPECT_EQ(composer.get_variable(indices[2][1]), expected_rotated[1]);
+        EXPECT_EQ(composer.get_variable(indices[2][2]), expected_rotated[2]);
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
 }
 
 TEST(plookup_composer, read_from_table_with_key_pair)
@@ -73,15 +217,15 @@ TEST(plookup_composer, read_sequence_from_table)
         for (size_t j = 0; j < 16; j += 2) {
             uint64_t left[4]{
                 j,
-                j + 1,
+                (j + 1) % 16,
                 j,
-                j + 1,
+                (j + 1) % 16,
             };
             uint64_t right[4]{
                 i,
                 i,
-                i + 1,
-                i + 1,
+                (i + 1) % 16,
+                (i + 1) % 16,
             };
             uint64_t xors[4]{
                 left[0] ^ right[0],
@@ -90,22 +234,22 @@ TEST(plookup_composer, read_sequence_from_table)
                 left[3] ^ right[3],
             };
             uint64_t left_accumulators[4]{
-                left[0] + left[1] * 4 + left[2] * 16 + left[3] * 64,
-                left[1] + left[2] * 4 + left[3] * 16,
-                left[2] + left[3] * 4,
+                left[0] + left[1] * 16 + left[2] * 256 + left[3] * 4096,
+                left[1] + left[2] * 16 + left[3] * 256,
+                left[2] + left[3] * 16,
                 left[3],
             };
             uint64_t right_accumulators[4]{
-                right[0] + right[1] * 4 + right[2] * 16 + right[3] * 64,
-                right[1] + right[2] * 4 + right[3] * 16,
-                right[2] + right[3] * 4,
+                right[0] + right[1] * 16 + right[2] * 256 + right[3] * 4096,
+                right[1] + right[2] * 16 + right[3] * 256,
+                right[2] + right[3] * 16,
                 right[3],
             };
 
             uint64_t xor_accumulators[4]{
-                xors[0] + xors[1] * 4 + xors[2] * 16 + xors[3] * 64,
-                xors[1] + xors[2] * 4 + xors[3] * 16,
-                xors[2] + xors[3] * 4,
+                xors[0] + xors[1] * 16 + xors[2] * 256 + xors[3] * 4096,
+                xors[1] + xors[2] * 16 + xors[3] * 256,
+                xors[2] + xors[3] * 16,
                 xors[3],
             };
 
@@ -135,6 +279,321 @@ TEST(plookup_composer, read_sequence_from_table)
             }
         }
     }
+}
+
+TEST(plookup_composer, read_multi_sequence_from_table_sha256_witness_extension)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    const auto witness_in_table = waffle::sha256_tables::get_witness_extension_input_table();
+    const auto witness_out_table = waffle::sha256_tables::get_witness_extension_output_table();
+
+    for (size_t i = 0; i < 1; ++i) {
+        const uint64_t w = engine.get_random_uint32();
+
+        const uint32_t input_idx = composer.add_variable(fr(w));
+        // const uint32_t f_idx = composer.add_variable(fr(f));
+        // const uint32_t g_idx = composer.add_variable(fr(g));
+
+        const auto table_indices = composer.read_sequence_from_multi_table(witness_in_table, input_idx);
+
+        const uint256_t column_1[4]{
+            (uint256_t(composer.get_variable(table_indices[1][0]))),
+            (uint256_t(composer.get_variable(table_indices[1][1]))),
+            (uint256_t(composer.get_variable(table_indices[1][2]))),
+            (uint256_t(composer.get_variable(table_indices[1][3]))),
+        };
+
+        const uint256_t column_2[4]{
+            (uint256_t(composer.get_variable(table_indices[2][0]))),
+            (uint256_t(composer.get_variable(table_indices[2][1]))),
+            (uint256_t(composer.get_variable(table_indices[2][2]))),
+            (uint256_t(composer.get_variable(table_indices[2][3]))),
+        };
+
+        uint64_t slices[4]{
+            w & 3,
+            (w >> 3) & 127,
+            (w >> 10) & 255,
+            (w >> 18) & 16383,
+        };
+
+        EXPECT_EQ(column_1[0], numeric::map_into_sparse_form<16>(slices[0]));
+        EXPECT_EQ(column_1[1], numeric::map_into_sparse_form<16>(slices[1]));
+        EXPECT_EQ(column_1[2], numeric::map_into_sparse_form<16>(slices[2]));
+        EXPECT_EQ(column_1[3], numeric::map_into_sparse_form<16>(slices[3]));
+
+        EXPECT_EQ(column_2[0], numeric::map_into_sparse_form<16>(slices[0]));
+        EXPECT_EQ(column_2[1], numeric::map_into_sparse_form<16>(numeric::rotate32((uint32_t)slices[1], 4)));
+        EXPECT_EQ(column_2[2], numeric::map_into_sparse_form<16>(numeric::rotate32((uint32_t)slices[2], 7)));
+        EXPECT_EQ(column_2[3], numeric::map_into_sparse_form<16>(numeric::rotate32((uint32_t)slices[3], 1)));
+
+        constexpr fr base(16);
+
+        constexpr fr left_multipliers[4]{
+            (base.pow(32 - 7) + base.pow(32 - 18)),
+            (base.pow(32 - 18 + 3) + 1),
+            (base.pow(32 - 18 + 10) + base.pow(10 - 7) + base.pow(10 - 3)),
+            (base.pow(18 - 7) + base.pow(18 - 3) + 1),
+        };
+
+        fr left = column_1[0] * left_multipliers[0];
+        left += column_1[1] * left_multipliers[1];
+        left += column_1[2] * left_multipliers[2];
+        left += column_1[3] * left_multipliers[3];
+        left += column_2[1];
+
+        uint64_t w_rot7 = numeric::rotate32((uint32_t)w, 7);
+        uint64_t w_rot18 = numeric::rotate32((uint32_t)w, 18);
+        uint64_t w_shift3 = w >> 3;
+        uint64_t expected_left = w_rot7 ^ w_rot18 ^ w_shift3;
+        EXPECT_EQ(numeric::map_from_sparse_form<16>(left), expected_left);
+
+        constexpr fr right_multipliers[4]{
+            base.pow(32 - 17) + base.pow(32 - 19),
+            base.pow(32 - 17 + 3) + base.pow(32 - 19 + 3),
+            base.pow(32 - 19 + 10) + fr(1),
+            base.pow(18 - 17) + base.pow(18 - 10),
+        };
+
+        fr right = column_1[0] * right_multipliers[0];
+        right += column_1[1] * right_multipliers[1];
+        right += column_1[2] * right_multipliers[2];
+        right += column_1[3] * right_multipliers[3];
+        right += column_2[2];
+        right += column_2[3];
+
+        uint64_t w_rot17 = numeric::rotate32((uint32_t)w, 17);
+        uint64_t w_rot19 = numeric::rotate32((uint32_t)w, 19);
+        uint64_t w_shift10 = w >> 10;
+        uint64_t expected_right = w_rot17 ^ w_rot19 ^ w_shift10;
+        EXPECT_EQ(numeric::map_from_sparse_form<16>(right), expected_right);
+
+        const uint32_t result_idx = composer.add_variable(left * 4 + right);
+        const auto output_idx = composer.read_sequence_from_multi_table(witness_out_table, result_idx)[1][0];
+
+        EXPECT_EQ(composer.get_variable(output_idx), fr(expected_left + expected_right));
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(plookup_composer, read_multi_sequence_from_table_sha256_ch_round_trip)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    const auto ch_in_table = waffle::sha256_tables::get_choose_input_table();
+    const auto ch_out_table = waffle::sha256_tables::get_choose_output_table();
+
+    for (size_t i = 0; i < 1; ++i) {
+        const uint64_t input = engine.get_random_uint32();
+        const uint64_t f = engine.get_random_uint32();
+        const uint64_t g = engine.get_random_uint32();
+
+        const uint32_t input_idx = composer.add_variable(fr(input));
+        // const uint32_t f_idx = composer.add_variable(fr(f));
+        // const uint32_t g_idx = composer.add_variable(fr(g));
+
+        const auto table_indices = composer.read_sequence_from_multi_table(ch_in_table, input_idx);
+
+        const auto rotation_coefficients = waffle::sha256_tables::get_choose_rotation_multipliers();
+
+        EXPECT_EQ(uint256_t(composer.get_variable(table_indices[0][0])), uint256_t(input));
+        EXPECT_EQ(uint256_t(composer.get_variable(table_indices[1][0])), numeric::map_into_sparse_form<28>(input));
+
+        const fr column_2_values[3]{
+            composer.get_variable(table_indices[1][0]),
+            composer.get_variable(table_indices[1][1]),
+            composer.get_variable(table_indices[1][2]),
+        };
+
+        fr rotation_result = composer.get_variable(table_indices[2][0]);
+        rotation_result += column_2_values[0] * rotation_coefficients[0];
+        rotation_result += column_2_values[2] * rotation_coefficients[2];
+        rotation_result *= 7;
+        rotation_result += fr(numeric::map_into_sparse_form<28>(input));
+        rotation_result += fr(numeric::map_into_sparse_form<28>(f)) * 2;
+        rotation_result += fr(numeric::map_into_sparse_form<28>(g)) * 3;
+        const uint32_t rotation_idx = composer.add_variable(rotation_result);
+
+        const auto output_indices = composer.read_sequence_from_multi_table(ch_out_table, rotation_idx);
+
+        const auto logic_result = composer.get_variable(output_indices[1][0]);
+
+        const uint64_t rot6 = numeric::rotate32((uint32_t)input, 6);
+        const uint64_t rot11 = numeric::rotate32((uint32_t)input, 11);
+        const uint64_t rot25 = numeric::rotate32((uint32_t)input, 25);
+
+        const uint64_t expected = (rot6 ^ rot11 ^ rot25) + (((input & f) ^ ((~input) & g)));
+
+        EXPECT_EQ(logic_result, expected);
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(plookup_composer, read_multi_sequence_from_table_sha256_maj_round_trip)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    const auto maj_in_table = waffle::sha256_tables::get_majority_input_table();
+    const auto maj_out_table = waffle::sha256_tables::get_majority_output_table();
+
+    for (size_t i = 0; i < 1; ++i) {
+        const uint64_t input = engine.get_random_uint32();
+        const uint64_t b = engine.get_random_uint32();
+        const uint64_t c = engine.get_random_uint32();
+
+        const uint32_t input_idx = composer.add_variable(fr(input));
+        // const uint32_t f_idx = composer.add_variable(fr(f));
+        // const uint32_t g_idx = composer.add_variable(fr(g));
+
+        const auto table_indices = composer.read_sequence_from_multi_table(maj_in_table, input_idx);
+
+        const auto rotation_coefficients = waffle::sha256_tables::get_majority_rotation_multipliers();
+
+        EXPECT_EQ(uint256_t(composer.get_variable(table_indices[0][0])), uint256_t(input));
+        EXPECT_EQ(uint256_t(composer.get_variable(table_indices[1][0])), numeric::map_into_sparse_form<16>(input));
+
+        const fr column_2_values[3]{
+            composer.get_variable(table_indices[1][0]),
+            composer.get_variable(table_indices[1][1]),
+            composer.get_variable(table_indices[1][2]),
+        };
+
+        fr rotation_result = composer.get_variable(table_indices[2][0]);
+        for (size_t i = 0; i < 3; ++i) {
+            rotation_result += column_2_values[i] * rotation_coefficients[i];
+        }
+        rotation_result *= 4;
+        rotation_result += fr(numeric::map_into_sparse_form<16>(input));
+        rotation_result += fr(numeric::map_into_sparse_form<16>(b));
+        rotation_result += fr(numeric::map_into_sparse_form<16>(c));
+        const uint32_t rotation_idx = composer.add_variable(rotation_result);
+
+        const auto output_indices = composer.read_sequence_from_multi_table(maj_out_table, rotation_idx);
+
+        const auto logic_result = composer.get_variable(output_indices[1][0]);
+
+        const uint64_t rot2 = numeric::rotate32((uint32_t)input, 2);
+        const uint64_t rot13 = numeric::rotate32((uint32_t)input, 13);
+        const uint64_t rot22 = numeric::rotate32((uint32_t)input, 22);
+
+        const uint64_t expected = (rot2 ^ rot13 ^ rot22) + (((input & b) ^ (input & c) ^ (b & c)));
+
+        EXPECT_EQ(logic_result, expected);
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(plookup_composer, read_alternate_sequence_from_table)
+{
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+
+    for (size_t i = 0; i < 16; i += 2) {
+        for (size_t j = 0; j < 16; j += 2) {
+            uint64_t left[4]{
+                j % 16,
+                (j + 1) % 16,
+                j % 16,
+                (j + 1) % 16,
+            };
+            uint64_t right[4]{
+                i % 16,
+                i % 16,
+                (i + 1) % 16,
+                (i + 1) % 16,
+            };
+            uint64_t xors[4]{
+                left[0] ^ right[0],
+                left[1] ^ right[1],
+                left[2] ^ right[2],
+                left[3] ^ right[3],
+            };
+            uint64_t left_accumulators[4]{
+                left[0] + left[1] * 16 + left[2] * 256 + left[3] * 4096,
+                left[1] + left[2] * 16 + left[3] * 256,
+                left[2] + left[3] * 16,
+                left[3],
+            };
+            uint64_t right_accumulators[4]{
+                right[0] + right[1] * 16 + right[2] * 256 + right[3] * 4096,
+                right[1] + right[2] * 16 + right[3] * 256,
+                right[2] + right[3] * 16,
+                right[3],
+            };
+
+            uint64_t xor_accumulators[4]{
+                xors[0] + xors[1] * 16 + xors[2] * 256 + xors[3] * 4096,
+                xors[1] + xors[2] * 16 + xors[3] * 256,
+                xors[2] + xors[3] * 16,
+                xors[3],
+            };
+
+            // uint32_t left_indices[4]{
+            //     composer.add_variable(fr(left_accumulators[0])),
+            //     composer.add_variable(fr(left_accumulators[1])),
+            //     composer.add_variable(fr(left_accumulators[2])),
+            //     composer.add_variable(fr(left_accumulators[3])),
+            // };
+            // uint32_t right_indices[4]{
+            //     composer.add_variable(fr(right_accumulators[0])),
+            //     composer.add_variable(fr(right_accumulators[1])),
+            //     composer.add_variable(fr(right_accumulators[2])),
+            //     composer.add_variable(fr(right_accumulators[3])),
+            // };
+
+            uint32_t left_index = composer.add_variable(fr(left_accumulators[0]));
+            uint32_t right_index = composer.add_variable(fr(right_accumulators[0]));
+
+            auto xor_indices =
+                composer.read_sequence_from_table(waffle::PLookupTableId::XOR, left_index, right_index, 4);
+            //  {
+            //      { left_indices[0], right_indices[0] },
+            //      { left_indices[1], right_indices[1] },
+            //      { left_indices[2], right_indices[2] },
+            //      { left_indices[3], right_indices[3] },
+            //  });
+
+            for (size_t i = 0; i < xor_indices[0].size(); ++i) {
+                EXPECT_EQ(composer.get_variable(xor_indices[0][i]), left_accumulators[i]);
+                EXPECT_EQ(composer.get_variable(xor_indices[1][i]), right_accumulators[i]);
+                EXPECT_EQ(composer.get_variable(xor_indices[2][i]), xor_accumulators[i]);
+            }
+        }
+    }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
 }
 
 TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
@@ -257,16 +716,16 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 
     for (size_t i = 0; i < 16; i += 2) {
         for (size_t j = 0; j < 16; j += 2) {
-            uint64_t left[4]{ j, j + 1, j, j + 1 };
-            uint64_t right[4]{ i, i, i + 1, i + 1 };
+            uint64_t left[4]{ j, (j + 1) % 16, j, (j + 1) % 16 };
+            uint64_t right[4]{ i, i, (i + 1) % 16, (i + 1) % 16 };
 
-            uint64_t left_accumulators[4]{ left[0] + left[1] * 4 + left[2] * 16 + left[3] * 64,
-                                           left[1] + left[2] * 4 + left[3] * 16,
-                                           left[2] + left[3] * 4,
+            uint64_t left_accumulators[4]{ left[0] + left[1] * 16 + left[2] * 256 + left[3] * 4096,
+                                           left[1] + left[2] * 16 + left[3] * 256,
+                                           left[2] + left[3] * 16,
                                            left[3] };
-            uint64_t right_accumulators[4]{ right[0] + right[1] * 4 + right[2] * 16 + right[3] * 64,
-                                            right[1] + right[2] * 4 + right[3] * 16,
-                                            right[2] + right[3] * 4,
+            uint64_t right_accumulators[4]{ right[0] + right[1] * 16 + right[2] * 256 + right[3] * 4096,
+                                            right[1] + right[2] * 16 + right[3] * 256,
+                                            right[2] + right[3] * 16,
                                             right[3] };
 
             uint32_t left_indices[4]{ composer.add_variable(fr(left_accumulators[0])),

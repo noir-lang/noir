@@ -10,6 +10,10 @@
 #include <plonk/proof_system/widgets/plookup_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 
+#include "plookup_tables/plookup_tables.hpp"
+#include "plookup_tables/aes128.hpp"
+#include "plookup_tables/sha256.hpp"
+
 using namespace barretenberg;
 
 namespace waffle {
@@ -1390,67 +1394,117 @@ PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
     switch (id) {
     case AES_SPARSE_MAP: {
         lookup_tables.emplace_back(
-            std::move(aes_tables::generate_aes_sparse_table(AES_SPARSE_MAP, lookup_tables.size())));
+            std::move(aes128_tables::generate_aes_sparse_table(AES_SPARSE_MAP, lookup_tables.size())));
         return get_table(id);
     }
     case AES_SBOX_MAP: {
-        lookup_tables.emplace_back(std::move(aes_tables::generate_aes_sbox_table(AES_SBOX_MAP, lookup_tables.size())));
+        lookup_tables.emplace_back(
+            std::move(aes128_tables::generate_aes_sbox_table(AES_SBOX_MAP, lookup_tables.size())));
         return get_table(id);
     }
     case AES_SPARSE_NORMALIZE: {
+        lookup_tables.emplace_back(std::move(
+            aes128_tables::generate_aes_sparse_normalization_table(AES_SPARSE_NORMALIZE, lookup_tables.size())));
+        return get_table(id);
+    }
+    case SHA256_WITNESS_NORMALIZE: {
+        lookup_tables.emplace_back(std::move(sha256_tables::generate_witness_extension_normalization_table(
+            SHA256_WITNESS_NORMALIZE, lookup_tables.size())));
+        return get_table(id);
+    }
+    case SHA256_WITNESS_SLICE_3: {
+        lookup_tables.emplace_back(std::move(sha256_tables::generate_witness_extension_table<16, 3, 0, 0>(
+            SHA256_WITNESS_SLICE_3, lookup_tables.size())));
+        return get_table(id);
+    }
+    case SHA256_WITNESS_SLICE_7_ROTATE_4: {
+        lookup_tables.emplace_back(std::move(sha256_tables::generate_witness_extension_table<16, 7, 4, 0>(
+            SHA256_WITNESS_SLICE_7_ROTATE_4, lookup_tables.size())));
+        return get_table(id);
+    }
+    case SHA256_WITNESS_SLICE_8_ROTATE_7: {
+        lookup_tables.emplace_back(std::move(sha256_tables::generate_witness_extension_table<16, 8, 7, 0>(
+            SHA256_WITNESS_SLICE_8_ROTATE_7, lookup_tables.size())));
+        return get_table(id);
+    }
+    case SHA256_WITNESS_SLICE_14_ROTATE_1: {
+        lookup_tables.emplace_back(std::move(sha256_tables::generate_witness_extension_table<16, 14, 1, 0>(
+            SHA256_WITNESS_SLICE_14_ROTATE_1, lookup_tables.size())));
+        return get_table(id);
+    }
+    case SHA256_CH_NORMALIZE: {
         lookup_tables.emplace_back(
-            std::move(aes_tables::generate_aes_sparse_normalization_table(AES_SPARSE_NORMALIZE, lookup_tables.size())));
+            std::move(sha256_tables::generate_choose_normalization_table(SHA256_CH_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE7_ROTATE6: {
+    case SHA256_MAJ_NORMALIZE: {
         lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_table_with_rotation<7, 6>(SHA256_BASE7_ROTATE6, lookup_tables.size())));
+            sha256_tables::generate_majority_normalization_table(SHA256_MAJ_NORMALIZE, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE7_ROTATE3: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_table_with_rotation<7, 3>(SHA256_BASE7_ROTATE3, lookup_tables.size())));
+    case SHA256_BASE28: {
+        lookup_tables.emplace_back(
+            std::move(sha256_tables::generate_sha256_sparse_table<28, 0>(SHA256_BASE28, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE4_ROTATE2: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_table_with_rotation<4, 2>(SHA256_BASE4_ROTATE2, lookup_tables.size())));
+    case SHA256_BASE28_ROTATE6: {
+        lookup_tables.emplace_back(
+            std::move(sha256_tables::generate_sha256_sparse_table<28, 6>(SHA256_BASE28_ROTATE6, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE4_ROTATE6: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_table_with_rotation<4, 6>(SHA256_BASE4_ROTATE6, lookup_tables.size())));
+    case SHA256_BASE28_ROTATE3: {
+        lookup_tables.emplace_back(
+            std::move(sha256_tables::generate_sha256_sparse_table<28, 3>(SHA256_BASE28_ROTATE3, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE4_ROTATE7: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_table_with_rotation<4, 7>(SHA256_BASE4_ROTATE7, lookup_tables.size())));
+    case SHA256_BASE16: {
+        lookup_tables.emplace_back(
+            std::move(sha256_tables::generate_sha256_sparse_table<16, 0>(SHA256_BASE16, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE4_ROTATE8: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_table_with_rotation<4, 8>(SHA256_BASE4_ROTATE8, lookup_tables.size())));
+    case SHA256_BASE16_ROTATE2: {
+        lookup_tables.emplace_back(
+            std::move(sha256_tables::generate_sha256_sparse_table<16, 2>(SHA256_BASE16_ROTATE2, lookup_tables.size())));
         return get_table(id);
     }
-    case SHA256_BASE7_NORMALIZE: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_normalization_table<7, 4>(SHA256_BASE7_NORMALIZE, lookup_tables.size())));
-        return get_table(id);
+    default: {
+        throw;
     }
-    case SHA256_BASE4_NORMALIZE: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sparse_normalization_table<4, 6>(SHA256_BASE4_NORMALIZE, lookup_tables.size())));
-        return get_table(id);
     }
-    case SHA256_PARTA_NORMALIZE: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sha256_part_a_normalization_table(SHA256_PARTA_NORMALIZE, lookup_tables.size())));
-        return get_table(id);
+}
+
+PLookupMultiTable& PLookupComposer::get_multi_table(const PLookupMultiTableId id)
+{
+    for (PLookupMultiTable& table : lookup_multi_tables) {
+        if (table.id == id) {
+            return table;
+        }
     }
-    case SHA256_PARTB_NORMALIZE: {
-        lookup_tables.emplace_back(std::move(
-            sha256_tables::generate_sha256_part_b_normalization_table(SHA256_PARTB_NORMALIZE, lookup_tables.size())));
-        return get_table(id);
+    // Hmm. table doesn't exist! try to create it
+    switch (id) {
+    case SHA256_CH_INPUT: {
+        lookup_multi_tables.emplace_back(std::move(sha256_tables::get_choose_input_table(id)));
+        return get_multi_table(id);
+    }
+    case SHA256_MAJ_INPUT: {
+        lookup_multi_tables.emplace_back(std::move(sha256_tables::get_majority_input_table(id)));
+        return get_multi_table(id);
+    }
+    case SHA256_WITNESS_INPUT: {
+        lookup_multi_tables.emplace_back(std::move(sha256_tables::get_witness_extension_input_table(id)));
+        return get_multi_table(id);
+    }
+    case SHA256_CH_OUTPUT: {
+        lookup_multi_tables.emplace_back(std::move(sha256_tables::get_choose_output_table(id)));
+        return get_multi_table(id);
+    }
+    case SHA256_MAJ_OUTPUT: {
+        lookup_multi_tables.emplace_back(std::move(sha256_tables::get_majority_output_table(id)));
+        return get_multi_table(id);
+    }
+    case SHA256_WITNESS_OUTPUT: {
+        lookup_multi_tables.emplace_back(std::move(sha256_tables::get_witness_extension_output_table(id)));
+        return get_multi_table(id);
     }
     default: {
         throw;
@@ -1561,6 +1615,201 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
     return value_index;
 }
 
+std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id, const uint32_t key_idx)
+{
+    const std::array<uint32_t, 2> key_indices{
+        key_idx,
+        zero_idx,
+    };
+
+    const std::array<uint64_t, 2> keys{
+        get_variable(key_indices[0]).from_montgomery_form().data[0],
+        0,
+    };
+
+    PLookupTable& table = get_table(id);
+
+    const auto values = table.get_values_from_key(keys);
+    const std::array<uint32_t, 2> value_indices{
+        add_variable(table.get_values_from_key(keys)[0]),
+        add_variable(table.get_values_from_key(keys)[1]),
+    };
+
+    table.lookup_gates.push_back({ keys, values });
+
+    q_lookup_type.emplace_back(fr::one());
+    q_lookup_index.emplace_back(fr(table.table_index));
+    w_l.emplace_back(key_indices[0]);
+    w_r.emplace_back(value_indices[0]);
+    w_o.emplace_back(value_indices[1]);
+    w_4.emplace_back(zero_idx);
+    q_1.emplace_back(fr(0));
+    q_2.emplace_back(fr(0));
+    q_3.emplace_back(fr(0));
+    q_m.emplace_back(fr(0));
+    q_c.emplace_back(fr(0));
+    q_arith.emplace_back(fr(0));
+    q_4.emplace_back(fr(0));
+    q_5.emplace_back(fr(0));
+    q_ecc_1.emplace_back(fr(0));
+    q_range.emplace_back(fr(0));
+    q_logic.emplace_back(fr(0));
+
+    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
+    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+
+    ASSERT(wire_epicycles.size() > key_indices[0]);
+    ASSERT(wire_epicycles.size() > value_indices[0]);
+    ASSERT(wire_epicycles.size() > value_indices[1]);
+
+    wire_epicycles[static_cast<size_t>(key_indices[0])].emplace_back(left);
+    wire_epicycles[static_cast<size_t>(value_indices[0])].emplace_back(right);
+    wire_epicycles[static_cast<size_t>(value_indices[1])].emplace_back(out);
+
+    ++n;
+
+    return value_indices;
+}
+
+std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
+                                                                               const uint32_t key_index_a,
+                                                                               const uint32_t key_index_b,
+                                                                               const size_t num_lookups)
+{
+    PLookupTable& table = get_table(id);
+
+    const uint64_t base_a = uint256_t(table.column_1_step_size).data[0];
+    const uint64_t base_b = uint256_t(table.column_2_step_size).data[0];
+
+    const auto slice_input = [num_lookups](const uint256_t input, const uint64_t base) {
+        uint256_t target = input;
+        std::vector<uint64_t> slices;
+
+        for (size_t i = 0; i < num_lookups; ++i) {
+            if (target == 0) {
+                slices.push_back(0);
+            } else {
+                const uint64_t slice = (target % base).data[0];
+                slices.push_back(slice);
+                target -= slice;
+                target /= base;
+            }
+        }
+        return slices;
+    };
+
+    const bool has_key_b = key_index_b != UINT32_MAX;
+    const auto input_sequence_a = slice_input(get_variable(key_index_a), base_a);
+    const auto input_sequence_b = has_key_b ? slice_input(get_variable(key_index_b), base_b) : std::vector<uint64_t>();
+
+    ASSERT(input_sequence_a.size() == input_sequence_b.size());
+    std::vector<fr> column_1_values(num_lookups);
+    std::vector<fr> column_2_values(num_lookups);
+    std::vector<fr> column_3_values(num_lookups);
+
+    const auto values = table.get_values_from_key(
+        { input_sequence_a[num_lookups - 1], has_key_b ? input_sequence_b[num_lookups - 1] : 0 });
+    column_1_values[num_lookups - 1] = (input_sequence_a[num_lookups - 1]);
+    column_2_values[num_lookups - 1] = has_key_b ? input_sequence_b[num_lookups - 1] : values[0];
+    column_3_values[num_lookups - 1] = has_key_b ? values[0] : values[1];
+
+    table.lookup_gates.push_back({
+        {
+            input_sequence_a[num_lookups - 1],
+            has_key_b ? input_sequence_b[num_lookups - 1] : 0,
+        },
+        {
+            values[0],
+            values[1],
+        },
+    });
+
+    for (size_t i = 1; i < num_lookups; ++i) {
+        const uint64_t key = input_sequence_a[num_lookups - 1 - i];
+        const auto values = table.get_values_from_key({ key, has_key_b ? input_sequence_b[num_lookups - 1 - i] : 0 });
+
+        const std::array<fr, 3> previous{
+            column_1_values[num_lookups - i] * table.column_1_step_size,
+            column_2_values[num_lookups - i] * table.column_2_step_size,
+            column_3_values[num_lookups - i] * table.column_3_step_size,
+        };
+
+        const std::array<fr, 3> current{
+            fr(key),
+            (has_key_b ? input_sequence_b[num_lookups - 1 - i] : values[0]),
+            (has_key_b ? values[0] : values[1]),
+        };
+
+        table.lookup_gates.push_back({
+            {
+                key,
+                has_key_b ? input_sequence_b[num_lookups - 1 - i] : 0,
+            },
+            {
+                values[0],
+                values[1],
+            },
+        });
+
+        const auto first = previous[0] + current[0];
+        const auto second = previous[1] + current[1];
+        const auto third = previous[2] + current[2];
+
+        column_1_values[num_lookups - 1 - i] = first;
+        column_2_values[num_lookups - 1 - i] = second;
+        column_3_values[num_lookups - 1 - i] = third;
+    }
+
+    ASSERT(column_1_values[0] == get_variable(key_index_a));
+    ASSERT(key_index_b == UINT32_MAX || column_2_values[0] == get_variable(key_index_b));
+
+    std::array<std::vector<uint32_t>, 3> column_indices;
+    for (size_t i = 0; i < num_lookups; ++i) {
+        const auto first_idx = (i == 0) ? key_index_a : add_variable(column_1_values[i]);
+        const auto second_idx = (i == 0 && has_key_b) ? key_index_b : add_variable(column_2_values[i]);
+        const auto third_idx = add_variable(column_3_values[i]);
+
+        column_indices[0].push_back(first_idx);
+        column_indices[1].push_back(second_idx);
+        column_indices[2].push_back(third_idx);
+
+        q_lookup_type.emplace_back(fr(1));
+        q_lookup_index.emplace_back(fr(table.table_index));
+        w_l.emplace_back(first_idx);
+        w_r.emplace_back(second_idx);
+        w_o.emplace_back(third_idx);
+        w_4.emplace_back(zero_idx);
+        q_1.emplace_back(fr(0));
+        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_1_step_size));
+        q_3.emplace_back(fr(0));
+        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_2_step_size));
+        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_3_step_size));
+        q_arith.emplace_back(fr(0));
+        q_4.emplace_back(fr(0));
+        q_5.emplace_back(fr(0));
+        q_ecc_1.emplace_back(fr(0));
+        q_range.emplace_back(fr(0));
+        q_logic.emplace_back(fr(0));
+
+        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
+        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+
+        ASSERT(wire_epicycles.size() > first_idx);
+        ASSERT(wire_epicycles.size() > second_idx);
+        ASSERT(wire_epicycles.size() > third_idx);
+
+        wire_epicycles[static_cast<size_t>(first_idx)].emplace_back(left);
+        wire_epicycles[static_cast<size_t>(second_idx)].emplace_back(right);
+        wire_epicycles[static_cast<size_t>(third_idx)].emplace_back(out);
+
+        ++n;
+    }
+
+    return column_indices;
+}
+
 std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
                                                                 const std::vector<std::array<uint32_t, 2>>& key_indices)
 {
@@ -1658,6 +1907,262 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
         ++n;
     }
     return value_indices;
+}
+
+PLookupReadData PLookupComposer::get_multi_table_values(const PLookupMultiTableId id, const barretenberg::fr key)
+{
+    const auto& multi_table = get_multi_table(id);
+
+    const size_t num_lookups = multi_table.lookup_ids.size();
+
+    PLookupReadData result;
+
+    result.column_1_step_sizes.emplace_back(fr(1));
+    result.column_2_step_sizes.emplace_back(fr(1));
+    result.column_3_step_sizes.emplace_back(fr(1));
+
+    std::vector<barretenberg::fr> coefficient_inverses(multi_table.column_1_coefficients.begin(),
+                                                       multi_table.column_1_coefficients.end());
+    std::copy(multi_table.column_2_coefficients.begin(),
+              multi_table.column_2_coefficients.end(),
+              std::back_inserter(coefficient_inverses));
+    std::copy(multi_table.column_3_coefficients.begin(),
+              multi_table.column_3_coefficients.end(),
+              std::back_inserter(coefficient_inverses));
+
+    fr::batch_invert(&coefficient_inverses[0], num_lookups * 3);
+
+    for (size_t i = 1; i < num_lookups; ++i) {
+        result.column_1_step_sizes.emplace_back(multi_table.column_1_coefficients[i] * coefficient_inverses[i - 1]);
+        result.column_2_step_sizes.emplace_back(multi_table.column_2_coefficients[i] *
+                                                coefficient_inverses[num_lookups + i - 1]);
+        result.column_3_step_sizes.emplace_back(multi_table.column_3_coefficients[i] *
+                                                coefficient_inverses[2 * num_lookups + i - 1]);
+    }
+
+    const auto keys = numeric::slice_input(key, multi_table.slice_sizes);
+
+    std::vector<fr> column_1_raw_values;
+    std::vector<fr> column_2_raw_values;
+    std::vector<fr> column_3_raw_values;
+
+    for (size_t i = 0; i < num_lookups; ++i) {
+        PLookupTable& table = get_table(multi_table.lookup_ids[i]);
+
+        const auto values = table.get_values_from_key({ keys[i], 0 });
+        column_1_raw_values.emplace_back(keys[i]);
+        column_2_raw_values.emplace_back(values[0]);
+        column_3_raw_values.emplace_back(values[1]);
+
+        const PLookupTable::KeyEntry key_entry{ { keys[i], 0 }, values };
+        result.key_entries.emplace_back(key_entry);
+    }
+    result.column_1_accumulator_values.resize(num_lookups);
+    result.column_2_accumulator_values.resize(num_lookups);
+    result.column_3_accumulator_values.resize(num_lookups);
+
+    result.column_1_accumulator_values[num_lookups - 1] = column_1_raw_values[num_lookups - 1];
+    result.column_2_accumulator_values[num_lookups - 1] = column_2_raw_values[num_lookups - 1];
+    result.column_3_accumulator_values[num_lookups - 1] = column_3_raw_values[num_lookups - 1];
+
+    for (size_t i = 1; i < num_lookups; ++i) {
+        const auto& previous_1 = result.column_1_accumulator_values[num_lookups - i];
+        const auto& previous_2 = result.column_2_accumulator_values[num_lookups - i];
+        const auto& previous_3 = result.column_3_accumulator_values[num_lookups - i];
+
+        auto& current_1 = result.column_1_accumulator_values[num_lookups - 1 - i];
+        auto& current_2 = result.column_2_accumulator_values[num_lookups - 1 - i];
+        auto& current_3 = result.column_3_accumulator_values[num_lookups - 1 - i];
+
+        const auto& raw_1 = column_1_raw_values[num_lookups - 1 - i];
+        const auto& raw_2 = column_2_raw_values[num_lookups - 1 - i];
+        const auto& raw_3 = column_3_raw_values[num_lookups - 1 - i];
+
+        current_1 = raw_1 + previous_1 * result.column_1_step_sizes[num_lookups - i];
+        current_2 = raw_2 + previous_2 * result.column_2_step_sizes[num_lookups - i];
+        current_3 = raw_3 + previous_3 * result.column_3_step_sizes[num_lookups - i];
+    }
+    return result;
+}
+
+std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_table(const PLookupMultiTableId& id,
+                                                                                     const PLookupReadData& read_values,
+                                                                                     const uint32_t key_index)
+
+{
+    const auto& multi_table = get_multi_table(id);
+    const size_t num_lookups = read_values.column_1_accumulator_values.size();
+    std::array<std::vector<uint32_t>, 3> column_indices;
+    for (size_t i = 0; i < num_lookups; ++i) {
+        auto& table = get_table(multi_table.lookup_ids[i]);
+
+        table.lookup_gates.emplace_back(read_values.key_entries[i]);
+
+        const auto first_idx = (i == 0) ? key_index : add_variable(read_values.column_1_accumulator_values[i]);
+        const auto second_idx = add_variable(read_values.column_2_accumulator_values[i]);
+        const auto third_idx = add_variable(read_values.column_3_accumulator_values[i]);
+
+        column_indices[0].push_back(first_idx);
+        column_indices[1].push_back(second_idx);
+        column_indices[2].push_back(third_idx);
+
+        q_lookup_type.emplace_back(fr(1));
+        q_lookup_index.emplace_back(fr(table.table_index));
+        w_l.emplace_back(first_idx);
+        w_r.emplace_back(second_idx);
+        w_o.emplace_back(third_idx);
+        w_4.emplace_back(zero_idx);
+        q_1.emplace_back(fr(0));
+        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -read_values.column_1_step_sizes[i + 1]));
+        q_3.emplace_back(fr(0));
+        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -read_values.column_2_step_sizes[i + 1]));
+        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -read_values.column_3_step_sizes[i + 1]));
+        q_arith.emplace_back(fr(0));
+        q_4.emplace_back(fr(0));
+        q_5.emplace_back(fr(0));
+        q_ecc_1.emplace_back(fr(0));
+        q_range.emplace_back(fr(0));
+        q_logic.emplace_back(fr(0));
+
+        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
+        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+
+        ASSERT(wire_epicycles.size() > first_idx);
+        ASSERT(wire_epicycles.size() > second_idx);
+        ASSERT(wire_epicycles.size() > third_idx);
+
+        wire_epicycles[static_cast<size_t>(first_idx)].emplace_back(left);
+        wire_epicycles[static_cast<size_t>(second_idx)].emplace_back(right);
+        wire_epicycles[static_cast<size_t>(third_idx)].emplace_back(out);
+
+        ++n;
+    }
+    return column_indices;
+}
+
+std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_table(
+    const PLookupMultiTable& multi_table, const uint32_t key_index)
+
+{
+    const size_t num_lookups = multi_table.lookup_ids.size();
+
+    std::vector<barretenberg::fr> column_1_step_sizes{ 1 };
+    std::vector<barretenberg::fr> column_2_step_sizes{ 1 };
+    std::vector<barretenberg::fr> column_3_step_sizes{ 1 };
+
+    std::vector<barretenberg::fr> coefficient_inverses(multi_table.column_1_coefficients.begin(),
+                                                       multi_table.column_1_coefficients.end());
+    std::copy(multi_table.column_2_coefficients.begin(),
+              multi_table.column_2_coefficients.end(),
+              std::back_inserter(coefficient_inverses));
+    std::copy(multi_table.column_3_coefficients.begin(),
+              multi_table.column_3_coefficients.end(),
+              std::back_inserter(coefficient_inverses));
+
+    fr::batch_invert(&coefficient_inverses[0], num_lookups * 3);
+
+    for (size_t i = 1; i < num_lookups; ++i) {
+        column_1_step_sizes.emplace_back(multi_table.column_1_coefficients[i] * coefficient_inverses[i - 1]);
+        column_2_step_sizes.emplace_back(multi_table.column_2_coefficients[i] *
+                                         coefficient_inverses[num_lookups + i - 1]);
+        column_3_step_sizes.emplace_back(multi_table.column_3_coefficients[i] *
+                                         coefficient_inverses[2 * num_lookups + i - 1]);
+    }
+
+    const auto value = get_variable(key_index);
+
+    const auto keys = numeric::slice_input(value, multi_table.slice_sizes);
+
+    std::vector<fr> column_1_raw_values;
+    std::vector<fr> column_2_raw_values;
+    std::vector<fr> column_3_raw_values;
+
+    for (size_t i = 0; i < num_lookups; ++i) {
+        PLookupTable& table = get_table(multi_table.lookup_ids[i]);
+
+        const auto values = table.get_values_from_key({ keys[i], 0 });
+
+        column_1_raw_values.emplace_back(keys[i]);
+        column_2_raw_values.emplace_back(values[0]);
+        column_3_raw_values.emplace_back(values[1]);
+
+        table.lookup_gates.push_back({ { keys[i], 0 }, values });
+    }
+
+    std::vector<fr> column_1_values(num_lookups);
+    std::vector<fr> column_2_values(num_lookups);
+    std::vector<fr> column_3_values(num_lookups);
+
+    column_1_values[num_lookups - 1] = column_1_raw_values[num_lookups - 1];
+    column_2_values[num_lookups - 1] = column_2_raw_values[num_lookups - 1];
+    column_3_values[num_lookups - 1] = column_3_raw_values[num_lookups - 1];
+
+    for (size_t i = 1; i < num_lookups; ++i) {
+        const auto& previous_1 = column_1_values[num_lookups - i];
+        const auto& previous_2 = column_2_values[num_lookups - i];
+        const auto& previous_3 = column_3_values[num_lookups - i];
+
+        auto& current_1 = column_1_values[num_lookups - 1 - i];
+        auto& current_2 = column_2_values[num_lookups - 1 - i];
+        auto& current_3 = column_3_values[num_lookups - 1 - i];
+
+        const auto& raw_1 = column_1_raw_values[num_lookups - 1 - i];
+        const auto& raw_2 = column_2_raw_values[num_lookups - 1 - i];
+        const auto& raw_3 = column_3_raw_values[num_lookups - 1 - i];
+
+        current_1 = raw_1 + previous_1 * column_1_step_sizes[num_lookups - i];
+        current_2 = raw_2 + previous_2 * column_2_step_sizes[num_lookups - i];
+        current_3 = raw_3 + previous_3 * column_3_step_sizes[num_lookups - i];
+    }
+
+    std::array<std::vector<uint32_t>, 3> column_indices;
+
+    for (size_t i = 0; i < num_lookups; ++i) {
+        PLookupTable& table = get_table(multi_table.lookup_ids[i]);
+
+        const auto first_idx = (i == 0) ? key_index : add_variable(column_1_values[i]);
+        const auto second_idx = add_variable(column_2_values[i]);
+        const auto third_idx = add_variable(column_3_values[i]);
+
+        column_indices[0].push_back(first_idx);
+        column_indices[1].push_back(second_idx);
+        column_indices[2].push_back(third_idx);
+
+        q_lookup_type.emplace_back(fr(1));
+        q_lookup_index.emplace_back(fr(table.table_index));
+        w_l.emplace_back(first_idx);
+        w_r.emplace_back(second_idx);
+        w_o.emplace_back(third_idx);
+        w_4.emplace_back(zero_idx);
+        q_1.emplace_back(fr(0));
+        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -column_1_step_sizes[i + 1]));
+        q_3.emplace_back(fr(0));
+        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -column_2_step_sizes[i + 1]));
+        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -column_3_step_sizes[i + 1]));
+        q_arith.emplace_back(fr(0));
+        q_4.emplace_back(fr(0));
+        q_5.emplace_back(fr(0));
+        q_ecc_1.emplace_back(fr(0));
+        q_range.emplace_back(fr(0));
+        q_logic.emplace_back(fr(0));
+
+        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
+        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
+        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
+
+        ASSERT(wire_epicycles.size() > first_idx);
+        ASSERT(wire_epicycles.size() > second_idx);
+        ASSERT(wire_epicycles.size() > third_idx);
+
+        wire_epicycles[static_cast<size_t>(first_idx)].emplace_back(left);
+        wire_epicycles[static_cast<size_t>(second_idx)].emplace_back(right);
+        wire_epicycles[static_cast<size_t>(third_idx)].emplace_back(out);
+
+        ++n;
+    }
+
+    return column_indices;
 }
 
 } // namespace waffle

@@ -1,6 +1,6 @@
 #pragma once
 #include "composer_base.hpp"
-#include "plookup_tables.hpp"
+#include "plookup_tables/plookup_tables.hpp"
 
 namespace waffle {
 
@@ -37,12 +37,28 @@ class PLookupComposer : public ComposerBase {
         std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
 
     PLookupTable& get_table(const PLookupTableId id);
+    PLookupMultiTable& get_multi_table(const PLookupMultiTableId id);
 
-    uint32_t read_from_table(const PLookupTableId id, const uint32_t key_a, const uint32_t key_b = UINT32_MAX);
+    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTable& multi_table,
+                                                                        const uint32_t key_index);
+
+    std::array<uint32_t, 2> read_from_table(const PLookupTableId id, const uint32_t key_idx);
+    uint32_t read_from_table(const PLookupTableId id, const uint32_t key_a, const uint32_t key_b);
     // std::pair<uint32_t, uint32_t> read_from_table(const PLookupTableId id, const uint32_t key);
 
     std::vector<uint32_t> read_sequence_from_table(const PLookupTableId id,
                                                    const std::vector<std::array<uint32_t, 2>>& key_indices);
+
+    std::array<std::vector<uint32_t>, 3> read_sequence_from_table(const PLookupTableId id,
+                                                                  const uint32_t key_index_a,
+                                                                  const uint32_t key_index_b,
+                                                                  const size_t num_lookups);
+
+    PLookupReadData get_multi_table_values(const PLookupMultiTableId id, const barretenberg::fr key);
+
+    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTableId& id,
+                                                                        const PLookupReadData& read_values,
+                                                                        const uint32_t key_index);
 
     void validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> keys);
     void create_dummy_gate();
@@ -88,6 +104,7 @@ class PLookupComposer : public ComposerBase {
     std::map<barretenberg::fr, uint32_t> constant_variables;
 
     std::vector<PLookupTable> lookup_tables;
+    std::vector<PLookupMultiTable> lookup_multi_tables;
 
     std::vector<barretenberg::fr> q_m;
     std::vector<barretenberg::fr> q_c;
