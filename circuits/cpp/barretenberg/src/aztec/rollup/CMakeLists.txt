@@ -5,6 +5,7 @@ add_subdirectory(tx)
 add_subdirectory(client_proofs)
 
 if(NOT WASM)
+  add_subdirectory(db_cli)
   add_subdirectory(prover)
   add_subdirectory(tx_factory)
   add_subdirectory(prover_cli)

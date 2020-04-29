@@ -22,7 +22,7 @@ class LevelDbTree {
 
     fr_hash_path get_hash_path(index_t index);
 
-    void update_element(index_t index, value_t const& value);
+    fr update_element(index_t index, value_t const& value);
 
     value_t get_element(index_t index);
 

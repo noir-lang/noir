@@ -135,7 +135,7 @@ LevelDbTree::value_t LevelDbTree::get_element(index_t index)
     return status ? data : value_t(64, 0);
 }
 
-void LevelDbTree::update_element(index_t index, value_t const& value)
+fr LevelDbTree::update_element(index_t index, value_t const& value)
 {
     value_t leaf_key;
     ::write(leaf_key, index);
@@ -147,6 +147,8 @@ void LevelDbTree::update_element(index_t index, value_t const& value)
 
     index_t new_size = std::max(size(), index + 1);
     store_.put(name_ + ":size", to_buffer<index_t>(new_size));
+
+    return r;
 }
 
 fr LevelDbTree::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
