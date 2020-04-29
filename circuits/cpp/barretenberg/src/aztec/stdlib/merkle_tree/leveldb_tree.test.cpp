@@ -97,7 +97,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
         db.update_element(1, VALUES[2]);
         db.update_element(2, VALUES[3]);
         root = db.root();
-        db.commit();
+        store.commit();
     }
     {
         LevelDbStore store(DB_PATH);

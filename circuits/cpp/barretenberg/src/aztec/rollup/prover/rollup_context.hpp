@@ -16,6 +16,7 @@ typedef stdlib::merkle_tree::LevelDbTree leveldb_tree;
 
 struct rollup_context {
     Composer& composer;
+    leveldb_store store;
     leveldb_tree data_db;
     leveldb_tree nullifier_db;
     field_ct data_size;

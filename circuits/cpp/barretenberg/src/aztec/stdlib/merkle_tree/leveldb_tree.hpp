@@ -15,12 +15,10 @@ class LevelDbTree {
     typedef uint128_t index_t;
     typedef std::vector<uint8_t> value_t;
 
-    LevelDbTree(LevelDbStore& store, size_t depth);
+    LevelDbTree(LevelDbStore& store, size_t depth, std::string const& name = "main");
     LevelDbTree(LevelDbTree const& other) = delete;
     LevelDbTree(LevelDbTree&& other);
     ~LevelDbTree();
-
-    static void destroy(std::string path);
 
     fr_hash_path get_hash_path(index_t index);
 
@@ -32,11 +30,7 @@ class LevelDbTree {
 
     size_t depth() const { return depth_; }
 
-    uint64_t size() const;
-
-    void commit();
-
-    void rollback();
+    index_t size() const;
 
   private:
     void load_metadata();
@@ -61,8 +55,7 @@ class LevelDbTree {
     LevelDbStore& store_;
     std::vector<fr> zero_hashes_;
     size_t depth_;
-    uint64_t size_;
-    fr root_;
+    std::string name_;
 };
 
 } // namespace merkle_tree

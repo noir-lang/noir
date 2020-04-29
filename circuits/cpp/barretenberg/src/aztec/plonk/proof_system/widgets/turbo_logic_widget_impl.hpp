@@ -331,7 +331,7 @@ void ProverTurboLogicWidget::compute_transcript_elements(transcript::Transcript&
     if (use_linearisation) {
         return;
     }
-    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    fr z = from_buffer<fr>(transcript.get_challenge("z"));
     transcript.add_element("q_logic", q_logic.evaluate(z, key->small_domain.size).to_buffer());
 }
 

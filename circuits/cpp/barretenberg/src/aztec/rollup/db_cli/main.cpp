@@ -8,13 +8,18 @@
 #include "../tx/batch_tx.hpp"
 #include "../tx/user_context.hpp"
 
-char const* DB_PATH = "./world_State.db";
+char const* DB_PATH = "./world_state.db";
 
 enum Command {
     GET,
     PUT,
-    DEL,
-}
+    COMMIT,
+    ROLLBACK,
+};
+struct PutCommand {
+    uint128_t index;
+    std::array<uint8_t, 64> value;
+};
 
 int main(int argc, char** argv)
 {

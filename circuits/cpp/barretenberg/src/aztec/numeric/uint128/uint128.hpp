@@ -5,6 +5,7 @@
 
 __extension__ using uint128_t = unsigned __int128;
 
+/*
 inline void read(uint8_t const*& it, uint128_t& value) {
     uint64_t hi, lo;
     ::read(it, hi);
@@ -24,7 +25,7 @@ inline void write(std::vector<uint8_t>& buf, uint128_t value) {
     auto ptr = &*buf.end() - sizeof(uint128_t);
     ::write(ptr, value);
 }
-
+*/
 namespace std{
 inline std::ostream& operator<<(std::ostream& os, uint128_t const& a)
 {

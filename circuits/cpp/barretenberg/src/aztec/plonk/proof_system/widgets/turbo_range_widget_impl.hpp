@@ -185,7 +185,7 @@ void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript&
     if (use_linearisation) {
         return;
     }
-    fr z = fr::serialize_from_buffer(&transcript.get_challenge("z")[0]);
+    fr z = from_buffer<fr>(transcript.get_challenge("z"));
     transcript.add_element("q_range", q_range.evaluate(z, key->small_domain.size).to_buffer());
 }
 
@@ -193,13 +193,13 @@ fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
                                                        const transcript::Transcript& transcript,
                                                        barretenberg::polynomial& r)
 {
-    fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
+    fr alpha = from_buffer<fr>(transcript.get_challenge("alpha"));
 
-    fr w_4_eval = fr::serialize_from_buffer(&transcript.get_element("w_4")[0]);
-    fr w_1_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
-    fr w_2_eval = fr::serialize_from_buffer(&transcript.get_element("w_2")[0]);
-    fr w_3_eval = fr::serialize_from_buffer(&transcript.get_element("w_3")[0]);
-    fr w_4_omega_eval = fr::serialize_from_buffer(&transcript.get_element("w_4_omega")[0]);
+    fr w_4_eval = from_buffer<fr>(transcript.get_element("w_4"));
+    fr w_1_eval = from_buffer<fr>(transcript.get_element("w_1"));
+    fr w_2_eval = from_buffer<fr>(transcript.get_element("w_2"));
+    fr w_3_eval = from_buffer<fr>(transcript.get_element("w_3"));
+    fr w_4_omega_eval = from_buffer<fr>(transcript.get_element("w_4_omega"));
 
     constexpr fr minus_two = fr(-2);
     constexpr fr minus_three = fr(-3);

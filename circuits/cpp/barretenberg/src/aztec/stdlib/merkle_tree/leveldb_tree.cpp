@@ -14,27 +14,12 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-namespace {
-barretenberg::fr field_from_buffer(std::vector<uint8_t> const& data, size_t offset = 0)
-{
-    barretenberg::fr result;
-    auto ptr = &data[offset];
-    read(ptr, result);
-    return result;
-}
+using namespace barretenberg;
 
-uint128_t index_from_buffer(std::vector<uint8_t> const& data, size_t offset = 0)
-{
-    uint128_t result;
-    auto ptr = &data[offset];
-    read(ptr, result);
-    return result;
-}
-} // namespace
-
-LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth)
+LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth, std::string const& name)
     : store_(store)
     , depth_(depth)
+    , name_(name)
 {
     ASSERT(depth_ >= 1 && depth <= 128);
     zero_hashes_.resize(depth);
@@ -46,42 +31,29 @@ LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth)
         // std::cout << "zero hash level " << i << ": " << current << std::endl;
         current = compress_native({ current, current });
     }
-
-    load_metadata();
 }
 
 LevelDbTree::LevelDbTree(LevelDbTree&& other)
     : store_(other.store_)
     , zero_hashes_(std::move(other.zero_hashes_))
     , depth_(other.depth_)
-    , size_(other.size_)
-    , root_(other.root_)
+    , name_(other.name_)
 {}
 
 LevelDbTree::~LevelDbTree() {}
 
-void LevelDbTree::load_metadata() {
+fr LevelDbTree::root() const
+{
     value_t root;
-    bool status = store_.get("root", root);
-    root_ = status ? field_from_buffer(root) : compress_native({ zero_hashes_.back(), zero_hashes_.back() });
-
-    value_t size;
-    status = store_.get("size", size);
-    if (!status) {
-        size_ = 0;
-    } else {
-        read(size, size_);
-    }
+    bool status = store_.get(name_ + ":root", root);
+    return status ? from_buffer<fr>(root) : compress_native({ zero_hashes_.back(), zero_hashes_.back() });
 }
 
-barretenberg::fr LevelDbTree::root() const
+LevelDbTree::index_t LevelDbTree::size() const
 {
-    return root_;
-}
-
-uint64_t LevelDbTree::size() const
-{
-    return size_;
+    value_t size_buf;
+    bool status = store_.get(name_ + ":size", size_buf);
+    return status ? from_buffer<index_t>(size_buf) : 0;
 }
 
 fr_hash_path LevelDbTree::get_hash_path(index_t index)
@@ -89,7 +61,7 @@ fr_hash_path LevelDbTree::get_hash_path(index_t index)
     fr_hash_path path(depth_);
 
     value_t data;
-    bool status = store_.get(root_.to_buffer(), data);
+    bool status = store_.get(root().to_buffer(), data);
 
     for (size_t i = depth_ - 1; i < depth_; --i) {
         if (!status) {
@@ -100,16 +72,16 @@ fr_hash_path LevelDbTree::get_hash_path(index_t index)
 
         if (data.size() == 64) {
             // This is a regular node with left and right trees. Descend according to index path.
-            auto left = field_from_buffer(data, 0);
-            auto right = field_from_buffer(data, 32);
+            auto left = from_buffer<fr>(data, 0);
+            auto right = from_buffer<fr>(data, 32);
             path[i] = std::make_pair(left, right);
             bool is_right = (index >> i) & 0x1;
             auto it = data.data() + (is_right ? 32 : 0);
             status = store_.get(std::vector<uint8_t>( it, it + 32 ), data);
         } else {
             // This is a stump. The hash path can be fully restored from this node.
-            fr current = field_from_buffer(data, 0);
-            index_t element_index = index_from_buffer(data, 32);
+            fr current = from_buffer<fr>(data, 0);
+            index_t element_index = from_buffer<uint128_t>(data, 32);
             index_t diff = element_index ^ numeric::keep_n_lsb(index, i + 1);
 
             // std::cout << "ghp hit stump height:" << i << " element_index:" << (uint64_t)element_index
@@ -170,23 +142,11 @@ void LevelDbTree::update_element(index_t index, value_t const& value)
     store_.put(leaf_key, value);
 
     fr sha_leaf = hash_value_native(value);
-    root_ = update_element(root_, sha_leaf, index, depth_);
-    store_.put("root", root_.to_buffer());
+    auto r = update_element(root(), sha_leaf, index, depth_);
+    store_.put(name_ + ":root", r.to_buffer());
 
-    value_t size_value;
-    ::write(size_value, size_);
-    store_.put("size", size_value);
-}
-
-void LevelDbTree::commit()
-{
-    store_.commit();
-}
-
-void LevelDbTree::rollback()
-{
-    store_.rollback();
-    load_metadata();
+    index_t new_size = std::max(size(), index + 1);
+    store_.put(name_ + ":size", to_buffer<index_t>(new_size));
 }
 
 fr LevelDbTree::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
@@ -245,14 +205,13 @@ fr LevelDbTree::update_element(fr const& root, fr const& value, index_t index, s
         // std::cout << "Adding new stump at height " << height << std::endl;
         fr key = compute_zero_path_hash(height, index, value);
         put_stump(key, index, value);
-        size_ += 1;
         return key;
     }
 
     // std::cout << "got data of size " << data.size() << std::endl;
     if (data.size() < 64) {
         // We've come across a stump.
-        index_t existing_index = index_from_buffer(data, 32);
+        index_t existing_index = from_buffer<uint128_t>(data, 32);
 
         if (existing_index == index) {
             // We are updating the stumps element. Easy update.
@@ -262,7 +221,7 @@ fr LevelDbTree::update_element(fr const& root, fr const& value, index_t index, s
             return new_hash;
         }
 
-        fr existing_value = field_from_buffer(data, 0);
+        fr existing_value = from_buffer<fr>(data, 0);
         size_t common_bits = numeric::count_leading_zeros(existing_index ^ index);
         size_t ignored_bits = sizeof(index_t) * 8 - height;
         size_t common_height = height - (common_bits - ignored_bits);
@@ -270,15 +229,14 @@ fr LevelDbTree::update_element(fr const& root, fr const& value, index_t index, s
         //           << " existing_index:" << (uint64_t)existing_index << " index:" << (uint64_t)index
         //           << " common_height:" << common_height << std::endl;
 
-        size_ += 1;
         return fork_stump(existing_value, existing_index, value, index, height, common_height);
     } else {
         bool is_right = (index >> (height - 1)) & 0x1;
         // std::cout << "Normal node is_right:" << is_right << std::endl;
-        fr subtree_root = field_from_buffer(data, is_right ? 32 : 0);
+        fr subtree_root = from_buffer<fr>(data, is_right ? 32 : 0);
         subtree_root = update_element(subtree_root, value, numeric::keep_n_lsb(index, height - 1), height - 1);
-        auto left = field_from_buffer(data, 0);
-        auto right = field_from_buffer(data, 32);
+        auto left = from_buffer<fr>(data, 0);
+        auto right = from_buffer<fr>(data, 32);
         if (is_right) {
             right = subtree_root;
         } else {

@@ -236,7 +236,7 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
 
     // compute our public input component
     std::vector<barretenberg::fr> public_inputs =
-        barretenberg::fr::from_buffer(transcript.get_element("public_inputs"));
+        many_from_buffer<fr>(transcript.get_element("public_inputs"));
 
     fr public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 

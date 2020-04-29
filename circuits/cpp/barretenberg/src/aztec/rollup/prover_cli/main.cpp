@@ -24,6 +24,7 @@ rollup_context create_rollup_context(std::string const& id, Composer& composer)
 
     return {
         composer,
+        std::move(store),
         std::move(data_db),
         std::move(nullifier_db),
         public_witness_ct(&composer, data_db.size()),
@@ -143,11 +144,9 @@ int main(int argc, char** argv)
         std::cout << "Verified: " << verified << std::endl;
 
         if (verified) {
-            ctx.data_db.commit();
-            ctx.nullifier_db.commit();
+            ctx.store.commit();
         } else {
-            ctx.data_db.rollback();
-            ctx.nullifier_db.rollback();
+            ctx.store.rollback();
         }
     }
 
