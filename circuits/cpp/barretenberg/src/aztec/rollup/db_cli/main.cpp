@@ -27,6 +27,13 @@ class WorldStateDb {
         std::cerr << "Nullifier root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
     }
 
+    void write_metadata(std::ostream& os) {
+        write(os, data_tree_.root());
+        write(os, nullifier_tree_.root());
+        write(os, data_tree_.size());
+        write(os, nullifier_tree_.size());
+    }
+
     void get(std::istream& is, std::ostream& os)
     {
         GetRequest get_request;
@@ -49,14 +56,16 @@ class WorldStateDb {
         write(os, put_response);
     }
 
-    void commit() {
+    void commit(std::ostream& os) {
         std::cerr << "COMMIT" << std::endl;
         store_.commit();
+        write(os, uint8_t(1));
     }
 
-    void rollback() {
+    void rollback(std::ostream& os) {
         std::cerr << "ROLLBACK" << std::endl;
         store_.rollback();
+        write(os, uint8_t(1));
     }
 
   private:
@@ -78,6 +87,8 @@ int main(int argc, char** argv)
 
     WorldStateDb world_state_db(DB_PATH);
 
+    world_state_db.write_metadata(std::cout);
+
     // Read commands from stdin.
     while (true) {
         uint8_t command;
@@ -96,10 +107,10 @@ int main(int argc, char** argv)
             world_state_db.put(std::cin, std::cout);
             break;
         case COMMIT:
-            world_state_db.commit();
+            world_state_db.commit(std::cout);
             break;
         case ROLLBACK:
-            world_state_db.rollback();
+            world_state_db.rollback(std::cout);
             break;
         }
     }
