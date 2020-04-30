@@ -179,7 +179,7 @@ verify_proof(Composer* context,
 
     // TODO FIX
     field_pt z_pow_n = z_challenge;
-    const size_t log2_n = numeric::get_msb(static_cast<uint64_t>(key->n));
+    const size_t log2_n = numeric::get_msb(key->n);
     for (size_t j = 0; j < log2_n; ++j) {
         z_pow_n = z_pow_n.sqr();
     }

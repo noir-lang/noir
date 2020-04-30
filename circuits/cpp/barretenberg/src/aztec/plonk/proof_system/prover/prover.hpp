@@ -39,16 +39,36 @@ template <typename settings> class ProverBase {
 
     size_t get_circuit_size() const { return n; }
 
-    size_t get_num_queued_scalar_multiplications() const { return queue.get_num_queued_scalar_multiplications(); }
+    work_queue::work_item_info get_queued_work_item_info() const { return queue.get_queued_work_item_info(); }
 
     barretenberg::fr* get_scalar_multiplication_data(const size_t work_item_number) const
     {
         return queue.get_scalar_multiplication_data(work_item_number);
     }
 
+    barretenberg::fr* get_ifft_data(const size_t work_item_number) const
+    {
+        return queue.get_ifft_data(work_item_number);
+    }
+
+    work_queue::queued_fft_inputs get_fft_data(const size_t work_item_number) const
+    {
+        return queue.get_fft_data(work_item_number);
+    }
+
     void put_scalar_multiplication_data(const barretenberg::g1::affine_element result, const size_t work_item_number)
     {
         queue.put_scalar_multiplication_data(result, work_item_number);
+    }
+
+    void put_fft_data(barretenberg::fr* result, const size_t work_item_number)
+    {
+        queue.put_fft_data(result, work_item_number);
+    }
+
+    void put_ifft_data(barretenberg::fr* result, const size_t work_item_number)
+    {
+        queue.put_ifft_data(result, work_item_number);
     }
 
     void reset();

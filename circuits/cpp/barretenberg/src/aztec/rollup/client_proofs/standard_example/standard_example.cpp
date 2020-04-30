@@ -1,5 +1,6 @@
 #include "standard_example.hpp"
 #include <common/log.hpp>
+#include <plonk/composer/standard/compute_verification_key.hpp>
 
 namespace rollup {
 namespace client_proofs {
@@ -25,12 +26,14 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
     proving_key = composer.compute_proving_key();
 }
 
-void init_keys(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
+void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
 {
-    Composer composer(std::move(crs_factory));
-    build_circuit(composer);
-    proving_key = composer.compute_proving_key();
-    verification_key = composer.compute_verification_key();
+    if (!proving_key) {
+        std::abort();
+    }
+    // Patch the 'nothing' reference string fed to init_proving_key.
+    proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n);
+    verification_key = waffle::standard_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
 }
 
 Prover new_prover()

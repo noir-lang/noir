@@ -21,7 +21,15 @@ template <typename ComposerContext> class field_t {
         witness_index = static_cast<uint32_t>(-1);
     }
 
-    field_t(const uint64_t value)
+    field_t(const unsigned long long value)
+        : context(nullptr)
+    {
+        additive_constant = barretenberg::fr(value);
+        multiplicative_constant = barretenberg::fr(0);
+        witness_index = static_cast<uint32_t>(-1);
+    }
+
+    field_t(const unsigned long value)
         : context(nullptr)
     {
         additive_constant = barretenberg::fr(value);
@@ -110,6 +118,11 @@ template <typename ComposerContext> class field_t {
     static field_t coset_generator(const size_t generator_idx)
     {
         return field_t(barretenberg::fr::coset_generator(generator_idx));
+    }
+
+    static field_t external_coset_generator()
+    {
+        return field_t(barretenberg::fr::external_coset_generator());
     }
 
     field_t operator-() const

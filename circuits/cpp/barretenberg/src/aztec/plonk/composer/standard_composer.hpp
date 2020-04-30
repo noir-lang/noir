@@ -4,19 +4,36 @@
 #include <plonk/transcript/manifest.hpp>
 
 namespace waffle {
+enum StandardSelectors {
+    QM = 0,
+    QC = 1,
+    Q1 = 2,
+    Q2 = 3,
+    Q3 = 4,
+};
+const static std::vector<std::string> STANDARD_SEL_NAMES = { "q_m", "q_c", "q_1", "q_2", "q_3" };
+
 class StandardComposer : public ComposerBase {
   public:
     StandardComposer(const size_t size_hint = 0)
+        : ComposerBase(5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {
-        features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
-        q_m.reserve(size_hint);
-        q_1.reserve(size_hint);
-        q_2.reserve(size_hint);
-        q_3.reserve(size_hint);
-        q_c.reserve(size_hint);
+        zero_idx = put_constant_variable(barretenberg::fr::zero());
+    };
+
+    // used for enabling MIMCComposer to access ComposerBase constructor
+    StandardComposer(const size_t selector_num,
+                     const size_t size_hint,
+                     const std::vector<std::string> selector_names,
+                     const std::vector<bool> use_mid_for_selectorfft)
+        : ComposerBase(selector_num, size_hint, selector_names, use_mid_for_selectorfft)
+    {
+        w_l.reserve(size_hint);
+        w_r.reserve(size_hint);
+        w_o.reserve(size_hint);
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     };
 
@@ -25,34 +42,22 @@ class StandardComposer : public ComposerBase {
                            size_hint){};
 
     StandardComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
-        : ComposerBase(std::move(crs_factory))
+        : ComposerBase(std::move(crs_factory), 5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {
-        features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
-        q_m.reserve(size_hint);
-        q_1.reserve(size_hint);
-        q_2.reserve(size_hint);
-        q_3.reserve(size_hint);
-        q_c.reserve(size_hint);
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     }
 
     StandardComposer(std::shared_ptr<proving_key> const& p_key,
                      std::shared_ptr<verification_key> const& v_key,
                      size_t size_hint = 0)
-        : ComposerBase(p_key, v_key)
+        : ComposerBase(p_key, v_key, 5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {
-        features |= static_cast<size_t>(Features::BASIC_ARITHMETISATION);
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
         w_o.reserve(size_hint);
-        q_m.reserve(size_hint);
-        q_1.reserve(size_hint);
-        q_2.reserve(size_hint);
-        q_3.reserve(size_hint);
-        q_c.reserve(size_hint);
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     }
 
@@ -95,16 +100,9 @@ class StandardComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    uint32_t zero_idx = 0;
-
-    // these are variables that we have used a gate on, to enforce that they are equal to a defined value
+    // these are variables that we have used a gate on, to enforce that they are
+    // equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
-
-    std::vector<barretenberg::fr> q_m;
-    std::vector<barretenberg::fr> q_1;
-    std::vector<barretenberg::fr> q_2;
-    std::vector<barretenberg::fr> q_3;
-    std::vector<barretenberg::fr> q_c;
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {

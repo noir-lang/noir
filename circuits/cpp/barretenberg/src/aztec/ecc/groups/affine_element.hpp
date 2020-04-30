@@ -73,6 +73,19 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     Fq x;
     Fq y;
 };
+
+template <typename Fq, typename Fr, typename Params>
+void read(uint8_t*& it, affine_element<Fq, Fr, Params>& value) {
+    value = affine_element<Fq, Fr, Params>::serialize_from_buffer(it);
+    it += 64;
+}
+
+template <typename Fq, typename Fr, typename Params>
+void write(std::vector<uint8_t>& buf, affine_element<Fq, Fr, Params> const& value) {
+    buf.resize(buf.size() + 64);
+    affine_element<Fq, Fr, Params>::serialize_to_buffer(value, &*buf.end() - 64);
+}
+
 } // namespace group_elements
 } // namespace barretenberg
 

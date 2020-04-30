@@ -1,6 +1,8 @@
 #pragma once
 #include <array>
 #include <common/inline.hpp>
+#include <common/serialize.hpp>
+#include <common/assert.hpp>
 #include <cstdint>
 #include <iostream>
 #include <numeric/random/engine.hpp>
@@ -35,7 +37,13 @@ template <class Params> struct alignas(32) field {
     //     self_to_montgomery_form();
     // }
 
-    constexpr field(const uint64_t input) noexcept
+    constexpr field(const unsigned long input) noexcept
+        : data{ input, 0, 0, 0 }
+    {
+        self_to_montgomery_form();
+    }
+
+    constexpr field(const unsigned long long input) noexcept
         : data{ input, 0, 0, 0 }
     {
         self_to_montgomery_form();
@@ -100,8 +108,20 @@ template <class Params> struct alignas(32) field {
     static constexpr field neg_one() { return -field(1); }
     static constexpr field one() { return field(1); }
 
+    static constexpr field external_coset_generator()
+    {
+        const field result{
+            Params::coset_generators_0[7],
+            Params::coset_generators_1[7],
+            Params::coset_generators_2[7],
+            Params::coset_generators_3[7],
+        };
+        return result;
+    }
+
     static constexpr field coset_generator(const size_t idx)
     {
+        ASSERT(idx < 7); // TODO: well-named constants for enforcing PI elements disjointess instead of this
         const field result{
             Params::coset_generators_0[idx],
             Params::coset_generators_1[idx],
@@ -452,6 +472,25 @@ template <class Params> struct alignas(32) field {
     static constexpr uint128_t lo_mask = 0xffffffffffffffffUL;
 #endif
 };
+
+template <class Params>
+void read(uint8_t*& it, field<Params>& value) {
+    field<Params> result{0, 0, 0, 0};
+    ::read(it, result.data[3]);
+    ::read(it, result.data[2]);
+    ::read(it, result.data[1]);
+    ::read(it, result.data[0]);
+    value = result.to_montgomery_form();
+}
+
+template <typename B, class Params>
+void write(B& buf, field<Params> const& value) {
+    const field input = value.from_montgomery_form();
+    ::write(buf, input.data[3]);
+    ::write(buf, input.data[2]);
+    ::write(buf, input.data[1]);
+    ::write(buf, input.data[0]);
+}
 
 } // namespace barretenberg
 

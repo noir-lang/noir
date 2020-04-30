@@ -51,6 +51,24 @@ inline fr get_hash_path_root(fr_hash_path const& input)
 // We add to std namespace as fr_hash_path is actually a std::vector, and this is the only way
 // to achieve effective ADL.
 namespace std {
+inline void read(uint8_t*& it, plonk::stdlib::merkle_tree::fr_hash_path& path)
+{
+    for (size_t i = 0; i < path.size(); ++i) {
+        barretenberg::fr lhs, rhs;
+        read(it, lhs);
+        read(it, rhs);
+        path[i] = std::make_pair(lhs, rhs);
+    }
+}
+
+inline void write(std::vector<uint8_t>& buf, plonk::stdlib::merkle_tree::fr_hash_path const& path)
+{
+    for (size_t i = 0; i < path.size(); ++i) {
+        write(buf, path[i].first);
+        write(buf, path[i].second);
+    }
+}
+
 template <typename Ctx>
 inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::merkle_tree::hash_path<Ctx> const& path)
 {
@@ -61,6 +79,7 @@ inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::merkle_tree::ha
     os << "]";
     return os;
 }
+
 inline std::ostream& operator<<(std::ostream& os, plonk::stdlib::merkle_tree::fr_hash_path const& path)
 {
     os << "[\n";

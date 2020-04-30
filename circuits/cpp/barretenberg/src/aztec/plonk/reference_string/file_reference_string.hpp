@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <ecc/curves/bn254/g1.hpp>
 #include <ecc/curves/bn254/g2.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/pippenger.hpp>
 
 namespace barretenberg {
 namespace pairing {
@@ -15,29 +16,32 @@ struct miller_lines;
 
 namespace waffle {
 
+using namespace barretenberg;
+
 class VerifierFileReferenceString : public VerifierReferenceString {
   public:
     VerifierFileReferenceString(std::string const& path);
     ~VerifierFileReferenceString();
 
-    barretenberg::g2::affine_element get_g2x() const { return g2_x; }
+    g2::affine_element get_g2x() const { return g2_x; }
 
-    barretenberg::pairing::miller_lines const* get_precomputed_g2_lines() const { return precomputed_g2_lines; }
+    pairing::miller_lines const* get_precomputed_g2_lines() const { return precomputed_g2_lines; }
 
   private:
-    barretenberg::g2::affine_element g2_x;
-    barretenberg::pairing::miller_lines* precomputed_g2_lines;
+    g2::affine_element g2_x;
+    pairing::miller_lines* precomputed_g2_lines;
 };
 
 class FileReferenceString : public ProverReferenceString {
   public:
-    FileReferenceString(const size_t num_points, std::string const& path);
-    ~FileReferenceString();
+    FileReferenceString(const size_t num_points, std::string const& path)
+      : pippenger_(path, num_points)
+    {}
 
-    barretenberg::g1::affine_element* get_monomials() { return monomials; }
+    g1::affine_element* get_monomials() { return pippenger_.get_point_table(); }
 
   private:
-    barretenberg::g1::affine_element* monomials;
+    scalar_multiplication::Pippenger pippenger_;
 };
 
 class FileReferenceStringFactory : public ReferenceStringFactory {
@@ -45,6 +49,8 @@ class FileReferenceStringFactory : public ReferenceStringFactory {
     FileReferenceStringFactory(std::string const& path)
         : path_(path)
     {}
+
+    FileReferenceStringFactory(FileReferenceStringFactory&& other) = default;
 
     std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree)
     {

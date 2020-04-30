@@ -1,5 +1,5 @@
 #include "verifier.hpp"
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
@@ -66,7 +66,7 @@ circuit_outputs create_outer_circuit(waffle::TurboComposer& inner_composer, waff
     return { output, verification_key };
 }
 
-TEST(stdlib_verifier, test_recursive_proof_composition)
+HEAVY_TEST(stdlib_verifier, test_recursive_proof_composition)
 {
     waffle::TurboComposer inner_composer = waffle::TurboComposer();
     waffle::TurboComposer outer_composer = waffle::TurboComposer();

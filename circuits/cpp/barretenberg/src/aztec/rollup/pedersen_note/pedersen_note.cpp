@@ -143,6 +143,9 @@ template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in,
     result.scalar = field_ct(ctx);
     result.scalar.witness_index = add_quad.d;
 
+    aligned_free(multiplication_transcript);
+    aligned_free(accumulator_transcript);
+
     return result;
 }
 

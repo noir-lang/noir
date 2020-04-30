@@ -137,7 +137,7 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
     uint256_t scalar_multiplier = scalar_multiplier_512.lo;
 
-    const uint64_t num_rounds = (max_num_bits == 0) ? Fr::modulus.get_msb() + 1 : max_num_bits;
+    const size_t num_rounds = (max_num_bits == 0) ? Fr::modulus.get_msb() + 1 : max_num_bits;
     std::vector<bool_t<C>> naf_entries(num_rounds + 1);
 
     // if boolean is false => do NOT flip y
@@ -214,7 +214,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
 
     batch_lookup_table point_table(points);
 
-    const uint64_t num_rounds = (max_num_bits == 0) ? Fq::modulus.get_msb() + 1 : max_num_bits;
+    const size_t num_rounds = (max_num_bits == 0) ? Fq::modulus.get_msb() + 1 : max_num_bits;
 
     std::vector<std::vector<bool_t<C>>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {
@@ -305,7 +305,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
 
     batch_lookup_table point_table(points);
 
-    const uint64_t num_rounds = max_num_small_bits;
+    const size_t num_rounds = max_num_small_bits;
     const size_t num_points = points.size();
     std::vector<std::vector<bool_t<C>>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {

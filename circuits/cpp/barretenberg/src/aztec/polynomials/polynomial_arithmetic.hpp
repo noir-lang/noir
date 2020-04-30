@@ -30,6 +30,7 @@ void coset_fft(fr* coeffs,
                const size_t domain_extension);
 
 void coset_fft_with_constant(fr* coeffs, const evaluation_domain& domain, const fr& constant);
+void coset_fft_with_generator_shift(fr* coeffs, const evaluation_domain& domain, const fr& constant);
 
 void ifft(fr* coeffs, const evaluation_domain& domain);
 

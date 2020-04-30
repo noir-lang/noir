@@ -260,6 +260,16 @@ void polynomial::coset_fft_with_constant(const evaluation_domain& domain, const 
     size = domain.size;
 }
 
+void polynomial::coset_fft_with_generator_shift(const evaluation_domain& domain, const fr& constant)
+{
+    if (domain.size > max_size) {
+        bump_memory(domain.size);
+    }
+
+    polynomial_arithmetic::coset_fft_with_generator_shift(coefficients, domain, constant);
+    size = domain.size;
+}
+
 void polynomial::ifft(const evaluation_domain& domain)
 {
     if (domain.size > max_size) {

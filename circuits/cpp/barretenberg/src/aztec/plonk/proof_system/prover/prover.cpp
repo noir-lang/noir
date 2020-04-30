@@ -62,6 +62,8 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
             work_queue::WorkType::SCALAR_MULTIPLICATION,
             witness->wires.at(wire_tag).get_coefficients(),
             "W_" + std::to_string(i + 1),
+            barretenberg::fr(0),
+            0,
         });
     }
 
@@ -82,6 +84,8 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
             work_queue::WorkType::SCALAR_MULTIPLICATION,
             &key->quotient_large.get_coefficients()[offset],
             "T_" + std::to_string(i + 1),
+            barretenberg::fr(0),
+            0,
         });
     }
 }
@@ -106,7 +110,13 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
         barretenberg::polynomial& wire = witness->wires.at(wire_tag);
         barretenberg::polynomial& wire_fft = key->wire_ffts.at(wire_tag + "_fft");
         barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
-        queue.add_to_queue({ work_queue::WorkType::IFFT, nullptr, wire_tag });
+        queue.add_to_queue({
+            work_queue::WorkType::IFFT,
+            nullptr,
+            wire_tag,
+            barretenberg::fr(0),
+            0,
+        });
     }
 }
 
@@ -173,7 +183,13 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        queue.add_to_queue({ work_queue::WorkType::FFT, nullptr, wire_tag });
+        queue.add_to_queue({
+            work_queue::WorkType::FFT,
+            nullptr,
+            wire_tag,
+            barretenberg::fr(0),
+            0,
+        });
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -423,11 +439,15 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
         work_queue::WorkType::SCALAR_MULTIPLICATION,
         opening_poly.get_coefficients(),
         "PI_Z",
+        barretenberg::fr(0),
+        0,
     });
     queue.add_to_queue({
         work_queue::WorkType::SCALAR_MULTIPLICATION,
         shifted_opening_poly.get_coefficients(),
         "PI_Z_OMEGA",
+        barretenberg::fr(0),
+        0,
     });
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();

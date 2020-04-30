@@ -1,7 +1,7 @@
 #include "scalar_multiplication.hpp"
-#include "point_table.hpp"
+#include "pippenger.hpp"
 #include <chrono>
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 #include <srs/io.hpp>
 #include <vector>
 
@@ -24,7 +24,8 @@ TEST(scalar_multiplication, reduce_buckets_simple)
     constexpr size_t num_points = 128;
     g2::affine_element g2_x;
     io::read_transcript_g2(g2_x, BARRETENBERG_SRS_PATH);
-    auto monomials = scalar_multiplication::new_pippenger_point_table_from_path(BARRETENBERG_SRS_PATH, num_points / 2);
+    auto pippenger = Pippenger(BARRETENBERG_SRS_PATH, num_points / 2);
+    auto monomials = pippenger.get_point_table();
 
     std::vector<uint64_t> point_schedule(scalar_multiplication::point_table_size(num_points / 2));
     std::array<bool, num_points> bucket_empty_status;
@@ -199,8 +200,6 @@ TEST(scalar_multiplication, reduce_buckets_simple)
         EXPECT_EQ((output[i].x == expected[i].x), true);
         EXPECT_EQ((output[i].y == expected[i].y), true);
     }
-
-    aligned_free(monomials);
 }
 
 TEST(scalar_multiplication, reduce_buckets)
@@ -576,7 +575,7 @@ TEST(scalar_multiplication, radix_sort)
     free(wnaf_copy);
 }
 
-TEST(scalar_multiplication, oversized_inputs)
+HEAVY_TEST(scalar_multiplication, oversized_inputs)
 {
     // for point ranges with more than 1 << 20 points, we split into chunks of smaller multi-exps.
     // Check that this is done correctly
@@ -732,8 +731,7 @@ TEST(scalar_multiplication, pippenger_short_inputs)
 
     fr* scalars = (fr*)aligned_alloc(32, sizeof(fr) * num_points);
 
-    g1::affine_element* points =
-        (g1::affine_element*)aligned_alloc(32, sizeof(g1::affine_element) * num_points * 2 + 1);
+    g1::affine_element* points = scalar_multiplication::point_table_alloc<g1::affine_element>(num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
         points[i] = g1::affine_element(g1::element::random_element());
@@ -907,6 +905,10 @@ TEST(scalar_multiplication, pippenger_zero_points)
 
     scalar_multiplication::pippenger_runtime_state state(0);
     g1::element result = scalar_multiplication::pippenger(scalars, points, 0, state);
+
+    aligned_free(scalars);
+    aligned_free(points);
+
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }
 
@@ -922,5 +924,9 @@ TEST(scalar_multiplication, pippenger_mul_by_zero)
 
     scalar_multiplication::pippenger_runtime_state state(1);
     g1::element result = scalar_multiplication::pippenger(scalars, points, 1, state);
+
+    aligned_free(scalars);
+    aligned_free(points);
+
     EXPECT_EQ(result.is_point_at_infinity(), true);
 }
