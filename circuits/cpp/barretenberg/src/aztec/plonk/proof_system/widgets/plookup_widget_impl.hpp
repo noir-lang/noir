@@ -214,11 +214,15 @@ void ProverPLookupWidget::compute_round_commitments(transcript::Transcript& tran
             work_queue::WorkType::SCALAR_MULTIPLICATION,
             s.get_coefficients(),
             "S",
+            barretenberg::fr(0),
+            0,
         });
         queue.add_to_queue({
             work_queue::WorkType::FFT,
             nullptr,
             "s",
+            barretenberg::fr(0),
+            0,
         });
         return;
     }
@@ -230,11 +234,15 @@ void ProverPLookupWidget::compute_round_commitments(transcript::Transcript& tran
             work_queue::WorkType::SCALAR_MULTIPLICATION,
             z.get_coefficients(),
             "Z_LOOKUP",
+            barretenberg::fr(0),
+            0,
         });
         queue.add_to_queue({
             work_queue::WorkType::FFT,
             nullptr,
             "z_lookup",
+            barretenberg::fr(0),
+            0,
         });
         return;
     }

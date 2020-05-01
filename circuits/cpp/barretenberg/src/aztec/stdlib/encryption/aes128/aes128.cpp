@@ -11,6 +11,7 @@ namespace plonk {
 namespace stdlib {
 namespace aes128 {
 
+constexpr uint32_t AES128_BASE = 9;
 typedef field_t<waffle::PLookupComposer> field_pt;
 typedef witness_t<waffle::PLookupComposer> witness_pt;
 
@@ -65,7 +66,7 @@ field_pt convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_pt* spars
     uint256_t accumulator = 0;
     for (size_t i = 0; i < 16; ++i) {
         uint64_t sparse_byte = uint256_t(sparse_bytes[i].get_value()).data[0];
-        uint256_t byte = crypto::aes128::map_from_sparse_form(sparse_byte);
+        uint256_t byte = numeric::map_from_sparse_form<AES128_BASE>(sparse_byte);
         accumulator <<= 8;
         accumulator += (byte);
     }
@@ -86,17 +87,17 @@ std::array<field_pt, 176> expand_key(waffle::PLookupComposer* ctx, const field_p
 {
     constexpr uint8_t round_constants[11] = { 0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 };
     std::array<field_pt, 11> sparse_round_constants{
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[0]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[1]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[2]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[3]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[4]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[5]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[6]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[7]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[8]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[9]))),
-        field_pt(ctx, fr(crypto::aes128::map_into_sparse_form(round_constants[10]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[0]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[1]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[2]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[3]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[4]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[5]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[6]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[7]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[8]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[9]))),
+        field_pt(ctx, fr(numeric::map_into_sparse_form<AES128_BASE>(round_constants[10]))),
     };
 
     std::array<field_pt, 176> round_key{};
