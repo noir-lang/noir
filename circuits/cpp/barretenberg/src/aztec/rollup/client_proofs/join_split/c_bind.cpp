@@ -34,19 +34,16 @@ WASM_EXPORT void join_split__sign_4_notes(uint8_t const* note_buffer, uint8_t* p
 {
     auto private_key = grumpkin::fr::serialize_from_buffer(pk_buffer);
     grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
-    std::array<tx_note, 4> notes;
-    read(note_buffer, notes);
+    auto notes = from_buffer<std::array<tx_note, 4>>(note_buffer);
     auto signature = sign_notes(notes, { private_key, public_key });
     write(output, signature);
 }
 
 WASM_EXPORT void join_split__encrypt_note(uint8_t const* note_buffer, uint8_t* output)
 {
-    tx_note note;
-    read(note_buffer, note);
+    tx_note note = from_buffer<tx_note>(note_buffer);
     auto encrypted = encrypt_note(note);
-    write(output, encrypted.x);
-    write(output, encrypted.y);
+    write(output, encrypted);
 }
 
 WASM_EXPORT bool join_split__decrypt_note(uint8_t const* encrypted_note_buf,
