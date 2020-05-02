@@ -177,7 +177,8 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
 #endif
         for (size_t j = 0; j < key->small_domain.num_threads; ++j) {
             const size_t start = j * key->small_domain.thread_size;
-            const size_t end = (j + 1) * key->small_domain.thread_size;
+            const size_t end = (j == key->small_domain.num_threads - 1) ? (j + 1) * key->small_domain.thread_size - 1
+                                                                        : (j + 1) * key->small_domain.thread_size;
             // const size_t end =
             //     ((j + 1) * key->small_domain.thread_size) - ((j == key->small_domain.num_threads - 1) ? 1 : 0);
             fr inversion_accumulator = fr::one();

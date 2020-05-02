@@ -99,9 +99,9 @@ template <size_t program_width> void ComposerBase::compute_sigma_permutations(pr
     }
 }
 
-std::shared_ptr<proving_key> ComposerBase::compute_proving_key()
+std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t minimum_circuit_size)
 {
-    const size_t total_num_gates = n + public_inputs.size();
+    const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
 
     size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
     if ((1UL << log2_n) != (total_num_gates + 1)) {

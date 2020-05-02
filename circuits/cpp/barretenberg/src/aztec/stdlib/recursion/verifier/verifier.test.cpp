@@ -27,7 +27,7 @@ void create_inner_circuit(waffle::TurboComposer& composer, std::vector<barretenb
         a = (a * b) + b + a;
         a = a.madd(b, a);
     }
-    stdlib::pedersen::compress(a, b);
+    pedersen::compress(a, b);
     byte_array_ct to_hash(&composer, "nonsense test data");
     stdlib::blake2s(to_hash);
 

@@ -3,6 +3,7 @@
 #include "merkle_tree.hpp"
 #include <gtest/gtest.h>
 #include <leveldb/db.h>
+#include <stdlib/types/turbo.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;

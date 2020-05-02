@@ -1,5 +1,5 @@
 #pragma once
-#include <plonk/composer/turbo_composer.hpp>
+#include <plonk/composer/plookup_composer.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
 #include <stdlib/primitives/bool/bool.hpp>
 #include <stdlib/primitives/byte_array/byte_array.hpp>
@@ -14,13 +14,13 @@
 namespace plonk {
 namespace stdlib {
 namespace types {
-namespace turbo {
+namespace plookup {
 
 using namespace plonk;
 
-typedef waffle::TurboComposer Composer;
-typedef waffle::TurboProver Prover;
-typedef waffle::TurboVerifier Verifier;
+typedef waffle::PLookupComposer Composer;
+typedef waffle::PLookupProver Prover;
+typedef waffle::PLookupVerifier Verifier;
 typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;
 typedef stdlib::bool_t<Composer> bool_ct;
@@ -44,7 +44,7 @@ typedef stdlib::merkle_tree::hash_path<Composer> hash_path;
 namespace schnorr {
 typedef stdlib::schnorr::signature_bits<Composer> signature_bits;
 }
-} // namespace turbo
+} // namespace plookup
 } // namespace types
 } // namespace stdlib
 } // namespace plonk

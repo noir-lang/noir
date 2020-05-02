@@ -26,11 +26,7 @@ typedef stdlib::uint16<Composer> uint16_ct;
 typedef stdlib::uint32<Composer> uint32_ct;
 typedef stdlib::uint64<Composer> uint64_ct;
 typedef stdlib::bit_array<Composer> bit_array_ct;
-
-struct point {
-    field_ct x;
-    field_ct y;
-};
+typedef stdlib::point<Composer> point_ct;
 
 } // namespace standard
 } // namespace types

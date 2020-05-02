@@ -464,7 +464,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    ComposerBase::compute_proving_key();
+    ComposerBase::compute_proving_key_base();
 
     compute_sigma_permutations<3>(circuit_proving_key.get());
     return circuit_proving_key;

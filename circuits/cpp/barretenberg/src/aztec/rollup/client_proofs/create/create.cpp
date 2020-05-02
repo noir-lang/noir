@@ -34,7 +34,7 @@ void verify_signature(Composer& composer,
                       grumpkin::g1::affine_element const& pub_key,
                       crypto::schnorr::signature const& sig)
 {
-    point owner_pub_key = { witness_ct(&composer, pub_key.x), witness_ct(&composer, pub_key.y) };
+    point_ct owner_pub_key = { witness_ct(&composer, pub_key.x), witness_ct(&composer, pub_key.y) };
     stdlib::schnorr::signature_bits signature = stdlib::schnorr::convert_signature(&composer, sig);
     byte_array_ct message = note.ciphertext.x;
     byte_array_ct message2(&composer, message.bits().rbegin(), message.bits().rend());
@@ -86,6 +86,6 @@ bool verify_proof(waffle::plonk_proof const& proof)
     return verifier.verify_proof(proof);
 }
 
-} // namespace create
+} // namespace create_note
 } // namespace client_proofs
 } // namespace rollup

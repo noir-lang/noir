@@ -31,7 +31,7 @@ bool_t<Composer> check_membership(Composer& composer,
         //     std::cout << "is_left " << is_left.get_value() << std::endl;
         //     std::cout << "is_right " << is_right.get_value() << std::endl;
         // }
-        current = pedersen::compress(hashes[i].first, hashes[i].second);
+        current = pedersen<Composer>::compress(hashes[i].first, hashes[i].second);
     }
 
     // std::cout << "current " << current << " root " << root << std::endl;

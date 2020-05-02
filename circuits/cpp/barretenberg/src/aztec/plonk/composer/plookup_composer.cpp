@@ -9,6 +9,7 @@
 #include <plonk/proof_system/widgets/turbo_range_widget.hpp>
 #include <plonk/proof_system/widgets/plookup_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <plonk/composer/plookup/compute_verification_key.hpp>
 
 #include "plookup_tables/plookup_tables.hpp"
 #include "plookup_tables/aes128.hpp"
@@ -18,6 +19,27 @@ using namespace barretenberg;
 
 namespace waffle {
 
+#define PLOOKUP_SELECTOR_REFS                                                                                          \
+    auto& q_m = selectors[PLookupSelectors::QM];                                                                       \
+    auto& q_c = selectors[PLookupSelectors::QC];                                                                       \
+    auto& q_1 = selectors[PLookupSelectors::Q1];                                                                       \
+    auto& q_2 = selectors[PLookupSelectors::Q2];                                                                       \
+    auto& q_3 = selectors[PLookupSelectors::Q3];                                                                       \
+    auto& q_4 = selectors[PLookupSelectors::Q4];                                                                       \
+    auto& q_5 = selectors[PLookupSelectors::Q5];                                                                       \
+    auto& q_arith = selectors[PLookupSelectors::QARITH];                                                               \
+    auto& q_ecc_1 = selectors[PLookupSelectors::QECC_1];                                                               \
+    auto& q_range = selectors[PLookupSelectors::QRANGE];                                                               \
+    auto& q_logic = selectors[PLookupSelectors::QLOGIC];                                                               \
+    auto& q_lookup_index = selectors[PLookupSelectors::QLOOKUPINDEX];                                                  \
+    auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];
+
+#define PLOOKUP_SEL_NAMES                                                                                              \
+    {                                                                                                                  \
+        "q_m", "q_c", "q_1", "q_2", "q_3", "q_4", "q_5", "q_arith", "q_ecc_1", "q_range", "q_logic", "q_lookup_index", \
+            "q_lookup_type"                                                                                            \
+    }
+
 PLookupComposer::PLookupComposer()
     : PLookupComposer("../srs_db", 0)
 {}
@@ -26,59 +48,31 @@ PLookupComposer::PLookupComposer(std::string const& crs_path, const size_t size_
     : PLookupComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
-    : ComposerBase(std::move(crs_factory))
+    : ComposerBase(std::move(crs_factory), 13, size_hint, PLOOKUP_SEL_NAMES)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
-    q_m.reserve(size_hint);
-    q_1.reserve(size_hint);
-    q_2.reserve(size_hint);
-    q_3.reserve(size_hint);
-    q_4.reserve(size_hint);
-    q_arith.reserve(size_hint);
-    q_c.reserve(size_hint);
-    q_5.reserve(size_hint);
-    q_ecc_1.reserve(size_hint);
-    q_range.reserve(size_hint);
-    q_logic.reserve(size_hint);
-    q_lookup_index.reserve(size_hint);
-    q_lookup_type.reserve(size_hint);
-
     zero_idx = put_constant_variable(fr::zero());
-    // zero_idx = add_variable(barretenberg::fr::zero());
 }
 
 PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
                                  std::shared_ptr<verification_key> const& v_key,
                                  size_t size_hint)
-    : ComposerBase(p_key, v_key)
+    : ComposerBase(p_key, v_key, 13, size_hint, PLOOKUP_SEL_NAMES)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
-    q_m.reserve(size_hint);
-    q_1.reserve(size_hint);
-    q_2.reserve(size_hint);
-    q_3.reserve(size_hint);
-    q_4.reserve(size_hint);
-    q_arith.reserve(size_hint);
-    q_c.reserve(size_hint);
-    q_5.reserve(size_hint);
-    q_ecc_1.reserve(size_hint);
-    q_range.reserve(size_hint);
-    q_logic.reserve(size_hint);
-    q_lookup_index.reserve(size_hint);
-    q_lookup_type.reserve(size_hint);
-
     zero_idx = put_constant_variable(fr::zero());
-};
+}
 
 void PLookupComposer::create_dummy_gate()
 {
-    gate_flags.push_back(0);
+
+    PLOOKUP_SELECTOR_REFS
     uint32_t idx = add_variable(fr{ 1, 1, 1, 1 }.to_montgomery_form());
     w_l.emplace_back(idx);
     w_r.emplace_back(idx);
@@ -97,23 +91,12 @@ void PLookupComposer::create_dummy_gate()
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(idx)].emplace_back(fourth);
-
     ++n;
 }
 
 void PLookupComposer::create_add_gate(const add_triple& in)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -131,25 +114,12 @@ void PLookupComposer::create_add_gate(const add_triple& in)
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-
     ++n;
 }
 
 void PLookupComposer::create_big_add_gate(const add_quad& in)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -167,28 +137,12 @@ void PLookupComposer::create_big_add_gate(const add_quad& in)
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -206,28 +160,12 @@ void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void PLookupComposer::create_big_mul_gate(const mul_quad& in)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -245,22 +183,6 @@ void PLookupComposer::create_big_mul_gate(const mul_quad& in)
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
@@ -268,7 +190,7 @@ void PLookupComposer::create_big_mul_gate(const mul_quad& in)
 // Can be used to normalize a 32-bit addition
 void PLookupComposer::create_balanced_add_gate(const add_quad& in)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -286,30 +208,12 @@ void PLookupComposer::create_balanced_add_gate(const add_quad& in)
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void PLookupComposer::create_mul_gate(const mul_triple& in)
 {
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -327,28 +231,12 @@ void PLookupComposer::create_mul_gate(const mul_triple& in)
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > zero_idx);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-
     ++n;
 }
 
 void PLookupComposer::create_bool_gate(const uint32_t variable_index)
 {
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
@@ -367,24 +255,12 @@ void PLookupComposer::create_bool_gate(const uint32_t variable_index)
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > variable_index);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(variable_index)].emplace_back(out);
-
     ++n;
 }
 
 void PLookupComposer::create_poly_gate(const poly_triple& in)
 {
-    gate_flags.push_back(0);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_LEFT_WIRE);
-    add_gate_flag(gate_flags.size() - 1, GateFlags::FIXED_RIGHT_WIRE);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -403,26 +279,13 @@ void PLookupComposer::create_poly_gate(const poly_triple& in)
     q_ecc_1.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > zero_idx);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-
     ++n;
 }
 
+// adds a grumpkin point, from a 2-bit lookup table, into an accumulator point
 void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -442,29 +305,14 @@ void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in
     q_ecc_1.emplace_back(in.q_y_2);
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
+// adds a grumpkin point into an accumulator, while also initializing the accumulator
 void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
                                                             const fixed_group_init_quad& init)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -484,28 +332,12 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     q_ecc_1.emplace_back(in.q_y_2);
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-    epicycle fourth{ static_cast<uint32_t>(n), WireType::FOURTH };
-
-    ASSERT(wire_epicycles.size() > in.a);
-    ASSERT(wire_epicycles.size() > in.b);
-    ASSERT(wire_epicycles.size() > in.c);
-    ASSERT(wire_epicycles.size() > in.d);
-
-    wire_epicycles[static_cast<size_t>(in.a)].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(in.b)].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(in.c)].emplace_back(out);
-    wire_epicycles[static_cast<size_t>(in.d)].emplace_back(fourth);
-
     ++n;
 }
 
 void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
-    gate_flags.push_back(0);
+    PLOOKUP_SELECTOR_REFS
 
     w_l.emplace_back(witness_index);
     w_r.emplace_back(zero_idx);
@@ -524,19 +356,12 @@ void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     q_logic.emplace_back(fr::zero());
     q_lookup_index.emplace_back(fr::zero());
     q_lookup_type.emplace_back(fr::zero());
-
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-
-    ASSERT(wire_epicycles.size() > witness_index);
-    ASSERT(wire_epicycles.size() > zero_idx);
-    ASSERT(wire_epicycles.size() > zero_idx);
-    wire_epicycles[static_cast<size_t>(witness_index)].emplace_back(left);
-
     ++n;
 }
 
 std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
 {
+    PLOOKUP_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
     ASSERT(((num_bits >> 1U) << 1U) == num_bits);
 
@@ -597,7 +422,7 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
      *
      **/
 
-    const fr witness_value = variables[witness_index].from_montgomery_form();
+    const fr witness_value = get_variable(witness_index).from_montgomery_form();
 
     // one gate accmulates 4 quads, or 8 bits.
     // # gates = (bits / 8)
@@ -608,16 +433,12 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
     // hmm
     std::vector<uint32_t>* wires[4]{ &w_4, &w_o, &w_r, &w_l };
 
-    // hmmm
-    WireType wire_types[4]{ WireType::FOURTH, WireType::OUTPUT, WireType::RIGHT, WireType::LEFT };
-
     const size_t num_quads = (num_quad_gates << 2);
     const size_t forced_zero_threshold = 1 + (((num_quads << 1) - num_bits) >> 1);
     std::vector<uint32_t> accumulators;
     fr accumulator = fr::zero();
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
-        const size_t gate_index = n + (i / 4);
         uint32_t accumulator_index;
         if (i < forced_zero_threshold) {
             accumulator_index = zero_idx;
@@ -636,10 +457,6 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
 
         // hmmmm
         (*(wires + (i & 3)))->emplace_back(accumulator_index);
-        const size_t wire_index = i & 3;
-
-        wire_epicycles[accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), wire_types[wire_index]));
     }
     size_t used_gates = (num_quads + 1) / 4;
 
@@ -682,6 +499,7 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
                                                                     const size_t num_bits,
                                                                     const bool is_xor_gate)
 {
+    PLOOKUP_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > a);
     ASSERT(static_cast<uint32_t>(variables.size()) > b);
     ASSERT(((num_bits >> 1U) << 1U) == num_bits); // no odd number of bits! bad! only quads!
@@ -752,8 +570,8 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
      *
      **/
 
-    const fr left_witness_value = variables[a].from_montgomery_form();
-    const fr right_witness_value = variables[b].from_montgomery_form();
+    const fr left_witness_value = get_variable(a).from_montgomery_form();
+    const fr right_witness_value = get_variable(b).from_montgomery_form();
 
     // one gate accmulates 1 quads, or 2 bits.
     // # gates = (bits / 2)
@@ -764,18 +582,13 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
     fr right_accumulator = fr::zero();
     fr out_accumulator = fr::zero();
 
-    // Step 1: populare 1st row accumulators with zero
+    // Step 1: populate 1st row accumulators with zero
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
 
-    wire_epicycles[zero_idx].emplace_back(epicycle(static_cast<uint32_t>(n), WireType::LEFT));
-    wire_epicycles[zero_idx].emplace_back(epicycle(static_cast<uint32_t>(n), WireType::RIGHT));
-    wire_epicycles[zero_idx].emplace_back(epicycle(static_cast<uint32_t>(n), WireType::FOURTH));
-
     // w_l, w_r, w_4 should now point to 1 gate ahead of w_o
     for (size_t i = 0; i < num_quads; ++i) {
-        const size_t gate_index = n + i + 1;
         uint32_t left_accumulator_index;
         uint32_t right_accumulator_index;
         uint32_t out_accumulator_index;
@@ -825,16 +638,7 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
         w_r.emplace_back(right_accumulator_index);
         w_4.emplace_back(out_accumulator_index);
         w_o.emplace_back(product_index);
-
-        wire_epicycles[left_accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), WireType::LEFT));
-        wire_epicycles[right_accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), WireType::RIGHT));
-        wire_epicycles[out_accumulator_index].emplace_back(
-            epicycle(static_cast<uint32_t>(gate_index), WireType::FOURTH));
-        wire_epicycles[product_index].emplace_back(epicycle(static_cast<uint32_t>(gate_index - 1), WireType::OUTPUT));
     }
-
     w_o.emplace_back(zero_idx);
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
@@ -915,11 +719,11 @@ void PLookupComposer::add_lookup_selector(polynomial& small, const std::string& 
 
 std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
 {
-    if (computed_proving_key) {
+    PLOOKUP_SELECTOR_REFS;
+    if (circuit_proving_key) {
         return circuit_proving_key;
     }
     create_dummy_gate();
-    ASSERT(wire_epicycles.size() == variables.size());
     ASSERT(n == q_m.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
@@ -966,21 +770,6 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         q_lookup_type.emplace_back(fr::zero());
     }
 
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        epicycle left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<epicycle>& old_epicycles = wire_epicycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<epicycle> new_epicycles;
-
-        new_epicycles.emplace_back(left);
-        new_epicycles.emplace_back(right);
-        for (size_t i = 0; i < old_epicycles.size(); ++i) {
-            new_epicycles.emplace_back(old_epicycles[i]);
-        }
-        old_epicycles = new_epicycles;
-    }
     auto crs = crs_factory_->get_prover_crs(new_n);
     circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
 
@@ -1079,110 +868,29 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
     circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
 
-    // auto& lookup_mapping = circuit_proving_key->lookup_mapping;
-    // auto& table_indices = circuit_proving_key->table_indices;
-
-    // lookup_mapping.resize(new_n);
-    // table_indices.resize(new_n);
-    // for (size_t i = 0; i < new_n; ++i) {
-    //     lookup_mapping[i] = LookupType::NONE;
-    // }
-
-    // for (const auto& table : lookup_tables) {
-    //     for (const auto& lookup_entry : table.lookup_gates) {
-    //         lookup_mapping[lookup_entry.first] = lookup_entry.second;
-    //         table_indices[lookup_entry.first] = table.table_index;
-    //     }
-    // }
-
     circuit_proving_key->num_lookup_tables = lookup_tables.size();
 
     compute_sigma_permutations<4>(circuit_proving_key.get());
-    computed_proving_key = true;
     return circuit_proving_key;
 }
 
 std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
 {
-    if (computed_verification_key) {
+    if (circuit_verification_key) {
         return circuit_verification_key;
     }
-    if (!computed_proving_key) {
+    if (!circuit_proving_key) {
         compute_proving_key();
     }
-
-    std::array<fr*, 21> poly_coefficients;
-    poly_coefficients[0] = circuit_proving_key->constraint_selectors.at("q_1").get_coefficients();
-    poly_coefficients[1] = circuit_proving_key->constraint_selectors.at("q_2").get_coefficients();
-    poly_coefficients[2] = circuit_proving_key->constraint_selectors.at("q_3").get_coefficients();
-    poly_coefficients[3] = circuit_proving_key->constraint_selectors.at("q_4").get_coefficients();
-    poly_coefficients[4] = circuit_proving_key->constraint_selectors.at("q_5").get_coefficients();
-    poly_coefficients[5] = circuit_proving_key->constraint_selectors.at("q_m").get_coefficients();
-    poly_coefficients[6] = circuit_proving_key->constraint_selectors.at("q_c").get_coefficients();
-    poly_coefficients[7] = circuit_proving_key->constraint_selectors.at("q_arith").get_coefficients();
-    poly_coefficients[8] = circuit_proving_key->constraint_selectors.at("q_ecc_1").get_coefficients();
-    poly_coefficients[9] = circuit_proving_key->constraint_selectors.at("q_range").get_coefficients();
-    poly_coefficients[10] = circuit_proving_key->constraint_selectors.at("q_logic").get_coefficients();
-
-    poly_coefficients[11] = circuit_proving_key->permutation_selectors.at("sigma_1").get_coefficients();
-    poly_coefficients[12] = circuit_proving_key->permutation_selectors.at("sigma_2").get_coefficients();
-    poly_coefficients[13] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
-    poly_coefficients[14] = circuit_proving_key->permutation_selectors.at("sigma_4").get_coefficients();
-
-    poly_coefficients[15] = circuit_proving_key->permutation_selectors.at("table_value_1").get_coefficients();
-    poly_coefficients[16] = circuit_proving_key->permutation_selectors.at("table_value_2").get_coefficients();
-    poly_coefficients[17] = circuit_proving_key->permutation_selectors.at("table_value_3").get_coefficients();
-    poly_coefficients[18] = circuit_proving_key->permutation_selectors.at("table_value_4").get_coefficients();
-    poly_coefficients[19] = circuit_proving_key->permutation_selectors.at("table_index").get_coefficients();
-    poly_coefficients[20] = circuit_proving_key->permutation_selectors.at("table_type").get_coefficients();
-
-    std::vector<barretenberg::g1::affine_element> commitments;
-    commitments.resize(21);
-
-    for (size_t i = 0; i < 21; ++i) {
-        commitments[i] =
-            g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
-                                                                circuit_proving_key->reference_string->get_monomials(),
-                                                                circuit_proving_key->n,
-                                                                circuit_proving_key->pippenger_runtime_state));
-    }
-
-    auto crs = crs_factory_->get_verifier_crs();
     circuit_verification_key =
-        std::make_shared<verification_key>(circuit_proving_key->n, circuit_proving_key->num_public_inputs, crs);
+        plookup_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
 
-    circuit_verification_key->constraint_selectors.insert({ "Q_1", commitments[0] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_2", commitments[1] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_3", commitments[2] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_4", commitments[3] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_5", commitments[4] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_M", commitments[5] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_C", commitments[6] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_ARITHMETIC_SELECTOR", commitments[7] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_FIXED_BASE_SELECTOR", commitments[8] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_RANGE_SELECTOR", commitments[9] });
-    circuit_verification_key->constraint_selectors.insert({ "Q_LOGIC_SELECTOR", commitments[10] });
-
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_1", commitments[11] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[12] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[13] });
-    circuit_verification_key->permutation_selectors.insert({ "SIGMA_4", commitments[14] });
-
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_1", commitments[15] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_2", commitments[16] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_3", commitments[17] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_4", commitments[18] });
-
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_INDEX", commitments[19] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_TYPE", commitments[20] });
-
-    computed_verification_key = true;
     return circuit_verification_key;
 }
 
 std::shared_ptr<program_witness> PLookupComposer::compute_witness()
 {
-    if (computed_witness) {
+    if (witness) {
         return witness;
     }
 
@@ -1291,7 +999,6 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     witness->wires.insert({ "s_4", std::move(s_4) });
     witness->wires.insert({ "z_lookup", std::move(z_lookup) });
 
-    computed_witness = true;
     return witness;
 }
 
@@ -1514,6 +1221,8 @@ PLookupMultiTable& PLookupComposer::get_multi_table(const PLookupMultiTableId id
 
 void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> indices)
 {
+    PLOOKUP_SELECTOR_REFS;
+
     PLookupTable& table = get_table(id);
 
     table.lookup_gates.push_back({ {
@@ -1543,18 +1252,6 @@ void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<
     q_range.emplace_back(fr(0));
     q_logic.emplace_back(fr(0));
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > indices[0]);
-    ASSERT(wire_epicycles.size() > indices[1]);
-    ASSERT(wire_epicycles.size() > indices[2]);
-
-    wire_epicycles[static_cast<size_t>(indices[0])].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(indices[1])].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(indices[2])].emplace_back(out);
-
     ++n;
 }
 
@@ -1562,6 +1259,7 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
                                           const uint32_t first_key_idx,
                                           const uint32_t second_key_idx)
 {
+    PLOOKUP_SELECTOR_REFS;
     const std::array<uint32_t, 2> key_indices{
         first_key_idx,
         second_key_idx == UINT32_MAX ? zero_idx : second_key_idx,
@@ -1598,18 +1296,6 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
     q_range.emplace_back(fr(0));
     q_logic.emplace_back(fr(0));
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > key_indices[0]);
-    ASSERT(wire_epicycles.size() > key_indices[1]);
-    ASSERT(wire_epicycles.size() > value_index);
-
-    wire_epicycles[static_cast<size_t>(key_indices[0])].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(key_indices[1])].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(value_index)].emplace_back(out);
-
     ++n;
 
     return value_index;
@@ -1617,6 +1303,8 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
 
 std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id, const uint32_t key_idx)
 {
+    PLOOKUP_SELECTOR_REFS;
+
     const std::array<uint32_t, 2> key_indices{
         key_idx,
         zero_idx,
@@ -1655,18 +1343,6 @@ std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id
     q_range.emplace_back(fr(0));
     q_logic.emplace_back(fr(0));
 
-    epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-    epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-    epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-    ASSERT(wire_epicycles.size() > key_indices[0]);
-    ASSERT(wire_epicycles.size() > value_indices[0]);
-    ASSERT(wire_epicycles.size() > value_indices[1]);
-
-    wire_epicycles[static_cast<size_t>(key_indices[0])].emplace_back(left);
-    wire_epicycles[static_cast<size_t>(value_indices[0])].emplace_back(right);
-    wire_epicycles[static_cast<size_t>(value_indices[1])].emplace_back(out);
-
     ++n;
 
     return value_indices;
@@ -1677,6 +1353,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(c
                                                                                const uint32_t key_index_b,
                                                                                const size_t num_lookups)
 {
+    PLOOKUP_SELECTOR_REFS;
     PLookupTable& table = get_table(id);
 
     const uint64_t base_a = uint256_t(table.column_1_step_size).data[0];
@@ -1792,18 +1469,6 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(c
         q_range.emplace_back(fr(0));
         q_logic.emplace_back(fr(0));
 
-        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-        ASSERT(wire_epicycles.size() > first_idx);
-        ASSERT(wire_epicycles.size() > second_idx);
-        ASSERT(wire_epicycles.size() > third_idx);
-
-        wire_epicycles[static_cast<size_t>(first_idx)].emplace_back(left);
-        wire_epicycles[static_cast<size_t>(second_idx)].emplace_back(right);
-        wire_epicycles[static_cast<size_t>(third_idx)].emplace_back(out);
-
         ++n;
     }
 
@@ -1813,6 +1478,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(c
 std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
                                                                 const std::vector<std::array<uint32_t, 2>>& key_indices)
 {
+    PLOOKUP_SELECTOR_REFS;
     const size_t num_lookups = key_indices.size();
 
     PLookupTable& table = get_table(id);
@@ -1891,18 +1557,6 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
         q_ecc_1.emplace_back(fr(0));
         q_range.emplace_back(fr(0));
         q_logic.emplace_back(fr(0));
-
-        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-        ASSERT(wire_epicycles.size() > key_indices[i][0]);
-        ASSERT(wire_epicycles.size() > key_indices[i][1]);
-        ASSERT(wire_epicycles.size() > value_idx);
-
-        wire_epicycles[static_cast<size_t>(key_indices[i][0])].emplace_back(left);
-        wire_epicycles[static_cast<size_t>(key_indices[i][1])].emplace_back(right);
-        wire_epicycles[static_cast<size_t>(value_idx)].emplace_back(out);
 
         ++n;
     }
@@ -1990,6 +1644,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
                                                                                      const uint32_t key_index)
 
 {
+    PLOOKUP_SELECTOR_REFS;
     const auto& multi_table = get_multi_table(id);
     const size_t num_lookups = read_values.column_1_accumulator_values.size();
     std::array<std::vector<uint32_t>, 3> column_indices;
@@ -2024,18 +1679,6 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
         q_range.emplace_back(fr(0));
         q_logic.emplace_back(fr(0));
 
-        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-        ASSERT(wire_epicycles.size() > first_idx);
-        ASSERT(wire_epicycles.size() > second_idx);
-        ASSERT(wire_epicycles.size() > third_idx);
-
-        wire_epicycles[static_cast<size_t>(first_idx)].emplace_back(left);
-        wire_epicycles[static_cast<size_t>(second_idx)].emplace_back(right);
-        wire_epicycles[static_cast<size_t>(third_idx)].emplace_back(out);
-
         ++n;
     }
     return column_indices;
@@ -2045,6 +1688,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
     const PLookupMultiTable& multi_table, const uint32_t key_index)
 
 {
+    PLOOKUP_SELECTOR_REFS;
     const size_t num_lookups = multi_table.lookup_ids.size();
 
     std::vector<barretenberg::fr> column_1_step_sizes{ 1 };
@@ -2146,18 +1790,6 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
         q_ecc_1.emplace_back(fr(0));
         q_range.emplace_back(fr(0));
         q_logic.emplace_back(fr(0));
-
-        epicycle left{ static_cast<uint32_t>(n), WireType::LEFT };
-        epicycle right{ static_cast<uint32_t>(n), WireType::RIGHT };
-        epicycle out{ static_cast<uint32_t>(n), WireType::OUTPUT };
-
-        ASSERT(wire_epicycles.size() > first_idx);
-        ASSERT(wire_epicycles.size() > second_idx);
-        ASSERT(wire_epicycles.size() > third_idx);
-
-        wire_epicycles[static_cast<size_t>(first_idx)].emplace_back(left);
-        wire_epicycles[static_cast<size_t>(second_idx)].emplace_back(right);
-        wire_epicycles[static_cast<size_t>(third_idx)].emplace_back(out);
 
         ++n;
     }

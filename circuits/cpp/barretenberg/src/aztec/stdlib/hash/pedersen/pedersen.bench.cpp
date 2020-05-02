@@ -43,7 +43,7 @@ void generate_test_pedersen_circuit(waffle::TurboComposer& turbo_composer, size_
         plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = plonk::stdlib::pedersen::compress(left, out);
+        out = plonk::stdlib::pedersen<waffle::TurboComposer>::compress(left, out);
     }
 }
 

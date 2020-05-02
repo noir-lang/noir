@@ -13,14 +13,14 @@ void verify_signature(Composer& composer,
                       grumpkin::g1::affine_element const& pub_key,
                       crypto::schnorr::signature const& sig)
 {
-    point owner_pub_key = { witness_ct(&composer, pub_key.x), witness_ct(&composer, pub_key.y) };
+    point_ct owner_pub_key = { witness_ct(&composer, pub_key.x), witness_ct(&composer, pub_key.y) };
     stdlib::schnorr::signature_bits signature = stdlib::schnorr::convert_signature(&composer, sig);
     std::array<field_ct, 8> to_compress;
     for (size_t i = 0; i < 4; ++i) {
         to_compress[i * 2] = notes[i].ciphertext.x;
         to_compress[i * 2 + 1] = notes[i].ciphertext.y;
     }
-    byte_array_ct message = plonk::stdlib::pedersen::compress_eight(to_compress);
+    byte_array_ct message = pedersen::compress_eight(to_compress);
     byte_array_ct message2(&composer, message.bits().rbegin(), message.bits().rend());
     stdlib::schnorr::verify_signature(message2, owner_pub_key, signature);
 }

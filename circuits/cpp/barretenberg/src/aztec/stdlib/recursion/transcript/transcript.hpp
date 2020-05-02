@@ -22,6 +22,7 @@ template <typename Composer> class Transcript {
     using witness_pt = witness_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
     using group_pt = element<Composer, fq_pt, field_pt, barretenberg::g1>;
+    using pedersen = plonk::stdlib::pedersen<Composer>;
 
     Transcript(Composer* in_context, const transcript::Manifest input_manifest)
         : context(in_context)

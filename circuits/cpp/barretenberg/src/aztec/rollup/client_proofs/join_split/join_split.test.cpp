@@ -8,7 +8,6 @@
 #include <common/test.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::client_proofs::join_split;
 
@@ -35,10 +34,10 @@ class client_proofs_join_split : public ::testing::Test {
         merkle_tree::LevelDbStore::destroy("/tmp/client_proofs_join_split_db");
         tree = std::make_unique<merkle_tree::LevelDbStore>("/tmp/client_proofs_join_split_db", 32);
         user = rollup::tx::create_user_context();
-
     }
 
-    void preload_two_notes() {
+    void preload_two_notes()
+    {
         tx_note note1 = { user.public_key, 100, user.note_secret };
         tx_note note2 = { user.public_key, 50, user.note_secret };
 
@@ -291,7 +290,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_wrong_signature_fails)
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                { pk, grumpkin::g1::one * pk });
+                              { pk, grumpkin::g1::one * pk });
 
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();

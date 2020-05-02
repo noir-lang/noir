@@ -682,7 +682,7 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     }
     create_dummy_gate();
 
-    ComposerBase::compute_proving_key();
+    ComposerBase::compute_proving_key_base();
     compute_sigma_permutations<4>(circuit_proving_key.get());
     return circuit_proving_key;
 }

@@ -10,7 +10,6 @@ struct proving_key;
 struct verification_key;
 struct program_witness;
 
-
 struct add_triple {
     uint32_t a;
     uint32_t b;
@@ -228,7 +227,8 @@ class ComposerBase {
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    virtual std::shared_ptr<proving_key> compute_proving_key();
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_circuit_size = 0);
+    virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual std::shared_ptr<program_witness> compute_witness() = 0;
     template <class program_settings> std::shared_ptr<program_witness> compute_witness_base();

@@ -3,6 +3,7 @@
 #include <plonk/composer/plookup_composer.hpp>
 
 #include <numeric/uint256/uint256.hpp>
+#include <numeric/bitop/sparse_form.hpp>
 #include <crypto/aes128/aes128.hpp>
 
 using namespace crypto::aes128;

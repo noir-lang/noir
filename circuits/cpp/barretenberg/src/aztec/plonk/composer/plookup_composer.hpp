@@ -7,6 +7,21 @@ namespace waffle {
 class PLookupComposer : public ComposerBase {
 
   public:
+    enum PLookupSelectors {
+        QM = 0,
+        QC = 1,
+        Q1 = 2,
+        Q2 = 3,
+        Q3 = 4,
+        Q4 = 5,
+        Q5 = 6,
+        QARITH = 7,
+        QECC_1 = 8,
+        QRANGE = 9,
+        QLOGIC = 10,
+        QLOOKUPINDEX = 11,
+        QLOOKUPTYPE = 12,
+    };
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
     PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
@@ -105,20 +120,6 @@ class PLookupComposer : public ComposerBase {
 
     std::vector<PLookupTable> lookup_tables;
     std::vector<PLookupMultiTable> lookup_multi_tables;
-
-    std::vector<barretenberg::fr> q_m;
-    std::vector<barretenberg::fr> q_c;
-    std::vector<barretenberg::fr> q_1;
-    std::vector<barretenberg::fr> q_2;
-    std::vector<barretenberg::fr> q_3;
-    std::vector<barretenberg::fr> q_4;
-    std::vector<barretenberg::fr> q_5;
-    std::vector<barretenberg::fr> q_arith;
-    std::vector<barretenberg::fr> q_ecc_1;
-    std::vector<barretenberg::fr> q_range;
-    std::vector<barretenberg::fr> q_logic;
-    std::vector<barretenberg::fr> q_lookup_type;
-    std::vector<barretenberg::fr> q_lookup_index;
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
