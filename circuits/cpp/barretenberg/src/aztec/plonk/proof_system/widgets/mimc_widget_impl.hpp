@@ -4,8 +4,6 @@
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 
-using namespace barretenberg;
-
 namespace waffle {
 ProverMiMCWidget::ProverMiMCWidget(proving_key* input_key, program_witness* input_witness)
     : ProverBaseWidget(input_key, input_witness)
@@ -55,8 +53,8 @@ ProverMiMCWidget& ProverMiMCWidget::operator=(ProverMiMCWidget&& other)
     return *this;
 }
 
-fr ProverMiMCWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                   const transcript::Transcript& transcript)
+barretenberg::fr ProverMiMCWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
+                                                                 const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -86,9 +84,9 @@ void ProverMiMCWidget::compute_transcript_elements(transcript::Transcript& trans
     }
 }
 
-fr ProverMiMCWidget::compute_linear_contribution(const fr& alpha_base,
-                                                 const transcript::Transcript& transcript,
-                                                 polynomial& r)
+barretenberg::fr ProverMiMCWidget::compute_linear_contribution(const fr& alpha_base,
+                                                               const transcript::Transcript& transcript,
+                                                               polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);
     fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
@@ -178,7 +176,7 @@ void VerifierMiMCWidget<Field, Group, Transcript>::compute_batch_evaluation_cont
     Field q_mimc_coefficient_eval = transcript.get_field_element("q_mimc_coefficient");
 
     if (use_linearisation) {
-        fr nu_base = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
+        Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
         batch_eval += (q_mimc_coefficient_eval * nu_base);
         return;
     }

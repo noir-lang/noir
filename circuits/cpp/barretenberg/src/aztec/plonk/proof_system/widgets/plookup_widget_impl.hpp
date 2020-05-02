@@ -9,8 +9,6 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <common/mem.hpp>
 
-using namespace barretenberg;
-
 namespace waffle {
 
 ProverPLookupWidget::ProverPLookupWidget(proving_key* input_key, program_witness* input_witness)
@@ -249,7 +247,8 @@ void ProverPLookupWidget::compute_round_commitments(transcript::Transcript& tran
     }
 }
 
-fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, const transcript::Transcript& transcript)
+barretenberg::fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base,
+                                                                    const transcript::Transcript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
 
@@ -395,9 +394,9 @@ fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base, cons
     return alpha_base * alpha.sqr() * alpha;
 }
 
-fr ProverPLookupWidget::compute_linear_contribution(const fr& alpha_base,
-                                                    const transcript::Transcript& transcript,
-                                                    polynomial&)
+barretenberg::fr ProverPLookupWidget::compute_linear_contribution(const fr& alpha_base,
+                                                                  const transcript::Transcript& transcript,
+                                                                  polynomial&)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -792,10 +791,10 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplicat
         nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_m");
 
         // TODO find non-hacky way of doing this
-        if (q_2_eval != fr(0)) {
+        if (q_2_eval != Field(0)) {
             scalars[key->scalar_multiplication_indices.at("Q_2")] += nu_challenges[0];
         }
-        if (q_m_eval != fr(0)) {
+        if (q_m_eval != Field(0)) {
             scalars[key->scalar_multiplication_indices.at("Q_M")] += nu_challenges[1];
         }
     }

@@ -63,6 +63,10 @@ class VerifierBaseWidget {
 };
 
 class ProverBaseWidget {
+  protected:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::polynomial polynomial;
+
   public:
     ProverBaseWidget(proving_key* input_key, program_witness* input_witness)
         : key(input_key)

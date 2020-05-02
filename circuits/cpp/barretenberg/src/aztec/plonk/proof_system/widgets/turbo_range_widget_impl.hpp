@@ -5,8 +5,6 @@
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 
-using namespace barretenberg;
-
 namespace waffle {
 ProverTurboRangeWidget::ProverTurboRangeWidget(proving_key* input_key, program_witness* input_witness)
     : ProverBaseWidget(input_key, input_witness)
@@ -98,7 +96,7 @@ ProverTurboRangeWidget& ProverTurboRangeWidget::operator=(ProverTurboRangeWidget
  * is (n / 8) gates
  *
  **/
-fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
+barretenberg::fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                          const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -189,7 +187,7 @@ void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript&
     transcript.add_element("q_range", q_range.evaluate(z, key->small_domain.size).to_buffer());
 }
 
-fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
+barretenberg::fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
                                                        const transcript::Transcript& transcript,
                                                        barretenberg::polynomial& r)
 {

@@ -4,8 +4,6 @@
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 
-using namespace barretenberg;
-
 namespace waffle {
 ProverTurboArithmeticWidget::ProverTurboArithmeticWidget(proving_key* input_key, program_witness* input_witness)
     : ProverBaseWidget(input_key, input_witness)
@@ -113,7 +111,7 @@ ProverTurboArithmeticWidget& ProverTurboArithmeticWidget::operator=(ProverTurboA
     return *this;
 }
 
-fr ProverTurboArithmeticWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
+barretenberg::fr ProverTurboArithmeticWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                               const transcript::Transcript& transcript)
 {
     const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -227,7 +225,7 @@ void ProverTurboArithmeticWidget::compute_transcript_elements(transcript::Transc
     transcript.add_element("q_c", q_c.evaluate(z, key->small_domain.size).to_buffer());
 }
 
-fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
+barretenberg::fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
                                                             const transcript::Transcript& transcript,
                                                             barretenberg::polynomial& r)
 {

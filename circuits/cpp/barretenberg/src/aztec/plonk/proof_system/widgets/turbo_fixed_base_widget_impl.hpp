@@ -5,8 +5,6 @@
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 
-using namespace barretenberg;
-
 namespace waffle {
 ProverTurboFixedBaseWidget::ProverTurboFixedBaseWidget(proving_key* input_key, program_witness* input_witness)
     : ProverTurboArithmeticWidget(input_key, input_witness)
@@ -42,7 +40,7 @@ ProverTurboFixedBaseWidget& ProverTurboFixedBaseWidget::operator=(ProverTurboFix
     return *this;
 }
 
-fr ProverTurboFixedBaseWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
+barretenberg::fr ProverTurboFixedBaseWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                              const transcript::Transcript& transcript)
 {
     fr new_alpha_base = ProverTurboArithmeticWidget::compute_quotient_contribution(alpha_base, transcript);
@@ -202,7 +200,7 @@ void ProverTurboFixedBaseWidget::compute_transcript_elements(transcript::Transcr
     }
 }
 
-fr ProverTurboFixedBaseWidget::compute_linear_contribution(const fr& alpha_base,
+barretenberg::fr ProverTurboFixedBaseWidget::compute_linear_contribution(const fr& alpha_base,
                                                            const transcript::Transcript& transcript,
                                                            barretenberg::polynomial& r)
 {

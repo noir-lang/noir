@@ -9,8 +9,6 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <common/mem.hpp>
 
-using namespace barretenberg;
-
 namespace waffle {
 
 template <size_t program_width>
@@ -197,8 +195,8 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
 }
 
 template <size_t program_width>
-fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const fr& alpha_base,
-                                                                         const transcript::Transcript& transcript)
+barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contribution(
+    const fr& alpha_base, const transcript::Transcript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_fft");
 
@@ -339,9 +337,8 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
 }
 
 template <size_t program_width>
-fr ProverPermutationWidget<program_width>::compute_linear_contribution(const fr& alpha,
-                                                                       const transcript::Transcript& transcript,
-                                                                       polynomial& r)
+barretenberg::fr ProverPermutationWidget<program_width>::compute_linear_contribution(
+    const fr& alpha, const transcript::Transcript& transcript, polynomial& r)
 {
     polynomial& z = witness->wires.at("z");
     fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
@@ -673,7 +670,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
         wire_evaluations.emplace_back(transcript.get_field_element("w_" + std::to_string(i + 1)));
     }
 
-    g1::affine_element Z_1 = transcript.get_group_element("Z");
+    Group Z_1 = transcript.get_group_element("Z");
 
     elements.emplace_back(Z_1);
     // Field z_omega_challenge = transcript.get_challenge_field_element_from_map("nu", "z_omega");
