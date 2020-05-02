@@ -82,8 +82,8 @@ void read(uint8_t const*& it, affine_element<Fq, Fr, Params>& value) {
     read(it, value.y);
 }
 
-template <typename Fq, typename Fr, typename Params>
-void write(std::vector<uint8_t>& buf, affine_element<Fq, Fr, Params> const& value) {
+template <typename B, typename Fq, typename Fr, typename Params>
+void write(B& buf, affine_element<Fq, Fr, Params> const& value) {
     // buf.resize(buf.size() + 64);
     // affine_element<Fq, Fr, Params>::serialize_to_buffer(value, &*buf.end() - 64);
     write(buf, value.x);
