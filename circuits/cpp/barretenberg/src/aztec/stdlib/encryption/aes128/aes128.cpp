@@ -7,6 +7,7 @@
 #include <crypto/aes128/aes128.hpp>
 
 using namespace crypto::aes128;
+using namespace barretenberg;
 
 namespace plonk {
 namespace stdlib {
