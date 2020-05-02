@@ -54,9 +54,6 @@ class PLookupComposer : public ComposerBase {
     PLookupTable& get_table(const PLookupTableId id);
     PLookupMultiTable& get_multi_table(const PLookupMultiTableId id);
 
-    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTable& multi_table,
-                                                                        const uint32_t key_index);
-
     std::array<uint32_t, 2> read_from_table(const PLookupTableId id, const uint32_t key_idx);
     uint32_t read_from_table(const PLookupTableId id, const uint32_t key_a, const uint32_t key_b);
     // std::pair<uint32_t, uint32_t> read_from_table(const PLookupTableId id, const uint32_t key);
@@ -68,8 +65,6 @@ class PLookupComposer : public ComposerBase {
                                                                   const uint32_t key_index_a,
                                                                   const uint32_t key_index_b,
                                                                   const size_t num_lookups);
-
-    PLookupReadData get_multi_table_values(const PLookupMultiTableId id, const barretenberg::fr key);
 
     std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTableId& id,
                                                                         const PLookupReadData& read_values,

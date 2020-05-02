@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./plookup_tables.hpp"
+#include "./types.hpp"
 
 #include <crypto/aes128/aes128.hpp>
 #include <numeric/bitop/rotate.hpp>
@@ -385,45 +385,74 @@ inline PLookupTable generate_majority_normalization_table(PLookupTableId id, con
 
 inline const PLookupMultiTable get_witness_extension_output_table(const PLookupMultiTableId id = SHA256_WITNESS_OUTPUT)
 {
-    PLookupMultiTable table;
-    table.id = id;
     const size_t num_entries = 16;
+
+    std::vector<barretenberg::fr> column_1_coefficients;
+    std::vector<barretenberg::fr> column_2_coefficients;
+    std::vector<barretenberg::fr> column_3_coefficients;
+
+    for (size_t i = 0; i < num_entries; ++i) {
+        column_1_coefficients.emplace_back(barretenberg::fr(16).pow(3 * i));
+        column_2_coefficients.emplace_back(1 << (3 * i));
+        column_3_coefficients.emplace_back(0);
+    }
+
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+
+    table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(16 * 16 * 16);
         table.lookup_ids.emplace_back(SHA256_WITNESS_NORMALIZE);
-        table.column_1_coefficients.emplace_back(fr(16).pow(3 * i));
-        table.column_2_coefficients.emplace_back(1 << (3 * i));
-        table.column_3_coefficients.emplace_back(0);
+        table.get_table_values.emplace_back(&get_witness_extension_normalization_values);
     }
     return table;
 }
 
 inline const PLookupMultiTable get_choose_output_table(const PLookupMultiTableId id = SHA256_CH_OUTPUT)
 {
-    PLookupMultiTable table;
-    table.id = id;
     const size_t num_entries = 16;
+
+    std::vector<barretenberg::fr> column_1_coefficients;
+    std::vector<barretenberg::fr> column_2_coefficients;
+    std::vector<barretenberg::fr> column_3_coefficients;
+
+    for (size_t i = 0; i < num_entries; ++i) {
+        column_1_coefficients.emplace_back(barretenberg::fr(28).pow(2 * i));
+        column_2_coefficients.emplace_back(1 << (2 * i));
+        column_3_coefficients.emplace_back(0);
+    }
+
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(28 * 28);
         table.lookup_ids.emplace_back(SHA256_CH_NORMALIZE);
-        table.column_1_coefficients.emplace_back(fr(28).pow(2 * i));
-        table.column_2_coefficients.emplace_back(1 << (2 * i));
-        table.column_3_coefficients.emplace_back(0);
+        table.get_table_values.emplace_back(&get_choose_normalization_values);
     }
     return table;
 }
 
 inline const PLookupMultiTable get_majority_output_table(const PLookupMultiTableId id = SHA256_MAJ_OUTPUT)
 {
-    PLookupMultiTable table;
     const size_t num_entries = 11;
+
+    std::vector<barretenberg::fr> column_1_coefficients;
+    std::vector<barretenberg::fr> column_2_coefficients;
+    std::vector<barretenberg::fr> column_3_coefficients;
+
+    for (size_t i = 0; i < num_entries; ++i) {
+        column_1_coefficients.emplace_back(barretenberg::fr(16).pow(3 * i));
+        column_2_coefficients.emplace_back(1 << (3 * i));
+        column_3_coefficients.emplace_back(0);
+    }
+
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(16 * 16 * 16);
         table.lookup_ids.emplace_back(SHA256_MAJ_NORMALIZE);
-        table.column_1_coefficients.emplace_back(fr(16).pow(3 * i));
-        table.column_2_coefficients.emplace_back(1 << (3 * i));
-        table.column_3_coefficients.emplace_back(0);
+        table.get_table_values.emplace_back(&get_majority_normalization_values);
     }
     return table;
 }
@@ -433,78 +462,102 @@ inline const std::array<barretenberg::fr, 3> get_majority_rotation_multipliers()
     constexpr uint64_t base = 16;
 
     // scaling factors applied to a's sparse limbs, excluding the rotated limb
-    const std::array<fr, 3> rot6_coefficients{ fr(0), fr(base).pow(11 - 2), fr(base).pow(22 - 2) };
-    const std::array<fr, 3> rot11_coefficients{ fr(base).pow(32 - 13), fr(0), fr(base).pow(22 - 13) };
-    const std::array<fr, 3> rot25_coefficients{ fr(base).pow(32 - 22), fr(base).pow(32 - 22 + 11), fr(0) };
+    const std::array<barretenberg::fr, 3> rot6_coefficients{ barretenberg::fr(0),
+                                                             barretenberg::fr(base).pow(11 - 2),
+                                                             barretenberg::fr(base).pow(22 - 2) };
+    const std::array<barretenberg::fr, 3> rot11_coefficients{ barretenberg::fr(base).pow(32 - 13),
+                                                              barretenberg::fr(0),
+                                                              barretenberg::fr(base).pow(22 - 13) };
+    const std::array<barretenberg::fr, 3> rot25_coefficients{ barretenberg::fr(base).pow(32 - 22),
+                                                              barretenberg::fr(base).pow(32 - 22 + 11),
+                                                              barretenberg::fr(0) };
 
     // these are the coefficients that we want
-    const std::array<fr, 3> target_rotation_coefficients{
+    const std::array<barretenberg::fr, 3> target_rotation_coefficients{
         rot6_coefficients[0] + rot11_coefficients[0] + rot25_coefficients[0],
         rot6_coefficients[1] + rot11_coefficients[1] + rot25_coefficients[1],
         rot6_coefficients[2] + rot11_coefficients[2] + rot25_coefficients[2],
     };
 
-    fr column_2_row_1_multiplier = target_rotation_coefficients[0];
-    fr column_2_row_2_multiplier =
-        target_rotation_coefficients[0] * (-fr(base).pow(11)) + target_rotation_coefficients[1];
+    barretenberg::fr column_2_row_1_multiplier = target_rotation_coefficients[0];
+    barretenberg::fr column_2_row_2_multiplier =
+        target_rotation_coefficients[0] * (-barretenberg::fr(base).pow(11)) + target_rotation_coefficients[1];
 
     std::array<barretenberg::fr, 3> rotation_multipliers = { column_2_row_1_multiplier,
                                                              column_2_row_2_multiplier,
-                                                             fr(0) };
+                                                             barretenberg::fr(0) };
     return rotation_multipliers;
 }
 
 // template <uint64_t rot_a, uint64_t rot_b, uint64_t rot_c>
 inline const std::array<barretenberg::fr, 3> get_choose_rotation_multipliers()
 {
-    const std::array<fr, 3> column_2_row_3_coefficients{
-        fr(1),
-        fr(28).pow(11),
-        fr(28).pow(22),
+    const std::array<barretenberg::fr, 3> column_2_row_3_coefficients{
+        barretenberg::fr(1),
+        barretenberg::fr(28).pow(11),
+        barretenberg::fr(28).pow(22),
     };
 
     // scaling factors applied to a's sparse limbs, excluding the rotated limb
-    const std::array<fr, 3> rot6_coefficients{ fr(0), fr(28).pow(11 - 6), fr(28).pow(22 - 6) };
-    const std::array<fr, 3> rot11_coefficients{ fr(28).pow(32 - 11), fr(0), fr(28).pow(22 - 11) };
-    const std::array<fr, 3> rot25_coefficients{ fr(28).pow(32 - 25), fr(28).pow(32 - 25 + 11), fr(0) };
+    const std::array<barretenberg::fr, 3> rot6_coefficients{ barretenberg::fr(0),
+                                                             barretenberg::fr(28).pow(11 - 6),
+                                                             barretenberg::fr(28).pow(22 - 6) };
+    const std::array<barretenberg::fr, 3> rot11_coefficients{ barretenberg::fr(28).pow(32 - 11),
+                                                              barretenberg::fr(0),
+                                                              barretenberg::fr(28).pow(22 - 11) };
+    const std::array<barretenberg::fr, 3> rot25_coefficients{ barretenberg::fr(28).pow(32 - 25),
+                                                              barretenberg::fr(28).pow(32 - 25 + 11),
+                                                              barretenberg::fr(0) };
 
     // these are the coefficients that we want
-    const std::array<fr, 3> target_rotation_coefficients{
+    const std::array<barretenberg::fr, 3> target_rotation_coefficients{
         rot6_coefficients[0] + rot11_coefficients[0] + rot25_coefficients[0],
         rot6_coefficients[1] + rot11_coefficients[1] + rot25_coefficients[1],
         rot6_coefficients[2] + rot11_coefficients[2] + rot25_coefficients[2],
     };
 
-    fr column_2_row_1_multiplier = fr(1) * target_rotation_coefficients[0];
+    barretenberg::fr column_2_row_1_multiplier = barretenberg::fr(1) * target_rotation_coefficients[0];
 
     // this gives us the correct scaling factor for a0's 1st limb
-    std::array<fr, 3> current_coefficients{
+    std::array<barretenberg::fr, 3> current_coefficients{
         column_2_row_3_coefficients[0] * column_2_row_1_multiplier,
         column_2_row_3_coefficients[1] * column_2_row_1_multiplier,
         column_2_row_3_coefficients[2] * column_2_row_1_multiplier,
     };
 
-    fr column_2_row_3_multiplier = -(current_coefficients[2]) + target_rotation_coefficients[2];
+    barretenberg::fr column_2_row_3_multiplier = -(current_coefficients[2]) + target_rotation_coefficients[2];
 
     std::array<barretenberg::fr, 3> rotation_multipliers = { column_2_row_1_multiplier,
-                                                             fr(0),
+                                                             barretenberg::fr(0),
                                                              column_2_row_3_multiplier };
     return rotation_multipliers;
 }
 
 inline const PLookupMultiTable get_witness_extension_input_table(const PLookupMultiTableId id = SHA256_WITNESS_INPUT)
 {
-    PLookupMultiTable table;
+    std::vector<barretenberg::fr> column_1_coefficients{
+        barretenberg::fr(1), barretenberg::fr(1 << 3), barretenberg::fr(1 << 10), barretenberg::fr(1 << 18)
+    };
+    std::vector<barretenberg::fr> column_2_coefficients{
+        barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0)
+    };
+    std::vector<barretenberg::fr> column_3_coefficients{
+        barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0)
+    };
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 3), (1 << 7), (1 << 8), (1 << 18) };
     table.lookup_ids = { SHA256_WITNESS_SLICE_3,
                          SHA256_WITNESS_SLICE_7_ROTATE_4,
                          SHA256_WITNESS_SLICE_8_ROTATE_7,
                          SHA256_WITNESS_SLICE_14_ROTATE_1 };
-    table.column_1_coefficients = { fr(1), fr(1 << 3), fr(1 << 10), fr(1 << 18) };
-    table.column_2_coefficients = { fr(0), fr(0), fr(0), fr(0) };
-    table.column_3_coefficients = { fr(0), fr(0), fr(0), fr(0) };
 
+    table.get_table_values = {
+        &get_witness_extension_values<16, 0, 0>,
+        &get_witness_extension_values<16, 4, 0>,
+        &get_witness_extension_values<16, 7, 0>,
+        &get_witness_extension_values<16, 1, 0>,
+    };
     return table;
 }
 
@@ -563,37 +616,57 @@ inline const PLookupMultiTable get_choose_input_table(const PLookupMultiTableId 
      **/
 
     // scaling factors applied to a's sparse limbs, excluding the rotated limb
-    const std::array<fr, 3> rot6_coefficients{ fr(0), fr(28).pow(11 - 6), fr(28).pow(22 - 6) };
-    const std::array<fr, 3> rot11_coefficients{ fr(28).pow(32 - 11), fr(0), fr(28).pow(22 - 11) };
-    const std::array<fr, 3> rot25_coefficients{ fr(28).pow(32 - 25), fr(28).pow(32 - 25 + 11), fr(0) };
+    const std::array<barretenberg::fr, 3> rot6_coefficients{ barretenberg::fr(0),
+                                                             barretenberg::fr(28).pow(11 - 6),
+                                                             barretenberg::fr(28).pow(22 - 6) };
+    const std::array<barretenberg::fr, 3> rot11_coefficients{ barretenberg::fr(28).pow(32 - 11),
+                                                              barretenberg::fr(0),
+                                                              barretenberg::fr(28).pow(22 - 11) };
+    const std::array<barretenberg::fr, 3> rot25_coefficients{ barretenberg::fr(28).pow(32 - 25),
+                                                              barretenberg::fr(28).pow(32 - 25 + 11),
+                                                              barretenberg::fr(0) };
 
     // these are the coefficients that we want
-    const std::array<fr, 3> target_rotation_coefficients{
+    const std::array<barretenberg::fr, 3> target_rotation_coefficients{
         rot6_coefficients[0] + rot11_coefficients[0] + rot25_coefficients[0],
         rot6_coefficients[1] + rot11_coefficients[1] + rot25_coefficients[1],
         rot6_coefficients[2] + rot11_coefficients[2] + rot25_coefficients[2],
     };
 
-    fr column_2_row_1_multiplier = target_rotation_coefficients[0];
+    barretenberg::fr column_2_row_1_multiplier = target_rotation_coefficients[0];
 
     // this gives us the correct scaling factor for a0's 1st limb
-    std::array<fr, 3> current_coefficients{
+    std::array<barretenberg::fr, 3> current_coefficients{
         column_2_row_1_multiplier,
-        fr(28).pow(11) * column_2_row_1_multiplier,
-        fr(28).pow(22) * column_2_row_1_multiplier,
+        barretenberg::fr(28).pow(11) * column_2_row_1_multiplier,
+        barretenberg::fr(28).pow(22) * column_2_row_1_multiplier,
     };
 
-    // fr column_2_row_3_multiplier = -(current_coefficients[2]) + target_rotation_coefficients[2];
-    fr column_3_row_2_multiplier = -(current_coefficients[1]) + target_rotation_coefficients[1];
+    // barretenberg::fr column_2_row_3_multiplier = -(current_coefficients[2]) + target_rotation_coefficients[2];
+    barretenberg::fr column_3_row_2_multiplier = -(current_coefficients[1]) + target_rotation_coefficients[1];
 
-    PLookupMultiTable table;
+    std::vector<barretenberg::fr> column_1_coefficients{ barretenberg::fr(1),
+                                                         barretenberg::fr(1 << 11),
+                                                         barretenberg::fr(1 << 22) };
+    std::vector<barretenberg::fr> column_2_coefficients{ barretenberg::fr(1),
+                                                         barretenberg::fr(28).pow(11),
+                                                         barretenberg::fr(28).pow(22) };
+    std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
+                                                         column_3_row_2_multiplier + barretenberg::fr(1),
+                                                         barretenberg::fr(1) };
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
     table.lookup_ids = { SHA256_BASE28_ROTATE6, SHA256_BASE28, SHA256_BASE28_ROTATE3 };
-    table.column_1_coefficients = { fr(1), fr(1 << 11), fr(1 << 22) };
-    table.column_2_coefficients = { fr(1), fr(28).pow(11), fr(28).pow(22) };
-    table.column_3_coefficients = { fr(1), column_3_row_2_multiplier + fr(1), fr(1) };
 
+    table.get_table_values.push_back(&get_sha256_sparse_map_values<28, 6>);
+    table.get_table_values.push_back(&get_sha256_sparse_map_values<28, 0>);
+    table.get_table_values.push_back(&get_sha256_sparse_map_values<28, 3>);
+    // table.get_table_values = std::vector<PLookupMultiTable::table_out (*)(PLookupMultiTable::table_in)>{
+
+    //     &get_sha256_sparse_map_values<28, 0, 0>,
+    //     &get_sha256_sparse_map_values<28, 3, 0>,
+    // };
     return table;
 }
 
@@ -619,28 +692,45 @@ inline const PLookupMultiTable get_majority_input_table(const PLookupMultiTableI
     constexpr uint64_t base = 16;
 
     // scaling factors applied to a's sparse limbs, excluding the rotated limb
-    const std::array<fr, 3> rot2_coefficients{ fr(0), fr(base).pow(11 - 2), fr(base).pow(22 - 2) };
-    const std::array<fr, 3> rot13_coefficients{ fr(base).pow(32 - 13), fr(0), fr(base).pow(22 - 13) };
-    const std::array<fr, 3> rot22_coefficients{ fr(base).pow(32 - 22), fr(base).pow(32 - 22 + 11), fr(0) };
+    const std::array<barretenberg::fr, 3> rot2_coefficients{ barretenberg::fr(0),
+                                                             barretenberg::fr(base).pow(11 - 2),
+                                                             barretenberg::fr(base).pow(22 - 2) };
+    const std::array<barretenberg::fr, 3> rot13_coefficients{ barretenberg::fr(base).pow(32 - 13),
+                                                              barretenberg::fr(0),
+                                                              barretenberg::fr(base).pow(22 - 13) };
+    const std::array<barretenberg::fr, 3> rot22_coefficients{ barretenberg::fr(base).pow(32 - 22),
+                                                              barretenberg::fr(base).pow(32 - 22 + 11),
+                                                              barretenberg::fr(0) };
 
     // these are the coefficients that we want
-    const std::array<fr, 3> target_rotation_coefficients{
+    const std::array<barretenberg::fr, 3> target_rotation_coefficients{
         rot2_coefficients[0] + rot13_coefficients[0] + rot22_coefficients[0],
         rot2_coefficients[1] + rot13_coefficients[1] + rot22_coefficients[1],
         rot2_coefficients[2] + rot13_coefficients[2] + rot22_coefficients[2],
     };
 
-    fr column_2_row_3_multiplier =
-        target_rotation_coefficients[1] * (-fr(base).pow(11)) + target_rotation_coefficients[2];
+    barretenberg::fr column_2_row_3_multiplier =
+        target_rotation_coefficients[1] * (-barretenberg::fr(base).pow(11)) + target_rotation_coefficients[2];
 
-    PLookupMultiTable table;
+    std::vector<barretenberg::fr> column_1_coefficients{ barretenberg::fr(1),
+                                                         barretenberg::fr(1 << 11),
+                                                         barretenberg::fr(1 << 22) };
+    std::vector<barretenberg::fr> column_2_coefficients{ barretenberg::fr(1),
+                                                         barretenberg::fr(base).pow(11),
+                                                         barretenberg::fr(base).pow(22) };
+    std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
+                                                         barretenberg::fr(1),
+                                                         barretenberg::fr(1) + column_2_row_3_multiplier };
+
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
     table.lookup_ids = { SHA256_BASE16_ROTATE2, SHA256_BASE16_ROTATE2, SHA256_BASE16 };
-    table.column_1_coefficients = { fr(1), fr(1 << 11), fr(1 << 22) };
-    table.column_2_coefficients = { fr(1), fr(base).pow(11), fr(base).pow(22) };
-    table.column_3_coefficients = { fr(1), fr(1), fr(1) + column_2_row_3_multiplier };
-
+    table.get_table_values = {
+        &get_sha256_sparse_map_values<16, 2>,
+        &get_sha256_sparse_map_values<16, 2>,
+        &get_sha256_sparse_map_values<16, 0>,
+    };
     return table;
 }
 

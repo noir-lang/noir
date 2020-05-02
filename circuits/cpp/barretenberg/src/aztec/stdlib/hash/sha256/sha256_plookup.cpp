@@ -22,21 +22,19 @@ constexpr size_t get_num_blocks(const size_t num_bits)
 }
 } // namespace internal
 
-void prepare_constants(waffle::PLookupComposer* ctx, std::array<field_t<waffle::PLookupComposer>, 8>& input)
+void prepare_constants(std::array<field_t<waffle::PLookupComposer>, 8>& input)
 {
-    typedef field_t<waffle::PLookupComposer> field_pt;
-
     constexpr uint64_t init_constants[8]{ 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                           0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
 
-    input[0] = field_pt(ctx, init_constants[0]);
-    input[1] = field_pt(ctx, init_constants[1]);
-    input[2] = field_pt(ctx, init_constants[2]);
-    input[3] = field_pt(ctx, init_constants[3]);
-    input[4] = field_pt(ctx, init_constants[4]);
-    input[5] = field_pt(ctx, init_constants[5]);
-    input[6] = field_pt(ctx, init_constants[6]);
-    input[7] = field_pt(ctx, init_constants[7]);
+    input[0] = init_constants[0];
+    input[1] = init_constants[1];
+    input[2] = init_constants[2];
+    input[3] = init_constants[3];
+    input[4] = init_constants[4];
+    input[5] = init_constants[5];
+    input[6] = init_constants[6];
+    input[7] = init_constants[7];
 }
 
 sparse_witness_limbs convert_witness(const field_t<waffle::PLookupComposer>& w)
@@ -309,9 +307,8 @@ byte_array<waffle::PLookupComposer> sha256_block(const byte_array<waffle::PLooku
     typedef field_t<waffle::PLookupComposer> field_pt;
 
     ASSERT(input.size() == 64);
-    waffle::PLookupComposer* ctx = input.get_context();
     std::array<field_pt, 8> hash;
-    prepare_constants(ctx, hash);
+    prepare_constants(hash);
     std::array<field_pt, 16> hash_input;
     for (size_t i = 0; i < 16; ++i) {
         hash_input[i] = field_pt(uint32(input.slice(i * 4, 4)));
@@ -353,7 +350,7 @@ bit_array<waffle::PLookupComposer> sha256(const bit_array<waffle::PLookupCompose
     }
 
     std::array<field_pt, 8> rolling_hash;
-    prepare_constants(ctx, rolling_hash);
+    prepare_constants(rolling_hash);
     for (size_t i = 0; i < num_blocks; ++i) {
         std::array<uint32, 16> hash_input_u32;
         message_schedule.populate_uint32_array(i * 512, hash_input_u32);

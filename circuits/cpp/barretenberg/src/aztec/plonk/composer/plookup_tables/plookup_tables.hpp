@@ -1,97 +1,68 @@
 #pragma once
 
-#include <vector>
-#include <array>
-
-#include <ecc/curves/bn254/fr.hpp>
+#include "types.hpp"
+#include "sha256.hpp"
+#include "aes128.hpp"
 
 namespace waffle {
-enum PLookupTableId {
-    XOR,
-    AND,
-    PEDERSEN,
-    AES_SPARSE_MAP,
-    AES_SBOX_MAP,
-    AES_SPARSE_NORMALIZE,
-    SHA256_WITNESS_NORMALIZE,
-    SHA256_WITNESS_SLICE_3,
-    SHA256_WITNESS_SLICE_7_ROTATE_4,
-    SHA256_WITNESS_SLICE_8_ROTATE_7,
-    SHA256_WITNESS_SLICE_14_ROTATE_1,
-    SHA256_CH_NORMALIZE,
-    SHA256_MAJ_NORMALIZE,
-    SHA256_BASE28,
-    SHA256_BASE28_ROTATE6,
-    SHA256_BASE28_ROTATE3,
-    SHA256_BASE16,
-    SHA256_BASE16_ROTATE2,
-    SHA256_BASE16_ROTATE6,
-    SHA256_BASE16_ROTATE7,
-    SHA256_BASE16_ROTATE8,
-};
+namespace plookup {
 
-enum PLookupMultiTableId {
-    SHA256_CH_INPUT,
-    SHA256_CH_OUTPUT,
-    SHA256_MAJ_INPUT,
-    SHA256_MAJ_OUTPUT,
-    SHA256_WITNESS_INPUT,
-    SHA256_WITNESS_OUTPUT,
-};
+const PLookupMultiTable& get_multi_table(const PLookupMultiTableId id);
 
-struct PLookupMultiTable {
-    std::vector<PLookupTableId> lookup_ids;
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
-    std::vector<uint64_t> slice_sizes;
-    PLookupMultiTableId id;
-};
+PLookupReadData get_multi_table_values(const PLookupMultiTableId id, const barretenberg::fr& key);
 
-struct PLookupTable {
-    struct KeyEntry {
-        std::array<uint64_t, 2> key{ 0, 0 };
-        std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
-        bool operator<(const KeyEntry& other) const
-        {
-            return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
-        }
-
-        std::array<barretenberg::fr, 3> to_sorted_list_components(const bool use_two_keys) const
-        {
-            return {
-                barretenberg::fr(key[0]),
-                use_two_keys ? barretenberg::fr(key[1]) : value[0],
-                use_two_keys ? value[0] : value[1],
-            };
-        }
-    };
-
-    PLookupTableId id;
-    size_t table_index;
-    size_t size;
-    bool use_twin_keys;
-
-    barretenberg::fr column_1_step_size = barretenberg::fr(0);
-    barretenberg::fr column_2_step_size = barretenberg::fr(0);
-    barretenberg::fr column_3_step_size = barretenberg::fr(0);
-    std::vector<barretenberg::fr> column_1;
-    std::vector<barretenberg::fr> column_3;
-    std::vector<barretenberg::fr> column_2;
-    std::vector<KeyEntry> lookup_gates;
-
-    std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
-};
-
-struct PLookupReadData {
-    std::vector<PLookupTable::KeyEntry> key_entries;
-
-    std::vector<barretenberg::fr> column_1_step_sizes;
-    std::vector<barretenberg::fr> column_2_step_sizes;
-    std::vector<barretenberg::fr> column_3_step_sizes;
-
-    std::vector<barretenberg::fr> column_1_accumulator_values;
-    std::vector<barretenberg::fr> column_2_accumulator_values;
-    std::vector<barretenberg::fr> column_3_accumulator_values;
-};
+inline PLookupTable create_table(const PLookupTableId id, const size_t index)
+{
+    switch (id) {
+    case AES_SPARSE_MAP: {
+        return aes128_tables::generate_aes_sparse_table(AES_SPARSE_MAP, index);
+    }
+    case AES_SBOX_MAP: {
+        return aes128_tables::generate_aes_sbox_table(AES_SBOX_MAP, index);
+    }
+    case AES_SPARSE_NORMALIZE: {
+        return aes128_tables::generate_aes_sparse_normalization_table(AES_SPARSE_NORMALIZE, index);
+    }
+    case SHA256_WITNESS_NORMALIZE: {
+        return sha256_tables::generate_witness_extension_normalization_table(SHA256_WITNESS_NORMALIZE, index);
+    }
+    case SHA256_WITNESS_SLICE_3: {
+        return sha256_tables::generate_witness_extension_table<16, 3, 0, 0>(SHA256_WITNESS_SLICE_3, index);
+    }
+    case SHA256_WITNESS_SLICE_7_ROTATE_4: {
+        return sha256_tables::generate_witness_extension_table<16, 7, 4, 0>(SHA256_WITNESS_SLICE_7_ROTATE_4, index);
+    }
+    case SHA256_WITNESS_SLICE_8_ROTATE_7: {
+        return sha256_tables::generate_witness_extension_table<16, 8, 7, 0>(SHA256_WITNESS_SLICE_8_ROTATE_7, index);
+    }
+    case SHA256_WITNESS_SLICE_14_ROTATE_1: {
+        return sha256_tables::generate_witness_extension_table<16, 14, 1, 0>(SHA256_WITNESS_SLICE_14_ROTATE_1, index);
+    }
+    case SHA256_CH_NORMALIZE: {
+        return sha256_tables::generate_choose_normalization_table(SHA256_CH_NORMALIZE, index);
+    }
+    case SHA256_MAJ_NORMALIZE: {
+        return sha256_tables::generate_majority_normalization_table(SHA256_MAJ_NORMALIZE, index);
+    }
+    case SHA256_BASE28: {
+        return sha256_tables::generate_sha256_sparse_table<28, 0>(SHA256_BASE28, index);
+    }
+    case SHA256_BASE28_ROTATE6: {
+        return sha256_tables::generate_sha256_sparse_table<28, 6>(SHA256_BASE28_ROTATE6, index);
+    }
+    case SHA256_BASE28_ROTATE3: {
+        return sha256_tables::generate_sha256_sparse_table<28, 3>(SHA256_BASE28_ROTATE3, index);
+    }
+    case SHA256_BASE16: {
+        return sha256_tables::generate_sha256_sparse_table<16, 0>(SHA256_BASE16, index);
+    }
+    case SHA256_BASE16_ROTATE2: {
+        return sha256_tables::generate_sha256_sparse_table<16, 2>(SHA256_BASE16_ROTATE2, index);
+    }
+    default: {
+        throw;
+    }
+    }
+}
+} // namespace plookup
 } // namespace waffle

@@ -4,7 +4,7 @@
 #include <numeric/bitop/rotate.hpp>
 #include <numeric/bitop/sparse_form.hpp>
 
-#include "./plookup_tables.hpp"
+#include "./types.hpp"
 
 namespace waffle {
 
