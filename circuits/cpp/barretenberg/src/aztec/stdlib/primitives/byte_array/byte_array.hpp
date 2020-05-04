@@ -49,7 +49,9 @@ template <typename ComposerContext> class byte_array {
 
     ComposerContext* get_context() const { return context; }
 
-    std::string get_value() const;
+    std::vector<uint8_t> get_value() const;
+
+    std::string get_string() const;
 
   private:
     ComposerContext* context;

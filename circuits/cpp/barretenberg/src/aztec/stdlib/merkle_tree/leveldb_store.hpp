@@ -1,71 +1,103 @@
 #pragma once
 #include "hash_path.hpp"
-#include <stdlib/primitives/field/field.hpp>
-
-namespace leveldb {
-class DB;
-}
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
+#include <map>
+#include <set>
+#include <common/streams.hpp>
 
 namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
+using namespace leveldb;
 
-class leveldb_tx;
+inline std::string to_string(std::vector<uint8_t> const& input) {
+    return std::string((char*)input.data(), input.size());
+}
 
 class LevelDbStore {
   public:
-    typedef uint128_t index_t;
-    typedef std::string value_t;
+    LevelDbStore(std::string const& db_path) {
+        leveldb::DB* db;
+        leveldb::Options options;
+        options.create_if_missing = true;
+        options.compression = leveldb::kNoCompression;
+        leveldb::Status status = leveldb::DB::Open(options, db_path, &db);
+        ASSERT(status.ok());
+        db_.reset(db);
+    }
 
-    LevelDbStore(std::string const& path, size_t depth);
-    LevelDbStore(LevelDbStore const& other) = delete;
-    LevelDbStore(LevelDbStore&& other);
-    ~LevelDbStore();
+    static void destroy(std::string path)
+    {
+        leveldb::DestroyDB(path, leveldb::Options());
+    }
 
-    static void destroy(std::string path);
+    bool put(std::vector<uint8_t> const& key, std::vector<uint8_t> const& value)
+    {
+        auto key_str = to_string(key);
+        return put(key_str, value);
+    }
 
-    fr_hash_path get_hash_path(index_t index);
+    bool put(std::string const& key, std::vector<uint8_t> const& value)
+    {
+        puts_[key] = to_string(value);
+        deletes_.erase(key);
+        return true;
+    }
 
-    void update_element(index_t index, value_t const& value);
+    bool del(std::vector<uint8_t> const& key)
+    {
+        auto key_str = to_string(key);
+        puts_.erase(key_str);
+        deletes_.insert(key_str);
+        return true;
+    };
 
-    value_t get_element(index_t index);
+    bool get(std::vector<uint8_t> const& key, std::vector<uint8_t>& value) {
+        return get(to_string(key), value);
+    }
 
-    fr root() const;
+    bool get(std::string const& key, std::vector<uint8_t>& value)
+    {
+        if (deletes_.find(key) != deletes_.end()) {
+            return false;
+        }
+        auto it = puts_.find(key);
+        if (it != puts_.end()) {
+            value = std::vector<uint8_t>(it->second.begin(), it->second.end());
+            return true;
+        } else {
+            std::string result;
+            leveldb::Status status = db_->Get(ReadOptions(), key, &result);
+            value = { result.begin(), result.end() };
+            return status.ok();
+        }
+    }
 
-    size_t depth() const { return depth_; }
+    void commit()
+    {
+        leveldb::WriteBatch batch;
+        for (auto it : puts_) {
+            batch.Put(it.first, it.second);
+        }
+        for (auto key : deletes_) {
+            batch.Delete(key);
+        }
+        db_->Write(leveldb::WriteOptions(), &batch);
+        puts_.clear();
+        deletes_.clear();
+    }
 
-    size_t size() const;
-
-    void commit();
-
-    void rollback();
+    void rollback() {
+        puts_.clear();
+        deletes_.clear();
+    }
 
   private:
-    fr update_element(fr const& root, fr const& value, index_t index, size_t height);
-
-    fr get_element(fr const& root, index_t index, size_t height);
-
-    fr compute_zero_path_hash(size_t height, index_t index, fr const& value);
-
-    fr binary_put(index_t a_index, fr const& a, fr const& b, size_t height);
-
-    fr fork_stump(
-        fr const& value1, index_t index1, fr const& value2, index_t index2, size_t height, size_t stump_height);
-
-    void put(fr const& key, fr const& left, fr const& right);
-
-    void put_stump(fr const& key, index_t index, fr const& value);
-
-  private:
-    static constexpr size_t LEAF_BYTES = 64;
     std::unique_ptr<leveldb::DB> db_;
-    std::unique_ptr<leveldb_tx> tx_;
-    std::vector<fr> zero_hashes_;
-    size_t depth_;
-    size_t size_;
-    fr root_;
+    std::map<std::string, std::string> puts_;
+    std::set<std::string> deletes_;
 };
 
 } // namespace merkle_tree

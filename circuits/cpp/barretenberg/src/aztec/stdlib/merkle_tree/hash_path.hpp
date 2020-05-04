@@ -13,7 +13,7 @@ using namespace barretenberg;
 typedef std::vector<std::pair<fr, fr>> fr_hash_path;
 template <typename Ctx> using hash_path = std::vector<std::pair<field_t<Ctx>, field_t<Ctx>>>;
 
-inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t index, std::string const& value)
+inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t index, std::vector<uint8_t> const& value)
 {
     fr_hash_path path = old_path;
     fr current = hash_value_native(value);
@@ -51,7 +51,7 @@ inline fr get_hash_path_root(fr_hash_path const& input)
 // We add to std namespace as fr_hash_path is actually a std::vector, and this is the only way
 // to achieve effective ADL.
 namespace std {
-inline void read(uint8_t*& it, plonk::stdlib::merkle_tree::fr_hash_path& path)
+inline void read(uint8_t const*& it, plonk::stdlib::merkle_tree::fr_hash_path& path)
 {
     for (size_t i = 0; i < path.size(); ++i) {
         barretenberg::fr lhs, rhs;

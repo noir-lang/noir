@@ -33,7 +33,7 @@ TEST(stdlib_blake2s, test_single_block)
 
     std::vector<uint8_t> expected = blake2::blake2s(input_v);
 
-    EXPECT_EQ(output.get_value(), std::string(expected.begin(), expected.end()));
+    EXPECT_EQ(output.get_value(), expected);
 
     auto prover = composer.create_prover();
 
@@ -57,7 +57,7 @@ TEST(stdlib_blake2s, test_double_block)
 
     std::vector<uint8_t> expected = blake2::blake2s(input_v);
 
-    EXPECT_EQ(output.get_value(), std::string(expected.begin(), expected.end()));
+    EXPECT_EQ(output.get_value(), expected);
 
     auto prover = composer.create_prover();
 

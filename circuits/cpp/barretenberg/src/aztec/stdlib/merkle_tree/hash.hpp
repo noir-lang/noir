@@ -16,10 +16,9 @@ template <typename ComposerContext> inline field_t<ComposerContext> hash_value(b
     return static_cast<field_t<ComposerContext>>(stdlib::blake2s(input));
 }
 
-inline barretenberg::fr hash_value_native(std::string const& input)
+inline barretenberg::fr hash_value_native(std::vector<uint8_t> const& input)
 {
-    std::vector<uint8_t> inputv(input.begin(), input.end());
-    std::vector<uint8_t> output = blake2::blake2s(inputv);
+    std::vector<uint8_t> output = blake2::blake2s(input);
     return barretenberg::fr::serialize_from_buffer(output.data());
 }
 

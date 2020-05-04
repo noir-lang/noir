@@ -22,10 +22,10 @@ struct join_split_tx {
     crypto::schnorr::signature signature;
 
     std::vector<uint8_t> to_buffer();
-    static join_split_tx from_buffer(uint8_t* buf);
+    static join_split_tx from_buffer(uint8_t const* buf);
 };
 
-void read(uint8_t*& it, join_split_tx& tx);
+void read(uint8_t const*& it, join_split_tx& tx);
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx);
 
 bool operator==(join_split_tx const& lhs, join_split_tx const& rhs);

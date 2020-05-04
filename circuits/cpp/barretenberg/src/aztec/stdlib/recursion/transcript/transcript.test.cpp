@@ -88,7 +88,7 @@ transcript::Transcript get_test_base_transcript(const TestData& data)
                              static_cast<uint8_t>(data.num_public_inputs) });
     transcript.apply_fiat_shamir("init");
 
-    transcript.add_element("public_inputs", barretenberg::fr::to_buffer(data.public_input_elements));
+    transcript.add_element("public_inputs", to_buffer(data.public_input_elements));
 
     transcript.add_element("W_1", data.g1_elements[0].to_buffer());
     transcript.add_element("W_2", data.g1_elements[1].to_buffer());
@@ -236,7 +236,7 @@ TEST(stdlib_transcript, validate_transcript)
     const auto check_public_inputs = [&normal_transcript, &recursive_transcript]() {
         std::vector<field_t> result = recursive_transcript.get_field_element_vector("public_inputs");
         std::vector<barretenberg::fr> expected =
-            barretenberg::fr::from_buffer(normal_transcript.get_element("public_inputs"));
+            many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
         EXPECT_EQ(result.size(), expected.size());
         for (size_t i = 0; i < result.size(); ++i) {
             EXPECT_EQ(result[i].get_value(), expected[i]);

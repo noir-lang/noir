@@ -17,7 +17,7 @@ std::vector<uint8_t> join_split_tx::to_buffer()
     return buf;
 }
 
-join_split_tx join_split_tx::from_buffer(uint8_t* buf)
+join_split_tx join_split_tx::from_buffer(uint8_t const* buf)
 {
     join_split_tx tx;
     tx.input_path[0].resize(32);
@@ -40,7 +40,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.signature);
 }
 
-void read(uint8_t*& it, join_split_tx& tx)
+void read(uint8_t const*& it, join_split_tx& tx)
 {
     read(it, tx.owner_pub_key);
     ::read(it, tx.public_input);

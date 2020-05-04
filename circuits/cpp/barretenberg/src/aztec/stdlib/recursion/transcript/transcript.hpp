@@ -116,7 +116,7 @@ template <typename Composer> class Transcript {
         for (size_t i = 0; i < elements.size(); ++i) {
             values.push_back(elements[i].get_value());
         }
-        transcript_base.add_element(element_name, barretenberg::fr::to_buffer(values));
+        transcript_base.add_element(element_name, to_buffer(values));
         field_vector_keys.push_back(element_name);
         field_vector_values.push_back(elements);
     }
@@ -293,7 +293,7 @@ template <typename Composer> class Transcript {
         if (cache_idx != -1) {
             return field_vector_values[static_cast<size_t>(cache_idx)];
         }
-        std::vector<barretenberg::fr> values = barretenberg::fr::from_buffer(transcript_base.get_element(element_name));
+        std::vector<barretenberg::fr> values = many_from_buffer<fr>(transcript_base.get_element(element_name));
         std::vector<field_pt> result;
 
         for (size_t i = 0; i < values.size(); ++i) {

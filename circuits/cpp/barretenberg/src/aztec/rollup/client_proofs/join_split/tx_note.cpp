@@ -48,9 +48,7 @@ bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
 
         sum += p_3;
 
-        sum = sum.normalize();
-
-        if (sum == encrypted_note) {
+        if (grumpkin::g1::affine_element(sum) == encrypted_note) {
             r = value;
             return true;
         }

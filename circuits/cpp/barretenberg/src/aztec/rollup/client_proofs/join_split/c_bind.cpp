@@ -30,28 +30,25 @@ WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t cons
     init_verification_key(std::move(crs_factory));
 }
 
-WASM_EXPORT void join_split__sign_4_notes(uint8_t* note_buffer, uint8_t* pk_buffer, uint8_t* output)
+WASM_EXPORT void join_split__sign_4_notes(uint8_t const* note_buffer, uint8_t* pk_buffer, uint8_t* output)
 {
     auto private_key = grumpkin::fr::serialize_from_buffer(pk_buffer);
     grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
-    std::array<tx_note, 4> notes;
-    read(note_buffer, notes);
+    auto notes = from_buffer<std::array<tx_note, 4>>(note_buffer);
     auto signature = sign_notes(notes, { private_key, public_key });
     write(output, signature);
 }
 
-WASM_EXPORT void join_split__encrypt_note(uint8_t* note_buffer, uint8_t* output)
+WASM_EXPORT void join_split__encrypt_note(uint8_t const* note_buffer, uint8_t* output)
 {
-    tx_note note;
-    read(note_buffer, note);
+    tx_note note = from_buffer<tx_note>(note_buffer);
     auto encrypted = encrypt_note(note);
-    write(output, encrypted.x);
-    write(output, encrypted.y);
+    write(output, encrypted);
 }
 
-WASM_EXPORT bool join_split__decrypt_note(uint8_t* encrypted_note_buf,
-                                          uint8_t* private_key_buf,
-                                          uint8_t* viewing_key_buf,
+WASM_EXPORT bool join_split__decrypt_note(uint8_t const* encrypted_note_buf,
+                                          uint8_t const* private_key_buf,
+                                          uint8_t const* viewing_key_buf,
                                           uint8_t* output)
 {
     grumpkin::g1::affine_element encrypted_note;
@@ -67,7 +64,7 @@ WASM_EXPORT bool join_split__decrypt_note(uint8_t* encrypted_note_buf,
     return success;
 }
 
-WASM_EXPORT void* join_split__new_prover(uint8_t* join_split_buf)
+WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf)
 {
     auto tx = join_split_tx::from_buffer(join_split_buf);
     auto prover = new_join_split_prover(tx);

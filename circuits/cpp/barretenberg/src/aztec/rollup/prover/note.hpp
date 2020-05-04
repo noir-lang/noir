@@ -16,7 +16,7 @@ void set_note_public(Composer& composer, pedersen_note::public_note const& note)
 
 byte_array_ct create_note_leaf(Composer& composer, pedersen_note::public_note const& note);
 
-std::string create_note_db_element(pedersen_note::public_note const& note);
+std::vector<uint8_t> create_note_db_element(pedersen_note::public_note const& note);
 
 } // namespace prover
 } // namespace rollup

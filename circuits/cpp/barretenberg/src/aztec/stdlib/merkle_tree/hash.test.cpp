@@ -18,7 +18,7 @@ TEST(stdlib_merkle_tree, compress_native_vs_circuit)
 
 TEST(stdlib_merkle_tree, hash_value_native_vs_circuit)
 {
-    std::string x = std::string(64, '\1');
+    std::vector<uint8_t> x = std::vector<uint8_t>(64, '\1');
     Composer composer = Composer();
     byte_array_ct y(&composer, x);
     field_ct z = plonk::stdlib::merkle_tree::hash_value(y);

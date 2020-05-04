@@ -18,7 +18,7 @@ barretenberg::g1::affine_element StandardTranscript::get_group_element(const std
 
 std::vector<barretenberg::fr> StandardTranscript::get_field_element_vector(const std::string& element_name) const
 {
-    return barretenberg::fr::from_buffer(get_element(element_name));
+    return many_from_buffer<barretenberg::fr>(get_element(element_name));
 }
 
 barretenberg::fr StandardTranscript::get_challenge_field_element(const std::string& challenge_name,
