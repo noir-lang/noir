@@ -66,7 +66,7 @@ inline void read(uint8_t const*& it, uint128_t& value)
 
 inline void write(uint8_t*& it, uint128_t value)
 {
-    uint64_t hi = static_cast<uint64_t>(value) >> 64;
+    uint64_t hi = static_cast<uint64_t>(value >> 64);
     uint64_t lo = static_cast<uint64_t>(value);
     write(it, hi);
     write(it, lo);
