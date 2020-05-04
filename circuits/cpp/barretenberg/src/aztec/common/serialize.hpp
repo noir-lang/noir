@@ -66,7 +66,7 @@ inline void read(uint8_t const*& it, uint128_t& value)
 
 inline void write(uint8_t*& it, uint128_t value)
 {
-    uint64_t hi = value >> 64;
+    uint64_t hi = static_cast<uint64_t>(value) >> 64;
     uint64_t lo = static_cast<uint64_t>(value);
     write(it, hi);
     write(it, lo);
@@ -146,8 +146,7 @@ inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::array<T, N> co
 }
 
 // Optimised specialisation for writing arrays of bytes to an output stream.
-template <size_t N>
-inline void write(std::ostream& os, std::array<uint8_t, N> const& value)
+template <size_t N> inline void write(std::ostream& os, std::array<uint8_t, N> const& value)
 {
     os.write((char*)value.data(), value.size());
 }
