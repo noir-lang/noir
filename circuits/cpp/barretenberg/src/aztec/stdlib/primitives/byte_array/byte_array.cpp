@@ -177,8 +177,8 @@ template <typename ComposerContext> std::vector<uint8_t> byte_array<ComposerCont
     std::vector<uint8_t> bytes(num, 0);
     for (size_t i = 0; i < length; ++i) {
         size_t index = i / 8;
-        char shift = static_cast<char>(7 - (i - index * 8));
-        char value = static_cast<char>(values[i].get_value() << shift);
+        uint8_t shift = static_cast<uint8_t>(7 - (i - index * 8));
+        uint8_t value = static_cast<uint8_t>(values[i].get_value() << shift);
         bytes[index] |= value;
     }
     return bytes;
