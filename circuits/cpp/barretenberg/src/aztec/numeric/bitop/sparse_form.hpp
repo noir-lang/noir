@@ -82,4 +82,63 @@ template <uint64_t base> constexpr uint64_t map_from_sparse_form(const uint256_t
 
     return output;
 }
+
+template <uint64_t base, uint64_t num_bits> class sparse_int {
+  public:
+    sparse_int(const uint64_t input = 0)
+        : value(input)
+    {
+        for (uint64_t i = 0; i < num_bits; ++i) {
+            const uint64_t bit = (input >> i) & 1;
+            limbs[i] = bit;
+        }
+    }
+    sparse_int(const sparse_int& other) = default;
+    sparse_int(sparse_int&& other) = default;
+
+    sparse_int& operator=(const sparse_int& other) = default;
+    sparse_int& operator=(sparse_int&& other) = default;
+
+    sparse_int operator+(const sparse_int& other) const
+    {
+        sparse_int result(*this);
+        for (size_t i = 0; i < num_bits - 1; ++i) {
+            result.limbs[i] += other.limbs[i];
+            if (result.limbs[i] >= base) {
+                result.limbs[i] -= base;
+                ++result.limbs[i + 1];
+            }
+        }
+        result.limbs[num_bits - 1] += other.limbs[num_bits - 1];
+        result.limbs[num_bits - 1] %= base;
+        result.value += other.value;
+        return result;
+    };
+
+    sparse_int operator+=(const sparse_int& other)
+    {
+        *this = *this + other;
+        return *this;
+    }
+
+    uint64_t get_value() const { return value; }
+
+    uint64_t get_sparse_value() const
+    {
+        uint64_t result = 0;
+        for (uint64_t i = num_bits - 1; i < num_bits; --i) {
+            result *= base;
+            result += limbs[i];
+        }
+        return result;
+    }
+
+    const std::array<uint64_t, num_bits>& get_limbs() const { return limbs; }
+
+  private:
+    std::array<uint64_t, num_bits> limbs;
+    uint64_t value;
+    uint64_t sparse_value;
+};
+
 } // namespace numeric

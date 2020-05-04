@@ -27,16 +27,16 @@ inline PLookupTable create_table(const PLookupTableId id, const size_t index)
         return sha256_tables::generate_witness_extension_normalization_table(SHA256_WITNESS_NORMALIZE, index);
     }
     case SHA256_WITNESS_SLICE_3: {
-        return sha256_tables::generate_witness_extension_table<16, 3, 0, 0>(SHA256_WITNESS_SLICE_3, index);
+        return sha256_tables::generate_sparse_table_with_rotation<16, 3, 0>(SHA256_WITNESS_SLICE_3, index);
     }
     case SHA256_WITNESS_SLICE_7_ROTATE_4: {
-        return sha256_tables::generate_witness_extension_table<16, 7, 4, 0>(SHA256_WITNESS_SLICE_7_ROTATE_4, index);
+        return sha256_tables::generate_sparse_table_with_rotation<16, 7, 4>(SHA256_WITNESS_SLICE_7_ROTATE_4, index);
     }
     case SHA256_WITNESS_SLICE_8_ROTATE_7: {
-        return sha256_tables::generate_witness_extension_table<16, 8, 7, 0>(SHA256_WITNESS_SLICE_8_ROTATE_7, index);
+        return sha256_tables::generate_sparse_table_with_rotation<16, 8, 7>(SHA256_WITNESS_SLICE_8_ROTATE_7, index);
     }
     case SHA256_WITNESS_SLICE_14_ROTATE_1: {
-        return sha256_tables::generate_witness_extension_table<16, 14, 1, 0>(SHA256_WITNESS_SLICE_14_ROTATE_1, index);
+        return sha256_tables::generate_sparse_table_with_rotation<16, 14, 1>(SHA256_WITNESS_SLICE_14_ROTATE_1, index);
     }
     case SHA256_CH_NORMALIZE: {
         return sha256_tables::generate_choose_normalization_table(SHA256_CH_NORMALIZE, index);
@@ -45,19 +45,19 @@ inline PLookupTable create_table(const PLookupTableId id, const size_t index)
         return sha256_tables::generate_majority_normalization_table(SHA256_MAJ_NORMALIZE, index);
     }
     case SHA256_BASE28: {
-        return sha256_tables::generate_sha256_sparse_table<28, 0>(SHA256_BASE28, index);
+        return sha256_tables::generate_sparse_table_with_rotation<28, 11, 0>(SHA256_BASE28, index);
     }
     case SHA256_BASE28_ROTATE6: {
-        return sha256_tables::generate_sha256_sparse_table<28, 6>(SHA256_BASE28_ROTATE6, index);
+        return sha256_tables::generate_sparse_table_with_rotation<28, 11, 6>(SHA256_BASE28_ROTATE6, index);
     }
     case SHA256_BASE28_ROTATE3: {
-        return sha256_tables::generate_sha256_sparse_table<28, 3>(SHA256_BASE28_ROTATE3, index);
+        return sha256_tables::generate_sparse_table_with_rotation<28, 11, 3>(SHA256_BASE28_ROTATE3, index);
     }
     case SHA256_BASE16: {
-        return sha256_tables::generate_sha256_sparse_table<16, 0>(SHA256_BASE16, index);
+        return sha256_tables::generate_sparse_table_with_rotation<16, 11, 0>(SHA256_BASE16, index);
     }
     case SHA256_BASE16_ROTATE2: {
-        return sha256_tables::generate_sha256_sparse_table<16, 2>(SHA256_BASE16_ROTATE2, index);
+        return sha256_tables::generate_sparse_table_with_rotation<16, 11, 2>(SHA256_BASE16_ROTATE2, index);
     }
     default: {
         throw;

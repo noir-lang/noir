@@ -298,7 +298,6 @@ barretenberg::fr ProverPLookupWidget::compute_quotient_contribution(const fr& al
 
     polynomial& quotient_large = key->quotient_large;
 
-    const fr one(1);
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
 
     const polynomial& l_1 = key->lagrange_1;

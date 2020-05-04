@@ -91,7 +91,7 @@ TEST(plookup_composer, read_from_table_with_single_key)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    composer.lookup_tables.emplace_back(std::move(generate_sparse_map()));
+    composer.lookup_tables.emplace_back((generate_sparse_map()));
 
     constexpr uint64_t bit_mask = (1 << 11) - 1;
     for (size_t i = 0; i < 16; ++i) {
@@ -124,7 +124,7 @@ TEST(plookup_composer, read_sequence_with_single_key)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    composer.lookup_tables.emplace_back(std::move(generate_sparse_map()));
+    composer.lookup_tables.emplace_back((generate_sparse_map()));
 
     constexpr uint64_t base = 28;
 
@@ -192,7 +192,7 @@ TEST(plookup_composer, read_from_table_with_key_pair)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+    composer.lookup_tables.emplace_back((generate_xor_table()));
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {
@@ -211,7 +211,7 @@ TEST(plookup_composer, read_from_table_with_key_pair)
 TEST(plookup_composer, read_sequence_from_table)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+    composer.lookup_tables.emplace_back((generate_xor_table()));
 
     for (size_t i = 0; i < 16; i += 2) {
         for (size_t j = 0; j < 16; j += 2) {
@@ -284,7 +284,7 @@ TEST(plookup_composer, read_sequence_from_table)
 TEST(plookup_composer, read_alternate_sequence_from_table)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+    composer.lookup_tables.emplace_back((generate_xor_table()));
 
     for (size_t i = 0; i < 16; i += 2) {
         for (size_t j = 0; j < 16; j += 2) {
@@ -372,7 +372,7 @@ TEST(plookup_composer, read_alternate_sequence_from_table)
 TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+    composer.lookup_tables.emplace_back((generate_xor_table()));
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {
@@ -485,7 +485,7 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
 TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+    composer.lookup_tables.emplace_back((generate_xor_table()));
 
     for (size_t i = 0; i < 16; i += 2) {
         for (size_t j = 0; j < 16; j += 2) {
@@ -628,7 +628,7 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
 TEST(plookup_composer, test_relative_lookup_proof)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    composer.lookup_tables.emplace_back(std::move(generate_xor_table()));
+    composer.lookup_tables.emplace_back((generate_xor_table()));
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {

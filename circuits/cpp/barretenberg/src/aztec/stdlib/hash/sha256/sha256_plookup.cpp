@@ -360,9 +360,8 @@ bit_array<waffle::PLookupComposer> sha256(const bit_array<waffle::PLookupCompose
         }
         rolling_hash = sha256_inner_block(rolling_hash, hash_input);
     }
-
-    std::array<uint32, 16> out;
-    for (size_t i = 0; i < 16; ++i) {
+    std::array<uint32, 8> out;
+    for (size_t i = 0; i < 8; ++i) {
         out[i] = uint32(rolling_hash[i]);
     }
     return bit_array(out);
