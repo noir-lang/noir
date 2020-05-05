@@ -6,7 +6,7 @@ namespace plookup {
 using namespace barretenberg;
 
 namespace {
-static std::array<PLookupMultiTable, 6> MULTI_TABLES;
+static std::array<PLookupMultiTable, PLookupMultiTableId::NUM_MULTI_TABES> MULTI_TABLES;
 static bool inited = false;
 
 void init_multi_tables()
@@ -23,6 +23,10 @@ void init_multi_tables()
         sha256_tables::get_majority_output_table(PLookupMultiTableId::SHA256_MAJ_OUTPUT);
     MULTI_TABLES[PLookupMultiTableId::SHA256_WITNESS_OUTPUT] =
         sha256_tables::get_witness_extension_output_table(PLookupMultiTableId::SHA256_WITNESS_OUTPUT);
+    MULTI_TABLES[PLookupMultiTableId::AES_NORMALIZE] =
+        aes128_tables::get_aes_normalization_table(PLookupMultiTableId::AES_NORMALIZE);
+    MULTI_TABLES[PLookupMultiTableId::AES_INPUT] = aes128_tables::get_aes_input_table(PLookupMultiTableId::AES_INPUT);
+    MULTI_TABLES[PLookupMultiTableId::AES_SBOX] = aes128_tables::get_aes_sbox_table(PLookupMultiTableId::AES_SBOX);
 }
 } // namespace
 

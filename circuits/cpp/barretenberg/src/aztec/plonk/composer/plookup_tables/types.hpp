@@ -37,6 +37,10 @@ enum PLookupMultiTableId {
     SHA256_MAJ_OUTPUT = 3,
     SHA256_WITNESS_INPUT = 4,
     SHA256_WITNESS_OUTPUT = 5,
+    AES_NORMALIZE = 6,
+    AES_INPUT = 7,
+    AES_SBOX = 8,
+    NUM_MULTI_TABES = 9,
 };
 
 struct PLookupMultiTable {

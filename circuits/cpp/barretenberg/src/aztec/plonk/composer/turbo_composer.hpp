@@ -4,8 +4,7 @@
 namespace waffle {
 class TurboComposer : public ComposerBase {
   public:
-    enum TurboSelectors
-    {
+    enum TurboSelectors {
         QM = 0,
         QC = 1,
         Q1 = 2,
@@ -74,7 +73,6 @@ class TurboComposer : public ComposerBase {
         };
         create_add_gate(gate_coefficients);
     }
-
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
@@ -168,7 +166,7 @@ class TurboComposer : public ComposerBase {
                   20,
                   true),
               transcript::Manifest::RoundManifest(
-                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
+                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 2) });
         return output;
     }
 };

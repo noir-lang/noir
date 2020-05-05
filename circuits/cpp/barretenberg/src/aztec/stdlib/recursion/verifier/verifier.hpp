@@ -26,6 +26,7 @@ template <typename Field, typename Group> struct recursion_output {
     Group P1;
     // the public inputs of the inner ciruit are now private inputs of the outer circuit!
     std::vector<Field> public_inputs;
+    bool has_data = false;
 };
 
 template <typename Composer> struct lagrange_evaluations {
@@ -58,10 +59,17 @@ template <typename Composer, typename program_settings>
 recursion_output<
     field_t<Composer>,
     element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>
-verify_proof(Composer* context,
-             std::shared_ptr<waffle::verification_key> key,
-             const transcript::Manifest& manifest,
-             const waffle::plonk_proof& proof)
+verify_proof(
+    Composer* context,
+    std::shared_ptr<waffle::verification_key> key,
+    const transcript::Manifest& manifest,
+    const waffle::plonk_proof& proof,
+    const recursion_output<
+        field_t<Composer>,
+        element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>
+        previous_output = recursion_output<
+            field_t<Composer>,
+            element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>())
 {
     using field_pt = field_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
@@ -120,7 +128,7 @@ verify_proof(Composer* context,
     transcript.apply_fiat_shamir("nu");
     transcript.apply_fiat_shamir("separator");
 
-    field_pt u = transcript.get_challenge_field_element("separator");
+    field_pt u = transcript.get_challenge_field_element("separator", 0);
 
     field_pt batch_evaluation = t_eval;
 
@@ -219,15 +227,33 @@ verify_proof(Composer* context,
             context->assert_equal(Z_1.y.prime_basis_limb.witness_index, input.y.prime_basis_limb.witness_index);
         }
     }
+
+    std::vector<group_pt> lhs_elements;
+    std::vector<field_pt> lhs_scalars;
+
+    lhs_elements.push_back(PI_Z_OMEGA);
+    lhs_scalars.push_back(u);
+
+    if (previous_output.has_data) {
+        field_pt random_separator = transcript.get_challenge_field_element("separator", 1);
+
+        small_elements.push_back(previous_output.P0);
+        small_scalars.push_back(random_separator);
+
+        lhs_elements.push_back((-(previous_output.P1)).normalize());
+        lhs_scalars.push_back(random_separator);
+    }
+
     group_pt rhs = group_pt::mixed_batch_mul(big_elements, big_scalars, small_elements, small_scalars, 129);
     rhs = (rhs + T[0]).normalize();
-    group_pt lhs = group_pt::batch_mul({ PI_Z_OMEGA }, { u }, 128);
+    group_pt lhs = group_pt::batch_mul(lhs_elements, lhs_scalars, 128);
     lhs = lhs + PI_Z;
     lhs = (-lhs).normalize();
     return recursion_output<field_pt, group_pt>{
         rhs,
         lhs,
         transcript.get_field_element_vector("public_inputs"),
+        true,
     };
 }
 

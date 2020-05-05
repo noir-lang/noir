@@ -6,6 +6,8 @@
 #include <numeric/bitop/sparse_form.hpp>
 #include <crypto/aes128/aes128.hpp>
 
+#include <stdlib/primitives/plookup/plookup.hpp>
+
 using namespace crypto::aes128;
 using namespace barretenberg;
 
@@ -17,44 +19,31 @@ constexpr uint32_t AES128_BASE = 9;
 typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_t;
 typedef plonk::stdlib::witness_t<waffle::PLookupComposer> witness_t;
 
-struct byte_pair {
-    field_t first;
-    field_t second;
-};
+typedef std::pair<field_t, field_t> byte_pair;
 
-field_t normalize_sparse_form(waffle::PLookupComposer* ctx, field_t& byte)
+field_t normalize_sparse_form(waffle::PLookupComposer*, field_t& byte)
 {
     byte = byte.normalize();
-    const uint32_t result_index = ctx->read_sequence_from_table(
-        waffle::PLookupTableId::AES_SPARSE_NORMALIZE, byte.witness_index, ctx->zero_idx, 2)[2][0];
-    return field_t::from_witness_index(ctx, result_index);
-}
-
-byte_pair apply_aes_sbox_map(waffle::PLookupComposer* ctx, field_t& input)
-{
-    input = input.normalize();
-
-    const std::array<uint32_t, 2> indices =
-        ctx->read_from_table(waffle::PLookupTableId::AES_SBOX_MAP, input.witness_index);
-
-    byte_pair result{
-        field_t::from_witness_index(ctx, indices[0]),
-        field_t::from_witness_index(ctx, indices[1]),
-    };
+    auto result = plookup::read_from_table(waffle::AES_NORMALIZE, byte);
     return result;
 }
 
-std::array<field_t, 16> convert_into_sparse_bytes(waffle::PLookupComposer* ctx, const field_t& block_data)
+byte_pair apply_aes_sbox_map(waffle::PLookupComposer*, field_t& input)
+{
+    input = input.normalize();
+
+    return plookup::read_pair_from_table(waffle::AES_SBOX, input);
+}
+
+std::array<field_t, 16> convert_into_sparse_bytes(waffle::PLookupComposer*, const field_t& block_data)
 {
     // `block_data` must be a 128 bit variable
-    uint256_t buffer(block_data.get_value());
     std::array<field_t, 16> sparse_bytes;
 
-    const auto indices = ctx->read_sequence_from_table(
-        waffle::PLookupTableId::AES_SPARSE_MAP, block_data.witness_index, ctx->zero_idx, 16);
+    auto sequence = plookup::read_sequence_from_table(waffle::AES_INPUT, block_data);
 
     for (size_t i = 0; i < 16; ++i) {
-        sparse_bytes[15 - i] = field_t::from_witness_index(ctx, indices[2][i]);
+        sparse_bytes[15 - i] = sequence[1][i];
     }
 
     return sparse_bytes;
@@ -64,7 +53,6 @@ field_t convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_t* sparse_
 {
     std::array<field_t, 16> bytes;
 
-    // compute target output
     uint256_t accumulator = 0;
     for (size_t i = 0; i < 16; ++i) {
         uint64_t sparse_byte = uint256_t(sparse_bytes[i].get_value()).data[0];
@@ -75,11 +63,10 @@ field_t convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_t* sparse_
 
     field_t result = witness_t(ctx, fr(accumulator));
 
-    const auto indices =
-        ctx->read_sequence_from_table(waffle::PLookupTableId::AES_SPARSE_MAP, result.witness_index, ctx->zero_idx, 16);
+    const auto indices = plookup::read_sequence_from_table(waffle::AES_INPUT, result);
 
     for (size_t i = 0; i < 16; ++i) {
-        ctx->assert_equal(sparse_bytes[15 - i].witness_index, indices[2][i]);
+        ctx->assert_equal(sparse_bytes[15 - i].witness_index, indices[1][i].witness_index);
     }
 
     return result;
