@@ -132,8 +132,8 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
                 T0 = lagrange_base_sigmas[0][i] * beta;
                 accumulators[program_width][i] = T0 + wire_plus_gamma;
 
-                // std::cout << "k=0, i="  << i  << "  id:" << lagrange_base_ids[0][i] << "  sigma:" <<
-                // lagrange_base_sigmas[0][i]<< std::endl;
+                std::cout << "k=0, i="  << i  << "  id:" << lagrange_base_ids[0][i] << "  sigma:" <<
+                lagrange_base_sigmas[0][i]<< std::endl;
                 for (size_t k = 1; k < program_width; ++k) {
                     wire_plus_gamma = gamma + lagrange_base_wires[k][i];
                     if constexpr (!idpolys)
@@ -143,8 +143,8 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
                     accumulators[k][i] = T0 + wire_plus_gamma;
                     T0 = lagrange_base_sigmas[k][i] * beta;
                     accumulators[k + program_width][i] = T0 + wire_plus_gamma;
-                    // std::cout << "k="  <<  "i="  << i  << "  id:" << lagrange_base_ids[k][i] << "  sigma:" <<
-                    // lagrange_base_sigmas[k][i]<< std::endl;
+                    std::cout << "k="  << k <<  ", i="  << i  << "  id:" << lagrange_base_ids[k][i] << "  sigma:" <<
+                    lagrange_base_sigmas[k][i]<< std::endl;
                 }
                 if constexpr (!idpolys)
                     cur_root_times_beta *= key->small_domain.root;
@@ -505,7 +505,6 @@ void ProverPermutationWidget<program_width, idpolys>::compute_opening_poly_contr
             T0 = ids[k][i] * nu_challenges[num_sigma_evaluations + k];
             opening_poly_temp += T0;
         }
-        std::cout << "in loop" << std::endl;
     }
 
     shifted_opening_poly[i] += z[i]; // * shifted_nu_challenge;
@@ -513,7 +512,6 @@ void ProverPermutationWidget<program_width, idpolys>::compute_opening_poly_contr
     opening_poly[i] += opening_poly_temp;
 
     ITERATE_OVER_DOMAIN_END;
-    std::cout << "out of loop" << std::endl;
 }
 
 template <size_t program_width, bool idpolys>
@@ -534,12 +532,10 @@ void ProverPermutationWidget<program_width, idpolys>::compute_transcript_element
         transcript.add_element(permutation_key, permutation_eval.to_buffer());
     }
 
-    std::cout << "in trans" << std::endl;
 
     if constexpr (idpolys) { // range will go down by one if we use linearization for idpolys
         for (size_t i = 0; i < program_width; ++i) {
             std::string id_key = "id_" + std::to_string(i + 1);
-            std::cout << "in trans" << std::endl;
             const polynomial& id = key->id_selectors.at(id_key);
             fr id_eval = id.evaluate(z_challenge, n);
             transcript.add_element(id_key, id_eval.to_buffer());

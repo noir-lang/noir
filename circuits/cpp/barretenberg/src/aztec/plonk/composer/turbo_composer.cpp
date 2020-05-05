@@ -427,7 +427,7 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
         // hmmmm
         (*(wires + (i & 3)))->emplace_back(accumulator_index);
     }
-    size_t used_gates = (num_quads + 1) / 4;
+    size_t used_gates = (num_quads + 1) / 4;  
 
     // TODO: handle partially used gates. For now just set them to be zero
     if (used_gates * 4 != (num_quads + 1)) {

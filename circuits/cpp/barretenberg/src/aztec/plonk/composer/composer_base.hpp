@@ -262,7 +262,6 @@ class ComposerBase {
         variable_index_map.emplace_back(REAL_VARIABLE);
         variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
-        std::cout << "adding variable, variable tags len = " << variable_tags.size() << std::endl;
         return static_cast<uint32_t>(variables.size()) - 1U;
     }
 

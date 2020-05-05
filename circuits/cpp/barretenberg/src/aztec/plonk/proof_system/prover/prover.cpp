@@ -508,27 +508,17 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_p
 
 template <typename settings> waffle::plonk_proof& ProverBase<settings>::construct_proof()
 {
-    std::cout << "in proof" << std::endl;
     execute_preamble_round();
-    std::cout << "in proof" << std::endl;
     queue.process_queue();
-    std::cout << "in proof" << std::endl;
     execute_first_round();
-    std::cout << "in proof" << std::endl;
     queue.process_queue();
-    std::cout << "in proof" << std::endl;
     execute_second_round();
-    std::cout << "in proof" << std::endl;
     queue.process_queue();
     execute_third_round();
-    std::cout << "in proof" << std::endl;
     queue.process_queue();
-    std::cout << "in proof" << std::endl;
     execute_fourth_round();
-    std::cout << "in proof" << std::endl;
     execute_fifth_round();
     queue.process_queue();
-    std::cout << "in proof" << std::endl;
     return export_proof();
 }
 

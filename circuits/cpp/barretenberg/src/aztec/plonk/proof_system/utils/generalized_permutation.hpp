@@ -4,17 +4,9 @@
 #include <polynomials/polynomial.hpp>
 
 namespace waffle {
-
-struct permutation_subgroup_element {
-    uint32_t subgroup_index = 0;
-    uint8_t column_index = 0;
-    bool is_public_input = false;
-    bool is_tag = false;
-};
-
 template <typename program_settings>
-inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& output,
-                                                     const std::vector<permutation_subgroup_element>& permutation,
+inline void compute_gen_permutation_lagrange_base_single(barretenberg::polynomial& output,
+                                                     const std::vector<uint32_t>& permutation,
                                                      const barretenberg::evaluation_domain& small_domain)
 {
     if (output.get_size() < permutation.size()) {
@@ -40,25 +32,16 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // unity
 
     // Step 1: mask the high bits and get the permutation index
-    size_t raw_idx = permutation[i].subgroup_index;
-    bool is_public_input = permutation[i].is_public_input;
-    bool is_tag = permutation[i].is_tag;
-    // size_t raw_idx = static_cast<size_t>(permutation[i] & ~program_settings::permutation_mask);
-    // bool is_public_input = raw_idx >= small_domain.size && raw_idx < 2 * small_domain.size;
-    // bool is_tag = raw_idx >= 2 * small_domain.size;
-    // std::cout << "here4" << std::endl;
-    // std::cout << "is_tag = " << is_tag << " . is public input = " << is_public_input << " raw idx = " << std::hex
-    //           << raw_idx << std::dec << std::endl;
-    // raw_idx = is_public_input ? raw_idx - small_domain.size : raw_idx;
+    const size_t raw_idx = static_cast<size_t>(permutation[i] & ~program_settings::permutation_mask);
 
-    // Step 2: is `raw_idx` >= (n / 2)? if so, we will need to index `-roots[raw_idx - subgroup_size / 2]` instead
-    // of `roots[raw_idx]`
+    // Step 2: is `raw_idx` >= (n / 2)? if so, we will need to index `-roots[raw_idx - subgroup_size / 2]` instead of
+    // `roots[raw_idx]`
     const bool negative_idx = raw_idx >= root_size;
 
     // Step 3: compute the index of the subgroup element we'll be accessing.
     // To avoid a conditional branch, we can subtract `negative_idx << log2_root_size` from `raw_idx`
-    // here, `log2_root_size = numeric::get_msb(subgroup_size / 2)` (we know our subgroup size will be a power of 2,
-    // so we lose no precision here)
+    // here, `log2_root_size = numeric::get_msb(subgroup_size / 2)` (we know our subgroup size will be a power of 2, so
+    // we lose no precision here)
     const size_t idx = raw_idx - (static_cast<size_t>(negative_idx) << log2_root_size);
 
     // call `conditionally_subtract_double_modulus`, using `negative_idx` as our predicate.
@@ -67,24 +50,16 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // The output will similarly be overloaded (containing either 2 * modulus - w, or modulus - w)
     output[i] = roots[idx].conditionally_subtract_from_double_modulus(static_cast<uint64_t>(negative_idx));
 
-    // finally, if our permutation maps to an index in either the right wire vector, or the output wire vector, we
-    // need to multiply our result by one of two quadratic non-residues. (this ensure that mapping into the left
-    // wires gives unique values that are not repeated in the right or output wire permutations) (ditto for right
-    // wire and output wire mappings)
+    // finally, if our permutation maps to an index in either the right wire vector, or the output wire vector, we need
+    // to multiply our result by one of two quadratic non-residues.
+    // (this ensure that mapping into the left wires gives unique values that are not repeated in the right or output
+    // wire permutations) (ditto for right wire and output wire mappings)
 
-    if (is_public_input) {
-        output[i] *= barretenberg::fr::external_coset_generator();
-    } else if (is_tag) {
-        output[i] *= barretenberg::fr::tag_coset_generator();
-    } else {
-        {
-            // isolate the highest 2 bits of `permutation[i]` and shunt them down into the 2 least significant bits
-            const uint32_t column_index = permutation[i].column_index;
-            // ((permutation[i] & program_settings::permutation_mask) >> program_settings::permutation_shift);
-            if (column_index > 0) {
-                output[i] *= barretenberg::fr::coset_generator(column_index - 1);
-            }
-        }
+    // isolate the highest 2 bits of `permutation[i]` and shunt them down into the 2 least significant bits
+    const uint32_t column_index =
+        ((permutation[i] & program_settings::permutation_mask) >> program_settings::permutation_shift);
+    if (column_index > 0) {
+        output[i] *= barretenberg::fr::coset_generator(column_index - 1);
     }
     ITERATE_OVER_DOMAIN_END;
 }
