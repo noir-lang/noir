@@ -7,6 +7,7 @@
 #include <numeric/bitop/sparse_form.hpp>
 
 #include "../../primitives/field/field.hpp"
+#include "../../primitives/packed_bytes/packed_bytes.hpp"
 
 namespace waffle {
 class PLookupComposer;
@@ -59,7 +60,8 @@ struct sparse_value {
         normal = in;
         if (normal.witness_index == UINT32_MAX) {
             sparse = field_t<waffle::PLookupComposer>(
-                in.get_context(), barretenberg::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));
+                in.get_context(),
+                barretenberg::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));
         }
     }
 
@@ -87,6 +89,8 @@ std::array<field_t<waffle::PLookupComposer>, 8> sha256_inner_block(
 
 bit_array<waffle::PLookupComposer> sha256(const bit_array<waffle::PLookupComposer>& input);
 byte_array<waffle::PLookupComposer> sha256_block(const byte_array<waffle::PLookupComposer>& input);
+
+packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupComposer>& input);
 
 } // namespace stdlib
 } // namespace plonk

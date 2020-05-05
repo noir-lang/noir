@@ -130,9 +130,16 @@ std::array<field_t<waffle::PLookupComposer>, 64> extend_witness(
         field_pt xor_result = plookup::read_from_table(waffle::SHA256_WITNESS_OUTPUT, xor_result_sparse);
 
         // TODO NORMALIZE WITH RANGE CHECK
+
         field_pt w_out_raw = xor_result.add_two(w_sparse[i - 16].normal, w_sparse[i - 7].normal);
-        field_pt w_out = witness_t<waffle::PLookupComposer>(
-            ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
+        field_pt w_out;
+        if (w_out_raw.witness_index == UINT32_MAX) {
+            w_out = field_pt(ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
+
+        } else {
+            w_out = witness_t<waffle::PLookupComposer>(
+                ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
+        }
         w_sparse[i] = sparse_witness_limbs(w_out);
     }
 
@@ -217,6 +224,12 @@ field_t<waffle::PLookupComposer> add_normalize(const field_t<waffle::PLookupComp
     typedef witness_t<waffle::PLookupComposer> witness_pt;
 
     waffle::PLookupComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
+
+    if (a.witness_index == UINT32_MAX && b.witness_index == UINT32_MAX) {
+        auto sum = uint256_t(a.get_value() + b.get_value());
+        uint64_t normalized = static_cast<uint32_t>(sum.data[0]);
+        return field_pt(ctx, normalized);
+    }
 
     uint256_t sum = a.get_value() + b.get_value();
 
@@ -365,6 +378,46 @@ bit_array<waffle::PLookupComposer> sha256(const bit_array<waffle::PLookupCompose
         out[i] = uint32(rolling_hash[i]);
     }
     return bit_array(out);
+}
+
+packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupComposer>& input)
+{
+    typedef field_t<waffle::PLookupComposer> field_pt;
+
+    waffle::PLookupComposer* ctx = input.get_context();
+
+    auto message_schedule(input);
+
+    const size_t message_bits = message_schedule.size() * 8;
+    message_schedule.append(field_t(ctx, 128), 1);
+
+    constexpr size_t bytes_per_block = 64;
+    const size_t num_bytes = message_schedule.size() + 8;
+    const size_t num_blocks = num_bytes / bytes_per_block + (num_bytes % bytes_per_block != 0);
+
+    const size_t num_total_bytes = num_blocks * bytes_per_block;
+    for (size_t i = num_bytes; i < num_total_bytes; ++i) {
+        message_schedule.append(field_t(ctx, 0), 1);
+    }
+
+    message_schedule.append(field_t(ctx, message_bits), 8);
+
+    const auto slices = message_schedule.to_unverified_byte_slices(4);
+
+    constexpr size_t slices_per_block = 16;
+
+    std::array<field_pt, 8> rolling_hash;
+    prepare_constants(rolling_hash);
+    for (size_t i = 0; i < num_blocks; ++i) {
+        std::array<field_pt, 16> hash_input;
+        for (size_t j = 0; j < 16; ++j) {
+            hash_input[j] = slices[i * slices_per_block + j];
+        }
+        rolling_hash = sha256_inner_block(rolling_hash, hash_input);
+    }
+
+    std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
+    return packed_bytes<waffle::PLookupComposer>(output, 4);
 }
 
 } // namespace stdlib
