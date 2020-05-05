@@ -6,6 +6,6 @@ add_executable(
 target_link_libraries(
     rollup_cli
     PRIVATE
-    rollup_prover
+    rollup_proofs
     env
 )

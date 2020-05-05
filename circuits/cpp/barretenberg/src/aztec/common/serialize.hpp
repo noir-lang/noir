@@ -119,6 +119,20 @@ template <size_t N> inline void write(uint8_t*& buf, std::array<uint8_t, N> cons
     buf += N;
 }
 
+// Optimised specialisation for reading vectors of bytes from a raw buffer.
+inline void read(uint8_t const*& it, std::vector<uint8_t>& value)
+{
+    std::copy(it, it + value.size(), value.data());
+    it += value.size();
+}
+
+// Optimised specialisation for writing vectors of bytes to a raw buffer.
+inline void write(uint8_t*& buf, std::vector<uint8_t> const& value)
+{
+    std::copy(value.begin(), value.end(), buf);
+    buf += value.size();
+}
+
 // Optimised specialisation for writing arrays of bytes to a vector.
 template <size_t N> inline void write(std::vector<uint8_t>& buf, std::array<uint8_t, N> const& value)
 {
