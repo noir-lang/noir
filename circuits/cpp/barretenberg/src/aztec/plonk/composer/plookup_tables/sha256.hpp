@@ -92,18 +92,19 @@ static constexpr uint64_t witness_extension_normalization_table[16]{
     2,
 };
 
-inline PLookupTable generate_witness_extension_normalization_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_witness_extension_normalization_table(PLookupBasicTableId id,
+                                                                        const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, witness_extension_normalization_table>(
         id, table_index);
 }
 
-inline PLookupTable generate_choose_normalization_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_choose_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<28, 2, choose_normalization_table>(id, table_index);
 }
 
-inline PLookupTable generate_majority_normalization_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_majority_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, majority_normalization_table>(id, table_index);
 }
@@ -112,21 +113,11 @@ inline PLookupMultiTable get_witness_extension_output_table(const PLookupMultiTa
 {
     const size_t num_entries = 11;
 
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
-
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(barretenberg::fr(16).pow(3 * i));
-        column_2_coefficients.emplace_back(1 << (3 * i));
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(16 * 16 * 16);
+        table.slice_sizes.emplace_back(numeric::pow64(16, 3));
         table.lookup_ids.emplace_back(SHA256_WITNESS_NORMALIZE);
         table.get_table_values.emplace_back(
             &sparse_tables::get_sparse_normalization_values<16, witness_extension_normalization_table>);
@@ -138,20 +129,11 @@ inline PLookupMultiTable get_choose_output_table(const PLookupMultiTableId id = 
 {
     const size_t num_entries = 16;
 
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
+    PLookupMultiTable table(numeric::pow64(28, 2), 1 << 2, 0, num_entries);
 
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(barretenberg::fr(28).pow(2 * i));
-        column_2_coefficients.emplace_back(1 << (2 * i));
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(28 * 28);
+        table.slice_sizes.emplace_back(numeric::pow64(28, 2));
         table.lookup_ids.emplace_back(SHA256_CH_NORMALIZE);
         table.get_table_values.emplace_back(
             &sparse_tables::get_sparse_normalization_values<28, choose_normalization_table>);
@@ -163,21 +145,11 @@ inline PLookupMultiTable get_majority_output_table(const PLookupMultiTableId id 
 {
     const size_t num_entries = 11;
 
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
-
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(barretenberg::fr(16).pow(3 * i));
-        column_2_coefficients.emplace_back(1 << (3 * i));
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(16 * 16 * 16);
+        table.slice_sizes.emplace_back(numeric::pow64(16, 3));
         table.lookup_ids.emplace_back(SHA256_MAJ_NORMALIZE);
         table.get_table_values.emplace_back(
             &sparse_tables::get_sparse_normalization_values<16, majority_normalization_table>);
@@ -263,15 +235,9 @@ inline std::array<barretenberg::fr, 3> get_choose_rotation_multipliers()
 
 inline PLookupMultiTable get_witness_extension_input_table(const PLookupMultiTableId id = SHA256_WITNESS_INPUT)
 {
-    std::vector<barretenberg::fr> column_1_coefficients{
-        barretenberg::fr(1), barretenberg::fr(1 << 3), barretenberg::fr(1 << 10), barretenberg::fr(1 << 18)
-    };
-    std::vector<barretenberg::fr> column_2_coefficients{
-        barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0)
-    };
-    std::vector<barretenberg::fr> column_3_coefficients{
-        barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0)
-    };
+    std::vector<barretenberg::fr> column_1_coefficients{ 1, 1 << 3, 1 << 10, 1 << 18 };
+    std::vector<barretenberg::fr> column_2_coefficients{ 0, 0, 0, 0 };
+    std::vector<barretenberg::fr> column_3_coefficients{ 0, 0, 0, 0 };
     PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 3), (1 << 7), (1 << 8), (1 << 18) };

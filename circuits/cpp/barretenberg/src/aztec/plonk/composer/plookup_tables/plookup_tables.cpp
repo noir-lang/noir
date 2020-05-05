@@ -30,7 +30,7 @@ void init_multi_tables()
 }
 } // namespace
 
-const PLookupMultiTable& get_multi_table(const PLookupMultiTableId id)
+const PLookupMultiTable& create_table(const PLookupMultiTableId id)
 {
     if (!inited) {
         init_multi_tables();
@@ -39,9 +39,9 @@ const PLookupMultiTable& get_multi_table(const PLookupMultiTableId id)
     return MULTI_TABLES[id];
 }
 
-PLookupReadData get_multi_table_values(const PLookupMultiTableId id, const fr& key)
+PLookupReadData get_table_values(const PLookupMultiTableId id, const fr& key)
 {
-    const auto& multi_table = get_multi_table(id);
+    const auto& multi_table = create_table(id);
 
     const size_t num_lookups = multi_table.lookup_ids.size();
 
@@ -54,14 +54,12 @@ PLookupReadData get_multi_table_values(const PLookupMultiTableId id, const fr& k
     std::vector<fr> column_3_raw_values;
 
     for (size_t i = 0; i < num_lookups; ++i) {
-        // PLookupTable& table = get_table(multi_table.lookup_ids[i]);
-
         const auto values = multi_table.get_table_values[i]({ keys[i], 0 });
         column_1_raw_values.emplace_back(keys[i]);
         column_2_raw_values.emplace_back(values[0]);
         column_3_raw_values.emplace_back(values[1]);
 
-        const PLookupTable::KeyEntry key_entry{ { keys[i], 0 }, values };
+        const PLookupBasicTable::KeyEntry key_entry{ { keys[i], 0 }, values };
         result.key_entries.emplace_back(key_entry);
     }
     result.column_1_accumulator_values.resize(num_lookups);

@@ -1074,14 +1074,14 @@ UnrolledPLookupVerifier PLookupComposer::create_unrolled_verifier()
 }
 
 void PLookupComposer::initialize_precomputed_table(
-    const PLookupTableId id,
+    const PLookupBasicTableId id,
     bool (*generator)(std::vector<fr>&, std ::vector<fr>&, std::vector<fr>&),
     std::array<fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>))
 {
     for (auto table : lookup_tables) {
         ASSERT(table.id != id);
     }
-    PLookupTable new_table;
+    PLookupBasicTable new_table;
     new_table.id = id;
     new_table.table_index = lookup_tables.size() + 1;
     new_table.use_twin_keys = generator(new_table.column_1, new_table.column_2, new_table.column_3);
@@ -1090,19 +1090,19 @@ void PLookupComposer::initialize_precomputed_table(
     lookup_tables.emplace_back(new_table);
 }
 
-PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
+PLookupBasicTable& PLookupComposer::get_table(const PLookupBasicTableId id)
 {
-    for (PLookupTable& table : lookup_tables) {
+    for (PLookupBasicTable& table : lookup_tables) {
         if (table.id == id) {
             return table;
         }
     }
     // Hmm. table doesn't exist! try to create it
-    lookup_tables.emplace_back(plookup::create_table(id, lookup_tables.size()));
+    lookup_tables.emplace_back(plookup::create_basic_table(id, lookup_tables.size()));
     return lookup_tables[lookup_tables.size() - 1];
 }
 
-// PLookupMultiTable& PLookupComposer::get_multi_table(const PLookupMultiTableId id)
+// PLookupMultiTable& PLookupComposer::create_table(const PLookupMultiTableId id)
 // {
 //     for (PLookupMultiTable& table : lookup_multi_tables) {
 //         if (table.id == id) {
@@ -1113,27 +1113,27 @@ PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
 //     switch (id) {
 //     case SHA256_CH_INPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_choose_input_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_MAJ_INPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_majority_input_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_WITNESS_INPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_witness_extension_input_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_CH_OUTPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_choose_output_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_MAJ_OUTPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_majority_output_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_WITNESS_OUTPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_witness_extension_output_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     default: {
 //         throw;
@@ -1141,11 +1141,11 @@ PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
 //     }
 // }
 
-void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> indices)
+void PLookupComposer::validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> indices)
 {
     PLOOKUP_SELECTOR_REFS;
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     table.lookup_gates.push_back({ {
                                        variables[indices[0]].from_montgomery_form().data[0],
@@ -1177,7 +1177,7 @@ void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<
     ++n;
 }
 
-uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
+uint32_t PLookupComposer::read_from_table(const PLookupBasicTableId id,
                                           const uint32_t first_key_idx,
                                           const uint32_t second_key_idx)
 {
@@ -1192,7 +1192,7 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
         variables[key_indices[1]].from_montgomery_form().data[0],
     };
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     const auto values = table.get_values_from_key(keys);
 
@@ -1223,7 +1223,7 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
     return value_index;
 }
 
-std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id, const uint32_t key_idx)
+std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupBasicTableId id, const uint32_t key_idx)
 {
     PLOOKUP_SELECTOR_REFS;
 
@@ -1237,7 +1237,7 @@ std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id
         0,
     };
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     const auto values = table.get_values_from_key(keys);
     const std::array<uint32_t, 2> value_indices{
@@ -1270,13 +1270,13 @@ std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id
     return value_indices;
 }
 
-std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
+std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(const PLookupBasicTableId id,
                                                                                const uint32_t key_index_a,
                                                                                const uint32_t key_index_b,
                                                                                const size_t num_lookups)
 {
     PLOOKUP_SELECTOR_REFS;
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     const uint64_t base_a = uint256_t(table.column_1_step_size).data[0];
     const uint64_t base_b = uint256_t(table.column_2_step_size).data[0];
@@ -1397,13 +1397,13 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(c
     return column_indices;
 }
 
-std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
+std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupBasicTableId id,
                                                                 const std::vector<std::array<uint32_t, 2>>& key_indices)
 {
     PLOOKUP_SELECTOR_REFS;
     const size_t num_lookups = key_indices.size();
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     if (num_lookups == 0) {
         return std::vector<uint32_t>();
@@ -1491,7 +1491,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
 
 {
     PLOOKUP_SELECTOR_REFS;
-    const auto& multi_table = plookup::get_multi_table(id);
+    const auto& multi_table = plookup::create_table(id);
     const size_t num_lookups = read_values.column_1_accumulator_values.size();
     std::array<std::vector<uint32_t>, 3> column_indices;
     for (size_t i = 0; i < num_lookups; ++i) {

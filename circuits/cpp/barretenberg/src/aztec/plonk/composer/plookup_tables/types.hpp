@@ -6,7 +6,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace waffle {
-enum PLookupTableId {
+enum PLookupBasicTableId {
     XOR,
     AND,
     PEDERSEN,
@@ -48,7 +48,7 @@ struct PLookupMultiTable {
     std::vector<barretenberg::fr> column_2_coefficients;
     std::vector<barretenberg::fr> column_3_coefficients;
     PLookupMultiTableId id;
-    std::vector<PLookupTableId> lookup_ids;
+    std::vector<PLookupBasicTableId> lookup_ids;
     std::vector<uint64_t> slice_sizes;
     std::vector<barretenberg::fr> column_1_step_sizes;
     std::vector<barretenberg::fr> column_2_step_sizes;
@@ -57,12 +57,8 @@ struct PLookupMultiTable {
     typedef std::array<uint64_t, 2> table_in;
     std::vector<table_out (*)(table_in)> get_table_values;
 
-    PLookupMultiTable(const std::vector<barretenberg::fr>& col_1_coeffs,
-                      const std::vector<barretenberg::fr>& col_2_coeffs,
-                      const std::vector<barretenberg::fr>& col_3_coeffs)
-        : column_1_coefficients(col_1_coeffs)
-        , column_2_coefficients(col_2_coeffs)
-        , column_3_coefficients(col_3_coeffs)
+  private:
+    void init_step_sizes()
     {
         const size_t num_lookups = column_1_coefficients.size();
         column_1_step_sizes.emplace_back(barretenberg::fr(1));
@@ -82,35 +78,32 @@ struct PLookupMultiTable {
         }
     }
 
-    // PLookupMultiTable(const size_t num_lookups,
-    //                   barretenberg::fr col_1_coeff,
-    //                   barretenberg::fr col_2_coeff,
-    //                   barretenberg::fr col_3_coeff)
-    // {
-    //     for (size_t i = 0; i < num_lookups; ++i) {
-    //         column_1_coefficients.emplace_back(col_1_coeff);
-    //         column_2_coefficients.emplace_back(col_2_coeff);
-    //         column_3_coefficients.emplace_back(col_3_coeff);
-    //     }
+  public:
+    PLookupMultiTable(const barretenberg::fr& col_1_repeated_coeff,
+                      const barretenberg::fr& col_2_repeated_coeff,
+                      const barretenberg::fr& col_3_repeated_coeff,
+                      const size_t num_lookups)
+    {
+        column_1_coefficients.emplace_back(1);
+        column_2_coefficients.emplace_back(1);
+        column_3_coefficients.emplace_back(1);
 
-    //     column_1_step_sizes.emplace_back(barretenberg::fr(1));
-    //     column_2_step_sizes.emplace_back(barretenberg::fr(1));
-    //     column_3_step_sizes.emplace_back(barretenberg::fr(1));
-
-    //     std::vector<barretenberg::fr> coefficient_inverses(column_1_coefficients.begin(),
-    //     column_1_coefficients.end()); std::copy(column_2_coefficients.begin(), column_2_coefficients.end(),
-    //     std::back_inserter(coefficient_inverses)); std::copy(column_3_coefficients.begin(),
-    //     column_3_coefficients.end(), std::back_inserter(coefficient_inverses));
-
-    //     barretenberg::fr::batch_invert(&coefficient_inverses[0], num_lookups * 3);
-
-    //     for (size_t i = 1; i < num_lookups; ++i) {
-    //         column_1_step_sizes.emplace_back(column_1_coefficients[i] * coefficient_inverses[i - 1]);
-    //         column_2_step_sizes.emplace_back(column_2_coefficients[i] * coefficient_inverses[num_lookups + i - 1]);
-    //         column_3_step_sizes.emplace_back(column_3_coefficients[i] * coefficient_inverses[2 * num_lookups + i -
-    //         1]);
-    //     }
-    // }
+        for (size_t i = 0; i < num_lookups; ++i) {
+            column_1_coefficients.emplace_back(column_1_coefficients.back() * col_1_repeated_coeff);
+            column_2_coefficients.emplace_back(column_2_coefficients.back() * col_2_repeated_coeff);
+            column_3_coefficients.emplace_back(column_3_coefficients.back() * col_3_repeated_coeff);
+        }
+        init_step_sizes();
+    }
+    PLookupMultiTable(const std::vector<barretenberg::fr>& col_1_coeffs,
+                      const std::vector<barretenberg::fr>& col_2_coeffs,
+                      const std::vector<barretenberg::fr>& col_3_coeffs)
+        : column_1_coefficients(col_1_coeffs)
+        , column_2_coefficients(col_2_coeffs)
+        , column_3_coefficients(col_3_coeffs)
+    {
+        init_step_sizes();
+    }
 
     PLookupMultiTable(){};
     PLookupMultiTable(const PLookupMultiTable& other) = default;
@@ -120,7 +113,7 @@ struct PLookupMultiTable {
     PLookupMultiTable& operator=(PLookupMultiTable&& other) = default;
 };
 
-struct PLookupTable {
+struct PLookupBasicTable {
     struct KeyEntry {
         std::array<uint64_t, 2> key{ 0, 0 };
         std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
@@ -139,7 +132,7 @@ struct PLookupTable {
         }
     };
 
-    PLookupTableId id;
+    PLookupBasicTableId id;
     size_t table_index;
     size_t size;
     bool use_twin_keys;
@@ -156,7 +149,7 @@ struct PLookupTable {
 };
 
 struct PLookupReadData {
-    std::vector<PLookupTable::KeyEntry> key_entries;
+    std::vector<PLookupBasicTable::KeyEntry> key_entries;
 
     std::vector<barretenberg::fr> column_1_accumulator_values;
     std::vector<barretenberg::fr> column_2_accumulator_values;

@@ -24,9 +24,9 @@ inline std::array<barretenberg::fr, 2> get_sparse_table_with_rotation_values(con
 }
 
 template <uint64_t base, uint64_t bits_per_slice, uint64_t num_rotated_bits>
-inline PLookupTable generate_sparse_table_with_rotation(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_sparse_table_with_rotation(PLookupBasicTableId id, const size_t table_index)
 {
-    PLookupTable table;
+    PLookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = (1U << bits_per_slice);
@@ -78,7 +78,7 @@ inline std::array<barretenberg::fr, 2> get_sparse_normalization_values(const std
 }
 
 template <size_t base, uint64_t num_bits, const uint64_t* base_table>
-inline PLookupTable generate_sparse_normalization_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_sparse_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
     /**
      * If t = 7*((e >>> 6) + (e >>> 11) + (e >>> 25)) + e + 2f + 3g
@@ -86,7 +86,7 @@ inline PLookupTable generate_sparse_normalization_table(PLookupTableId id, const
      * (e >>> 6) ^ (e >>> 11) ^ (e >>> 25) + e + 2f + 3g
      */
 
-    PLookupTable table;
+    PLookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.use_twin_keys = false;

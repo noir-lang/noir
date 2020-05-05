@@ -22,9 +22,9 @@ inline std::array<barretenberg::fr, 2> get_aes_sparse_values_from_key(const std:
     return { barretenberg::fr(sparse), barretenberg::fr(0) };
 }
 
-inline PLookupTable generate_aes_sparse_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_aes_sparse_table(PLookupBasicTableId id, const size_t table_index)
 {
-    PLookupTable table;
+    PLookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = 256;
@@ -50,9 +50,9 @@ inline std::array<barretenberg::fr, 2> get_aes_sparse_normalization_values_from_
     return { barretenberg::fr(numeric::map_into_sparse_form<AES_BASE>(byte)), barretenberg::fr(0) };
 }
 
-inline PLookupTable generate_aes_sparse_normalization_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_aes_sparse_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
-    PLookupTable table;
+    PLookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     for (uint64_t i = 0; i < AES_BASE; ++i) {
@@ -113,17 +113,8 @@ inline PLookupMultiTable get_aes_normalization_table(const PLookupMultiTableId i
 inline PLookupMultiTable get_aes_input_table(const PLookupMultiTableId id = AES_INPUT)
 {
     const size_t num_entries = 16;
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
 
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(uint256_t(1) << uint256_t(i * 8));
-        column_2_coefficients.emplace_back(0);
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(256, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -143,9 +134,9 @@ inline std::array<barretenberg::fr, 2> get_aes_sbox_values_from_key(const std::a
              barretenberg::fr(numeric::map_into_sparse_form<AES_BASE>((uint8_t)(sbox_value ^ swizzled))) };
 }
 
-inline PLookupTable generate_aes_sbox_table(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_aes_sbox_table(PLookupBasicTableId id, const size_t table_index)
 {
-    PLookupTable table;
+    PLookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = 256;
@@ -172,17 +163,8 @@ inline PLookupTable generate_aes_sbox_table(PLookupTableId id, const size_t tabl
 inline PLookupMultiTable get_aes_sbox_table(const PLookupMultiTableId id = AES_SBOX)
 {
     const size_t num_entries = 1;
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
 
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(0);
-        column_2_coefficients.emplace_back(0);
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(0, 0, 0, 1);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
