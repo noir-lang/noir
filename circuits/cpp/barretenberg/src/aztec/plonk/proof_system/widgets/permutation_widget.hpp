@@ -10,26 +10,29 @@ template <typename Field, typename Group, typename Transcript> class VerifierPer
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
-                                                          const bool use_linearisation);
+                                                          const bool use_linearisation,
+                                                          const bool idpolys = false);
 
     static Field append_scalar_multiplication_inputs(verification_key*,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
                                                      std::vector<Group>& points,
                                                      std::vector<Field>& scalars,
-                                                     const bool use_linearisation);
+                                                     const bool use_linearisation,
+                                                     const bool idpolys = false);
 
     static void compute_batch_evaluation_contribution(verification_key*,
                                                       Field& batch_eval,
                                                       const Transcript& transcript,
-                                                      const bool use_linearisation);
+                                                      const bool use_linearisation,
+                                                      const bool idpolys = false);
 };
 
 extern template class VerifierPermutationWidget<barretenberg::fr,
                                                 barretenberg::g1::affine_element,
                                                 transcript::StandardTranscript>;
 
-template <size_t program_width> class ProverPermutationWidget : public ProverBaseWidget {
+template <size_t program_width, bool idpolys> class ProverPermutationWidget : public ProverBaseWidget {
   public:
     ProverPermutationWidget(proving_key*, program_witness*);
     ProverPermutationWidget(const ProverPermutationWidget& other);
@@ -51,8 +54,8 @@ template <size_t program_width> class ProverPermutationWidget : public ProverBas
     void compute_transcript_elements(transcript::Transcript&, const bool) override;
 };
 
-extern template class ProverPermutationWidget<3>;
-extern template class ProverPermutationWidget<4>;
+extern template class ProverPermutationWidget<3, false>;
+extern template class ProverPermutationWidget<4, false>;
 
 } // namespace waffle
 

@@ -114,6 +114,9 @@ proving_key::proving_key(const proving_key& other)
     , permutation_selectors(other.permutation_selectors)
     , permutation_selectors_lagrange_base(other.permutation_selectors_lagrange_base)
     , permutation_selector_ffts(other.permutation_selector_ffts)
+    , id_selectors(other.id_selectors)
+    , id_selectors_lagrange_base(other.id_selectors_lagrange_base)
+    , id_selector_ffts(other.id_selector_ffts)
     , wire_ffts(other.wire_ffts)
     , small_domain(other.small_domain)
     , mid_domain(other.mid_domain)
@@ -136,6 +139,9 @@ proving_key::proving_key(proving_key&& other)
     , permutation_selectors(other.permutation_selectors)
     , permutation_selectors_lagrange_base(other.permutation_selectors_lagrange_base)
     , permutation_selector_ffts(other.permutation_selector_ffts)
+    , id_selectors(other.id_selectors)
+    , id_selectors_lagrange_base(other.id_selectors_lagrange_base)
+    , id_selector_ffts(other.id_selector_ffts)
     , wire_ffts(other.wire_ffts)
     , small_domain(std::move(other.small_domain))
     , mid_domain(std::move(other.mid_domain))
@@ -158,6 +164,9 @@ proving_key& proving_key::operator=(proving_key&& other)
     permutation_selectors = std::move(other.permutation_selectors);
     permutation_selectors_lagrange_base = std::move(other.permutation_selectors_lagrange_base);
     permutation_selector_ffts = std::move(other.permutation_selector_ffts);
+    id_selectors = std::move(other.id_selectors);
+    id_selectors_lagrange_base = std::move(other.id_selectors_lagrange_base);
+    id_selector_ffts = std::move(other.id_selector_ffts);
     wire_ffts = std::move(other.wire_ffts);
     small_domain = std::move(other.small_domain);
     mid_domain = std::move(other.mid_domain);

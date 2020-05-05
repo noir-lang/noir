@@ -272,8 +272,8 @@ waffle::Prover generate_test_data(const size_t n)
     key->constraint_selector_ffts.insert({ "q_3_fft", std::move(q_3_fft) });
     key->constraint_selector_ffts.insert({ "q_m_fft", std::move(q_m_fft) });
     key->constraint_selector_ffts.insert({ "q_c_fft", std::move(q_c_fft) });
-    std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
+    std::unique_ptr<waffle::ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<waffle::ProverPermutationWidget<3, false>>(key.get(), witness.get());
 
     std::unique_ptr<waffle::ProverArithmeticWidget> widget =
         std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());

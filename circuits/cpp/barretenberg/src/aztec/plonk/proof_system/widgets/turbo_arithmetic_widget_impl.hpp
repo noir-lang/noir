@@ -258,7 +258,9 @@ fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base
 void ProverTurboArithmeticWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
                                                                     const bool use_linearisation)
 {
+    std::cout << "in turbo arith open poly" << std::endl;
     polynomial& poly = key->opening_poly;
+    std::cout << "in turbo arith open poly" << std::endl;
 
     if (use_linearisation) {
 
@@ -270,6 +272,7 @@ void ProverTurboArithmeticWidget::compute_opening_poly_contribution(const transc
         return;
     }
 
+    std::cout << "in turbo arith open poly" << std::endl;
     std::array<barretenberg::fr, 8> nu_challenges;
     nu_challenges[0] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_1")[0]);
     nu_challenges[1] = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_2")[0]);

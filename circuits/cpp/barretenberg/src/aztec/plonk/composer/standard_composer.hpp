@@ -71,7 +71,7 @@ class StandardComposer : public ComposerBase {
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual std::shared_ptr<program_witness> compute_witness() override;
     Verifier create_verifier();
-    Prover preprocess() { return create_prover(); };
+    Prover preprocess(){return create_prover(); };
     Prover create_prover();
     UnrolledVerifier create_unrolled_verifier();
     UnrolledProver create_unrolled_prover();

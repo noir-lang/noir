@@ -5,6 +5,7 @@
 #include <plonk/reference_string/file_reference_string.hpp>
 
 namespace waffle {
+static constexpr uint32_t DUMMY_TAG = 0;
 
 struct proving_key;
 struct verification_key;
@@ -94,6 +95,7 @@ class ComposerBase {
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
+
     struct cycle_node {
         uint32_t gate_index;
         WireType wire_type;
@@ -239,8 +241,6 @@ class ComposerBase {
     virtual void create_poly_gate(const poly_triple& in) = 0;
     virtual size_t get_num_constant_gates() const = 0;
 
-    std::vector<uint32_t> variable_index_map;
-
     uint32_t get_real_variable_index(uint32_t index) const
     {
         ASSERT(variables.size() > index);
@@ -260,7 +260,9 @@ class ComposerBase {
     {
         variables.emplace_back(in);
         variable_index_map.emplace_back(REAL_VARIABLE);
+        variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
+        std::cout << "adding variable, variable tags len = " << variable_tags.size() << std::endl;
         return static_cast<uint32_t>(variables.size()) - 1U;
     }
 
@@ -268,6 +270,7 @@ class ComposerBase {
     {
         variables.emplace_back(in);
         variable_index_map.emplace_back(REAL_VARIABLE);
+        variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
         const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
         public_inputs.emplace_back(index);
@@ -288,7 +291,7 @@ class ComposerBase {
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx);
 
     template <size_t program_width> void compute_wire_copy_cycles();
-    template <size_t program_width> void compute_sigma_permutations(proving_key* key);
+    template <size_t program_width, bool with_tags> void compute_sigma_permutations(proving_key* key);
 
   public:
     size_t n;
@@ -298,6 +301,10 @@ class ComposerBase {
     std::vector<uint32_t> w_4;
     std::vector<uint32_t> public_inputs;
     std::vector<barretenberg::fr> variables;
+    std::vector<uint32_t> variable_index_map;
+    std::vector<uint32_t> variable_tags;
+    uint32_t current_tag = DUMMY_TAG;
+    std::map<uint32_t, uint32_t> tau; // the permutation on variable tags;
     std::vector<std::vector<cycle_node>> wire_copy_cycles;
 
     std::shared_ptr<proving_key> circuit_proving_key;
@@ -311,11 +318,14 @@ class ComposerBase {
     std::vector<std::vector<barretenberg::fr>> selectors;
     std::vector<std::string> selector_names;
     std::vector<bool> use_mid_for_selectorfft; // use middomain instead of large for selectorfft
-};
+};                                             // ComposerBase
 
-extern template void ComposerBase::compute_sigma_permutations<3>(proving_key* key);
-extern template void ComposerBase::compute_sigma_permutations<4>(proving_key* key);
+extern template void ComposerBase::compute_wire_copy_cycles<3>();
+extern template void ComposerBase::compute_wire_copy_cycles<4>();
+extern template void ComposerBase::compute_sigma_permutations<3, false>(proving_key* key);
+extern template void ComposerBase::compute_sigma_permutations<4, false>(proving_key* key);
 extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<standard_settings>();
 extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<turbo_settings>();
+extern template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
 
 } // namespace waffle

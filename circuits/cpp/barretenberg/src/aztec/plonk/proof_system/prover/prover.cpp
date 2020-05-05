@@ -400,9 +400,12 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
+
     // Currently code assumes permutation_widget is first.
     for (size_t i = 0; i < widgets.size(); ++i) {
+        std::cout << "in 5th widget loop    " << std::endl;
         widgets[i]->compute_opening_poly_contribution(transcript, settings::use_linearisation);
+        std::cout << "in 5th widget loop" << std::endl;
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -414,7 +417,9 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
+    std::cout << "in 5th before kate" << std::endl;
     opening_poly.compute_kate_opening_coefficients(z_challenge);
+    std::cout << "in 5th after kate" << std::endl;
 
     shifted_opening_poly.compute_kate_opening_coefficients(shifted_z);
 #ifdef DEBUG_TIMING
@@ -475,8 +480,10 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
     for (size_t i = 0; i < widgets.size(); ++i) {
         widgets[i]->compute_transcript_elements(transcript, settings::use_linearisation);
     }
+    std::cout << "in lin" << std::endl;
 
     fr t_eval = key->quotient_large.evaluate(z_challenge, 4 * n);
+    std::cout << "in lin" << std::endl;
 
     if constexpr (settings::use_linearisation) {
         fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -487,6 +494,8 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         fr linear_eval = r.evaluate(z_challenge, n);
         transcript.add_element("r", linear_eval.to_buffer());
     }
+    std::cout << "in lin" << std::endl;
+    std::cout << "prover quotient = " << t_eval << std::endl;
     transcript.add_element("t", t_eval.to_buffer());
     return t_eval;
 }
@@ -499,17 +508,27 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_p
 
 template <typename settings> waffle::plonk_proof& ProverBase<settings>::construct_proof()
 {
+    std::cout << "in proof" << std::endl;
     execute_preamble_round();
+    std::cout << "in proof" << std::endl;
     queue.process_queue();
+    std::cout << "in proof" << std::endl;
     execute_first_round();
+    std::cout << "in proof" << std::endl;
     queue.process_queue();
+    std::cout << "in proof" << std::endl;
     execute_second_round();
+    std::cout << "in proof" << std::endl;
     queue.process_queue();
     execute_third_round();
+    std::cout << "in proof" << std::endl;
     queue.process_queue();
+    std::cout << "in proof" << std::endl;
     execute_fourth_round();
+    std::cout << "in proof" << std::endl;
     execute_fifth_round();
     queue.process_queue();
+    std::cout << "in proof" << std::endl;
     return export_proof();
 }
 

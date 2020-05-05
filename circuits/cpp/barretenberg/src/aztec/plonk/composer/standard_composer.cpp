@@ -466,7 +466,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     }
     ComposerBase::compute_proving_key();
 
-    compute_sigma_permutations<3>(circuit_proving_key.get());
+    compute_sigma_permutations<3, false>(circuit_proving_key.get());
     return circuit_proving_key;
 }
 
@@ -510,8 +510,8 @@ UnrolledProver StandardComposer::create_unrolled_prover()
     compute_witness();
     UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
@@ -528,8 +528,8 @@ Prover StandardComposer::create_prover()
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> widget =
         std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 

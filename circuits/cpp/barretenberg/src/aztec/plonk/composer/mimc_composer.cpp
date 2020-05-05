@@ -267,7 +267,7 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     circuit_proving_key->constraint_selector_ffts.insert({ "q_2_fft", std::move(poly_q_2_fft) });
     circuit_proving_key->constraint_selector_ffts.insert({ "q_3_fft", std::move(poly_q_3_fft) });
 
-    compute_sigma_permutations<3>(circuit_proving_key.get());
+    compute_sigma_permutations<3, false>(circuit_proving_key.get());
     return circuit_proving_key;
 }
 
@@ -378,8 +378,8 @@ Prover MiMCComposer::preprocess()
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverMiMCWidget> mimc_widget =
         std::make_unique<ProverMiMCWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget> arithmetic_widget =

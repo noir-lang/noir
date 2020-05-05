@@ -44,8 +44,10 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     constexpr size_t num_sigma_evaluations =
         (program_settings::use_linearisation ? program_settings::program_width - 1 : program_settings::program_width);
 
+    constexpr size_t num_id_evaluations = program_settings::program_width;
     std::array<fr, program_settings::program_width> wire_evaluations;
     std::array<fr, num_sigma_evaluations> sigma_evaluations;
+    std::array<fr, num_id_evaluations> id_evaluations;
 
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string index = std::to_string(i + 1);
@@ -56,6 +58,13 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     for (size_t i = 0; i < num_sigma_evaluations; ++i) {
         std::string index = std::to_string(i + 1);
         sigma_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("sigma_" + index)[0]);
+    }
+
+    if (program_settings::idpolys) {
+        for (size_t i = 0; i < num_id_evaluations; ++i) {
+            std::string index = std::to_string(i + 1);
+            id_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("id_" + index)[0]);
+        }
     }
     g1::affine_element Z_1 = g1::affine_element::serialize_from_buffer(&transcript.get_element("Z")[0]);
     g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
@@ -124,7 +133,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     fr T0 = lagrange_evals.vanishing_poly.invert();
     t_eval *= T0;
-
+    std::cout << "verifier quotient = " << t_eval << std::endl;
     transcript.add_element("t", t_eval.to_buffer());
 
     transcript.apply_fiat_shamir("nu");
@@ -241,5 +250,6 @@ template class VerifierBase<unrolled_turbo_verifier_settings>;
 template class VerifierBase<standard_verifier_settings>;
 template class VerifierBase<mimc_verifier_settings>;
 template class VerifierBase<turbo_verifier_settings>;
+template class VerifierBase<generalized_permutation_verifier_settings>;
 
 } // namespace waffle

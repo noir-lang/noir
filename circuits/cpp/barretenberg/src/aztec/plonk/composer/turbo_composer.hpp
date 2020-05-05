@@ -20,6 +20,7 @@ class TurboComposer : public ComposerBase {
     };
     TurboComposer();
     TurboComposer(std::string const& crs_path, const size_t size_hint = 0);
+    TurboComposer(const size_t size_hint);
     TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
     TurboComposer(std::shared_ptr<proving_key> const& p_key,
                   std::shared_ptr<verification_key> const& v_key,
@@ -29,14 +30,14 @@ class TurboComposer : public ComposerBase {
     ~TurboComposer() {}
 
     virtual std::shared_ptr<proving_key> compute_proving_key() override;
-    std::shared_ptr<verification_key> compute_verification_key() override;
+    virtual std::shared_ptr<verification_key> compute_verification_key() override;
     std::shared_ptr<program_witness> compute_witness() override;
 
-    TurboProver create_prover();
+    virtual TurboProver create_prover();
     TurboVerifier create_verifier();
 
-    UnrolledTurboProver create_unrolled_prover();
-    UnrolledTurboVerifier create_unrolled_verifier();
+    virtual UnrolledTurboProver create_unrolled_prover();
+    virtual UnrolledTurboVerifier create_unrolled_verifier();
 
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
@@ -61,7 +62,7 @@ class TurboComposer : public ComposerBase {
     accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
     accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
-    uint32_t put_constant_variable(const barretenberg::fr& variable);
+    virtual uint32_t put_constant_variable(const barretenberg::fr& variable);
 
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
