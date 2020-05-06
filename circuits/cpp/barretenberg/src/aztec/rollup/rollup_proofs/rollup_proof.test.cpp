@@ -41,11 +41,11 @@ waffle::plonk_proof create_join_split_proof()
     Composer composer = Composer("../srs_db/ignition");
     join_split_circuit(composer, tx);
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
     std::cout << "Done." << std::endl;
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_unrolled_verifier();
     auto verified = verifier.verify_proof(proof);
 
     EXPECT_TRUE(verified);
