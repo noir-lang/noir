@@ -8,25 +8,25 @@
 using namespace barretenberg;
 
 namespace waffle {
-ProverGenPermRangeWidget::ProverGenPermRangeWidget(proving_key* input_key, program_witness* input_witness)
+ProverGenPermSortWidget::ProverGenPermSortWidget(proving_key* input_key, program_witness* input_witness)
     : ProverBaseWidget(input_key, input_witness)
     , q_range(key->constraint_selectors.at("q_range"))
     , q_range_fft(key->constraint_selector_ffts.at("q_range_fft"))
 {}
 
-ProverGenPermRangeWidget::ProverGenPermRangeWidget(const ProverGenPermRangeWidget& other)
+ProverGenPermSortWidget::ProverGenPermSortWidget(const ProverGenPermSortWidget& other)
     : ProverBaseWidget(other)
     , q_range(key->constraint_selectors.at("q_range"))
     , q_range_fft(key->constraint_selector_ffts.at("q_range_fft"))
 {}
 
-ProverGenPermRangeWidget::ProverGenPermRangeWidget(ProverGenPermRangeWidget&& other)
+ProverGenPermSortWidget::ProverGenPermSortWidget(ProverGenPermSortWidget&& other)
     : ProverBaseWidget(other)
     , q_range(key->constraint_selectors.at("q_range"))
     , q_range_fft(key->constraint_selector_ffts.at("q_range_fft"))
 {}
 
-ProverGenPermRangeWidget& ProverGenPermRangeWidget::operator=(const ProverGenPermRangeWidget& other)
+ProverGenPermSortWidget& ProverGenPermSortWidget::operator=(const ProverGenPermSortWidget& other)
 {
     ProverBaseWidget::operator=(other);
     q_range = key->constraint_selectors.at("q_range");
@@ -34,7 +34,7 @@ ProverGenPermRangeWidget& ProverGenPermRangeWidget::operator=(const ProverGenPer
     return *this;
 }
 
-ProverGenPermRangeWidget& ProverGenPermRangeWidget::operator=(ProverGenPermRangeWidget&& other)
+ProverGenPermSortWidget& ProverGenPermSortWidget::operator=(ProverGenPermSortWidget&& other)
 {
     ProverBaseWidget::operator=(other);
     q_range = key->constraint_selectors.at("q_range");
@@ -98,7 +98,7 @@ ProverGenPermRangeWidget& ProverGenPermRangeWidget::operator=(ProverGenPermRange
  * is (n / 8) gates
  *
  **/
-fr ProverGenPermRangeWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
+fr ProverGenPermSortWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
                                                            const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -168,7 +168,7 @@ fr ProverGenPermRangeWidget::compute_quotient_contribution(const barretenberg::f
     return alpha_d * alpha;
 }
 
-void ProverGenPermRangeWidget::compute_transcript_elements(transcript::Transcript& transcript,
+void ProverGenPermSortWidget::compute_transcript_elements(transcript::Transcript& transcript,
                                                            const bool use_linearisation)
 {
     if (use_linearisation) {
@@ -178,7 +178,7 @@ void ProverGenPermRangeWidget::compute_transcript_elements(transcript::Transcrip
     transcript.add_element("q_range", q_range.evaluate(z, key->small_domain.size).to_buffer());
 }
 
-fr ProverGenPermRangeWidget::compute_linear_contribution(const fr& alpha_base,
+fr ProverGenPermSortWidget::compute_linear_contribution(const fr& alpha_base,
                                                          const transcript::Transcript& transcript,
                                                          barretenberg::polynomial& r)
 {
@@ -246,7 +246,7 @@ fr ProverGenPermRangeWidget::compute_linear_contribution(const fr& alpha_base,
     return alpha_d * alpha;
 }
 
-void ProverGenPermRangeWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
+void ProverGenPermSortWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
                                                                  const bool use_linearisation)
 {
     if (use_linearisation) {
@@ -265,11 +265,11 @@ void ProverGenPermRangeWidget::compute_opening_poly_contribution(const transcrip
 // ###
 
 template <typename Field, typename Group, typename Transcript>
-VerifierGenPermRangeWidget<Field, Group, Transcript>::VerifierGenPermRangeWidget()
+VerifierGenPermSortWidget<Field, Group, Transcript>::VerifierGenPermSortWidget()
 {}
 
 template <typename Field, typename Group, typename Transcript>
-Field VerifierGenPermRangeWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
+Field VerifierGenPermSortWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
     verification_key*,
     const Field& alpha_base,
     const Transcript& transcript,
@@ -346,7 +346,7 @@ Field VerifierGenPermRangeWidget<Field, Group, Transcript>::compute_quotient_eva
 }
 
 template <typename Field, typename Group, typename Transcript>
-void VerifierGenPermRangeWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
+void VerifierGenPermSortWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
     verification_key*, Field& batch_eval, const Transcript& transcript, const bool use_linearisation)
 {
     if (use_linearisation) {
@@ -361,7 +361,7 @@ void VerifierGenPermRangeWidget<Field, Group, Transcript>::compute_batch_evaluat
 }
 
 template <typename Field, typename Group, typename Transcript>
-Field VerifierGenPermRangeWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+Field VerifierGenPermSortWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
     verification_key* key,
     const Field& alpha_base,
     const Transcript& transcript,
@@ -466,7 +466,7 @@ Field VerifierGenPermRangeWidget<Field, Group, Transcript>::append_scalar_multip
     return alpha_d * alpha_step;
 }
 
-template class VerifierGenPermRangeWidget<barretenberg::fr,
+template class VerifierGenPermSortWidget<barretenberg::fr,
                                           barretenberg::g1::affine_element,
                                           transcript::StandardTranscript>;
 } // namespace waffle

@@ -12,6 +12,7 @@ class GenPermComposer : public TurboComposer {
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual TurboProver create_prover() override;
     GenPermVerifier create_verifier();
+    void create_sort_constraint(const std::vector<uint32_t> variable_index);
     void assign_tag(const uint32_t variable_index, const uint32_t tag)
     {
         ASSERT(tag <= current_tag);

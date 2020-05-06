@@ -14,7 +14,7 @@ TEST(genperm_composer, base_case)
     fr a = fr::one();
     auto a_idx = composer.add_variable(a);
     auto b_idx = composer.add_variable(a);
-  composer.assert_equal(a_idx,b_idx);
+    composer.assert_equal(a_idx, b_idx);
     composer.create_add_gate({ a_idx, a_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
@@ -219,17 +219,17 @@ TEST(genperm_composer, non_trivial_tag_permutation_and_cycles)
 
     auto a_idx = composer.add_variable(a);
     auto b_idx = composer.add_variable(a);
-    composer.assert_equal(a_idx,b_idx);
+    composer.assert_equal(a_idx, b_idx);
     auto c_idx = composer.add_variable(c);
     auto d_idx = composer.add_variable(c);
-    composer.assert_equal(c_idx,d_idx);
+    composer.assert_equal(c_idx, d_idx);
     auto e_idx = composer.add_variable(a);
     auto f_idx = composer.add_variable(a);
-    composer.assert_equal(e_idx,f_idx);
+    composer.assert_equal(e_idx, f_idx);
     auto g_idx = composer.add_variable(c);
     auto h_idx = composer.add_variable(c);
-    composer.assert_equal(g_idx,h_idx);
-    
+    composer.assert_equal(g_idx, h_idx);
+
     composer.create_tag(1, 2);
     composer.create_tag(2, 1);
 
@@ -238,12 +238,11 @@ TEST(genperm_composer, non_trivial_tag_permutation_and_cycles)
     composer.assign_tag(e_idx, 2);
     composer.assign_tag(g_idx, 2);
     composer.create_dummy_gate();
-   composer.create_add_gate({ b_idx, a_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
+    composer.create_add_gate({ b_idx, a_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     composer.create_add_gate({ c_idx, g_idx, composer.zero_idx, fr::one(), -fr::one(), fr::zero(), fr::zero() });
     composer.create_add_gate({ e_idx, f_idx, composer.zero_idx, fr::one(), -fr::one(), fr::zero(), fr::zero() });
 
-
-    //composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
+    // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     waffle::TurboProver prover = composer.create_prover();
@@ -283,7 +282,7 @@ TEST(genperm_composer, bad_tag_permutation)
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, false);
 }
-//Check rejection on mismatch of size of cycle sets between tags 
+// Check rejection on mismatch of size of cycle sets between tags
 // TEST(genperm_composer, bad_tag_permutation2)
 // {
 //     waffle::GenPermComposer composer = waffle::GenPermComposer();
@@ -342,6 +341,49 @@ TEST(genperm_composer, bad_tag_turbo_permutation)
     EXPECT_EQ(result, true);
 }
 
+TEST(genperm_composer, sort_widget)
+{
+    waffle::GenPermComposer composer = waffle::GenPermComposer();
+    fr a = fr::one();
+    fr b = fr(2);
+    fr c = fr(3);
+    fr d = fr(4);
+
+    auto a_idx = composer.add_variable(a);
+    auto b_idx = composer.add_variable(b);
+    auto c_idx = composer.add_variable(c);
+    auto d_idx = composer.add_variable(d);
+    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx});
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::GenPermVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(genperm_composer, sort_widget_neg)
+{
+    waffle::GenPermComposer composer = waffle::GenPermComposer();
+    fr a = fr::one();
+    fr b = fr(2);
+    fr c = fr(3);
+    fr d = fr(8);
+
+    auto a_idx = composer.add_variable(a);
+    auto b_idx = composer.add_variable(b);
+    auto c_idx = composer.add_variable(c);
+    auto d_idx = composer.add_variable(d);
+    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx});
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::GenPermVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, false);
+}
 TEST(genperm_composer, small_scalar_multipliers)
 {
     constexpr size_t num_bits = 63;
@@ -369,8 +411,7 @@ TEST(genperm_composer, small_scalar_multipliers)
         scalar_multiplier_base.data[0] -= 2;
     }
     bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew,
-0);
+    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
     fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
@@ -499,8 +540,7 @@ TEST(genperm_composer, large_scalar_multipliers)
     uint64_t wnaf_entries[num_quads + 1] = { 0 };
 
     bool skew = false;
-    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew,
-0);
+    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
     fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
     fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
@@ -585,8 +625,7 @@ TEST(genperm_composer, large_scalar_multipliers)
 
     fr result_accumulator = (accumulator_transcript[num_quads]);
     fr expected_accumulator =
-        fr{ scalar_multiplier.data[0], scalar_multiplier.data[1], scalar_multiplier.data[2],
-scalar_multiplier.data[3] }
+        fr{ scalar_multiplier.data[0], scalar_multiplier.data[1], scalar_multiplier.data[2], scalar_multiplier.data[3] }
             .to_montgomery_form();
     EXPECT_EQ((result_accumulator == expected_accumulator), true);
 
@@ -674,12 +713,10 @@ TEST(genperm_composer, and_constraint)
             uint32_t right_expected = (right_value >> (30U - (2 * j)));
             uint32_t out_expected = left_expected & right_expected;
 
-            fr left_source = composer.get_variable(accumulators.left[j + (extra_bits >>
-1)]).from_montgomery_form();
+            fr left_source = composer.get_variable(accumulators.left[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t left_result = static_cast<uint32_t>(left_source.data[0]);
 
-            fr right_source = composer.get_variable(accumulators.right[j + (extra_bits >>
-1)]).from_montgomery_form();
+            fr right_source = composer.get_variable(accumulators.right[j + (extra_bits >> 1)]).from_montgomery_form();
             uint32_t right_result = static_cast<uint32_t>(right_source.data[0]);
 
             fr out_source = composer.get_variable(accumulators.out[j + (extra_bits >> 1)]).from_montgomery_form();

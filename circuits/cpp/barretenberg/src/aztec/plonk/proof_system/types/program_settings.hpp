@@ -11,6 +11,7 @@
 #include "../widgets/turbo_logic_widget.hpp"
 #include "../widgets/turbo_range_widget.hpp"
 #include "../widgets/permutation_widget.hpp"
+#include "../widgets/genperm_sort_widget.hpp"
 
 namespace waffle {
 class settings_base {
@@ -229,7 +230,7 @@ class turbo_verifier_settings : public turbo_settings {
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
     typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
+    typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript> GenPermSortWidget;
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
@@ -248,7 +249,7 @@ class turbo_verifier_settings : public turbo_settings {
 
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
-        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+        updated_alpha = GenPermSortWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
@@ -261,7 +262,7 @@ class turbo_verifier_settings : public turbo_settings {
     {
         PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        GenPermSortWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
@@ -275,7 +276,7 @@ class turbo_verifier_settings : public turbo_settings {
 
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
@@ -289,7 +290,7 @@ class generalized_permutation_verifier_settings : public turbo_settings {
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
     typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
+    typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript> GenPermSortWidget;
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
@@ -303,13 +304,13 @@ class generalized_permutation_verifier_settings : public turbo_settings {
                                                   std::vector<g1::affine_element>& points,
                                                   std::vector<fr>& scalars)
     {
-        std::cout << "ingenpermsettings"<< std::endl;
+        std::cout << "ingenpermsettings" << std::endl;
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation,true);
+            key, alpha_base, transcript, points, scalars, use_linearisation, true);
 
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
-        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+        updated_alpha = GenPermSortWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
@@ -320,10 +321,10 @@ class generalized_permutation_verifier_settings : public turbo_settings {
                                                       barretenberg::fr& batch_eval,
                                                       const Transcript& transcript)
     {
-        std::cout << "ingenpermsettings"<< std::endl;
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation,true);
+        std::cout << "ingenpermsettings" << std::endl;
+        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation, true);
         TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        GenPermSortWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
@@ -332,20 +333,19 @@ class generalized_permutation_verifier_settings : public turbo_settings {
                                                                      const Transcript& transcript,
                                                                      fr& t_eval)
     {
-        std::cout << "ingenpermsettings"<< std::endl;
+        std::cout << "ingenpermsettings" << std::endl;
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation, true);
 
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
-
-}; 
+};
 
 class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
   public:
@@ -353,7 +353,7 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
     typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
+    typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript> GenPermSortWidget;
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
@@ -373,7 +373,7 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
 
-        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+        updated_alpha = GenPermSortWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, points, scalars, use_linearisation);
 
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
@@ -387,7 +387,7 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     {
         PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        GenPermSortWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
@@ -400,7 +400,7 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
             key, alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);

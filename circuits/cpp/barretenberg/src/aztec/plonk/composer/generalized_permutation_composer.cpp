@@ -13,6 +13,19 @@ using namespace barretenberg;
 
 namespace waffle {
 
+#define TURBO_SELECTOR_REFS                                                                                            \
+    auto& q_m = selectors[TurboSelectors::QM];                                                                         \
+    auto& q_c = selectors[TurboSelectors::QC];                                                                         \
+    auto& q_1 = selectors[TurboSelectors::Q1];                                                                         \
+    auto& q_2 = selectors[TurboSelectors::Q2];                                                                         \
+    auto& q_3 = selectors[TurboSelectors::Q3];                                                                         \
+    auto& q_4 = selectors[TurboSelectors::Q4];                                                                         \
+    auto& q_5 = selectors[TurboSelectors::Q5];                                                                         \
+    auto& q_arith = selectors[TurboSelectors::QARITH];                                                                 \
+    auto& q_ecc_1 = selectors[TurboSelectors::QECC_1];                                                                 \
+    auto& q_range = selectors[TurboSelectors::QRANGE];                                                                 \
+    auto& q_logic = selectors[TurboSelectors::QLOGIC];
+
 GenPermComposer::GenPermComposer(const size_t size_hint)
     : TurboComposer(size_hint)
 {
@@ -540,6 +553,49 @@ GenPermComposer::GenPermComposer(const size_t size_hint)
 //     ++n;
 // }
 
+// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
+void GenPermComposer::create_sort_constraint(const std::vector<uint32_t> variable_index)
+{
+    TURBO_SELECTOR_REFS
+    ASSERT(variable_index.size() % 4 == 0);
+    for (size_t i = 0; i < variable_index.size(); i++) {
+        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+    }
+
+    for (size_t i = 0; i < variable_index.size(); i += 4) {
+        w_l.emplace_back(variable_index[i]);
+        w_r.emplace_back(variable_index[i + 1]);
+        w_o.emplace_back(variable_index[i + 2]);
+        w_4.emplace_back(variable_index[i + 3]);
+        ++n;
+        q_m.emplace_back(fr::zero());
+        q_1.emplace_back(fr::zero());
+        q_2.emplace_back(fr::zero());
+        q_3.emplace_back(fr::zero());
+        q_c.emplace_back(fr::zero());
+        q_arith.emplace_back(fr::zero());
+        q_4.emplace_back(fr::zero());
+        q_5.emplace_back(fr::zero());
+        q_ecc_1.emplace_back(fr::zero());
+        q_logic.emplace_back(fr::zero());
+        q_range.emplace_back(fr::one());
+    }
+    w_l.emplace_back(variable_index[variable_index.size() - 1]);
+    w_r.emplace_back(zero_idx);
+    w_o.emplace_back(zero_idx);
+    w_4.emplace_back(zero_idx);
+    q_m.emplace_back(fr::zero());
+    q_1.emplace_back(fr::zero());
+    q_2.emplace_back(fr::zero());
+    q_3.emplace_back(fr::zero());
+    q_c.emplace_back(fr::zero());
+    q_arith.emplace_back(fr::zero());
+    q_4.emplace_back(fr::zero());
+    q_5.emplace_back(fr::zero());
+    q_ecc_1.emplace_back(fr::zero());
+    q_logic.emplace_back(fr::zero());
+    q_range.emplace_back(fr::zero());
+}
 // std::vector<uint32_t> GenPermComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
 // {
 //     cycle_tags[witness_index]
@@ -686,8 +742,8 @@ TurboProver GenPermComposer::create_prover()
 
     std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverGenPermSortWidget> range_widget =
+        std::make_unique<ProverGenPermSortWidget>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboLogicWidget> logic_widget =
         std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
