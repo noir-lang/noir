@@ -1,3 +1,4 @@
+#pragma once
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include "../client_proofs/join_split/join_split.hpp"
 #include "compute_inner_circuit_data.hpp"
@@ -28,7 +29,7 @@ rollup_circuit_data compute_rollup_circuit_data(size_t batch_size)
     // Junk data required just to create keys.
     std::vector<waffle::plonk_proof> proofs(batch_size, { std::vector<uint8_t>(inner.proof_size) });
 
-    rollup_circuit(composer, batch_size, proofs, inner.verification_key);
+    rollup_circuit(composer, proofs, inner.verification_key);
 
     std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
     auto proving_key = composer.compute_proving_key();

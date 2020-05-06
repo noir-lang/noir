@@ -1,3 +1,4 @@
+#pragma once
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include "../client_proofs/join_split/join_split.hpp"
 

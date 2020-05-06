@@ -1,6 +1,7 @@
 #include "../client_proofs/join_split/join_split.hpp"
 #include "../client_proofs/join_split/join_split_tx.hpp"
 #include "../rollup_proofs/rollup_tx.hpp"
+#include "../rollup_proofs/create_noop_join_split_proof.hpp"
 #include "../tx/user_context.hpp"
 #include "../client_proofs/join_split/sign_notes.hpp"
 #include <stdlib/merkle_tree/leveldb_store.hpp>
@@ -14,51 +15,17 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-waffle::plonk_proof create_join_split_proof()
+int main(int argc, char** argv)
 {
-    std::cerr << "Creating join split proof." << std::endl;
+    std::vector<std::string> args(argv, argv + argc);
 
-    LevelDbStore::destroy("/tmp/rollup_proofs");
-    auto store = LevelDbStore("/tmp/rollup_proofs");
-    auto tree = LevelDbTree(store, 32);
-    auto user = rollup::tx::create_user_context();
+    if (args.size() < 2) {
+        std::cout << "usage: " << args[0] << " <num_txs>" << std::endl;
+        return -1;
+    }
 
-    tx_note gibberish = { user.public_key, 0, fr::random_element() };
-    tx_note output_note1 = { user.public_key, 100, user.note_secret };
-    tx_note output_note2 = { user.public_key, 0, user.note_secret };
-
-    join_split_tx tx;
-    tx.owner_pub_key = user.public_key;
-    tx.public_input = 100;
-    tx.public_output = 0;
-    tx.num_input_notes = 0;
-    tx.input_index = { 0, 1 };
-    tx.merkle_root = tree.root();
-    tx.input_path = { tree.get_hash_path(0), tree.get_hash_path(1) };
-    tx.input_note = { gibberish, gibberish };
-    tx.output_note = { output_note1, output_note2 };
-
-    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                              { user.private_key, user.public_key });
-
-    Composer composer = Composer("../srs_db/ignition");
-    join_split_circuit(composer, tx);
-
-    auto prover = composer.create_unrolled_prover();
-    auto proof = prover.construct_proof();
-    std::cerr << "Done." << std::endl;
-
-    return proof;
-}
-
-int main(int, char**)
-{
-    // std::vector<std::string> args(argv, argv + argc);
-
-    // if (args.size() < 2) {
-    //     std::cout << "usage: " << args[0] << " [join-split] [join-split-auto ...>]" << std::endl;
-    //     return -1;
-    // }
+    const uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
+    std::cerr << "Generating rollup with " << num_txs << " txs..." << std::endl;
 
     // if (args.size() < 8) {
     //     std::cout << "usage: " << argv[0]
@@ -69,13 +36,13 @@ int main(int, char**)
     //     return -1;
     // }
 
-    auto proof = create_join_split_proof();
+    auto proof = create_noop_join_split_proof();
 
     rollup_tx rollup;
     rollup.rollup_id = 0;
-    rollup.num_txs = 1;
+    rollup.num_txs = num_txs;
     rollup.proof_lengths = static_cast<uint32_t>(proof.proof_data.size());
-    rollup.txs = { proof.proof_data };
+    rollup.txs = std::vector(num_txs, proof.proof_data);
     write(std::cout, rollup);
 
     /*
