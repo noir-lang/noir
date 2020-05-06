@@ -183,6 +183,23 @@ inline std::enable_if_t<!std::is_integral_v<T>> write(B& buf, std::array<T, N> c
     }
 }
 
+// Generic read of vector of integer types from supported buffer types.
+template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> read(B& it, std::vector<T>& value)
+{
+    for (size_t i = 0; i < value.size(); ++i) {
+        ::read(it, value[i]);
+    }
+}
+
+// Generic write of vector of integer types to supported buffer types.
+template <typename B, typename T>
+inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::vector<T> const& value)
+{
+    for (size_t i = 0; i < value.size(); ++i) {
+        ::write(buf, value[i]);
+    }
+}
+
 // Generic read of vector of non integer types from supported buffer types.
 template <typename B, typename T> inline std::enable_if_t<!std::is_integral_v<T>> read(B& it, std::vector<T>& value)
 {
