@@ -33,7 +33,7 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
 }
 
 template <typename program_settings>
-barretenberg::fr VerifierBase<program_settings>::compute_non_linear_kate_batch_evaluation(
+barretenberg::fr VerifierBase<program_settings>::compute_kate_batch_evaluation(
     const transcript::StandardTranscript& transcript)
 {
     barretenberg::fr batch_eval(0);
@@ -180,9 +180,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     transcript.apply_fiat_shamir("separator");
     const auto separator_challenge = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
 
-    fr batch_evaluation = compute_non_linear_kate_batch_evaluation(transcript);
-
-    // program_settings::compute_batch_evaluation_contribution(key.get(), batch_evaluation, transcript);
+    fr batch_evaluation = compute_kate_batch_evaluation(transcript);
 
     kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
     kate_fr_elements.insert({ "BATCH_EVALUATION", -batch_evaluation });
