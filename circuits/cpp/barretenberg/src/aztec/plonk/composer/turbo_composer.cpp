@@ -684,6 +684,11 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
 
     ComposerBase::compute_proving_key_base();
     compute_sigma_permutations<4>(circuit_proving_key.get());
+
+    std::copy(turbo_polynomial_manifest,
+              turbo_polynomial_manifest + 20,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 

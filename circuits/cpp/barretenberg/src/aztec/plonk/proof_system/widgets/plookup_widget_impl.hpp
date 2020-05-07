@@ -724,80 +724,10 @@ void VerifierPLookupWidget<Field, Group, Transcript>::compute_batch_evaluation_c
 };
 
 template <typename Field, typename Group, typename Transcript>
-Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(verification_key* key,
-                                                                                           const Field& alpha_base,
-                                                                                           const Transcript& transcript,
-                                                                                           std::vector<Group>& elements,
-                                                                                           std::vector<Field>& scalars,
-                                                                                           const bool use_linearisation)
+Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+    verification_key*, const Field& alpha_base, const Transcript& transcript, std::map<std::string, Field>&, const bool)
 {
-    Field u = transcript.get_challenge_field_element("separator");
     Field alpha = transcript.get_challenge_field_element("alpha");
-
-    Field u_plus_one = u + Field(1);
-    std::array<Field, 8> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "table_value_1");
-    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "table_value_2");
-    nu_challenges[2] = transcript.get_challenge_field_element_from_map("nu", "table_value_3");
-    nu_challenges[3] = transcript.get_challenge_field_element_from_map("nu", "table_value_4");
-    nu_challenges[4] = transcript.get_challenge_field_element_from_map("nu", "table_index");
-    nu_challenges[5] = transcript.get_challenge_field_element_from_map("nu", "table_type");
-    nu_challenges[6] = transcript.get_challenge_field_element_from_map("nu", "s");
-    nu_challenges[7] = transcript.get_challenge_field_element_from_map("nu", "z_lookup");
-
-    if (key->permutation_selectors.at("TABLE_1").on_curve()) {
-        elements.push_back(key->permutation_selectors.at("TABLE_1"));
-        scalars.push_back(nu_challenges[0] * u_plus_one);
-    }
-    if (key->permutation_selectors.at("TABLE_2").on_curve()) {
-        elements.push_back(key->permutation_selectors.at("TABLE_2"));
-        scalars.push_back(nu_challenges[1] * u_plus_one);
-    }
-    if (key->permutation_selectors.at("TABLE_3").on_curve()) {
-        elements.push_back(key->permutation_selectors.at("TABLE_3"));
-        scalars.push_back(nu_challenges[2] * u_plus_one);
-    }
-    if (key->permutation_selectors.at("TABLE_4").on_curve()) {
-        elements.push_back(key->permutation_selectors.at("TABLE_4"));
-        scalars.push_back(nu_challenges[3] * u_plus_one);
-    }
-    if (key->permutation_selectors.at("TABLE_INDEX").on_curve()) {
-        elements.push_back(key->permutation_selectors.at("TABLE_INDEX"));
-        scalars.push_back(nu_challenges[4]);
-    }
-    if (key->permutation_selectors.at("TABLE_TYPE").on_curve()) {
-        elements.push_back(key->permutation_selectors.at("TABLE_TYPE"));
-        scalars.push_back(nu_challenges[5]);
-    }
-
-    const auto S = transcript.get_group_element("S");
-    if (S.on_curve()) {
-        elements.push_back(S);
-        scalars.push_back(nu_challenges[6] * u_plus_one);
-    }
-
-    const auto Z = transcript.get_group_element("Z_LOOKUP");
-    if (Z.on_curve()) {
-        elements.push_back(Z);
-        scalars.push_back(nu_challenges[7] * u_plus_one);
-    }
-
-    if (use_linearisation) {
-        const Field q_2_eval = transcript.get_field_element("q_2");
-        const Field q_m_eval = transcript.get_field_element("q_m");
-
-        nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_2");
-        nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_m");
-
-        // TODO find non-hacky way of doing this
-        if (q_2_eval != Field(0)) {
-            scalars[key->scalar_multiplication_indices.at("Q_2")] += nu_challenges[0];
-        }
-        if (q_m_eval != Field(0)) {
-            scalars[key->scalar_multiplication_indices.at("Q_M")] += nu_challenges[1];
-        }
-    }
-
     return alpha_base * alpha.sqr() * alpha;
 }
 

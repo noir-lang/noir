@@ -197,19 +197,13 @@ template <typename Field, typename Group, typename Transcript>
 Field VerifierMiMCWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(verification_key* key,
                                                                                         const Field& alpha_base,
                                                                                         const Transcript& transcript,
-                                                                                        std::vector<Group>& points,
-                                                                                        std::vector<Field>& scalars,
+                                                                                        std::map<std::string, Field>& scalars,
                                                                                         const bool use_linearisation)
 {
     Field alpha_step = transcript.get_challenge_field_element("alpha");
 
     if (use_linearisation) {
-        Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
 
-        if (key->constraint_selectors.at("Q_MIMC_COEFFICIENT").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_MIMC_COEFFICIENT"));
-            scalars.push_back(nu_base);
-        }
         Field w_l_eval = transcript.get_field_element("w_1");
         Field w_r_eval = transcript.get_field_element("w_2");
         Field w_o_eval = transcript.get_field_element("w_3");
@@ -224,24 +218,10 @@ Field VerifierMiMCWidget<Field, Group, Transcript>::append_scalar_multiplication
         q_mimc_term = q_mimc_term * linear_nu;
 
         if (key->constraint_selectors.at("Q_MIMC_SELECTOR").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_MIMC_SELECTOR"));
-            scalars.push_back(q_mimc_term);
+            scalars["Q_MIMC_SELECTOR"] += (q_mimc_term);
         }
 
         return alpha_base * alpha_step.sqr();
-    }
-
-    std::array<Field, 5> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_mimc_coefficient");
-    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_mimc_selector");
-
-    if (key->constraint_selectors.at("Q_MIMC_COEFFICIENT").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_MIMC_COEFFICIENT"));
-        scalars.push_back(nu_challenges[0]);
-    }
-    if (key->constraint_selectors.at("Q_MIMC_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_MIMC_SELECTOR"));
-        scalars.push_back(nu_challenges[1]);
     }
 
     return alpha_base * alpha_step.sqr();

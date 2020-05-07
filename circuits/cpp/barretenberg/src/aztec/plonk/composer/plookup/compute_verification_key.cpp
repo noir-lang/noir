@@ -1,6 +1,7 @@
 #include "compute_verification_key.hpp"
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/reference_string/reference_string.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 
@@ -75,6 +76,11 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
 
     circuit_verification_key->permutation_selectors.insert({ "TABLE_INDEX", commitments[19] });
     circuit_verification_key->permutation_selectors.insert({ "TABLE_TYPE", commitments[20] });
+
+    std::copy(plookup_polynomial_manifest,
+              plookup_polynomial_manifest + 28,
+              std::back_inserter(circuit_verification_key->polynomial_manifest));
+
     return circuit_verification_key;
 }
 

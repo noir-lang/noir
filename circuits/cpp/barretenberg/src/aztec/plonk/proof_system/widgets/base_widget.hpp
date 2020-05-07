@@ -5,6 +5,7 @@
 #include "../prover/work_queue.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 
+#include <map>
 namespace transcript {
 class Transcript;
 }

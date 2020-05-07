@@ -44,7 +44,7 @@ ProverSequentialWidget& ProverSequentialWidget::operator=(ProverSequentialWidget
 }
 
 barretenberg::fr ProverSequentialWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                         const transcript::Transcript& transcript)
+                                                                       const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);
 
@@ -62,8 +62,8 @@ barretenberg::fr ProverSequentialWidget::compute_quotient_contribution(const bar
 }
 
 barretenberg::fr ProverSequentialWidget::compute_linear_contribution(const fr& alpha_base,
-                                                       const transcript::Transcript& transcript,
-                                                       polynomial& r)
+                                                                     const transcript::Transcript& transcript,
+                                                                     polynomial& r)
 {
     fr w_o_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("w_3_omega")[0]);
     fr alpha = fr::serialize_from_buffer(&transcript.get_challenge("alpha")[0]);
@@ -156,8 +156,7 @@ Field VerifierSequentialWidget<Field, Group, Transcript>::append_scalar_multipli
     verification_key* key,
     const Field& alpha_base,
     const Transcript& transcript,
-    std::vector<Group>& points,
-    std::vector<Field>& scalars,
+    std::map<std::string, Field>& scalars,
     const bool use_linearisation)
 {
     Field alpha_step = transcript.get_challenge_field_element("alpha");
@@ -175,19 +174,18 @@ Field VerifierSequentialWidget<Field, Group, Transcript>::append_scalar_multipli
         q_o_next_term *= linear_nu;
 
         if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
-            scalars.push_back(q_o_next_term);
+            scalars["Q_3_NEXT"] += (q_o_next_term);
         }
 
         return alpha_base;
     }
 
-    Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_3_next");
+    // Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_3_next");
 
-    if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
-        scalars.push_back(nu_base);
-    }
+    // if (key->constraint_selectors.at("Q_3_NEXT").on_curve()) {
+    //     points.push_back(key->constraint_selectors.at("Q_3_NEXT"));
+    //     scalars.push_back(nu_base);
+    // }
     return alpha_base;
 }
 

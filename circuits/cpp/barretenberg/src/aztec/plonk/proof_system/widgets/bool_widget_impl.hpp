@@ -63,7 +63,8 @@ ProverBoolWidget& ProverBoolWidget::operator=(ProverBoolWidget&& other)
     return *this;
 }
 
-barretenberg::fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha_base, const transcript::Transcript& transcript)
+barretenberg::fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha_base,
+                                                                 const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -87,8 +88,8 @@ barretenberg::fr ProverBoolWidget::compute_quotient_contribution(const fr& alpha
 }
 
 barretenberg::fr ProverBoolWidget::compute_linear_contribution(const fr& alpha_base,
-                                                 const transcript::Transcript& transcript,
-                                                 polynomial& r)
+                                                               const transcript::Transcript& transcript,
+                                                               polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     fr w_l_eval = fr::serialize_from_buffer(&transcript.get_element("w_1")[0]);
@@ -179,9 +180,9 @@ Field VerifierBoolWidget<Field, Group, Transcript>::compute_quotient_evaluation_
 
 template <typename Field, typename Group, typename Transcript>
 void VerifierBoolWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(verification_key*,
-                                                                                           Field& batch_eval,
-                                                                                           const Transcript& transcript,
-                                                                                           const bool use_linearisation)
+                                                                                         Field& batch_eval,
+                                                                                         const Transcript& transcript,
+                                                                                         const bool use_linearisation)
 {
     if (use_linearisation) {
         return;
@@ -202,12 +203,12 @@ void VerifierBoolWidget<Field, Group, Transcript>::compute_batch_evaluation_cont
 };
 
 template <typename Field, typename Group, typename Transcript>
-Field VerifierBoolWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(verification_key* key,
-                                                                                        const Field& alpha_base,
-                                                                                        const Transcript& transcript,
-                                                                                        std::vector<Group>& points,
-                                                                                        std::vector<Field>& scalars,
-                                                                                        const bool use_linearisation)
+Field VerifierBoolWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+    verification_key* key,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    std::map<std::string, Field>& scalars,
+    const bool use_linearisation)
 {
     Field alpha_step = transcript.get_challenge_field_element("alpha");
 
@@ -224,37 +225,16 @@ Field VerifierBoolWidget<Field, Group, Transcript>::append_scalar_multiplication
         fr output_bool_multiplier = (w_o_eval.sqr() - w_o_eval) * alpha_base * alpha_step.sqr() * linear_nu;
 
         if (key->constraint_selectors.at("Q_BL").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_BL"));
-            scalars.push_back(left_bool_multiplier);
+            scalars["Q_BL"] += left_bool_multiplier;
         }
         if (key->constraint_selectors.at("Q_BR").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_BR"));
-            scalars.push_back(right_bool_multiplier);
+            scalars["Q_BR"] += right_bool_multiplier;
         }
         if (key->constraint_selectors.at("Q_BO").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_BO"));
-            scalars.push_back(output_bool_multiplier);
+            scalars["Q_BO"] += output_bool_multiplier;
         }
 
         return alpha_base * alpha_step.sqr() * alpha_step;
-    }
-
-    std::array<Field, 3> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_bl");
-    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_br");
-    nu_challenges[2] = transcript.get_challenge_field_element_from_map("nu", "q_bo");
-
-    if (key->constraint_selectors.at("Q_BL").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_BL"));
-        scalars.push_back(nu_challenges[0]);
-    }
-    if (key->constraint_selectors.at("Q_BR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_BR"));
-        scalars.push_back(nu_challenges[1]);
-    }
-    if (key->constraint_selectors.at("Q_BO").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_BO"));
-        scalars.push_back(nu_challenges[2]);
     }
 
     return alpha_base * alpha_step.sqr() * alpha_step;

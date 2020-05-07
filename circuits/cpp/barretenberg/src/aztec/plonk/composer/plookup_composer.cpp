@@ -8,6 +8,7 @@
 #include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_range_widget.hpp>
 #include <plonk/proof_system/widgets/plookup_widget.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/composer/plookup/compute_verification_key.hpp>
 
@@ -871,6 +872,11 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     circuit_proving_key->num_lookup_tables = lookup_tables.size();
 
     compute_sigma_permutations<4>(circuit_proving_key.get());
+
+    std::copy(plookup_polynomial_manifest,
+              plookup_polynomial_manifest + 28,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 
@@ -1025,6 +1031,7 @@ PLookupProver PLookupComposer::create_prover()
     output_state.widgets.emplace_back(std::move(range_widget));
     output_state.widgets.emplace_back(std::move(logic_widget));
     output_state.widgets.emplace_back(std::move(plookup_widget));
+
     return output_state;
 }
 

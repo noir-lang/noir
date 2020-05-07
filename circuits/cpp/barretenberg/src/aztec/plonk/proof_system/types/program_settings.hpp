@@ -21,6 +21,7 @@ class settings_base {
         return (((wire_shift_settings >> (wire_index)) & 1UL) == 1UL);
     }
 };
+// static constexpr PolynomialDescriptor* const wololo = standard_polynomial_manifest;
 
 class standard_settings : public settings_base {
   public:
@@ -61,6 +62,32 @@ class turbo_settings : public settings_base {
     static constexpr bool use_linearisation = true;
 };
 
+class plookup_settings : public settings_base {
+  public:
+    static constexpr size_t num_challenge_bytes = 32;
+    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
+    static constexpr size_t program_width = 4;
+    static constexpr size_t num_shifted_wire_evaluations = 4;
+    static constexpr uint64_t wire_shift_settings = 0b1111;
+    static constexpr bool uses_quotient_mid = false;
+    static constexpr uint32_t permutation_shift = 30;
+    static constexpr uint32_t permutation_mask = 0xC0000000;
+    static constexpr bool use_linearisation = true;
+};
+
+class unrolled_plookup_settings : public settings_base {
+  public:
+    static constexpr size_t num_challenge_bytes = 16;
+    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
+    static constexpr size_t program_width = 4;
+    static constexpr size_t num_shifted_wire_evaluations = 4;
+    static constexpr uint64_t wire_shift_settings = 0b1111;
+    static constexpr bool uses_quotient_mid = false;
+    static constexpr uint32_t permutation_shift = 30;
+    static constexpr uint32_t permutation_mask = 0xC0000000;
+    static constexpr bool use_linearisation = false;
+};
+
 class unrolled_turbo_settings : public settings_base {
   public:
     static constexpr size_t num_challenge_bytes = 16;
@@ -89,14 +116,13 @@ class standard_verifier_settings : public standard_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
-                                                  std::vector<g1::affine_element>& points,
-                                                  std::vector<fr>& scalars)
+                                                  std::map<std::string, fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
 
         return ArithmeticWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
     }
 
     static void compute_batch_evaluation_contribution(verification_key* key,
@@ -134,14 +160,13 @@ class unrolled_standard_verifier_settings : public standard_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
-                                                  std::vector<barretenberg::g1::affine_element>& points,
-                                                  std::vector<barretenberg::fr>& scalars)
+                                                  std::map<std::string, fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
 
         return ArithmeticWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
     }
 
     static void compute_batch_evaluation_contribution(verification_key* key,
@@ -182,17 +207,16 @@ class mimc_verifier_settings : public standard_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
-                                                  std::vector<barretenberg::g1::affine_element>& points,
-                                                  std::vector<barretenberg::fr>& scalars)
+                                                  std::map<std::string, fr>& scalars)
     {
 
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
 
         updated_alpha = ArithmeticWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
-        updated_alpha = MiMCWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha =
+            MiMCWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars, use_linearisation);
         return updated_alpha;
     }
 
@@ -237,18 +261,17 @@ class turbo_verifier_settings : public turbo_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const transcript::StandardTranscript& transcript,
-                                                  std::vector<g1::affine_element>& points,
-                                                  std::vector<fr>& scalars)
+                                                  std::map<std::string, fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         return updated_alpha;
     }
 
@@ -280,7 +303,7 @@ class turbo_verifier_settings : public turbo_settings {
     }
 };
 
-class plookup_verifier_settings : public turbo_settings {
+class plookup_verifier_settings : public plookup_settings {
   public:
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
@@ -297,19 +320,18 @@ class plookup_verifier_settings : public turbo_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const transcript::StandardTranscript& transcript,
-                                                  std::vector<g1::affine_element>& points,
-                                                  std::vector<fr>& scalars)
+                                                  std::map<std::string, fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         return updated_alpha;
     }
 
@@ -359,20 +381,19 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
-                                                  std::vector<barretenberg::g1::affine_element>& points,
-                                                  std::vector<barretenberg::fr>& scalars)
+                                                  std::map<std::string, fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         return updated_alpha;
     }
 
@@ -420,23 +441,22 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
-                                                  std::vector<barretenberg::g1::affine_element>& points,
-                                                  std::vector<barretenberg::fr>& scalars)
+                                                  std::map<std::string, barretenberg::fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, points, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, points, scalars, use_linearisation);
+            key, updated_alpha, transcript, scalars, use_linearisation);
         return updated_alpha;
     }
 

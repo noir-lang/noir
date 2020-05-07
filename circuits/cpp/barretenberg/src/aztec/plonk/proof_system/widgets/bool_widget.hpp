@@ -22,8 +22,7 @@ template <typename Field, typename Group, typename Transcript> class VerifierBoo
     inline static Field append_scalar_multiplication_inputs(verification_key* key,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
-                                                     std::vector<Group>& points,
-                                                     std::vector<Field>& scalars,
+                                                     std::map<std::string, std::Field>& scalars,
                                                      const bool use_linearisation);
 };
 

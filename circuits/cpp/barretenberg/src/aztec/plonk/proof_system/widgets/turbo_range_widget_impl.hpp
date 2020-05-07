@@ -97,7 +97,7 @@ ProverTurboRangeWidget& ProverTurboRangeWidget::operator=(ProverTurboRangeWidget
  *
  **/
 barretenberg::fr ProverTurboRangeWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                         const transcript::Transcript& transcript)
+                                                                       const transcript::Transcript& transcript)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -188,8 +188,8 @@ void ProverTurboRangeWidget::compute_transcript_elements(transcript::Transcript&
 }
 
 barretenberg::fr ProverTurboRangeWidget::compute_linear_contribution(const fr& alpha_base,
-                                                       const transcript::Transcript& transcript,
-                                                       barretenberg::polynomial& r)
+                                                                     const transcript::Transcript& transcript,
+                                                                     barretenberg::polynomial& r)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -397,8 +397,7 @@ Field VerifierTurboRangeWidget<Field, Group, Transcript>::append_scalar_multipli
     verification_key* key,
     const Field& alpha_base,
     const Transcript& transcript,
-    std::vector<Group>& points,
-    std::vector<Field>& scalars,
+    std::map<std::string, Field>& scalars,
     const bool use_linearisation)
 {
     Field alpha_step = transcript.get_challenge_field_element("alpha");
@@ -475,17 +474,17 @@ Field VerifierTurboRangeWidget<Field, Group, Transcript>::append_scalar_multipli
         range_accumulator *= linear_nu;
 
         if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
-            scalars.push_back(range_accumulator);
+            // points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+            scalars["Q_RANGE_SELECTOR"] += (range_accumulator);
         }
 
         return alpha_d * alpha_step;
     }
-    Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_range");
-    if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
-        scalars.push_back(nu_base);
-    }
+    // Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_range");
+    // if (key->constraint_selectors.at("Q_RANGE_SELECTOR").on_curve()) {
+    //     points.push_back(key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+    //     scalars.push_back(nu_base);
+    // }
     Field alpha_a = alpha_base;
     Field alpha_b = alpha_a * alpha_step;
     Field alpha_c = alpha_b * alpha_step;

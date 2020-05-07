@@ -112,7 +112,7 @@ ProverTurboArithmeticWidget& ProverTurboArithmeticWidget::operator=(ProverTurboA
 }
 
 barretenberg::fr ProverTurboArithmeticWidget::compute_quotient_contribution(const barretenberg::fr& alpha_base,
-                                                              const transcript::Transcript& transcript)
+                                                                            const transcript::Transcript& transcript)
 {
     const fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -226,8 +226,8 @@ void ProverTurboArithmeticWidget::compute_transcript_elements(transcript::Transc
 }
 
 barretenberg::fr ProverTurboArithmeticWidget::compute_linear_contribution(const fr& alpha_base,
-                                                            const transcript::Transcript& transcript,
-                                                            barretenberg::polynomial& r)
+                                                                          const transcript::Transcript& transcript,
+                                                                          barretenberg::polynomial& r)
 {
 
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
@@ -472,8 +472,7 @@ Field VerifierTurboArithmeticWidget<Field, Group, Transcript>::append_scalar_mul
     verification_key* key,
     const Field& alpha_base,
     const Transcript& transcript,
-    std::vector<Group>& points,
-    std::vector<Field>& scalars,
+    std::map<std::string, Field>& scalars,
     const bool use_linearisation)
 {
     Field alpha_step = transcript.get_challenge_field_element("alpha");
@@ -487,109 +486,46 @@ Field VerifierTurboArithmeticWidget<Field, Group, Transcript>::append_scalar_mul
         Field q_arith_eval = transcript.get_field_element("q_arith");
 
         Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
-        Field nu_base = transcript.get_challenge_field_element_from_map("nu", "q_arith");
 
         Field q_l_term = w_l_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_1").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_1"));
-            scalars.push_back(q_l_term);
+            scalars["Q_1"] += (q_l_term);
         }
 
         Field q_r_term = w_r_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_2").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_2"));
-            scalars.push_back(q_r_term);
+            scalars["Q_2"] += (q_r_term);
         }
 
         Field q_o_term = w_o_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_3").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_3"));
-            scalars.push_back(q_o_term);
+            scalars["Q_3"] += (q_o_term);
         }
 
         Field q_4_term = w_4_eval * q_arith_eval * alpha_base * linear_nu;
         if (key->constraint_selectors.at("Q_4").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_4"));
-            scalars.push_back(q_4_term);
+            scalars["Q_4"] += (q_4_term);
         }
 
         const Field minus_two = -Field(2);
         Field q_5_term =
             (w_4_eval.sqr() - w_4_eval) * (w_4_eval + minus_two) * alpha_base * alpha_step * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_5").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_5"));
-            scalars.push_back(q_5_term);
+            scalars["Q_5"] += (q_5_term);
         }
 
         // Q_M term = w_l * w_r * alpha_base * nu
         Field q_m_term = w_l_eval * w_r_eval * alpha_base * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_M").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_M"));
-            scalars.push_back(q_m_term);
+            scalars["Q_M"] += (q_m_term);
         }
 
         Field q_c_term = alpha_base * linear_nu * q_arith_eval;
         if (key->constraint_selectors.at("Q_C").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_C"));
-            scalars.push_back(q_c_term);
-        }
-
-        if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
-            points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-            scalars.push_back(nu_base);
+            scalars["Q_C"] += (q_c_term);
         }
 
         return alpha_base * alpha_step.sqr();
-    }
-
-    std::array<Field, 8> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_1");
-    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_2");
-    nu_challenges[2] = transcript.get_challenge_field_element_from_map("nu", "q_3");
-    nu_challenges[3] = transcript.get_challenge_field_element_from_map("nu", "q_4");
-    nu_challenges[4] = transcript.get_challenge_field_element_from_map("nu", "q_5");
-    nu_challenges[5] = transcript.get_challenge_field_element_from_map("nu", "q_m");
-    nu_challenges[6] = transcript.get_challenge_field_element_from_map("nu", "q_c");
-    nu_challenges[7] = transcript.get_challenge_field_element_from_map("nu", "q_arith");
-
-    if (key->constraint_selectors.at("Q_1").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_1"));
-        scalars.push_back(nu_challenges[0]);
-    }
-
-    if (key->constraint_selectors.at("Q_2").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_2"));
-        scalars.push_back(nu_challenges[1]);
-    }
-
-    if (key->constraint_selectors.at("Q_3").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_3"));
-        scalars.push_back(nu_challenges[2]);
-    }
-
-    if (key->constraint_selectors.at("Q_4").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_4"));
-        scalars.push_back(nu_challenges[3]);
-    }
-
-    if (key->constraint_selectors.at("Q_5").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_5"));
-        scalars.push_back(nu_challenges[4]);
-    }
-
-    if (key->constraint_selectors.at("Q_M").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_M"));
-        scalars.push_back(nu_challenges[5]);
-    }
-
-    if (key->constraint_selectors.at("Q_C").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_C"));
-        scalars.push_back(nu_challenges[6]);
-    }
-
-    if (key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR").on_curve()) {
-        points.push_back(key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-        scalars.push_back(nu_challenges[7]);
     }
 
     return alpha_base * alpha_step.sqr();

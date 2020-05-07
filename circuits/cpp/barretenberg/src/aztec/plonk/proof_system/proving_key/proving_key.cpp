@@ -62,25 +62,6 @@ proving_key::proving_key(const size_t num_gates,
     memset((void*)&linear_poly[0], 0x00, sizeof(barretenberg::fr) * n);
     memset((void*)&quotient_mid[0], 0x00, sizeof(barretenberg::fr) * 2 * n);
     memset((void*)&quotient_large[0], 0x00, sizeof(barretenberg::fr) * 4 * n);
-
-    // size_t memory = opening_poly.get_max_size() * 32;
-    // memory += (linear_poly.get_max_size() * 32);
-    // memory += (shifted_opening_poly.get_max_size() * 32);
-    // memory += (opening_poly.get_max_size() * 32);
-    // memory += (lagrange_1.get_max_size() * 32);
-    // memory += (w_1_fft.get_max_size() * 32);
-    // memory += (w_2_fft.get_max_size() * 32);
-    // memory += (w_3_fft.get_max_size() * 32);
-    // memory += (w_4_fft.get_max_size() * 32);
-    // memory += (z_fft.get_max_size() * 32);
-    // memory += (z.get_max_size() * 32);
-    // memory += (small_domain.size * 2 * 32);
-    // memory += (mid_domain.size * 2 * 32);
-    // memory += (large_domain.size * 2 * 32);
-    // memory += (quotient_mid.get_max_size() * 32);
-    // memory += (quotient_large.get_max_size() * 32);
-
-    // printf("proving key allocated memory = %lu \n", memory / (1024UL * 1024UL));
 }
 
 void proving_key::reset()
@@ -127,6 +108,7 @@ proving_key::proving_key(const proving_key& other)
     , quotient_mid(other.quotient_mid)
     , quotient_large(other.quotient_large)
     , pippenger_runtime_state(n)
+    , polynomial_manifest(other.polynomial_manifest)
 {}
 
 proving_key::proving_key(proving_key&& other)
@@ -148,7 +130,7 @@ proving_key::proving_key(proving_key&& other)
     , shifted_opening_poly(std::move(other.shifted_opening_poly))
     , linear_poly(std::move(other.linear_poly))
     , pippenger_runtime_state(std::move(other.pippenger_runtime_state))
-
+    , polynomial_manifest(std::move(other.polynomial_manifest))
 {}
 
 proving_key& proving_key::operator=(proving_key&& other)
@@ -171,6 +153,7 @@ proving_key& proving_key::operator=(proving_key&& other)
     shifted_opening_poly = std::move(other.shifted_opening_poly);
     linear_poly = std::move(other.linear_poly);
     pippenger_runtime_state = std::move(other.pippenger_runtime_state);
+    polynomial_manifest = std::move(other.polynomial_manifest);
     return *this;
 }
 } // namespace waffle

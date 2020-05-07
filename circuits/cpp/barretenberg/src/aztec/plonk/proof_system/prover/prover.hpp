@@ -28,6 +28,8 @@ template <typename settings> class ProverBase {
     void execute_fifth_round();
     void execute_sixth_round();
 
+    void add_polynomial_evaluations_to_transcript();
+    void compute_batch_opening_polynomials();
     void compute_wire_pre_commitments();
     void compute_quotient_pre_commitment();
     void init_quotient_polynomials();
@@ -100,7 +102,7 @@ typedef ProverBase<unrolled_standard_settings> UnrolledProver;
 typedef ProverBase<unrolled_turbo_settings> UnrolledTurboProver;
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
-typedef ProverBase<turbo_settings> PLookupProver;
-typedef ProverBase<unrolled_turbo_settings> UnrolledPLookupProver;
+typedef ProverBase<plookup_settings> PLookupProver;
+typedef ProverBase<unrolled_plookup_settings> UnrolledPLookupProver;
 
 } // namespace waffle

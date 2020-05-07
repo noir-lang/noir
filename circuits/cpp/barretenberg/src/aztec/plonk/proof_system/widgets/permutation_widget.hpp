@@ -15,8 +15,7 @@ template <typename Field, typename Group, typename Transcript> class VerifierPer
     static Field append_scalar_multiplication_inputs(verification_key*,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
-                                                     std::vector<Group>& points,
-                                                     std::vector<Field>& scalars,
+                                                     std::map<std::string, Field>& scalars,
                                                      const bool use_linearisation);
 
     static void compute_batch_evaluation_contribution(verification_key*,

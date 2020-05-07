@@ -4,6 +4,7 @@
 #include "../verification_key/verification_key.hpp"
 #include "../widgets/base_widget.hpp"
 #include <plonk/transcript/manifest.hpp>
+#include <plonk/transcript/transcript_wrappers.hpp>
 
 namespace waffle {
 template <typename program_settings> class VerifierBase {
@@ -16,11 +17,18 @@ template <typename program_settings> class VerifierBase {
     VerifierBase& operator=(const VerifierBase& other) = delete;
     VerifierBase& operator=(VerifierBase&& other);
 
+    void populate_kate_element_map(const transcript::StandardTranscript& transcript);
+    barretenberg::fr compute_non_linear_kate_batch_evaluation(const transcript::StandardTranscript& transcript);
+    bool validate_commitments();
+    bool validate_scalars();
+
     bool verify_proof(const waffle::plonk_proof& proof);
 
     transcript::Manifest manifest;
 
     std::shared_ptr<verification_key> key;
+    std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
+    std::map<std::string, barretenberg::fr> kate_fr_elements;
 };
 
 extern template class VerifierBase<unrolled_standard_verifier_settings>;

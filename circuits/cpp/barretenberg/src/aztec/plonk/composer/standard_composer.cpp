@@ -4,6 +4,7 @@
 #include <plonk/composer/standard/compute_verification_key.hpp>
 #include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/permutation_widget.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 
 using namespace barretenberg;
 
@@ -467,6 +468,11 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     ComposerBase::compute_proving_key_base();
 
     compute_sigma_permutations<3>(circuit_proving_key.get());
+
+    std::copy(standard_polynomial_manifest,
+              standard_polynomial_manifest + 12,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 
@@ -535,6 +541,7 @@ Prover StandardComposer::create_prover()
 
     output_state.widgets.emplace_back(std::move(permutation_widget));
     output_state.widgets.emplace_back(std::move(widget));
+
     return output_state;
 }
 
