@@ -61,7 +61,8 @@ inline void read(uint8_t const*& it, plonk::stdlib::merkle_tree::fr_hash_path& p
     }
 }
 
-inline void write(std::vector<uint8_t>& buf, plonk::stdlib::merkle_tree::fr_hash_path const& path)
+template <typename B>
+inline void write(B& buf, plonk::stdlib::merkle_tree::fr_hash_path const& path)
 {
     for (size_t i = 0; i < path.size(); ++i) {
         write(buf, path[i].first);

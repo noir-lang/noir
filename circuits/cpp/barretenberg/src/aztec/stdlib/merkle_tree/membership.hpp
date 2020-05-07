@@ -8,8 +8,8 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 template <typename Composer>
 bool_t<Composer> check_membership(Composer& composer,
                                   field_t<Composer> const& root,
@@ -62,13 +62,13 @@ void update_membership(Composer& composer,
                        byte_array<Composer> const& old_value,
                        byte_array<Composer> const& index)
 {
-    // Check old path hashes lead to the old root. They're used when validating the new path hashes.
+    // Check check that the old_value, is in the tree given by old_root, at index.
     assert_check_membership(composer, old_root, old_hashes, old_value, index);
 
-    // Check the new path hashes lead from the new value to the new root.
+    // Check check that the new_value, is in the tree given by new_root, at index.
     assert_check_membership(composer, new_root, new_hashes, new_value, index);
 
-    // Check that only the appropriate left or right hash was updated in the new hash path.
+    // Check that the old and new values, are actually in the same tree.
     for (size_t i = 0; i < new_hashes.size(); ++i) {
         bool_t path_bit = index.get_bit(i);
         bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;

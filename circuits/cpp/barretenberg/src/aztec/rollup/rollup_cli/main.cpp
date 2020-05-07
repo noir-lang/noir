@@ -40,11 +40,10 @@ int main(int argc, char** argv)
             continue;
         }
 
-        // TODO:
-        // if (rollup.proof_lengths != circuit_data.proof_lengths) {
-        //     std::cerr << "Proof lengths incorrect: " << rollup.proof_lengths << std::endl;
-        //     continue;
-        // }
+        if (rollup.proof_lengths != circuit_data.proof_lengths) {
+            std::cerr << "Proof lengths incorrect: " << rollup.proof_lengths << std::endl;
+            continue;
+        }
 
         // Pad the rollup with gibberish proofs.
         for (size_t i = 0; i < batch_size - rollup.num_txs; ++i) {

@@ -12,6 +12,7 @@ enum Command {
     PUT,
     COMMIT,
     ROLLBACK,
+    GETPATH,
 };
 
 class WorldStateDb {
@@ -38,18 +39,29 @@ class WorldStateDb {
     {
         GetRequest get_request;
         read(is, get_request);
-        std::cerr << get_request << std::endl;
+        // std::cerr << get_request << std::endl;
         std::vector<uint8_t> r = trees_[get_request.tree_id]->get_element(get_request.index);
         GetResponse get_response;
         std::copy(r.begin(), r.end(), get_response.value.begin());
         write(os, get_response);
     }
 
+    void get_path(std::istream& is, std::ostream& os)
+    {
+        GetRequest get_request;
+        read(is, get_request);
+        // std::cerr << get_request << std::endl;
+        auto tree = trees_[get_request.tree_id];
+        auto path = tree->get_hash_path(get_request.index);
+        write(os, static_cast<uint32_t>(tree->depth()));
+        write(os, path);
+    }
+
     void put(std::istream& is, std::ostream& os)
     {
         PutRequest put_request;
         read(is, put_request);
-        std::cerr << put_request << std::endl;
+        // std::cerr << put_request << std::endl;
         PutResponse put_response;
         put_response.root = trees_[put_request.tree_id]->update_element(
             put_request.index, { put_request.value.begin(), put_request.value.end() });
@@ -57,13 +69,13 @@ class WorldStateDb {
     }
 
     void commit(std::ostream& os) {
-        std::cerr << "COMMIT" << std::endl;
+        // std::cerr << "COMMIT" << std::endl;
         store_.commit();
         write(os, uint8_t(1));
     }
 
     void rollback(std::ostream& os) {
-        std::cerr << "ROLLBACK" << std::endl;
+        // std::cerr << "ROLLBACK" << std::endl;
         store_.rollback();
         write(os, uint8_t(1));
     }
@@ -102,6 +114,9 @@ int main(int argc, char** argv)
         switch (command) {
         case GET:
             world_state_db.get(std::cin, std::cout);
+            break;
+        case GETPATH:
+            world_state_db.get_path(std::cin, std::cout);
             break;
         case PUT:
             world_state_db.put(std::cin, std::cout);

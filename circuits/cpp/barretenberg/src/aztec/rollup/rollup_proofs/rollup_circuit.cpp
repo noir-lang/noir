@@ -11,15 +11,29 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     std::vector<waffle::plonk_proof> const& proofs,
     std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
+    auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
     std::vector<recursion_output<field_ct, group_ct>> recursion_outputs(proofs.size());
-    for (size_t i = 0; i < proofs.size(); ++i) {
-        // TODO: Hardcoding number of public inputs is bad...
-        auto recursive_manifest = Composer::create_unrolled_manifest(9);
 
+    for (size_t i = 0; i < proofs.size(); ++i) {
         auto output = verify_proof<Composer, recursive_turbo_verifier_settings>(
             &composer, inner_verification_key, recursive_manifest, proofs[i]);
         recursion_outputs[i] = output;
+
+        // Prove the proofs data elements have been inserted at expected tree location.
+        /*
+void update_membership(Composer& composer,
+                       field_t<Composer> const& new_root,
+                       hash_path<Composer> const& new_hashes,
+                       byte_array<Composer> const& new_value,
+                       field_t<Composer> const& old_root,
+                       hash_path<Composer> const& old_hashes,
+                       byte_array<Composer> const& old_value,
+                       byte_array<Composer> const& index
+                       */
+        // Prove the proofs nullifiers have been inserted into the nullifier tree.
     }
+
+
     return recursion_outputs;
 }
 
