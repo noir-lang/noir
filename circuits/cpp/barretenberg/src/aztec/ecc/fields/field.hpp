@@ -433,8 +433,8 @@ template <class Params> struct alignas(32) field {
 #endif
 };
 
-template <class Params>
-void read(uint8_t const*& it, field<Params>& value) {
+template <typename B, typename Params>
+void read(B& it, field<Params>& value) {
     field<Params> result{0, 0, 0, 0};
     ::read(it, result.data[3]);
     ::read(it, result.data[2]);
@@ -443,7 +443,7 @@ void read(uint8_t const*& it, field<Params>& value) {
     value = result.to_montgomery_form();
 }
 
-template <typename B, class Params>
+template <typename B, typename Params>
 void write(B& buf, field<Params> const& value) {
     const field input = value.from_montgomery_form();
     ::write(buf, input.data[3]);

@@ -122,13 +122,17 @@ template <size_t N> inline void write(uint8_t*& buf, std::array<uint8_t, N> cons
 // Optimised specialisation for reading vectors of bytes from a raw buffer.
 inline void read(uint8_t const*& it, std::vector<uint8_t>& value)
 {
-    std::copy(it, it + value.size(), value.data());
-    it += value.size();
+    uint32_t size;
+    ::read(it, size);
+    value.resize(size);
+    std::copy(it, it + size, value.data());
+    it += size;
 }
 
 // Optimised specialisation for writing vectors of bytes to a raw buffer.
 inline void write(uint8_t*& buf, std::vector<uint8_t> const& value)
 {
+    ::write(buf, static_cast<uint32_t>(value.size()));
     std::copy(value.begin(), value.end(), buf);
     buf += value.size();
 }
@@ -186,7 +190,10 @@ inline std::enable_if_t<!std::is_integral_v<T>> write(B& buf, std::array<T, N> c
 // Generic read of vector of integer types from supported buffer types.
 template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> read(B& it, std::vector<T>& value)
 {
-    for (size_t i = 0; i < value.size(); ++i) {
+    uint32_t size;
+    ::read(it, size);
+    value.resize(size);
+    for (size_t i = 0; i < size; ++i) {
         ::read(it, value[i]);
     }
 }
@@ -195,6 +202,7 @@ template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>>
 template <typename B, typename T>
 inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::vector<T> const& value)
 {
+    ::write(buf, static_cast<uint32_t>(value.size()));
     for (size_t i = 0; i < value.size(); ++i) {
         ::write(buf, value[i]);
     }
@@ -203,7 +211,10 @@ inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::vector<T> cons
 // Generic read of vector of non integer types from supported buffer types.
 template <typename B, typename T> inline std::enable_if_t<!std::is_integral_v<T>> read(B& it, std::vector<T>& value)
 {
-    for (size_t i = 0; i < value.size(); ++i) {
+    uint32_t size;
+    ::read(it, size);
+    value.resize(size);
+    for (size_t i = 0; i < size; ++i) {
         read(it, value[i]);
     }
 }
@@ -212,9 +223,26 @@ template <typename B, typename T> inline std::enable_if_t<!std::is_integral_v<T>
 template <typename B, typename T>
 inline std::enable_if_t<!std::is_integral_v<T>> write(B& buf, std::vector<T> const& value)
 {
+    ::write(buf, static_cast<uint32_t>(value.size()));
     for (size_t i = 0; i < value.size(); ++i) {
         write(buf, value[i]);
     }
+}
+
+// Read std::pair.
+template <typename B, typename T, typename U>
+inline void read(B& it, std::pair<T, U>& value)
+{
+    read(it, value.first);
+    read(it, value.second);
+}
+
+// Write std::pair.
+template <typename B, typename T, typename U>
+inline void write(B& buf, std::pair<T, U> const& value)
+{
+    write(buf, value.first);
+    write(buf, value.second);
 }
 } // namespace std
 
@@ -242,4 +270,14 @@ template <typename T> std::vector<T> many_from_buffer(std::vector<uint8_t> const
         elements.push_back(from_buffer<T>(buffer, i * sizeof(T)));
     }
     return elements;
+}
+
+// By default, if calling to_buffer on a vector of types, we don't prefix the vector size.
+template <bool include_size = false, typename T> std::vector<uint8_t> to_buffer(std::vector<T> const& value)
+{
+    std::vector<uint8_t> buf;
+    for (auto e : value) {
+        write(buf, e);
+    }
+    return buf;
 }
