@@ -20,12 +20,12 @@ struct rollup_tx {
     std::vector<std::vector<uint8_t>> txs;
     fr old_data_root;
     fr old_null_root;
-    std::vector<std::array<fr_hash_path, 2>> old_data_paths;
-    std::vector<std::array<fr_hash_path, 2>> old_null_paths;
+    std::vector<std::pair<uint128_t, fr_hash_path>> old_data_paths;
+    std::vector<std::pair<uint128_t, fr_hash_path>> old_null_paths;
     fr new_data_root;
     fr new_null_root;
-    std::vector<std::array<fr_hash_path, 2>> new_data_paths;
-    std::vector<std::array<fr_hash_path, 2>> new_null_paths;
+    std::vector<std::pair<uint128_t, fr_hash_path>> new_data_paths;
+    std::vector<std::pair<uint128_t, fr_hash_path>> new_null_paths;
 };
 
 template <typename B> void read(B& buf, rollup_tx& tx)
@@ -81,26 +81,22 @@ operator<<(std::ostream& os, rollup_tx const& tx)
     os << "old_data_root: " << tx.old_data_root << "\n";
     os << "old_null_root: " << tx.old_null_root << "\n";
     os << "old_data_paths:\n";
-    for (auto tx_data_paths : tx.old_data_paths) {
-        os << tx_data_paths[0];
-        os << tx_data_paths[1];
+    for (auto e : tx.old_data_paths) {
+        os << e.first << ": " << e.second;
     }
     os << "old_null_paths:\n";
-    for (auto tx_null_paths : tx.old_null_paths) {
-        os << tx_null_paths[0];
-        os << tx_null_paths[1];
+    for (auto e : tx.old_null_paths) {
+        os << e.first << ": " << e.second;
     }
     os << "new_data_root: " << tx.new_data_root << "\n";
     os << "new_null_root: " << tx.new_null_root << "\n";
     os << "new_data_paths:\n";
-    for (auto tx_data_paths : tx.new_data_paths) {
-        os << tx_data_paths[0];
-        os << tx_data_paths[1];
+    for (auto e : tx.new_data_paths) {
+        os << e.first << ": " << e.second;
     }
     os << "new_null_paths:\n";
-    for (auto tx_null_paths : tx.new_null_paths) {
-        os << tx_null_paths[0];
-        os << tx_null_paths[1];
+    for (auto e : tx.new_null_paths) {
+        os << e.first << ": " << e.second;
     }
     return os;
 }
