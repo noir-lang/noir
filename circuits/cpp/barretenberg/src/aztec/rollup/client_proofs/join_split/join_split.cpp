@@ -39,7 +39,8 @@ field_ct process_input_note(Composer& composer,
     composer.assert_equal(is_real.witness_index, exists.witness_index);
 
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
-    // tree to ensure notes will always have unique entries.
+    // tree to ensure notes will always have unique entries. The is_real flag protects against nullifing a real
+    // note when the number of input notes < 2.
     // [256 bits of encrypted note x coord][32 least sig bits of index][223 bits of note viewing key][1 bit is_real]
     byte_array_ct note_hash_data = byte_array_ct(&composer);
     note_hash_data.write(note.second.ciphertext.x)

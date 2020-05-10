@@ -45,39 +45,23 @@ int main(int argc, char** argv)
             continue;
         }
 
-        // Pad the rollup with gibberish proofs.
+        // Pad the rollup with gibberish proofs and paths.
+        auto gibberish_data_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element() ));
+        auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element() ));
         for (size_t i = 0; i < batch_size - rollup.num_txs; ++i) {
             rollup.txs.push_back(noop_proof.proof_data);
+            rollup.old_data_paths.push_back(std::make_pair(0, gibberish_data_path));
+            rollup.old_null_paths.push_back(std::make_pair(0, gibberish_null_path));
+            rollup.new_data_paths.push_back(std::make_pair(0, gibberish_data_path));
+            rollup.new_null_paths.push_back(std::make_pair(0, gibberish_null_path));
         }
 
-        // Do annoying transform from raw bytes to waffle::plonk_proof. Should we be serializing plonk_proof struct?
-        std::vector<waffle::plonk_proof> proofs(batch_size);
-        std::transform(rollup.txs.begin(), rollup.txs.end(), proofs.begin(), [](auto const& p) {
-            return waffle::plonk_proof{ p };
-        });
-
-        Timer circuit_timer;
+        Timer timer;
         circuit_data.proving_key->reset();
 
-        auto verified = verify_rollup(proofs, circuit_data);
+        auto verified = verify_rollup(rollup, circuit_data);
 
-        /*
-        Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
-        rollup_circuit(composer, proofs, circuit_data.inner_verification_key);
-        std::cerr << "Time taken to create circuit: " << circuit_timer.toString() << std::endl;
-
-        Timer witness_timer;
-        composer.compute_witness();
-        std::cerr << "Time taken to compute witness: " << witness_timer.toString() << std::endl;
-
-        auto prover = composer.create_prover();
-        Timer proof_timer;
-        waffle::plonk_proof proof = prover.construct_proof();
-        std::cerr << "Time taken to construct proof: " << proof_timer.toString() << std::endl;
-
-        auto verifier = composer.create_verifier();
-        bool verified = verifier.verify_proof(proof);
-        */
+        std::cerr << "Time taken: " << timer.toString() << std::endl;
         std::cerr << "Verified: " << verified << std::endl;
     }
 

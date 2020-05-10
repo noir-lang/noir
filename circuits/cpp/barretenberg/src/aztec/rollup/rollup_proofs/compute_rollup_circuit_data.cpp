@@ -10,7 +10,7 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::rollup_proofs;
 
-rollup_circuit_data compute_rollup_circuit_data(size_t batch_size)
+rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size)
 {
     auto inner = compute_inner_circuit_data();
 
@@ -19,9 +19,27 @@ rollup_circuit_data compute_rollup_circuit_data(size_t batch_size)
     Composer composer = Composer("../srs_db/ignition");
 
     // Junk data required just to create keys.
-    std::vector<waffle::plonk_proof> proofs(batch_size, { std::vector<uint8_t>(inner.proof_size) });
+    std::vector<waffle::plonk_proof> proofs(rollup_size, { std::vector<uint8_t>(inner.proof_size) });
+    auto gibberish_data_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element() ));
+    auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element() ));
 
-    rollup_circuit(composer, proofs, inner.verification_key);
+    rollup_tx rollup = {
+        0,
+        (uint32_t)rollup_size,
+        (uint32_t)inner.proof_size,
+        0,
+        std::vector(rollup_size, std::vector<uint8_t>(inner.proof_size)),
+        fr::random_element(),
+        fr::random_element(),
+        std::vector(rollup_size * 2, std::make_pair(uint128_t(0), gibberish_data_path)),
+        std::vector(rollup_size * 2, std::make_pair(uint128_t(0), gibberish_data_path)),
+        fr::random_element(),
+        fr::random_element(),
+        std::vector(rollup_size * 2, std::make_pair(uint128_t(0), gibberish_null_path)),
+        std::vector(rollup_size * 2, std::make_pair(uint128_t(0), gibberish_null_path)),
+    };
+
+    rollup_circuit(composer, rollup, inner.verification_key);
 
     std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
     auto proving_key = composer.compute_proving_key();

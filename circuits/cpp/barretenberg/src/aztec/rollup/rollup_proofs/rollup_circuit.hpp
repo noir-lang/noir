@@ -1,4 +1,5 @@
 #pragma once
+#include "rollup_tx.hpp"
 #include <stdlib/recursion/verifier/verifier.hpp>
 #include <stdlib/recursion/verifier/program_settings.hpp>
 #include <stdlib/types/turbo.hpp>
@@ -11,7 +12,7 @@ using namespace plonk::stdlib::recursion;
 
 std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     Composer& composer,
-    std::vector<waffle::plonk_proof> const& proofs,
+    rollup_tx const& proofs,
     std::shared_ptr<waffle::verification_key> const& inner_verification_key);
 
 } // namespace rollup_proofs

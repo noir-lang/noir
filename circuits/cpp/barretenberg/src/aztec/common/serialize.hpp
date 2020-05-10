@@ -105,6 +105,19 @@ template <typename T> inline std::enable_if_t<std::is_integral_v<T>> write(std::
 
 namespace std {
 
+// Forwarding functions from std to global namespace for integers.
+template <typename B, typename T>
+inline std::enable_if_t<std::is_integral_v<T>> read(B& buf, T& value)
+{
+    ::read(buf, value);
+}
+
+template <typename B, typename T>
+inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, T value)
+{
+    ::write(buf, value);
+}
+
 // Optimised specialisation for reading arrays of bytes from a raw buffer.
 template <size_t N> inline void read(uint8_t const*& it, std::array<uint8_t, N>& value)
 {
@@ -123,7 +136,7 @@ template <size_t N> inline void write(uint8_t*& buf, std::array<uint8_t, N> cons
 inline void read(uint8_t const*& it, std::vector<uint8_t>& value)
 {
     uint32_t size;
-    ::read(it, size);
+    read(it, size);
     value.resize(size);
     std::copy(it, it + size, value.data());
     it += size;
@@ -132,7 +145,7 @@ inline void read(uint8_t const*& it, std::vector<uint8_t>& value)
 // Optimised specialisation for writing vectors of bytes to a raw buffer.
 inline void write(uint8_t*& buf, std::vector<uint8_t> const& value)
 {
-    ::write(buf, static_cast<uint32_t>(value.size()));
+    write(buf, static_cast<uint32_t>(value.size()));
     std::copy(value.begin(), value.end(), buf);
     buf += value.size();
 }
@@ -145,85 +158,46 @@ template <size_t N> inline void write(std::vector<uint8_t>& buf, std::array<uint
     write(ptr, value);
 }
 
-// Generic read of integer types from supported buffer types into an array.
-template <typename B, typename T, size_t N>
-typename std::enable_if_t<std::is_integral_v<T>> read(B& it, std::array<T, N>& value)
-{
-    for (size_t i = 0; i < N; ++i) {
-        ::read(it, value[i]);
-    }
-}
-
-// Generic write of arrays of integer types to supported buffer types.
-template <typename B, typename T, size_t N>
-inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::array<T, N> const& value)
-{
-    for (size_t i = 0; i < N; ++i) {
-        ::write(buf, value[i]);
-    }
-}
-
 // Optimised specialisation for writing arrays of bytes to an output stream.
 template <size_t N> inline void write(std::ostream& os, std::array<uint8_t, N> const& value)
 {
     os.write((char*)value.data(), value.size());
 }
 
-// Generic read of array of non integer types from supported buffer types.
+// Generic read of array of types from supported buffer types.
 template <typename B, typename T, size_t N>
-inline std::enable_if_t<!std::is_integral_v<T>> read(B& it, std::array<T, N>& value)
+inline void read(B& it, std::array<T, N>& value)
 {
     for (size_t i = 0; i < N; ++i) {
         read(it, value[i]);
     }
 }
 
-// Generic write of array of non integer types to supported buffer types.
+// Generic write of array of types to supported buffer types.
 template <typename B, typename T, size_t N>
-inline std::enable_if_t<!std::is_integral_v<T>> write(B& buf, std::array<T, N> const& value)
+inline void write(B& buf, std::array<T, N> const& value)
 {
     for (size_t i = 0; i < N; ++i) {
         write(buf, value[i]);
     }
 }
 
-// Generic read of vector of integer types from supported buffer types.
-template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> read(B& it, std::vector<T>& value)
+// Generic read of vector of types from supported buffer types.
+template <typename B, typename T> inline void read(B& it, std::vector<T>& value)
 {
     uint32_t size;
-    ::read(it, size);
-    value.resize(size);
-    for (size_t i = 0; i < size; ++i) {
-        ::read(it, value[i]);
-    }
-}
-
-// Generic write of vector of integer types to supported buffer types.
-template <typename B, typename T>
-inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, std::vector<T> const& value)
-{
-    ::write(buf, static_cast<uint32_t>(value.size()));
-    for (size_t i = 0; i < value.size(); ++i) {
-        ::write(buf, value[i]);
-    }
-}
-
-// Generic read of vector of non integer types from supported buffer types.
-template <typename B, typename T> inline std::enable_if_t<!std::is_integral_v<T>> read(B& it, std::vector<T>& value)
-{
-    uint32_t size;
-    ::read(it, size);
+    read(it, size);
     value.resize(size);
     for (size_t i = 0; i < size; ++i) {
         read(it, value[i]);
     }
 }
 
-// Generic write of vector of non integer types to supported buffer types.
+// Generic write of vector of types to supported buffer types.
 template <typename B, typename T>
-inline std::enable_if_t<!std::is_integral_v<T>> write(B& buf, std::vector<T> const& value)
+inline void write(B& buf, std::vector<T> const& value)
 {
-    ::write(buf, static_cast<uint32_t>(value.size()));
+    write(buf, static_cast<uint32_t>(value.size()));
     for (size_t i = 0; i < value.size(); ++i) {
         write(buf, value[i]);
     }
@@ -246,7 +220,7 @@ inline void write(B& buf, std::pair<T, U> const& value)
 }
 } // namespace std
 
-// Helper function that have return values.
+// Helper functions that have return values.
 template <typename T, typename B> T from_buffer(B const& buffer, size_t offset = 0)
 {
     T result;

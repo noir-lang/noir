@@ -13,7 +13,7 @@ struct rollup_circuit_data {
     std::shared_ptr<waffle::verification_key> inner_verification_key;
 };
 
-rollup_circuit_data compute_rollup_circuit_data(size_t batch_size);
+rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size);
 
 } // namespace rollup_proofs
 } // namespace rollup

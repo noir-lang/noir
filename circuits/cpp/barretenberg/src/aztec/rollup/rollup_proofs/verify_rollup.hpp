@@ -12,11 +12,11 @@ using namespace barretenberg;
 using namespace rollup::rollup_proofs;
 using namespace plonk::stdlib::types::turbo;
 
-bool verify_rollup(std::vector<waffle::plonk_proof> const& proofs, rollup_circuit_data const& circuit_data)
+bool verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-    auto recursion_outputs = rollup_circuit(composer, proofs, circuit_data.inner_verification_key);
+    auto recursion_outputs = rollup_circuit(composer, rollup, circuit_data.inner_verification_key);
 
     auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
