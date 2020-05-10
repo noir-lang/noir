@@ -213,6 +213,11 @@ int Transcript::get_challenge_index_from_map(const std::string& challenge_map_na
     return key;
 }
 
+bool Transcript::has_challenge(const std::string& challenge_name) const
+{
+    return (challenges.count(challenge_name) > 0);
+}
+
 std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge_from_map(
     const std::string& challenge_name, const std::string& challenge_map_name) const
 {

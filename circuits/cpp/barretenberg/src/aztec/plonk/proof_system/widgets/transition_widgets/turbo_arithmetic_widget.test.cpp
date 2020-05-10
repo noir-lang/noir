@@ -1,4 +1,4 @@
-#include "../proving_key/proving_key.hpp"
+#include "../../proving_key/proving_key.hpp"
 #include "create_dummy_transcript.hpp"
 #include "turbo_arithmetic_widget.hpp"
 #include <gtest/gtest.h>
@@ -152,7 +152,7 @@ TEST(turbo_arithmetic_widget, quotient_polynomial_satisfiability)
 
     waffle::ProverTurboArithmeticWidget widget(key.get(), witness.get());
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     key->quotient_large = polynomial(num_gates * 4);
     for (size_t i = 0; i < num_gates * 4; ++i) {

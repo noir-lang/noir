@@ -2,8 +2,8 @@
 #include <crypto/pedersen/pedersen.hpp>
 #include <gtest/gtest.h>
 #include <numeric/bitop/get_msb.hpp>
-#include "../proof_system/widgets/create_dummy_transcript.hpp"
-#include "../proof_system/widgets/plookup_widget.hpp"
+#include "../proof_system/widgets/transition_widgets/create_dummy_transcript.hpp"
+#include "../proof_system/widgets/random_widgets/plookup_widget.hpp"
 
 #include "./plookup_tables/sha256.hpp"
 

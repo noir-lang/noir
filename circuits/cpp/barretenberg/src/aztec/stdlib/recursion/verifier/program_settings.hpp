@@ -42,16 +42,6 @@ class recursive_turbo_verifier_settings : public waffle::unrolled_turbo_settings
         return updated_alpha;
     }
 
-    static void compute_batch_evaluation_contribution(waffle::verification_key* key,
-                                                      field_ct& batch_eval,
-                                                      const transcript_ct& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-    }
-
     static field_ct compute_quotient_evaluation_contribution(waffle::verification_key* key,
                                                              const field_ct& alpha_base,
                                                              const transcript_ct& transcript,

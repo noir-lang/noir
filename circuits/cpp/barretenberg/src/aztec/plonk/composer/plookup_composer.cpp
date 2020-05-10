@@ -2,12 +2,12 @@
 
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_range_widget.hpp>
-#include <plonk/proof_system/widgets/plookup_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_fixed_base_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_logic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/plookup_widget.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/composer/plookup/compute_verification_key.hpp>
@@ -1019,18 +1019,23 @@ PLookupProver PLookupComposer::create_prover()
         std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
-    output_state.widgets.emplace_back(std::move(plookup_widget));
+    std::unique_ptr<ProverTurboArithmeticWidget<plookup_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<plookup_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget<plookup_settings>> range_widget =
+        std::make_unique<ProverTurboRangeWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<plookup_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.random_widgets.emplace_back(std::move(plookup_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
     return output_state;
 }
@@ -1046,18 +1051,24 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
         std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
-    output_state.widgets.emplace_back(std::move(plookup_widget));
+    std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),
+                                                                               witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
+        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.random_widgets.emplace_back(std::move(plookup_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
     return output_state;
 }

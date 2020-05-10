@@ -2,7 +2,7 @@
 #include <plonk/transcript/transcript.hpp>
 
 namespace waffle {
-inline transcript::Transcript create_dummy_standard_transcript()
+inline transcript::StandardTranscript create_dummy_standard_transcript()
 {
     std::vector<uint8_t> g1_vector(64);
     std::vector<uint8_t> fr_vector(32);
@@ -14,7 +14,8 @@ inline transcript::Transcript create_dummy_standard_transcript()
     for (size_t i = 0; i < fr_vector.size(); ++i) {
         fr_vector[i] = 1;
     }
-    transcript::Transcript transcript = transcript::Transcript(waffle::StandardComposer::create_manifest(0));
+    transcript::StandardTranscript transcript =
+        transcript::StandardTranscript(waffle::StandardComposer::create_manifest(0));
     transcript.add_element("circuit_size", { 1, 2, 3, 4 });
     transcript.add_element("public_input_size", { 0, 0, 0, 0 });
     transcript.apply_fiat_shamir("init");
@@ -77,7 +78,7 @@ inline transcript::Manifest create_dummy_ultra_manifest(const size_t num_public_
     return output;
 }
 
-inline transcript::Transcript create_dummy_ultra_transcript()
+inline transcript::StandardTranscript create_dummy_ultra_transcript()
 {
     std::vector<uint8_t> g1_vector(64);
     std::vector<uint8_t> fr_vector(32);
@@ -89,7 +90,7 @@ inline transcript::Transcript create_dummy_ultra_transcript()
     for (size_t i = 0; i < fr_vector.size(); ++i) {
         fr_vector[i] = 1;
     }
-    transcript::Transcript transcript = transcript::Transcript(create_dummy_ultra_manifest(0));
+    transcript::StandardTranscript transcript = transcript::StandardTranscript(create_dummy_ultra_manifest(0));
     transcript.add_element("circuit_size", { 1, 2, 3, 4 });
     transcript.add_element("public_input_size", { 0, 0, 0, 0 });
     transcript.apply_fiat_shamir("init");

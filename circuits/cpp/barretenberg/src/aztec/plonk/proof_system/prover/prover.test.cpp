@@ -102,7 +102,7 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
 
 waffle::Prover generate_test_data(const size_t n)
 {
-    // state.widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
+    // state.random_widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
 
     // create some constraints that satisfy our arithmetic circuit relation
     fr T0;
@@ -280,8 +280,8 @@ waffle::Prover generate_test_data(const size_t n)
         std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());
 
     waffle::Prover state = waffle::Prover(key, witness, create_manifest());
-    state.widgets.emplace_back(std::move(permutation_widget));
-    state.widgets.emplace_back(std::move(widget));
+    state.random_widgets.emplace_back(std::move(permutation_widget));
+    state.random_widgets.emplace_back(std::move(widget));
     return state;
 }
 } // namespace prover_helpers

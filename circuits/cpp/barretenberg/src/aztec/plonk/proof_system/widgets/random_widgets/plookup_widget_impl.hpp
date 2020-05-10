@@ -1,8 +1,6 @@
 #pragma once
 
-#include "../proving_key/proving_key.hpp"
-#include "../public_inputs/public_inputs.hpp"
-#include "../utils/linearizer.hpp"
+#include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
@@ -12,30 +10,30 @@
 namespace waffle {
 
 ProverPLookupWidget::ProverPLookupWidget(proving_key* input_key, program_witness* input_witness)
-    : ProverBaseWidget(input_key, input_witness)
+    : ProverRandomWidget(input_key, input_witness)
 {}
 
 ProverPLookupWidget::ProverPLookupWidget(const ProverPLookupWidget& other)
-    : ProverBaseWidget(other)
+    : ProverRandomWidget(other)
 {}
 
 ProverPLookupWidget::ProverPLookupWidget(ProverPLookupWidget&& other)
-    : ProverBaseWidget(other)
+    : ProverRandomWidget(other)
 {}
 
 ProverPLookupWidget& ProverPLookupWidget::operator=(const ProverPLookupWidget& other)
 {
-    ProverBaseWidget::operator=(other);
+    ProverRandomWidget::operator=(other);
     return *this;
 }
 
 ProverPLookupWidget& ProverPLookupWidget::operator=(ProverPLookupWidget&& other)
 {
-    ProverBaseWidget::operator=(other);
+    ProverRandomWidget::operator=(other);
     return *this;
 }
 
-void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript& transcript)
+void ProverPLookupWidget::compute_sorted_list_commitment(transcript::StandardTranscript& transcript)
 {
     auto& s_1 = witness->wires.at("s");
     fr* s_2 = &witness->wires.at("s_2")[0];
@@ -59,7 +57,7 @@ void ProverPLookupWidget::compute_sorted_list_commitment(transcript::Transcript&
     s_1.ifft(key->small_domain);
 }
 
-void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcript& transcript)
+void ProverPLookupWidget::compute_grand_product_commitment(transcript::StandardTranscript& transcript)
 {
     const size_t n = key->n;
     polynomial& z = witness->wires.at("z_lookup");
@@ -201,7 +199,7 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::Transcrip
     z.ifft(key->small_domain);
 }
 
-void ProverPLookupWidget::compute_round_commitments(transcript::Transcript& transcript,
+void ProverPLookupWidget::compute_round_commitments(transcript::StandardTranscript& transcript,
                                                     const size_t round_number,
                                                     work_queue& queue)
 {
@@ -248,7 +246,7 @@ void ProverPLookupWidget::compute_round_commitments(transcript::Transcript& tran
 }
 
 barretenberg::fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base,
-                                                                    const transcript::Transcript& transcript)
+                                                                    const transcript::StandardTranscript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
 
@@ -394,135 +392,12 @@ barretenberg::fr ProverPLookupWidget::compute_quotient_contribution(const fr& al
 }
 
 barretenberg::fr ProverPLookupWidget::compute_linear_contribution(const fr& alpha_base,
-                                                                  const transcript::Transcript& transcript,
+                                                                  const transcript::StandardTranscript& transcript,
                                                                   polynomial&)
 {
     fr alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
     return alpha_base * alpha.sqr() * alpha;
-}
-
-void ProverPLookupWidget::compute_opening_poly_contribution(const transcript::Transcript& transcript,
-                                                            const bool use_linearisation)
-{
-    fr* opening_poly = &key->opening_poly[0];
-    fr* shifted_opening_poly = &key->shifted_opening_poly[0];
-
-    fr* z_lookup = &witness->wires.at("z_lookup")[0];
-    fr* s = &witness->wires.at("s")[0];
-
-    std::array<fr*, 4> tables{
-        &key->permutation_selectors.at("table_value_1")[0],
-        &key->permutation_selectors.at("table_value_2")[0],
-        &key->permutation_selectors.at("table_value_3")[0],
-        &key->permutation_selectors.at("table_value_4")[0],
-    };
-    fr* table_index_selector = &key->permutation_selectors.at("table_index")[0];
-    fr* table_selector = &key->permutation_selectors.at("table_type")[0];
-
-    // const size_t num_challenges = num_sigma_evaluations + (!use_linearisation ? 1 : 0);
-    std::array<barretenberg::fr, 8> nu_challenges{
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_1")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_2")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_3")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_value_4")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_index")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "table_type")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "s")[0]),
-        fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "z_lookup")[0]),
-    };
-
-    // barretenberg::fr shifted_nu_challenge =
-    //     fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "z_omega")[0]);
-
-    ITERATE_OVER_DOMAIN_START(key->small_domain);
-
-    opening_poly[i] += tables[0][i] * nu_challenges[0];
-    opening_poly[i] += tables[1][i] * nu_challenges[1];
-    opening_poly[i] += tables[2][i] * nu_challenges[2];
-    opening_poly[i] += tables[3][i] * nu_challenges[3];
-    opening_poly[i] += table_index_selector[i] * nu_challenges[4];
-    opening_poly[i] += table_selector[i] * nu_challenges[5];
-    opening_poly[i] += s[i] * nu_challenges[6];
-    opening_poly[i] += z_lookup[i] * nu_challenges[7];
-
-    shifted_opening_poly[i] += tables[0][i] * nu_challenges[0];
-    shifted_opening_poly[i] += tables[1][i] * nu_challenges[1];
-    shifted_opening_poly[i] += tables[2][i] * nu_challenges[2];
-    shifted_opening_poly[i] += tables[3][i] * nu_challenges[3];
-    shifted_opening_poly[i] += s[i] * nu_challenges[6];
-    shifted_opening_poly[i] += z_lookup[i] * nu_challenges[7];
-    ITERATE_OVER_DOMAIN_END;
-
-    if (use_linearisation) {
-        const auto& q_2 = &key->constraint_selectors.at("q_2")[0];
-        const auto& q_m = &key->constraint_selectors.at("q_m")[0];
-        const auto nu_q_2 = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_2")[0]);
-        const auto nu_q_m = fr::serialize_from_buffer(&transcript.get_challenge_from_map("nu", "q_m")[0]);
-        ITERATE_OVER_DOMAIN_START(key->small_domain);
-        opening_poly[i] += q_2[i] * nu_q_2;
-        opening_poly[i] += q_m[i] * nu_q_m;
-        ITERATE_OVER_DOMAIN_END;
-    }
-}
-
-void ProverPLookupWidget::compute_transcript_elements(transcript::Transcript& transcript, const bool use_linearisation)
-{
-    // iterate over permutations, skipping the last one as we use the linearisation trick to avoid including it in
-    // the transcript
-    const size_t n = key->n;
-    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    fr shifted_z = z_challenge * key->small_domain.root;
-
-    fr evaluation = key->permutation_selectors.at("table_value_1").evaluate(z_challenge, n);
-    transcript.add_element("table_value_1", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_2").evaluate(z_challenge, n);
-    transcript.add_element("table_value_2", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_3").evaluate(z_challenge, n);
-    transcript.add_element("table_value_3", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_4").evaluate(z_challenge, n);
-    transcript.add_element("table_value_4", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_1").evaluate(shifted_z, n);
-    transcript.add_element("table_value_1_omega", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_2").evaluate(shifted_z, n);
-    transcript.add_element("table_value_2_omega", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_3").evaluate(shifted_z, n);
-    transcript.add_element("table_value_3_omega", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_value_4").evaluate(shifted_z, n);
-    transcript.add_element("table_value_4_omega", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_index").evaluate(z_challenge, n);
-    transcript.add_element("table_index", evaluation.to_buffer());
-
-    evaluation = key->permutation_selectors.at("table_type").evaluate(z_challenge, n);
-    transcript.add_element("table_type", evaluation.to_buffer());
-
-    evaluation = witness->wires.at("z_lookup").evaluate(z_challenge, n);
-    transcript.add_element("z_lookup", evaluation.to_buffer());
-
-    evaluation = witness->wires.at("z_lookup").evaluate(shifted_z, n);
-    transcript.add_element("z_lookup_omega", evaluation.to_buffer());
-
-    evaluation = witness->wires.at("s").evaluate(z_challenge, n);
-    transcript.add_element("s", evaluation.to_buffer());
-
-    evaluation = witness->wires.at("s").evaluate(shifted_z, n);
-    transcript.add_element("s_omega", evaluation.to_buffer());
-
-    if (use_linearisation) {
-        auto& q_2 = key->constraint_selectors.at("q_2");
-        auto& q_m = key->constraint_selectors.at("q_m");
-        transcript.add_element("q_2", q_2.evaluate(z_challenge, key->small_domain.size).to_buffer());
-        transcript.add_element("q_m", q_m.evaluate(z_challenge, key->small_domain.size).to_buffer());
-    }
-    return;
 }
 
 // ###
@@ -662,66 +537,6 @@ Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
 
     return alpha_base * alpha.sqr() * alpha;
 } // namespace waffle
-
-template <typename Field, typename Group, typename Transcript>
-void VerifierPLookupWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(
-    verification_key*, Field& batch_eval, const Transcript& transcript, const bool use_linearisation)
-{
-    const Field u = transcript.get_challenge_field_element("separator");
-
-    const Field table_value_1_eval = transcript.get_field_element("table_value_1");
-    const Field table_value_2_eval = transcript.get_field_element("table_value_2");
-    const Field table_value_3_eval = transcript.get_field_element("table_value_3");
-    const Field table_value_4_eval = transcript.get_field_element("table_value_4");
-    const Field table_index_eval = transcript.get_field_element("table_index");
-    const Field table_type_eval = transcript.get_field_element("table_type");
-    const Field s_eval = transcript.get_field_element("s");
-    const Field z_lookup_eval = transcript.get_field_element("z_lookup");
-
-    std::array<Field, 8> nu_challenges;
-    nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "table_value_1");
-    nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "table_value_2");
-    nu_challenges[2] = transcript.get_challenge_field_element_from_map("nu", "table_value_3");
-    nu_challenges[3] = transcript.get_challenge_field_element_from_map("nu", "table_value_4");
-    nu_challenges[4] = transcript.get_challenge_field_element_from_map("nu", "table_index");
-    nu_challenges[5] = transcript.get_challenge_field_element_from_map("nu", "table_type");
-    nu_challenges[6] = transcript.get_challenge_field_element_from_map("nu", "s");
-    nu_challenges[7] = transcript.get_challenge_field_element_from_map("nu", "z_lookup");
-
-    batch_eval += (table_value_1_eval * nu_challenges[0]);
-    batch_eval += (table_value_2_eval * nu_challenges[1]);
-    batch_eval += (table_value_3_eval * nu_challenges[2]);
-    batch_eval += (table_value_4_eval * nu_challenges[3]);
-    batch_eval += (table_index_eval * nu_challenges[4]);
-    batch_eval += (table_type_eval * nu_challenges[5]);
-    batch_eval += (s_eval * nu_challenges[6]);
-    batch_eval += (z_lookup_eval * nu_challenges[7]);
-
-    const Field shifted_table_value_1_eval = transcript.get_field_element("table_value_1_omega");
-    const Field shifted_table_value_2_eval = transcript.get_field_element("table_value_2_omega");
-    const Field shifted_table_value_3_eval = transcript.get_field_element("table_value_3_omega");
-    const Field shifted_table_value_4_eval = transcript.get_field_element("table_value_4_omega");
-    const Field shifted_s_eval = transcript.get_field_element("s_omega");
-    const Field shifted_z_lookup_eval = transcript.get_field_element("z_lookup_omega");
-
-    Field T0 = (shifted_table_value_1_eval * nu_challenges[0]);
-    T0 += (shifted_table_value_2_eval * nu_challenges[1]);
-    T0 += (shifted_table_value_3_eval * nu_challenges[2]);
-    T0 += (shifted_table_value_4_eval * nu_challenges[3]);
-    T0 += (shifted_s_eval * nu_challenges[6]);
-    T0 += (shifted_z_lookup_eval * nu_challenges[7]);
-
-    batch_eval += T0 * u;
-
-    if (use_linearisation) {
-        const Field q_2_eval = transcript.get_field_element("q_2");
-        const Field q_m_eval = transcript.get_field_element("q_m");
-        nu_challenges[0] = transcript.get_challenge_field_element_from_map("nu", "q_2");
-        nu_challenges[1] = transcript.get_challenge_field_element_from_map("nu", "q_m");
-        batch_eval += (q_2_eval * nu_challenges[0]);
-        batch_eval += (q_m_eval * nu_challenges[1]);
-    }
-};
 
 template <typename Field, typename Group, typename Transcript>
 Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(

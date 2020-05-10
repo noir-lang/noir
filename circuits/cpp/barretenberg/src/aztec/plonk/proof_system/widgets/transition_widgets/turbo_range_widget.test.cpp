@@ -124,7 +124,7 @@ TEST(turbo_range_widget, quotient_polynomial_satisfiability)
 
     waffle::ProverTurboRangeWidget widget = create_test_widget_circuit(num_gates, witness, key);
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     widget.compute_quotient_contribution(fr::one(), transcript);
 
@@ -142,7 +142,7 @@ TEST(turbo_range_widget, compute_linear_contribution)
 
     waffle::ProverTurboRangeWidget widget = create_test_widget_circuit(num_gates, witness, key, true);
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     widget.compute_quotient_contribution(fr::one(), transcript);
 

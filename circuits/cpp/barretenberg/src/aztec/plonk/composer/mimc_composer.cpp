@@ -1,9 +1,9 @@
 #include "mimc_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/mimc_widget.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/mimc_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 
 using namespace barretenberg;
@@ -274,7 +274,6 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
               mimc_polynomial_manifest + 14,
               std::back_inserter(circuit_proving_key->polynomial_manifest));
 
-
     return circuit_proving_key;
 }
 
@@ -391,14 +390,14 @@ Prover MiMCComposer::preprocess()
 
     std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverMiMCWidget> mimc_widget =
-        std::make_unique<ProverMiMCWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverArithmeticWidget> arithmetic_widget =
-        std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverMiMCWidget<standard_settings>> mimc_widget =
+        std::make_unique<ProverMiMCWidget<standard_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverArithmeticWidget<standard_settings>> arithmetic_widget =
+        std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(arithmetic_widget));
-    output_state.widgets.emplace_back(std::move(mimc_widget));
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.transition_widgets.emplace_back(std::move(mimc_widget));
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
 
     return output_state;
 }

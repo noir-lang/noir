@@ -160,7 +160,7 @@ TEST(turbo_logic_widget, xor_quotient_polynomial_satisfiability)
 
     waffle::ProverTurboLogicWidget widget = create_test_widget_circuit(num_gates, witness, key, false, true);
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     widget.compute_quotient_contribution(fr::one(), transcript);
 
@@ -178,7 +178,7 @@ TEST(turbo_logic_widget, and_quotient_polynomial_satisfiability)
 
     waffle::ProverTurboLogicWidget widget = create_test_widget_circuit(num_gates, witness, key, true, false);
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     widget.compute_quotient_contribution(fr::one(), transcript);
 
@@ -196,7 +196,7 @@ TEST(turbo_logic_widget, and_xor_quotient_polynomial_satisfiability)
 
     waffle::ProverTurboLogicWidget widget = create_test_widget_circuit(num_gates, witness, key, true, true);
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     widget.compute_quotient_contribution(fr::one(), transcript);
 
@@ -214,7 +214,7 @@ TEST(turbo_logic_widget, xor_compute_linear_contribution)
 
     waffle::ProverTurboLogicWidget widget = create_test_widget_circuit(num_gates, witness, key, false, true, true);
 
-    transcript::Transcript transcript = create_dummy_standard_transcript();
+    transcript::StandardTranscript transcript = create_dummy_standard_transcript();
 
     widget.compute_quotient_contribution(fr::one(), transcript);
 

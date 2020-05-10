@@ -2,8 +2,8 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <plonk/composer/standard/compute_verification_key.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 
 using namespace barretenberg;
@@ -518,11 +518,11 @@ UnrolledProver StandardComposer::create_unrolled_prover()
 
     std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverArithmeticWidget> widget =
-        std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverArithmeticWidget<unrolled_standard_settings>> arithmetic_widget =
+        std::make_unique<ProverArithmeticWidget<unrolled_standard_settings>>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(widget));
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
 
     return output_state;
 }
@@ -536,11 +536,12 @@ Prover StandardComposer::create_prover()
 
     std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverArithmeticWidget> widget =
-        std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(widget));
+    std::unique_ptr<ProverArithmeticWidget<standard_settings>> arithmetic_widget =
+        std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
 
     return output_state;
 }

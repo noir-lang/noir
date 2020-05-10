@@ -1,0 +1,81 @@
+#pragma once
+
+#include "./transition_widget.hpp"
+
+namespace waffle {
+namespace widget {
+
+template <class Field, class Getters, typename PolyContainer> class ArithmeticKernel {
+  private:
+    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::coefficient_array<Field> coefficient_array;
+
+  public:
+    static constexpr bool use_quotient_mid = true;
+
+    inline static void compute_linear_terms(PolyContainer& polynomials,
+                                            const challenge_array&,
+                                            coefficient_array& linear_terms,
+                                            const size_t i = 0)
+    {
+        const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, 2 * i);
+        const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, 2 * i);
+        const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, 2 * i);
+
+        linear_terms[0] = w_1 * w_2;
+        linear_terms[1] = w_1;
+        linear_terms[2] = w_2;
+        linear_terms[3] = w_3;
+    }
+
+    inline static void compute_non_linear_terms(PolyContainer&, const challenge_array&, Field&, const size_t = 0) {}
+
+    inline static Field sum_linear_terms(PolyContainer& polynomials,
+                                         const challenge_array& challenges,
+                                         coefficient_array& linear_terms,
+                                         const size_t i = 0)
+    {
+        const Field& alpha = challenges[ChallengeIndex::ALPHA_BASE];
+        const Field& q_1 = Getters::template get_polynomial<false, PolynomialIndex::Q_1>(polynomials, i);
+        const Field& q_2 = Getters::template get_polynomial<false, PolynomialIndex::Q_2>(polynomials, i);
+        const Field& q_3 = Getters::template get_polynomial<false, PolynomialIndex::Q_3>(polynomials, i);
+        const Field& q_m = Getters::template get_polynomial<false, PolynomialIndex::Q_M>(polynomials, i);
+        const Field& q_c = Getters::template get_polynomial<false, PolynomialIndex::Q_C>(polynomials, i);
+
+        Field result = linear_terms[0] * q_m;
+        result += (linear_terms[1] * q_1);
+        result += (linear_terms[2] * q_2);
+        result += (linear_terms[3] * q_3);
+        result += q_c;
+        result *= alpha;
+        return result;
+    }
+
+    inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
+                                                   std::map<std::string, Field>& scalars,
+                                                   const challenge_array& challenges)
+    {
+        const Field& alpha = challenges[ChallengeIndex::ALPHA_BASE];
+        const Field& linear_challenge = challenges[ChallengeIndex::LINEAR_NU];
+        scalars["Q_M"] += linear_terms[0] * alpha * linear_challenge;
+        scalars["Q_1"] += linear_terms[1] * alpha * linear_challenge;
+        scalars["Q_2"] += linear_terms[2] * alpha * linear_challenge;
+        scalars["Q_3"] += linear_terms[3] * alpha * linear_challenge;
+        scalars["Q_C"] += alpha * linear_challenge;
+    }
+
+    inline static Field update_alpha(const Field& alpha_base, const Field& alpha) { return alpha_base * alpha.sqr(); }
+
+    static void compute_round_commitments(
+        proving_key*, program_witness*, transcript::StandardTranscript&, const size_t, work_queue&){};
+};
+
+} // namespace widget
+
+template <typename Settings>
+using ProverArithmeticWidget = widget::TransitionWidget<barretenberg::fr, Settings, widget::ArithmeticKernel>;
+
+template <typename Field, typename Group, typename Transcript, typename Settings>
+using VerifierArithmeticWidget = widget::GenericVerifierWidget<Field, Transcript, Settings, widget::ArithmeticKernel>;
+
+} // namespace waffle

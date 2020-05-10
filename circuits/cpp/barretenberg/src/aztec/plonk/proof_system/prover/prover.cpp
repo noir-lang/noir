@@ -33,8 +33,11 @@ ProverBase<settings>::ProverBase(ProverBase<settings>&& other)
     , witness(std::move(other.witness))
     , queue(key.get(), witness.get(), &transcript)
 {
-    for (size_t i = 0; i < other.widgets.size(); ++i) {
-        widgets.emplace_back(std::move(other.widgets[i]));
+    for (size_t i = 0; i < other.random_widgets.size(); ++i) {
+        random_widgets.emplace_back(std::move(other.random_widgets[i]));
+    }
+    for (size_t i = 0; i < other.transition_widgets.size(); ++i) {
+        transition_widgets.emplace_back(std::move(other.transition_widgets[i]));
     }
 }
 
@@ -42,11 +45,14 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
 {
     n = other.n;
 
-    widgets.resize(0);
-    for (size_t i = 0; i < other.widgets.size(); ++i) {
-        widgets.emplace_back(std::move(other.widgets[i]));
+    random_widgets.resize(0);
+    transition_widgets.resize(0);
+    for (size_t i = 0; i < other.random_widgets.size(); ++i) {
+        random_widgets.emplace_back(std::move(other.random_widgets[i]));
     }
-
+    for (size_t i = 0; i < other.transition_widgets.size(); ++i) {
+        transition_widgets.emplace_back(std::move(other.transition_widgets[i]));
+    }
     transcript = other.transcript;
     key = std::move(other.key);
     witness = std::move(other.witness);
@@ -143,7 +149,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
     start = std::chrono::steady_clock::now();
 #endif
     compute_wire_pre_commitments();
-    for (auto& widget : widgets) {
+    for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 1, queue);
     }
 #ifdef DEBUG_TIMING
@@ -157,7 +163,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("eta");
-    for (auto& widget : widgets) {
+    for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 2, queue);
     }
 }
@@ -177,7 +183,7 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    for (auto& widget : widgets) {
+    for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 3, queue);
     }
 
@@ -228,20 +234,21 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     std::cout << "compute permutation grand product coeffs: " << diff.count() << "ms" << std::endl;
 #endif
     fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-    // fr alpha_base = alpha.sqr().sqr();
 
-    for (size_t i = 0; i < widgets.size(); ++i) {
+    for (auto& widget : random_widgets) {
 #ifdef DEBUG_TIMING
         std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-        alpha_base = widgets[i]->compute_quotient_contribution(alpha_base, transcript);
+        alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
 #ifdef DEBUG_TIMING
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "widget " << i << " quotient compute time: " << diff.count() << "ms" << std::endl;
 #endif
     }
-
+    for (auto& widget : transition_widgets) {
+        alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
+    }
     fr* q_mid = &key->quotient_mid[0];
     fr* q_large = &key->quotient_large[0];
 
@@ -285,7 +292,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
 #endif
-}
+} // namespace waffle
 
 template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
@@ -410,10 +417,7 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    // Currently code assumes permutation_widget is first.
-    // for (size_t i = 0; i < widgets.size(); ++i) {
-    //     widgets[i]->compute_opening_poly_contribution(transcript, settings::use_linearisation);
-    // }
+
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -569,10 +573,13 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
 
     if constexpr (settings::use_linearisation) {
         fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-        for (size_t i = 0; i < widgets.size(); ++i) {
-            alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
-        }
 
+        for (auto& widget : random_widgets) {
+            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, r);
+        }
+        for (auto& widget : transition_widgets) {
+            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &r[0]);
+        }
         fr linear_eval = r.evaluate(zeta, n);
         transcript.add_element("r", linear_eval.to_buffer());
     }

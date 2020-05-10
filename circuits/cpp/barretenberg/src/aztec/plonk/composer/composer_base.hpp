@@ -3,6 +3,7 @@
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <plonk/proof_system/types/prover_settings.hpp>
 
 namespace waffle {
 

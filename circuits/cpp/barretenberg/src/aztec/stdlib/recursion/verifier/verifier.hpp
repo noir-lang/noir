@@ -10,8 +10,6 @@
 #include <plonk/proof_system/utils/linearizer.hpp>
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
 
-#include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
-
 #include <polynomials/polynomial_arithmetic.hpp>
 
 #include <ecc/curves/bn254/fq12.hpp>
@@ -51,7 +49,6 @@ lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>&
     result.l_1 = numerator / (z - field_pt(1));
     result.l_n_minus_1 = numerator / ((z * domain.root.sqr()) - field_pt(1));
 
-    barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z.get_value(), domain);
     return result;
 }
 
@@ -145,8 +142,6 @@ verify_proof(
             batch_evaluation += T0;
         }
     }
-
-    program_settings::compute_batch_evaluation_contribution(key.get(), batch_evaluation, transcript);
 
     batch_evaluation = -batch_evaluation;
 

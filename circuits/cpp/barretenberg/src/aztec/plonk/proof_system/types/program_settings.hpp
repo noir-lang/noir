@@ -3,110 +3,25 @@
 #include <cstdint>
 
 #include "../../transcript/transcript_wrappers.hpp"
-#include "../widgets/arithmetic_widget.hpp"
-#include "../widgets/base_widget.hpp"
-#include "../widgets/mimc_widget.hpp"
-#include "../widgets/turbo_arithmetic_widget.hpp"
-#include "../widgets/turbo_fixed_base_widget.hpp"
-#include "../widgets/turbo_logic_widget.hpp"
-#include "../widgets/turbo_range_widget.hpp"
-#include "../widgets/permutation_widget.hpp"
-#include "../widgets/plookup_widget.hpp"
+#include "../widgets/transition_widgets/arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/mimc_widget.hpp"
+#include "../widgets/transition_widgets/turbo_arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/turbo_fixed_base_widget.hpp"
+#include "../widgets/transition_widgets/turbo_logic_widget.hpp"
+#include "../widgets/transition_widgets/turbo_range_widget.hpp"
+#include "../widgets/random_widgets/random_widget.hpp"
+#include "../widgets/random_widgets/permutation_widget.hpp"
+#include "../widgets/random_widgets/plookup_widget.hpp"
+#include "./prover_settings.hpp"
 
 namespace waffle {
-class settings_base {
-  public:
-    static constexpr bool requires_shifted_wire(const uint64_t wire_shift_settings, const uint64_t wire_index)
-    {
-        return (((wire_shift_settings >> (wire_index)) & 1UL) == 1UL);
-    }
-};
-// static constexpr PolynomialDescriptor* const wololo = standard_polynomial_manifest;
-
-class standard_settings : public settings_base {
-  public:
-    static constexpr size_t num_challenge_bytes = 32;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
-    static constexpr size_t program_width = 3;
-    static constexpr size_t num_shifted_wire_evaluations = 1;
-    static constexpr uint64_t wire_shift_settings = 0b0100;
-    static constexpr bool uses_quotient_mid = true;
-    static constexpr uint32_t permutation_shift = 30;
-    static constexpr uint32_t permutation_mask = 0xC0000000;
-    static constexpr bool use_linearisation = true;
-};
-
-class unrolled_standard_settings : public settings_base {
-  public:
-    static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
-    static constexpr size_t program_width = 3;
-    static constexpr size_t num_shifted_wire_evaluations = 1;
-    static constexpr uint64_t wire_shift_settings = 0b0100;
-    static constexpr bool uses_quotient_mid = true;
-    static constexpr uint32_t permutation_shift = 30;
-    static constexpr uint32_t permutation_mask = 0xC0000000;
-    static constexpr bool use_linearisation = false;
-};
-
-class turbo_settings : public settings_base {
-  public:
-    static constexpr size_t num_challenge_bytes = 32;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
-    static constexpr size_t program_width = 4;
-    static constexpr size_t num_shifted_wire_evaluations = 4;
-    static constexpr uint64_t wire_shift_settings = 0b1111;
-    static constexpr bool uses_quotient_mid = false;
-    static constexpr uint32_t permutation_shift = 30;
-    static constexpr uint32_t permutation_mask = 0xC0000000;
-    static constexpr bool use_linearisation = true;
-};
-
-class plookup_settings : public settings_base {
-  public:
-    static constexpr size_t num_challenge_bytes = 32;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
-    static constexpr size_t program_width = 4;
-    static constexpr size_t num_shifted_wire_evaluations = 4;
-    static constexpr uint64_t wire_shift_settings = 0b1111;
-    static constexpr bool uses_quotient_mid = false;
-    static constexpr uint32_t permutation_shift = 30;
-    static constexpr uint32_t permutation_mask = 0xC0000000;
-    static constexpr bool use_linearisation = true;
-};
-
-class unrolled_plookup_settings : public settings_base {
-  public:
-    static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
-    static constexpr size_t program_width = 4;
-    static constexpr size_t num_shifted_wire_evaluations = 4;
-    static constexpr uint64_t wire_shift_settings = 0b1111;
-    static constexpr bool uses_quotient_mid = false;
-    static constexpr uint32_t permutation_shift = 30;
-    static constexpr uint32_t permutation_mask = 0xC0000000;
-    static constexpr bool use_linearisation = false;
-};
-
-class unrolled_turbo_settings : public settings_base {
-  public:
-    static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
-    static constexpr size_t program_width = 4;
-    static constexpr size_t num_shifted_wire_evaluations = 4;
-    static constexpr uint64_t wire_shift_settings = 0b1111;
-    static constexpr bool uses_quotient_mid = false;
-    static constexpr uint32_t permutation_shift = 30;
-    static constexpr uint32_t permutation_mask = 0xC0000000;
-    static constexpr bool use_linearisation = false;
-};
 
 class standard_verifier_settings : public standard_settings {
   public:
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
+    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript, standard_settings> ArithmeticWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
     static constexpr size_t num_challenge_bytes = 32;
@@ -123,14 +38,6 @@ class standard_verifier_settings : public standard_settings {
 
         return ArithmeticWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-    }
-
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        ArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -151,7 +58,7 @@ class unrolled_standard_verifier_settings : public standard_settings {
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
+    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript, unrolled_standard_settings> ArithmeticWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
@@ -167,14 +74,6 @@ class unrolled_standard_verifier_settings : public standard_settings {
 
         return ArithmeticWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-    }
-
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      barretenberg::fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        ArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -197,9 +96,9 @@ class mimc_verifier_settings : public standard_settings {
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript> ArithmeticWidget;
+    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript, standard_settings> ArithmeticWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
-    typedef VerifierMiMCWidget<fr, g1::affine_element, Transcript> MiMCWidget;
+    typedef VerifierMiMCWidget<fr, g1::affine_element, Transcript, standard_settings> MiMCWidget;
 
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
@@ -213,20 +112,12 @@ class mimc_verifier_settings : public standard_settings {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation);
 
-        updated_alpha = ArithmeticWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha =
             MiMCWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars, use_linearisation);
-        return updated_alpha;
-    }
 
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        ArithmeticWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        MiMCWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        updated_alpha = ArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
+        return updated_alpha;
     }
 
     static fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -236,10 +127,10 @@ class mimc_verifier_settings : public standard_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = MiMCWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
         updated_alpha_base = ArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = MiMCWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         return updated_alpha_base;
     }
@@ -250,9 +141,10 @@ class turbo_verifier_settings : public turbo_settings {
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
-    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
+    typedef VerifierTurboArithmeticWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboArithmeticWidget;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboFixedBaseWidget;
+    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
     static constexpr size_t num_challenge_bytes = 32;
@@ -266,23 +158,16 @@ class turbo_verifier_settings : public turbo_settings {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation);
 
+        updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-        return updated_alpha;
-    }
 
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      barretenberg::fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        return updated_alpha;
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -293,12 +178,15 @@ class turbo_verifier_settings : public turbo_settings {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
 
+        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
         return updated_alpha_base;
     }
 };
@@ -308,9 +196,10 @@ class plookup_verifier_settings : public plookup_settings {
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
-    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
+    typedef VerifierTurboArithmeticWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboArithmeticWidget;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboFixedBaseWidget;
+    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
     typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
 
@@ -324,26 +213,19 @@ class plookup_verifier_settings : public plookup_settings {
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation);
+        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
+
+        updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
-        return updated_alpha;
-    }
 
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      barretenberg::fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        PLookupWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        return updated_alpha;
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -353,14 +235,18 @@ class plookup_verifier_settings : public plookup_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
+        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
         return updated_alpha_base;
     }
 };
@@ -370,9 +256,12 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
-    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
+    typedef VerifierTurboArithmeticWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings>
+        TurboArithmeticWidget;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings>
+        TurboFixedBaseWidget;
+    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
@@ -386,25 +275,16 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation);
 
+        updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-        return updated_alpha;
-    }
 
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      barretenberg::fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
+        return updated_alpha;
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -414,12 +294,16 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
+
+        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
         return updated_alpha_base;
     }
 };
@@ -429,9 +313,12 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     typedef barretenberg::fr fr;
     typedef barretenberg::g1 g1;
     typedef transcript::StandardTranscript Transcript;
-    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript> TurboRangeWidget;
-    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript> TurboLogicWidget;
+    typedef VerifierTurboArithmeticWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings>
+        TurboArithmeticWidget;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings>
+        TurboFixedBaseWidget;
+    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
     typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
 
@@ -445,30 +332,19 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation);
+        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
+        updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-
         updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
 
-        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
         return updated_alpha;
-    }
-
-    static void compute_batch_evaluation_contribution(verification_key* key,
-                                                      barretenberg::fr& batch_eval,
-                                                      const Transcript& transcript)
-    {
-        PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboRangeWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        TurboLogicWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
-        PLookupWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
     }
 
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
@@ -478,13 +354,16 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
+        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
         return updated_alpha_base;
