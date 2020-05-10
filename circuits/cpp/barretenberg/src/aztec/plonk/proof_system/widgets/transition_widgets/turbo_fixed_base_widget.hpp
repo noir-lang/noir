@@ -184,14 +184,9 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
 
     inline static Field update_alpha(const Field& alpha_base, const Field& alpha)
     {
-        Field alpha_a = alpha_base;
-        Field alpha_b = alpha_a * alpha;
-        Field alpha_c = alpha_b * alpha;
-        Field alpha_d = alpha_c * alpha;
-        Field alpha_e = alpha_d * alpha;
-        Field alpha_f = alpha_e * alpha;
-        Field alpha_g = alpha_f * alpha;
-        return alpha_g * alpha;
+        const auto alpha_sqr = alpha.sqr();
+        const auto alpha_quad = alpha.sqr().sqr();
+        return alpha_base * alpha_quad * alpha_sqr * alpha;
     }
 
     static void compute_round_commitments(

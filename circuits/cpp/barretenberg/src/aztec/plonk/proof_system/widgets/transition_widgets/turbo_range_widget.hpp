@@ -112,12 +112,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboRangeKe
 
     inline static Field update_alpha(const Field& alpha_base, const Field& alpha)
     {
-
-        Field alpha_a = alpha_base;
-        Field alpha_b = alpha_a * alpha;
-        Field alpha_c = alpha_b * alpha;
-        Field alpha_d = alpha_c * alpha;
-        return alpha_d * alpha;
+        return alpha_base * alpha.sqr().sqr();
     }
 
     static void compute_round_commitments(
