@@ -9,16 +9,18 @@ namespace merkle_tree {
 using namespace barretenberg;
 
 class LevelDbStore;
+class MemoryStore;
 
-class LevelDbTree {
+template<typename Store>
+class MerkleTree {
   public:
     typedef uint128_t index_t;
     typedef std::vector<uint8_t> value_t;
 
-    LevelDbTree(LevelDbStore& store, size_t depth, uint8_t tree_id = 0);
-    LevelDbTree(LevelDbTree const& other) = delete;
-    LevelDbTree(LevelDbTree&& other);
-    ~LevelDbTree();
+    MerkleTree(Store& store, size_t depth, uint8_t tree_id = 0);
+    MerkleTree(MerkleTree const& other) = delete;
+    MerkleTree(MerkleTree&& other);
+    ~MerkleTree();
 
     fr_hash_path get_hash_path(index_t index);
 
@@ -52,11 +54,16 @@ class LevelDbTree {
 
   private:
     static constexpr size_t LEAF_BYTES = 64;
-    LevelDbStore& store_;
+    Store& store_;
     std::vector<fr> zero_hashes_;
     size_t depth_;
     uint8_t tree_id_;
 };
+
+extern template class MerkleTree<LevelDbStore>;
+extern template class MerkleTree<MemoryStore>;
+
+typedef MerkleTree<LevelDbStore> LevelDbTree;
 
 } // namespace merkle_tree
 } // namespace stdlib

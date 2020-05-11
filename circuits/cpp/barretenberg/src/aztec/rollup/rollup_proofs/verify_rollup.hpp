@@ -16,10 +16,13 @@ bool verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_d
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-    auto recursion_outputs = rollup_circuit(composer, rollup, circuit_data.inner_verification_key);
+    auto recursion_outputs =
+        rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
 
     auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
+
+    std::cout << proof.proof_data << std::endl;
 
     auto verifier = composer.create_verifier();
     auto verified = verifier.verify_proof(proof);

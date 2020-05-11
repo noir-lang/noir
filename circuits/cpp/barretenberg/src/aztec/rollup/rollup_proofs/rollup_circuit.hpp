@@ -13,7 +13,8 @@ using namespace plonk::stdlib::recursion;
 std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     Composer& composer,
     rollup_tx const& proofs,
-    std::shared_ptr<waffle::verification_key> const& inner_verification_key);
+    std::shared_ptr<waffle::verification_key> const& inner_verification_key,
+    size_t rollup_size);
 
 } // namespace rollup_proofs
 } // namespace rollup

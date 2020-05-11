@@ -19,14 +19,17 @@ struct rollup_tx {
     uint32_t proof_lengths;
     uint32_t data_start_index;
     std::vector<std::vector<uint8_t>> txs;
+
+    fr rollup_root;
     fr old_data_root;
-    fr old_null_root;
-    std::vector<std::pair<uint128_t, fr_hash_path>> old_data_paths;
-    std::vector<std::pair<uint128_t, fr_hash_path>> old_null_paths;
     fr new_data_root;
-    fr new_null_root;
-    std::vector<std::pair<uint128_t, fr_hash_path>> new_data_paths;
-    std::vector<std::pair<uint128_t, fr_hash_path>> new_null_paths;
+    fr_hash_path old_data_path;
+    fr_hash_path new_data_path;
+
+    fr old_null_root;
+    std::vector<fr> new_null_roots;
+    std::vector<fr_hash_path> old_null_paths;
+    std::vector<fr_hash_path> new_null_paths;
 };
 
 template <typename B>
@@ -38,13 +41,13 @@ inline void read(B& buf, rollup_tx& tx)
     ::read(buf, tx.data_start_index);
     read(buf, tx.txs);
     read(buf, tx.old_data_root);
-    read(buf, tx.old_null_root);
-    read(buf, tx.old_data_paths);
-    read(buf, tx.old_null_paths);
-    read(buf, tx.new_data_root);
-    read(buf, tx.new_null_root);
-    read(buf, tx.new_data_paths);
-    read(buf, tx.new_null_paths);
+    // read(buf, tx.old_null_root);
+    // read(buf, tx.old_data_paths);
+    // read(buf, tx.old_null_paths);
+    // read(buf, tx.new_data_root);
+    // read(buf, tx.new_null_root);
+    // read(buf, tx.new_data_paths);
+    // read(buf, tx.new_null_paths);
 }
 
 template <typename B>
@@ -56,15 +59,15 @@ inline void write(B& buf, rollup_tx const& tx)
     ::write(buf, tx.data_start_index);
     write(buf, tx.txs);
     write(buf, tx.old_data_root);
-    write(buf, tx.old_null_root);
-    write(buf, tx.old_data_paths);
-    write(buf, tx.old_null_paths);
-    write(buf, tx.new_data_root);
-    write(buf, tx.new_null_root);
-    write(buf, tx.new_data_paths);
-    write(buf, tx.new_null_paths);
+    // write(buf, tx.old_null_root);
+    // write(buf, tx.old_data_paths);
+    // write(buf, tx.old_null_paths);
+    // write(buf, tx.new_data_root);
+    // write(buf, tx.new_null_root);
+    // write(buf, tx.new_data_paths);
+    // write(buf, tx.new_null_paths);
 }
-
+/*
 inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs){
     return lhs.rollup_id == rhs.rollup_id && lhs.num_txs == rhs.num_txs && lhs.proof_lengths == rhs.proof_lengths &&
            lhs.txs == rhs.txs && lhs.old_data_root == rhs.old_data_root && lhs.old_null_root == rhs.old_null_root &&
@@ -105,6 +108,6 @@ operator<<(std::ostream& os, rollup_tx const& tx)
     }
     return os;
 }
-
+*/
 } // namespace rollup_proofs
 } // namespace rollup

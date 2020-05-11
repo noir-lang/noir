@@ -8,6 +8,7 @@ namespace rollup_proofs {
 struct rollup_circuit_data {
     std::shared_ptr<waffle::proving_key> proving_key;
     std::shared_ptr<waffle::verification_key> verification_key;
+    size_t rollup_size;
     size_t num_gates;
     size_t proof_lengths;
     std::shared_ptr<waffle::verification_key> inner_verification_key;

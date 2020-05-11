@@ -1,5 +1,6 @@
 #include "leveldb_tree.hpp"
 #include "leveldb_store.hpp"
+#include "memory_store.hpp"
 #include "hash.hpp"
 #include <common/net.hpp>
 #include <iostream>
@@ -16,7 +17,8 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
-LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth, uint8_t tree_id)
+template<typename Store>
+MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     : store_(store)
     , depth_(depth)
     , tree_id_(tree_id)
@@ -33,16 +35,19 @@ LevelDbTree::LevelDbTree(LevelDbStore& store, size_t depth, uint8_t tree_id)
     }
 }
 
-LevelDbTree::LevelDbTree(LevelDbTree&& other)
+template<typename Store>
+MerkleTree<Store>::MerkleTree(MerkleTree&& other)
     : store_(other.store_)
     , zero_hashes_(std::move(other.zero_hashes_))
     , depth_(other.depth_)
     , tree_id_(other.tree_id_)
 {}
 
-LevelDbTree::~LevelDbTree() {}
+template<typename Store>
+MerkleTree<Store>::~MerkleTree() {}
 
-fr LevelDbTree::root() const
+template<typename Store>
+fr MerkleTree<Store>::root() const
 {
     value_t root;
     std::vector<uint8_t> key = { tree_id_ };
@@ -50,7 +55,8 @@ fr LevelDbTree::root() const
     return status ? from_buffer<fr>(root) : compress_native({ zero_hashes_.back(), zero_hashes_.back() });
 }
 
-LevelDbTree::index_t LevelDbTree::size() const
+template<typename Store>
+typename MerkleTree<Store>::index_t MerkleTree<Store>::size() const
 {
     value_t size_buf;
     std::vector<uint8_t> key = { tree_id_ };
@@ -58,7 +64,8 @@ LevelDbTree::index_t LevelDbTree::size() const
     return status ? from_buffer<index_t>(size_buf, 32) : 0;
 }
 
-fr_hash_path LevelDbTree::get_hash_path(index_t index)
+template<typename Store>
+fr_hash_path MerkleTree<Store>::get_hash_path(index_t index)
 {
     fr_hash_path path(depth_);
 
@@ -127,7 +134,8 @@ fr_hash_path LevelDbTree::get_hash_path(index_t index)
     return path;
 }
 
-LevelDbTree::value_t LevelDbTree::get_element(index_t index)
+template<typename Store>
+typename MerkleTree<Store>::value_t MerkleTree<Store>::get_element(index_t index)
 {
     value_t leaf_key;
     ::write(leaf_key, tree_id_);
@@ -138,7 +146,8 @@ LevelDbTree::value_t LevelDbTree::get_element(index_t index)
     return status ? data : value_t(64, 0);
 }
 
-fr LevelDbTree::update_element(index_t index, value_t const& value)
+template<typename Store>
+fr MerkleTree<Store>::update_element(index_t index, value_t const& value)
 {
     value_t leaf_key;
     ::write(leaf_key, tree_id_);
@@ -157,7 +166,8 @@ fr LevelDbTree::update_element(index_t index, value_t const& value)
     return r;
 }
 
-fr LevelDbTree::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
+template<typename Store>
+fr MerkleTree<Store>::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
 {
     bool a_is_right = (a_index >> (height - 1)) & 0x1;
     auto left = a_is_right ? b : a;
@@ -169,7 +179,8 @@ fr LevelDbTree::binary_put(index_t a_index, fr const& a, fr const& b, size_t hei
     return key;
 }
 
-fr LevelDbTree::fork_stump(
+template<typename Store>
+fr MerkleTree<Store>::fork_stump(
     fr const& value1, index_t index1, fr const& value2, index_t index2, size_t height, size_t common_height)
 {
     if (height == common_height) {
@@ -198,7 +209,8 @@ fr LevelDbTree::fork_stump(
     }
 }
 
-fr LevelDbTree::update_element(fr const& root, fr const& value, index_t index, size_t height)
+template<typename Store>
+fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t index, size_t height)
 {
     // std::cout << "update_element root:" << root << " value:" << value << " index:" << (uint64_t)index
     //           << " height:" << height << std::endl;
@@ -257,7 +269,8 @@ fr LevelDbTree::update_element(fr const& root, fr const& value, index_t index, s
     }
 }
 
-fr LevelDbTree::compute_zero_path_hash(size_t height, index_t index, fr const& value)
+template<typename Store>
+fr MerkleTree<Store>::compute_zero_path_hash(size_t height, index_t index, fr const& value)
 {
     fr current = value;
     for (size_t i = 0; i < height; ++i) {
@@ -275,7 +288,8 @@ fr LevelDbTree::compute_zero_path_hash(size_t height, index_t index, fr const& v
     return current;
 }
 
-void LevelDbTree::put(fr const& key, fr const& left, fr const& right)
+template<typename Store>
+void MerkleTree<Store>::put(fr const& key, fr const& left, fr const& right)
 {
     value_t value;
     write(value, left);
@@ -284,7 +298,8 @@ void LevelDbTree::put(fr const& key, fr const& left, fr const& right)
     // std::cout << "PUT key:" << key << " left:" << left << " right:" << right << std::endl;
 }
 
-void LevelDbTree::put_stump(fr const& key, index_t index, fr const& value)
+template<typename Store>
+void MerkleTree<Store>::put_stump(fr const& key, index_t index, fr const& value)
 {
     value_t buf;
     write(buf, value);
@@ -292,6 +307,9 @@ void LevelDbTree::put_stump(fr const& key, index_t index, fr const& value)
     store_.put(key.to_buffer(), buf);
     // std::cout << "PUT STUMP key:" << key << " index:" << (uint64_t)index << " value:" << value << std::endl;
 }
+
+template class MerkleTree<LevelDbStore>;
+template class MerkleTree<MemoryStore>;
 
 } // namespace merkle_tree
 } // namespace stdlib
