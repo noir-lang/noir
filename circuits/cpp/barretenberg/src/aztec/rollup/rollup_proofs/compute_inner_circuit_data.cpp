@@ -8,7 +8,7 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::rollup_proofs;
 
-inner_circuit_data compute_inner_circuit_data()
+join_split_circuit_data compute_join_split_circuit_data()
 {
     std::cerr << "Generating join-split circuit keys..." << std::endl;
 
@@ -28,7 +28,7 @@ inner_circuit_data compute_inner_circuit_data()
     auto proof = prover.construct_proof();
     std::cerr << "Done." << std::endl;
 
-    return { verification_key, proof.proof_data.size() };
+    return { proving_key, verification_key, composer.get_num_gates(), proof.proof_data.size() };
 }
 
 } // namespace rollup_proofs

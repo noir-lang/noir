@@ -1,5 +1,4 @@
 #include "compute_rollup_circuit_data.hpp"
-#include "compute_inner_circuit_data.hpp"
 #include "../client_proofs/join_split/join_split.hpp"
 #include "rollup_circuit.hpp"
 
@@ -10,12 +9,9 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::rollup_proofs;
 
-rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size)
+rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size, join_split_circuit_data const& inner, bool create_keys)
 {
-    auto inner = compute_inner_circuit_data();
-
-    std::cerr << "Generating rollup circuit keys... (size:" << rollup_size << ")" << std::endl;
-
+    std::cerr << "Generating rollup circuit... (size: " << rollup_size << ")" << std::endl;
     Composer composer = Composer("../srs_db/ignition");
 
     // Junk data required just to create keys.
@@ -40,12 +36,19 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size)
     };
 
     rollup_circuit(composer, rollup, inner.verification_key, rollup_size);
+    std::cerr << "Rollup circuit gates: " << composer.get_num_gates() << std::endl;
 
-    std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
-    auto proving_key = composer.compute_proving_key();
-    auto verification_key = composer.compute_verification_key();
-    auto num_gates = composer.get_num_gates();
-    std::cerr << "Done." << std::endl;
+    std::shared_ptr<waffle::proving_key> proving_key;
+    std::shared_ptr<waffle::verification_key> verification_key;
+    size_t num_gates = 0;
+
+    if (create_keys) {
+        std::cerr << "Creating keys..." << std::endl;
+        proving_key = composer.compute_proving_key();
+        verification_key = composer.compute_verification_key();
+        num_gates = composer.get_num_gates();
+        std::cerr << "Done." << std::endl;
+    }
 
     // auto proving_key = std::shared_ptr<waffle::proving_key>();
     // auto verification_key = std::shared_ptr<waffle::verification_key>();

@@ -16,7 +16,7 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-waffle::plonk_proof create_noop_join_split_proof(fr const& merkel_root)
+waffle::plonk_proof create_noop_join_split_proof(fr const& merkel_root, join_split_circuit_data const& circuit_data)
 {
     auto user = rollup::tx::create_user_context();
 
@@ -37,7 +37,7 @@ waffle::plonk_proof create_noop_join_split_proof(fr const& merkel_root)
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                               { user.private_key, user.public_key });
 
-    Composer composer = Composer("../srs_db/ignition");
+    Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
     join_split_circuit(composer, tx);
 
     auto prover = composer.create_unrolled_prover();

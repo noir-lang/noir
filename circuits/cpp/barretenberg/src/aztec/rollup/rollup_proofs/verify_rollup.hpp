@@ -20,13 +20,15 @@ bool verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_d
     auto recursion_outputs =
         rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
 
-    auto prover = composer.create_prover();
-    auto proof = prover.construct_proof();
+    auto verified = !composer.failed;
 
-    // std::cout << proof.proof_data << std::endl;
+    if (circuit_data.verification_key) {
+        auto prover = composer.create_prover();
+        auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
-    auto verified = verifier.verify_proof(proof);
+        auto verifier = composer.create_verifier();
+        verified &= verifier.verify_proof(proof);
+    }
 
     for (auto recursion_output : recursion_outputs) {
         g1::affine_element P[2];

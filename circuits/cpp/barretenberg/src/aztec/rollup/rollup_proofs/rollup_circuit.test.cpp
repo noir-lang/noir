@@ -18,9 +18,10 @@ TEST(rollup_proofs, test_1_proof_in_2_rollup)
     MerkleTree data_tree(store, 32, 0);
     MerkleTree null_tree(store, 128, 1);
 
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size);
-    auto proof_data = create_noop_join_split_proof(data_tree.root()).proof_data;
-    auto noop_proof_data = create_noop_join_split_proof(data_tree.root()).proof_data;
+    auto inner_circuit_data = compute_join_split_circuit_data();
+    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
+    auto proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data).proof_data;
+    auto noop_proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data).proof_data;
     auto txs = std::vector{ proof_data, noop_proof_data };
 
     auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
