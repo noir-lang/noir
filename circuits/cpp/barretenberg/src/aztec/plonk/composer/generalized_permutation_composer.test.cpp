@@ -363,6 +363,41 @@ TEST(genperm_composer, sort_widget)
     EXPECT_EQ(result, true);
 }
 
+TEST(genperm_composer, sort_widget_complex)
+{
+    {
+
+    waffle::GenPermComposer composer = waffle::GenPermComposer();
+    std::vector<fr>  a ={1,3,4,7,7,8,11,14,15,15,18,19,21,21,24,25,26,27,30,32};
+    std::vector<uint32_t> ind;
+    for(size_t i = 0;i<a.size();i++)
+        ind.emplace_back(composer.add_variable(a[i]));
+    composer.create_sort_constraint(ind);
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::GenPermVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+    }
+    {
+
+    waffle::GenPermComposer composer = waffle::GenPermComposer();
+    std::vector<fr>  a ={1,3,4,7,7,8,16,14,15,15,18,19,21,21,24,25,26,27,30,32};
+    std::vector<uint32_t> ind;
+    for(size_t i = 0;i<a.size();i++)
+        ind.emplace_back(composer.add_variable(a[i]));
+    composer.create_sort_constraint(ind);
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::GenPermVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, false);
+    }
+}
 TEST(genperm_composer, sort_widget_neg)
 {
     waffle::GenPermComposer composer = waffle::GenPermComposer();
