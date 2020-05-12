@@ -14,7 +14,6 @@ namespace waffle {
 
 namespace widget {
 enum ChallengeIndex {
-    ALPHA_BASE,
     ALPHA,
     BETA,
     GAMMA,
@@ -25,7 +24,10 @@ enum ChallengeIndex {
 };
 
 namespace containers {
-template <class Field> using challenge_array = std::array<Field, ChallengeIndex::MAX_NUM_CHALLENGES>;
+template <class Field, size_t num_widget_relations> struct challenge_array {
+    std::array<Field, ChallengeIndex::MAX_NUM_CHALLENGES> elements;
+    std::array<Field, num_widget_relations> alpha_powers;
+};
 
 template <class Field> using poly_array = std::array<std::pair<Field, Field>, PolynomialIndex::MAX_NUM_POLYNOMIALS>;
 
@@ -39,35 +41,29 @@ template <class Field> using coefficient_array = std::array<Field, PolynomialInd
 } // namespace containers
 
 namespace getters {
-template <class Field, class Transcript, class Settings> class BaseGetter {
+template <class Field, class Transcript, class Settings, size_t num_widget_relations> class BaseGetter {
   protected:
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_widget_relations> challenge_array;
 
   public:
-    inline static Field get_challenge(const challenge_array& challenges, const ChallengeIndex id)
-    {
-        return challenges[id];
-    }
-
     static challenge_array get_challenges(const Transcript& transcript, const Field& alpha_base)
     {
         challenge_array result{};
-        result[ALPHA_BASE] = alpha_base;
         if constexpr (Settings::use_linearisation) {
             if (transcript.has_challenge("nu")) {
-                result[LINEAR_NU] = transcript.get_challenge_field_element_from_map("nu", "r");
+                result.elements[LINEAR_NU] = transcript.get_challenge_field_element_from_map("nu", "r");
             } else {
-                result[LINEAR_NU] = 0;
+                result.elements[LINEAR_NU] = 0;
             }
         } else {
-            result[LINEAR_NU] = 0;
+            result.elements[LINEAR_NU] = 0;
         }
 
         auto add_challenge = [transcript, &result](const auto label, const auto tag, const size_t index = 0) {
             if (transcript.has_challenge(label)) {
-                result[tag] = transcript.get_challenge_field_element(label, index);
+                result.elements[tag] = transcript.get_challenge_field_element(label, index);
             } else {
-                result[tag] = 0;
+                result.elements[tag] = 0;
             }
         };
 
@@ -76,12 +72,24 @@ template <class Field, class Transcript, class Settings> class BaseGetter {
         add_challenge("beta", GAMMA, 1);
         add_challenge("eta", ETA);
         add_challenge("zeta", ZETA);
+        result.alpha_powers[0] = alpha_base;
+        for (size_t i = 1; i < num_widget_relations; ++i) {
+            result.alpha_powers[i] = result.alpha_powers[i - 1] * result.elements[ALPHA];
+        }
         return result;
+    }
+
+    static Field update_alpha(const challenge_array& challenges, const size_t num_independent_relations)
+    {
+        if (num_independent_relations == 0) {
+            return challenges.alpha_powers[0];
+        }
+        return challenges.alpha_powers[num_independent_relations - 1] * challenges.elements[ALPHA];
     }
 };
 
-template <class Field, class Transcript, class Settings>
-class EvaluationGetter : public BaseGetter<Field, Transcript, Settings> {
+template <class Field, class Transcript, class Settings, size_t num_widget_relations>
+class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
   protected:
     typedef containers::poly_array<Field> poly_array;
     typedef std::vector<PolynomialDescriptor> polynomial_manifest;
@@ -117,8 +125,8 @@ class EvaluationGetter : public BaseGetter<Field, Transcript, Settings> {
     }
 };
 
-template <typename Field, class Transcript, class Settings>
-class FFTGetter : public BaseGetter<Field, Transcript, Settings> {
+template <typename Field, class Transcript, class Settings, size_t num_widget_relations>
+class FFTGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
   protected:
     typedef containers::poly_ptr_array<Field> poly_ptr_array;
 
@@ -161,8 +169,8 @@ class FFTGetter : public BaseGetter<Field, Transcript, Settings> {
     }
 };
 
-template <typename Field, class Transcript, class Settings>
-class MonomialGetter : public BaseGetter<Field, Transcript, Settings> {
+template <typename Field, class Transcript, class Settings, size_t num_widget_relations>
+class MonomialGetter : public BaseGetter<Field, Transcript, Settings, num_widget_relations> {
   protected:
     typedef containers::poly_ptr_array<Field> poly_ptr_array;
 
@@ -240,15 +248,18 @@ template <class Field> class TransitionWidgetBase {
 template <class Field, class Settings, template <typename, typename, typename> typename KernelBase>
 class TransitionWidget : public TransitionWidgetBase<Field> {
   protected:
+    static constexpr size_t num_independent_relations = KernelBase<int, int, int>::num_independent_relations;
     typedef containers::poly_ptr_array<Field> poly_ptr_array;
     typedef containers::poly_array<Field> poly_array;
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    typedef getters::EvaluationGetter<Field, transcript::StandardTranscript, Settings> EvaluationGetter;
-    typedef getters::FFTGetter<Field, transcript::StandardTranscript, Settings> FFTGetter;
-    typedef getters::MonomialGetter<Field, transcript::StandardTranscript, Settings> MonomialGetter;
+    typedef getters::EvaluationGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations>
+        EvaluationGetter;
+    typedef getters::FFTGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations> FFTGetter;
+    typedef getters::MonomialGetter<Field, transcript::StandardTranscript, Settings, num_independent_relations>
+        MonomialGetter;
     typedef KernelBase<Field, FFTGetter, poly_ptr_array> FFTKernel;
     typedef KernelBase<Field, MonomialGetter, poly_ptr_array> MonomialKernel;
     typedef KernelBase<Field, EvaluationGetter, poly_array> EvaluationKernel;
@@ -294,8 +305,7 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
             FFTKernel::compute_non_linear_terms(polynomials, challenges, quotient[i], i);
             ITERATE_OVER_DOMAIN_END;
         }
-
-        return EvaluationKernel::update_alpha(challenges[ALPHA_BASE], challenges[ALPHA]);
+        return FFTGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
     }
 
     Field compute_linear_contribution(const Field& alpha_base,
@@ -305,7 +315,7 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
         challenge_array challenges = MonomialGetter::get_challenges(transcript, alpha_base);
 
         if constexpr (!Settings::use_linearisation) {
-            return EvaluationKernel::update_alpha(challenges[ALPHA_BASE], challenges[ALPHA]);
+            return MonomialGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
         }
         auto* key = TransitionWidgetBase<Field>::key;
         auto* witness = TransitionWidgetBase<Field>::witness;
@@ -321,20 +331,21 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
         linear_poly[i] += MonomialKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
         ITERATE_OVER_DOMAIN_END;
 
-        return EvaluationKernel::update_alpha(challenges[ALPHA_BASE], challenges[ALPHA]);
+        return MonomialGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
     }
 };
 
 template <class Field, class Transcript, class Settings, template <typename, typename, typename> typename KernelBase>
 class GenericVerifierWidget {
   protected:
+    static constexpr size_t num_independent_relations = KernelBase<int, int, int>::num_independent_relations;
     typedef containers::poly_ptr_array<Field> poly_ptr_array;
     typedef containers::poly_array<Field> poly_array;
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    typedef getters::EvaluationGetter<Field, Transcript, Settings> EvaluationGetter;
+    typedef getters::EvaluationGetter<Field, Transcript, Settings, num_independent_relations> EvaluationGetter;
     typedef KernelBase<Field, EvaluationGetter, poly_array> EvaluationKernel;
 
     static Field compute_quotient_evaluation_contribution(
@@ -351,7 +362,7 @@ class GenericVerifierWidget {
             EvaluationKernel::compute_linear_terms(polynomial_evaluations, challenges, linear_terms);
             t_eval += EvaluationKernel::sum_linear_terms(polynomial_evaluations, challenges, linear_terms);
         }
-        return EvaluationKernel::update_alpha(challenges[ALPHA_BASE], challenges[ALPHA]);
+        return EvaluationGetter::update_alpha(challenges, num_independent_relations);
     }
 
     static Field append_scalar_multiplication_inputs(verification_key* key,
@@ -362,7 +373,7 @@ class GenericVerifierWidget {
     {
         challenge_array challenges = EvaluationGetter::get_challenges(transcript, alpha_base);
         if (!Settings::use_linearisation) {
-            return EvaluationKernel::update_alpha(challenges[ALPHA_BASE], challenges[ALPHA]);
+            return EvaluationGetter::update_alpha(challenges, num_independent_relations);
         }
 
         poly_array polynomial_evaluations =
@@ -373,7 +384,7 @@ class GenericVerifierWidget {
 
         EvaluationKernel::update_kate_opening_scalars(linear_terms, scalars, challenges);
 
-        return EvaluationKernel::update_alpha(challenges[ALPHA_BASE], challenges[ALPHA]);
+        return EvaluationGetter::update_alpha(challenges, num_independent_relations);
     }
 };
 } // namespace widget

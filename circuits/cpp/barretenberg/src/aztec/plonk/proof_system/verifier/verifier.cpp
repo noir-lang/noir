@@ -1,6 +1,7 @@
 #include "./verifier.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
+#include "../utils/kate_verification.hpp"
 #include <ecc/curves/bn254/fq12.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
@@ -30,104 +31,6 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
     kate_g1_elements.clear();
     kate_fr_elements.clear();
     return *this;
-}
-
-template <typename program_settings>
-barretenberg::fr VerifierBase<program_settings>::compute_kate_batch_evaluation(
-    const transcript::StandardTranscript& transcript)
-{
-    barretenberg::fr batch_eval(0);
-
-    const auto separator_challenge = transcript.get_challenge_field_element("separator", 0);
-    const auto& polynomial_manifest = key->polynomial_manifest;
-    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
-        const auto& item = polynomial_manifest[i];
-
-        if ((item.is_linearised && program_settings::use_linearisation) && !item.requires_shifted_evaluation) {
-            continue;
-        }
-
-        const std::string poly_label(item.polynomial_label);
-
-        bool has_evaluation = !item.is_linearised || !program_settings::use_linearisation;
-        bool has_shifted_evaluation = item.requires_shifted_evaluation;
-
-        if (has_evaluation) {
-            const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            const auto poly_at_zeta = transcript.get_field_element(poly_label);
-            batch_eval += nu_challenge * poly_at_zeta;
-        }
-        if (has_shifted_evaluation) {
-            const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
-            const auto poly_at_zeta_omega = transcript.get_field_element(poly_label + "_omega");
-            batch_eval += separator_challenge * nu_challenge * poly_at_zeta_omega;
-        }
-    }
-
-    if constexpr (program_settings::use_linearisation) {
-        const auto linear_eval = transcript.get_field_element("r");
-        const auto linear_challenge = transcript.get_challenge_field_element_from_map("nu", "r");
-        batch_eval += (linear_challenge * linear_eval);
-    }
-
-    const auto quotient_eval = transcript.get_field_element("t");
-    const auto quotient_challenge = transcript.get_challenge_field_element_from_map("nu", "t");
-
-    batch_eval += (quotient_eval * quotient_challenge);
-    return batch_eval;
-}
-
-template <typename program_settings>
-void VerifierBase<program_settings>::populate_kate_element_map(const transcript::StandardTranscript& transcript)
-{
-    const auto separator_challenge = transcript.get_challenge_field_element("separator", 0);
-
-    const auto& polynomial_manifest = key->polynomial_manifest;
-    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
-        const auto& item = polynomial_manifest[i];
-        const std::string label(item.commitment_label);
-        const std::string poly_label(item.polynomial_label);
-        switch (item.source) {
-        case PolynomialSource::WITNESS: {
-            const auto element = g1::affine_element::serialize_from_buffer(&transcript.get_element(label)[0]);
-            ASSERT(element.on_curve());
-            kate_g1_elements.insert({ label, element });
-            break;
-        }
-        case PolynomialSource::SELECTOR: {
-            const auto element = key->constraint_selectors.at(label);
-            kate_g1_elements.insert({ label, element });
-            break;
-        }
-        case PolynomialSource::PERMUTATION: {
-            const auto element = key->permutation_selectors.at(label);
-            kate_g1_elements.insert({ label, element });
-            break;
-        }
-        }
-        barretenberg::fr kate_fr_scalar(0);
-        if (item.requires_shifted_evaluation) {
-            const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
-            kate_fr_scalar += (separator_challenge * challenge);
-        }
-        if (!item.is_linearised || !program_settings::use_linearisation) {
-            const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            kate_fr_scalar += challenge;
-        }
-        kate_fr_elements.insert({ label, kate_fr_scalar });
-    }
-
-    const auto zeta = transcript.get_challenge_field_element("z", 0);
-    const auto quotient_nu = transcript.get_challenge_field_element_from_map("nu", "t");
-
-    for (size_t i = 0; i < program_settings::program_width; ++i) {
-        std::string quotient_label = "T_" + std::to_string(i + 1);
-        const auto element = g1::affine_element::serialize_from_buffer(&transcript.get_element(quotient_label)[0]);
-        const auto scalar = quotient_nu * zeta.pow(static_cast<uint64_t>(i * key->domain.size));
-
-        kate_g1_elements.insert({ quotient_label, element });
-        kate_fr_elements.insert({ quotient_label, scalar });
-    }
 }
 
 template <typename program_settings> bool VerifierBase<program_settings>::validate_commitments()
@@ -180,7 +83,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     transcript.apply_fiat_shamir("separator");
     const auto separator_challenge = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
 
-    fr batch_evaluation = compute_kate_batch_evaluation(transcript);
+    fr batch_evaluation =
+        compute_kate_batch_evaluation<fr, transcript::StandardTranscript, program_settings>(key.get(), transcript);
 
     kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
     kate_fr_elements.insert({ "BATCH_EVALUATION", -batch_evaluation });
@@ -191,7 +95,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     kate_g1_elements.insert({ "PI_Z", PI_Z });
     kate_fr_elements.insert({ "PI_Z", zeta });
 
-    populate_kate_element_map(transcript);
+    populate_kate_element_map<fr, g1::affine_element, transcript::StandardTranscript, program_settings>(
+        key.get(), transcript, kate_g1_elements, kate_fr_elements);
 
     program_settings::append_scalar_multiplication_inputs(key.get(), alpha, transcript, kate_fr_elements);
 

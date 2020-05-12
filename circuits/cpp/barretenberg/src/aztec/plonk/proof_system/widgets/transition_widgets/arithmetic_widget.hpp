@@ -6,13 +6,15 @@ namespace waffle {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class ArithmeticKernel {
+  public:
+    static constexpr bool use_quotient_mid = true;
+    static constexpr size_t num_independent_relations = 1;
+
   private:
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    static constexpr bool use_quotient_mid = true;
-
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array&,
                                             coefficient_array& linear_terms,
@@ -35,7 +37,7 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
                                          coefficient_array& linear_terms,
                                          const size_t i = 0)
     {
-        const Field& alpha = challenges[ChallengeIndex::ALPHA_BASE];
+        const Field& alpha = challenges.alpha_powers[0];
         const Field& q_1 = Getters::template get_polynomial<false, PolynomialIndex::Q_1>(polynomials, i);
         const Field& q_2 = Getters::template get_polynomial<false, PolynomialIndex::Q_2>(polynomials, i);
         const Field& q_3 = Getters::template get_polynomial<false, PolynomialIndex::Q_3>(polynomials, i);
@@ -55,19 +57,14 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
                                                    std::map<std::string, Field>& scalars,
                                                    const challenge_array& challenges)
     {
-        const Field& alpha = challenges[ChallengeIndex::ALPHA_BASE];
-        const Field& linear_challenge = challenges[ChallengeIndex::LINEAR_NU];
+        const Field& alpha = challenges.alpha_powers[0];
+        const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
         scalars["Q_M"] += linear_terms[0] * alpha * linear_challenge;
         scalars["Q_1"] += linear_terms[1] * alpha * linear_challenge;
         scalars["Q_2"] += linear_terms[2] * alpha * linear_challenge;
         scalars["Q_3"] += linear_terms[3] * alpha * linear_challenge;
         scalars["Q_C"] += alpha * linear_challenge;
     }
-
-    inline static Field update_alpha(const Field& alpha_base, const Field& alpha) { return alpha_base * alpha.sqr(); }
-
-    static void compute_round_commitments(
-        proving_key*, program_witness*, transcript::StandardTranscript&, const size_t, work_queue&){};
 };
 
 } // namespace widget

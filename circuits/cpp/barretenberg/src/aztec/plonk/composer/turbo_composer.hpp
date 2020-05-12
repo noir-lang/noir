@@ -177,7 +177,7 @@ class TurboComposer : public ComposerBase {
                       { "q_m", fr_size, false, 13 },      { "q_c", fr_size, false, 14 },
                       { "q_arith", fr_size, false, 15 },  { "q_logic", fr_size, false, 16 },
                       { "q_range", fr_size, false, 17 },  { "q_ecc_1", fr_size, false, 18 },
-                      { "z", fr_size, false, 19 },        { "z_omega", fr_size, false, -1 },
+                      { "z", fr_size, false, 19 },        { "z_omega", fr_size, false, 19 },
                       { "w_1_omega", fr_size, false, 0 }, { "w_2_omega", fr_size, false, 1 },
                       { "w_3_omega", fr_size, false, 2 }, { "w_4_omega", fr_size, false, 3 },
                   },

@@ -6,21 +6,20 @@ namespace waffle {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class MiMCKernel {
+  public:
+    static constexpr bool use_quotient_mid = false;
+    static constexpr size_t num_independent_relations = 2;
+
   private:
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    static constexpr bool use_quotient_mid = false;
-
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array& challenges,
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
     {
-        const Field& alpha_base = challenges[ChallengeIndex::ALPHA_BASE];
-        const Field& alpha = challenges[ChallengeIndex::ALPHA];
-
         const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
         const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
@@ -30,8 +29,8 @@ template <class Field, class Getters, typename PolyContainer> class MiMCKernel {
 
         const Field T0 = w_1 + w_3 + q_mimc_coefficient;
         const Field T1 = (T0.sqr() * T0) - w_2;
-        const Field T2 = (w_2.sqr() * T0 - w_3_omega) * alpha;
-        const Field T3 = (T1 + T2) * alpha_base;
+        const Field T2 = (w_2.sqr() * T0 - w_3_omega);
+        const Field T3 = T1 * challenges.alpha_powers[0] + T2 * challenges.alpha_powers[1];
 
         linear_terms[0] = T3;
     }
@@ -53,14 +52,9 @@ template <class Field, class Getters, typename PolyContainer> class MiMCKernel {
                                                    std::map<std::string, Field>& scalars,
                                                    const challenge_array& challenges)
     {
-        const Field& linear_challenge = challenges[ChallengeIndex::LINEAR_NU];
+        const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
         scalars["Q_MIMC_SELECTOR"] += linear_terms[0] * linear_challenge;
     }
-
-    inline static Field update_alpha(const Field& alpha_base, const Field& alpha) { return alpha_base * alpha.sqr(); }
-
-    static void compute_round_commitments(
-        proving_key*, program_witness*, transcript::StandardTranscript&, const size_t, work_queue&){};
 };
 
 } // namespace widget

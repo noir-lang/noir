@@ -408,7 +408,9 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
     //     }
     //     ITERATE_OVER_DOMAIN_END;
     // }
+    std::cout << "batch opening start" << std::endl;
     compute_batch_opening_polynomials();
+    std::cout << "batch opening end" << std::endl;
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

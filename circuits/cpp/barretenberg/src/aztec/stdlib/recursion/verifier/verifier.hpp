@@ -8,6 +8,7 @@
 #include "../transcript/transcript.hpp"
 
 #include <plonk/proof_system/utils/linearizer.hpp>
+#include <plonk/proof_system/utils/kate_verification.hpp>
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
 
 #include <polynomials/polynomial_arithmetic.hpp>
@@ -32,6 +33,84 @@ template <typename Composer> struct lagrange_evaluations {
     field_t<Composer> l_n_minus_1;
     field_t<Composer> vanishing_poly;
 };
+
+template <typename Field, typename Group, typename Transcript, typename program_settings>
+void populate_kate_element_map(waffle::verification_key* key,
+                               const Transcript& transcript,
+                               std::map<std::string, Group>& kate_g1_elements,
+                               std::map<std::string, Field>& kate_fr_elements_at_zeta,
+                               std::map<std::string, Field>& kate_fr_elements_at_zeta_large,
+                               std::map<std::string, Field>& kate_fr_elements_at_zeta_omega)
+{
+    // const auto separator_challenge = transcript.get_challenge_field_element("separator", 0);
+
+    const auto& polynomial_manifest = key->polynomial_manifest;
+    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
+        const auto& item = polynomial_manifest[i];
+        const std::string label(item.commitment_label);
+        const std::string poly_label(item.polynomial_label);
+        switch (item.source) {
+        case waffle::PolynomialSource::WITNESS: {
+            const auto element = transcript.get_group_element(label);
+            ASSERT(element.on_curve());
+            kate_g1_elements.insert({ label, element });
+            break;
+        }
+        case waffle::PolynomialSource::SELECTOR: {
+            const auto element = key->constraint_selectors.at(label);
+            kate_g1_elements.insert({ label, element });
+            break;
+        }
+        case waffle::PolynomialSource::PERMUTATION: {
+            const auto element = key->permutation_selectors.at(label);
+            kate_g1_elements.insert({ label, element });
+            break;
+        }
+        }
+        if (item.requires_shifted_evaluation) {
+            const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
+            kate_fr_elements_at_zeta_omega.insert({ label, challenge });
+        } else {
+            const auto challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
+            kate_fr_elements_at_zeta.insert({ label, challenge });
+        }
+    }
+
+    const auto zeta = transcript.get_challenge_field_element("z", 0);
+    const auto quotient_nu = transcript.get_challenge_field_element_from_map("nu", "t");
+
+    Field z_pow_n = zeta;
+    const size_t log2_n = numeric::get_msb(key->n);
+    for (size_t j = 0; j < log2_n; ++j) {
+        z_pow_n = z_pow_n.sqr();
+    }
+    Field z_power = 1;
+    for (size_t i = 0; i < program_settings::program_width; ++i) {
+        std::string quotient_label = "T_" + std::to_string(i + 1);
+        const auto element = transcript.get_group_element(quotient_label);
+        // const auto scalar = quotient_nu * zeta.pow(static_cast<uint64_t>(i * key->domain.size));
+
+        kate_g1_elements.insert({ quotient_label, element });
+        kate_fr_elements_at_zeta_large.insert({ quotient_label, quotient_nu * z_power });
+        z_power *= z_pow_n;
+    }
+
+    const auto PI_Z = transcript.get_group_element("PI_Z");
+    const auto PI_Z_OMEGA = transcript.get_group_element("PI_Z_OMEGA");
+
+    Field u = transcript.get_challenge_field_element("separator", 0);
+
+    Field batch_evaluation =
+        waffle::compute_kate_batch_evaluation<Field, Transcript, program_settings>(key, transcript);
+    kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
+    kate_fr_elements_at_zeta_large.insert({ "BATCH_EVALUATION", -batch_evaluation });
+
+    kate_g1_elements.insert({ "PI_Z_OMEGA", PI_Z_OMEGA });
+    kate_fr_elements_at_zeta_large.insert({ "PI_Z_OMEGA", zeta * key->domain.root * u });
+
+    kate_g1_elements.insert({ "PI_Z", PI_Z });
+    kate_fr_elements_at_zeta.insert({ "PI_Z", zeta });
+}
 
 template <typename Composer>
 lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>& z, const evaluation_domain& domain)
@@ -75,25 +154,13 @@ verify_proof(
     key->program_width = program_settings::program_width;
 
     Transcript<Composer> transcript = Transcript<Composer>(context, proof.proof_data, manifest);
-    std::array<group_pt, program_settings::program_width> T;
-    std::array<group_pt, program_settings::program_width> W;
+    std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
+    std::map<std::string, field_pt> kate_fr_elements_at_zeta;
+    std::map<std::string, field_pt> kate_fr_elements_at_zeta_large;
+    std::map<std::string, field_pt> kate_fr_elements_at_zeta_omega;
 
-    std::array<field_pt, program_settings::program_width> wire_evaluations;
-
-    for (size_t i = 0; i < program_settings::program_width; ++i) {
-        std::string index = std::to_string(i + 1);
-        T[i] = transcript.get_circuit_group_element("T_" + index);
-        W[i] = transcript.get_circuit_group_element("W_" + index);
-        wire_evaluations[i] = transcript.get_field_element("w_" + index);
-    }
-
-    group_pt Z_1 = transcript.get_circuit_group_element("Z");
-    group_pt PI_Z = transcript.get_circuit_group_element("PI_Z");
-    group_pt PI_Z_OMEGA = transcript.get_circuit_group_element("PI_Z_OMEGA");
-
-    T[0].validate_on_curve();
-    Z_1.validate_on_curve();
-    PI_Z.validate_on_curve();
+    const auto PI_Z = transcript.get_group_element("PI_Z");
+    const auto PI_Z_OMEGA = transcript.get_group_element("PI_Z_OMEGA");
 
     field_t circuit_size(stdlib::witness_t(context, barretenberg::fr(key->n)));
     field_t public_input_size(stdlib::witness_t(context, barretenberg::fr(key->num_public_inputs)));
@@ -107,8 +174,8 @@ verify_proof(
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
     field_pt alpha = transcript.get_challenge_field_element("alpha");
-    field_pt z_challenge = transcript.get_challenge_field_element("z");
-    lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations(z_challenge, key->domain);
+    field_pt zeta = transcript.get_challenge_field_element("z");
+    lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations(zeta, key->domain);
 
     // reconstruct evaluation of quotient polynomial from prover messages
     field_pt T0;
@@ -127,101 +194,73 @@ verify_proof(
 
     field_pt u = transcript.get_challenge_field_element("separator", 0);
 
-    field_pt batch_evaluation = t_eval;
+    populate_kate_element_map<field_pt, g1::affine_element, Transcript<Composer>, program_settings>(
+        key.get(),
+        transcript,
+        kate_g1_elements,
+        kate_fr_elements_at_zeta,
+        kate_fr_elements_at_zeta_large,
+        kate_fr_elements_at_zeta_omega);
 
-    for (size_t i = 0; i < program_settings::program_width; ++i) {
-        const std::string wire_key = "w_" + std::to_string(i + 1);
-        field_pt wire_challenge = transcript.get_challenge_field_element_from_map("nu", wire_key);
-        T0 = wire_challenge * wire_evaluations[i];
-        batch_evaluation += T0;
-
-        if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
-            field_pt wire_shifted_eval = transcript.get_field_element("w_" + std::to_string(i + 1) + "_omega");
-            T0 = wire_shifted_eval * wire_challenge;
-            T0 *= u;
-            batch_evaluation += T0;
+    std::vector<field_pt> double_opening_scalars;
+    std::vector<group_pt> double_opening_elements;
+    std::vector<field_pt> opening_scalars;
+    std::vector<group_pt> opening_elements;
+    std::vector<field_pt> big_opening_scalars;
+    std::vector<group_pt> big_opening_elements;
+    std::vector<group_pt> elements_to_add;
+    for (const auto& [label, fr_value] : kate_fr_elements_at_zeta) {
+        const auto& g1_value = kate_g1_elements[label];
+        if (!g1_value.on_curve()) {
+            continue; // TODO handle this
         }
-    }
 
-    batch_evaluation = -batch_evaluation;
-
-    field_pt z_omega_scalar;
-    z_omega_scalar = z_challenge * key->domain.root;
-    z_omega_scalar *= u;
-
-    std::vector<field_pt> big_scalars;
-    std::vector<group_pt> big_elements;
-    std::vector<field_pt> small_scalars;
-    std::vector<group_pt> small_elements;
-
-    for (size_t i = 0; i < program_settings::program_width; ++i) {
-        W[i].validate_on_curve();
-        big_elements.emplace_back(W[i]);
-
-        const std::string wire_key = "w_" + std::to_string(i + 1);
-        field_pt wire_challenge = transcript.get_challenge_field_element_from_map("nu", wire_key);
-
-        if (program_settings::requires_shifted_wire(program_settings::wire_shift_settings, i)) {
-            T0 = wire_challenge * u;
-            T0 += wire_challenge;
-            big_scalars.emplace_back(T0);
-        } else {
-            big_scalars.emplace_back(wire_challenge);
+        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+            continue;
         }
-    }
 
-    big_elements.emplace_back(group_pt::one(context));
-    big_scalars.emplace_back(batch_evaluation);
-
-    PI_Z_OMEGA.validate_on_curve();
-    big_elements.emplace_back(PI_Z_OMEGA);
-    big_scalars.emplace_back(z_omega_scalar);
-
-    small_elements.emplace_back(PI_Z);
-    small_scalars.emplace_back(z_challenge);
-
-    // TODO FIX
-    field_pt z_pow_n = z_challenge;
-    const size_t log2_n = numeric::get_msb(key->n);
-    for (size_t j = 0; j < log2_n; ++j) {
-        z_pow_n = z_pow_n.sqr();
-    }
-    field_pt z_power = z_pow_n;
-    for (size_t i = 1; i < program_settings::program_width; ++i) {
-        T[i].validate_on_curve();
-        big_elements.emplace_back(T[i]);
-        big_scalars.emplace_back(z_power);
-
-        z_power *= z_pow_n;
-    }
-
-    std::vector<barretenberg::g1::affine_element> g1_inputs;
-    program_settings::append_scalar_multiplication_inputs(key.get(), alpha, transcript, g1_inputs, small_scalars);
-    for (size_t i = 0; i < g1_inputs.size(); ++i) {
-        small_elements.push_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_inputs[i]));
-        // TODO: add method of enabling widgets to directly add transcript G1 elements into array
-        if (i == 0) {
-            auto input = small_elements[small_elements.size() - 1];
-            context->assert_equal(Z_1.x.binary_basis_limbs[0].element.witness_index,
-                                  input.x.binary_basis_limbs[0].element.witness_index);
-            context->assert_equal(Z_1.x.binary_basis_limbs[1].element.witness_index,
-                                  input.x.binary_basis_limbs[1].element.witness_index);
-            context->assert_equal(Z_1.x.binary_basis_limbs[2].element.witness_index,
-                                  input.x.binary_basis_limbs[2].element.witness_index);
-            context->assert_equal(Z_1.x.binary_basis_limbs[3].element.witness_index,
-                                  input.x.binary_basis_limbs[3].element.witness_index);
-            context->assert_equal(Z_1.y.binary_basis_limbs[0].element.witness_index,
-                                  input.y.binary_basis_limbs[0].element.witness_index);
-            context->assert_equal(Z_1.y.binary_basis_limbs[1].element.witness_index,
-                                  input.y.binary_basis_limbs[1].element.witness_index);
-            context->assert_equal(Z_1.y.binary_basis_limbs[2].element.witness_index,
-                                  input.y.binary_basis_limbs[2].element.witness_index);
-            context->assert_equal(Z_1.y.binary_basis_limbs[3].element.witness_index,
-                                  input.y.binary_basis_limbs[3].element.witness_index);
-            context->assert_equal(Z_1.x.prime_basis_limb.witness_index, input.x.prime_basis_limb.witness_index);
-            context->assert_equal(Z_1.y.prime_basis_limb.witness_index, input.y.prime_basis_limb.witness_index);
+        if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
+            elements_to_add.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+            continue;
         }
+        opening_scalars.emplace_back(fr_value);
+        opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
     }
+
+    for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_large) {
+        const auto& g1_value = kate_g1_elements[label];
+        if (!g1_value.on_curve()) {
+            continue; // TODO handle this
+        }
+
+        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+            continue;
+        }
+
+        if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
+            elements_to_add.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+            continue;
+        }
+        big_opening_scalars.emplace_back(fr_value);
+        big_opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+    }
+
+    for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_omega) {
+        const auto& g1_value = kate_g1_elements[label];
+        if (!g1_value.on_curve()) {
+            continue; // TODO handle this
+        }
+
+        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+            continue;
+        }
+        double_opening_scalars.emplace_back(fr_value);
+        double_opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+    }
+    const auto double_opening_result = group_pt::batch_mul(double_opening_elements, double_opening_scalars, 128);
+
+    opening_elements.emplace_back(double_opening_result);
+    opening_scalars.emplace_back(u);
 
     std::vector<group_pt> lhs_elements;
     std::vector<field_pt> lhs_scalars;
@@ -232,20 +271,27 @@ verify_proof(
     if (previous_output.has_data) {
         field_pt random_separator = transcript.get_challenge_field_element("separator", 1);
 
-        small_elements.push_back(previous_output.P0);
-        small_scalars.push_back(random_separator);
+        opening_elements.push_back(previous_output.P0);
+        opening_scalars.push_back(random_separator);
 
         lhs_elements.push_back((-(previous_output.P1)).normalize());
         lhs_scalars.push_back(random_separator);
     }
 
-    group_pt rhs = group_pt::mixed_batch_mul(big_elements, big_scalars, small_elements, small_scalars, 129);
-    rhs = (rhs + T[0]).normalize();
+    auto opening_result =
+        group_pt::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
+
+    opening_result = opening_result + double_opening_result;
+    for (const auto& to_add : elements_to_add) {
+        opening_result = opening_result + to_add;
+    }
+    opening_result = opening_result.normalize();
+
     group_pt lhs = group_pt::batch_mul(lhs_elements, lhs_scalars, 128);
     lhs = lhs + PI_Z;
     lhs = (-lhs).normalize();
     return recursion_output<field_pt, group_pt>{
-        rhs,
+        opening_result,
         lhs,
         transcript.get_field_element_vector("public_inputs"),
         true,

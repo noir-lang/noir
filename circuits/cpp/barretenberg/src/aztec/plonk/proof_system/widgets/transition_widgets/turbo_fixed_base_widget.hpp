@@ -6,13 +6,15 @@ namespace waffle {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class TurboFixedBaseKernel {
+  public:
+    static constexpr bool use_quotient_mid = false;
+    static constexpr size_t num_independent_relations = 7;
+
   private:
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    static constexpr bool use_quotient_mid = false;
-
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array& challenges,
                                             coefficient_array& linear_terms,
@@ -29,34 +31,24 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
         const Field& q_c = Getters::template get_polynomial<false, PolynomialIndex::Q_C>(polynomials, i);
         const Field& q_ecc_1 =
             Getters::template get_polynomial<false, PolynomialIndex::Q_FIXED_BASE_SELECTOR>(polynomials, i);
-        const Field& alpha_base = challenges[ChallengeIndex::ALPHA_BASE];
-        const Field& alpha = challenges[ChallengeIndex::ALPHA];
-
-        Field alpha_a = alpha_base;
-        Field alpha_b = alpha_a * alpha;
-        Field alpha_c = alpha_b * alpha;
-        Field alpha_d = alpha_c * alpha;
-        Field alpha_e = alpha_d * alpha;
-        Field alpha_f = alpha_e * alpha;
-        Field alpha_g = alpha_f * alpha;
 
         Field delta = w_4_omega - (w_4 + w_4 + w_4 + w_4);
 
         Field delta_squared = delta.sqr();
 
-        Field q_1_multiplicand = delta_squared * q_ecc_1 * alpha_b;
+        Field q_1_multiplicand = delta_squared * q_ecc_1 * challenges.alpha_powers[1];
 
-        Field q_2_multiplicand = alpha_b * q_ecc_1;
+        Field q_2_multiplicand = challenges.alpha_powers[1] * q_ecc_1;
 
-        Field q_3_multiplicand = (w_1_omega - w_1) * delta * w_3_omega * alpha_d * q_ecc_1;
-        Field T1 = delta * w_3_omega * w_2 * alpha_c;
+        Field q_3_multiplicand = (w_1_omega - w_1) * delta * w_3_omega * challenges.alpha_powers[3] * q_ecc_1;
+        Field T1 = delta * w_3_omega * w_2 * challenges.alpha_powers[2];
         q_3_multiplicand = q_3_multiplicand + (T1 + T1) * q_ecc_1;
 
-        Field q_4_multiplicand = w_3 * q_ecc_1 * q_c * alpha_f;
+        Field q_4_multiplicand = w_3 * q_ecc_1 * q_c * challenges.alpha_powers[5];
 
-        Field q_5_multiplicand = (Field(1) - w_4) * q_ecc_1 * q_c * alpha_f;
+        Field q_5_multiplicand = (Field(1) - w_4) * q_ecc_1 * q_c * challenges.alpha_powers[5];
 
-        Field q_m_multiplicand = w_3 * q_ecc_1 * q_c * alpha_g;
+        Field q_m_multiplicand = w_3 * q_ecc_1 * q_c * challenges.alpha_powers[6];
 
         linear_terms[0] = q_m_multiplicand;
         linear_terms[1] = q_1_multiplicand;
@@ -105,16 +97,6 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
         const Field& q_c = Getters::template get_polynomial<false, PolynomialIndex::Q_C>(polynomials, i);
         const Field& q_ecc_1 =
             Getters::template get_polynomial<false, PolynomialIndex::Q_FIXED_BASE_SELECTOR>(polynomials, i);
-        const Field& alpha_base = challenges[ChallengeIndex::ALPHA_BASE];
-        const Field& alpha = challenges[ChallengeIndex::ALPHA];
-
-        Field alpha_a = alpha_base;
-        Field alpha_b = alpha_a * alpha;
-        Field alpha_c = alpha_b * alpha;
-        Field alpha_d = alpha_c * alpha;
-        Field alpha_e = alpha_d * alpha;
-        Field alpha_f = alpha_e * alpha;
-        Field alpha_g = alpha_f * alpha;
 
         Field delta = w_4_omega - (w_4 + w_4 + w_4 + w_4);
         const Field three = Field(3);
@@ -123,9 +105,9 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
         Field T3 = (delta - Field(1));
         Field T4 = (delta - three);
 
-        Field accumulator_identity = T1 * T2 * T3 * T4 * alpha_a;
+        Field accumulator_identity = T1 * T2 * T3 * T4 * challenges.alpha_powers[0];
 
-        Field x_alpha_identity = -(w_3_omega * alpha_b);
+        Field x_alpha_identity = -(w_3_omega * challenges.alpha_powers[1]);
 
         Field T0 = w_1_omega + w_1 + w_3_omega;
         T1 = (w_3_omega - w_1).sqr();
@@ -139,7 +121,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
         T2 = delta * w_2 * q_ecc_1;
         T2 = T2 + T2;
 
-        Field x_accumulator_identity = (T0 + T1 + T2) * alpha_c;
+        Field x_accumulator_identity = (T0 + T1 + T2) * challenges.alpha_powers[2];
 
         T0 = (w_2_omega + w_2) * (w_3_omega - w_1);
 
@@ -147,18 +129,18 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
         T2 = w_2 - (q_ecc_1 * delta);
         T1 = T1 * T2;
 
-        Field y_accumulator_identity = (T0 + T1) * alpha_d;
+        Field y_accumulator_identity = (T0 + T1) * challenges.alpha_powers[3];
 
         T0 = w_4 - Field(1);
         T1 = T0 - w_3;
-        Field accumulator_init_identity = T0 * T1 * alpha_e;
+        Field accumulator_init_identity = T0 * T1 * challenges.alpha_powers[4];
 
-        Field x_init_identity = -(w_1 * w_3) * alpha_f;
+        Field x_init_identity = -(w_1 * w_3) * challenges.alpha_powers[5];
 
         T0 = Field(1) - w_4;
         T0 = T0 * q_c;
         T1 = w_2 * w_3;
-        Field y_init_identity = (T0 - T1) * alpha_g;
+        Field y_init_identity = (T0 - T1) * challenges.alpha_powers[6];
 
         Field gate_identity = accumulator_init_identity + x_init_identity + y_init_identity;
         gate_identity = gate_identity * q_c;
@@ -173,7 +155,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
                                                    std::map<std::string, Field>& scalars,
                                                    const challenge_array& challenges)
     {
-        const Field& linear_challenge = challenges[ChallengeIndex::LINEAR_NU];
+        const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
         scalars["Q_M"] += linear_terms[0] * linear_challenge;
         scalars["Q_1"] += linear_terms[1] * linear_challenge;
         scalars["Q_2"] += linear_terms[2] * linear_challenge;
@@ -181,16 +163,6 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
         scalars["Q_4"] += linear_terms[4] * linear_challenge;
         scalars["Q_5"] += linear_terms[5] * linear_challenge;
     }
-
-    inline static Field update_alpha(const Field& alpha_base, const Field& alpha)
-    {
-        const auto alpha_sqr = alpha.sqr();
-        const auto alpha_quad = alpha.sqr().sqr();
-        return alpha_base * alpha_quad * alpha_sqr * alpha;
-    }
-
-    static void compute_round_commitments(
-        proving_key*, program_witness*, transcript::StandardTranscript&, const size_t, work_queue&){};
 };
 
 } // namespace widget

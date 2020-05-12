@@ -17,8 +17,6 @@ template <typename program_settings> class VerifierBase {
     VerifierBase& operator=(const VerifierBase& other) = delete;
     VerifierBase& operator=(VerifierBase&& other);
 
-    void populate_kate_element_map(const transcript::StandardTranscript& transcript);
-    barretenberg::fr compute_kate_batch_evaluation(const transcript::StandardTranscript& transcript);
     bool validate_commitments();
     bool validate_scalars();
 

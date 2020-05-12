@@ -7,6 +7,7 @@ namespace waffle {
 class PLookupComposer : public ComposerBase {
 
   public:
+    static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
     enum PLookupSelectors {
         QM = 0,
         QC = 1,
@@ -21,6 +22,7 @@ class PLookupComposer : public ComposerBase {
         QLOGIC = 10,
         QLOOKUPINDEX = 11,
         QLOOKUPTYPE = 12,
+        QELLIPTIC = 13,
     };
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
@@ -176,6 +178,7 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_4_omega", fr_size, false, 7 },
                       { "s_omega", fr_size, false, 8 },
                       { "z_lookup_omega", fr_size, false, 9 },
+                      { "q_elliptic_omega", fr_size, false, 10 },
                   },
                   "nu",
                   21,
@@ -232,15 +235,16 @@ class PLookupComposer : public ComposerBase {
                       { "q_logic", fr_size, false, 16 },
                       { "q_range", fr_size, false, 17 },
                       { "q_ecc_1", fr_size, false, 18 },
-                      { "table_index", fr_size, false, 19 },
-                      { "table_type", fr_size, false, 20 },
-                      { "s", fr_size, false, 21 },
-                      { "z_lookup", fr_size, false, 22 },
-                      { "table_value_1", fr_size, false, 23 },
-                      { "table_value_2", fr_size, false, 24 },
-                      { "table_value_3", fr_size, false, 25 },
-                      { "table_value_4", fr_size, false, 26 },
-                      { "z", fr_size, false, 27 },
+                      { "q_elliptic", fr_size, false, 19 },
+                      { "table_index", fr_size, false, 20 },
+                      { "table_type", fr_size, false, 21 },
+                      { "s", fr_size, false, 22 },
+                      { "z_lookup", fr_size, false, 23 },
+                      { "table_value_1", fr_size, false, 24 },
+                      { "table_value_2", fr_size, false, 25 },
+                      { "table_value_3", fr_size, false, 26 },
+                      { "table_value_4", fr_size, false, 27 },
+                      { "z", fr_size, false, 28 },
                       { "z_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
@@ -252,9 +256,10 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_2_omega", fr_size, false, 7 },
                       { "table_value_3_omega", fr_size, false, 8 },
                       { "table_value_4_omega", fr_size, false, 9 },
+                      { "q_elliptic_omega", fr_size, false, 10 },
                   },
                   "nu",
-                  28,
+                  29,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });

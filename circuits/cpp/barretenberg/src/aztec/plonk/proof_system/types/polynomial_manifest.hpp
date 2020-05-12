@@ -27,6 +27,7 @@ enum PolynomialIndex {
     TABLE_TYPE,
     Q_MIMC_COEFFICIENT,
     Q_MIMC_SELECTOR,
+    Q_ELLIPTIC,
     SIGMA_1,
     SIGMA_2,
     SIGMA_3,
@@ -140,7 +141,7 @@ static constexpr PolynomialDescriptor turbo_polynomial_manifest[20]{
     PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
 };
 
-static constexpr PolynomialDescriptor plookup_polynomial_manifest[28]{
+static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
     PolynomialDescriptor("W_1", "w_1", false, true, WITNESS, W_1),                                           //
     PolynomialDescriptor("W_2", "w_2", false, true, WITNESS, W_2),                                           //
     PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
@@ -159,6 +160,7 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[28]{
     PolynomialDescriptor("Q_RANGE_SELECTOR", "q_range", true, false, SELECTOR, Q_RANGE_SELECTOR),            //
     PolynomialDescriptor("Q_FIXED_BASE_SELECTOR", "q_ecc_1", false, false, SELECTOR, Q_FIXED_BASE_SELECTOR), //
     PolynomialDescriptor("Q_LOGIC_SELECTOR", "q_logic", true, false, SELECTOR, Q_LOGIC_SELECTOR),            //
+    PolynomialDescriptor("Q_ELLIPTIC", "q_elliptic", true, true, SELECTOR, Q_ELLIPTIC),                      //
     PolynomialDescriptor("SIGMA_1", "sigma_1", false, false, PERMUTATION, SIGMA_1),                          //
     PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                          //
     PolynomialDescriptor("SIGMA_3", "sigma_3", false, false, PERMUTATION, SIGMA_3),                          //

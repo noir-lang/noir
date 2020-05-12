@@ -109,13 +109,9 @@ TEST(plookup_composer, read_from_table_with_single_key)
             EXPECT_EQ(composer.get_variable(result_indices[1]), fr(expected_b));
         }
     }
-
     auto prover = composer.create_prover();
-
     auto verifier = composer.create_verifier();
-
     auto proof = prover.construct_proof();
-
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }

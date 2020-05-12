@@ -54,7 +54,6 @@ circuit_outputs create_outer_circuit(waffle::TurboComposer& inner_composer, waff
 
     std::shared_ptr<waffle::verification_key> verification_key = inner_composer.compute_verification_key();
     waffle::plonk_proof recursive_proof = prover.construct_proof();
-
     transcript::Manifest recursive_manifest =
         waffle::TurboComposer::create_unrolled_manifest(prover.key->num_public_inputs);
 
@@ -62,7 +61,6 @@ circuit_outputs create_outer_circuit(waffle::TurboComposer& inner_composer, waff
         stdlib::recursion::verify_proof<waffle::TurboComposer,
                                         plonk::stdlib::recursion::recursive_turbo_verifier_settings>(
             &outer_composer, verification_key, recursive_manifest, recursive_proof);
-
     return { output, verification_key };
 }
 

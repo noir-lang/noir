@@ -6,20 +6,22 @@ namespace waffle {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class TurboArithmeticKernel {
+public:
+    static constexpr bool use_quotient_mid = false;
+    static constexpr size_t num_independent_relations = 2;
+
   private:
-    typedef containers::challenge_array<Field> challenge_array;
+    typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
     typedef containers::coefficient_array<Field> coefficient_array;
 
   public:
-    static constexpr bool use_quotient_mid = false;
-
     inline static void compute_linear_terms(PolyContainer& polynomials,
                                             const challenge_array& challenges,
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
     {
         constexpr barretenberg::fr minus_two(-2);
-        const Field& alpha = challenges[ChallengeIndex::ALPHA];
+        const Field& alpha = challenges.elements[ChallengeIndex::ALPHA];
         const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
         const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
@@ -69,7 +71,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
         const Field& w_4 = Getters::template get_polynomial<false, PolynomialIndex::W_4>(polynomials, i);
         const Field& q_arith =
             Getters::template get_polynomial<false, PolynomialIndex::Q_ARITHMETIC_SELECTOR>(polynomials, i);
-        const Field& alpha_base = challenges[ChallengeIndex::ALPHA_BASE];
+        const Field& alpha_base = challenges.alpha_powers[0];
 
         Field T1;
         Field T2;
@@ -124,7 +126,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
                                          coefficient_array& linear_terms,
                                          const size_t i = 0)
     {
-        const Field& alpha_base = challenges[ChallengeIndex::ALPHA_BASE];
+        const Field& alpha_base = challenges.alpha_powers[0];
         const Field& q_1 = Getters::template get_polynomial<false, PolynomialIndex::Q_1>(polynomials, i);
         const Field& q_2 = Getters::template get_polynomial<false, PolynomialIndex::Q_2>(polynomials, i);
         const Field& q_3 = Getters::template get_polynomial<false, PolynomialIndex::Q_3>(polynomials, i);
@@ -148,21 +150,17 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
                                                    std::map<std::string, Field>& scalars,
                                                    const challenge_array& challenges)
     {
-        const Field& alpha = challenges[ChallengeIndex::ALPHA_BASE];
-        const Field& linear_challenge = challenges[ChallengeIndex::LINEAR_NU];
-        scalars["Q_M"] += linear_terms[0] * alpha * linear_challenge;
-        scalars["Q_1"] += linear_terms[1] * alpha * linear_challenge;
-        scalars["Q_2"] += linear_terms[2] * alpha * linear_challenge;
-        scalars["Q_3"] += linear_terms[3] * alpha * linear_challenge;
-        scalars["Q_4"] += linear_terms[4] * alpha * linear_challenge;
-        scalars["Q_5"] += linear_terms[5] * alpha * linear_challenge;
-        scalars["Q_C"] += linear_terms[6] * alpha * linear_challenge;
+        const Field& alpha = challenges.alpha_powers[0];
+        const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
+        const Field challenge_product = alpha * linear_challenge;
+        scalars["Q_M"] += linear_terms[0] * challenge_product;
+        scalars["Q_1"] += linear_terms[1] * challenge_product;
+        scalars["Q_2"] += linear_terms[2] * challenge_product;
+        scalars["Q_3"] += linear_terms[3] * challenge_product;
+        scalars["Q_4"] += linear_terms[4] * challenge_product;
+        scalars["Q_5"] += linear_terms[5] * challenge_product;
+        scalars["Q_C"] += linear_terms[6] * challenge_product;
     }
-
-    inline static Field update_alpha(const Field& alpha_base, const Field& alpha) { return alpha_base * alpha.sqr(); }
-
-    static void compute_round_commitments(
-        proving_key*, program_witness*, transcript::StandardTranscript&, const size_t, work_queue&){};
 };
 
 } // namespace widget
