@@ -224,7 +224,7 @@ inline void write(B& buf, std::pair<T, U> const& value)
 template <typename T, typename B> T from_buffer(B const& buffer, size_t offset = 0)
 {
     T result;
-    auto ptr = &buffer[offset];
+    auto ptr = (uint8_t const*)&buffer[offset];
     read(ptr, result);
     return result;
 }

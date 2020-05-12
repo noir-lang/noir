@@ -31,10 +31,7 @@ struct rollup_tx {
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
 
-// VSCode doesn't recognise this C++20 feature.
-#ifndef __INTELLISENSE__
     bool operator==(rollup_tx const&) const = default;
-#endif
 };
 
 template <typename B> inline void read(B& buf, rollup_tx& tx)

@@ -43,24 +43,20 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
     auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
 
-    // Do annoying transform from raw bytes to waffle::plonk_proof.
-    std::vector<waffle::plonk_proof> proofs(rollup.txs.size());
-    std::transform(
-        rollup.txs.begin(), rollup.txs.end(), proofs.begin(), [](auto const& p) { return waffle::plonk_proof{ p }; });
-
     auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
     auto new_data_values = std::vector<byte_array_ct>();
     auto new_null_indicies = std::vector<byte_array_ct>();
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
-    std::vector<recursion_output<field_ct, group_ct>> recursion_outputs(proofs.size());
+    std::vector<recursion_output<field_ct, group_ct>> recursion_outputs(rollup_size);
 
     for (size_t i = 0; i < rollup_size; ++i) {
         // Verify the inner proof.
         recursion_outputs[i] = verify_proof<Composer, recursive_turbo_verifier_settings>(
-            &composer, inner_verification_key, recursive_manifest, proofs[i]);
+            &composer, inner_verification_key, recursive_manifest, { rollup.txs[i] });
 
         // Add the proofs data values to the list. If this is a noop proof (padding), then the data values are zeros.
-        auto is_real = num_txs > static_cast<uint32_t>(i);
+        // TODO: i should be able to be a constant, but causes things to fail :/
+        auto is_real = num_txs > uint32_ct(witness_ct(&composer, i));
         auto public_inputs = recursion_outputs[i].public_inputs;
         new_data_values.push_back(
             byte_array_ct(&composer).write(public_inputs[2] * is_real).write(public_inputs[3] * is_real));
@@ -105,7 +101,8 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
     for (size_t i = 0; i < new_null_indicies.size(); ++i) {
         auto new_null_root = field_ct(witness_ct(&composer, rollup.new_null_roots[i]));
-        auto is_real = num_txs > static_cast<uint32_t>(i/2);
+        // TODO: i should be able to be a constant, but causes things to fail :/
+        auto is_real = num_txs > uint32_ct(witness_ct(&composer, i/2));
         auto nullifier_value = byte_array_ct(&composer, 64);
         nullifier_value.set_bit(511, is_real);
 

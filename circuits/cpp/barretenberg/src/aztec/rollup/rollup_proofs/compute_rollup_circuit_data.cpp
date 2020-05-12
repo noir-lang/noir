@@ -47,6 +47,10 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size)
     auto num_gates = composer.get_num_gates();
     std::cerr << "Done." << std::endl;
 
+    // auto proving_key = std::shared_ptr<waffle::proving_key>();
+    // auto verification_key = std::shared_ptr<waffle::verification_key>();
+    // size_t num_gates = 0;
+
     return { proving_key, verification_key, rollup_size, num_gates, inner.proof_size, inner.verification_key };
 }
 

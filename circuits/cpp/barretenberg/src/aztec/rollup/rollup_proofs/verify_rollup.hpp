@@ -1,3 +1,4 @@
+#pragma once
 #include "../tx/user_context.hpp"
 #include "../client_proofs/join_split/sign_notes.hpp"
 #include "compute_rollup_circuit_data.hpp"
@@ -22,7 +23,7 @@ bool verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_d
     auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
 
-    std::cout << proof.proof_data << std::endl;
+    // std::cout << proof.proof_data << std::endl;
 
     auto verifier = composer.create_verifier();
     auto verified = verifier.verify_proof(proof);
