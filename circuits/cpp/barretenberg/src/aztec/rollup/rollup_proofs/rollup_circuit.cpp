@@ -41,11 +41,13 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto data_start_index = field_ct(public_witness_ct(&composer, rollup.data_start_index));
     auto old_data_root = field_ct(public_witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
+    auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
+    auto new_null_root = field_ct(public_witness_ct(&composer, rollup.new_null_roots.back()));
+    auto num_txs = uint32_ct(public_witness_ct(&composer, rollup.num_txs));
     auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
 
-    auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
     auto new_data_values = std::vector<byte_array_ct>();
-    auto new_null_indicies = std::vector<byte_array_ct>();
+    auto new_null_indicies = std::vector<field_ct>();
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
     std::vector<recursion_output<field_ct, group_ct>> recursion_outputs(rollup_size);
 
@@ -63,8 +65,9 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
         new_data_values.push_back(
             byte_array_ct(&composer).write(public_inputs[4] * is_real).write(public_inputs[5] * is_real));
 
-        // Check this proofs old data root is equal to the one we've been given.
-        composer.assert_equal(old_data_root.witness_index, public_inputs[6].witness_index);
+        // Check this proofs old data root is equal to the one we've been given (unless a padding entry).
+        field_ct root_comparator = (public_inputs[6] * is_real) + (old_data_root * !is_real);
+        composer.assert_equal(old_data_root.witness_index, root_comparator.witness_index);
 
         new_null_indicies.push_back(public_inputs[7]);
         new_null_indicies.push_back(public_inputs[8]);
@@ -98,13 +101,19 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
                               byte_array_ct(data_start_index),
                               height);
 
-    auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
+    auto new_nullifier_value = byte_array_ct(&composer, 64);
+    new_nullifier_value.set_bit(511, 1);
+    field_ct last_real_null_index;
+
     for (size_t i = 0; i < new_null_indicies.size(); ++i) {
         auto new_null_root = field_ct(witness_ct(&composer, rollup.new_null_roots[i]));
         // TODO: i should be able to be a constant, but causes things to fail :/
         auto is_real = num_txs > uint32_ct(witness_ct(&composer, i / 2));
-        auto nullifier_value = byte_array_ct(&composer, 64);
-        nullifier_value.set_bit(511, is_real);
+
+        // This makes padding transactions act as noops.
+        last_real_null_index = (new_null_indicies[i] * is_real) + (last_real_null_index * !is_real);
+        auto old_nullifier_value = byte_array_ct(&composer, 64);
+        old_nullifier_value.set_bit(511, !is_real);
 
         auto new_null_path = create_witness_hash_path(composer, rollup.new_null_paths[i]);
         auto old_null_path = create_witness_hash_path(composer, rollup.old_null_paths[i]);
@@ -113,23 +122,21 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
         // std::cout << "new_null_root: " << new_null_root << std::endl;
         // std::cout << "old_null_path: " << old_null_path << std::endl;
         // std::cout << "new_null_path: " << new_null_path << std::endl;
-        // std::cout << "index: " << new_null_indicies[i] << std::endl;
-        // std::cout << "value: " << nullifier_value << std::endl;
+        // std::cout << "index: " << last_real_null_index << std::endl;
+        // std::cout << "old_value: " << old_nullifier_value << std::endl;
+        // std::cout << "new_value: " << new_nullifier_value << std::endl;
 
         update_membership(composer,
                           new_null_root,
                           new_null_path,
-                          nullifier_value,
+                          new_nullifier_value,
                           old_null_root,
                           old_null_path,
-                          byte_array_ct(&composer, 64),
-                          new_null_indicies[i]);
+                          old_nullifier_value,
+                          byte_array_ct(last_real_null_index));
 
         old_null_root = new_null_root;
     }
-
-    // Make the latest null root public.
-    composer.set_public_input(old_null_root.witness_index);
 
     return recursion_outputs;
 }

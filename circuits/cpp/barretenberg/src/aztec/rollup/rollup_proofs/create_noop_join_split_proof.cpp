@@ -16,7 +16,12 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-std::vector<uint8_t> create_noop_join_split_proof(fr const& merkel_root, join_split_circuit_data const& circuit_data)
+std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data)
+{
+    return create_noop_join_split_proof(circuit_data, fr::random_element());
+}
+
+std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data, fr const& merkle_root)
 {
     auto user = rollup::tx::create_user_context();
 
@@ -29,7 +34,7 @@ std::vector<uint8_t> create_noop_join_split_proof(fr const& merkel_root, join_sp
     tx.public_output = 0;
     tx.num_input_notes = 0;
     tx.input_index = { 0, 1 };
-    tx.merkle_root = merkel_root;
+    tx.merkle_root = merkle_root;
     tx.input_path = { gibberish_path, gibberish_path };
     tx.input_note = { gibberish_note, gibberish_note };
     tx.output_note = { gibberish_note, gibberish_note };

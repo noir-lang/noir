@@ -1,4 +1,4 @@
-#include "compute_inner_circuit_data.hpp"
+#include "compute_join_split_circuit_data.hpp"
 #include "../client_proofs/join_split/join_split.hpp"
 
 namespace rollup {

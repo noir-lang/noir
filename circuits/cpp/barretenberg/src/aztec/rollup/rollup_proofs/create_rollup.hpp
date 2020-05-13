@@ -13,27 +13,29 @@ namespace rollup_proofs {
 using namespace rollup::client_proofs::join_split;
 
 template <typename Tree>
-rollup_tx create_rollup(
-    size_t num_txs, std::vector<std::vector<uint8_t>> const& txs, Tree& data_tree, Tree& null_tree, size_t rollup_size)
+rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
+                        Tree& data_tree,
+                        Tree& null_tree,
+                        size_t rollup_size,
+                        std::vector<uint8_t> padding_proof)
 {
     size_t rollup_tree_depth = numeric::get_msb(rollup_size) + 1;
-
-    // Compute data tree data.
     MemoryTree rollup_tree(rollup_tree_depth);
 
-    uint32_t data_start_index = (uint32_t)data_tree.size();
+    // Compute data tree data.
+    auto num_txs = (uint32_t)txs.size();
+    auto data_start_index = (uint32_t)data_tree.size();
     auto old_data_root = data_tree.root();
     auto old_data_path = data_tree.get_hash_path(data_start_index);
 
     std::vector<uint128_t> nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
 
-    for (size_t i = 0; i < rollup_size; ++i) {
-        auto is_real = num_txs > i;
+    for (size_t i = 0; i < num_txs; ++i) {
         auto proof_data = txs[i];
         auto struct_data = join_split_data(proof_data);
-        auto data_value1 = is_real ? struct_data.new_note1 : zero_value;
-        auto data_value2 = is_real ? struct_data.new_note2 : zero_value;
+        auto data_value1 = struct_data.new_note1;
+        auto data_value2 = struct_data.new_note2;
 
         data_tree.update_element(data_start_index + i * 2, data_value1);
         data_tree.update_element(data_start_index + i * 2 + 1, data_value2);
@@ -54,9 +56,8 @@ rollup_tx create_rollup(
     nullifier_value[63] = 1;
 
     for (size_t i = 0; i < nullifier_indicies.size(); ++i) {
-        auto is_real = num_txs > i / 2;
         old_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
-        null_tree.update_element(nullifier_indicies[i], is_real ? nullifier_value : zero_value);
+        null_tree.update_element(nullifier_indicies[i], nullifier_value);
         new_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
         new_null_roots.push_back(null_tree.root());
     }
@@ -64,7 +65,7 @@ rollup_tx create_rollup(
     // Compose our rollup.
     rollup_tx rollup = {
         0,
-        (uint32_t)num_txs,
+        num_txs,
         data_start_index,
         txs,
         rollup_tree.root(),
@@ -77,6 +78,12 @@ rollup_tx create_rollup(
         old_null_paths,
         new_null_paths,
     };
+
+    // Add padding data if necessary.
+    rollup.txs.resize(rollup_size, padding_proof);
+    rollup.new_null_roots.resize(rollup_size * 2, *(rollup.new_null_roots.end() - 1));
+    rollup.old_null_paths.resize(rollup_size * 2, *(rollup.new_null_paths.end() - 1));
+    rollup.new_null_paths.resize(rollup_size * 2, *(rollup.new_null_paths.end() - 1));
 
     return rollup;
 }

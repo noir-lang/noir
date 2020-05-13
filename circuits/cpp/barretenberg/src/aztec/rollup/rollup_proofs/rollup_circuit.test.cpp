@@ -20,7 +20,11 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         , user(rollup::tx::create_user_context())
     {}
 
-    static void SetUpTestCase() { inner_circuit_data = compute_join_split_circuit_data(); }
+    static void SetUpTestCase()
+    {
+        inner_circuit_data = compute_join_split_circuit_data();
+        padding_proof = create_noop_join_split_proof(inner_circuit_data);
+    }
 
     uint32_t append_note(uint32_t value)
     {
@@ -77,6 +81,7 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     MerkleTree<MemoryStore> null_tree;
     rollup::tx::user_context user;
     static join_split_circuit_data inner_circuit_data;
+    static std::vector<uint8_t> padding_proof;
 
   private:
     std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -89,117 +94,90 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
 };
 
 join_split_circuit_data rollup_proofs_rollup_circuit::inner_circuit_data;
+std::vector<uint8_t> rollup_proofs_rollup_circuit::padding_proof;
 
-TEST_F(rollup_proofs_rollup_circuit, test_0_proofs_in_1_rollup)
+TEST_F(rollup_proofs_rollup_circuit, test_0_proofs_in_1_rollup_fails)
 {
-    size_t num_txs = 0;
     size_t rollup_size = 1;
 
-    auto proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto txs = std::vector<std::vector<uint8_t>>{ proof_data };
-
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({}, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
-    EXPECT_TRUE(verified);
+    EXPECT_FALSE(verified);
 }
 
-TEST_F(rollup_proofs_rollup_circuit, test_1_deposit_proof_in_1_rollup)
+TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup)
 {
-    size_t num_txs = 1;
-    size_t rollup_size = 1;
-
-    auto proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto txs = std::vector<std::vector<uint8_t>>{ proof_data };
-
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
-
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
-
-    EXPECT_TRUE(verified);
-}
-
-TEST_F(rollup_proofs_rollup_circuit, test_1_transfer_proof_in_1_rollup)
-{
-    size_t num_txs = 1;
     size_t rollup_size = 1;
 
     append_note(100);
     append_note(50);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_TRUE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_bad_rollup_root_fails)
 {
-    size_t num_txs = 1;
     size_t rollup_size = 1;
 
     append_note(100);
     append_note(50);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     rollup.rollup_root = fr::random_element();
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_incorrect_data_start_index_fails)
 {
-    size_t num_txs = 1;
     size_t rollup_size = 1;
 
     append_note(100);
     append_note(50);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     rollup.data_start_index = 0;
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_bad_join_split_proof_fails)
 {
-    size_t num_txs = 1;
     size_t rollup_size = 1;
 
     append_note(100);
     append_note(50);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 0 });
 
-    auto rollup = create_rollup(num_txs, { join_split_proof }, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_reuse_spent_note_fails)
 {
-    size_t num_txs = 1;
     size_t rollup_size = 1;
 
     append_note(100);
@@ -208,55 +186,35 @@ TEST_F(rollup_proofs_rollup_circuit, test_reuse_spent_note_fails)
     join_split_data join_split_data(join_split_proof);
     null_tree.update_element(join_split_data.nullifier1, { 64, 1 });
 
-    auto rollup = create_rollup(num_txs, { join_split_proof }, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_incorrect_new_data_root_fails)
 {
-    size_t num_txs = 1;
     size_t rollup_size = 1;
 
     append_note(100);
     append_note(50);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     rollup.new_data_root = fr::random_element();
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 // Rollups of size 2.
-TEST_F(rollup_proofs_rollup_circuit, test_1_deposit_proof_in_2_rollup)
+TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_2_rollup)
 {
-    size_t num_txs = 1;
-    size_t rollup_size = 2;
-
-    auto proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto noop_proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto txs = std::vector{ proof_data, noop_proof_data };
-
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
-
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
-
-    EXPECT_TRUE(verified);
-}
-
-TEST_F(rollup_proofs_rollup_circuit, test_1_transfer_proof_in_2_rollup)
-{
-    size_t num_txs = 1;
     size_t rollup_size = 2;
 
     append_note(100);
@@ -264,37 +222,17 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_transfer_proof_in_2_rollup)
     append_note(80);
     append_note(60);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto noop_proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto txs = std::vector{ join_split_proof, noop_proof_data };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_TRUE(verified);
 }
 
-TEST_F(rollup_proofs_rollup_circuit, test_2_deposit_proofs_in_2_rollup)
+TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup)
 {
-    size_t num_txs = 2;
-    size_t rollup_size = 2;
-
-    auto noop_proof_data1 = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto noop_proof_data2 = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto txs = std::vector{ noop_proof_data1, noop_proof_data2 };
-
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
-
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
-
-    EXPECT_TRUE(verified);
-}
-
-TEST_F(rollup_proofs_rollup_circuit, test_2_transfer_proofs_in_2_rollup)
-{
-    size_t num_txs = 2;
     size_t rollup_size = 2;
 
     append_note(100);
@@ -305,36 +243,32 @@ TEST_F(rollup_proofs_rollup_circuit, test_2_transfer_proofs_in_2_rollup)
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup(txs, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_TRUE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_insertion_of_subtree_at_non_empty_location_fails)
 {
-    size_t num_txs = 1;
     size_t rollup_size = 2;
 
     append_note(100);
     append_note(50);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto noop_proof_data = create_noop_join_split_proof(data_tree.root(), inner_circuit_data);
-    auto txs = std::vector{ join_split_proof, noop_proof_data };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_identical_input_note_fails)
 {
-    size_t num_txs = 2;
     size_t rollup_size = 2;
 
     append_note(100);
@@ -345,17 +279,16 @@ TEST_F(rollup_proofs_rollup_circuit, test_identical_input_note_fails)
     auto join_split_proof2 = create_join_split_proof({ 2, 1 }, { 80, 50 }, { 70, 60 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup(txs, data_tree, null_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_nullifier_hash_path_consistency)
 {
-    size_t num_txs = 2;
     size_t rollup_size = 2;
 
     append_note(100);
@@ -366,14 +299,37 @@ TEST_F(rollup_proofs_rollup_circuit, test_nullifier_hash_path_consistency)
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(num_txs, txs, data_tree, null_tree, rollup_size);
+    auto rollup = create_rollup(txs, data_tree, null_tree, rollup_size, padding_proof);
 
     std::swap(rollup.new_null_roots[2], rollup.new_null_roots[3]);
     std::swap(rollup.new_null_paths[2], rollup.new_null_paths[3]);
     std::swap(rollup.old_null_paths[2], rollup.old_null_paths[3]);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup(rollup, rollup_circuit_data);
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_FALSE(verified);
+}
+
+HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
+{
+    size_t rollup_size = 2;
+
+    append_note(100);
+    append_note(50);
+    append_note(80);
+    append_note(60);
+    auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
+    auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
+    auto txs = std::vector{ join_split_proof1, join_split_proof2 };
+
+    auto rollup = create_rollup(txs, data_tree, null_tree, rollup_size, padding_proof);
+
+    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true);
+    auto result = verify_rollup(rollup, rollup_circuit_data);
+
+    EXPECT_EQ(circuit_output.recursion_output.public_inputs[0].get_value(), inner_inputs[0]);
+    // EXPECT_EQ(circuit_output.recursion_output.public_inputs[1].get_value(), inner_inputs[1]);
+
+    EXPECT_TRUE(result.verified);
 }

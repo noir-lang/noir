@@ -1,5 +1,5 @@
 #pragma once
-#include "compute_inner_circuit_data.hpp"
+#include "compute_join_split_circuit_data.hpp"
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 

@@ -2,6 +2,7 @@
 #include "../client_proofs/join_split/join_split_tx.hpp"
 #include "../rollup_proofs/rollup_tx.hpp"
 #include "../rollup_proofs/create_noop_join_split_proof.hpp"
+#include "../rollup_proofs/create_rollup.hpp"
 #include "../tx/user_context.hpp"
 #include "../client_proofs/join_split/sign_notes.hpp"
 #include <stdlib/merkle_tree/leveldb_store.hpp>
@@ -17,6 +18,10 @@ using namespace plonk::stdlib::merkle_tree;
 
 int main(int argc, char** argv)
 {
+    MemoryStore store;
+    MerkleTree<MemoryStore> data_tree(store, 32, 0);
+    MerkleTree<MemoryStore> null_tree(store, 128, 1);
+
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() < 2) {
@@ -36,13 +41,16 @@ int main(int argc, char** argv)
     //     return -1;
     // }
 
-    auto proof = create_noop_join_split_proof();
+    auto join_split_circuit_data = compute_join_split_circuit_data();
+    // auto proof = create_deposit_join_split_proof(join_split_circuit_data, data_tree.root());
+    // auto proofs = std::vector(num_txs, proof);
+    auto proofs = std::vector<std::vector<uint8_t>>(num_txs);
+    for (size_t i = 0; i < num_txs; ++i) {
+        proofs[i] = create_noop_join_split_proof(join_split_circuit_data, data_tree.root());
+    }
+    auto noop_proof = create_noop_join_split_proof(join_split_circuit_data);
+    rollup_tx rollup = create_rollup(proofs, data_tree, null_tree, 2, noop_proof);
 
-    rollup_tx rollup;
-    rollup.rollup_id = 0;
-    rollup.num_txs = num_txs;
-    rollup.proof_lengths = static_cast<uint32_t>(proof.proof_data.size());
-    rollup.txs = std::vector(num_txs, proof.proof_data);
     write(std::cout, rollup);
 
     /*
