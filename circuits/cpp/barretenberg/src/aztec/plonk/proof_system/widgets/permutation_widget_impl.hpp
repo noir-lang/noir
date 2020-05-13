@@ -132,7 +132,7 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
                 T0 = lagrange_base_sigmas[0][i] * beta;
                 accumulators[program_width][i] = T0 + wire_plus_gamma;
 
-                std::cout << "k=0, i="  << i  << "  id:" << lagrange_base_ids[0][i] << "  sigma:" <<
+                // std::cout << "k=0, i="  << i  << "  id:" << lagrange_base_ids[0][i] << "  sigma:" <<
                 lagrange_base_sigmas[0][i]<< std::endl;
                 for (size_t k = 1; k < program_width; ++k) {
                     wire_plus_gamma = gamma + lagrange_base_wires[k][i];
@@ -143,7 +143,7 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
                     accumulators[k][i] = T0 + wire_plus_gamma;
                     T0 = lagrange_base_sigmas[k][i] * beta;
                     accumulators[k + program_width][i] = T0 + wire_plus_gamma;
-                    std::cout << "k="  << k <<  ", i="  << i  << "  id:" << lagrange_base_ids[k][i] << "  sigma:" <<
+                    // std::cout << "k="  << k <<  ", i="  << i  << "  id:" << lagrange_base_ids[k][i] << "  sigma:" <<
                     lagrange_base_sigmas[k][i]<< std::endl;
                 }
                 if constexpr (!idpolys)

@@ -4,6 +4,12 @@
 namespace waffle {
 class GenPermComposer : public TurboComposer {
   public:
+    struct RangeList {
+        uint64_t target_range;
+        uint32_t range_tag;
+        uint32_t tau_tag;
+        std::vector<uint32_t> variable_indices;
+    };
     GenPermComposer(const size_t size_hint = 0);
 
     UnrolledTurboProver create_unrolled_prover() override;
@@ -12,7 +18,9 @@ class GenPermComposer : public TurboComposer {
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual TurboProver create_prover() override;
     GenPermVerifier create_verifier();
+
     void create_sort_constraint(const std::vector<uint32_t> variable_index);
+    void create_sort_constraint_with_edges(const std::vector<uint32_t> variable_index, const fr, const fr);
     void assign_tag(const uint32_t variable_index, const uint32_t tag)
     {
         ASSERT(tag <= current_tag);
@@ -26,6 +34,17 @@ class GenPermComposer : public TurboComposer {
         current_tag++;
         return current_tag;
     }
+    uint32_t get_new_tag()
+    {
+        current_tag++;
+        return current_tag;
+    }
+
+    RangeList create_range_list(const uint64_t target_range);
+    void create_range_constraint(const uint32_t variable_index, const uint64_t target_range);
+    void process_range_list(const RangeList& list);
+
+    std::map<uint64_t, RangeList> range_lists;
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {

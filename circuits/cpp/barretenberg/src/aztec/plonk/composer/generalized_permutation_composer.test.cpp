@@ -678,48 +678,48 @@ TEST(genperm_composer, large_scalar_multipliers)
     free(accumulator_transcript);
 }
 
-TEST(genperm_composer, range_constraint)
-{
-    waffle::GenPermComposer composer = waffle::GenPermComposer();
+// TEST(genperm_composer, range_constraint)
+// {
+//     waffle::GenPermComposer composer = waffle::GenPermComposer();
 
-    for (size_t i = 0; i < 10; ++i) {
-        uint32_t value = engine.get_random_uint32();
-        fr witness_value = fr{ value, 0, 0, 0 }.to_montgomery_form();
-        uint32_t witness_index = composer.add_variable(witness_value);
+//     for (size_t i = 0; i < 10; ++i) {
+//         uint32_t value = engine.get_random_uint32();
+//         fr witness_value = fr{ value, 0, 0, 0 }.to_montgomery_form();
+//         uint32_t witness_index = composer.add_variable(witness_value);
 
-        // include non-nice numbers of bits, that will bleed over gate boundaries
-        size_t extra_bits = 2 * (i % 4);
+//         // include non-nice numbers of bits, that will bleed over gate boundaries
+//         size_t extra_bits = 2 * (i % 4);
 
-        std::vector<uint32_t> accumulators = composer.create_range_constraint(witness_index, 32 + extra_bits);
+//         std::vector<uint32_t> accumulators = composer.create_range_constraint(witness_index, 32 + extra_bits);
 
-        for (uint32_t j = 0; j < 16; ++j) {
-            uint32_t result = (value >> (30U - (2 * j)));
-            fr source = composer.get_variable(accumulators[j + (extra_bits >> 1)]).from_montgomery_form();
-            uint32_t expected = static_cast<uint32_t>(source.data[0]);
-            EXPECT_EQ(result, expected);
-        }
-        for (uint32_t j = 1; j < 16; ++j) {
-            uint32_t left = (value >> (30U - (2 * j)));
-            uint32_t right = (value >> (30U - (2 * (j - 1))));
-            EXPECT_EQ(left - 4 * right < 4, true);
-        }
-    }
+//         for (uint32_t j = 0; j < 16; ++j) {
+//             uint32_t result = (value >> (30U - (2 * j)));
+//             fr source = composer.get_variable(accumulators[j + (extra_bits >> 1)]).from_montgomery_form();
+//             uint32_t expected = static_cast<uint32_t>(source.data[0]);
+//             EXPECT_EQ(result, expected);
+//         }
+//         for (uint32_t j = 1; j < 16; ++j) {
+//             uint32_t left = (value >> (30U - (2 * j)));
+//             uint32_t right = (value >> (30U - (2 * (j - 1))));
+//             EXPECT_EQ(left - 4 * right < 4, true);
+//         }
+//     }
 
-    uint32_t zero_idx = composer.add_variable(fr::zero());
-    uint32_t one_idx = composer.add_variable(fr::one());
-    composer.create_big_add_gate(
-        { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
+//     uint32_t zero_idx = composer.add_variable(fr::zero());
+//     uint32_t one_idx = composer.add_variable(fr::one());
+//     composer.create_big_add_gate(
+//         { zero_idx, zero_idx, zero_idx, one_idx, fr::one(), fr::one(), fr::one(), fr::one(), fr::neg_one() });
 
-    waffle::TurboProver prover = composer.create_prover();
+//     waffle::TurboProver prover = composer.create_prover();
 
-    waffle::GenPermVerifier verifier = composer.create_verifier();
+//     waffle::GenPermVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+//     waffle::plonk_proof proof = prover.construct_proof();
 
-    bool result = verifier.verify_proof(proof);
+//     bool result = verifier.verify_proof(proof);
 
-    EXPECT_EQ(result, true);
-}
+//     EXPECT_EQ(result, true);
+// }
 
 TEST(genperm_composer, and_constraint)
 {
