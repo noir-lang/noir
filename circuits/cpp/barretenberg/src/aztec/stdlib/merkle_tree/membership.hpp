@@ -8,16 +8,16 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 template <typename Composer>
 bool_t<Composer> check_subtree_membership(Composer& composer,
-                                  field_t<Composer> const& root,
-                                  hash_path<Composer> const& hashes,
-                                  field_t<Composer> const& value,
-                                  byte_array<Composer> const& index,
-                                  size_t at_height)
+                                          field_t<Composer> const& root,
+                                          hash_path<Composer> const& hashes,
+                                          field_t<Composer> const& value,
+                                          byte_array<Composer> const& index,
+                                          size_t at_height)
 {
     auto current = value;
     bool_t is_member = witness_t(&composer, true);
@@ -44,11 +44,11 @@ bool_t<Composer> check_subtree_membership(Composer& composer,
 
 template <typename Composer>
 void assert_check_subtree_membership(Composer& composer,
-                                  field_t<Composer> const& root,
-                                  hash_path<Composer> const& hashes,
-                                  field_t<Composer> const& value,
-                                  byte_array<Composer> const& index,
-                                  size_t at_height)
+                                     field_t<Composer> const& root,
+                                     hash_path<Composer> const& hashes,
+                                     field_t<Composer> const& value,
+                                     byte_array<Composer> const& index,
+                                     size_t at_height)
 {
     auto exists = check_subtree_membership(composer, root, hashes, value, index, at_height);
     composer.assert_equal_constant(exists.witness_index, fr::one());
@@ -103,14 +103,14 @@ void update_membership(Composer& composer,
 
 template <typename Composer>
 void update_subtree_membership(Composer& composer,
-                       field_t<Composer> const& new_root,
-                       hash_path<Composer> const& new_hashes,
-                       field_t<Composer> const& new_subtree_root,
-                       field_t<Composer> const& old_root,
-                       hash_path<Composer> const& old_hashes,
-                       field_t<Composer> const& old_subtree_root,
-                       byte_array<Composer> const& index,
-                       size_t at_height)
+                               field_t<Composer> const& new_root,
+                               hash_path<Composer> const& new_hashes,
+                               field_t<Composer> const& new_subtree_root,
+                               field_t<Composer> const& old_root,
+                               hash_path<Composer> const& old_hashes,
+                               field_t<Composer> const& old_subtree_root,
+                               byte_array<Composer> const& index,
+                               size_t at_height)
 {
     // Check check that the old_subtree_root, is in the tree given by old_root, at index and at_height.
     assert_check_subtree_membership(composer, old_root, old_hashes, old_subtree_root, index, at_height);

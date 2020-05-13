@@ -10,6 +10,13 @@ namespace merkle_tree {
 
 class MemoryStore {
   public:
+    MemoryStore() {}
+
+    MemoryStore(MemoryStore const& rhs) = default;
+    MemoryStore(MemoryStore&& rhs) = default;
+    MemoryStore& operator=(MemoryStore const& rhs) = default;
+    MemoryStore& operator=(MemoryStore&& rhs) = default;
+
     bool put(std::vector<uint8_t> const& key, std::vector<uint8_t> const& value)
     {
         auto key_str = to_string(key);
@@ -31,9 +38,7 @@ class MemoryStore {
         return true;
     };
 
-    bool get(std::vector<uint8_t> const& key, std::vector<uint8_t>& value) {
-        return get(to_string(key), value);
-    }
+    bool get(std::vector<uint8_t> const& key, std::vector<uint8_t>& value) { return get(to_string(key), value); }
 
     bool get(std::string const& key, std::vector<uint8_t>& value)
     {
@@ -67,15 +72,14 @@ class MemoryStore {
         deletes_.clear();
     }
 
-    void rollback() {
+    void rollback()
+    {
         puts_.clear();
         deletes_.clear();
     }
 
   private:
-    std::string to_string(std::vector<uint8_t> const& input) {
-        return std::string((char*)input.data(), input.size());
-    }
+    std::string to_string(std::vector<uint8_t> const& input) { return std::string((char*)input.data(), input.size()); }
 
     std::map<std::string, std::string> store_;
     std::map<std::string, std::string> puts_;

@@ -66,7 +66,7 @@ WASM_EXPORT bool join_split__decrypt_note(uint8_t const* encrypted_note_buf,
 
 WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf)
 {
-    auto tx = join_split_tx::from_buffer(join_split_buf);
+    auto tx = from_buffer<join_split_tx>(join_split_buf);
     auto prover = new_join_split_prover(tx);
     auto heapProver = new Prover(std::move(prover));
     return heapProver;

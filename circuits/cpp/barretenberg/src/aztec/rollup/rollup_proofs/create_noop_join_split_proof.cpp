@@ -16,12 +16,12 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-waffle::plonk_proof create_noop_join_split_proof(fr const& merkel_root, join_split_circuit_data const& circuit_data)
+std::vector<uint8_t> create_noop_join_split_proof(fr const& merkel_root, join_split_circuit_data const& circuit_data)
 {
     auto user = rollup::tx::create_user_context();
 
     tx_note gibberish_note = { user.public_key, 0, fr::random_element() };
-    auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element() ));
+    auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
 
     join_split_tx tx;
     tx.owner_pub_key = user.public_key;
@@ -43,8 +43,8 @@ waffle::plonk_proof create_noop_join_split_proof(fr const& merkel_root, join_spl
     auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
 
-    return proof;
+    return proof.proof_data;
 }
 
-}
-}
+} // namespace rollup_proofs
+} // namespace rollup

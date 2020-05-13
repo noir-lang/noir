@@ -9,19 +9,20 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::rollup_proofs;
 
-rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size, join_split_circuit_data const& inner, bool create_keys)
+rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
+                                                join_split_circuit_data const& inner,
+                                                bool create_keys)
 {
     std::cerr << "Generating rollup circuit... (size: " << rollup_size << ")" << std::endl;
     Composer composer = Composer("../srs_db/ignition");
 
     // Junk data required just to create keys.
-    auto gibberish_data_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element() ));
-    auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element() ));
+    auto gibberish_data_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element()));
 
     rollup_tx rollup = {
         0,
         (uint32_t)rollup_size,
-        (uint32_t)inner.proof_size,
         0,
         std::vector(rollup_size, std::vector<uint8_t>(inner.proof_size, 1)),
         fr::random_element(),

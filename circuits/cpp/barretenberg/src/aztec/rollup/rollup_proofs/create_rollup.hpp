@@ -2,12 +2,15 @@
 #include "compute_rollup_circuit_data.hpp"
 #include "create_noop_join_split_proof.hpp"
 #include "verify_rollup.hpp"
+#include <rollup/client_proofs/join_split/join_split_data.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
 
 namespace rollup {
 namespace rollup_proofs {
+
+using namespace rollup::client_proofs::join_split;
 
 template <typename Tree>
 rollup_tx create_rollup(
@@ -18,8 +21,9 @@ rollup_tx create_rollup(
     // Compute data tree data.
     MemoryTree rollup_tree(rollup_tree_depth);
 
+    uint32_t data_start_index = (uint32_t)data_tree.size();
     auto old_data_root = data_tree.root();
-    auto old_data_path = data_tree.get_hash_path(data_tree.size());
+    auto old_data_path = data_tree.get_hash_path(data_start_index);
 
     std::vector<uint128_t> nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
@@ -27,18 +31,17 @@ rollup_tx create_rollup(
     for (size_t i = 0; i < rollup_size; ++i) {
         auto is_real = num_txs > i;
         auto proof_data = txs[i];
-        auto data_value1 =
-            is_real ? std::vector(proof_data.begin() + 2 * 32, proof_data.begin() + 2 * 32 + 64) : zero_value;
-        auto data_value2 =
-            is_real ? std::vector(proof_data.begin() + 4 * 32, proof_data.begin() + 4 * 32 + 64) : zero_value;
+        auto struct_data = join_split_data(proof_data);
+        auto data_value1 = is_real ? struct_data.new_note1 : zero_value;
+        auto data_value2 = is_real ? struct_data.new_note2 : zero_value;
 
-        data_tree.update_element(i * 2, data_value1);
-        data_tree.update_element(i * 2 + 1, data_value2);
+        data_tree.update_element(data_start_index + i * 2, data_value1);
+        data_tree.update_element(data_start_index + i * 2 + 1, data_value2);
         rollup_tree.update_element(i * 2, data_value1);
         rollup_tree.update_element(i * 2 + 1, data_value2);
 
-        nullifier_indicies.push_back(from_buffer<uint128_t>(proof_data.data(), 7 * 32 + 16));
-        nullifier_indicies.push_back(from_buffer<uint128_t>(proof_data.data(), 8 * 32 + 16));
+        nullifier_indicies.push_back(struct_data.nullifier1);
+        nullifier_indicies.push_back(struct_data.nullifier2);
     }
 
     // Compute nullifier tree data.
@@ -62,14 +65,13 @@ rollup_tx create_rollup(
     rollup_tx rollup = {
         0,
         (uint32_t)num_txs,
-        (uint32_t)txs[0].size(),
-        0,
+        data_start_index,
         txs,
         rollup_tree.root(),
         old_data_root,
         data_tree.root(),
         old_data_path,
-        data_tree.get_hash_path(0),
+        data_tree.get_hash_path(data_start_index),
         old_null_root,
         new_null_roots,
         old_null_paths,

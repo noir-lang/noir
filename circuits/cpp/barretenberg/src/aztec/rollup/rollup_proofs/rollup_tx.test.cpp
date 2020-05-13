@@ -11,9 +11,8 @@ TEST(rollup_tx, test_serialization)
     rollup_tx rollup;
     rollup.rollup_id = 5;
     rollup.num_txs = 3;
-    rollup.proof_lengths = 123;
     rollup.data_start_index = 0;
-    rollup.txs = std::vector(rollup.num_txs, std::vector<uint8_t>(rollup.proof_lengths, 0x80));
+    rollup.txs = std::vector(rollup.num_txs, std::vector<uint8_t>(123, 0x80));
 
     rollup.rollup_root = fr::random_element();
     rollup.old_data_root = fr::random_element();

@@ -16,7 +16,6 @@ using namespace plonk::stdlib::merkle_tree;
 struct rollup_tx {
     uint32_t rollup_id;
     uint32_t num_txs;
-    uint32_t proof_lengths;
     uint32_t data_start_index;
     std::vector<std::vector<uint8_t>> txs;
 
@@ -38,7 +37,6 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
 {
     ::read(buf, tx.rollup_id);
     ::read(buf, tx.num_txs);
-    ::read(buf, tx.proof_lengths);
     ::read(buf, tx.data_start_index);
     read(buf, tx.txs);
 
@@ -58,7 +56,6 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
 {
     ::write(buf, tx.rollup_id);
     ::write(buf, tx.num_txs);
-    ::write(buf, tx.proof_lengths);
     ::write(buf, tx.data_start_index);
 
     write(buf, tx.txs);
@@ -78,7 +75,6 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
 {
     os << "rollup_id: " << tx.rollup_id << "\n";
     os << "num_txs: " << tx.num_txs << "\n";
-    os << "proof_lengths: " << tx.proof_lengths << "\n";
     os << "data_start_index: " << tx.data_start_index << "\n";
     os << "proof_data:\n";
     for (auto p : tx.txs) {

@@ -102,7 +102,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     for (size_t i = 0; i < new_null_indicies.size(); ++i) {
         auto new_null_root = field_ct(witness_ct(&composer, rollup.new_null_roots[i]));
         // TODO: i should be able to be a constant, but causes things to fail :/
-        auto is_real = num_txs > uint32_ct(witness_ct(&composer, i/2));
+        auto is_real = num_txs > uint32_ct(witness_ct(&composer, i / 2));
         auto nullifier_value = byte_array_ct(&composer, 64);
         nullifier_value.set_bit(511, is_real);
 

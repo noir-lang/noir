@@ -6,8 +6,8 @@
 namespace rollup {
 namespace rollup_proofs {
 
-waffle::plonk_proof create_noop_join_split_proof(barretenberg::fr const& merkle_root,
-                                                 join_split_circuit_data const& circuit_data);
+std::vector<uint8_t> create_noop_join_split_proof(barretenberg::fr const& merkle_root,
+                                                  join_split_circuit_data const& circuit_data);
 
 }
 } // namespace rollup
