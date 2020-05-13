@@ -37,10 +37,10 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
         auto data_value1 = struct_data.new_note1;
         auto data_value2 = struct_data.new_note2;
 
-        data_tree.update_element(data_start_index + i * 2, data_value1);
-        data_tree.update_element(data_start_index + i * 2 + 1, data_value2);
-        rollup_tree.update_element(i * 2, data_value1);
-        rollup_tree.update_element(i * 2 + 1, data_value2);
+        data_tree.update_element(data_start_index + i * 2, { data_value1.begin(), data_value1.end() });
+        data_tree.update_element(data_start_index + i * 2 + 1, { data_value2.begin(), data_value2.end() });
+        rollup_tree.update_element(i * 2, { data_value1.begin(), data_value1.end() });
+        rollup_tree.update_element(i * 2 + 1, { data_value2.begin(), data_value2.end() });
 
         nullifier_indicies.push_back(struct_data.nullifier1);
         nullifier_indicies.push_back(struct_data.nullifier2);
@@ -81,9 +81,9 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
 
     // Add padding data if necessary.
     rollup.txs.resize(rollup_size, padding_proof);
-    rollup.new_null_roots.resize(rollup_size * 2, *(rollup.new_null_roots.end() - 1));
-    rollup.old_null_paths.resize(rollup_size * 2, *(rollup.new_null_paths.end() - 1));
-    rollup.new_null_paths.resize(rollup_size * 2, *(rollup.new_null_paths.end() - 1));
+    rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
+    rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
+    rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
 
     return rollup;
 }

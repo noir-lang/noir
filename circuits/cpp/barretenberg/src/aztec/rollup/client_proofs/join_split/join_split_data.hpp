@@ -11,8 +11,8 @@ struct join_split_data {
     uint32_t public_input;
     uint32_t public_output;
     barretenberg::fr merkle_root;
-    std::vector<uint8_t> new_note1;
-    std::vector<uint8_t> new_note2;
+    std::array<uint8_t, 64> new_note1;
+    std::array<uint8_t, 64> new_note2;
     uint128_t nullifier1;
     uint128_t nullifier2;
 

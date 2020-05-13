@@ -25,7 +25,6 @@ int main(int argc, char** argv)
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
 
-    // Read transactions from stdin.
     while (true) {
         rollup_tx rollup;
 
@@ -34,7 +33,6 @@ int main(int argc, char** argv)
         }
 
         read(std::cin, rollup);
-        std::cerr << rollup << std::endl;
 
         std::cerr << "Received rollup " << rollup.rollup_id << " with " << rollup.num_txs << " txs." << std::endl;
 
@@ -48,19 +46,22 @@ int main(int argc, char** argv)
         std::cerr << "Padding required: " << padding << std::endl;
         for (size_t i = 0; i < padding; ++i) {
             rollup.txs.push_back(noop_proof);
-            rollup.new_null_roots.resize(rollup_size * 2, *(rollup.new_null_roots.end() - 1));
-            rollup.old_null_paths.resize(rollup_size * 2, *(rollup.old_null_paths.end() - 1));
-            rollup.new_null_paths.resize(rollup_size * 2, *(rollup.new_null_paths.end() - 1));
+            rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
+            rollup.old_null_paths.resize(rollup_size * 2, rollup.old_null_paths.back());
+            rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
         }
 
         Timer timer;
         circuit_data.proving_key->reset();
 
         std::cerr << "Verifying..." << std::endl;
-        auto verified = verify_rollup(rollup, circuit_data);
+        auto result = verify_rollup(rollup, circuit_data);
 
         std::cerr << "Time taken: " << timer.toString() << std::endl;
-        std::cerr << "Verified: " << verified << std::endl;
+        std::cerr << "Verified: " << result.verified << std::endl;
+
+        write(std::cout, result.proof_data);
+        write(std::cout, (uint8_t)result.verified);
     }
 
     return 0;

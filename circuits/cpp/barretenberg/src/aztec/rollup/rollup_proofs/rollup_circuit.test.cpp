@@ -1,12 +1,13 @@
 #include "compute_rollup_circuit_data.hpp"
 #include "create_noop_join_split_proof.hpp"
 #include "create_rollup.hpp"
+#include "rollup_proof_data.hpp"
 #include "verify_rollup.hpp"
 #include <rollup/client_proofs/join_split/join_split.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 using namespace barretenberg;
 using namespace rollup::rollup_proofs;
@@ -22,8 +23,15 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
 
     static void SetUpTestCase()
     {
+        old = std::cerr.rdbuf();
+        std::cerr.rdbuf(swallow.rdbuf());
         inner_circuit_data = compute_join_split_circuit_data();
         padding_proof = create_noop_join_split_proof(inner_circuit_data);
+    }
+
+    static void TearDownTestCase()
+    {
+        std::cerr.rdbuf(old);
     }
 
     uint32_t append_note(uint32_t value)
@@ -38,7 +46,9 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
 
     std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
                                                  std::array<uint32_t, 2> in_note_value,
-                                                 std::array<uint32_t, 2> out_note_value)
+                                                 std::array<uint32_t, 2> out_note_value,
+                                                 uint32_t public_input = 0,
+                                                 uint32_t public_output = 0)
     {
         tx_note input_note1 = { user.public_key, in_note_value[0], user.note_secret };
         tx_note input_note2 = { user.public_key, in_note_value[1], user.note_secret };
@@ -48,8 +58,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
 
         join_split_tx tx;
         tx.owner_pub_key = user.public_key;
-        tx.public_input = 0;
-        tx.public_output = 0;
+        tx.public_input = public_input;
+        tx.public_output = public_output;
         tx.num_input_notes = 2;
         tx.input_index = { in_note_idx[0], in_note_idx[1] };
         tx.merkle_root = data_tree.root();
@@ -82,6 +92,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     rollup::tx::user_context user;
     static join_split_circuit_data inner_circuit_data;
     static std::vector<uint8_t> padding_proof;
+    static std::streambuf *old;
+    static std::stringstream swallow;
 
   private:
     std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -95,18 +107,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
 
 join_split_circuit_data rollup_proofs_rollup_circuit::inner_circuit_data;
 std::vector<uint8_t> rollup_proofs_rollup_circuit::padding_proof;
-
-TEST_F(rollup_proofs_rollup_circuit, test_0_proofs_in_1_rollup_fails)
-{
-    size_t rollup_size = 1;
-
-    auto rollup = create_rollup({}, data_tree, null_tree, rollup_size, padding_proof);
-
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
-    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
-
-    EXPECT_FALSE(verified);
-}
+std::streambuf* rollup_proofs_rollup_circuit::old;
+std::stringstream rollup_proofs_rollup_circuit::swallow;
 
 TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup)
 {
@@ -267,7 +269,7 @@ TEST_F(rollup_proofs_rollup_circuit, test_insertion_of_subtree_at_non_empty_loca
     EXPECT_FALSE(verified);
 }
 
-TEST_F(rollup_proofs_rollup_circuit, test_identical_input_note_fails)
+TEST_F(rollup_proofs_rollup_circuit, test_same_input_note_in_two_proofs_fails)
 {
     size_t rollup_size = 2;
 
@@ -319,7 +321,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     append_note(50);
     append_note(80);
     append_note(60);
-    auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
+    auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 50 }, 30, 60);
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
@@ -328,8 +330,25 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true);
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
-    EXPECT_EQ(circuit_output.recursion_output.public_inputs[0].get_value(), inner_inputs[0]);
-    // EXPECT_EQ(circuit_output.recursion_output.public_inputs[1].get_value(), inner_inputs[1]);
-
     EXPECT_TRUE(result.verified);
+
+    auto rollup_data = rollup_proof_data(result.proof_data);
+    EXPECT_EQ(rollup_data.data_start_index, 4UL);
+    EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
+    EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
+    EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
+    EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
+    EXPECT_EQ(rollup_data.num_txs, txs.size());
+    EXPECT_EQ(rollup_data.inner_proof_data.size(), txs.size());
+
+    for (size_t i = 0; i < txs.size(); ++i) {
+        auto tx_data = join_split_data(txs[i]);
+        auto inner_data = rollup_data.inner_proof_data[i];
+        EXPECT_EQ(inner_data.public_input, tx_data.public_input);
+        EXPECT_EQ(inner_data.public_output, tx_data.public_output);
+        EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
+        EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
+        EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
+        EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
+    }
 }
