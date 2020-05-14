@@ -17,7 +17,9 @@ using namespace plonk;
 
 typedef waffle::TurboComposer Composer;
 typedef waffle::TurboProver Prover;
+typedef waffle::UnrolledTurboProver UnrolledProver;
 typedef waffle::TurboVerifier Verifier;
+typedef waffle::UnrolledTurboVerifier UnrolledVerifier;
 typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;
 typedef stdlib::bool_t<Composer> bool_ct;

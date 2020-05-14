@@ -17,7 +17,8 @@ struct rollup_circuit_data {
 
 rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
                                                 join_split_circuit_data const& inner,
-                                                bool create_keys = true);
+                                                bool create_keys = true,
+                                                std::string const& srs_path = "../srs_db/ignition");
 
 } // namespace rollup_proofs
 } // namespace rollup

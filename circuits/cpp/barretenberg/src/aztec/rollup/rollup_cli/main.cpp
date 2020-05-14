@@ -18,9 +18,10 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv, argv + argc);
 
     size_t rollup_size = (args.size() > 1) ? (size_t)atoi(args[1].c_str()) : 1;
+    std::string srs_path = (args.size() > 2) ? args[2] : "../srs_db/ignition";
 
-    auto inner_circuit_data = compute_join_split_circuit_data();
-    auto circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data);
+    auto inner_circuit_data = compute_join_split_circuit_data(srs_path);
+    auto circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, srs_path);
     auto noop_proof = create_noop_join_split_proof(inner_circuit_data);
 
     std::cerr << "Reading rollups from standard input..." << std::endl;

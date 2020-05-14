@@ -28,7 +28,8 @@ class WorldStateDb {
         std::cerr << "Nullifier root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
     }
 
-    void write_metadata(std::ostream& os) {
+    void write_metadata(std::ostream& os)
+    {
         write(os, data_tree_.root());
         write(os, nullifier_tree_.root());
         write(os, data_tree_.size());
@@ -53,7 +54,6 @@ class WorldStateDb {
         // std::cerr << get_request << std::endl;
         auto tree = trees_[get_request.tree_id];
         auto path = tree->get_hash_path(get_request.index);
-        write(os, static_cast<uint32_t>(tree->depth()));
         write(os, path);
     }
 
@@ -68,16 +68,18 @@ class WorldStateDb {
         write(os, put_response);
     }
 
-    void commit(std::ostream& os) {
+    void commit(std::ostream& os)
+    {
         // std::cerr << "COMMIT" << std::endl;
         store_.commit();
-        write(os, uint8_t(1));
+        write_metadata(os);
     }
 
-    void rollback(std::ostream& os) {
+    void rollback(std::ostream& os)
+    {
         // std::cerr << "ROLLBACK" << std::endl;
         store_.rollback();
-        write(os, uint8_t(1));
+        write_metadata(os);
     }
 
   private:

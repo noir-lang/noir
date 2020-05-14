@@ -124,7 +124,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
     verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
 }
 
-Prover new_join_split_prover(join_split_tx const& tx)
+UnrolledProver new_join_split_prover(join_split_tx const& tx)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -132,14 +132,12 @@ Prover new_join_split_prover(join_split_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    Prover prover = composer.create_prover();
-
-    return prover;
+    return composer.create_unrolled_prover();
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)
 {
-    Verifier verifier(verification_key, Composer::create_manifest(9));
+    UnrolledVerifier verifier(verification_key, Composer::create_unrolled_manifest(9));
     return verifier.verify_proof(proof);
 }
 

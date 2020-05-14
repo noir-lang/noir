@@ -17,7 +17,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx);
 
-Prover new_join_split_prover(join_split_tx const& tx);
+UnrolledProver new_join_split_prover(join_split_tx const& tx);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 
