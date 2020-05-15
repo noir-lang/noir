@@ -55,6 +55,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
         // Verify the inner proof.
         recursion_outputs[i] = verify_proof<Composer, recursive_turbo_verifier_settings>(
             &composer, inner_verification_key, recursive_manifest, { rollup.txs[i] });
+        // std::cerr << "verify proof " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
 
         // Add the proofs data values to the list. If this is a noop proof (padding), then the data values are zeros.
         // TODO: i should be able to be a constant, but causes things to fail :/
@@ -68,6 +69,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
         // Check this proofs old data root is equal to the one we've been given (unless a padding entry).
         field_ct root_comparator = (public_inputs[6] * is_real) + (old_data_root * !is_real);
         composer.assert_equal(old_data_root.witness_index, root_comparator.witness_index);
+        // std::cerr << "old_data_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
 
         new_null_indicies.push_back(public_inputs[7]);
         new_null_indicies.push_back(public_inputs[8]);
@@ -88,6 +90,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     // std::cout << "new_data_root: " << new_data_root << std::endl;
     // std::cout << "new_data_path: " << rollup.new_data_path << std::endl;
     assert_check_tree(composer, rollup_root, new_data_values);
+    // std::cerr << "assert_check_tree: " << (composer.failed ? "Failed" : "OK") << std::endl;
 
     auto new_data_path = create_witness_hash_path(composer, rollup.new_data_path);
     auto old_data_path = create_witness_hash_path(composer, rollup.old_data_path);
@@ -100,6 +103,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
                               zero_subtree_root,
                               byte_array_ct(data_start_index),
                               height);
+    // std::cerr << "update_tree_membership: " << (composer.failed ? "Failed" : "OK") << std::endl;
 
     auto new_nullifier_value = byte_array_ct(&composer, 64);
     new_nullifier_value.set_bit(511, 1);
@@ -134,6 +138,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
                           old_null_path,
                           old_nullifier_value,
                           byte_array_ct(last_real_null_index));
+        // std::cerr << "nullifier update_membership " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
 
         old_null_root = new_null_root;
     }

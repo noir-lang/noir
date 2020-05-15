@@ -26,6 +26,7 @@ bool pairing_checks(std::vector<recursion_output<field_ct, group_ct>> recursion_
         barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
             P, inner_verification_key->reference_string->get_precomputed_g2_lines(), 2);
         verified &= inner_proof_result == barretenberg::fq12::one();
+        // std::cerr << "pairing check " << (verified ? "OK" : "Failed") << std::endl;
     }
     return verified;
 }

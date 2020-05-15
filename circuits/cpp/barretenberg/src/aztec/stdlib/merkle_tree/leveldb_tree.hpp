@@ -11,8 +11,7 @@ using namespace barretenberg;
 class LevelDbStore;
 class MemoryStore;
 
-template<typename Store>
-class MerkleTree {
+template <typename Store> class MerkleTree {
   public:
     typedef uint128_t index_t;
     typedef std::vector<uint8_t> value_t;
@@ -23,6 +22,11 @@ class MerkleTree {
     ~MerkleTree();
 
     fr_hash_path get_hash_path(index_t index);
+
+    template <size_t S> fr update_element(index_t index, std::array<uint8_t, S> const& value)
+    {
+        update_element(index, std::vector(value.begin(), value.end()));
+    }
 
     fr update_element(index_t index, value_t const& value);
 
