@@ -19,6 +19,7 @@ class GenPermComposer : public TurboComposer {
     virtual TurboProver create_prover() override;
     GenPermVerifier create_verifier();
 
+void create_dummy_constraint(const std::vector<uint32_t> variable_index);
     void create_sort_constraint(const std::vector<uint32_t> variable_index);
     void create_sort_constraint_with_edges(const std::vector<uint32_t> variable_index, const fr, const fr);
     void assign_tag(const uint32_t variable_index, const uint32_t tag)
@@ -43,6 +44,7 @@ class GenPermComposer : public TurboComposer {
     RangeList create_range_list(const uint64_t target_range);
     void create_range_constraint(const uint32_t variable_index, const uint64_t target_range);
     void process_range_list(const RangeList& list);
+    void process_range_lists();
 
     std::map<uint64_t, RangeList> range_lists;
 

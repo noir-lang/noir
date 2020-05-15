@@ -7,7 +7,14 @@ using namespace barretenberg;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-
+std::vector<uint32_t> add_variables(waffle::GenPermComposer& composer, std::vector<fr> variables){
+    std::vector<uint32_t> res;
+   for (size_t i = 0; i < variables.size(); i++)
+   {
+    res.emplace_back(composer.add_variable(variables[i]));
+   }
+  return res; 
+}
 TEST(genperm_composer, base_case)
 {
     waffle::GenPermComposer composer = waffle::GenPermComposer();
@@ -353,7 +360,7 @@ TEST(genperm_composer, sort_widget)
     auto b_idx = composer.add_variable(b);
     auto c_idx = composer.add_variable(c);
     auto d_idx = composer.add_variable(d);
-    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx});
+    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
     waffle::TurboProver prover = composer.create_prover();
     waffle::GenPermVerifier verifier = composer.create_verifier();
 
@@ -363,39 +370,197 @@ TEST(genperm_composer, sort_widget)
     EXPECT_EQ(result, true);
 }
 
+TEST(genperm_composer, sort_with_edges_gate)
+{
+
+    fr a = fr::one();
+    fr b = fr(2);
+    fr c = fr(3);
+    fr d = fr(4);
+    fr e = fr(5);
+    fr f = fr(6);
+    fr g = fr(7);
+    fr h = fr(8);
+
+    {
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        auto a_idx = composer.add_variable(a);
+        auto b_idx = composer.add_variable(b);
+        auto c_idx = composer.add_variable(c);
+        auto d_idx = composer.add_variable(d);
+        auto e_idx = composer.add_variable(e);
+        auto f_idx = composer.add_variable(f);
+        auto g_idx = composer.add_variable(g);
+        auto h_idx = composer.add_variable(h);
+        composer.create_sort_constraint_with_edges({ a_idx, b_idx, c_idx, d_idx, e_idx, f_idx, g_idx, h_idx }, a, h);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, true);
+    }
+
+    {
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        auto a_idx = composer.add_variable(a);
+        auto b_idx = composer.add_variable(b);
+        auto c_idx = composer.add_variable(c);
+        auto d_idx = composer.add_variable(d);
+        auto e_idx = composer.add_variable(e);
+        auto f_idx = composer.add_variable(f);
+        auto g_idx = composer.add_variable(g);
+        auto h_idx = composer.add_variable(h);
+        composer.create_sort_constraint_with_edges({ a_idx, b_idx, c_idx, d_idx, e_idx, f_idx, g_idx, h_idx }, a, g);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, false);
+    }
+    {
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        auto a_idx = composer.add_variable(a);
+        auto b_idx = composer.add_variable(b);
+        auto c_idx = composer.add_variable(c);
+        auto d_idx = composer.add_variable(d);
+        auto e_idx = composer.add_variable(e);
+        auto f_idx = composer.add_variable(f);
+        auto g_idx = composer.add_variable(g);
+        auto h_idx = composer.add_variable(h);
+        composer.create_sort_constraint_with_edges({ a_idx, b_idx, c_idx, d_idx, e_idx, f_idx, g_idx, h_idx }, b, h);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, false);
+    }
+    {
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        auto a_idx = composer.add_variable(a);
+        // auto b_idx = composer.add_variable(b);
+        auto c_idx = composer.add_variable(c);
+        auto d_idx = composer.add_variable(d);
+        auto e_idx = composer.add_variable(e);
+        auto f_idx = composer.add_variable(f);
+        auto g_idx = composer.add_variable(g);
+        auto h_idx = composer.add_variable(h);
+        auto b2_idx = composer.add_variable(fr(15));
+        composer.create_sort_constraint_with_edges({ a_idx, b2_idx, c_idx, d_idx, e_idx, f_idx, g_idx, h_idx }, b, h);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, false);
+    }
+    {
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        auto a_idx = composer.add_variable(1);
+        auto b_idx = composer.add_variable(2);
+        auto c_idx = composer.add_variable(5);
+        auto d_idx = composer.add_variable(6);
+        auto e_idx = composer.add_variable(7);
+        auto f_idx = composer.add_variable(10);
+        auto g_idx = composer.add_variable(11);
+        auto h_idx = composer.add_variable(13);
+        auto a1_idx = composer.add_variable(16);
+        auto b1_idx = composer.add_variable(17);
+        auto c1_idx = composer.add_variable(20);
+        auto d1_idx = composer.add_variable(22);
+        auto e1_idx = composer.add_variable(22);
+        auto f1_idx = composer.add_variable(25);
+        auto g1_idx = composer.add_variable(26);
+        auto h1_idx = composer.add_variable(29);
+        composer.create_sort_constraint_with_edges({ a_idx, b_idx, c_idx, d_idx, e_idx, f_idx, g_idx, h_idx,
+         a1_idx, b1_idx, c1_idx, d1_idx, e1_idx, f1_idx, g1_idx, h1_idx }, 1, 29);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, true);
+        auto new_idx = composer.add_variable(47);
+        composer.create_sort_constraint_with_edges({ a_idx, b_idx, c_idx, d_idx, e_idx, f_idx, g_idx, h_idx,
+         a1_idx, b1_idx, c1_idx, new_idx, e1_idx, f1_idx, g1_idx, h1_idx }, 1, 29);
+        prover = composer.create_prover();
+        verifier = composer.create_verifier();
+        proof = prover.construct_proof();
+
+        result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, false);
+    }
+}
+TEST(genperm_composer, range_constraint){
+
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        auto a_idx = composer.add_variable(1);
+        auto b_idx = composer.add_variable(2);
+        auto c_idx = composer.add_variable(3);
+        auto d_idx = composer.add_variable(4);
+        auto e_idx = composer.add_variable(5);
+        auto f_idx = composer.add_variable(6);
+        auto g_idx = composer.add_variable(7);
+        auto h_idx = composer.add_variable(8);
+        composer.create_range_constraint(a_idx, 8);
+        composer.create_range_constraint(b_idx, 8);
+        composer.create_range_constraint(c_idx, 8);
+        composer.create_range_constraint(d_idx, 8);
+        composer.create_range_constraint(e_idx, 8);
+        composer.create_range_constraint(f_idx, 8);
+        composer.create_range_constraint(g_idx, 8);
+        composer.create_range_constraint(h_idx, 8);
+	auto ind = {a_idx,b_idx,c_idx,d_idx,e_idx,f_idx,g_idx,h_idx};
+        composer.create_sort_constraint(ind);
+        composer.process_range_lists();
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof); 
+        EXPECT_EQ(result, true);
+}
 TEST(genperm_composer, sort_widget_complex)
 {
     {
 
-    waffle::GenPermComposer composer = waffle::GenPermComposer();
-    std::vector<fr>  a ={1,3,4,7,7,8,11,14,15,15,18,19,21,21,24,25,26,27,30,32};
-    std::vector<uint32_t> ind;
-    for(size_t i = 0;i<a.size();i++)
-        ind.emplace_back(composer.add_variable(a[i]));
-    composer.create_sort_constraint(ind);
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::GenPermVerifier verifier = composer.create_verifier();
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        std::vector<fr> a = { 1, 3, 4, 7, 7, 8, 11, 14, 15, 15, 18, 19, 21, 21, 24, 25, 26, 27, 30, 32 };
+        std::vector<uint32_t> ind;
+        for (size_t i = 0; i < a.size(); i++)
+            ind.emplace_back(composer.add_variable(a[i]));
+        composer.create_sort_constraint(ind);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+        waffle::plonk_proof proof = prover.construct_proof();
 
-    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
-    EXPECT_EQ(result, true);
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, true);
     }
     {
 
-    waffle::GenPermComposer composer = waffle::GenPermComposer();
-    std::vector<fr>  a ={1,3,4,7,7,8,16,14,15,15,18,19,21,21,24,25,26,27,30,32};
-    std::vector<uint32_t> ind;
-    for(size_t i = 0;i<a.size();i++)
-        ind.emplace_back(composer.add_variable(a[i]));
-    composer.create_sort_constraint(ind);
-    waffle::TurboProver prover = composer.create_prover();
-    waffle::GenPermVerifier verifier = composer.create_verifier();
+        waffle::GenPermComposer composer = waffle::GenPermComposer();
+        std::vector<fr> a = { 1, 3, 4, 7, 7, 8, 16, 14, 15, 15, 18, 19, 21, 21, 24, 25, 26, 27, 30, 32 };
+        std::vector<uint32_t> ind;
+        for (size_t i = 0; i < a.size(); i++)
+            ind.emplace_back(composer.add_variable(a[i]));
+        composer.create_sort_constraint(ind);
+        waffle::TurboProver prover = composer.create_prover();
+        waffle::GenPermVerifier verifier = composer.create_verifier();
 
-    waffle::plonk_proof proof = prover.construct_proof();
+        waffle::plonk_proof proof = prover.construct_proof();
 
-    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
-    EXPECT_EQ(result, false);
+        bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+        EXPECT_EQ(result, false);
     }
 }
 TEST(genperm_composer, sort_widget_neg)
@@ -410,7 +575,7 @@ TEST(genperm_composer, sort_widget_neg)
     auto b_idx = composer.add_variable(b);
     auto c_idx = composer.add_variable(c);
     auto d_idx = composer.add_variable(d);
-    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx});
+    composer.create_sort_constraint({ a_idx, b_idx, c_idx, d_idx });
     waffle::TurboProver prover = composer.create_prover();
     waffle::GenPermVerifier verifier = composer.create_verifier();
 
@@ -826,7 +991,8 @@ TEST(genperm_composer, and_constraint)
 // 1)]).from_montgomery_form();
 // //             uint32_t right_result = static_cast<uint32_t>(right_source.data[0]);
 
-// //             fr out_source = composer.get_variable(accumulators.out[j + (extra_bits >> 1)]).from_montgomery_form();
+// //             fr out_source = composer.get_variable(accumulators.out[j + (extra_bits >>
+// 1)]).from_montgomery_form();
 // //             uint32_t out_result = static_cast<uint32_t>(out_source.data[0]);
 
 // //             EXPECT_EQ(left_result, left_expected);

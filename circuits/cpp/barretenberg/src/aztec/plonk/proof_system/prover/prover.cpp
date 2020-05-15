@@ -403,9 +403,9 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 
     // Currently code assumes permutation_widget is first.
     for (size_t i = 0; i < widgets.size(); ++i) {
-        std::cout << "in 5th widget loop    " << std::endl;
+        // std::cout << "in 5th widget loop    " << std::endl;
         widgets[i]->compute_opening_poly_contribution(transcript, settings::use_linearisation);
-        std::cout << "in 5th widget loop" << std::endl;
+        // std::cout << "in 5th widget loop" << std::endl;
     }
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
@@ -417,9 +417,9 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    std::cout << "in 5th before kate" << std::endl;
+    // std::cout << "in 5th before kate" << std::endl;
     opening_poly.compute_kate_opening_coefficients(z_challenge);
-    std::cout << "in 5th after kate" << std::endl;
+    // std::cout << "in 5th after kate" << std::endl;
 
     shifted_opening_poly.compute_kate_opening_coefficients(shifted_z);
 #ifdef DEBUG_TIMING

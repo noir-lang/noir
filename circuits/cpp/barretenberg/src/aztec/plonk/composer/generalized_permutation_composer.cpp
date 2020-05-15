@@ -567,19 +567,21 @@ GenPermComposer::RangeList GenPermComposer::create_range_list(const uint64_t tar
     result.range_tag = range_tag;
     result.tau_tag = tau_tag;
 
-    const uint64_t num_multiples_of_three = (target_range / 3);
+   const uint64_t num_multiples_of_three = (target_range / 3);
 
-    result.variable_indices.reserve(num_multiples_of_three);
-    for (uint64_t i = 0; i < num_multiples_of_three; ++i) {
-        const uint32_t index = add_variable(i * 3);
-        result.variable_indices.emplace_back(index);
-        assign_tag(index, result.range_tag);
-    }
-    {
-        const uint32_t index = add_variable(target_range);
-        result.variable_indices.emplace_back(index);
-        assign_tag(index, result.range_tag);
-    }
+   result.variable_indices.reserve(num_multiples_of_three);
+   for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
+       const uint32_t index = add_variable(i * 3);
+       result.variable_indices.emplace_back(index);
+       assign_tag(index, result.range_tag);
+   }
+   {
+       const uint32_t index = add_variable(target_range);
+       result.variable_indices.emplace_back(index);
+       assign_tag(index, result.range_tag);
+   }
+   // Need this because these variables will not appear in the witness otherwise
+   create_dummy_constraint(result.variable_indices);
 
     return result;
 }
@@ -594,7 +596,6 @@ void GenPermComposer::create_range_constraint(const uint32_t variable_index, con
     assign_tag(variable_index, list.range_tag);
     list.variable_indices.emplace_back(variable_index);
 }
-
 void GenPermComposer::process_range_list(const RangeList& list)
 {
     // go over variables
@@ -619,8 +620,14 @@ void GenPermComposer::process_range_list(const RangeList& list)
         const uint32_t index = add_variable(sorted_value);
         assign_tag(index, list.tau_tag);
         indices.emplace_back(index);
+    std::cout << "elem:" << sorted_value << std::endl;
     }
+    std::cout << "range" << list.target_range << std::endl;
     create_sort_constraint_with_edges(indices, 0, list.target_range);
+}
+void GenPermComposer::process_range_lists(){
+    for (const auto& i:range_lists)
+    process_range_list(i.second);
 }
 /*
  Create range constraint:
@@ -661,10 +668,12 @@ void GenPermComposer::create_sort_constraint(const std::vector<uint32_t> variabl
         q_logic.emplace_back(fr::zero());
         q_range.emplace_back(fr::one());
     }
+    // dummy gate needed because of sort widget's check of next row
     w_l.emplace_back(variable_index[variable_index.size() - 1]);
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
+    ++n;
     q_m.emplace_back(fr::zero());
     q_1.emplace_back(fr::zero());
     q_2.emplace_back(fr::zero());
@@ -677,13 +686,42 @@ void GenPermComposer::create_sort_constraint(const std::vector<uint32_t> variabl
     q_logic.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
 }
+//useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in multiples of three
+void GenPermComposer::create_dummy_constraint(const std::vector<uint32_t> variable_index)
+{
+    TURBO_SELECTOR_REFS
+    ASSERT(variable_index.size() % 4 == 0);
+    for (size_t i = 0; i < variable_index.size(); i++) {
+        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+    }
+
+    for (size_t i = 0; i < variable_index.size(); i += 4) {
+        w_l.emplace_back(variable_index[i]);
+        w_r.emplace_back(variable_index[i + 1]);
+        w_o.emplace_back(variable_index[i + 2]);
+        w_4.emplace_back(variable_index[i + 3]);
+        ++n;
+        q_m.emplace_back(fr::zero());
+        q_1.emplace_back(fr::zero());
+        q_2.emplace_back(fr::zero());
+        q_3.emplace_back(fr::zero());
+        q_c.emplace_back(fr::zero());
+        q_arith.emplace_back(fr::zero());
+        q_4.emplace_back(fr::zero());
+        q_5.emplace_back(fr::zero());
+        q_ecc_1.emplace_back(fr::zero());
+        q_logic.emplace_back(fr::zero());
+        q_range.emplace_back(fr::zero());
+    }
+}
 // Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
 void GenPermComposer::create_sort_constraint_with_edges(const std::vector<uint32_t> variable_index,
                                                         const fr start,
                                                         const fr end)
 {
     TURBO_SELECTOR_REFS
-    ASSERT(variable_index.size() % 4 == 0);
+    // Convenient to assume size is at least 8 for separate gates for start and end conditions
+    ASSERT(variable_index.size() % 4 == 0 && variable_index.size()>4);
     for (size_t i = 0; i < variable_index.size(); i++) {
         ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
     }
@@ -698,14 +736,14 @@ void GenPermComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_2.emplace_back(fr::zero());
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(-start);
-    q_arith.emplace_back(fr::zero());
+    q_arith.emplace_back(fr::one());
     q_4.emplace_back(fr::zero());
     q_5.emplace_back(fr::zero());
     q_ecc_1.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
     q_range.emplace_back(fr::one());
     // enforce range check for middle rows
-    for (size_t i = 1; i < variable_index.size() - 4; i += 4) {
+    for (size_t i = 4; i < variable_index.size() - 4; i += 4) {
         w_l.emplace_back(variable_index[i]);
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
@@ -730,12 +768,12 @@ void GenPermComposer::create_sort_constraint_with_edges(const std::vector<uint32
     w_4.emplace_back(variable_index[variable_index.size() - 1]);
     ++n;
     q_m.emplace_back(fr::zero());
-    q_1.emplace_back(fr::one());
+    q_1.emplace_back(fr::zero());
     q_2.emplace_back(fr::zero());
     q_3.emplace_back(fr::zero());
     q_c.emplace_back(-end);
-    q_arith.emplace_back(fr::zero());
-    q_4.emplace_back(fr::zero());
+    q_arith.emplace_back(fr::one());
+    q_4.emplace_back(fr::one());
     q_5.emplace_back(fr::zero());
     q_ecc_1.emplace_back(fr::zero());
     q_logic.emplace_back(fr::zero());
