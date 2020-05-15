@@ -48,7 +48,7 @@ int main(int argc, char** argv)
         for (size_t i = 0; i < padding; ++i) {
             rollup.txs.push_back(noop_proof);
             rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
-            rollup.old_null_paths.resize(rollup_size * 2, rollup.old_null_paths.back());
+            rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
             rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
         }
 

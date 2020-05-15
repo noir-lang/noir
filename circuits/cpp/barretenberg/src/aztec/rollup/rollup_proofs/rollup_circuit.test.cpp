@@ -372,7 +372,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     }
 }
 
-TEST_F(rollup_proofs_rollup_circuit, test_1_hardcoded_proof_in_1_rollup)
+TEST_F(rollup_proofs_rollup_circuit, test_2_hardcoded_proofs_in_1_rollups)
 {
     size_t rollup_size = 1;
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
