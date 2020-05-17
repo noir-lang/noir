@@ -19,6 +19,8 @@ using namespace plonk;
 
 using namespace plonk::stdlib::types::turbo;
 
+typedef plonk::stdlib::recursion::recursive_turbo_verifier_settings<bn254> recursive_settings;
+
 void create_inner_circuit(waffle::TurboComposer& composer, const std::vector<barretenberg::fr>& public_inputs)
 {
     field_ct a(public_witness_ct(&composer, public_inputs[0]));
@@ -35,16 +37,16 @@ void create_inner_circuit(waffle::TurboComposer& composer, const std::vector<bar
     barretenberg::fr bigfield_data_a{ bigfield_data.data[0], bigfield_data.data[1], 0, 0 };
     barretenberg::fr bigfield_data_b{ bigfield_data.data[2], bigfield_data.data[3], 0, 0 };
 
-    fq_ct big_a(field_ct(witness_ct(&composer, bigfield_data_a.to_montgomery_form())),
-                field_ct(witness_ct(&composer, 0)));
-    fq_ct big_b(field_ct(witness_ct(&composer, bigfield_data_b.to_montgomery_form())),
-                field_ct(witness_ct(&composer, 0)));
+    bn254::fq_ct big_a(field_ct(witness_ct(&composer, bigfield_data_a.to_montgomery_form())),
+                       field_ct(witness_ct(&composer, 0)));
+    bn254::fq_ct big_b(field_ct(witness_ct(&composer, bigfield_data_b.to_montgomery_form())),
+                       field_ct(witness_ct(&composer, 0)));
     big_a* big_b;
 }
 
 // Ok, so we need to create a recursive circuit...
 struct circuit_outputs {
-    stdlib::recursion::recursion_output<field_ct, group_ct> recursion_output;
+    stdlib::recursion::recursion_output<bn254> recursion_output;
     std::shared_ptr<waffle::verification_key> verification_key;
 };
 
@@ -57,10 +59,8 @@ circuit_outputs create_outer_circuit(waffle::TurboComposer& inner_composer, waff
     transcript::Manifest recursive_manifest =
         waffle::TurboComposer::create_unrolled_manifest(prover.key->num_public_inputs);
 
-    stdlib::recursion::recursion_output<field_ct, group_ct> output =
-        stdlib::recursion::verify_proof<waffle::TurboComposer,
-                                        plonk::stdlib::recursion::recursive_turbo_verifier_settings>(
-            &outer_composer, verification_key, recursive_manifest, recursive_proof);
+    stdlib::recursion::recursion_output<bn254> output = stdlib::recursion::verify_proof<bn254, recursive_settings>(
+        &outer_composer, verification_key, recursive_manifest, recursive_proof);
     return { output, verification_key };
 }
 
@@ -77,9 +77,8 @@ circuit_outputs create_double_outer_circuit(waffle::TurboComposer& inner_compose
     transcript::Manifest recursive_manifest =
         waffle::TurboComposer::create_unrolled_manifest(prover.key->num_public_inputs);
 
-    stdlib::recursion::recursion_output<field_ct, group_ct> previous_output =
-        stdlib::recursion::verify_proof<waffle::TurboComposer,
-                                        plonk::stdlib::recursion::recursive_turbo_verifier_settings>(
+    stdlib::recursion::recursion_output<bn254> previous_output =
+        stdlib::recursion::verify_proof<bn254, recursive_settings>(
             &outer_composer, verification_key, recursive_manifest, recursive_proof_a);
 
     waffle::UnrolledTurboProver prover_b = inner_composer_b.create_unrolled_prover();
@@ -87,10 +86,8 @@ circuit_outputs create_double_outer_circuit(waffle::TurboComposer& inner_compose
     std::shared_ptr<waffle::verification_key> verification_key_b = inner_composer_b.compute_verification_key();
     waffle::plonk_proof recursive_proof_b = prover_b.construct_proof();
 
-    stdlib::recursion::recursion_output<field_ct, group_ct> output =
-        stdlib::recursion::verify_proof<waffle::TurboComposer,
-                                        plonk::stdlib::recursion::recursive_turbo_verifier_settings>(
-            &outer_composer, verification_key_b, recursive_manifest, recursive_proof_b, previous_output);
+    stdlib::recursion::recursion_output<bn254> output = stdlib::recursion::verify_proof<bn254, recursive_settings>(
+        &outer_composer, verification_key_b, recursive_manifest, recursive_proof_b, previous_output);
 
     return { output, verification_key };
 }

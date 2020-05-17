@@ -20,11 +20,11 @@ namespace plonk {
 namespace stdlib {
 namespace recursion {
 
-template <typename Field, typename Group> struct recursion_output {
-    Group P0;
-    Group P1;
+template <typename Curve> struct recursion_output {
+    typename Curve::g1_ct P0;
+    typename Curve::g1_ct P1;
     // the public inputs of the inner ciruit are now private inputs of the outer circuit!
-    std::vector<Field> public_inputs;
+    std::vector<typename Curve::fr_ct> public_inputs;
     bool has_data = false;
 };
 
@@ -34,15 +34,16 @@ template <typename Composer> struct lagrange_evaluations {
     field_t<Composer> vanishing_poly;
 };
 
-template <typename Field, typename Group, typename Transcript, typename program_settings>
+template <typename Curve, typename Transcript, typename program_settings>
 void populate_kate_element_map(waffle::verification_key* key,
                                const Transcript& transcript,
-                               std::map<std::string, Group>& kate_g1_elements,
-                               std::map<std::string, Field>& kate_fr_elements_at_zeta,
-                               std::map<std::string, Field>& kate_fr_elements_at_zeta_large,
-                               std::map<std::string, Field>& kate_fr_elements_at_zeta_omega)
+                               std::map<std::string, typename Curve::g1_base_t::affine_element>& kate_g1_elements,
+                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta,
+                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_large,
+                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_omega)
 {
     // const auto separator_challenge = transcript.get_challenge_field_element("separator", 0);
+    typedef typename Curve::fr_ct fr_ct;
 
     const auto& polynomial_manifest = key->polynomial_manifest;
     for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
@@ -79,12 +80,12 @@ void populate_kate_element_map(waffle::verification_key* key,
     const auto zeta = transcript.get_challenge_field_element("z", 0);
     const auto quotient_nu = transcript.get_challenge_field_element_from_map("nu", "t");
 
-    Field z_pow_n = zeta;
+    fr_ct z_pow_n = zeta;
     const size_t log2_n = numeric::get_msb(key->n);
     for (size_t j = 0; j < log2_n; ++j) {
         z_pow_n = z_pow_n.sqr();
     }
-    Field z_power = 1;
+    fr_ct z_power = 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);
         const auto element = transcript.get_group_element(quotient_label);
@@ -98,10 +99,10 @@ void populate_kate_element_map(waffle::verification_key* key,
     const auto PI_Z = transcript.get_group_element("PI_Z");
     const auto PI_Z_OMEGA = transcript.get_group_element("PI_Z_OMEGA");
 
-    Field u = transcript.get_challenge_field_element("separator", 0);
+    fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
-    Field batch_evaluation =
-        waffle::compute_kate_batch_evaluation<Field, Transcript, program_settings>(key, transcript);
+    fr_ct batch_evaluation =
+        waffle::compute_kate_batch_evaluation<fr_ct, Transcript, program_settings>(key, transcript);
     kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
     kate_fr_elements_at_zeta_large.insert({ "BATCH_EVALUATION", -batch_evaluation });
 
@@ -112,52 +113,46 @@ void populate_kate_element_map(waffle::verification_key* key,
     kate_fr_elements_at_zeta.insert({ "PI_Z", zeta });
 }
 
-template <typename Composer>
-lagrange_evaluations<Composer> get_lagrange_evaluations(const field_t<Composer>& z, const evaluation_domain& domain)
+template <typename Curve>
+lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(const typename Curve::fr_ct& z,
+                                                                        const evaluation_domain& domain)
 {
-    using field_pt = field_t<Composer>;
-    field_pt z_pow = z;
+    typedef typename Curve::fr_ct fr_ct;
+    typedef typename Curve::Composer Composer;
+
+    fr_ct z_pow = z;
     for (size_t i = 0; i < domain.log2_size; ++i) {
         z_pow *= z_pow;
     }
-    field_pt numerator = z_pow - field_pt(1);
+    fr_ct numerator = z_pow - fr_ct(1);
 
     lagrange_evaluations<Composer> result;
     result.vanishing_poly = numerator / (z - domain.root_inverse);
     numerator *= domain.domain_inverse;
-    result.l_1 = numerator / (z - field_pt(1));
-    result.l_n_minus_1 = numerator / ((z * domain.root.sqr()) - field_pt(1));
+    result.l_1 = numerator / (z - fr_ct(1));
+    result.l_n_minus_1 = numerator / ((z * domain.root.sqr()) - fr_ct(1));
 
     return result;
 }
 
-template <typename Composer, typename program_settings>
-recursion_output<
-    field_t<Composer>,
-    element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>
-verify_proof(
-    Composer* context,
-    std::shared_ptr<waffle::verification_key> key,
-    const transcript::Manifest& manifest,
-    const waffle::plonk_proof& proof,
-    const recursion_output<
-        field_t<Composer>,
-        element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>
-        previous_output = recursion_output<
-            field_t<Composer>,
-            element<Composer, bigfield<Composer, barretenberg::Bn254FqParams>, field_t<Composer>, barretenberg::g1>>())
+template <typename Curve, typename program_settings>
+recursion_output<Curve> verify_proof(typename Curve::Composer* context,
+                                     std::shared_ptr<waffle::verification_key> key,
+                                     const transcript::Manifest& manifest,
+                                     const waffle::plonk_proof& proof,
+                                     const recursion_output<Curve> previous_output = recursion_output<Curve>())
 {
-    using field_pt = field_t<Composer>;
-    using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
-    using group_pt = element<Composer, fq_pt, field_pt, barretenberg::g1>;
+    using fr_ct = typename Curve::fr_ct;
+    using g1_ct = typename Curve::g1_ct;
+    using Composer = typename Curve::Composer;
 
     key->program_width = program_settings::program_width;
 
     Transcript<Composer> transcript = Transcript<Composer>(context, proof.proof_data, manifest);
     std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
-    std::map<std::string, field_pt> kate_fr_elements_at_zeta;
-    std::map<std::string, field_pt> kate_fr_elements_at_zeta_large;
-    std::map<std::string, field_pt> kate_fr_elements_at_zeta_omega;
+    std::map<std::string, fr_ct> kate_fr_elements_at_zeta;
+    std::map<std::string, fr_ct> kate_fr_elements_at_zeta_large;
+    std::map<std::string, fr_ct> kate_fr_elements_at_zeta_omega;
 
     const auto PI_Z = transcript.get_group_element("PI_Z");
     const auto PI_Z_OMEGA = transcript.get_group_element("PI_Z_OMEGA");
@@ -173,16 +168,16 @@ verify_proof(
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
-    field_pt alpha = transcript.get_challenge_field_element("alpha");
-    field_pt zeta = transcript.get_challenge_field_element("z");
-    lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations(zeta, key->domain);
+    fr_ct alpha = transcript.get_challenge_field_element("alpha");
+    fr_ct zeta = transcript.get_challenge_field_element("z");
+    lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations<Curve>(zeta, key->domain);
 
     // reconstruct evaluation of quotient polynomial from prover messages
-    field_pt T0;
+    fr_ct T0;
 
-    field_pt t_eval = field_pt(0);
+    fr_ct t_eval = fr_ct(0);
 
-    field_pt alpha_base = alpha;
+    fr_ct alpha_base = alpha;
 
     alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
 
@@ -192,23 +187,22 @@ verify_proof(
     transcript.apply_fiat_shamir("nu");
     transcript.apply_fiat_shamir("separator");
 
-    field_pt u = transcript.get_challenge_field_element("separator", 0);
+    fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
-    populate_kate_element_map<field_pt, g1::affine_element, Transcript<Composer>, program_settings>(
-        key.get(),
-        transcript,
-        kate_g1_elements,
-        kate_fr_elements_at_zeta,
-        kate_fr_elements_at_zeta_large,
-        kate_fr_elements_at_zeta_omega);
+    populate_kate_element_map<Curve, Transcript<Composer>, program_settings>(key.get(),
+                                                                             transcript,
+                                                                             kate_g1_elements,
+                                                                             kate_fr_elements_at_zeta,
+                                                                             kate_fr_elements_at_zeta_large,
+                                                                             kate_fr_elements_at_zeta_omega);
 
-    std::vector<field_pt> double_opening_scalars;
-    std::vector<group_pt> double_opening_elements;
-    std::vector<field_pt> opening_scalars;
-    std::vector<group_pt> opening_elements;
-    std::vector<field_pt> big_opening_scalars;
-    std::vector<group_pt> big_opening_elements;
-    std::vector<group_pt> elements_to_add;
+    std::vector<fr_ct> double_opening_scalars;
+    std::vector<g1_ct> double_opening_elements;
+    std::vector<fr_ct> opening_scalars;
+    std::vector<g1_ct> opening_elements;
+    std::vector<fr_ct> big_opening_scalars;
+    std::vector<g1_ct> big_opening_elements;
+    std::vector<g1_ct> elements_to_add;
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta) {
         const auto& g1_value = kate_g1_elements[label];
         if (!g1_value.on_curve()) {
@@ -257,19 +251,19 @@ verify_proof(
         double_opening_scalars.emplace_back(fr_value);
         double_opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
     }
-    const auto double_opening_result = group_pt::batch_mul(double_opening_elements, double_opening_scalars, 128);
+    const auto double_opening_result = g1_ct::batch_mul(double_opening_elements, double_opening_scalars, 128);
 
     opening_elements.emplace_back(double_opening_result);
     opening_scalars.emplace_back(u);
 
-    std::vector<group_pt> lhs_elements;
-    std::vector<field_pt> lhs_scalars;
+    std::vector<g1_ct> lhs_elements;
+    std::vector<fr_ct> lhs_scalars;
 
     lhs_elements.push_back(PI_Z_OMEGA);
     lhs_scalars.push_back(u);
 
     if (previous_output.has_data) {
-        field_pt random_separator = transcript.get_challenge_field_element("separator", 1);
+        fr_ct random_separator = transcript.get_challenge_field_element("separator", 1);
 
         opening_elements.push_back(previous_output.P0);
         opening_scalars.push_back(random_separator);
@@ -279,7 +273,7 @@ verify_proof(
     }
 
     auto opening_result =
-        group_pt::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
+        g1_ct::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
 
     opening_result = opening_result + double_opening_result;
     for (const auto& to_add : elements_to_add) {
@@ -287,10 +281,10 @@ verify_proof(
     }
     opening_result = opening_result.normalize();
 
-    group_pt lhs = group_pt::batch_mul(lhs_elements, lhs_scalars, 128);
+    g1_ct lhs = g1_ct::batch_mul(lhs_elements, lhs_scalars, 128);
     lhs = lhs + PI_Z;
     lhs = (-lhs).normalize();
-    return recursion_output<field_pt, group_pt>{
+    return recursion_output<Curve>{
         opening_result,
         lhs,
         transcript.get_field_element_vector("public_inputs"),
