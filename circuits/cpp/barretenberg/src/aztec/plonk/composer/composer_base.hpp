@@ -305,6 +305,15 @@ class ComposerBase {
         circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
     }
 
+    size_t get_circuit_subgroup_size(const size_t num_gates)
+    {
+        size_t log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
+        if ((1UL << log2_n) != (num_gates)) {
+            ++log2_n;
+        }
+        return 1UL << log2_n;
+    }
+
   public:
     size_t n;
     std::vector<uint32_t> w_l;

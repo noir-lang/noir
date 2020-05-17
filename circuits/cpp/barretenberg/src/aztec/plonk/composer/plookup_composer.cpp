@@ -72,6 +72,25 @@ PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
     zero_idx = put_constant_variable(0);
 }
 
+void PLookupComposer::ensure_nonzero_selectors(const size_t subgroup_size)
+{
+    PLOOKUP_SELECTOR_REFS
+    q_m[subgroup_size - 1] = 1;
+    q_c[subgroup_size - 1] = 1;
+    q_1[subgroup_size - 1] = 1;
+    q_2[subgroup_size - 1] = 1;
+    q_3[subgroup_size - 1] = 1;
+    q_4[subgroup_size - 1] = 1;
+    q_5[subgroup_size - 1] = 1;
+    q_arith[subgroup_size - 1] = 1;
+    q_ecc_1[subgroup_size - 1] = 1;
+    q_range[subgroup_size - 1] = 1;
+    q_logic[subgroup_size - 1] = 1;
+    q_lookup_index[subgroup_size - 1] = 1;
+    q_lookup_type[subgroup_size - 1] = 1;
+    q_elliptic[subgroup_size - 1] = 0;
+}
+
 void PLookupComposer::create_dummy_gate()
 {
 
@@ -764,13 +783,9 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     const size_t filled_gates = n + public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
-    for (size_t i = filled_gates; i < new_n; ++i) {
+    for (size_t i = filled_gates; i < subgroup_size; ++i) {
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -786,24 +801,25 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
     }
+    ensure_nonzero_selectors(subgroup_size);
 
-    auto crs = crs_factory_->get_prover_crs(new_n);
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
+    auto crs = crs_factory_->get_prover_crs(subgroup_size);
+    circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
-    polynomial poly_q_m(new_n);
-    polynomial poly_q_c(new_n);
-    polynomial poly_q_1(new_n);
-    polynomial poly_q_2(new_n);
-    polynomial poly_q_3(new_n);
-    polynomial poly_q_4(new_n);
-    polynomial poly_q_5(new_n);
-    polynomial poly_q_arith(new_n);
-    polynomial poly_q_ecc_1(new_n);
-    polynomial poly_q_range(new_n);
-    polynomial poly_q_logic(new_n);
-    polynomial poly_q_lookup_index(new_n + 1);
-    polynomial poly_q_lookup_type(new_n + 1);
-    polynomial poly_q_elliptic(new_n);
+    polynomial poly_q_m(subgroup_size);
+    polynomial poly_q_c(subgroup_size);
+    polynomial poly_q_1(subgroup_size);
+    polynomial poly_q_2(subgroup_size);
+    polynomial poly_q_3(subgroup_size);
+    polynomial poly_q_4(subgroup_size);
+    polynomial poly_q_5(subgroup_size);
+    polynomial poly_q_arith(subgroup_size);
+    polynomial poly_q_ecc_1(subgroup_size);
+    polynomial poly_q_range(subgroup_size);
+    polynomial poly_q_logic(subgroup_size);
+    polynomial poly_q_lookup_index(subgroup_size + 1);
+    polynomial poly_q_lookup_type(subgroup_size + 1);
+    polynomial poly_q_elliptic(subgroup_size);
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_q_m[i] = 0;
@@ -822,7 +838,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         poly_q_elliptic[i] = 0;
     }
 
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
+    for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
         poly_q_m[i] = q_m[i - public_inputs.size()];
         poly_q_1[i] = q_1[i - public_inputs.size()];
         poly_q_2[i] = q_2[i - public_inputs.size()];
@@ -852,11 +868,11 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     add_selector(poly_q_logic, "q_logic");
     add_selector(poly_q_elliptic, "q_elliptic");
 
-    polynomial poly_q_table_1(new_n + 1);
-    polynomial poly_q_table_2(new_n + 1);
-    polynomial poly_q_table_3(new_n + 1);
-    polynomial poly_q_table_4(new_n + 1);
-    size_t offset = new_n - tables_size;
+    polynomial poly_q_table_1(subgroup_size + 1);
+    polynomial poly_q_table_2(subgroup_size + 1);
+    polynomial poly_q_table_3(subgroup_size + 1);
+    polynomial poly_q_table_4(subgroup_size + 1);
+    size_t offset = subgroup_size - tables_size;
 
     for (size_t i = 0; i < offset; ++i) {
         poly_q_table_1[i] = 0;
@@ -884,8 +900,8 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     add_lookup_selector(poly_q_lookup_index, "table_index");
     add_lookup_selector(poly_q_lookup_type, "table_type");
 
-    polynomial z_lookup_fft(new_n * 4 + 4, new_n * 4 + 4);
-    polynomial s_fft(new_n * 4 + 4, new_n * 4 + 4);
+    polynomial z_lookup_fft(subgroup_size * 4 + 4, subgroup_size * 4 + 4);
+    polynomial s_fft(subgroup_size * 4 + 4, subgroup_size * 4 + 4);
     circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
     circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
 
@@ -930,42 +946,45 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     const size_t filled_gates = n + public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
-    for (size_t i = filled_gates; i < new_n; ++i) {
+    for (size_t i = filled_gates; i < subgroup_size; ++i) {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
         w_o.emplace_back(zero_idx);
         w_4.emplace_back(zero_idx);
     }
-
-    polynomial poly_w_1(new_n);
-    polynomial poly_w_2(new_n);
-    polynomial poly_w_3(new_n);
-    polynomial poly_w_4(new_n);
-    polynomial s_1(new_n);
-    polynomial s_2(new_n);
-    polynomial s_3(new_n);
-    polynomial s_4(new_n);
-    polynomial z_lookup(new_n + 1);
+    std::cout << w_l[subgroup_size - 2] << std::endl;
+    std::cout << w_r[subgroup_size - 2] << std::endl;
+    std::cout << w_o[subgroup_size - 2] << std::endl;
+    std::cout << w_4[subgroup_size - 2] << std::endl;
+    std::cout << w_l[subgroup_size - 1] << std::endl;
+    std::cout << w_r[subgroup_size - 1] << std::endl;
+    std::cout << w_o[subgroup_size - 1] << std::endl;
+    std::cout << w_4[subgroup_size - 1] << std::endl;
+    polynomial poly_w_1(subgroup_size);
+    polynomial poly_w_2(subgroup_size);
+    polynomial poly_w_3(subgroup_size);
+    polynomial poly_w_4(subgroup_size);
+    polynomial s_1(subgroup_size);
+    polynomial s_2(subgroup_size);
+    polynomial s_3(subgroup_size);
+    polynomial s_4(subgroup_size);
+    polynomial z_lookup(subgroup_size + 1);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         poly_w_1[i] = 0;
         poly_w_2[i] = variables[public_inputs[i]];
         poly_w_3[i] = 0;
         poly_w_4[i] = 0;
     }
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
+    for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
         poly_w_1[i] = variables[w_l[i - public_inputs.size()]];
         poly_w_2[i] = variables[w_r[i - public_inputs.size()]];
         poly_w_3[i] = variables[w_o[i - public_inputs.size()]];
         poly_w_4[i] = variables[w_4[i - public_inputs.size()]];
     }
 
-    size_t count = new_n - tables_size - lookups_size;
+    size_t count = subgroup_size - tables_size - lookups_size;
     for (size_t i = 0; i < count; ++i) {
         s_1[i] = 0;
         s_2[i] = 0;

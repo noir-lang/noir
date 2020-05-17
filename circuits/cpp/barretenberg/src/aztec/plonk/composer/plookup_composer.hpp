@@ -8,6 +8,7 @@ class PLookupComposer : public ComposerBase {
 
   public:
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
+    static constexpr size_t NUM_RESERVED_GATES = 2;
     enum PLookupSelectors {
         QM = 0,
         QC = 1,
@@ -73,6 +74,8 @@ class PLookupComposer : public ComposerBase {
                                                                         const uint32_t key_index);
 
     void validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> keys);
+    void ensure_nonzero_selectors(const size_t subgroup_size);
+
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
 
