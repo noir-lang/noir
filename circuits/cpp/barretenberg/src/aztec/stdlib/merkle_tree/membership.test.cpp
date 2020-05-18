@@ -129,7 +129,7 @@ TEST(stdlib_merkle_tree, test_update_members)
 TEST(stdlib_merkle_tree, test_tree)
 {
     size_t depth = 3;
-    size_t num = 1 << depth;
+    size_t num = 1UL << depth;
     MemoryStore store;
     MerkleTree db(store, depth);
     MemoryTree mem_tree(depth);

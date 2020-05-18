@@ -1,6 +1,7 @@
 FROM aztecprotocol/gcc:9
 WORKDIR /usr/src/barretenberg
 COPY . .
+RUN cd srs_db && ./download_ignition.sh 0
 RUN mkdir build && cd build && cmake -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
 RUN cd build && make test
 ENTRYPOINT /bin/bash
