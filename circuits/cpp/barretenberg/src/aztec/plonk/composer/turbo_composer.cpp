@@ -1,13 +1,13 @@
 #include "turbo_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
+#include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/widgets/permutation_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
 #include <plonk/proof_system/widgets/turbo_range_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
-#include <plonk/composer/turbo/compute_verification_key.hpp>
 
 using namespace barretenberg;
 

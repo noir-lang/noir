@@ -1,6 +1,6 @@
 #pragma once
-#include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <common/serialize.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 
 namespace rollup {
 namespace client_proofs {
@@ -20,7 +20,8 @@ bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
                   fr const& viewing_key,
                   uint32_t& r);
 
-inline bool operator==(tx_note const& lhs, tx_note const& rhs) {
+inline bool operator==(tx_note const& lhs, tx_note const& rhs)
+{
     return lhs.owner == rhs.owner && lhs.value == rhs.value && lhs.secret == rhs.secret;
 }
 

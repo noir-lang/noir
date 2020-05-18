@@ -1,13 +1,13 @@
 #include "../../pedersen_note/pedersen_note.hpp"
 #include "../../tx/user_context.hpp"
-#include "join_split_data.cpp"
 #include "join_split.hpp"
+#include "join_split_data.cpp"
 #include "sign_notes.hpp"
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
+#include <gtest/gtest.h>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
-#include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib;

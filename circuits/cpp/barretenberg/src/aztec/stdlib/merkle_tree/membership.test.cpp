@@ -1,8 +1,8 @@
-#include "leveldb_tree.hpp"
 #include "leveldb_store.hpp"
+#include "leveldb_tree.hpp"
+#include "membership.hpp"
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
-#include "membership.hpp"
 #include <gtest/gtest.h>
 #include <leveldb/db.h>
 

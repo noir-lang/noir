@@ -1,11 +1,11 @@
 #include "join_split.hpp"
 #include "../../pedersen_note/pedersen_note.hpp"
-#include <stdlib/encryption/schnorr/schnorr.hpp>
-#include <common/log.hpp>
-#include <plonk/composer/turbo/compute_verification_key.hpp>
-#include <stdlib/merkle_tree/membership.hpp>
 #include "note_pair.hpp"
 #include "verify_signature.hpp"
+#include <common/log.hpp>
+#include <plonk/composer/turbo/compute_verification_key.hpp>
+#include <stdlib/encryption/schnorr/schnorr.hpp>
+#include <stdlib/merkle_tree/membership.hpp>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"

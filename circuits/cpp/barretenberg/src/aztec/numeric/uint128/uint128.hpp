@@ -1,7 +1,7 @@
 #pragma once
+#include <common/serialize.hpp>
 #include <iomanip>
 #include <ostream>
-#include <common/serialize.hpp>
 
 __extension__ using uint128_t = unsigned __int128;
 
@@ -26,7 +26,7 @@ inline void write(std::vector<uint8_t>& buf, uint128_t value) {
     ::write(ptr, value);
 }
 */
-namespace std{
+namespace std {
 inline std::ostream& operator<<(std::ostream& os, uint128_t const& a)
 {
     std::ios_base::fmtflags f(os.flags());
@@ -34,4 +34,4 @@ inline std::ostream& operator<<(std::ostream& os, uint128_t const& a)
     os.flags(f);
     return os;
 }
-}
+} // namespace std

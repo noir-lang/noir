@@ -3,11 +3,11 @@
 #include "../proving_key/proving_key.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
+#include <common/mem.hpp>
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <plonk/transcript/transcript.hpp>
 #include <polynomials/iterate_over_domain.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
-#include <common/mem.hpp>
 
 using namespace barretenberg;
 
@@ -235,8 +235,7 @@ fr ProverPermutationWidget<program_width>::compute_quotient_contribution(const f
     const polynomial& l_1 = key->lagrange_1;
 
     // compute our public input component
-    std::vector<barretenberg::fr> public_inputs =
-        many_from_buffer<fr>(transcript.get_element("public_inputs"));
+    std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
 
     fr public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 

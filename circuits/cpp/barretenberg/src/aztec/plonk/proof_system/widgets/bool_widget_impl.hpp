@@ -181,9 +181,9 @@ Field VerifierBoolWidget<Field, Group, Transcript>::compute_quotient_evaluation_
 
 template <typename Field, typename Group, typename Transcript>
 void VerifierBoolWidget<Field, Group, Transcript>::compute_batch_evaluation_contribution(verification_key*,
-                                                                                           Field& batch_eval,
-                                                                                           const Transcript& transcript,
-                                                                                           const bool use_linearisation)
+                                                                                         Field& batch_eval,
+                                                                                         const Transcript& transcript,
+                                                                                         const bool use_linearisation)
 {
     if (use_linearisation) {
         return;

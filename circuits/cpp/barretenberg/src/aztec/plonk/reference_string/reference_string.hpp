@@ -1,6 +1,6 @@
 #pragma once
-#include <cstddef>
 #include <common/mem.hpp>
+#include <cstddef>
 #include <ecc/curves/bn254/g1.hpp>
 #include <ecc/curves/bn254/g2.hpp>
 
@@ -33,12 +33,8 @@ class ReferenceStringFactory {
     ReferenceStringFactory() = default;
     ReferenceStringFactory(ReferenceStringFactory&& other) = default;
     virtual ~ReferenceStringFactory() {}
-    virtual std::shared_ptr<ProverReferenceString> get_prover_crs(size_t) {
-      return nullptr;
-    }
-    virtual std::shared_ptr<VerifierReferenceString> get_verifier_crs() {
-      return nullptr;
-    }
+    virtual std::shared_ptr<ProverReferenceString> get_prover_crs(size_t) { return nullptr; }
+    virtual std::shared_ptr<VerifierReferenceString> get_verifier_crs() { return nullptr; }
 };
 
 } // namespace waffle

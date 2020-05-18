@@ -3,8 +3,8 @@
 #include "sign_notes.hpp"
 #include <common/streams.hpp>
 #include <cstdint>
-#include <plonk/reference_string/pippenger_reference_string.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <plonk/reference_string/pippenger_reference_string.hpp>
 #include <sstream>
 
 using namespace barretenberg;

@@ -1,8 +1,8 @@
 #pragma once
 #include "hash_path.hpp"
+#include <common/streams.hpp>
 #include <map>
 #include <set>
-#include <common/streams.hpp>
 
 namespace plonk {
 namespace stdlib {

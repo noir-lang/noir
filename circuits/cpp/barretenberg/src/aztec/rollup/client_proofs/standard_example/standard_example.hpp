@@ -18,6 +18,6 @@ Prover new_prover();
 
 bool verify_proof(waffle::plonk_proof const& proof);
 
-} // namespace create
+} // namespace standard_example
 } // namespace client_proofs
 } // namespace rollup

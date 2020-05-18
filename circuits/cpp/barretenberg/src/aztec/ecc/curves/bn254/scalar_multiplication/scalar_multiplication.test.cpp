@@ -1,5 +1,5 @@
-#include "scalar_multiplication.hpp"
 #include "pippenger.hpp"
+#include "scalar_multiplication.hpp"
 #include <chrono>
 #include <common/test.hpp>
 #include <srs/io.hpp>

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "../../primitives/field/field.hpp"
-#include "../../primitives/bool/bool.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
+#include "../../primitives/bool/bool.hpp"
+#include "../../primitives/field/field.hpp"
 
 #include "../transcript/transcript.hpp"
 
-#include <plonk/proof_system/utils/linearizer.hpp>
 #include <plonk/proof_system/public_inputs/public_inputs.hpp>
+#include <plonk/proof_system/utils/linearizer.hpp>
 
 #include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
 

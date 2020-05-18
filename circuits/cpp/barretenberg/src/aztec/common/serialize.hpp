@@ -1,8 +1,9 @@
 #pragma once
-#include <vector>
-#include <type_traits>
 #include <array>
 #include <common/net.hpp>
+#include <type_traits>
+#include <vector>
+#include <iostream>
 
 __extension__ using uint128_t = unsigned __int128;
 
@@ -106,14 +107,12 @@ template <typename T> inline std::enable_if_t<std::is_integral_v<T>> write(std::
 namespace std {
 
 // Forwarding functions from std to global namespace for integers.
-template <typename B, typename T>
-inline std::enable_if_t<std::is_integral_v<T>> read(B& buf, T& value)
+template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> read(B& buf, T& value)
 {
     ::read(buf, value);
 }
 
-template <typename B, typename T>
-inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, T value)
+template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, T value)
 {
     ::write(buf, value);
 }
@@ -165,8 +164,7 @@ template <size_t N> inline void write(std::ostream& os, std::array<uint8_t, N> c
 }
 
 // Generic read of array of types from supported buffer types.
-template <typename B, typename T, size_t N>
-inline void read(B& it, std::array<T, N>& value)
+template <typename B, typename T, size_t N> inline void read(B& it, std::array<T, N>& value)
 {
     for (size_t i = 0; i < N; ++i) {
         read(it, value[i]);
@@ -174,8 +172,7 @@ inline void read(B& it, std::array<T, N>& value)
 }
 
 // Generic write of array of types to supported buffer types.
-template <typename B, typename T, size_t N>
-inline void write(B& buf, std::array<T, N> const& value)
+template <typename B, typename T, size_t N> inline void write(B& buf, std::array<T, N> const& value)
 {
     for (size_t i = 0; i < N; ++i) {
         write(buf, value[i]);
@@ -194,8 +191,7 @@ template <typename B, typename T> inline void read(B& it, std::vector<T>& value)
 }
 
 // Generic write of vector of types to supported buffer types.
-template <typename B, typename T>
-inline void write(B& buf, std::vector<T> const& value)
+template <typename B, typename T> inline void write(B& buf, std::vector<T> const& value)
 {
     write(buf, static_cast<uint32_t>(value.size()));
     for (size_t i = 0; i < value.size(); ++i) {
@@ -204,16 +200,14 @@ inline void write(B& buf, std::vector<T> const& value)
 }
 
 // Read std::pair.
-template <typename B, typename T, typename U>
-inline void read(B& it, std::pair<T, U>& value)
+template <typename B, typename T, typename U> inline void read(B& it, std::pair<T, U>& value)
 {
     read(it, value.first);
     read(it, value.second);
 }
 
 // Write std::pair.
-template <typename B, typename T, typename U>
-inline void write(B& buf, std::pair<T, U> const& value)
+template <typename B, typename T, typename U> inline void write(B& buf, std::pair<T, U> const& value)
 {
     write(buf, value.first);
     write(buf, value.second);

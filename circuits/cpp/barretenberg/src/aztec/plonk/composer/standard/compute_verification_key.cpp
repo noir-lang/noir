@@ -1,8 +1,8 @@
 #include "compute_verification_key.hpp"
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <plonk/reference_string/reference_string.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 
 namespace waffle {
 namespace standard_composer {
@@ -26,9 +26,9 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
     for (size_t i = 0; i < 8; ++i) {
         commitments[i] =
             barretenberg::scalar_multiplication::pippenger(poly_coefficients[i],
-                                                                circuit_proving_key->reference_string->get_monomials(),
-                                                                circuit_proving_key->n,
-                                                                circuit_proving_key->pippenger_runtime_state);
+                                                           circuit_proving_key->reference_string->get_monomials(),
+                                                           circuit_proving_key->n,
+                                                           circuit_proving_key->pippenger_runtime_state);
     }
 
     auto circuit_verification_key =
@@ -47,5 +47,5 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
     return circuit_verification_key;
 }
 
-}
+} // namespace standard_composer
 } // namespace waffle

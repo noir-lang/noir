@@ -1,8 +1,8 @@
 #include "pedersen.hpp"
+#include <common/test.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <numeric/random/engine.hpp>
-#include <common/test.hpp>
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;

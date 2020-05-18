@@ -12,5 +12,4 @@ WASM_EXPORT void blake2s_to_field(uint8_t const* data, size_t length, uint8_t* r
     auto result = barretenberg::fr::serialize_from_buffer(output.data());
     barretenberg::fr::serialize_to_buffer(result, r);
 }
-
 }

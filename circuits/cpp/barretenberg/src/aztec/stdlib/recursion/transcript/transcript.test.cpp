@@ -235,8 +235,7 @@ TEST(stdlib_transcript, validate_transcript)
 
     const auto check_public_inputs = [&normal_transcript, &recursive_transcript]() {
         std::vector<field_t> result = recursive_transcript.get_field_element_vector("public_inputs");
-        std::vector<barretenberg::fr> expected =
-            many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
+        std::vector<barretenberg::fr> expected = many_from_buffer<fr>(normal_transcript.get_element("public_inputs"));
         EXPECT_EQ(result.size(), expected.size());
         for (size_t i = 0; i < result.size(); ++i) {
             EXPECT_EQ(result[i].get_value(), expected[i]);

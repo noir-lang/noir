@@ -1,6 +1,6 @@
+#include "tx_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <crypto/schnorr/schnorr.hpp>
-#include "tx_note.hpp"
 
 namespace rollup {
 namespace client_proofs {

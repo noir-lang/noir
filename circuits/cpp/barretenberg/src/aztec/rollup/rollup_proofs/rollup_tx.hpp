@@ -1,10 +1,10 @@
 #pragma once
 #include <algorithm>
 #include <arpa/inet.h>
-#include <sstream>
 #include <common/serialize.hpp>
 #include <common/streams.hpp>
 #include <ecc/curves/bn254/fr.hpp>
+#include <sstream>
 #include <stdlib/merkle_tree/hash_path.hpp>
 
 namespace rollup {

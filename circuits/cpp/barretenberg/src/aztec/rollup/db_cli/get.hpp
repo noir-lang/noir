@@ -10,7 +10,8 @@ struct GetResponse {
     std::array<uint8_t, 64> value;
 };
 
-void read(std::istream& s, GetRequest& r) {
+void read(std::istream& s, GetRequest& r)
+{
     read(s, r.tree_id);
     read(s, r.index);
 }
@@ -20,6 +21,7 @@ void write(std::ostream& s, GetResponse const& r)
     write(s, r.value);
 }
 
-std::ostream& operator<<(std::ostream& os, GetRequest const& get_request) {
+std::ostream& operator<<(std::ostream& os, GetRequest const& get_request)
+{
     return os << "GET (tree:" << (int)get_request.tree_id << " index:" << get_request.index << ")";
 }

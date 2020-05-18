@@ -1,6 +1,6 @@
 #pragma once
-#include "../tx/user_context.hpp"
 #include "../client_proofs/join_split/sign_notes.hpp"
+#include "../tx/user_context.hpp"
 #include "compute_rollup_circuit_data.hpp"
 #include "create_noop_join_split_proof.hpp"
 #include "rollup_circuit.hpp"

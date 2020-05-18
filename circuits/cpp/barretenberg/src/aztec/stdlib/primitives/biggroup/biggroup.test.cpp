@@ -28,15 +28,13 @@ namespace stdlib {
 namespace bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FrParams> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1>
-    g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
 
 } // namespace bn254
 namespace alt_bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::field_t<typename waffle::TurboComposer> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1>
-    g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
 } // namespace alt_bn254
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;

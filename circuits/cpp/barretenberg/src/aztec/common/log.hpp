@@ -1,6 +1,6 @@
 #pragma once
-#include <sstream>
 #include <env/logstr.hpp>
+#include <sstream>
 
 namespace {
 inline void format_chain(std::ostream&) {}
@@ -22,7 +22,7 @@ template <typename... Args> std::string format(Args... args)
     format_chain(os, args...);
     return os.str();
 }
-}
+} // namespace
 
 #if NDEBUG
 template <typename... Args> inline void debug(Args... args)

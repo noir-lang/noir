@@ -3,11 +3,11 @@
 #include "create_rollup.hpp"
 #include "rollup_proof_data.hpp"
 #include "verify_rollup.hpp"
+#include <common/test.hpp>
 #include <rollup/client_proofs/join_split/join_split.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
-#include <common/test.hpp>
 
 using namespace barretenberg;
 using namespace rollup::rollup_proofs;

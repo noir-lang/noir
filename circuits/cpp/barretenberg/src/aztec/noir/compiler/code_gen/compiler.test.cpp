@@ -1,7 +1,7 @@
 #include "../parser/parse.hpp"
 #include "compiler.hpp"
-#include <fstream>
 #include <common/test.hpp>
+#include <fstream>
 #include <stdlib/types/turbo.hpp>
 
 using namespace plonk::stdlib::types::turbo;

@@ -4,8 +4,8 @@
 
 #include <crypto/ecdsa/ecdsa.hpp>
 
-#include <ecc/curves/secp256r1/secp256r1.hpp>
 #include <common/test.hpp>
+#include <ecc/curves/secp256r1/secp256r1.hpp>
 
 using namespace barretenberg;
 using namespace plonk;

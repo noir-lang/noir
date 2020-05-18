@@ -1,7 +1,7 @@
 #pragma once
 #include "rollup_tx.hpp"
-#include <stdlib/recursion/verifier/verifier.hpp>
 #include <stdlib/recursion/verifier/program_settings.hpp>
+#include <stdlib/recursion/verifier/verifier.hpp>
 #include <stdlib/types/turbo.hpp>
 
 namespace rollup {

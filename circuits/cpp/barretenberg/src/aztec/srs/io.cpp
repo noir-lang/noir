@@ -1,6 +1,6 @@
 #include "io.hpp"
-#include <common/net.hpp>
 #include <common/mem.hpp>
+#include <common/net.hpp>
 #include <fstream>
 #include <sys/stat.h>
 

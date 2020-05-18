@@ -1,9 +1,9 @@
 #include "create_noop_join_split_proof.hpp"
 #include "compute_rollup_circuit_data.hpp"
 #include "rollup_circuit.hpp"
-#include <rollup/tx/user_context.hpp>
-#include <rollup/client_proofs/join_split/sign_notes.hpp>
 #include <rollup/client_proofs/join_split/join_split.hpp>
+#include <rollup/client_proofs/join_split/sign_notes.hpp>
+#include <rollup/tx/user_context.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
 

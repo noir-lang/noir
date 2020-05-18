@@ -1,7 +1,7 @@
-#include <stdlib/merkle_tree/leveldb_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include "get.hpp"
 #include "put.hpp"
+#include <stdlib/merkle_tree/leveldb_store.hpp>
+#include <stdlib/merkle_tree/leveldb_tree.hpp>
 
 using namespace plonk::stdlib::merkle_tree;
 

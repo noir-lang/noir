@@ -1,12 +1,12 @@
 #pragma once
 #include <plonk/composer/turbo_composer.hpp>
+#include <stdlib/primitives/bigfield/bigfield.hpp>
+#include <stdlib/primitives/biggroup/biggroup.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
 #include <stdlib/primitives/bool/bool.hpp>
 #include <stdlib/primitives/byte_array/byte_array.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
-#include <stdlib/primitives/bigfield/bigfield.hpp>
-#include <stdlib/primitives/biggroup/biggroup.hpp>
 
 namespace plonk {
 namespace stdlib {

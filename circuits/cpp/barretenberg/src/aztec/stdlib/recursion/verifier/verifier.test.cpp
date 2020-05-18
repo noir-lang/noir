@@ -10,8 +10,8 @@
 #include <ecc/curves/bn254/fq12.hpp>
 #include <ecc/curves/bn254/pairing.hpp>
 
-#include "../../hash/pedersen/pedersen.hpp"
 #include "../../hash/blake2s/blake2s.hpp"
+#include "../../hash/pedersen/pedersen.hpp"
 
 #include "program_settings.hpp"
 

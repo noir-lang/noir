@@ -11,5 +11,4 @@ WASM_EXPORT void ecc_grumpkin__mul(uint8_t const* point_buf, uint8_t const* scal
     grumpkin::g1::affine_element r = point * scalar;
     write(result, r);
 }
-
 }

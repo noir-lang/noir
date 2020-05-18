@@ -1,12 +1,12 @@
-#include "memory_store.hpp"
 #include "leveldb_store.hpp"
 #include "leveldb_tree.hpp"
+#include "memory_store.hpp"
 #include "memory_tree.hpp"
+#include <common/streams.hpp>
 #include <common/test.hpp>
 #include <leveldb/db.h>
-#include <stdlib/types/turbo.hpp>
 #include <numeric/random/engine.hpp>
-#include <common/streams.hpp>
+#include <stdlib/types/turbo.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
