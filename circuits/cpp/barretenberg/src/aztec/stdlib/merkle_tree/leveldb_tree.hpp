@@ -23,9 +23,9 @@ template <typename Store> class MerkleTree {
 
     fr_hash_path get_hash_path(index_t index);
 
-    template <size_t S> fr update_element(index_t index, std::array<uint8_t, S> const& value)
-    {
-        update_element(index, std::vector(value.begin(), value.end()));
+    template<size_t S>
+    fr update_element(index_t index, std::array<uint8_t, S> const& value) {
+      return update_element(index, std::vector(value.begin(), value.end()));
     }
 
     fr update_element(index_t index, value_t const& value);

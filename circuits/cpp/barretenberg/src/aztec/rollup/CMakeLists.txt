@@ -1,7 +1,6 @@
 link_libraries(leveldb)
 
 add_subdirectory(pedersen_note)
-add_subdirectory(tx)
 add_subdirectory(client_proofs)
 
 if(NOT WASM)
