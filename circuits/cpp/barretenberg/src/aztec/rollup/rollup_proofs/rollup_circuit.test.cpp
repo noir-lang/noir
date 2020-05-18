@@ -358,11 +358,11 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.num_txs, txs.size());
-    EXPECT_EQ(rollup_data.inner_proof_data.size(), txs.size());
+    EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
         auto tx_data = join_split_data(txs[i]);
-        auto inner_data = rollup_data.inner_proof_data[i];
+        auto inner_data = rollup_data.inner_proofs[i];
         EXPECT_EQ(inner_data.public_input, tx_data.public_input);
         EXPECT_EQ(inner_data.public_output, tx_data.public_output);
         EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
@@ -372,7 +372,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     }
 }
 
-TEST_F(rollup_proofs_rollup_circuit, test_2_hardcoded_proofs_in_1_rollups)
+TEST_F(rollup_proofs_rollup_circuit, test_2_hardcoded_proofs_in_2_1_rollups)
 {
     size_t rollup_size = 1;
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
@@ -481,7 +481,6 @@ TEST_F(rollup_proofs_rollup_circuit, test_2_hardcoded_proofs_in_1_rollups)
     };
 
     auto rollup = create_rollup({ proof1 }, data_tree, null_tree, rollup_size, padding_proof);
-    std::cerr << data_tree.root() << std::endl;
     bool verified = verify_rollup_logic(rollup, rollup_circuit_data);
     EXPECT_TRUE(verified);
 
