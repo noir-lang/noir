@@ -1,17 +1,17 @@
 #pragma once
 
-#include <plonk/transcript/transcript.hpp>
-#include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/fq.hpp>
+#include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
+#include <plonk/transcript/transcript.hpp>
 
-#include "../../primitives/witness/witness.hpp"
-#include "../../primitives/field/field.hpp"
-#include "../../primitives/bool/bool.hpp"
-#include "../../primitives/bigfield/bigfield.hpp"
-#include "../../primitives/biggroup/biggroup.hpp"
 #include "../../hash/blake2s/blake2s.hpp"
 #include "../../hash/pedersen/pedersen.hpp"
+#include "../../primitives/bigfield/bigfield.hpp"
+#include "../../primitives/biggroup/biggroup.hpp"
+#include "../../primitives/bool/bool.hpp"
+#include "../../primitives/field/field.hpp"
+#include "../../primitives/witness/witness.hpp"
 
 namespace plonk {
 namespace stdlib {

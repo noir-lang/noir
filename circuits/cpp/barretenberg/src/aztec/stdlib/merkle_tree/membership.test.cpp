@@ -1,6 +1,8 @@
-#include "leveldb_tree.hpp"
 #include "leveldb_store.hpp"
+#include "leveldb_tree.hpp"
 #include "membership.hpp"
+#include "memory_store.hpp"
+#include "memory_tree.hpp"
 #include <gtest/gtest.h>
 #include <leveldb/db.h>
 
@@ -112,6 +114,34 @@ TEST(stdlib_merkle_tree, test_update_members)
     field_ct new_root = witness_ct(&composer, get_hash_path_root(new_path_fr));
 
     update_membership(composer, new_root, new_path, new_value, old_root, old_path, old_value, zero);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_merkle_tree, test_tree)
+{
+    size_t depth = 3;
+    size_t num = 1UL << depth;
+    MemoryStore store;
+    MerkleTree db(store, depth);
+    MemoryTree mem_tree(depth);
+
+    Composer composer = Composer();
+
+    auto zero_field = field_ct(witness_ct(&composer, fr::zero()));
+    auto zero = byte_array_ct(&composer).write(zero_field).write(zero_field);
+    auto values = std::vector<byte_array_ct>(num, zero);
+    auto root = field_ct(&composer, mem_tree.root());
+
+    assert_check_tree(composer, root, values);
 
     auto prover = composer.create_prover();
 

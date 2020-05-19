@@ -6,11 +6,11 @@
 #include "../widgets/arithmetic_widget.hpp"
 #include "../widgets/base_widget.hpp"
 #include "../widgets/mimc_widget.hpp"
+#include "../widgets/permutation_widget.hpp"
 #include "../widgets/turbo_arithmetic_widget.hpp"
 #include "../widgets/turbo_fixed_base_widget.hpp"
 #include "../widgets/turbo_logic_widget.hpp"
 #include "../widgets/turbo_range_widget.hpp"
-#include "../widgets/permutation_widget.hpp"
 
 namespace waffle {
 class settings_base {

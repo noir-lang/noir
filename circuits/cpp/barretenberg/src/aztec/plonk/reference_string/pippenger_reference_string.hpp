@@ -18,7 +18,7 @@ using namespace barretenberg;
 class PippengerReferenceString : public ProverReferenceString {
   public:
     PippengerReferenceString(scalar_multiplication::Pippenger* pippenger)
-      : pippenger_(pippenger)
+        : pippenger_(pippenger)
     {}
 
     g1::affine_element* get_monomials() { return pippenger_->get_point_table(); }

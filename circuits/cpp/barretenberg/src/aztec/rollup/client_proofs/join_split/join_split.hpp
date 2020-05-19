@@ -15,12 +15,12 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
 
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
-void join_split_circuit(Composer& composer, tx_note const& note, crypto::schnorr::signature const& sig);
+void join_split_circuit(Composer& composer, join_split_tx const& tx);
 
-Prover new_join_split_prover(join_split_tx const& tx);
+UnrolledProver new_join_split_prover(join_split_tx const& tx);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 
-} // namespace create
+} // namespace join_split
 } // namespace client_proofs
 } // namespace rollup

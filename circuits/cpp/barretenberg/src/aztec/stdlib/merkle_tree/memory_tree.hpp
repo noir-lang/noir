@@ -13,7 +13,12 @@ class MemoryTree {
 
     fr_hash_path get_hash_path(size_t index);
 
-    void update_element(size_t index, std::vector<uint8_t> const& value);
+    template <size_t S> fr update_element(size_t index, std::array<uint8_t, S> const& value)
+    {
+        return update_element(index, std::vector(value.begin(), value.end()));
+    }
+
+    fr update_element(size_t index, std::vector<uint8_t> const& value);
 
     std::vector<uint8_t> const& get_element(size_t index);
 

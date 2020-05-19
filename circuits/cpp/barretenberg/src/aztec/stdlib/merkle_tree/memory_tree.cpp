@@ -44,7 +44,7 @@ fr_hash_path MemoryTree::get_hash_path(size_t index)
     return path;
 }
 
-void MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
+fr MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
 {
     preimages_[index] = value;
 
@@ -60,6 +60,7 @@ void MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
         index /= 2;
     }
     root_ = current;
+    return root_;
 }
 
 std::vector<uint8_t> const& MemoryTree::get_element(size_t index)

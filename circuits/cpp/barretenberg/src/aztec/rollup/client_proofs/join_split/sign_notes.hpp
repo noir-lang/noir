@@ -1,6 +1,6 @@
 #pragma once
-#include <crypto/schnorr/schnorr.hpp>
 #include "tx_note.hpp"
+#include <crypto/schnorr/schnorr.hpp>
 
 namespace rollup {
 namespace client_proofs {

@@ -8,24 +8,6 @@ namespace join_split {
 
 using namespace barretenberg;
 
-std::vector<uint8_t> join_split_tx::to_buffer()
-{
-    std::vector<uint8_t> buf;
-    // Reserve full amount now for optimal efficiency.
-    buf.reserve(64 + (4 * 5) + 32 + (64 * 32 * 2) + (100 * 4) + 64);
-    write(buf, *this);
-    return buf;
-}
-
-join_split_tx join_split_tx::from_buffer(uint8_t const* buf)
-{
-    join_split_tx tx;
-    tx.input_path[0].resize(32);
-    tx.input_path[1].resize(32);
-    read(buf, tx);
-    return tx;
-}
-
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 {
     write(buf, tx.owner_pub_key);

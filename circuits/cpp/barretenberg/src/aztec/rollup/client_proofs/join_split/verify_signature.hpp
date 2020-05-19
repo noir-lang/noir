@@ -1,6 +1,6 @@
+#include <rollup/pedersen_note/pedersen_note.hpp>
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
-#include <rollup/pedersen_note/pedersen_note.hpp>
 
 namespace rollup {
 namespace client_proofs {

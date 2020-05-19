@@ -1,10 +1,10 @@
 #pragma once
 #include "hash_path.hpp"
+#include <common/streams.hpp>
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 #include <map>
 #include <set>
-#include <common/streams.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -12,13 +12,15 @@ namespace merkle_tree {
 
 using namespace leveldb;
 
-inline std::string to_string(std::vector<uint8_t> const& input) {
+inline std::string to_string(std::vector<uint8_t> const& input)
+{
     return std::string((char*)input.data(), input.size());
 }
 
 class LevelDbStore {
   public:
-    LevelDbStore(std::string const& db_path) {
+    LevelDbStore(std::string const& db_path)
+    {
         leveldb::DB* db;
         leveldb::Options options;
         options.create_if_missing = true;
@@ -28,10 +30,7 @@ class LevelDbStore {
         db_.reset(db);
     }
 
-    static void destroy(std::string path)
-    {
-        leveldb::DestroyDB(path, leveldb::Options());
-    }
+    static void destroy(std::string path) { leveldb::DestroyDB(path, leveldb::Options()); }
 
     bool put(std::vector<uint8_t> const& key, std::vector<uint8_t> const& value)
     {
@@ -54,9 +53,7 @@ class LevelDbStore {
         return true;
     };
 
-    bool get(std::vector<uint8_t> const& key, std::vector<uint8_t>& value) {
-        return get(to_string(key), value);
-    }
+    bool get(std::vector<uint8_t> const& key, std::vector<uint8_t>& value) { return get(to_string(key), value); }
 
     bool get(std::string const& key, std::vector<uint8_t>& value)
     {
@@ -89,7 +86,8 @@ class LevelDbStore {
         deletes_.clear();
     }
 
-    void rollback() {
+    void rollback()
+    {
         puts_.clear();
         deletes_.clear();
     }

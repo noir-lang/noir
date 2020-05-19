@@ -1,11 +1,12 @@
 #include "leveldb_store.hpp"
 #include "leveldb_tree.hpp"
+#include "memory_store.hpp"
 #include "memory_tree.hpp"
+#include <common/streams.hpp>
 #include <common/test.hpp>
 #include <leveldb/db.h>
-#include <stdlib/types/turbo.hpp>
 #include <numeric/random/engine.hpp>
-#include <common/streams.hpp>
+#include <stdlib/types/turbo.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
@@ -25,6 +26,35 @@ static std::vector<LevelDbTree::value_t> VALUES = []() {
     }
     return values;
 }();
+
+TEST(stdlib_merkle_tree, test_kv_memory_vs_memory_consistency)
+{
+    constexpr size_t depth = 10;
+    MemoryTree memdb(depth);
+
+    MemoryStore store;
+    MerkleTree db(store, depth);
+
+    std::vector<size_t> indicies(1 << depth);
+    std::iota(indicies.begin(), indicies.end(), 0);
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(indicies.begin(), indicies.end(), g);
+
+    for (size_t i = 0; i < indicies.size(); ++i) {
+        size_t idx = indicies[i];
+        memdb.update_element(idx, VALUES[idx]);
+        db.update_element(idx, VALUES[idx]);
+    }
+
+    for (size_t i = 0; i < indicies.size(); ++i) {
+        size_t idx = indicies[i];
+        EXPECT_EQ(db.get_element(idx), memdb.get_element(idx));
+        EXPECT_EQ(db.get_hash_path(idx), memdb.get_hash_path(idx));
+    }
+
+    EXPECT_EQ(db.root(), memdb.root());
+}
 
 TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
 {

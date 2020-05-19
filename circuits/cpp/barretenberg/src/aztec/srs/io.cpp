@@ -1,6 +1,6 @@
 #include "io.hpp"
-#include <common/net.hpp>
 #include <common/mem.hpp>
+#include <common/net.hpp>
 #include <fstream>
 #include <sys/stat.h>
 
@@ -159,7 +159,7 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
 #ifdef __wasm__
         std::abort();
 #else
-        std::runtime_error("No input files found.");
+        throw std::runtime_error("No input files found.");
 #endif
     }
 }

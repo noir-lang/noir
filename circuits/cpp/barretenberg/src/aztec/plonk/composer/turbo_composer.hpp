@@ -4,8 +4,7 @@
 namespace waffle {
 class TurboComposer : public ComposerBase {
   public:
-    enum TurboSelectors
-    {
+    enum TurboSelectors {
         QM = 0,
         QC = 1,
         Q1 = 2,
@@ -69,12 +68,14 @@ class TurboComposer : public ComposerBase {
     void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b)
     {
         ASSERT(variables[a_idx] == b);
+        if (variables[a_idx] != b) {
+            failed = true;
+        }
         const add_triple gate_coefficients{
             a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
         };
         create_add_gate(gate_coefficients);
     }
-
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;

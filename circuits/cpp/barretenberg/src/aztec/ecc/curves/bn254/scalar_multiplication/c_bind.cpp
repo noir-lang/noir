@@ -1,6 +1,6 @@
 #include "c_bind.hpp"
-#include "pippenger.hpp"
 #include "./scalar_multiplication.hpp"
+#include "pippenger.hpp"
 #include <common/mem.hpp>
 #include <srs/io.hpp>
 

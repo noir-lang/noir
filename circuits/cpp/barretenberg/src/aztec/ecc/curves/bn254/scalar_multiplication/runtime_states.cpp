@@ -23,7 +23,8 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
     const size_t prefetch_overflow = 16 * num_threads;
     const size_t num_rounds =
         static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
-    point_schedule = (uint64_t*)(aligned_alloc(64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
+    point_schedule = (uint64_t*)(aligned_alloc(
+        64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
     point_pairs_1 = (g1::affine_element*)(aligned_alloc(
         64, (static_cast<size_t>(num_points) * 2 + (num_threads * 16)) * sizeof(g1::affine_element)));

@@ -1,15 +1,13 @@
 #include "transcript.hpp"
-#include <common/net.hpp>
+#include <array>
 #include <common/assert.hpp>
 #include <common/net.hpp>
 #include <crypto/blake2s/blake2s.hpp>
-#include <crypto/pedersen/pedersen.hpp>
-#include <iostream>
 #include <crypto/keccak/keccak.hpp>
+#include <crypto/pedersen/pedersen.hpp>
 #include <iomanip>
 #include <iostream>
 #include <vector>
-#include <array>
 
 namespace transcript {
 

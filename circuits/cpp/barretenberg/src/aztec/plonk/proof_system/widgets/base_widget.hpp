@@ -1,8 +1,8 @@
 #pragma once
 #include "../../transcript/transcript_wrappers.hpp"
+#include "../prover/work_queue.hpp"
 #include "../types/program_witness.hpp"
 #include "../verification_key/verification_key.hpp"
-#include "../prover/work_queue.hpp"
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace transcript {

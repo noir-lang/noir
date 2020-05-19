@@ -1,11 +1,11 @@
 #include "join_split.hpp"
 #include "../../pedersen_note/pedersen_note.hpp"
-#include <stdlib/encryption/schnorr/schnorr.hpp>
-#include <common/log.hpp>
-#include <plonk/composer/turbo/compute_verification_key.hpp>
-#include <stdlib/merkle_tree/membership.hpp>
 #include "note_pair.hpp"
 #include "verify_signature.hpp"
+#include <common/log.hpp>
+#include <plonk/composer/turbo/compute_verification_key.hpp>
+#include <stdlib/encryption/schnorr/schnorr.hpp>
+#include <stdlib/merkle_tree/membership.hpp>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -39,7 +39,8 @@ field_ct process_input_note(Composer& composer,
     composer.assert_equal(is_real.witness_index, exists.witness_index);
 
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
-    // tree to ensure notes will always have unique entries.
+    // tree to ensure notes will always have unique entries. The is_real flag protects against nullifing a real
+    // note when the number of input notes < 2.
     // [256 bits of encrypted note x coord][32 least sig bits of index][223 bits of note viewing key][1 bit is_real]
     byte_array_ct note_hash_data = byte_array_ct(&composer);
     note_hash_data.write(note.second.ciphertext.x)
@@ -123,7 +124,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
     verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
 }
 
-Prover new_join_split_prover(join_split_tx const& tx)
+UnrolledProver new_join_split_prover(join_split_tx const& tx)
 {
     Composer composer(proving_key, nullptr);
     join_split_circuit(composer, tx);
@@ -131,14 +132,12 @@ Prover new_join_split_prover(join_split_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    Prover prover = composer.create_prover();
-
-    return prover;
+    return composer.create_unrolled_prover();
 }
 
 bool verify_proof(waffle::plonk_proof const& proof)
 {
-    Verifier verifier(verification_key, Composer::create_manifest(9));
+    UnrolledVerifier verifier(verification_key, Composer::create_unrolled_manifest(9));
     return verifier.verify_proof(proof);
 }
 

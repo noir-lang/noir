@@ -192,7 +192,7 @@ class ComposerBase {
         : n(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
-        , selector_num(p_key->constraint_selectors.size())
+        , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
         , selectors(selector_num)
         , selector_names(selector_names)
         , use_mid_for_selectorfft(selector_num, false)
@@ -211,7 +211,7 @@ class ComposerBase {
         : n(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
-        , selector_num(p_key->constraint_selectors.size())
+        , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
         , selectors(selector_num)
         , selector_names(selector_names)
         , use_mid_for_selectorfft(use_mid_for_selectorfft)
@@ -311,6 +311,7 @@ class ComposerBase {
     std::vector<std::vector<barretenberg::fr>> selectors;
     std::vector<std::string> selector_names;
     std::vector<bool> use_mid_for_selectorfft; // use middomain instead of large for selectorfft
+    bool failed = false;
 };
 
 extern template void ComposerBase::compute_sigma_permutations<3>(proving_key* key);

@@ -9,7 +9,8 @@
 namespace barretenberg {
 namespace scalar_multiplication {
 
-inline size_t point_table_size(size_t num_points) {
+inline size_t point_table_size(size_t num_points)
+{
 #ifndef NO_MULTITHREADING
     const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
 #else
@@ -20,19 +21,18 @@ inline size_t point_table_size(size_t num_points) {
     return 2 * num_points + prefetch_overflow;
 }
 
-template<typename T>
-inline size_t point_table_buf_size(size_t num_points) {
-  return sizeof(T) * point_table_size(num_points);
+template <typename T> inline size_t point_table_buf_size(size_t num_points)
+{
+    return sizeof(T) * point_table_size(num_points);
 }
 
-template<typename T>
-inline T* point_table_alloc(size_t num_points) {
+template <typename T> inline T* point_table_alloc(size_t num_points)
+{
     return (T*)aligned_alloc(64, point_table_buf_size<T>(num_points));
 }
 
-
 class Pippenger {
-public:
+  public:
     Pippenger(uint8_t const* points, size_t num_points);
 
     Pippenger(std::string const& path, size_t num_points);
@@ -45,10 +45,10 @@ public:
 
     size_t get_num_points() const { return num_points_; }
 
-private:
+  private:
     g1::affine_element* monomials_;
     size_t num_points_;
 };
 
-}
+} // namespace scalar_multiplication
 } // namespace barretenberg

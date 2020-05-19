@@ -1,7 +1,7 @@
-#include <stdlib/merkle_tree/leveldb_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include "get.hpp"
 #include "put.hpp"
+#include <stdlib/merkle_tree/leveldb_store.hpp>
+#include <stdlib/merkle_tree/leveldb_tree.hpp>
 
 using namespace plonk::stdlib::merkle_tree;
 
@@ -12,6 +12,7 @@ enum Command {
     PUT,
     COMMIT,
     ROLLBACK,
+    GETPATH,
 };
 
 class WorldStateDb {
@@ -27,7 +28,8 @@ class WorldStateDb {
         std::cerr << "Nullifier root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
     }
 
-    void write_metadata(std::ostream& os) {
+    void write_metadata(std::ostream& os)
+    {
         write(os, data_tree_.root());
         write(os, nullifier_tree_.root());
         write(os, data_tree_.size());
@@ -38,34 +40,46 @@ class WorldStateDb {
     {
         GetRequest get_request;
         read(is, get_request);
-        std::cerr << get_request << std::endl;
+        // std::cerr << get_request << std::endl;
         std::vector<uint8_t> r = trees_[get_request.tree_id]->get_element(get_request.index);
         GetResponse get_response;
         std::copy(r.begin(), r.end(), get_response.value.begin());
         write(os, get_response);
     }
 
+    void get_path(std::istream& is, std::ostream& os)
+    {
+        GetRequest get_request;
+        read(is, get_request);
+        // std::cerr << get_request << std::endl;
+        auto tree = trees_[get_request.tree_id];
+        auto path = tree->get_hash_path(get_request.index);
+        write(os, path);
+    }
+
     void put(std::istream& is, std::ostream& os)
     {
         PutRequest put_request;
         read(is, put_request);
-        std::cerr << put_request << std::endl;
+        // std::cerr << put_request << std::endl;
         PutResponse put_response;
         put_response.root = trees_[put_request.tree_id]->update_element(
             put_request.index, { put_request.value.begin(), put_request.value.end() });
         write(os, put_response);
     }
 
-    void commit(std::ostream& os) {
-        std::cerr << "COMMIT" << std::endl;
+    void commit(std::ostream& os)
+    {
+        // std::cerr << "COMMIT" << std::endl;
         store_.commit();
-        write(os, uint8_t(1));
+        write_metadata(os);
     }
 
-    void rollback(std::ostream& os) {
-        std::cerr << "ROLLBACK" << std::endl;
+    void rollback(std::ostream& os)
+    {
+        // std::cerr << "ROLLBACK" << std::endl;
         store_.rollback();
-        write(os, uint8_t(1));
+        write_metadata(os);
     }
 
   private:
@@ -102,6 +116,9 @@ int main(int argc, char** argv)
         switch (command) {
         case GET:
             world_state_db.get(std::cin, std::cout);
+            break;
+        case GETPATH:
+            world_state_db.get_path(std::cin, std::cout);
             break;
         case PUT:
             world_state_db.put(std::cin, std::cout);

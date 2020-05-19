@@ -1,9 +1,9 @@
 #include <chrono>
 #include <common/assert.hpp>
 #include <cstdlib>
-#include <polynomials/polynomial_arithmetic.hpp>
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <polynomials/polynomial_arithmetic.hpp>
 
 //#include <valgrind/callgrind.h>
 // CALLGRIND_START_INSTRUMENTATION;

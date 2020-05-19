@@ -1,13 +1,13 @@
 #include "../../tx/user_context.hpp"
 #include "c_bind.h"
 #include "standard_example.hpp"
-#include <common/streams.hpp>
 #include <common/log.hpp>
+#include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <fstream>
 #include <gtest/gtest.h>
-#include <srs/io.hpp>
 #include <plonk/reference_string/pippenger_reference_string.hpp>
+#include <srs/io.hpp>
 
 using namespace barretenberg;
 using namespace rollup::client_proofs::standard_example;

@@ -3,10 +3,10 @@
 #include "join_split.hpp"
 #include "sign_notes.hpp"
 #include <common/streams.hpp>
+#include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
-#include <common/test.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib;
@@ -39,7 +39,8 @@ class client_proofs_join_split : public ::testing::Test {
         user = rollup::tx::create_user_context();
     }
 
-    void preload_two_notes() {
+    void preload_two_notes()
+    {
         tx_note note1 = { user.public_key, 100, user.note_secret };
         tx_note note2 = { user.public_key, 50, user.note_secret };
 
@@ -293,7 +294,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_wrong_signature_fails)
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                { pk, grumpkin::g1::one * pk });
+                              { pk, grumpkin::g1::one * pk });
 
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();

@@ -1,8 +1,8 @@
 #pragma once
 #include <array>
+#include <common/assert.hpp>
 #include <common/inline.hpp>
 #include <common/serialize.hpp>
-#include <common/assert.hpp>
 #include <cstdint>
 #include <iostream>
 #include <numeric/random/engine.hpp>
@@ -175,20 +175,11 @@ template <class Params> struct alignas(32) field {
 
     static constexpr field get_root_of_unity(const size_t degree) noexcept;
 
-    static void serialize_to_buffer(const field& value, uint8_t* buffer)
-    {
-        write(buffer, value);
-    }
+    static void serialize_to_buffer(const field& value, uint8_t* buffer) { write(buffer, value); }
 
-    static field serialize_from_buffer(const uint8_t* buffer)
-    {
-        return from_buffer<field>(buffer);
-    }
+    static field serialize_from_buffer(const uint8_t* buffer) { return from_buffer<field>(buffer); }
 
-    inline std::vector<uint8_t> to_buffer() const
-    {
-        return ::to_buffer(*this);
-    }
+    inline std::vector<uint8_t> to_buffer() const { return ::to_buffer(*this); }
 
     struct wide_array {
         uint64_t data[8];
@@ -433,9 +424,9 @@ template <class Params> struct alignas(32) field {
 #endif
 };
 
-template <class Params>
-void read(uint8_t const*& it, field<Params>& value) {
-    field<Params> result{0, 0, 0, 0};
+template <typename B, typename Params> void read(B& it, field<Params>& value)
+{
+    field<Params> result{ 0, 0, 0, 0 };
     ::read(it, result.data[3]);
     ::read(it, result.data[2]);
     ::read(it, result.data[1]);
@@ -443,8 +434,8 @@ void read(uint8_t const*& it, field<Params>& value) {
     value = result.to_montgomery_form();
 }
 
-template <typename B, class Params>
-void write(B& buf, field<Params> const& value) {
+template <typename B, typename Params> void write(B& buf, field<Params> const& value)
+{
     const field input = value.from_montgomery_form();
     ::write(buf, input.data[3]);
     ::write(buf, input.data[2]);
