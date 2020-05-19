@@ -16,6 +16,7 @@ template <typename Tree>
 rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
                         Tree& data_tree,
                         Tree& null_tree,
+                        Tree& root_tree,
                         size_t rollup_size,
                         std::vector<uint8_t> padding_proof)
 {
@@ -28,6 +29,7 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
     auto old_data_root = data_tree.root();
     auto old_data_path = data_tree.get_hash_path(data_start_index);
 
+    std::vector<fr_hash_path> old_root_paths;
     std::vector<uint128_t> nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
 
@@ -41,6 +43,9 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
         data_tree.update_element(data_start_index + i * 2 + 1, data_value2);
         rollup_tree.update_element(i * 2, data_value1);
         rollup_tree.update_element(i * 2 + 1, data_value2);
+
+        auto data_root_index = from_buffer<uint128_t>(proof_data, 6 * 32 + 16);
+        old_root_paths.push_back(root_tree.get_hash_path(data_root_index));
 
         nullifier_indicies.push_back(struct_data.nullifier1);
         nullifier_indicies.push_back(struct_data.nullifier2);
@@ -77,6 +82,8 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
         new_null_roots,
         old_null_paths,
         new_null_paths,
+        root_tree.root(),
+        old_root_paths,
     };
 
     // Add padding data if necessary.
@@ -84,6 +91,8 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
     rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
     rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
     rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
+    auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element()));
+    rollup.old_root_paths.resize(rollup_size * 2, gibberish_null_path);
 
     return rollup;
 }

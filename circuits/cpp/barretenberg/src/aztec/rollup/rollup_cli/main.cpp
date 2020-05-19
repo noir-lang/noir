@@ -23,6 +23,7 @@ int main(int argc, char** argv)
     auto inner_circuit_data = compute_join_split_circuit_data(srs_path);
     auto circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, srs_path);
     auto noop_proof = create_noop_join_split_proof(inner_circuit_data);
+    auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element()));
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
 
@@ -50,6 +51,7 @@ int main(int argc, char** argv)
             rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
             rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
             rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
+            rollup.old_root_paths.resize(rollup_size * 2, gibberish_null_path);
         }
 
         Timer timer;

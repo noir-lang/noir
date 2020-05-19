@@ -21,19 +21,22 @@ class WorldStateDb {
         : store_(db_path)
         , data_tree_(store_, 32, 0)
         , nullifier_tree_(store_, 128, 1)
-        , trees_({ &data_tree_, &nullifier_tree_ })
+        , root_tree_(store_, 128, 2)
+        , trees_({ &data_tree_, &nullifier_tree_, &root_tree_ })
     {
-
         std::cerr << "DB root: " << data_tree_.root() << " size: " << data_tree_.size() << std::endl;
         std::cerr << "Nullifier root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
+        std::cerr << "Root root: " << root_tree_.root() << " size: " << root_tree_.size() << std::endl;
     }
 
     void write_metadata(std::ostream& os)
     {
         write(os, data_tree_.root());
         write(os, nullifier_tree_.root());
+        write(os, root_tree_.root());
         write(os, data_tree_.size());
         write(os, nullifier_tree_.size());
+        write(os, root_tree_.size());
     }
 
     void get(std::istream& is, std::ostream& os)
@@ -86,7 +89,8 @@ class WorldStateDb {
     LevelDbStore store_;
     LevelDbTree data_tree_;
     LevelDbTree nullifier_tree_;
-    std::array<LevelDbTree*, 2> trees_;
+    LevelDbTree root_tree_;
+    std::array<LevelDbTree*, 3> trees_;
 };
 
 int main(int argc, char** argv)

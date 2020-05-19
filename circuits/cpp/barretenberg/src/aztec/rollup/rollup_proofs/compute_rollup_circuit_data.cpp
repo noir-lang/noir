@@ -35,6 +35,8 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         std::vector(rollup_size * 2, fr::random_element()),
         std::vector(rollup_size * 2, gibberish_null_path),
         std::vector(rollup_size * 2, gibberish_null_path),
+        fr::random_element(),
+        std::vector(rollup_size * 2, gibberish_null_path),
     };
 
     rollup_circuit(composer, rollup, inner.verification_key, rollup_size);

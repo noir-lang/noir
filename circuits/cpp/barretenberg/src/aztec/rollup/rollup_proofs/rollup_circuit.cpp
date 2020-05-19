@@ -43,6 +43,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
     auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
     auto new_null_root = field_ct(public_witness_ct(&composer, rollup.new_null_roots.back()));
+    auto old_root_root = field_ct(public_witness_ct(&composer, rollup.old_root_root));
     auto num_txs = uint32_ct(public_witness_ct(&composer, rollup.num_txs));
     auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
 
@@ -50,6 +51,9 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto new_null_indicies = std::vector<field_ct>();
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
     std::vector<recursion_output<field_ct, group_ct>> recursion_outputs(rollup_size);
+
+    auto non_empty_leaf_value = byte_array_ct(&composer, 64);
+    non_empty_leaf_value.set_bit(511, 1);
 
     for (size_t i = 0; i < rollup_size; ++i) {
         // Verify the inner proof.
@@ -67,9 +71,15 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
             byte_array_ct(&composer).write(public_inputs[4] * is_real).write(public_inputs[5] * is_real));
 
         // Check this proofs old data root is equal to the one we've been given (unless a padding entry).
-        field_ct root_comparator = (public_inputs[6] * is_real) + (old_data_root * !is_real);
-        composer.assert_equal(old_data_root.witness_index, root_comparator.witness_index);
-        // std::cerr << "old_data_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
+        // field_ct root_comparator = (public_inputs[6] * is_real) + (old_data_root * !is_real);
+        // composer.assert_equal(old_data_root.witness_index, root_comparator.witness_index);
+        byte_array_ct data_root_index(&composer);
+        data_root_index.write(static_cast<byte_array_ct>(public_inputs[6]));
+        auto witness_hash_path = create_witness_hash_path(composer, rollup.old_root_paths[i]);
+        bool_ct exists = check_membership(
+            composer, old_root_root, witness_hash_path, non_empty_leaf_value, data_root_index.slice(16, 16));
+        composer.assert_equal(is_real.witness_index, exists.witness_index);
+        // std::cout << "old_data_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
 
         new_null_indicies.push_back(public_inputs[7]);
         new_null_indicies.push_back(public_inputs[8]);
