@@ -12,7 +12,9 @@ using namespace plonk::stdlib::types::turbo;
 namespace {
 point add_points(const point& first, const point& second)
 {
-    field_ct lambda = (second.y - first.y) / (second.x - first.x);
+    field_ct lhs = second.y - first.y;
+    field_ct rhs = second.x - first.x;
+    field_ct lambda = lhs / rhs;
     field_ct x_3 = lambda * lambda - second.x - first.x;
     field_ct y_3 = lambda * (first.x - x_3) - first.y;
     return { x_3, y_3 };
