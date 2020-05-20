@@ -21,7 +21,7 @@ int main(int argc, char** argv)
     MemoryStore store;
     MerkleTree<MemoryStore> data_tree(store, 32, 0);
     MerkleTree<MemoryStore> null_tree(store, 128, 1);
-    MerkleTree<MemoryStore> root_tree(store, 128, 2);
+    MerkleTree<MemoryStore> root_tree(store, 28, 2);
 
     std::vector<std::string> args(argv, argv + argc);
 
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
         proofs[i] = create_noop_join_split_proof(join_split_circuit_data, data_tree.root());
     }
     auto noop_proof = create_noop_join_split_proof(join_split_circuit_data);
-    rollup_tx rollup = create_rollup(proofs, data_tree, null_tree, root_tree, rollup_size, noop_proof);
+    rollup_tx rollup = create_rollup(0, proofs, data_tree, null_tree, root_tree, rollup_size, noop_proof);
 
     write(std::cout, rollup);
 

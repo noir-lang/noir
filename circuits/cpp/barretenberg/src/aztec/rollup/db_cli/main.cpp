@@ -21,12 +21,12 @@ class WorldStateDb {
         : store_(db_path)
         , data_tree_(store_, 32, 0)
         , nullifier_tree_(store_, 128, 1)
-        , root_tree_(store_, 128, 2)
+        , root_tree_(store_, 28, 2)
         , trees_({ &data_tree_, &nullifier_tree_, &root_tree_ })
     {
         std::cerr << "DB root: " << data_tree_.root() << " size: " << data_tree_.size() << std::endl;
         std::cerr << "Nullifier root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
-        std::cerr << "Root root: " << root_tree_.root() << " size: " << root_tree_.size() << std::endl;
+        std::cerr << "DataRoots root: " << root_tree_.root() << " size: " << root_tree_.size() << std::endl;
     }
 
     void write_metadata(std::ostream& os)

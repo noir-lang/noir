@@ -8,15 +8,6 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
 
-fr zero_hash_at_height(size_t height)
-{
-    auto current = hash_value_native(std::vector<uint8_t>(64, 0));
-    for (size_t i = 0; i < height; ++i) {
-        current = compress_native({ current, current });
-    }
-    return current;
-}
-
 void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_ct> const& public_inputs)
 {
     composer.set_public_input(public_inputs[0].witness_index);
@@ -35,12 +26,13 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     std::shared_ptr<waffle::verification_key> const& inner_verification_key,
     size_t rollup_size)
 {
+    auto rollup_id = field_ct(public_witness_ct(&composer, rollup.rollup_id));
     auto data_start_index = field_ct(public_witness_ct(&composer, rollup.data_start_index));
     auto old_data_root = field_ct(public_witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
     auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
     public_witness_ct(&composer, rollup.new_null_roots.back());
-    auto old_root_root = field_ct(public_witness_ct(&composer, rollup.old_root_root));
+    auto data_roots_root = field_ct(public_witness_ct(&composer, rollup.data_roots_root));
     auto num_txs = uint32_ct(public_witness_ct(&composer, rollup.num_txs));
     auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
 
@@ -48,9 +40,6 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto new_null_indicies = std::vector<field_ct>();
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
     std::vector<recursion_output<field_ct, group_ct>> recursion_outputs(rollup_size);
-
-    auto non_empty_leaf_value = byte_array_ct(&composer, 64);
-    non_empty_leaf_value.set_bit(511, 1);
 
     for (size_t i = 0; i < rollup_size; ++i) {
         // Verify the inner proof.
@@ -70,13 +59,16 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
         // Check this proofs old data root is equal to the one we've been given (unless a padding entry).
         // field_ct root_comparator = (public_inputs[6] * is_real) + (old_data_root * !is_real);
         // composer.assert_equal(old_data_root.witness_index, root_comparator.witness_index);
-        byte_array_ct data_root_index(&composer);
-        data_root_index.write(static_cast<byte_array_ct>(public_inputs[6]));
-        auto witness_hash_path = create_witness_hash_path(composer, rollup.old_root_paths[i]);
-        bool_ct exists = check_membership(
-            composer, old_root_root, witness_hash_path, non_empty_leaf_value, data_root_index.slice(16, 16));
-        composer.assert_equal(is_real.witness_index, exists.witness_index);
         // std::cout << "old_data_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
+        auto witness_hash_path = create_witness_hash_path(composer, rollup.data_roots_paths[i]);
+        auto data_root = public_inputs[6];
+        auto data_root_index = uint32_ct(witness_ct(&composer, rollup.data_roots_indicies[i]));
+        bool_ct valid =
+            data_root_index <= rollup_id &&
+            check_membership(
+                composer, data_roots_root, witness_hash_path, byte_array_ct(data_root), byte_array_ct(data_root_index));
+        composer.assert_equal(is_real.witness_index, valid.witness_index);
+        // std::cout << "data_roots_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
 
         new_null_indicies.push_back(public_inputs[7]);
         new_null_indicies.push_back(public_inputs[8]);

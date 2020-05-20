@@ -18,10 +18,10 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     rollup_proofs_rollup_circuit()
         : data_tree(store, 32, 0)
         , null_tree(store, 128, 1)
-        , root_tree(store, 128, 2)
+        , root_tree(store, 28, 2)
         , user(rollup::tx::create_user_context())
     {
-        update_root_tree_with_data_root();
+        update_root_tree_with_data_root(0);
     }
 
     static void SetUpTestCase()
@@ -44,14 +44,10 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         return index;
     }
 
-    void update_root_tree_with_data_root()
+    void update_root_tree_with_data_root(size_t index)
     {
-        auto data_root = data_tree.root();
-        auto rootBuf = data_root.to_buffer();
-        auto index = from_buffer<uint128_t>(rootBuf, 16);
-        auto non_empty_value = std::vector<uint8_t>(64, 0);
-        non_empty_value[63] = 1;
-        root_tree.update_element(index, non_empty_value);
+        auto data_root = to_buffer(data_tree.root());
+        root_tree.update_element(index, data_root);
     }
 
     std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
@@ -121,6 +117,20 @@ std::vector<uint8_t> rollup_proofs_rollup_circuit::padding_proof;
 std::streambuf* rollup_proofs_rollup_circuit::old;
 std::stringstream rollup_proofs_rollup_circuit::swallow;
 
+TEST_F(rollup_proofs_rollup_circuit, test_1_deposit_proof_in_1_rollup)
+{
+    size_t rollup_size = 1;
+    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
+
+    auto join_split_proof = create_noop_join_split_proof(inner_circuit_data, data_tree.root());
+
+    auto rollup = create_rollup(0, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+
+    auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
+
+    EXPECT_TRUE(verified);
+}
+
 TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup)
 {
     size_t rollup_size = 1;
@@ -128,10 +138,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
@@ -145,18 +155,18 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup_twice)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_TRUE(verified);
 
     // Two notes were added to data tree in create_rollup. Add the new data root to root tree.
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 70, 80 }, { 90, 60 });
-    auto rollup2 = create_rollup({ join_split_proof2 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup2 = create_rollup(1, { join_split_proof2 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     verified = verify_rollup_logic(rollup2, rollup_circuit_data);
 
@@ -168,14 +178,21 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_with_old_root_in_1_rollup)
     size_t rollup_size = 1;
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
 
+    // Insert rollup 0.
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
+
+    // Create proof which references root after rollup 0.
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
+
+    // Insert rollup 1.
     append_note(30);
     append_note(40);
-    update_root_tree_with_data_root();
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    update_root_tree_with_data_root(2);
+
+    // Create rollup 2 with old join-split.
+    auto rollup = create_rollup(2, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     join_split_data data(join_split_proof);
     EXPECT_TRUE(data.merkle_root != rollup.old_data_root);
@@ -192,9 +209,9 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_with_invalid_old_root_fails)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     rollup.old_null_root = fr::random_element();
 
@@ -209,10 +226,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_bad_rollup_root_fails)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     rollup.rollup_root = fr::random_element();
 
@@ -228,10 +245,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_incorrect_data_start_index_fails)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     rollup.data_start_index = 0;
 
@@ -247,10 +264,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_bad_join_split_proof_fails)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 0 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
@@ -264,12 +281,12 @@ TEST_F(rollup_proofs_rollup_circuit, test_reuse_spent_note_fails)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
     join_split_data join_split_data(join_split_proof);
     null_tree.update_element(join_split_data.nullifier1, { 64, 1 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
@@ -283,10 +300,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_incorrect_new_data_root_fails)
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     rollup.new_data_root = fr::random_element();
 
@@ -305,10 +322,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_2_rollup)
     append_note(50);
     append_note(80);
     append_note(60);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
@@ -324,12 +341,12 @@ TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup)
     append_note(50);
     append_note(80);
     append_note(60);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
@@ -343,10 +360,10 @@ TEST_F(rollup_proofs_rollup_circuit, test_insertion_of_subtree_at_non_empty_loca
 
     append_note(100);
     append_note(50);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
 
-    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
@@ -362,12 +379,12 @@ TEST_F(rollup_proofs_rollup_circuit, test_same_input_note_in_two_proofs_fails)
     append_note(50);
     append_note(80);
     append_note(60);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
     auto join_split_proof2 = create_join_split_proof({ 2, 1 }, { 80, 50 }, { 70, 60 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
     auto verified = verify_rollup_logic(rollup, rollup_circuit_data);
@@ -383,12 +400,12 @@ TEST_F(rollup_proofs_rollup_circuit, test_nullifier_hash_path_consistency)
     append_note(50);
     append_note(80);
     append_note(60);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     std::swap(rollup.new_null_roots[2], rollup.new_null_roots[3]);
     std::swap(rollup.new_null_paths[2], rollup.new_null_paths[3]);
@@ -408,14 +425,12 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     append_note(50);
     append_note(80);
     append_note(60);
-    update_root_tree_with_data_root();
+    update_root_tree_with_data_root(1);
     auto join_split_proof1 = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 50 }, 30, 60);
-    update_root_tree_with_data_root();
     auto join_split_proof2 = create_join_split_proof({ 2, 3 }, { 80, 60 }, { 70, 70 });
-    update_root_tree_with_data_root();
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(1, txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true);
     auto result = verify_rollup(rollup, rollup_circuit_data);
@@ -428,7 +443,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
     EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
-    EXPECT_EQ(rollup_data.old_root_root, rollup.old_root_root);
+    EXPECT_EQ(rollup_data.data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.num_txs, txs.size());
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
@@ -557,8 +572,7 @@ TEST_F(rollup_proofs_rollup_circuit, test_2_hardcoded_proofs_in_2_1_rollups)
         0x17, 0x48, 0x32, 0xad, 0x2a, 0x44, 0xf1, 0x28, 0x53, 0x7f
     };
 
-    auto rollup = create_rollup({ proof1 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
-    update_root_tree_with_data_root();
+    auto rollup = create_rollup(0, { proof1 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
     bool verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_TRUE(verified);
@@ -669,7 +683,7 @@ TEST_F(rollup_proofs_rollup_circuit, test_2_hardcoded_proofs_in_2_1_rollups)
     join_split_data data(proof2);
     EXPECT_EQ(data.merkle_root, data_tree.root());
 
-    rollup = create_rollup({ proof2 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    rollup = create_rollup(1, { proof2 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
     verified = verify_rollup_logic(rollup, rollup_circuit_data);
 
     EXPECT_TRUE(verified);

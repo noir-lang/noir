@@ -44,6 +44,15 @@ inline fr get_hash_path_root(fr_hash_path const& input)
     return compress_native({ input[input.size() - 1].first, input[input.size() - 1].second });
 }
 
+inline fr zero_hash_at_height(size_t height)
+{
+    auto current = hash_value_native(std::vector<uint8_t>(64, 0));
+    for (size_t i = 0; i < height; ++i) {
+        current = compress_native({ current, current });
+    }
+    return current;
+}
+
 } // namespace merkle_tree
 } // namespace stdlib
 } // namespace plonk

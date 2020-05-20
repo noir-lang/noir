@@ -20,6 +20,7 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
     // Junk data required just to create keys.
     auto gibberish_data_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
     auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
 
     rollup_tx rollup = {
         0,
@@ -36,7 +37,8 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         std::vector(rollup_size * 2, gibberish_null_path),
         std::vector(rollup_size * 2, gibberish_null_path),
         fr::random_element(),
-        std::vector(rollup_size * 2, gibberish_null_path),
+        std::vector(rollup_size * 2, gibberish_roots_path),
+        std::vector(rollup_size * 2, uint32_t(0)),
     };
 
     rollup_circuit(composer, rollup, inner.verification_key, rollup_size);
