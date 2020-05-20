@@ -74,7 +74,7 @@ class PLookupComposer : public ComposerBase {
                                                                         const uint32_t key_index);
 
     void validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> keys);
-    void ensure_nonzero_selectors(const size_t subgroup_size);
+    void ensure_nonzero_selectors(const size_t subgroup_size) override;
 
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
@@ -89,6 +89,9 @@ class PLookupComposer : public ComposerBase {
     void create_poly_gate(const poly_triple& in) override;
     void create_fixed_group_add_gate(const fixed_group_add_quad& in);
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
+
+    void create_montgomery_ladder_gate(const montgomery_ladder_gate& in, const bool fuse_into_previous_gate = false);
+
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
     std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits);

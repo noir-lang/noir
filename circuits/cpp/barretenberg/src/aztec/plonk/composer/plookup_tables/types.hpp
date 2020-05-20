@@ -28,6 +28,26 @@ enum PLookupBasicTableId {
     SHA256_BASE16_ROTATE6,
     SHA256_BASE16_ROTATE7,
     SHA256_BASE16_ROTATE8,
+    PEDERSEN_1_10,
+    PEDERSEN_1_9,
+    PEDERSEN_1_8,
+    PEDERSEN_1_7,
+    PEDERSEN_1_6,
+    PEDERSEN_1_5,
+    PEDERSEN_1_4,
+    PEDERSEN_1_3,
+    PEDERSEN_1_2,
+    PEDERSEN_1_1,
+    PEDERSEN_2_10,
+    PEDERSEN_2_9,
+    PEDERSEN_2_8,
+    PEDERSEN_2_7,
+    PEDERSEN_2_6,
+    PEDERSEN_2_5,
+    PEDERSEN_2_4,
+    PEDERSEN_2_3,
+    PEDERSEN_2_2,
+    PEDERSEN_2_1,
 };
 
 enum PLookupMultiTableId {
@@ -40,7 +60,9 @@ enum PLookupMultiTableId {
     AES_NORMALIZE = 6,
     AES_INPUT = 7,
     AES_SBOX = 8,
-    NUM_MULTI_TABES = 9,
+    PEDERSEN_1 = 9,
+    PEDERSEN_2 = 10,
+    NUM_MULTI_TABES = 11,
 };
 
 struct PLookupMultiTable {
@@ -113,9 +135,70 @@ struct PLookupMultiTable {
     PLookupMultiTable& operator=(PLookupMultiTable&& other) = default;
 };
 
+// struct PLookupLargeKeyTable {
+//     struct KeyEntry {
+//         uint256_t key;
+//         std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
+//         bool operator<(const KeyEntry& other) const { return key < other.key; }
+
+//         std::array<barretenberg::fr, 3> to_sorted_list_components(const bool use_two_keys) const
+//         {
+//             return {
+//                 key[0],
+//                 value[0],
+//                 value[1],
+//             };
+//         }
+//     };
+
+//     PLookupBasicTableId id;
+//     size_t table_index;
+//     size_t size;
+//     bool use_twin_keys;
+
+//     barretenberg::fr column_1_step_size = barretenberg::fr(0);
+//     barretenberg::fr column_2_step_size = barretenberg::fr(0);
+//     barretenberg::fr column_3_step_size = barretenberg::fr(0);
+//     std::vector<barretenberg::fr> column_1;
+//     std::vector<barretenberg::fr> column_3;
+//     std::vector<barretenberg::fr> column_2;
+//     std::vector<KeyEntry> lookup_gates;
+
+//     std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
+// };
+
+// struct PLookupFatKeyTable {
+//     struct KeyEntry {
+//         barretenberg::fr key;
+//         std::array<barretenberg::fr, 2> values{ 0, 0 };
+//         bool operator<(const KeyEntry& other) const
+//         {
+//             return (key.from_montgomery_form() < other.key.from_montgomery_form());
+//         }
+
+//         std::array<barretenberg::fr, 3> to_sorted_list_components() const { return { key, values[0], values[0] }; }
+//     }
+
+//     PLookupBasicTableId id;
+//     size_t table_index;
+//     size_t size;
+//     bool use_twin_keys;
+
+//     barretenberg::fr column_1_step_size = barretenberg::fr(0);
+//     barretenberg::fr column_2_step_size = barretenberg::fr(0);
+//     barretenberg::fr column_3_step_size = barretenberg::fr(0);
+//     std::vector<barretenberg::fr> column_1;
+//     std::vector<barretenberg::fr> column_3;
+//     std::vector<barretenberg::fr> column_2;
+//     std::vector<KeyEntry> lookup_gates;
+
+//     std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
+
+// }
+
 struct PLookupBasicTable {
     struct KeyEntry {
-        std::array<uint64_t, 2> key{ 0, 0 };
+        std::array<uint256_t, 2> key{ 0, 0 };
         std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
         bool operator<(const KeyEntry& other) const
         {

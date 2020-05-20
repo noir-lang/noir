@@ -678,3 +678,44 @@ TEST(plookup_composer, test_no_lookup_proof)
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }
+
+TEST(plookup_composer, test_elliptic_gate)
+{
+    typedef grumpkin::g1::affine_element affine_element;
+    typedef grumpkin::g1::element element;
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    const affine_element p1 = crypto::pedersen::get_generator(0);
+    const affine_element p2 = crypto::pedersen::get_generator(1);
+    const affine_element p3(element(p1).dbl());
+    const affine_element p4(element(p2) + element(p3));
+
+    const uint32_t x1 = composer.add_variable(p1.x);
+    const uint32_t y1 = composer.add_variable(p1.y);
+    const uint32_t x2 = composer.add_variable(p2.x);
+    const uint32_t y2 = composer.add_variable(p2.y);
+    const uint32_t x3 = composer.add_variable(p3.x);
+    const uint32_t y3 = composer.add_variable(p3.y);
+    const uint32_t x4 = composer.add_variable(p4.x);
+    const uint32_t y4 = composer.add_variable(p4.y);
+
+
+    const uint32_t accumulator_in = composer.zero_idx;
+    const uint32_t accumulator_out = composer.zero_idx;
+
+    const waffle::montgomery_ladder_gate gate{ x1, y1, x2, y2, x3, y3, x4, y4, accumulator_in, accumulator_out };
+
+    composer.create_montgomery_ladder_gate(gate);
+
+    composer.create_dummy_gate();
+    composer.create_dummy_gate();
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}

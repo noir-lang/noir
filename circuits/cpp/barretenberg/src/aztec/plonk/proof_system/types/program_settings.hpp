@@ -9,6 +9,7 @@
 #include "../widgets/transition_widgets/turbo_fixed_base_widget.hpp"
 #include "../widgets/transition_widgets/turbo_logic_widget.hpp"
 #include "../widgets/transition_widgets/turbo_range_widget.hpp"
+#include "../widgets/transition_widgets/elliptic_widget.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
 #include "../widgets/random_widgets/permutation_widget.hpp"
 #include "../widgets/random_widgets/plookup_widget.hpp"
@@ -202,6 +203,7 @@ class plookup_verifier_settings : public plookup_settings {
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
     typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
+    typedef VerifierEllipticWidget<fr, g1::affine_element, Transcript, plookup_settings> EllipticWidget;
 
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
@@ -224,6 +226,8 @@ class plookup_verifier_settings : public plookup_settings {
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = EllipticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         return updated_alpha;
     }
@@ -245,6 +249,8 @@ class plookup_verifier_settings : public plookup_settings {
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = EllipticWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
         return updated_alpha_base;
@@ -321,6 +327,7 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
     typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
+    typedef VerifierEllipticWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> EllipticWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
@@ -343,6 +350,8 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = EllipticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
 
         return updated_alpha;
     }
@@ -364,6 +373,8 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = EllipticWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
         return updated_alpha_base;

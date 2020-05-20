@@ -90,9 +90,23 @@ struct accumulator_triple {
     std::vector<uint32_t> out;
 };
 
+struct montgomery_ladder_gate {
+    uint32_t x1;
+    uint32_t y1;
+    uint32_t x2;
+    uint32_t y2;
+    uint32_t x3;
+    uint32_t y3;
+    uint32_t x4;
+    uint32_t y4;
+    uint32_t accumulator_in;
+    uint32_t accumulator_out;
+};
+
 class ComposerBase {
   public:
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
+    static constexpr size_t NUM_RESERVED_GATES = 0;
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
     struct cycle_node {
@@ -228,6 +242,7 @@ class ComposerBase {
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
+
     virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_circuit_size = 0);
     virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;

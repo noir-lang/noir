@@ -367,6 +367,90 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     ++n;
 }
 
+void PLookupComposer::create_montgomery_ladder_gate(const montgomery_ladder_gate& in,
+                                                    const bool fuse_into_previous_gate)
+{
+    /**
+     * | 1  | 2  | 3  | 4  |
+     * | a1 | a2 | x1 | y1 |
+     * | x2 | y2 | x3 | y3 |
+     * | -- | -- | x4 | y4 |
+     *
+     **/
+
+    PLOOKUP_SELECTOR_REFS
+
+    if (fuse_into_previous_gate) {
+        ASSERT(w_l[n - 1] == zero_idx);
+        ASSERT(w_r[n - 1] == zero_idx);
+        ASSERT(w_o[n - 1] == in.x1);
+        ASSERT(w_4[n - 1] == in.y1);
+
+        w_l[n - 1] = in.accumulator_in;
+        w_r[n - 1] = in.accumulator_out;
+    } else {
+        w_l.emplace_back(in.accumulator_in);
+        w_r.emplace_back(in.accumulator_out);
+        w_o.emplace_back(in.x1);
+        w_4.emplace_back(in.y1);
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+        q_elliptic.emplace_back(0);
+        ++n;
+    }
+
+    w_l.emplace_back(in.x2);
+    w_r.emplace_back(in.y2);
+    w_o.emplace_back(in.x3);
+    w_4.emplace_back(in.y3);
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(1);
+    ++n;
+
+    w_l.emplace_back(zero_idx);
+    w_r.emplace_back(zero_idx);
+    w_o.emplace_back(in.x4);
+    w_4.emplace_back(in.y4);
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
+    ++n;
+}
+
 void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     PLOOKUP_SELECTOR_REFS
@@ -758,7 +842,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    create_dummy_gate();
+
     ASSERT(n == q_m.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
@@ -954,14 +1038,7 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
         w_o.emplace_back(zero_idx);
         w_4.emplace_back(zero_idx);
     }
-    std::cout << w_l[subgroup_size - 2] << std::endl;
-    std::cout << w_r[subgroup_size - 2] << std::endl;
-    std::cout << w_o[subgroup_size - 2] << std::endl;
-    std::cout << w_4[subgroup_size - 2] << std::endl;
-    std::cout << w_l[subgroup_size - 1] << std::endl;
-    std::cout << w_r[subgroup_size - 1] << std::endl;
-    std::cout << w_o[subgroup_size - 1] << std::endl;
-    std::cout << w_4[subgroup_size - 1] << std::endl;
+
     polynomial poly_w_1(subgroup_size);
     polynomial poly_w_2(subgroup_size);
     polynomial poly_w_3(subgroup_size);
@@ -1251,16 +1328,16 @@ uint32_t PLookupComposer::read_from_table(const PLookupBasicTableId id,
         second_key_idx == UINT32_MAX ? zero_idx : second_key_idx,
     };
 
-    const std::array<uint64_t, 2> keys{
-        variables[key_indices[0]].from_montgomery_form().data[0],
-        variables[key_indices[1]].from_montgomery_form().data[0],
+    const std::array<uint256_t, 2> keys{
+        variables[key_indices[0]],
+        variables[key_indices[1]],
     };
 
     PLookupBasicTable& table = get_table(id);
 
-    const auto values = table.get_values_from_key(keys);
+    const auto values = table.get_values_from_key({ keys[0].data[0], keys[1].data[0] });
 
-    const uint32_t value_index = add_variable(table.get_values_from_key(keys)[0]);
+    const uint32_t value_index = add_variable(table.get_values_from_key({ keys[0].data[0], keys[1].data[0] })[0]);
 
     table.lookup_gates.push_back({ keys, values });
 
@@ -1310,7 +1387,7 @@ std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupBasicTable
         add_variable(table.get_values_from_key(keys)[1]),
     };
 
-    table.lookup_gates.push_back({ keys, values });
+    table.lookup_gates.push_back({ { keys[0], keys[1] }, values });
 
     q_lookup_type.emplace_back(1);
     q_lookup_index.emplace_back(fr(table.table_index));
@@ -1479,9 +1556,9 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupBas
     std::vector<std::array<uint64_t, 2>> keys;
     keys.reserve(key_indices.size());
 
-    std::array<uint64_t, 2> previous_key{
-        variables[key_indices[0][0]].from_montgomery_form().data[0],
-        variables[key_indices[0][1]].from_montgomery_form().data[0],
+    std::array<uint256_t, 2> previous_key{
+        variables[key_indices[0][0]],
+        variables[key_indices[0][1]],
     };
 
     const uint64_t step_1 = table.column_1_step_size.from_montgomery_form().data[0];
@@ -1491,8 +1568,8 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupBas
     lookup_values.resize(num_lookups);
 
     for (size_t i = 0; i < num_lookups; ++i) {
-        std::array<uint64_t, 2> difference_key{};
-        std::array<uint64_t, 2> key{};
+        std::array<uint256_t, 2> difference_key{};
+        std::array<uint256_t, 2> key{};
         fr value;
 
         if (i == num_lookups - 1) {
@@ -1500,8 +1577,8 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupBas
             key = previous_key;
         } else {
             difference_key = {
-                variables[key_indices[i + 1][0]].from_montgomery_form().data[0],
-                variables[key_indices[i + 1][1]].from_montgomery_form().data[0],
+                variables[key_indices[i + 1][0]],
+                variables[key_indices[i + 1][1]],
             };
             key = {
                 previous_key[0] - difference_key[0] * step_1,
@@ -1509,7 +1586,7 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupBas
             };
         }
 
-        value = table.get_values_from_key(key)[0];
+        value = table.get_values_from_key({ key[0].data[0], key[1].data[0] })[0];
         lookup_values[num_lookups - 1 - i] = (value);
 
         previous_key = difference_key;

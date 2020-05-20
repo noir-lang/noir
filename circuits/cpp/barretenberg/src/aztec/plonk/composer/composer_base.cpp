@@ -103,13 +103,10 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
 {
     const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
 
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
-    auto crs = crs_factory_->get_prover_crs(new_n);
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+
+    auto crs = crs_factory_->get_prover_crs(subgroup_size);
+    circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
@@ -132,20 +129,22 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         std::vector<barretenberg::fr>& coeffs = selectors[i];
         ASSERT(n == coeffs.size());
         ASSERT(n == coeffs.size());
-        for (size_t j = total_num_gates; j < new_n; ++j) {
+
+        for (size_t j = total_num_gates; j < subgroup_size - 1; ++j) {
             coeffs.emplace_back(fr::zero());
         }
-        polynomial poly(new_n);
+        coeffs.emplace_back(1); // ensure selectors are nonzero
+        polynomial poly(subgroup_size);
 
         for (size_t k = 0; k < public_inputs.size(); ++k) {
             poly[k] = fr::zero();
         }
-        for (size_t k = public_inputs.size(); k < new_n; ++k) {
+        for (size_t k = public_inputs.size(); k < subgroup_size - 1; ++k) {
             poly[k] = coeffs[k - public_inputs.size()];
         }
 
         poly.ifft(circuit_proving_key->small_domain);
-        polynomial poly_fft(poly, new_n * 4);
+        polynomial poly_fft(poly, subgroup_size * 4);
 
         if (use_mid_for_selectorfft[i]) {
 
@@ -168,28 +167,25 @@ template <class program_settings> std::shared_ptr<program_witness> ComposerBase:
     witness = std::make_shared<program_witness>();
 
     const size_t total_num_gates = n + public_inputs.size();
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
-    for (size_t i = total_num_gates; i < new_n; ++i) {
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+
+    for (size_t i = total_num_gates; i < subgroup_size; ++i) {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
         w_o.emplace_back(zero_idx);
     }
     if (program_settings::program_width > 3) {
-        for (size_t i = total_num_gates; i < new_n; ++i) {
+        for (size_t i = total_num_gates; i < subgroup_size; ++i) {
             w_4.emplace_back(zero_idx);
         }
     }
-    polynomial poly_w_1 = polynomial(new_n);
-    polynomial poly_w_2 = polynomial(new_n);
-    polynomial poly_w_3 = polynomial(new_n);
+    polynomial poly_w_1 = polynomial(subgroup_size);
+    polynomial poly_w_2 = polynomial(subgroup_size);
+    polynomial poly_w_3 = polynomial(subgroup_size);
     polynomial poly_w_4;
 
     if (program_settings::program_width > 3)
-        poly_w_4 = polynomial(new_n);
+        poly_w_4 = polynomial(subgroup_size);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         fr::__copy(get_variable(public_inputs[i]), poly_w_1[i]);
         fr::__copy(get_variable(public_inputs[i]), poly_w_2[i]);
@@ -197,7 +193,7 @@ template <class program_settings> std::shared_ptr<program_witness> ComposerBase:
         if (program_settings::program_width > 3)
             fr::__copy(fr::zero(), poly_w_4[i]);
     }
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
+    for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
         fr::__copy(get_variable(w_l[i - public_inputs.size()]), poly_w_1.at(i));
         fr::__copy(get_variable(w_r[i - public_inputs.size()]), poly_w_2.at(i));
         fr::__copy(get_variable(w_o[i - public_inputs.size()]), poly_w_3.at(i));
