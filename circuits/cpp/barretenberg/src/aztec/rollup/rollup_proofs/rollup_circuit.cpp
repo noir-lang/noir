@@ -1,9 +1,6 @@
 #include "rollup_circuit.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 namespace rollup {
 namespace rollup_proofs {
 
@@ -42,7 +39,7 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
     auto old_data_root = field_ct(public_witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
     auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
-    auto new_null_root = field_ct(public_witness_ct(&composer, rollup.new_null_roots.back()));
+    public_witness_ct(&composer, rollup.new_null_roots.back());
     auto old_root_root = field_ct(public_witness_ct(&composer, rollup.old_root_root));
     auto num_txs = uint32_ct(public_witness_ct(&composer, rollup.num_txs));
     auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
