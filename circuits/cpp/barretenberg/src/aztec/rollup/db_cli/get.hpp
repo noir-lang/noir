@@ -7,7 +7,7 @@ struct GetRequest {
 };
 
 struct GetResponse {
-    std::array<uint8_t, 64> value;
+    std::vector<uint8_t> value;
 };
 
 void read(std::istream& s, GetRequest& r)

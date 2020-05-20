@@ -60,15 +60,15 @@ std::vector<recursion_output<field_ct, group_ct>> rollup_circuit(
         // field_ct root_comparator = (public_inputs[6] * is_real) + (old_data_root * !is_real);
         // composer.assert_equal(old_data_root.witness_index, root_comparator.witness_index);
         // std::cout << "old_data_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
-        auto witness_hash_path = create_witness_hash_path(composer, rollup.data_roots_paths[i]);
         auto data_root = public_inputs[6];
+        auto data_roots_path = create_witness_hash_path(composer, rollup.data_roots_paths[i]);
         auto data_root_index = uint32_ct(witness_ct(&composer, rollup.data_roots_indicies[i]));
         bool_ct valid =
             data_root_index <= rollup_id &&
             check_membership(
-                composer, data_roots_root, witness_hash_path, byte_array_ct(data_root), byte_array_ct(data_root_index));
+                composer, data_roots_root, data_roots_path, byte_array_ct(data_root), byte_array_ct(data_root_index));
         composer.assert_equal(is_real.witness_index, valid.witness_index);
-        // std::cout << "data_roots_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
+        // std::cerr << "data_roots_root " << i << ": " << (composer.failed ? "Failed" : "OK") << std::endl;
 
         new_null_indicies.push_back(public_inputs[7]);
         new_null_indicies.push_back(public_inputs[8]);

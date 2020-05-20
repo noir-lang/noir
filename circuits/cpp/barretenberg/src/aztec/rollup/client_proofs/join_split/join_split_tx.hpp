@@ -25,18 +25,18 @@ struct join_split_tx {
 void read(uint8_t const*& it, join_split_tx& tx);
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx);
 
-// Optimisation of to_buffer that reserves full amount now for optimal efficiency.
-inline std::vector<uint8_t> to_buffer(join_split_tx const& tx)
-{
-    std::vector<uint8_t> buf;
-    buf.reserve(64 + (4 * 5) + 32 + (64 * 32 * 2) + (100 * 4) + 64);
-    write(buf, tx);
-    return buf;
-}
-
 bool operator==(join_split_tx const& lhs, join_split_tx const& rhs);
 std::ostream& operator<<(std::ostream& os, join_split_tx const& tx);
 
 } // namespace join_split
 } // namespace client_proofs
 } // namespace rollup
+
+// Optimisation of to_buffer that reserves full amount now for optimal efficiency.
+inline std::vector<uint8_t> to_buffer(rollup::client_proofs::join_split::join_split_tx const& tx)
+{
+    std::vector<uint8_t> buf;
+    buf.reserve(64 + (4 * 5) + 32 + (64 * 32 * 2) + (100 * 4) + 64);
+    write(buf, tx);
+    return buf;
+}

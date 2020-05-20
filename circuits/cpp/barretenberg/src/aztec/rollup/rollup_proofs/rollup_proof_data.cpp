@@ -8,6 +8,8 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
 {
     auto ptr = proof_data.data();
     ptr += 28;
+    ::read(ptr, rollup_id);
+    ptr += 28;
     ::read(ptr, data_start_index);
     read(ptr, old_data_root);
     read(ptr, new_data_root);

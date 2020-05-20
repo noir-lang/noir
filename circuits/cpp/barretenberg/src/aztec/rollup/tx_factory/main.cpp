@@ -26,16 +26,12 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() < 3) {
-        std::cout << "usage: " << args[0] << " <num_txs> <rollup_size>" << std::endl;
+        std::cerr << "usage: " << args[0] << " <num_txs> <rollup_size>" << std::endl;
         return -1;
     }
 
-    auto data_root = data_tree.root();
-    auto rootBuf = data_root.to_buffer();
-    auto index = from_buffer<uint128_t>(rootBuf, 16);
-    auto non_empty_value = std::vector<uint8_t>(64, 0);
-    non_empty_value[63] = 1;
-    root_tree.update_element(index, non_empty_value);
+    auto data_root = to_buffer(data_tree.root());
+    root_tree.update_element(0, data_root);
 
     const uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t rollup_size = static_cast<uint32_t>(std::stoul(args[2]));

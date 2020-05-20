@@ -17,6 +17,7 @@ struct inner_proof_data {
 };
 
 struct rollup_proof_data {
+    uint32_t rollup_id;
     uint32_t data_start_index;
     fr old_data_root;
     fr new_data_root;

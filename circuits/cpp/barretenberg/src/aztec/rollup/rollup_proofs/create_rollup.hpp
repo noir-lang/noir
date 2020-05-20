@@ -19,7 +19,8 @@ rollup_tx create_rollup(uint32_t rollup_id,
                         Tree& null_tree,
                         Tree& root_tree,
                         size_t rollup_size,
-                        std::vector<uint8_t> padding_proof)
+                        std::vector<uint8_t> const& padding_proof,
+                        std::vector<uint32_t> const& data_roots_indicies_ = {})
 {
     size_t rollup_tree_depth = numeric::get_msb(rollup_size) + 1;
     MemoryTree rollup_tree(rollup_tree_depth);
@@ -29,14 +30,14 @@ rollup_tx create_rollup(uint32_t rollup_id,
     auto data_start_index = (uint32_t)data_tree.size();
     auto old_data_root = data_tree.root();
     auto old_data_path = data_tree.get_hash_path(data_start_index);
-    auto data_roots_index = rollup_id;
-    auto data_roots_path = root_tree.get_hash_path(data_roots_index);
     auto root_tree_root = root_tree.root();
 
     std::vector<fr_hash_path> data_roots_paths;
-    std::vector<uint32_t> data_roots_indicies;
     std::vector<uint128_t> nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
+
+    std::vector<uint32_t> data_roots_indicies(data_roots_indicies_);
+    data_roots_indicies.resize(num_txs, rollup_id);
 
     for (size_t i = 0; i < num_txs; ++i) {
         auto proof_data = txs[i];
@@ -49,8 +50,7 @@ rollup_tx create_rollup(uint32_t rollup_id,
         rollup_tree.update_element(i * 2, data_value1);
         rollup_tree.update_element(i * 2 + 1, data_value2);
 
-        data_roots_paths.push_back(data_roots_path);
-        data_roots_indicies.push_back((uint32_t)data_roots_index);
+        data_roots_paths.push_back(root_tree.get_hash_path(data_roots_indicies[i]));
 
         nullifier_indicies.push_back(struct_data.nullifier1);
         nullifier_indicies.push_back(struct_data.nullifier2);

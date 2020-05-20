@@ -178,13 +178,14 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_with_old_root_in_1_rollup)
     size_t rollup_size = 1;
     auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, false);
 
-    // Insert rollup 0.
+    // Insert rollup 0 at index 1.
     append_note(100);
     append_note(50);
     update_root_tree_with_data_root(1);
 
-    // Create proof which references root after rollup 0.
+    // Create proof which references root at index 1.
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
+    auto data_root_index = 1U;
 
     // Insert rollup 1.
     append_note(30);
@@ -192,7 +193,8 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_with_old_root_in_1_rollup)
     update_root_tree_with_data_root(2);
 
     // Create rollup 2 with old join-split.
-    auto rollup = create_rollup(2, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    auto rollup = create_rollup(
+        2, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof, { data_root_index });
 
     join_split_data data(join_split_proof);
     EXPECT_TRUE(data.merkle_root != rollup.old_data_root);
@@ -438,6 +440,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     EXPECT_TRUE(result.verified);
 
     auto rollup_data = rollup_proof_data(result.proof_data);
+    EXPECT_EQ(rollup_data.rollup_id, 1UL);
     EXPECT_EQ(rollup_data.data_start_index, 4UL);
     EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
     EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
