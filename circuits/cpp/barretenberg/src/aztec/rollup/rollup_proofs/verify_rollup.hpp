@@ -33,15 +33,20 @@ bool pairing_checks(std::vector<recursion_output<field_ct, group_ct>> recursion_
 
 bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
 {
-    Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
+    try {
+        Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-    auto recursion_outputs =
-        rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
+        auto recursion_outputs =
+            rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
 
-    auto verified = !composer.failed;
-    verified &= pairing_checks(recursion_outputs, circuit_data.inner_verification_key);
+        auto verified = !composer.failed;
+        verified &= pairing_checks(recursion_outputs, circuit_data.inner_verification_key);
 
-    return verified;
+        return verified;
+    } catch (std::runtime_error const& err) {
+        std::cerr << err.what() << std::endl;
+        return false;
+    }
 }
 
 struct verify_rollup_result {
@@ -51,21 +56,26 @@ struct verify_rollup_result {
 
 verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
 {
-    Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
+    try {
+        Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-    auto recursion_outputs =
-        rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
+        auto recursion_outputs =
+            rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
 
-    auto verified = !composer.failed;
+        auto verified = !composer.failed;
 
-    auto prover = composer.create_prover();
-    auto proof = prover.construct_proof();
+        auto prover = composer.create_prover();
+        auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
-    verified &= verifier.verify_proof(proof);
-    verified &= pairing_checks(recursion_outputs, circuit_data.inner_verification_key);
+        auto verifier = composer.create_verifier();
+        verified &= verifier.verify_proof(proof);
+        verified &= pairing_checks(recursion_outputs, circuit_data.inner_verification_key);
 
-    return { verified, proof.proof_data };
+        return { verified, proof.proof_data };
+    } catch (std::runtime_error const& err) {
+        std::cerr << err.what() << std::endl;
+        return { false, {} };
+    }
 }
 
 } // namespace rollup_proofs

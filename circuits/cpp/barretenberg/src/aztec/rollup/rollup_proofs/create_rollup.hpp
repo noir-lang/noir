@@ -13,11 +13,14 @@ namespace rollup_proofs {
 using namespace rollup::client_proofs::join_split;
 
 template <typename Tree>
-rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
+rollup_tx create_rollup(uint32_t rollup_id,
+                        std::vector<std::vector<uint8_t>> const& txs,
                         Tree& data_tree,
                         Tree& null_tree,
+                        Tree& root_tree,
                         size_t rollup_size,
-                        std::vector<uint8_t> padding_proof)
+                        std::vector<uint8_t> const& padding_proof,
+                        std::vector<uint32_t> const& data_roots_indicies_ = {})
 {
     size_t rollup_tree_depth = numeric::get_msb(rollup_size) + 1;
     MemoryTree rollup_tree(rollup_tree_depth);
@@ -27,9 +30,14 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
     auto data_start_index = (uint32_t)data_tree.size();
     auto old_data_root = data_tree.root();
     auto old_data_path = data_tree.get_hash_path(data_start_index);
+    auto root_tree_root = root_tree.root();
 
+    std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint128_t> nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
+
+    std::vector<uint32_t> data_roots_indicies(data_roots_indicies_);
+    data_roots_indicies.resize(num_txs, rollup_id);
 
     for (size_t i = 0; i < num_txs; ++i) {
         auto proof_data = txs[i];
@@ -42,9 +50,14 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
         rollup_tree.update_element(i * 2, data_value1);
         rollup_tree.update_element(i * 2 + 1, data_value2);
 
+        data_roots_paths.push_back(root_tree.get_hash_path(data_roots_indicies[i]));
+
         nullifier_indicies.push_back(struct_data.nullifier1);
         nullifier_indicies.push_back(struct_data.nullifier2);
     }
+
+    auto data_root = to_buffer(data_tree.root());
+    root_tree.update_element(rollup_id + 1, data_root);
 
     // Compute nullifier tree data.
     auto old_null_root = null_tree.root();
@@ -64,7 +77,7 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
 
     // Compose our rollup.
     rollup_tx rollup = {
-        0,
+        rollup_id,
         num_txs,
         data_start_index,
         txs,
@@ -77,6 +90,9 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
         new_null_roots,
         old_null_paths,
         new_null_paths,
+        root_tree_root,
+        data_roots_paths,
+        data_roots_indicies,
     };
 
     // Add padding data if necessary.
@@ -84,6 +100,9 @@ rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
     rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
     rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
     rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
+    auto zero_roots_path = root_tree.get_hash_path(0);
+    rollup.data_roots_paths.resize(rollup_size, zero_roots_path);
+    rollup.data_roots_indicies.resize(rollup_size, 0);
 
     return rollup;
 }

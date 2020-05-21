@@ -21,13 +21,17 @@ int main(int argc, char** argv)
     MemoryStore store;
     MerkleTree<MemoryStore> data_tree(store, 32, 0);
     MerkleTree<MemoryStore> null_tree(store, 128, 1);
+    MerkleTree<MemoryStore> root_tree(store, 28, 2);
 
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() < 3) {
-        std::cout << "usage: " << args[0] << " <num_txs> <rollup_size>" << std::endl;
+        std::cerr << "usage: " << args[0] << " <num_txs> <rollup_size>" << std::endl;
         return -1;
     }
+
+    auto data_root = to_buffer(data_tree.root());
+    root_tree.update_element(0, data_root);
 
     const uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t rollup_size = static_cast<uint32_t>(std::stoul(args[2]));
@@ -41,7 +45,7 @@ int main(int argc, char** argv)
         proofs[i] = create_noop_join_split_proof(join_split_circuit_data, data_tree.root());
     }
     auto noop_proof = create_noop_join_split_proof(join_split_circuit_data);
-    rollup_tx rollup = create_rollup(proofs, data_tree, null_tree, rollup_size, noop_proof);
+    rollup_tx rollup = create_rollup(0, proofs, data_tree, null_tree, root_tree, rollup_size, noop_proof);
 
     write(std::cout, rollup);
 

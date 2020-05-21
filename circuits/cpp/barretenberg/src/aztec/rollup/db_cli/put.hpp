@@ -6,7 +6,7 @@
 struct PutRequest {
     uint8_t tree_id;
     uint128_t index;
-    std::array<uint8_t, 64> value;
+    std::vector<uint8_t> value;
 };
 
 struct PutResponse {

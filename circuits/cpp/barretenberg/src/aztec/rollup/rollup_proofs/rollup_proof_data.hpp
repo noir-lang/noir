@@ -17,11 +17,13 @@ struct inner_proof_data {
 };
 
 struct rollup_proof_data {
+    uint32_t rollup_id;
     uint32_t data_start_index;
     fr old_data_root;
     fr new_data_root;
     fr old_null_root;
     fr new_null_root;
+    fr data_roots_root;
     uint32_t num_txs;
     std::vector<inner_proof_data> inner_proofs;
 

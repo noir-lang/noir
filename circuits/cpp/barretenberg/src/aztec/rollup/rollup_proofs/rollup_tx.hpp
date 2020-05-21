@@ -30,6 +30,10 @@ struct rollup_tx {
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
 
+    fr data_roots_root;
+    std::vector<fr_hash_path> data_roots_paths;
+    std::vector<uint32_t> data_roots_indicies;
+
     // bool operator==(rollup_tx const&) const = default;
 };
 
@@ -51,9 +55,14 @@ inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
         lhs.old_null_root == rhs.old_null_root &&
         lhs.new_null_roots == rhs.new_null_roots &&
         lhs.old_null_paths == rhs.old_null_paths &&
-        lhs.new_null_paths == rhs.new_null_paths;
+        lhs.new_null_paths == rhs.new_null_paths &&
+
+        lhs.data_roots_root == rhs.data_roots_root &&
+        lhs.data_roots_paths == rhs.data_roots_paths &&
+        lhs.data_roots_indicies == rhs.data_roots_indicies;
     // clang-format on
 }
+
 template <typename B> inline void read(B& buf, rollup_tx& tx)
 {
     ::read(buf, tx.rollup_id);
@@ -71,6 +80,10 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.new_null_roots);
     read(buf, tx.old_null_paths);
     read(buf, tx.new_null_paths);
+
+    read(buf, tx.data_roots_root);
+    read(buf, tx.data_roots_paths);
+    read(buf, tx.data_roots_indicies);
 }
 
 template <typename B> inline void write(B& buf, rollup_tx const& tx)
@@ -90,6 +103,10 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.new_null_roots);
     write(buf, tx.old_null_paths);
     write(buf, tx.new_null_paths);
+
+    write(buf, tx.data_roots_root);
+    write(buf, tx.data_roots_paths);
+    write(buf, tx.data_roots_indicies);
 }
 
 inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
@@ -121,6 +138,16 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     }
     os << "new_null_paths:\n";
     for (auto e : tx.new_null_paths) {
+        os << e << "\n";
+    }
+
+    os << "data_roots_root: " << tx.data_roots_root << "\n";
+    os << "data_roots_paths:\n";
+    for (auto e : tx.data_roots_paths) {
+        os << e << "\n";
+    }
+    os << "data_roots_indicies:\n";
+    for (auto e : tx.data_roots_indicies) {
         os << e << "\n";
     }
     return os;

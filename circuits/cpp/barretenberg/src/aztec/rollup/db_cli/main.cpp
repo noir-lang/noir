@@ -21,19 +21,27 @@ class WorldStateDb {
         : store_(db_path)
         , data_tree_(store_, 32, 0)
         , nullifier_tree_(store_, 128, 1)
-        , trees_({ &data_tree_, &nullifier_tree_ })
+        , root_tree_(store_, 28, 2)
+        , trees_({ &data_tree_, &nullifier_tree_, &root_tree_ })
     {
+        if (root_tree_.size() == 0) {
+            root_tree_.update_element(0, to_buffer(data_tree_.root()));
+            store_.commit();
+        }
 
-        std::cerr << "DB root: " << data_tree_.root() << " size: " << data_tree_.size() << std::endl;
-        std::cerr << "Nullifier root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
+        std::cerr << "Data root: " << data_tree_.root() << " size: " << data_tree_.size() << std::endl;
+        std::cerr << "Null root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
+        std::cerr << "Root root: " << root_tree_.root() << " size: " << root_tree_.size() << std::endl;
     }
 
     void write_metadata(std::ostream& os)
     {
         write(os, data_tree_.root());
         write(os, nullifier_tree_.root());
+        write(os, root_tree_.root());
         write(os, data_tree_.size());
         write(os, nullifier_tree_.size());
+        write(os, root_tree_.size());
     }
 
     void get(std::istream& is, std::ostream& os)
@@ -42,8 +50,7 @@ class WorldStateDb {
         read(is, get_request);
         // std::cerr << get_request << std::endl;
         std::vector<uint8_t> r = trees_[get_request.tree_id]->get_element(get_request.index);
-        GetResponse get_response;
-        std::copy(r.begin(), r.end(), get_response.value.begin());
+        GetResponse get_response = { { r.begin(), r.end() } };
         write(os, get_response);
     }
 
@@ -86,7 +93,8 @@ class WorldStateDb {
     LevelDbStore store_;
     LevelDbTree data_tree_;
     LevelDbTree nullifier_tree_;
-    std::array<LevelDbTree*, 2> trees_;
+    LevelDbTree root_tree_;
+    std::array<LevelDbTree*, 3> trees_;
 };
 
 int main(int argc, char** argv)
