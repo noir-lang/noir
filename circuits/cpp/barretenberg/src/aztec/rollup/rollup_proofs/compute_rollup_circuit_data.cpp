@@ -41,7 +41,7 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         std::vector(rollup_size * 2, uint32_t(0)),
     };
 
-    rollup_circuit(composer, rollup, inner.verification_key, rollup_size);
+    rollup_circuit(composer, rollup, inner.verification_key, rollup_size, false);
     std::cerr << "Rollup circuit gates: " << composer.get_num_gates() << std::endl;
 
     std::shared_ptr<waffle::proving_key> proving_key;
