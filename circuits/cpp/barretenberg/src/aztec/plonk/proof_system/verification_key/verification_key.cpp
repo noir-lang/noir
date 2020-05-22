@@ -11,6 +11,15 @@ verification_key::verification_key(const size_t num_gates,
     , reference_string(crs)
 {}
 
+verification_key::verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs)
+    : n(data.n)
+    , num_public_inputs(data.num_public_inputs)
+    , domain(n)
+    , reference_string(crs)
+    , constraint_selectors(std::move(data.constraint_selectors))
+    , permutation_selectors(std::move(data.permutation_selectors))
+{}
+
 verification_key::verification_key(const verification_key& other)
     : n(other.n)
     , num_public_inputs(other.num_public_inputs)

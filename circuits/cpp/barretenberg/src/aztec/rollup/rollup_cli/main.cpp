@@ -58,7 +58,7 @@ int main(int argc, char** argv)
         Timer timer;
         circuit_data.proving_key->reset();
 
-        std::cerr << "Verifying..." << std::endl;
+        std::cerr << "Creating proof..." << std::endl;
         auto result = verify_rollup(rollup, circuit_data);
 
         std::cerr << "Time taken: " << timer.toString() << std::endl;

@@ -12,7 +12,8 @@ struct join_split_circuit_data {
     size_t proof_size;
 };
 
-join_split_circuit_data compute_join_split_circuit_data(std::string const& srs_path = "../srs_db/ignition");
+join_split_circuit_data compute_join_split_circuit_data(std::string const& srs_path = "../srs_db/ignition",
+                                                        std::string const& key_path = "./keys");
 
 } // namespace rollup_proofs
 } // namespace rollup

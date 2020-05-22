@@ -85,6 +85,27 @@ template <typename B> inline void read(B& buf, polynomial& p)
     }
 }
 
+// Highly optimised read for loading large keys from disk.
+template <> inline void read(std::istream& is, polynomial& p)
+{
+    p = polynomial();
+    uint32_t size;
+    ::read(is, size);
+    p.resize(size);
+
+    is.read((char*)&p[0], size * sizeof(fr));
+    for (size_t i = 0; i < size; ++i) {
+        fr& c = p[i];
+        std::swap(c.data[3], c.data[0]);
+        std::swap(c.data[2], c.data[1]);
+        c.data[3] = ntohll(c.data[3]);
+        c.data[2] = ntohll(c.data[2]);
+        c.data[1] = ntohll(c.data[1]);
+        c.data[0] = ntohll(c.data[0]);
+        c = c.to_montgomery_form();
+    }
+}
+
 template <typename B> inline void write(B& buf, polynomial const& p)
 {
     ::write(buf, static_cast<uint32_t>(p.get_size()));

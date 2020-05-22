@@ -73,7 +73,7 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
     for (size_t i = 0; i < key->num_public_inputs; ++i) {
         public_wires.push_back(public_wires_source[i]);
     }
-    transcript.add_element("public_inputs", to_buffer(public_wires));
+    transcript.add_element("public_inputs", ::to_buffer(public_wires));
 }
 
 template <typename settings> void ProverBase<settings>::compute_quotient_pre_commitment()
