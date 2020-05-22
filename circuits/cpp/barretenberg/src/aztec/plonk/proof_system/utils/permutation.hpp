@@ -44,13 +44,6 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     size_t raw_idx = permutation[i].subgroup_index;
     bool is_public_input = permutation[i].is_public_input;
     bool is_tag = permutation[i].is_tag;
-    // size_t raw_idx = static_cast<size_t>(permutation[i] & ~program_settings::permutation_mask);
-    // bool is_public_input = raw_idx >= small_domain.size && raw_idx < 2 * small_domain.size;
-    // bool is_tag = raw_idx >= 2 * small_domain.size;
-    // std::cout << "here4" << std::endl;
-    // std::cout << "is_tag = " << is_tag << " . is public input = " << is_public_input << " raw idx = " << std::hex
-    //           << raw_idx << std::dec << std::endl;
-    // raw_idx = is_public_input ? raw_idx - small_domain.size : raw_idx;
 
     // Step 2: is `raw_idx` >= (n / 2)? if so, we will need to index `-roots[raw_idx - subgroup_size / 2]` instead
     // of `roots[raw_idx]`
@@ -66,9 +59,6 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // Our roots of unity table is partially 'overloaded' - we either store the root `w`, or `modulus + w`
     // So to ensure we correctly compute `modulus - w`, we need to compute `2 * modulus - w`
     // The output will similarly be overloaded (containing either 2 * modulus - w, or modulus - w)
-    // std::cout << "roots 0:" << roots[0]<< std::endl;
-    // std::cout << "output size:" << output.get_size()<< "root idx" << roots[idx] << std::endl;
-    // std::cout << "output[i]:" << output[i] << "roots_idx" << idx << std::endl;
     output[i] = roots[idx].conditionally_subtract_from_double_modulus(static_cast<uint64_t>(negative_idx));
 
     // finally, if our permutation maps to an index in either the right wire vector, or the output wire vector, we

@@ -133,7 +133,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     fr T0 = lagrange_evals.vanishing_poly.invert();
     t_eval *= T0;
-    std::cout << "verifier quotient = " << t_eval << std::endl;
+    // std::cout << "verifier quotient = " << t_eval << std::endl;
     transcript.add_element("t", t_eval.to_buffer());
 
     transcript.apply_fiat_shamir("nu");

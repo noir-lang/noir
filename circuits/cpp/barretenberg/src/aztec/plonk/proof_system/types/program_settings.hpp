@@ -304,7 +304,6 @@ class generalized_permutation_verifier_settings : public turbo_settings {
                                                   std::vector<g1::affine_element>& points,
                                                   std::vector<fr>& scalars)
     {
-        std::cout << "ingenpermsettings" << std::endl;
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, points, scalars, use_linearisation, true);
 
@@ -321,7 +320,6 @@ class generalized_permutation_verifier_settings : public turbo_settings {
                                                       barretenberg::fr& batch_eval,
                                                       const Transcript& transcript)
     {
-        std::cout << "ingenpermsettings" << std::endl;
         PermutationWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation, true);
         TurboFixedBaseWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
         GenPermSortWidget::compute_batch_evaluation_contribution(key, batch_eval, transcript, use_linearisation);
@@ -333,7 +331,6 @@ class generalized_permutation_verifier_settings : public turbo_settings {
                                                                      const Transcript& transcript,
                                                                      fr& t_eval)
     {
-        std::cout << "ingenpermsettings" << std::endl;
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation, true);
 
