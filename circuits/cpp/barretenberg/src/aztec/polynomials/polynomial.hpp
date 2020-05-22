@@ -17,6 +17,15 @@ class polynomial {
     polynomial& operator=(const polynomial& other);
     ~polynomial();
 
+    bool operator==(polynomial const& rhs) const
+    {
+        bool eq = size == rhs.size;
+        for (size_t i = 0; i < size; ++i) {
+            eq &= coefficients[i] == rhs.coefficients[i];
+        }
+        return eq;
+    }
+
     barretenberg::fr& operator[](const size_t i) const { return coefficients[i]; }
 
     // void copy(const polynomial &other, const size_t target_max_size = 0);
@@ -62,4 +71,26 @@ class polynomial {
     size_t max_size;
     size_t allocated_pages;
 };
+
+template <typename B> inline void read(B& buf, polynomial& p)
+{
+    p = polynomial();
+    uint32_t size;
+    ::read(buf, size);
+    p.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+        fr coeff;
+        read(buf, coeff);
+        p.add_coefficient(coeff);
+    }
+}
+
+template <typename B> inline void write(B& buf, polynomial const& p)
+{
+    ::write(buf, static_cast<uint32_t>(p.get_size()));
+    for (size_t i = 0; i < p.get_size(); ++i) {
+        write(buf, p[i]);
+    }
+}
+
 } // namespace barretenberg

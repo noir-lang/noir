@@ -3,6 +3,7 @@
 #include <common/net.hpp>
 #include <type_traits>
 #include <vector>
+#include <map>
 #include <iostream>
 
 __extension__ using uint128_t = unsigned __int128;
@@ -149,6 +150,22 @@ inline void write(uint8_t*& buf, std::vector<uint8_t> const& value)
     buf += value.size();
 }
 
+// Optimised specialisation for reading vectors of bytes from an input stream.
+inline void read(std::istream& is, std::vector<uint8_t>& value)
+{
+    uint32_t size;
+    read(is, size);
+    value.resize(size);
+    is.read((char*)value.data(), size);
+}
+
+// Optimised specialisation for writing vectors of bytes to an output stream.
+inline void write(std::ostream& os, std::vector<uint8_t> const& value)
+{
+    write(os, static_cast<uint32_t>(value.size()));
+    os.write((char*)value.data(), (std::streamsize)value.size());
+}
+
 // Optimised specialisation for writing arrays of bytes to a vector.
 template <size_t N> inline void write(std::vector<uint8_t>& buf, std::array<uint8_t, N> const& value)
 {
@@ -199,6 +216,20 @@ template <typename B, typename T> inline void write(B& buf, std::vector<T> const
     }
 }
 
+// Read string from supported buffer types.
+template <typename B> inline void read(B& it, std::string& value)
+{
+    std::vector<uint8_t> buf;
+    read(it, buf);
+    value = std::string(buf.begin(), buf.end());
+}
+
+// Write of strings to supported buffer types.
+template <typename B> inline void write(B& buf, std::string const& value)
+{
+    write(buf, std::vector<uint8_t>(value.begin(), value.end()));
+}
+
 // Read std::pair.
 template <typename B, typename T, typename U> inline void read(B& it, std::pair<T, U>& value)
 {
@@ -212,6 +243,29 @@ template <typename B, typename T, typename U> inline void write(B& buf, std::pai
     write(buf, value.first);
     write(buf, value.second);
 }
+
+// Read std::map
+template <typename B, typename T, typename U> inline void read(B& it, std::map<T, U>& value)
+{
+    value.clear();
+    uint64_t size;
+    read(it, size);
+    for (size_t i = 0; i < size; ++i) {
+        std::pair<T, U> v;
+        read(it, v);
+        value.insert(v);
+    }
+}
+
+// Write std::map.
+template <typename B, typename T, typename U> inline void write(B& buf, std::map<T, U> const& value)
+{
+    write(buf, static_cast<uint64_t>(value.size()));
+    for (auto kv : value) {
+        write(buf, kv);
+    }
+}
+
 } // namespace std
 
 // Helper functions that have return values.

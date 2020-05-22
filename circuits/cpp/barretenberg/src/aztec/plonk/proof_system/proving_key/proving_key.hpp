@@ -55,4 +55,47 @@ struct proving_key {
     size_t shifted_opening_poly_challenge_index;
     static constexpr size_t min_thread_block = 4UL;
 };
+
+struct proving_key_data {
+    uint32_t n;
+    uint32_t num_public_inputs;
+    std::map<std::string, barretenberg::polynomial> constraint_selectors;
+    std::map<std::string, barretenberg::polynomial> constraint_selector_ffts;
+    std::map<std::string, barretenberg::polynomial> permutation_selectors;
+    std::map<std::string, barretenberg::polynomial> permutation_selectors_lagrange_base;
+    std::map<std::string, barretenberg::polynomial> permutation_selector_ffts;
+};
+
+inline bool operator==(proving_key_data const& lhs, proving_key_data const& rhs)
+{
+    return lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
+           lhs.constraint_selectors == rhs.constraint_selectors &&
+           lhs.constraint_selector_ffts == rhs.constraint_selector_ffts &&
+           lhs.permutation_selectors == rhs.permutation_selectors &&
+           lhs.permutation_selectors_lagrange_base == rhs.permutation_selectors_lagrange_base &&
+           lhs.permutation_selector_ffts == rhs.permutation_selector_ffts;
+}
+
+template <typename B> inline void read(B& buf, proving_key_data& key)
+{
+    ::read(buf, key.n);
+    ::read(buf, key.num_public_inputs);
+    read(buf, key.constraint_selectors);
+    read(buf, key.constraint_selector_ffts);
+    read(buf, key.permutation_selectors);
+    read(buf, key.permutation_selectors_lagrange_base);
+    read(buf, key.permutation_selector_ffts);
+}
+
+template <typename B> inline void write(B& buf, proving_key_data const& key)
+{
+    ::write(buf, key.n);
+    ::write(buf, key.num_public_inputs);
+    write(buf, key.constraint_selectors);
+    write(buf, key.constraint_selector_ffts);
+    write(buf, key.permutation_selectors);
+    write(buf, key.permutation_selectors_lagrange_base);
+    write(buf, key.permutation_selector_ffts);
+}
+
 } // namespace waffle
