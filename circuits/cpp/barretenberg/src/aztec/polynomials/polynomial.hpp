@@ -1,5 +1,6 @@
 #pragma once
 #include "evaluation_domain.hpp"
+#include <common/timer.hpp>
 
 namespace barretenberg {
 class polynomial {
@@ -94,6 +95,10 @@ template <> inline void read(std::istream& is, polynomial& p)
     p.resize(size);
 
     is.read((char*)&p[0], size * sizeof(fr));
+
+#ifndef NO_MULTITHREADING
+#pragma omp parallel for
+#endif
     for (size_t i = 0; i < size; ++i) {
         fr& c = p[i];
         std::swap(c.data[3], c.data[0]);
