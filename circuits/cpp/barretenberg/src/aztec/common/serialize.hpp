@@ -22,6 +22,18 @@ inline void write(uint8_t*& it, uint8_t value)
     it += 1;
 }
 
+inline void read(uint8_t const*& it, bool& value)
+{
+    value = true;
+    it += 1;
+}
+
+inline void write(uint8_t*& it, bool value)
+{
+    *it = static_cast<uint8_t>(value);
+    it += 1;
+}
+
 inline void read(uint8_t const*& it, uint16_t& value)
 {
     value = ntohs(*reinterpret_cast<uint16_t const*>(it));
@@ -156,7 +168,7 @@ inline void read(std::istream& is, std::vector<uint8_t>& value)
     uint32_t size;
     read(is, size);
     value.resize(size);
-    is.read((char*)value.data(), size);
+    is.read((char*)value.data(), (std::streamsize)size);
 }
 
 // Optimised specialisation for writing vectors of bytes to an output stream.

@@ -94,7 +94,7 @@ template <> inline void read(std::istream& is, polynomial& p)
     ::read(is, size);
     p.resize(size);
 
-    is.read((char*)&p[0], size * sizeof(fr));
+    is.read((char*)&p[0], (std::streamsize)(size * sizeof(fr)));
 
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for

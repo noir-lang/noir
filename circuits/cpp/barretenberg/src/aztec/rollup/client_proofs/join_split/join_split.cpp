@@ -124,6 +124,12 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
     verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
 }
 
+void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
+                           waffle::verification_key_data&& vk_data)
+{
+    verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
+}
+
 UnrolledProver new_join_split_prover(join_split_tx const& tx)
 {
     Composer composer(proving_key, nullptr);

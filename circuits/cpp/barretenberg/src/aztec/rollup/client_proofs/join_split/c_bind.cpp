@@ -30,6 +30,14 @@ WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t cons
     init_verification_key(std::move(crs_factory));
 }
 
+WASM_EXPORT void join_split__init_verification_key_from_buffer(uint8_t const* vk_buf, uint8_t const* g2x)
+{
+    auto crs = std::make_shared<waffle::VerifierMemReferenceString>(g2x);
+    waffle::verification_key_data vk_data;
+    read(vk_buf, vk_data);
+    init_verification_key(crs, std::move(vk_data));
+}
+
 WASM_EXPORT void join_split__sign_4_notes(uint8_t const* note_buffer, uint8_t* pk_buffer, uint8_t* output)
 {
     auto private_key = grumpkin::fr::serialize_from_buffer(pk_buffer);

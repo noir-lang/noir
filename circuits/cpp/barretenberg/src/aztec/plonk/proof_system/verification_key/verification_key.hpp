@@ -59,18 +59,12 @@ struct verification_key {
     size_t program_width = 3;
 };
 
-template <typename B> inline void write(B& buf, verification_key const& key_)
+template <typename B> inline void write(B& buf, verification_key const& key)
 {
-    auto key = const_cast<verification_key&>(key_);
-    verification_key_data data = {
-        static_cast<uint32_t>(key.n),
-        static_cast<uint32_t>(key.num_public_inputs),
-        std::move(key.constraint_selectors),
-        std::move(key.permutation_selectors),
-    };
-    write(buf, data);
-    key.constraint_selectors = std::move(data.constraint_selectors);
-    key.permutation_selectors = std::move(data.permutation_selectors);
+    ::write(buf, static_cast<uint32_t>(key.n));
+    ::write(buf, static_cast<uint32_t>(key.num_public_inputs));
+    write(buf, key.constraint_selectors);
+    write(buf, key.permutation_selectors);
 }
 
 } // namespace waffle

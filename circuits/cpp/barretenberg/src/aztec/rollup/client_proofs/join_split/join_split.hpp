@@ -15,6 +15,9 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
 
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
+void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
+                           waffle::verification_key_data&& vk_data);
+
 void join_split_circuit(Composer& composer, join_split_tx const& tx);
 
 UnrolledProver new_join_split_prover(join_split_tx const& tx);

@@ -100,24 +100,15 @@ struct proving_key {
     static constexpr size_t min_thread_block = 4UL;
 };
 
-template <typename B> inline void write(B& buf, proving_key const& key_)
+template <typename B> inline void write(B& buf, proving_key const& key)
 {
-    auto key = const_cast<proving_key&>(key_);
-    proving_key_data data = {
-        static_cast<uint32_t>(key.n),
-        static_cast<uint32_t>(key.num_public_inputs),
-        std::move(key.constraint_selectors),
-        std::move(key.constraint_selector_ffts),
-        std::move(key.permutation_selectors),
-        std::move(key.permutation_selectors_lagrange_base),
-        std::move(key.permutation_selector_ffts),
-    };
-    write(buf, data);
-    key.constraint_selectors = std::move(data.constraint_selectors);
-    key.constraint_selector_ffts = std::move(data.constraint_selector_ffts);
-    key.permutation_selectors = std::move(data.permutation_selectors);
-    key.permutation_selectors_lagrange_base = std::move(data.permutation_selectors_lagrange_base);
-    key.permutation_selector_ffts = std::move(data.permutation_selector_ffts);
+    ::write(buf, static_cast<uint32_t>(key.n));
+    ::write(buf, static_cast<uint32_t>(key.num_public_inputs));
+    write(buf, key.constraint_selectors);
+    write(buf, key.constraint_selector_ffts);
+    write(buf, key.permutation_selectors);
+    write(buf, key.permutation_selectors_lagrange_base);
+    write(buf, key.permutation_selector_ffts);
 }
 
 } // namespace waffle

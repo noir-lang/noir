@@ -26,6 +26,7 @@ int main(int argc, char** argv)
     auto gibberish_data_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
+    ::write(std::cout, true);
 
     while (true) {
         rollup_tx rollup;
