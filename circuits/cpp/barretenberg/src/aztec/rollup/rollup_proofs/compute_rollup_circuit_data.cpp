@@ -40,8 +40,8 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         return { proving_key, verification_key, rollup_size, 0, inner.proof_size, inner.verification_key };
     }
 
-    auto proving_key_path = key_path + "/rolllup_proving_key_" + std::to_string(rollup_size);
-    auto verification_key_path = key_path + "/rolllup_verification_key_" + std::to_string(rollup_size);
+    auto proving_key_path = key_path + "/rollup_proving_key_" + std::to_string(rollup_size);
+    auto verification_key_path = key_path + "/rollup_verification_key_" + std::to_string(rollup_size);
 
     if (file_exists(proving_key_path) && file_exists(verification_key_path)) {
         waffle::proving_key_data pk_data;
@@ -102,14 +102,15 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         std::cerr << "Done: " << timer.toString() << "s" << std::endl;
 
         std::cerr << "Writing keys..." << std::endl;
+        Timer write_timer;
         make_dir(key_path);
         auto pk_stream = std::ofstream(proving_key_path);
         auto vk_stream = std::ofstream(verification_key_path);
-        write(pk_stream, *proving_key);
+        write(static_cast<std::ostream&>(pk_stream), *proving_key);
         write(vk_stream, *verification_key);
         pk_stream.close();
         vk_stream.close();
-        std::cerr << "Done." << std::endl;
+        std::cerr << "Done: " << write_timer.toString() << "s" << std::endl;
 
         return { proving_key, verification_key, rollup_size, num_gates, inner.proof_size, inner.verification_key };
     }

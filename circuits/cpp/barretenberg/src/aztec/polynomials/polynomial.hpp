@@ -1,5 +1,6 @@
 #pragma once
 #include "evaluation_domain.hpp"
+#include <common/mem.hpp>
 #include <common/timer.hpp>
 
 namespace barretenberg {
@@ -86,15 +87,26 @@ template <typename B> inline void read(B& buf, polynomial& p)
     }
 }
 
+template <typename B> inline void write(B& buf, polynomial const& p)
+{
+    auto size = p.get_size();
+    ::write(buf, static_cast<uint32_t>(size));
+
+    for (size_t i = 0; i < size; ++i) {
+        write(buf, p[i]);
+    }
+}
+
 // Highly optimised read for loading large keys from disk.
 template <> inline void read(std::istream& is, polynomial& p)
 {
     p = polynomial();
     uint32_t size;
     ::read(is, size);
-    p.resize(size);
+    p.resize_unsafe(size);
 
-    is.read((char*)&p[0], (std::streamsize)(size * sizeof(fr)));
+    auto len = (std::streamsize)(size * sizeof(fr));
+    is.read((char*)&p[0], len);
 
 #ifndef NO_MULTITHREADING
 #pragma omp parallel for
@@ -111,12 +123,30 @@ template <> inline void read(std::istream& is, polynomial& p)
     }
 }
 
-template <typename B> inline void write(B& buf, polynomial const& p)
+template <> inline void write(std::ostream& os, polynomial const& p)
 {
-    ::write(buf, static_cast<uint32_t>(p.get_size()));
-    for (size_t i = 0; i < p.get_size(); ++i) {
-        write(buf, p[i]);
+    auto size = p.get_size();
+    auto len = size * sizeof(fr);
+    ::write(os, static_cast<uint32_t>(size));
+    fr* cbuf = (fr*)aligned_alloc(64, len);
+    memcpy(cbuf, &p[0], len);
+
+#ifndef NO_MULTITHREADING
+#pragma omp parallel for
+#endif
+    for (size_t i = 0; i < size; ++i) {
+        fr& c = cbuf[i];
+        c = c.from_montgomery_form();
+        std::swap(c.data[3], c.data[0]);
+        std::swap(c.data[2], c.data[1]);
+        c.data[3] = htonll(c.data[3]);
+        c.data[2] = htonll(c.data[2]);
+        c.data[1] = htonll(c.data[1]);
+        c.data[0] = htonll(c.data[0]);
     }
+
+    os.write((char*)cbuf, (std::streamsize)len);
+    aligned_free(cbuf);
 }
 
 } // namespace barretenberg
