@@ -95,10 +95,11 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         std::cerr << "Rollup circuit gates: " << composer.get_num_gates() << std::endl;
 
         std::cerr << "Creating keys..." << std::endl;
+        Timer timer;
         auto proving_key = composer.compute_proving_key();
         auto verification_key = composer.compute_verification_key();
         size_t num_gates = composer.get_num_gates();
-        std::cerr << "Done." << std::endl;
+        std::cerr << "Done: " << timer.toString() << "s" << std::endl;
 
         std::cerr << "Writing keys..." << std::endl;
         make_dir(key_path);
