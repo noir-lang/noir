@@ -2,11 +2,15 @@
 #include "evaluation_domain.hpp"
 #include <common/mem.hpp>
 #include <common/timer.hpp>
+#include <fstream>
 
 namespace barretenberg {
 class polynomial {
   public:
     enum Representation { COEFFICIENT_FORM, ROOTS_OF_UNITY, COSET_ROOTS_OF_UNITY, NONE };
+
+    // Creates a read only polynomial using mmap.
+    polynomial(std::string const& filename);
 
     // TODO: add a 'spill' factor when allocating memory - we sometimes needs to extend poly degree by 2/4,
     // if page size = power of two, will trigger unneccesary copies
@@ -60,12 +64,14 @@ class polynomial {
     void resize_unsafe(const size_t new_size);
 
   private:
+    void free();
     void zero_memory(const size_t zero_size);
     const static size_t DEFAULT_SIZE_HINT = 1 << 12;
     const static size_t DEFAULT_PAGE_SPILL = 20;
     void add_coefficient_internal(const barretenberg::fr& coefficient);
     void bump_memory(const size_t new_size);
 
+    bool mapped;
     barretenberg::fr* coefficients;
     Representation representation;
     size_t size;

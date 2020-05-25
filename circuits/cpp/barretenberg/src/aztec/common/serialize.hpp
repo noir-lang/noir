@@ -260,7 +260,7 @@ template <typename B, typename T, typename U> inline void write(B& buf, std::pai
 template <typename B, typename T, typename U> inline void read(B& it, std::map<T, U>& value)
 {
     value.clear();
-    uint64_t size;
+    uint32_t size;
     read(it, size);
     for (size_t i = 0; i < size; ++i) {
         std::pair<T, U> v;
@@ -272,7 +272,7 @@ template <typename B, typename T, typename U> inline void read(B& it, std::map<T
 // Write std::map.
 template <typename B, typename T, typename U> inline void write(B& buf, std::map<T, U> const& value)
 {
-    write(buf, static_cast<uint64_t>(value.size()));
+    write(buf, static_cast<uint32_t>(value.size()));
     for (auto const& kv : value) {
         write(buf, kv);
     }
