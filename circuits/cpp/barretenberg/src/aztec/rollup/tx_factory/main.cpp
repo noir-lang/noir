@@ -36,16 +36,15 @@ int main(int argc, char** argv)
     const uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t rollup_size = static_cast<uint32_t>(std::stoul(args[2]));
 
+    auto join_split_circuit_data = compute_or_load_join_split_circuit_data();
+
     std::cerr << "Generating a " << rollup_size << " rollup with " << num_txs << " txs..." << std::endl;
-
-    auto join_split_circuit_data = compute_join_split_circuit_data("../srs_db/ignition");
-
     auto proofs = std::vector<std::vector<uint8_t>>(num_txs);
     for (size_t i = 0; i < num_txs; ++i) {
         proofs[i] = create_noop_join_split_proof(join_split_circuit_data, data_tree.root());
     }
-    auto noop_proof = create_noop_join_split_proof(join_split_circuit_data);
-    rollup_tx rollup = create_rollup(0, proofs, data_tree, null_tree, root_tree, rollup_size, noop_proof);
+    rollup_tx rollup =
+        create_rollup(0, proofs, data_tree, null_tree, root_tree, rollup_size, join_split_circuit_data.padding_proof);
 
     write(std::cout, rollup);
 

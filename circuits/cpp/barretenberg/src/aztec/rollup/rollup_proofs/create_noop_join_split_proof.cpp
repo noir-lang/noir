@@ -17,19 +17,6 @@ using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-namespace {
-bool exists(std::string const& path)
-{
-    struct stat st;
-    return (stat(path.c_str(), &st) != -1);
-}
-} // namespace
-
-std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data)
-{
-    return create_noop_join_split_proof(circuit_data, fr::random_element());
-}
-
 std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data, fr const& merkle_root)
 {
     auto user = rollup::tx::create_user_context();
@@ -58,22 +45,6 @@ std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const&
     auto proof = prover.construct_proof();
 
     return proof.proof_data;
-}
-
-std::vector<uint8_t> create_or_load_noop_join_split_proof(join_split_circuit_data const& circuit_data,
-                                                          std::string const& data_path)
-{
-    auto proof_path = data_path + "/noop_proof";
-    if (exists(proof_path)) {
-        std::ifstream is(proof_path);
-        std::vector<uint8_t> proof((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
-        return proof;
-    } else {
-        auto proof = create_noop_join_split_proof(circuit_data);
-        std::ofstream os(proof_path);
-        os.write((char*)proof.data(), (std::streamsize)proof.size());
-        return proof;
-    }
 }
 
 } // namespace rollup_proofs

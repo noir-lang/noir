@@ -39,7 +39,9 @@ rollup_circuit_data load_rollup_circuit_data(size_t rollup_size,
     auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n));
     auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
 
-    return { proving_key, verification_key, rollup_size, pk_data.n, inner.proof_size, inner.verification_key };
+    return {
+        proving_key, verification_key, rollup_size, pk_data.n, inner.padding_proof.size(), inner.verification_key
+    };
 }
 
 void write_rollup_circuit_data(rollup_circuit_data const& data, std::string const& rollup_key_path)
@@ -47,8 +49,8 @@ void write_rollup_circuit_data(rollup_circuit_data const& data, std::string cons
     std::cerr << "Writing keys..." << std::endl;
     mkdir(rollup_key_path.c_str(), 0700);
     Timer write_timer;
-    auto pk_stream = std::ofstream(rollup_key_path + "/proving_key");
-    auto vk_stream = std::ofstream(rollup_key_path + "/verification_key");
+    std::ofstream pk_stream(rollup_key_path + "/proving_key");
+    std::ofstream vk_stream(rollup_key_path + "/verification_key");
     write_mmap(pk_stream, rollup_key_path, *data.proving_key);
     write(vk_stream, *data.verification_key);
     pk_stream.close();
@@ -64,7 +66,7 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
     if (!create_keys) {
         std::shared_ptr<waffle::proving_key> proving_key;
         std::shared_ptr<waffle::verification_key> verification_key;
-        return { proving_key, verification_key, rollup_size, 0, inner.proof_size, inner.verification_key };
+        return { proving_key, verification_key, rollup_size, 0, inner.padding_proof.size(), inner.verification_key };
     }
 
     std::cerr << "Generating rollup circuit... (size: " << rollup_size << ")" << std::endl;
@@ -79,7 +81,7 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
         0,
         (uint32_t)rollup_size,
         0,
-        std::vector(rollup_size, std::vector<uint8_t>(inner.proof_size, 1)),
+        std::vector(rollup_size, std::vector<uint8_t>(inner.padding_proof.size(), 1)),
         fr::random_element(),
         fr::random_element(),
         fr::random_element(),
@@ -104,7 +106,9 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
     size_t num_gates = composer.get_num_gates();
     std::cerr << "Done: " << timer.toString() << "s" << std::endl;
 
-    return { proving_key, verification_key, rollup_size, num_gates, inner.proof_size, inner.verification_key };
+    return {
+        proving_key, verification_key, rollup_size, num_gates, inner.padding_proof.size(), inner.verification_key
+    };
 }
 
 rollup_circuit_data compute_or_load_rollup_circuit_data(size_t rollup_size,
@@ -112,7 +116,7 @@ rollup_circuit_data compute_or_load_rollup_circuit_data(size_t rollup_size,
                                                         std::string const& srs_path,
                                                         std::string const& key_path)
 {
-    auto rollup_key_path = key_path + "/rollup_" + std::to_string(rollup_size) + "_keys";
+    auto rollup_key_path = key_path + "/rollup_" + std::to_string(rollup_size);
 
     if (exists(rollup_key_path)) {
         return load_rollup_circuit_data(rollup_size, inner, srs_path, rollup_key_path);
