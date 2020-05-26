@@ -1,8 +1,5 @@
 #pragma once
-#include "evaluation_domain.hpp"
-#include <common/mem.hpp>
-#include <common/timer.hpp>
-#include <fstream>
+#include "polynomial.hpp"
 
 namespace barretenberg {
 
