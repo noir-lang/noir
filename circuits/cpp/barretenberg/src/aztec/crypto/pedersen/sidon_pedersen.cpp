@@ -96,12 +96,14 @@ grumpkin::g1::element compress_single(const grumpkin::fq& input, const bool pari
         } else {
             accumulators[0] += sidon_pedersen_tables[index][slice_a];
             accumulators[1] += sidon_pedersen_tables[index][slice_b];
-            accumulators[2] += sidon_pedersen_tables[index][slice_c];
+            if (i < (num_rounds - 1)) {
+                accumulators[2] += sidon_pedersen_tables[index][slice_c];
+            }
         }
         bits >>= (BITS_PER_TABLE);
     }
 
-    accumulators[1].x *= grumpkin::fq::beta();
+    accumulators[0].x *= grumpkin::fq::beta();
     accumulators[2].x *= grumpkin::fq::beta().sqr();
     accumulators[2].y = -accumulators[2].y;
 

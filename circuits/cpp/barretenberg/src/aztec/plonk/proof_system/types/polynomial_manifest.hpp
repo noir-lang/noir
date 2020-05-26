@@ -151,16 +151,16 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
     PolynomialDescriptor("Z_LOOKUP", "z_lookup", false, true, WITNESS, Z_LOOKUP),                            //
     PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                                          //
     PolynomialDescriptor("Q_2", "q_2", false, false, SELECTOR, Q_2),                                         //
-    PolynomialDescriptor("Q_3", "q_3", true, false, SELECTOR, Q_3),                                          //
-    PolynomialDescriptor("Q_4", "q_4", true, false, SELECTOR, Q_4),                                          //
-    PolynomialDescriptor("Q_5", "q_5", true, false, SELECTOR, Q_5),                                          //
+    PolynomialDescriptor("Q_3", "q_3", false, false, SELECTOR, Q_3),                                         //
+    PolynomialDescriptor("Q_4", "q_4", false, false, SELECTOR, Q_4),                                         //
+    PolynomialDescriptor("Q_5", "q_5", false, false, SELECTOR, Q_5),                                         //
     PolynomialDescriptor("Q_M", "q_m", false, false, SELECTOR, Q_M),                                         //
     PolynomialDescriptor("Q_C", "q_c", false, false, SELECTOR, Q_C),                                         //
     PolynomialDescriptor("Q_ARITHMETIC_SELECTOR", "q_arith", false, false, SELECTOR, Q_ARITHMETIC_SELECTOR), //
     PolynomialDescriptor("Q_RANGE_SELECTOR", "q_range", true, false, SELECTOR, Q_RANGE_SELECTOR),            //
     PolynomialDescriptor("Q_FIXED_BASE_SELECTOR", "q_ecc_1", false, false, SELECTOR, Q_FIXED_BASE_SELECTOR), //
     PolynomialDescriptor("Q_LOGIC_SELECTOR", "q_logic", true, false, SELECTOR, Q_LOGIC_SELECTOR),            //
-    PolynomialDescriptor("Q_ELLIPTIC", "q_elliptic", true, true, SELECTOR, Q_ELLIPTIC),                      //
+    PolynomialDescriptor("Q_ELLIPTIC", "q_elliptic", true, false, SELECTOR, Q_ELLIPTIC),                     //
     PolynomialDescriptor("SIGMA_1", "sigma_1", false, false, PERMUTATION, SIGMA_1),                          //
     PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                          //
     PolynomialDescriptor("SIGMA_3", "sigma_3", false, false, PERMUTATION, SIGMA_3),                          //

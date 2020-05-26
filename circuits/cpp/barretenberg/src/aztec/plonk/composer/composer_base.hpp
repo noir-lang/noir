@@ -90,17 +90,15 @@ struct accumulator_triple {
     std::vector<uint32_t> out;
 };
 
-struct montgomery_ladder_gate {
+struct ecc_add_gate {
     uint32_t x1;
     uint32_t y1;
     uint32_t x2;
     uint32_t y2;
     uint32_t x3;
     uint32_t y3;
-    uint32_t x4;
-    uint32_t y4;
-    uint32_t accumulator_in;
-    uint32_t accumulator_out;
+    barretenberg::fr endomorphism_coefficient;
+    barretenberg::fr sign_coefficient;
 };
 
 class ComposerBase {

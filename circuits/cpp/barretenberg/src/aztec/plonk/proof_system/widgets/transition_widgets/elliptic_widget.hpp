@@ -20,19 +20,41 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
     {
-        const Field& x_1 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
-        const Field& y_1 = Getters::template get_polynomial<false, PolynomialIndex::W_4>(polynomials, i);
-        const Field& x_2 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
-        const Field& y_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
-        const Field& x_3 = Getters::template get_polynomial<true, PolynomialIndex::W_3>(polynomials, i);
-        const Field& y_3 = Getters::template get_polynomial<true, PolynomialIndex::W_4>(polynomials, i);
+        const Field& x_1 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
+        const Field& y_1 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
+        const Field& x_2 = Getters::template get_polynomial<true, PolynomialIndex::W_1>(polynomials, i);
+        const Field& y_2 = Getters::template get_polynomial<true, PolynomialIndex::W_4>(polynomials, i);
+        const Field& x_3 = Getters::template get_polynomial<true, PolynomialIndex::W_2>(polynomials, i);
+        const Field& y_3 = Getters::template get_polynomial<true, PolynomialIndex::W_3>(polynomials, i);
 
-        const Field lambda_numerator = y_2 - y_1;
-        const Field lambda_denominator = x_2 - x_1;
+        const Field& q_beta = Getters::template get_polynomial<false, PolynomialIndex::Q_3>(polynomials, i);
+        const Field& q_beta_sqr = Getters::template get_polynomial<false, PolynomialIndex::Q_4>(polynomials, i);
+        const Field& q_sign = Getters::template get_polynomial<false, PolynomialIndex::Q_5>(polynomials, i);
 
-        const Field T0 = (x_3 + x_2 + x_1) * lambda_denominator.sqr() - lambda_numerator.sqr();
-        const Field T1 = (y_3 + y_1) * lambda_denominator - lambda_numerator * (x_1 - x_3);
-        linear_terms[0] = T0 * challenges.alpha_powers[0] + T1 * challenges.alpha_powers[1];
+        Field beta_term = -x_2 * x_1 * (x_3 + x_3 + x_1);
+        Field beta_sqr_term = x_2.sqr();
+        Field leftovers = beta_sqr_term;
+        beta_sqr_term *= (x_3 - x_1);
+        Field sign_term = y_2 * y_1;
+        sign_term += sign_term;
+        beta_term *= q_beta;
+        beta_sqr_term *= q_beta_sqr;
+        sign_term *= q_sign;
+        leftovers *= x_2;
+        leftovers += x_1.sqr() * (x_3 + x_1);
+        leftovers -= (y_2.sqr() + y_1.sqr());
+
+        Field x_identity = beta_term + beta_sqr_term + sign_term + leftovers;
+        x_identity *= challenges.alpha_powers[0];
+
+        beta_term = x_2 * (y_3 + y_1) * q_beta;
+        sign_term = -y_2 * (x_1 - x_3) * q_sign;
+        leftovers = -x_1 * (y_3 + y_1) + y_1 * (x_1 - x_3);
+
+        Field y_identity = beta_term + sign_term + leftovers;
+        y_identity *= challenges.alpha_powers[1];
+
+        linear_terms[0] = x_identity + y_identity;
     }
 
     inline static Field sum_linear_terms(PolyContainer& polynomials,
@@ -44,28 +66,7 @@ template <class Field, class Getters, typename PolyContainer> class EllipticKern
         return linear_terms[0] * q_elliptic;
     }
 
-    inline static void compute_non_linear_terms(PolyContainer& polynomials,
-                                                const challenge_array& challenges,
-                                                Field& quotient,
-                                                const size_t i = 0)
-    {
-        const Field& x_1 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
-        const Field& y_1 = Getters::template get_polynomial<false, PolynomialIndex::W_4>(polynomials, i);
-        const Field& x_3 = Getters::template get_polynomial<true, PolynomialIndex::W_3>(polynomials, i);
-        const Field& y_3 = Getters::template get_polynomial<true, PolynomialIndex::W_4>(polynomials, i);
-
-        const Field& q_elliptic_omega =
-            Getters::template get_polynomial<true, PolynomialIndex::Q_ELLIPTIC>(polynomials, i);
-
-        const Field x1x1 = x_1.sqr();
-        const Field lambda_numerator = x1x1 + x1x1 + x1x1;
-        const Field lambda_denominator = y_1 + y_1;
-
-        const Field T0 = (x_1 + x_1 + x_3) * lambda_denominator.sqr() - lambda_numerator.sqr();
-        const Field T1 = (y_3 + y_1) * lambda_denominator - lambda_numerator * (x_1 - x_3);
-
-        quotient += (T0 * challenges.alpha_powers[2] + T1 * challenges.alpha_powers[3]) * q_elliptic_omega;
-    }
+    inline static void compute_non_linear_terms(PolyContainer&, const challenge_array&, Field&, const size_t = 0) {}
 
     inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
                                                    std::map<std::string, Field>& scalars,

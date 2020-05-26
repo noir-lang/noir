@@ -90,7 +90,7 @@ class PLookupComposer : public ComposerBase {
     void create_fixed_group_add_gate(const fixed_group_add_quad& in);
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
 
-    void create_montgomery_ladder_gate(const montgomery_ladder_gate& in, const bool fuse_into_previous_gate = false);
+    void create_ecc_add_gate(const ecc_add_gate& in, const bool fuse_into_previous_gate = false);
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
@@ -162,17 +162,20 @@ class PLookupComposer : public ComposerBase {
                       { "q_arith", fr_size, false, 7 },
                       { "q_ecc_1", fr_size, false, 8 },
                       { "q_2", fr_size, false, 9 },
-                      { "q_m", fr_size, false, 10 },
-                      { "q_c", fr_size, false, 11 },
-                      { "table_value_1", fr_size, false, 12 },
-                      { "table_value_2", fr_size, false, 13 },
-                      { "table_value_3", fr_size, false, 14 },
-                      { "table_value_4", fr_size, false, 15 },
-                      { "table_index", fr_size, false, 16 },
-                      { "table_type", fr_size, false, 17 },
-                      { "s", fr_size, false, 18 },
-                      { "z_lookup", fr_size, false, 19 },
-                      { "r", fr_size, false, 20 },
+                      { "q_3", fr_size, false, 10 },
+                      { "q_4", fr_size, false, 11 },
+                      { "q_5", fr_size, false, 12 },
+                      { "q_m", fr_size, false, 13 },
+                      { "q_c", fr_size, false, 14 },
+                      { "table_value_1", fr_size, false, 15 },
+                      { "table_value_2", fr_size, false, 16 },
+                      { "table_value_3", fr_size, false, 17 },
+                      { "table_value_4", fr_size, false, 18 },
+                      { "table_index", fr_size, false, 19 },
+                      { "table_type", fr_size, false, 20 },
+                      { "s", fr_size, false, 21 },
+                      { "z_lookup", fr_size, false, 22 },
+                      { "r", fr_size, false, 23 },
                       { "z_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
@@ -184,10 +187,9 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_4_omega", fr_size, false, 7 },
                       { "s_omega", fr_size, false, 8 },
                       { "z_lookup_omega", fr_size, false, 9 },
-                      { "q_elliptic_omega", fr_size, false, 10 },
                   },
                   "nu",
-                  21,
+                  24,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
@@ -262,7 +264,6 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_2_omega", fr_size, false, 7 },
                       { "table_value_3_omega", fr_size, false, 8 },
                       { "table_value_4_omega", fr_size, false, 9 },
-                      { "q_elliptic_omega", fr_size, false, 10 },
                   },
                   "nu",
                   29,

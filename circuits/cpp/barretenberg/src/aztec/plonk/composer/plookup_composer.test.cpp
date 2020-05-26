@@ -685,27 +685,34 @@ TEST(plookup_composer, test_elliptic_gate)
     typedef grumpkin::g1::element element;
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    const affine_element p1 = crypto::pedersen::get_generator(0);
-    const affine_element p2 = crypto::pedersen::get_generator(1);
-    const affine_element p3(element(p1).dbl());
-    const affine_element p4(element(p2) + element(p3));
+    affine_element p1 = crypto::pedersen::get_generator(0);
+    affine_element p2 = crypto::pedersen::get_generator(1);
+    affine_element p3(element(p1) + element(p2));
 
-    const uint32_t x1 = composer.add_variable(p1.x);
-    const uint32_t y1 = composer.add_variable(p1.y);
-    const uint32_t x2 = composer.add_variable(p2.x);
-    const uint32_t y2 = composer.add_variable(p2.y);
-    const uint32_t x3 = composer.add_variable(p3.x);
-    const uint32_t y3 = composer.add_variable(p3.y);
-    const uint32_t x4 = composer.add_variable(p4.x);
-    const uint32_t y4 = composer.add_variable(p4.y);
+    uint32_t x1 = composer.add_variable(p1.x);
+    uint32_t y1 = composer.add_variable(p1.y);
+    uint32_t x2 = composer.add_variable(p2.x);
+    uint32_t y2 = composer.add_variable(p2.y);
+    uint32_t x3 = composer.add_variable(p3.x);
+    uint32_t y3 = composer.add_variable(p3.y);
 
+    waffle::ecc_add_gate gate{ x1, y1, x2, y2, x3, y3, 1, 1 };
+    composer.create_ecc_add_gate(gate);
 
-    const uint32_t accumulator_in = composer.zero_idx;
-    const uint32_t accumulator_out = composer.zero_idx;
+    affine_element p2_endo = p2;
+    p2_endo.x *= grumpkin::fq::beta();
+    p3 = affine_element(element(p1) + element(p2_endo));
+    x3 = composer.add_variable(p3.x);
+    y3 = composer.add_variable(p3.y);
+    gate = waffle::ecc_add_gate{ x1, y1, x2, y2, x3, y3, grumpkin::fq::beta(), 1 };
+    composer.create_ecc_add_gate(gate);
 
-    const waffle::montgomery_ladder_gate gate{ x1, y1, x2, y2, x3, y3, x4, y4, accumulator_in, accumulator_out };
-
-    composer.create_montgomery_ladder_gate(gate);
+    p2_endo.x *= grumpkin::fq::beta();
+    p3 = affine_element(element(p1) - element(p2_endo));
+    x3 = composer.add_variable(p3.x);
+    y3 = composer.add_variable(p3.y);
+    gate = waffle::ecc_add_gate{ x1, y1, x2, y2, x3, y3, grumpkin::fq::beta().sqr(), -1 };
+    composer.create_ecc_add_gate(gate);
 
     composer.create_dummy_gate();
     composer.create_dummy_gate();

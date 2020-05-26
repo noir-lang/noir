@@ -1,9 +1,11 @@
 #include "pedersen.hpp"
+#include "pedersen_plookup.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <numeric/random/engine.hpp>
 #include <common/test.hpp>
 #include <plonk/composer/turbo_composer.hpp>
+#include <plonk/composer/plookup_composer.hpp>
 
 namespace test_stdlib_pedersen {
 using namespace barretenberg;
@@ -17,6 +19,36 @@ typedef stdlib::pedersen<waffle::TurboComposer> pedersen;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
+}
+
+TEST(stdlib_pedersen, test_pedersen_plookup)
+{
+    typedef stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef stdlib::witness_t<waffle::PLookupComposer> witness_pt;
+
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    fr left_in = fr::random_element();
+    fr right_in = fr::random_element();
+
+    field_pt left = witness_pt(&composer, left_in);
+    field_pt right = witness_pt(&composer, right_in);
+
+    field_pt result = stdlib::pedersen_plookup<waffle::PLookupComposer>::compress(left, right);
+
+    fr expected = crypto::pedersen::sidon::compress(left_in, right_in);
+
+    EXPECT_EQ(result.get_value(), expected);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
 }
 
 TEST(stdlib_pedersen, test_pedersen)

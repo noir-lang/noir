@@ -61,15 +61,15 @@ TEST(sidon_pedersen, compress_single)
         bits >>= crypto::pedersen::sidon::BITS_PER_TABLE;
         uint64_t slice_c = sidon_set[static_cast<size_t>(bits.data[0] & mask)];
 
-        const element generator = crypto::pedersen::sidon::get_table_generator(9 - i - 1);
+        const element generator = crypto::pedersen::sidon::get_table_generator(i);
 
         if (i == 0) {
-            accumulators[0] = generator * slice_a;
-            accumulators[1] = generator * (lambda * slice_b);
+            accumulators[0] = generator * (lambda * slice_a);
+            accumulators[1] = generator * (slice_b);
             accumulators[2] = generator * ((lambda + 1) * slice_c);
         } else {
-            accumulators[0] += (generator * slice_a);
-            accumulators[1] += (generator * (lambda * slice_b));
+            accumulators[0] += (generator * (lambda * slice_a));
+            accumulators[1] += (generator * (slice_b));
             accumulators[2] += (generator * ((lambda + 1) * slice_c));
         }
         bits >>= crypto::pedersen::sidon::BITS_PER_TABLE;
@@ -110,13 +110,15 @@ TEST(sidon_pedersen, compress)
             const element generator = crypto::pedersen::sidon::get_table_generator(generator_offset + i);
 
             if (i == 0) {
-                accumulators[0] = generator * slice_a;
-                accumulators[1] = generator * (lambda * slice_b);
+                accumulators[0] = generator * (lambda * slice_a);
+                accumulators[1] = generator * (slice_b);
                 accumulators[2] = generator * ((lambda + 1) * slice_c);
             } else {
-                accumulators[0] += (generator * slice_a);
-                accumulators[1] += (generator * (lambda * slice_b));
-                accumulators[2] += (generator * ((lambda + 1) * slice_c));
+                accumulators[0] += (generator * (lambda * slice_a));
+                accumulators[1] += (generator * (slice_b));
+                if (i < 8) {
+                    accumulators[2] += (generator * ((lambda + 1) * slice_c));
+                }
             }
             bits >>= crypto::pedersen::sidon::BITS_PER_TABLE;
         }

@@ -367,8 +367,7 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     ++n;
 }
 
-void PLookupComposer::create_montgomery_ladder_gate(const montgomery_ladder_gate& in,
-                                                    const bool fuse_into_previous_gate)
+void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in, const bool fuse_into_previous_gate)
 {
     /**
      * | 1  | 2  | 3  | 4  |
@@ -381,59 +380,43 @@ void PLookupComposer::create_montgomery_ladder_gate(const montgomery_ladder_gate
     PLOOKUP_SELECTOR_REFS
 
     if (fuse_into_previous_gate) {
+        // hmm, use with caution
         ASSERT(w_l[n - 1] == zero_idx);
-        ASSERT(w_r[n - 1] == zero_idx);
-        ASSERT(w_o[n - 1] == in.x1);
-        ASSERT(w_4[n - 1] == in.y1);
+        ASSERT(w_4[n - 1] == zero_idx);
+        ASSERT(w_r[n - 1] == in.x1);
+        ASSERT(w_o[n - 1] == in.y1);
 
-        w_l[n - 1] = in.accumulator_in;
-        w_r[n - 1] = in.accumulator_out;
+        q_3[n - 1] = in.endomorphism_coefficient;
+        q_4[n - 1] = in.endomorphism_coefficient.sqr();
+        q_5[n - 1] = in.sign_coefficient;
+        q_elliptic[n - 1] = 1;
     } else {
-        w_l.emplace_back(in.accumulator_in);
-        w_r.emplace_back(in.accumulator_out);
-        w_o.emplace_back(in.x1);
-        w_4.emplace_back(in.y1);
-        q_m.emplace_back(0);
+        w_l.emplace_back(zero_idx);
+        w_r.emplace_back(in.x1);
+        w_o.emplace_back(in.y1);
+        w_4.emplace_back(zero_idx);
+        q_3.emplace_back(in.endomorphism_coefficient);
+        q_4.emplace_back(in.endomorphism_coefficient.sqr());
+        q_5.emplace_back(in.sign_coefficient);
+
+        q_arith.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
-        q_3.emplace_back(0);
+        q_m.emplace_back(0);
         q_c.emplace_back(0);
-        q_arith.emplace_back(0);
-        q_4.emplace_back(0);
-        q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
         q_logic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
-        q_elliptic.emplace_back(0);
+        q_elliptic.emplace_back(1);
         ++n;
     }
 
     w_l.emplace_back(in.x2);
-    w_r.emplace_back(in.y2);
-    w_o.emplace_back(in.x3);
-    w_4.emplace_back(in.y3);
-    q_m.emplace_back(0);
-    q_1.emplace_back(0);
-    q_2.emplace_back(0);
-    q_3.emplace_back(0);
-    q_c.emplace_back(0);
-    q_arith.emplace_back(0);
-    q_4.emplace_back(0);
-    q_5.emplace_back(0);
-    q_ecc_1.emplace_back(0);
-    q_range.emplace_back(0);
-    q_logic.emplace_back(0);
-    q_lookup_index.emplace_back(0);
-    q_lookup_type.emplace_back(0);
-    q_elliptic.emplace_back(1);
-    ++n;
-
-    w_l.emplace_back(zero_idx);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(in.x4);
-    w_4.emplace_back(in.y4);
+    w_4.emplace_back(in.y2);
+    w_r.emplace_back(in.x3);
+    w_o.emplace_back(in.y3);
     q_m.emplace_back(0);
     q_1.emplace_back(0);
     q_2.emplace_back(0);
