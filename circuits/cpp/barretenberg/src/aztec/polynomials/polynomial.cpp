@@ -2,9 +2,12 @@
 #include "polynomial_arithmetic.hpp"
 #include <common/assert.hpp>
 #include <common/mem.hpp>
+#include <common/throw_or_abort.hpp>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <fcntl.h>
+#ifndef __wasm__
+#include <sys/mman.h>
+#endif
 
 using namespace barretenberg;
 
@@ -29,13 +32,18 @@ polynomial::polynomial(std::string const& filename)
 {
     struct stat st;
     if (stat(filename.c_str(), &st) != 0) {
-        throw std::runtime_error("Filename not found: " + filename);
+        throw_or_abort("Filename not found: " + filename);
     }
     size_t len = (size_t)st.st_size;
     size = len / sizeof(fr);
     max_size = size;
     int fd = open(filename.c_str(), O_RDONLY);
+#ifndef __wasm__
+    coefficients = (fr*)aligned_alloc(32, len);
     coefficients = (fr*)mmap(0, len, PROT_READ, MAP_PRIVATE, fd, 0);
+#else
+    ::read(fd, (void*)coefficients, len);
+#endif
     close(fd);
 }
 
@@ -152,9 +160,7 @@ void polynomial::zero_memory(const size_t zero_size)
 
 void polynomial::bump_memory(const size_t new_size_hint)
 {
-    if (mapped) {
-        throw std::runtime_error("Mapped polynomials are read only.");
-    }
+    ASSERT(!mapped);
     size_t new_size = (new_size_hint / page_size) * page_size;
 
     while (new_size < new_size_hint) {
@@ -173,9 +179,7 @@ void polynomial::bump_memory(const size_t new_size_hint)
 
 void polynomial::add_coefficient_internal(const fr& coefficient)
 {
-    if (mapped) {
-        throw std::runtime_error("Mapped polynomials are read only.");
-    }
+    ASSERT(!mapped);
     if (size + 1 > max_size) {
         bump_memory((allocated_pages + 1) * page_size);
     }
@@ -198,20 +202,22 @@ void polynomial::add_coefficient(const fr& coefficient)
 void polynomial::free()
 {
     if (coefficients != nullptr) {
+#ifndef __wasm__
         if (mapped) {
             munmap(coefficients, size * sizeof(fr));
         } else {
             aligned_free(coefficients);
         }
+#else
+        aligned_free(coefficients);
+#endif
     }
     coefficients = nullptr;
 }
 
 void polynomial::reserve(const size_t new_max_size)
 {
-    if (mapped) {
-        throw std::runtime_error("Do not resize mapped polynomials.");
-    }
+    ASSERT(!mapped);
     if (new_max_size > max_size) {
         bump_memory(new_max_size);
         memset(static_cast<void*>(&coefficients[size]), 0, sizeof(fr) * (new_max_size - max_size));
@@ -220,9 +226,7 @@ void polynomial::reserve(const size_t new_max_size)
 
 void polynomial::resize(const size_t new_size)
 {
-    if (mapped) {
-        throw std::runtime_error("Do not resize mapped polynomials.");
-    }
+    ASSERT(!mapped);
     ASSERT(new_size > size);
 
     if (new_size > max_size) {
@@ -237,9 +241,7 @@ void polynomial::resize(const size_t new_size)
 // does not zero out memory
 void polynomial::resize_unsafe(const size_t new_size)
 {
-    if (mapped) {
-        throw std::runtime_error("Do not resize mapped polynomials.");
-    }
+    ASSERT(!mapped);
     // ASSERT(new_size > size);
 
     if (new_size > max_size) {
