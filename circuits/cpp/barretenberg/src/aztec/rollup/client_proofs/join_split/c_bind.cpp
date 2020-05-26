@@ -23,6 +23,23 @@ WASM_EXPORT void join_split__init_proving_key()
     init_proving_key(std::move(crs_factory));
 }
 
+WASM_EXPORT size_t join_split__get_new_proving_key_data(uint8_t** output)
+{
+    auto buffer = to_buffer(*get_proving_key());
+    auto raw_buf = (uint8_t*)malloc(buffer.size());
+    memcpy(raw_buf, (void*)buffer.data(), buffer.size());
+    *output = raw_buf;
+    return buffer.size();
+}
+
+WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf)
+{
+    auto crs = std::make_shared<waffle::ProverReferenceString>();
+    waffle::proving_key_data pk_data;
+    read(pk_buf, pk_data);
+    init_proving_key(crs, std::move(pk_data));
+}
+
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
 {
     auto crs_factory = std::make_unique<waffle::PippengerReferenceStringFactory>(

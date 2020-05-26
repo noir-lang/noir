@@ -114,6 +114,11 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
     proving_key = composer.compute_proving_key();
 }
 
+void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data)
+{
+    proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs);
+}
+
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
 {
     if (!proving_key) {

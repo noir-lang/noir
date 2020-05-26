@@ -13,6 +13,8 @@ using namespace rollup::client_proofs::join_split;
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
+void init_proving_key(std::shared_ptr<waffle::ProverReferenceString> const& crs, waffle::proving_key_data&& pk_data);
+
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
