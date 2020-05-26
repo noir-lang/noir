@@ -7,6 +7,7 @@ namespace waffle {
 namespace pedersen_tables {
 
 namespace {
+
 static std::array<std::vector<grumpkin::g1::element>, NUM_LOOKUPS_PER_HASH> pedersen_generator_table_1;
 static std::array<std::vector<grumpkin::g1::element>, NUM_LOOKUPS_PER_HASH> pedersen_generator_table_2;
 static bool initialized_generator_tables = false;
