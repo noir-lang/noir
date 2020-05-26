@@ -147,6 +147,16 @@ bool verify_proof(waffle::plonk_proof const& proof)
     return verifier.verify_proof(proof);
 }
 
+std::shared_ptr<waffle::proving_key> get_proving_key()
+{
+    return proving_key;
+}
+
+std::shared_ptr<waffle::verification_key> get_verification_key()
+{
+    return verification_key;
+}
+
 } // namespace join_split
 } // namespace client_proofs
 } // namespace rollup

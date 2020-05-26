@@ -24,6 +24,10 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx);
 
 bool verify_proof(waffle::plonk_proof const& proof);
 
+std::shared_ptr<waffle::proving_key> get_proving_key();
+
+std::shared_ptr<waffle::verification_key> get_verification_key();
+
 } // namespace join_split
 } // namespace client_proofs
 } // namespace rollup

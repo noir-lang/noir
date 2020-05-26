@@ -30,6 +30,15 @@ WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t cons
     init_verification_key(std::move(crs_factory));
 }
 
+WASM_EXPORT size_t join_split__get_new_verification_key_data(uint8_t** output)
+{
+    auto buffer = to_buffer(*get_verification_key());
+    auto raw_buf = (uint8_t*)malloc(buffer.size());
+    memcpy(raw_buf, (void*)buffer.data(), buffer.size());
+    *output = raw_buf;
+    return buffer.size();
+}
+
 WASM_EXPORT void join_split__init_verification_key_from_buffer(uint8_t const* vk_buf, uint8_t const* g2x)
 {
     auto crs = std::make_shared<waffle::VerifierMemReferenceString>(g2x);
