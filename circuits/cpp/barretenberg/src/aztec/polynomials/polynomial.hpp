@@ -80,79 +80,9 @@ class polynomial {
     size_t allocated_pages;
 };
 
-template <typename B> inline void read(B& buf, polynomial& p)
+inline std::ostream& operator<<(std::ostream& os, polynomial const& p)
 {
-    p = polynomial();
-    uint32_t size;
-    ::read(buf, size);
-    p.reserve(size);
-    for (size_t i = 0; i < size; ++i) {
-        fr coeff;
-        read(buf, coeff);
-        p.add_coefficient(coeff);
-    }
-}
-
-template <typename B> inline void write(B& buf, polynomial const& p)
-{
-    auto size = p.get_size();
-    ::write(buf, static_cast<uint32_t>(size));
-
-    for (size_t i = 0; i < size; ++i) {
-        write(buf, p[i]);
-    }
-}
-
-// Highly optimised read for loading large keys from disk.
-template <> inline void read(std::istream& is, polynomial& p)
-{
-    p = polynomial();
-    uint32_t size;
-    ::read(is, size);
-    p.resize_unsafe(size);
-
-    auto len = (std::streamsize)(size * sizeof(fr));
-    is.read((char*)&p[0], len);
-
-#ifndef NO_MULTITHREADING
-#pragma omp parallel for
-#endif
-    for (size_t i = 0; i < size; ++i) {
-        fr& c = p[i];
-        std::swap(c.data[3], c.data[0]);
-        std::swap(c.data[2], c.data[1]);
-        c.data[3] = ntohll(c.data[3]);
-        c.data[2] = ntohll(c.data[2]);
-        c.data[1] = ntohll(c.data[1]);
-        c.data[0] = ntohll(c.data[0]);
-        c = c.to_montgomery_form();
-    }
-}
-
-template <> inline void write(std::ostream& os, polynomial const& p)
-{
-    auto size = p.get_size();
-    auto len = size * sizeof(fr);
-    ::write(os, static_cast<uint32_t>(size));
-    fr* cbuf = (fr*)aligned_alloc(64, len);
-    memcpy(cbuf, &p[0], len);
-
-#ifndef NO_MULTITHREADING
-#pragma omp parallel for
-#endif
-    for (size_t i = 0; i < size; ++i) {
-        fr& c = cbuf[i];
-        c = c.from_montgomery_form();
-        std::swap(c.data[3], c.data[0]);
-        std::swap(c.data[2], c.data[1]);
-        c.data[3] = htonll(c.data[3]);
-        c.data[2] = htonll(c.data[2]);
-        c.data[1] = htonll(c.data[1]);
-        c.data[0] = htonll(c.data[0]);
-    }
-
-    os.write((char*)cbuf, (std::streamsize)len);
-    aligned_free(cbuf);
+    return os << "[ " << p[0] << ", ... ]";
 }
 
 } // namespace barretenberg

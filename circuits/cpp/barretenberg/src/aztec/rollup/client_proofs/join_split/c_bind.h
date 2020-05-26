@@ -8,13 +8,13 @@ WASM_EXPORT void join_split__init_proving_key();
 
 WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf);
 
-WASM_EXPORT size_t join_split__get_new_proving_key_data(uint8_t** output);
+WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output);
 
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x);
 
 WASM_EXPORT void join_split__init_verification_key_from_buffer(uint8_t const* vk_buf, uint8_t const* g2x);
 
-WASM_EXPORT size_t join_split__get_new_verification_key_data(uint8_t** output);
+WASM_EXPORT uint32_t join_split__get_new_verification_key_data(uint8_t** output);
 
 WASM_EXPORT void join_split__encrypt_note(uint8_t const* note_buffer, uint8_t* output);
 

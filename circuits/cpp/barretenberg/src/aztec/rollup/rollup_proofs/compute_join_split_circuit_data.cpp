@@ -1,8 +1,9 @@
 #include "compute_join_split_circuit_data.hpp"
-#include "../client_proofs/join_split/join_split.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <rollup/tx/user_context.hpp>
+#include <rollup/client_proofs/join_split/join_split.hpp>
 #include <rollup/client_proofs/join_split/sign_notes.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 #include <fstream>
 #include <sys/stat.h>
 #include <common/timer.hpp>

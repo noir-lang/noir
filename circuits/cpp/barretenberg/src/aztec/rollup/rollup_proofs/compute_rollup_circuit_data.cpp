@@ -1,9 +1,10 @@
 #include "compute_rollup_circuit_data.hpp"
-#include "../client_proofs/join_split/join_split.hpp"
+#include <rollup/client_proofs/join_split/join_split.hpp>
 #include "rollup_circuit.hpp"
 #include <fstream>
 #include <sys/stat.h>
 #include <common/timer.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 
 namespace rollup {
 namespace rollup_proofs {

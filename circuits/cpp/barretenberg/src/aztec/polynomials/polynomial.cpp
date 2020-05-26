@@ -9,8 +9,6 @@
 #include <sys/mman.h>
 #endif
 
-using namespace barretenberg;
-
 namespace {
 size_t clamp(size_t target, size_t step)
 {
@@ -20,6 +18,8 @@ size_t clamp(size_t target, size_t step)
     return res;
 }
 } // namespace
+
+namespace barretenberg {
 
 /**
  * Constructors / Destructors
@@ -246,8 +246,8 @@ void polynomial::resize_unsafe(const size_t new_size)
 
     if (new_size > max_size) {
         bump_memory(new_size);
-        size = new_size;
     }
+    size = new_size;
 }
 
 /**
@@ -353,3 +353,5 @@ fr polynomial::compute_kate_opening_coefficients(const barretenberg::fr& z)
 {
     return polynomial_arithmetic::compute_kate_opening_coefficients(coefficients, coefficients, z, size);
 }
+
+} // namespace barretenberg

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/reference_string/pippenger_reference_string.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 #include <sstream>
 
 using namespace barretenberg;
@@ -23,21 +24,40 @@ WASM_EXPORT void join_split__init_proving_key()
     init_proving_key(std::move(crs_factory));
 }
 
-WASM_EXPORT size_t join_split__get_new_proving_key_data(uint8_t** output)
-{
-    auto buffer = to_buffer(*get_proving_key());
-    auto raw_buf = (uint8_t*)malloc(buffer.size());
-    memcpy(raw_buf, (void*)buffer.data(), buffer.size());
-    *output = raw_buf;
-    return buffer.size();
-}
-
 WASM_EXPORT void join_split__init_proving_key_from_buffer(uint8_t const* pk_buf)
 {
-    auto crs = std::make_shared<waffle::ProverReferenceString>();
+    std::shared_ptr<waffle::ProverReferenceString> crs;
     waffle::proving_key_data pk_data;
     read(pk_buf, pk_data);
     init_proving_key(crs, std::move(pk_data));
+}
+
+WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
+{
+    // std::vector<uint8_t> buffer;
+    // We know our key uses ~331mb.
+    // buffer.reserve(350*1024*1024);
+    // write(buffer, *get_proving_key());
+    // auto raw_buf = (uint8_t*)malloc(buffer.size());
+    // memcpy(raw_buf, (void*)buffer.data(), buffer.size());
+    // *output = raw_buf;
+    // info(buffer.size());
+    // return buffer.size();
+
+    // Computing the size of the serialized key is non trivial. We know it's ~331mb.
+    // Allocate a buffer large enough to hold it, and abort if we overflow.
+    // This is to keep memory usage down.
+    size_t total_buf_len = 350 * 1024 * 1024;
+    auto raw_buf = (uint8_t*)malloc(total_buf_len);
+    auto raw_buf_end = raw_buf;
+    write(raw_buf_end, *get_proving_key());
+    *output = raw_buf;
+    auto len = static_cast<uint32_t>(raw_buf_end - raw_buf);
+    if (len > total_buf_len) {
+        info("Buffer overflow serializing proving key.");
+        std::abort();
+    }
+    return len;
 }
 
 WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
@@ -47,21 +67,21 @@ WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t cons
     init_verification_key(std::move(crs_factory));
 }
 
-WASM_EXPORT size_t join_split__get_new_verification_key_data(uint8_t** output)
-{
-    auto buffer = to_buffer(*get_verification_key());
-    auto raw_buf = (uint8_t*)malloc(buffer.size());
-    memcpy(raw_buf, (void*)buffer.data(), buffer.size());
-    *output = raw_buf;
-    return buffer.size();
-}
-
 WASM_EXPORT void join_split__init_verification_key_from_buffer(uint8_t const* vk_buf, uint8_t const* g2x)
 {
     auto crs = std::make_shared<waffle::VerifierMemReferenceString>(g2x);
     waffle::verification_key_data vk_data;
     read(vk_buf, vk_data);
     init_verification_key(crs, std::move(vk_data));
+}
+
+WASM_EXPORT uint32_t join_split__get_new_verification_key_data(uint8_t** output)
+{
+    auto buffer = to_buffer(*get_verification_key());
+    auto raw_buf = (uint8_t*)malloc(buffer.size());
+    memcpy(raw_buf, (void*)buffer.data(), buffer.size());
+    *output = raw_buf;
+    return static_cast<uint32_t>(buffer.size());
 }
 
 WASM_EXPORT void join_split__sign_4_notes(uint8_t const* note_buffer, uint8_t* pk_buffer, uint8_t* output)

@@ -1,6 +1,7 @@
 #include <common/test.hpp>
 #include <common/streams.hpp>
 #include "proving_key.hpp"
+#include "serialize.hpp"
 
 using namespace barretenberg;
 using namespace waffle;
@@ -44,7 +45,7 @@ TEST(proving_key, stream_serialization)
     write(s, key);
 
     proving_key_data result;
-    read(s, result);
+    read(static_cast<std::istream&>(s), result);
 
     EXPECT_EQ(key, result);
 }
