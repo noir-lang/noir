@@ -207,7 +207,7 @@ template <uint64_t set_size> inline std::vector<uint64_t> compute_sidon_set()
     std::vector<uint64_t> set_members;
 
     auto accumulator = generator;
-    for (size_t a = 0; a < q * q - 1; ++a) {
+    for (size_t a = 1; a < q * q - 1; ++a) {
         const auto target_element = accumulator - generator;
         if (target_element.c1 == 0) {
             set_members.push_back(a);
@@ -217,6 +217,8 @@ template <uint64_t set_size> inline std::vector<uint64_t> compute_sidon_set()
         }
         accumulator *= generator;
     }
+
+    std::sort(set_members.begin(), set_members.end());
     return set_members;
 }
 } // namespace sidon

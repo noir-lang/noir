@@ -61,65 +61,59 @@ inline PLookupBasicTable create_basic_table(const PLookupBasicTableId id, const 
     case SHA256_BASE16_ROTATE2: {
         return sparse_tables::generate_sparse_table_with_rotation<16, 11, 2>(SHA256_BASE16_ROTATE2, index);
     }
-    case PEDERSEN_1_10: {
-        return pedersen_tables::generate_pedersen_table(0, 9, PEDERSEN_1_10, index);
+    case PEDERSEN_0: {
+        return pedersen_tables::generate_sidon_pedersen_table<0>(PEDERSEN_0, index);
     }
-    case PEDERSEN_1_9: {
-        return pedersen_tables::generate_pedersen_table(0, 8, PEDERSEN_1_9, index);
+    case PEDERSEN_1: {
+        return pedersen_tables::generate_sidon_pedersen_table<1>(PEDERSEN_1, index);
     }
-    case PEDERSEN_1_8: {
-        return pedersen_tables::generate_pedersen_table(0, 7, PEDERSEN_1_8, index);
+    case PEDERSEN_2: {
+        return pedersen_tables::generate_sidon_pedersen_table<2>(PEDERSEN_2, index);
     }
-    case PEDERSEN_1_7: {
-        return pedersen_tables::generate_pedersen_table(0, 6, PEDERSEN_1_7, index);
+    case PEDERSEN_3: {
+        return pedersen_tables::generate_sidon_pedersen_table<3>(PEDERSEN_3, index);
     }
-    case PEDERSEN_1_6: {
-        return pedersen_tables::generate_pedersen_table(0, 5, PEDERSEN_1_6, index);
+    case PEDERSEN_4: {
+        return pedersen_tables::generate_sidon_pedersen_table<4>(PEDERSEN_4, index);
     }
-    case PEDERSEN_1_5: {
-        return pedersen_tables::generate_pedersen_table(0, 4, PEDERSEN_1_5, index);
+    case PEDERSEN_5: {
+        return pedersen_tables::generate_sidon_pedersen_table<5>(PEDERSEN_5, index);
     }
-    case PEDERSEN_1_4: {
-        return pedersen_tables::generate_pedersen_table(0, 3, PEDERSEN_1_4, index);
+    case PEDERSEN_6: {
+        return pedersen_tables::generate_sidon_pedersen_table<6>(PEDERSEN_6, index);
     }
-    case PEDERSEN_1_3: {
-        return pedersen_tables::generate_pedersen_table(0, 2, PEDERSEN_1_3, index);
+    case PEDERSEN_7: {
+        return pedersen_tables::generate_sidon_pedersen_table<7>(PEDERSEN_7, index);
     }
-    case PEDERSEN_1_2: {
-        return pedersen_tables::generate_pedersen_table(0, 1, PEDERSEN_1_2, index);
+    case PEDERSEN_8: {
+        return pedersen_tables::generate_sidon_pedersen_table<8>(PEDERSEN_8, index);
     }
-    case PEDERSEN_1_1: {
-        return pedersen_tables::generate_pedersen_table(0, 0, PEDERSEN_1_1, index);
+    case PEDERSEN_9: {
+        return pedersen_tables::generate_sidon_pedersen_table<9>(PEDERSEN_9, index);
     }
-    case PEDERSEN_2_10: {
-        return pedersen_tables::generate_pedersen_table(1, 9, PEDERSEN_2_10, index);
+    case PEDERSEN_10: {
+        return pedersen_tables::generate_sidon_pedersen_table<10>(PEDERSEN_10, index);
     }
-    case PEDERSEN_2_9: {
-        return pedersen_tables::generate_pedersen_table(1, 8, PEDERSEN_2_9, index);
+    case PEDERSEN_11: {
+        return pedersen_tables::generate_sidon_pedersen_table<11>(PEDERSEN_11, index);
     }
-    case PEDERSEN_2_8: {
-        return pedersen_tables::generate_pedersen_table(1, 7, PEDERSEN_2_8, index);
+    case PEDERSEN_12: {
+        return pedersen_tables::generate_sidon_pedersen_table<12>(PEDERSEN_12, index);
     }
-    case PEDERSEN_2_7: {
-        return pedersen_tables::generate_pedersen_table(1, 6, PEDERSEN_2_7, index);
+    case PEDERSEN_13: {
+        return pedersen_tables::generate_sidon_pedersen_table<13>(PEDERSEN_13, index);
     }
-    case PEDERSEN_2_6: {
-        return pedersen_tables::generate_pedersen_table(1, 5, PEDERSEN_2_6, index);
+    case PEDERSEN_14: {
+        return pedersen_tables::generate_sidon_pedersen_table<14>(PEDERSEN_14, index);
     }
-    case PEDERSEN_2_5: {
-        return pedersen_tables::generate_pedersen_table(1, 4, PEDERSEN_2_5, index);
+    case PEDERSEN_15: {
+        return pedersen_tables::generate_sidon_pedersen_table<15>(PEDERSEN_15, index);
     }
-    case PEDERSEN_2_4: {
-        return pedersen_tables::generate_pedersen_table(1, 3, PEDERSEN_2_4, index);
+    case PEDERSEN_16: {
+        return pedersen_tables::generate_sidon_pedersen_table<16>(PEDERSEN_16, index);
     }
-    case PEDERSEN_2_3: {
-        return pedersen_tables::generate_pedersen_table(1, 2, PEDERSEN_2_3, index);
-    }
-    case PEDERSEN_2_2: {
-        return pedersen_tables::generate_pedersen_table(1, 1, PEDERSEN_2_2, index);
-    }
-    case PEDERSEN_2_1: {
-        return pedersen_tables::generate_pedersen_table(1, 0, PEDERSEN_2_1, index);
+    case PEDERSEN_17: {
+        return pedersen_tables::generate_sidon_pedersen_table<17>(PEDERSEN_17, index);
     }
     default: {
         throw;

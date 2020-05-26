@@ -107,7 +107,7 @@ TEST(sidon_pedersen, compress)
             bits >>= crypto::pedersen::sidon::BITS_PER_TABLE;
             uint64_t slice_c = sidon_set[static_cast<size_t>(bits.data[0] & mask)];
 
-            const element generator = crypto::pedersen::sidon::get_table_generator(generator_offset + 9 - i - 1);
+            const element generator = crypto::pedersen::sidon::get_table_generator(generator_offset + i);
 
             if (i == 0) {
                 accumulators[0] = generator * slice_a;

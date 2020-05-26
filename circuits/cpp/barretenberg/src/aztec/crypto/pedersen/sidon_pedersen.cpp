@@ -86,7 +86,7 @@ grumpkin::g1::element compress_single(const grumpkin::fq& input, const bool pari
 
         // P = g * a + g * (b * lambda) + g * (c * (lambda + 1))
 
-        const size_t index = table_index_offset + num_rounds - 1 - i;
+        const size_t index = table_index_offset + i;
         if (i == 0) {
             accumulators = {
                 sidon_pedersen_tables[index][slice_a],
