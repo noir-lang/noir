@@ -1,30 +1,3 @@
-// #pragma once
-// #include <stdlib/types/turbo.hpp>
-
-// namespace plonk {
-// namespace stdlib {
-// namespace pedersen {
-
-// using namespace plonk::stdlib::types::turbo;
-
-// field_ct compress_eight(std::array<field_ct, 8>& inputs, bool handle_edge_cases = false);
-
-// // TODO: use unique generators for each range
-// field_ct compress(std::vector<field_ct>& inputs, bool handle_edge_cases = false);
-
-// field_ct compress(const field_ct& left,
-//                   const field_ct& right,
-//                   const size_t hash_index = 0,
-//                   bool handle_edge_cases = false);
-
-// byte_array_ct compress(const byte_array_ct& inputs);
-
-// point_ct compress_to_point(const field_ct& left, const field_ct& right, const size_t hash_index = 0);
-
-// } // namespace pedersen
-// } // namespace stdlib
-// } // namespace plonk
-
 #pragma once
 #include "../../primitives/composers/composers_fwd.hpp"
 #include "../../primitives/field/field.hpp"
@@ -40,10 +13,21 @@ template <typename ComposerContext> class pedersen_plookup {
     typedef plonk::stdlib::byte_array<ComposerContext> byte_array;
     typedef plonk::stdlib::bool_t<ComposerContext> bool_t;
 
+    enum AddType {
+        LAMBDA,
+        ONE,
+        ONE_PLUS_LAMBDA,
+    };
+
     static point hash_single(const field_t& in, const bool parity);
+    static point add_points(const point& p1, const point& p2, const AddType add_type = ONE);
+    static point compress_to_point(const field_t& left, const field_t& right);
 
   public:
     static field_t compress(const field_t& left, const field_t& right);
+    static field_t compress(const std::vector<field_t>& inputs);
+
+    static point encrypt(const std::vector<field_t>& inputs);
 };
 
 extern template class pedersen_plookup<waffle::PLookupComposer>;

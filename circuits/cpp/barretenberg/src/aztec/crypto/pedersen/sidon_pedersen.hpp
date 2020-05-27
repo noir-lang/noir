@@ -23,7 +23,16 @@ const std::vector<grumpkin::g1::affine_element>& get_table(const size_t table_in
 
 grumpkin::g1::element compress_single(const grumpkin::fq& input, const bool parity);
 
-grumpkin::fq compress(const grumpkin::fq& left, const grumpkin::fq& right);
+grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right);
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs);
+template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, T>& inputs)
+{
+    std::vector<grumpkin::fq> in(inputs.begin(), inputs.end());
+    return compress_native(in);
+}
+
+grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inputs);
+
 } // namespace sidon
 } // namespace pedersen
 } // namespace crypto

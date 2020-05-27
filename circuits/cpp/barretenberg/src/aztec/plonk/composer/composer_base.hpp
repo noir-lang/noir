@@ -104,7 +104,7 @@ struct ecc_add_gate {
 class ComposerBase {
   public:
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
-    static constexpr size_t NUM_RESERVED_GATES = 0;
+    static constexpr size_t NUM_RESERVED_GATES = 1;
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
     struct cycle_node {

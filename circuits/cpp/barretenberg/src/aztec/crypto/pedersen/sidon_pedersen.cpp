@@ -110,11 +110,60 @@ grumpkin::g1::element compress_single(const grumpkin::fq& input, const bool pari
     return accumulators[0] + accumulators[1] + accumulators[2];
 }
 
-grumpkin::fq compress(const grumpkin::fq& left, const grumpkin::fq& right)
+grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right)
 {
     grumpkin::g1::affine_element result =
         grumpkin::g1::affine_element(compress_single(left, false) + compress_single(right, true));
     return result.x;
+}
+
+grumpkin::g1::element tree_compress(const std::vector<grumpkin::fq>& inputs)
+{
+    const size_t num_inputs = inputs.size();
+
+    size_t num_tree_levels = numeric::get_msb(num_inputs) + 1;
+    if (1UL << num_tree_levels < num_inputs) {
+        ++num_tree_levels;
+    }
+
+    std::vector<grumpkin::fq> previous_leaves(inputs.begin(), inputs.end());
+
+    for (size_t i = 0; i < num_tree_levels - 1; ++i) {
+        const size_t num_leaves = 1UL << (num_tree_levels - i);
+        std::vector<grumpkin::fq> current_leaves;
+        for (size_t j = 0; j < num_leaves; j += 2) {
+            grumpkin::fq left;
+            grumpkin::fq right;
+            if (j < previous_leaves.size()) {
+                left = previous_leaves[j];
+            } else {
+                left = 0;
+            }
+
+            if ((j + 1) < previous_leaves.size()) {
+                right = previous_leaves[j + 1];
+            } else {
+                right = 0;
+            }
+
+            current_leaves.push_back(compress_native(left, right));
+        }
+
+        previous_leaves.resize(current_leaves.size());
+        std::copy(current_leaves.begin(), current_leaves.end(), previous_leaves.begin());
+    }
+
+    return (compress_single(previous_leaves[0], false) + compress_single(previous_leaves[1], true));
+}
+
+grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inputs)
+{
+    return grumpkin::g1::affine_element(tree_compress(inputs));
+}
+
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
+{
+    return encrypt_native(inputs).x;
 }
 
 } // namespace sidon

@@ -22,7 +22,7 @@ void verify_signature(rollup_context& ctx,
         to_compress[i * 2] = notes[i].ciphertext.x;
         to_compress[i * 2 + 1] = notes[i].ciphertext.y;
     }
-    byte_array_ct message = pedersen::compress_eight(to_compress);
+    byte_array_ct message = pedersen::compress(to_compress);
     byte_array_ct message2(&ctx.composer, message.bits().rbegin(), message.bits().rend());
     stdlib::schnorr::verify_signature(message2, owner_pub_key, signature);
 }

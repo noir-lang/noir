@@ -1,5 +1,7 @@
 #include "../utils/permutation.hpp"
-#include "../widgets/arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/arithmetic_widget.hpp"
+#include "../widgets/random_widgets/permutation_widget.hpp"
+
 #include "prover.hpp"
 #include <gtest/gtest.h>
 #include <plonk/reference_string/file_reference_string.hpp>
@@ -276,12 +278,12 @@ waffle::Prover generate_test_data(const size_t n)
     std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
 
-    std::unique_ptr<waffle::ProverArithmeticWidget> widget =
-        std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());
+    std::unique_ptr<waffle::ProverArithmeticWidget<waffle::standard_settings>> widget =
+        std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get(), witness.get());
 
     waffle::Prover state = waffle::Prover(key, witness, create_manifest());
     state.random_widgets.emplace_back(std::move(permutation_widget));
-    state.random_widgets.emplace_back(std::move(widget));
+    state.transition_widgets.emplace_back(std::move(widget));
     return state;
 }
 } // namespace prover_helpers

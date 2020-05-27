@@ -70,7 +70,9 @@ TEST(sidon_pedersen, compress_single)
         } else {
             accumulators[0] += (generator * (lambda * slice_a));
             accumulators[1] += (generator * (slice_b));
-            accumulators[2] += (generator * ((lambda + 1) * slice_c));
+            if (i < 8) {
+                accumulators[2] += (generator * ((lambda + 1) * slice_c));
+            }
         }
         bits >>= crypto::pedersen::sidon::BITS_PER_TABLE;
     }
@@ -80,7 +82,7 @@ TEST(sidon_pedersen, compress_single)
     EXPECT_EQ(result, expected);
 }
 
-TEST(sidon_pedersen, compress)
+TEST(sidon_pedersen, compress_native)
 {
     typedef grumpkin::fq fq;
     typedef grumpkin::fr fr;
@@ -90,7 +92,7 @@ TEST(sidon_pedersen, compress)
     const fq left = engine.get_random_uint256();
     const fq right = engine.get_random_uint256();
 
-    const fq result(crypto::pedersen::sidon::compress(left, right));
+    const fq result(crypto::pedersen::sidon::compress_native(left, right));
 
     const auto& sidon_set = crypto::pedersen::sidon::get_sidon_set();
 

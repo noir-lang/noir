@@ -51,6 +51,47 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
     EXPECT_EQ(proof_result, true);
 }
 
+TEST(stdlib_pedersen, test_compress_many_plookup)
+{
+    typedef stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef stdlib::witness_t<waffle::PLookupComposer> witness_pt;
+
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    std::vector<fr> input_values{
+        fr::random_element(), fr::random_element(), fr::random_element(),
+        fr::random_element(), fr::random_element(), fr::random_element(),
+    };
+    std::vector<field_pt> inputs;
+    for (const auto& input : input_values) {
+        inputs.emplace_back(witness_pt(&composer, input));
+    }
+
+    field_pt result = stdlib::pedersen_plookup<waffle::PLookupComposer>::compress(inputs);
+
+    auto t0 = crypto::pedersen::sidon::compress(input_values[0], input_values[1]);
+    auto t1 = crypto::pedersen::sidon::compress(input_values[2], input_values[3]);
+    auto t2 = crypto::pedersen::sidon::compress(input_values[4], input_values[5]);
+    auto t3 = crypto::pedersen::sidon::compress(0, 0);
+
+    auto t4 = crypto::pedersen::sidon::compress(t0, t1);
+    auto t5 = crypto::pedersen::sidon::compress(t2, t3);
+
+    auto expected = crypto::pedersen::sidon::compress(t4, t5);
+
+    EXPECT_EQ(result.get_value(), expected);
+
+    auto prover = composer.create_prover();
+
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    auto verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
 TEST(stdlib_pedersen, test_pedersen)
 {
 
@@ -339,8 +380,8 @@ TEST(stdlib_pedersen, test_compress_eight)
         witness_inputs[i] = witness_t(&composer, inputs[i]);
     }
 
-    barretenberg::fr expected = crypto::pedersen::compress_eight_native(inputs);
-    auto result = pedersen::compress_eight(witness_inputs);
+    barretenberg::fr expected = crypto::pedersen::compress_native(inputs);
+    auto result = pedersen::compress(witness_inputs);
 
     EXPECT_EQ(result.get_value(), expected);
 }

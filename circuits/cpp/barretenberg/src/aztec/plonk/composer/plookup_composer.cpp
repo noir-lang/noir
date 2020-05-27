@@ -367,7 +367,7 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     ++n;
 }
 
-void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in, const bool fuse_into_previous_gate)
+void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
 {
     /**
      * | 1  | 2  | 3  | 4  |
@@ -379,10 +379,15 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in, const bool fus
 
     PLOOKUP_SELECTOR_REFS
 
-    if (fuse_into_previous_gate) {
-        // hmm, use with caution
-        ASSERT(w_l[n - 1] == zero_idx);
-        ASSERT(w_4[n - 1] == zero_idx);
+    bool can_fuse_into_previous_gate = true;
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[n - 1] == in.x1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_o[n - 1] == in.y1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_3[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_4[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_5[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[n - 1] == 0);
+
+    if (can_fuse_into_previous_gate) {
         ASSERT(w_r[n - 1] == in.x1);
         ASSERT(w_o[n - 1] == in.y1);
 

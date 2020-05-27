@@ -187,12 +187,6 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
     return accumulator;
 }
 
-grumpkin::fq compress_eight_native(const std::array<grumpkin::fq, 8>& inputs)
-{
-    std::vector<grumpkin::fq> converted(inputs.begin(), inputs.end());
-    return compress_native(converted);
-}
-
 grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index)
 {
     if (!inited) {

@@ -45,10 +45,14 @@ template <typename ComposerContext> class pedersen {
     static field_t conditionally_accumulate(std::vector<point>& to_accumulate, std::vector<field_t>& inputs);
 
   public:
-    static field_t compress_eight(std::array<field_t, 8>& inputs, bool handle_edge_cases = false);
-
     // TODO: use unique generators for each range
     static field_t compress(std::vector<field_t>& inputs, bool handle_edge_cases = false);
+
+    template <size_t T> static field_t compress(std::array<field_t, T>& inputs, bool handle_edge_cases = false)
+    {
+        std::vector<field_t> in(inputs.begin(), inputs.end());
+        return compress(in, handle_edge_cases);
+    }
 
     static field_t compress(const field_t& left, const field_t& right, const size_t hash_index, bool handle_edge_cases);
 

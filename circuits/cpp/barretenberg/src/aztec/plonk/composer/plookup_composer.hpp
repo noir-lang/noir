@@ -90,7 +90,7 @@ class PLookupComposer : public ComposerBase {
     void create_fixed_group_add_gate(const fixed_group_add_quad& in);
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
 
-    void create_ecc_add_gate(const ecc_add_gate& in, const bool fuse_into_previous_gate = false);
+    void create_ecc_add_gate(const ecc_add_gate& in);
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
