@@ -20,6 +20,8 @@ struct mimc_quadruplet {
 
 class MiMCComposer : public StandardComposer {
   public:
+    static constexpr ComposerType type = ComposerType::STANDARD;
+
     MiMCComposer(const size_t size_hint = 0)
         : StandardComposer(7, size_hint, MIMC_SEL_NAMES, { false, false, false, false, false, true, true })
     {

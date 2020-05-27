@@ -34,7 +34,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
     field_pt left = witness_pt(&composer, left_in);
     field_pt right = witness_pt(&composer, right_in);
 
-    field_pt result = stdlib::pedersen_plookup<waffle::PLookupComposer>::compress(left, right);
+    field_pt result = stdlib::pedersen<waffle::PLookupComposer>::compress(left, right);
 
     fr expected = crypto::pedersen::sidon::compress_native(left_in, right_in);
 
@@ -67,7 +67,7 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
         inputs.emplace_back(witness_pt(&composer, input));
     }
 
-    field_pt result = stdlib::pedersen_plookup<waffle::PLookupComposer>::compress(inputs);
+    field_pt result = stdlib::pedersen<waffle::PLookupComposer>::compress(inputs);
 
     auto t0 = crypto::pedersen::sidon::compress_native(input_values[0], input_values[1]);
     auto t1 = crypto::pedersen::sidon::compress_native(input_values[2], input_values[3]);

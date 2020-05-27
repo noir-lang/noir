@@ -28,6 +28,7 @@ template <typename Composer> class packed_bytes {
     operator byte_array() const;
 
     std::vector<field_t> to_unverified_byte_slices(const size_t bytes_per_slice) const;
+    std::vector<field_t> get_limbs() const { return limbs; }
 
     void append(const field_t& to_append, const size_t bytes_to_append);
 

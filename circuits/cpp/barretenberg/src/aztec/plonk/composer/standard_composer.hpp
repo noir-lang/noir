@@ -15,6 +15,8 @@ const static std::vector<std::string> STANDARD_SEL_NAMES = { "q_m", "q_c", "q_1"
 
 class StandardComposer : public ComposerBase {
   public:
+    static constexpr ComposerType type = ComposerType::STANDARD;
+
     StandardComposer(const size_t size_hint = 0)
         : ComposerBase(5, size_hint, STANDARD_SEL_NAMES, { true, true, true, true, true })
     {

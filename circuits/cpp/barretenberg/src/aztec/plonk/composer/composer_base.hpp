@@ -101,6 +101,12 @@ struct ecc_add_gate {
     barretenberg::fr sign_coefficient;
 };
 
+enum ComposerType {
+    STANDARD,
+    TURBO,
+    PLOOKUP,
+};
+
 class ComposerBase {
   public:
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;

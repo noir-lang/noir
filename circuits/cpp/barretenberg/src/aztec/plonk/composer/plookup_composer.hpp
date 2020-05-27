@@ -7,6 +7,8 @@ namespace waffle {
 class PLookupComposer : public ComposerBase {
 
   public:
+    static constexpr ComposerType type = ComposerType::PLOOKUP;
+
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
     static constexpr size_t NUM_RESERVED_GATES = 2;
     enum PLookupSelectors {

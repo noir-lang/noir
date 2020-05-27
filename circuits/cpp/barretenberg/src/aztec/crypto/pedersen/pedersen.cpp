@@ -214,7 +214,7 @@ grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right
 #endif
 }
 
-grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
+grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
 {
     std::vector<grumpkin::g1::element> out(inputs.size());
     if (!inited) {
@@ -224,15 +224,19 @@ grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
 #pragma omp parallel for
 #endif
     for (size_t i = 0; i < inputs.size(); ++i) {
-        out[i] = hash_single(inputs[i], i);
+        out[i] = hash_single(inputs[i], i + hash_index);
     }
 
     grumpkin::g1::element r = out[0];
     for (size_t i = 1; i < inputs.size(); ++i) {
         r = out[i] + r;
     }
-    r = r.normalize();
-    return r.is_point_at_infinity() ? grumpkin::fq(0) : r.x;
+    return r.is_point_at_infinity() ? grumpkin::g1::affine_element(0, 0) : grumpkin::g1::affine_element(r);
+}
+
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
+{
+    return encrypt_native(inputs).x;
 }
 
 std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)

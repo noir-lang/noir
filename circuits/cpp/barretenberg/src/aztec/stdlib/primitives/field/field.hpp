@@ -188,7 +188,7 @@ template <typename ComposerContext> class field_t {
 
     ComposerContext* get_context() const { return context; }
 
-    bool_t<ComposerContext> is_zero();
+    bool_t<ComposerContext> is_zero() const;
     void assert_is_not_zero();
     void assert_is_zero();
     bool is_constant() const { return witness_index == static_cast<uint32_t>(-1); }
