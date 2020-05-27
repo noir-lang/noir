@@ -7,8 +7,30 @@
 
 namespace waffle {
 
+struct proving_key_data {
+    uint32_t n;
+    uint32_t num_public_inputs;
+    std::map<std::string, barretenberg::polynomial> constraint_selectors;
+    std::map<std::string, barretenberg::polynomial> constraint_selector_ffts;
+    std::map<std::string, barretenberg::polynomial> permutation_selectors;
+    std::map<std::string, barretenberg::polynomial> permutation_selectors_lagrange_base;
+    std::map<std::string, barretenberg::polynomial> permutation_selector_ffts;
+};
+
+inline bool operator==(proving_key_data const& lhs, proving_key_data const& rhs)
+{
+    return lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
+           lhs.constraint_selectors == rhs.constraint_selectors &&
+           lhs.constraint_selector_ffts == rhs.constraint_selector_ffts &&
+           lhs.permutation_selectors == rhs.permutation_selectors &&
+           lhs.permutation_selectors_lagrange_base == rhs.permutation_selectors_lagrange_base &&
+           lhs.permutation_selector_ffts == rhs.permutation_selector_ffts;
+}
+
 struct proving_key {
   public:
+    proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenceString> const& crs);
+
     proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
 
     proving_key(const proving_key& other);
@@ -21,7 +43,7 @@ struct proving_key {
 
     void reset();
 
-    void write(std::ostream& os);
+    void init();
 
     size_t n;
     size_t num_public_inputs;
@@ -55,4 +77,5 @@ struct proving_key {
     size_t shifted_opening_poly_challenge_index;
     static constexpr size_t min_thread_block = 4UL;
 };
+
 } // namespace waffle

@@ -6,6 +6,7 @@
 #include <rollup/tx/user_context.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
+#include <sys/stat.h>
 
 namespace rollup {
 namespace rollup_proofs {
@@ -15,11 +16,6 @@ using namespace rollup::rollup_proofs;
 using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
-
-std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data)
-{
-    return create_noop_join_split_proof(circuit_data, fr::random_element());
-}
 
 std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data, fr const& merkle_root)
 {

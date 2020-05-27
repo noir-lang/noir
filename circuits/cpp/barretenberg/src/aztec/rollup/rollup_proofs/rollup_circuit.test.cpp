@@ -29,7 +29,7 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         old = std::cerr.rdbuf();
         std::cerr.rdbuf(swallow.rdbuf());
         inner_circuit_data = compute_join_split_circuit_data();
-        padding_proof = create_noop_join_split_proof(inner_circuit_data);
+        padding_proof = inner_circuit_data.padding_proof;
         rollup_1_keyless = compute_rollup_circuit_data(1, inner_circuit_data, false);
         rollup_2_keyless = compute_rollup_circuit_data(2, inner_circuit_data, false);
     }

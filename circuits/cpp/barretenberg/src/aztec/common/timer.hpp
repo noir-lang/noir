@@ -1,3 +1,4 @@
+#pragma once
 #include <stdio.h>
 #include <string>
 #include <sys/resource.h>
@@ -29,8 +30,8 @@ class Timer {
             endTime = _endTime;
         }
 
-        long seconds = endTime.tv_sec - _startTime.tv_sec;
-        long ns = endTime.tv_nsec - _startTime.tv_nsec;
+        auto seconds = endTime.tv_sec - _startTime.tv_sec;
+        auto ns = endTime.tv_nsec - _startTime.tv_nsec;
 
         if (_startTime.tv_nsec > endTime.tv_nsec) { // clock underflow
             --seconds;

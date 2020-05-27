@@ -1,6 +1,5 @@
 #include "../rollup_proofs/compute_join_split_circuit_data.hpp"
 #include "../rollup_proofs/compute_rollup_circuit_data.hpp"
-#include "../rollup_proofs/create_noop_join_split_proof.hpp"
 #include "../rollup_proofs/rollup_tx.hpp"
 #include "../rollup_proofs/verify_rollup.hpp"
 #include <common/timer.hpp>
@@ -20,12 +19,12 @@ int main(int argc, char** argv)
     size_t rollup_size = (args.size() > 1) ? (size_t)atoi(args[1].c_str()) : 1;
     std::string srs_path = (args.size() > 2) ? args[2] : "../srs_db/ignition";
 
-    auto inner_circuit_data = compute_join_split_circuit_data(srs_path);
-    auto circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, srs_path);
-    auto noop_proof = create_noop_join_split_proof(inner_circuit_data);
+    auto inner_circuit_data = compute_or_load_join_split_circuit_data(srs_path);
+    auto circuit_data = compute_or_load_rollup_circuit_data(rollup_size, inner_circuit_data, srs_path);
     auto gibberish_data_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
+    ::write(std::cout, true);
 
     while (true) {
         rollup_tx rollup;
@@ -47,7 +46,7 @@ int main(int argc, char** argv)
         auto padding = rollup_size - rollup.num_txs;
         std::cerr << "Padding required: " << padding << std::endl;
         for (size_t i = 0; i < padding; ++i) {
-            rollup.txs.push_back(noop_proof);
+            rollup.txs.push_back(inner_circuit_data.padding_proof);
             rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
             rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
             rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
@@ -58,7 +57,7 @@ int main(int argc, char** argv)
         Timer timer;
         circuit_data.proving_key->reset();
 
-        std::cerr << "Verifying..." << std::endl;
+        std::cerr << "Creating proof..." << std::endl;
         auto result = verify_rollup(rollup, circuit_data);
 
         std::cerr << "Time taken: " << timer.toString() << std::endl;

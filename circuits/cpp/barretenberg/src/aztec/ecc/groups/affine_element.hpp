@@ -71,11 +71,8 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     Fq y;
 };
 
-template <typename Fq, typename Fr, typename Params>
-void read(uint8_t const*& it, affine_element<Fq, Fr, Params>& value)
+template <typename B, typename Fq, typename Fr, typename Params> void read(B& it, affine_element<Fq, Fr, Params>& value)
 {
-    // value = affine_element<Fq, Fr, Params>::serialize_from_buffer(it);
-    // it += 64;
     read(it, value.x);
     read(it, value.y);
 }
@@ -83,8 +80,6 @@ void read(uint8_t const*& it, affine_element<Fq, Fr, Params>& value)
 template <typename B, typename Fq, typename Fr, typename Params>
 void write(B& buf, affine_element<Fq, Fr, Params> const& value)
 {
-    // buf.resize(buf.size() + 64);
-    // affine_element<Fq, Fr, Params>::serialize_to_buffer(value, &*buf.end() - 64);
     write(buf, value.x);
     write(buf, value.y);
 }

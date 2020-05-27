@@ -20,5 +20,10 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
                                                 bool create_keys = true,
                                                 std::string const& srs_path = "../srs_db/ignition");
 
+rollup_circuit_data compute_or_load_rollup_circuit_data(size_t rollup_size,
+                                                        join_split_circuit_data const& inner,
+                                                        std::string const& srs_path = "../srs_db/ignition",
+                                                        std::string const& key_path = "./data");
+
 } // namespace rollup_proofs
 } // namespace rollup
