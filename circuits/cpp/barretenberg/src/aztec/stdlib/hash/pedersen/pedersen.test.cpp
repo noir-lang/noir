@@ -36,7 +36,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
 
     field_pt result = stdlib::pedersen_plookup<waffle::PLookupComposer>::compress(left, right);
 
-    fr expected = crypto::pedersen::sidon::compress(left_in, right_in);
+    fr expected = crypto::pedersen::sidon::compress_native(left_in, right_in);
 
     EXPECT_EQ(result.get_value(), expected);
 
@@ -69,15 +69,15 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
 
     field_pt result = stdlib::pedersen_plookup<waffle::PLookupComposer>::compress(inputs);
 
-    auto t0 = crypto::pedersen::sidon::compress(input_values[0], input_values[1]);
-    auto t1 = crypto::pedersen::sidon::compress(input_values[2], input_values[3]);
-    auto t2 = crypto::pedersen::sidon::compress(input_values[4], input_values[5]);
-    auto t3 = crypto::pedersen::sidon::compress(0, 0);
+    auto t0 = crypto::pedersen::sidon::compress_native(input_values[0], input_values[1]);
+    auto t1 = crypto::pedersen::sidon::compress_native(input_values[2], input_values[3]);
+    auto t2 = crypto::pedersen::sidon::compress_native(input_values[4], input_values[5]);
+    auto t3 = crypto::pedersen::sidon::compress_native(0, 0);
 
-    auto t4 = crypto::pedersen::sidon::compress(t0, t1);
-    auto t5 = crypto::pedersen::sidon::compress(t2, t3);
+    auto t4 = crypto::pedersen::sidon::compress_native(t0, t1);
+    auto t5 = crypto::pedersen::sidon::compress_native(t2, t3);
 
-    auto expected = crypto::pedersen::sidon::compress(t4, t5);
+    auto expected = crypto::pedersen::sidon::compress_native(t4, t5);
 
     EXPECT_EQ(result.get_value(), expected);
 
