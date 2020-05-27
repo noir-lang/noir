@@ -33,6 +33,7 @@ packed_bytes<Composer>::packed_bytes(const std::vector<field_t>& input, const si
     : context(get_context_from_fields(input))
     , num_bytes(bytes_per_input * input.size())
 {
+    // TODO HANDLE CASE WHERE bytes_per_input > BYTES_PER_ELEMENT
     const size_t inputs_per_limb = BYTES_PER_ELEMENT / bytes_per_input;
 
     const size_t num_elements = num_bytes / BYTES_PER_ELEMENT + (num_bytes % BYTES_PER_ELEMENT != 0);
