@@ -20,6 +20,7 @@ typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;
 typedef stdlib::bool_t<Composer> bool_ct;
 typedef stdlib::byte_array<Composer> byte_array_ct;
+typedef stdlib::packed_bytes<Composer> packed_bytes_ct;
 typedef stdlib::field_t<Composer> field_ct;
 typedef stdlib::uint8<Composer> uint8_ct;
 typedef stdlib::uint16<Composer> uint16_ct;

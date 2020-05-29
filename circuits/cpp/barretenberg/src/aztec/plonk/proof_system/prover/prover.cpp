@@ -20,7 +20,7 @@ ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key,
     , witness(input_witness)
     , queue(key.get(), witness.get(), &transcript)
 {
-    if (witness->wires.count("z") == 0) {
+    if (input_witness && witness->wires.count("z") == 0) {
         witness->wires.insert({ "z", polynomial(n, n) });
     }
 }

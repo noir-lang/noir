@@ -1,6 +1,8 @@
 #include "sha256.hpp"
+#include "sha256_plookup.hpp"
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/turbo_composer.hpp>
+#include <plonk/composer/plookup_composer.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
 
 namespace plonk {
@@ -135,41 +137,52 @@ template <typename Composer> byte_array<Composer> sha256_block(const byte_array<
     return result;
 }
 
-template <typename Composer> bit_array<Composer> sha256(const bit_array<Composer>& input)
+template <typename Composer> packed_bytes<Composer> sha256(const packed_bytes<Composer>& input)
 {
+    if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
+        return sha256_plookup::sha256(input);
+    }
+    typedef field_t<Composer> field_pt;
     typedef uint32<Composer> uint32;
-    typedef bit_array<Composer> bit_array;
 
-    size_t num_bits = input.size();
-    size_t num_blocks = internal::get_num_blocks(num_bits);
+    Composer* ctx = input.get_context();
 
-    bit_array message_schedule = bit_array(input.get_context(), num_blocks * 512UL);
+    auto message_schedule(input);
 
-    // begin filling message schedule from most significant to least significant
-    size_t offset = message_schedule.size() - input.size();
+    const size_t message_bits = message_schedule.size() * 8;
+    message_schedule.append(field_t(ctx, 128), 1);
 
-    for (size_t i = input.size() - 1; i < input.size(); --i) {
-        size_t idx = offset + i;
-        message_schedule[idx] = input[i];
+    constexpr size_t bytes_per_block = 64;
+    const size_t num_bytes = message_schedule.size() + 8;
+    const size_t num_blocks = num_bytes / bytes_per_block + (num_bytes % bytes_per_block != 0);
+
+    const size_t num_total_bytes = num_blocks * bytes_per_block;
+    for (size_t i = num_bytes; i < num_total_bytes; ++i) {
+        message_schedule.append(field_t(ctx, 0), 1);
     }
-    message_schedule[offset - 1] = true;
-    for (size_t i = 0; i < 32; ++i) {
-        message_schedule[i] = static_cast<bool>((num_bits >> i) & 1);
-    }
+
+    message_schedule.append(field_t(ctx, message_bits), 8);
+
+    const auto slices = message_schedule.to_unverified_byte_slices(4);
+
+    constexpr size_t slices_per_block = 16;
 
     std::array<uint32, 8> rolling_hash;
     prepare_constants(rolling_hash);
     for (size_t i = 0; i < num_blocks; ++i) {
         std::array<uint32, 16> hash_input;
-        message_schedule.populate_uint32_array(i * 512, hash_input);
+        for (size_t j = 0; j < 16; ++j) {
+            hash_input[j] = uint32(slices[i * slices_per_block + j]);
+        }
         rolling_hash = sha256_block(rolling_hash, hash_input);
     }
-    return bit_array(rolling_hash);
+
+    std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
+    return packed_bytes<Composer>(output, 4);
 }
 
 template byte_array<waffle::TurboComposer> sha256_block(const byte_array<waffle::TurboComposer>& input);
-template bit_array<waffle::StandardComposer> sha256(const bit_array<waffle::StandardComposer>& input);
-template bit_array<waffle::TurboComposer> sha256(const bit_array<waffle::TurboComposer>& input);
-
+template packed_bytes<waffle::TurboComposer> sha256(const packed_bytes<waffle::TurboComposer>& input);
+template packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupComposer>& input);
 } // namespace stdlib
 } // namespace plonk
