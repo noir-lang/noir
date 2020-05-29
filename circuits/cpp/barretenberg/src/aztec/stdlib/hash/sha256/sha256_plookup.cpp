@@ -315,7 +315,7 @@ std::array<field_t<waffle::PLookupComposer>, 8> sha256_block(
     return output;
 }
 
-packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupComposer>& input)
+packed_byte_array<waffle::PLookupComposer> sha256(const packed_byte_array<waffle::PLookupComposer>& input)
 {
     typedef field_t<waffle::PLookupComposer> field_pt;
 
@@ -352,7 +352,7 @@ packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupC
     }
 
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
-    return packed_bytes<waffle::PLookupComposer>(output, 4);
+    return packed_byte_array<waffle::PLookupComposer>(output, 4);
 }
 
 } // namespace sha256_plookup

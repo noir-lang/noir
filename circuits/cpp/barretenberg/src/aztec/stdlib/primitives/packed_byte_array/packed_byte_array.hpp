@@ -7,23 +7,23 @@
 namespace plonk {
 namespace stdlib {
 
-template <typename Composer> class packed_bytes {
+template <typename Composer> class packed_byte_array {
     typedef field_t<Composer> field_t;
     typedef bool_t<Composer> bool_t;
     typedef byte_array<Composer> byte_array;
 
   public:
-    packed_bytes(Composer* parent_context, size_t const num_bytes = 0);
-    packed_bytes(const std::vector<field_t>& input, const size_t bytes_per_input = BYTES_PER_ELEMENT);
-    packed_bytes(Composer* parent_context, const std::vector<uint8_t>& input);
-    packed_bytes(Composer* parent_context, const std::string& input);
-    packed_bytes(const byte_array& input);
+    packed_byte_array(Composer* parent_context, size_t const num_bytes = 0);
+    packed_byte_array(const std::vector<field_t>& input, const size_t bytes_per_input = BYTES_PER_ELEMENT);
+    packed_byte_array(Composer* parent_context, const std::vector<uint8_t>& input);
+    packed_byte_array(Composer* parent_context, const std::string& input);
+    packed_byte_array(const byte_array& input);
 
-    packed_bytes(const packed_bytes& other);
-    packed_bytes(packed_bytes&& other);
+    packed_byte_array(const packed_byte_array& other);
+    packed_byte_array(packed_byte_array&& other);
 
-    packed_bytes& operator=(const packed_bytes& other);
-    packed_bytes& operator=(packed_bytes&& other);
+    packed_byte_array& operator=(const packed_byte_array& other);
+    packed_byte_array& operator=(packed_byte_array&& other);
 
     operator byte_array() const;
 
@@ -45,7 +45,7 @@ template <typename Composer> class packed_bytes {
     std::vector<field_t> limbs;
 };
 
-template <typename Composer> inline std::ostream& operator<<(std::ostream& os, packed_bytes<Composer> const& arr)
+template <typename Composer> inline std::ostream& operator<<(std::ostream& os, packed_byte_array<Composer> const& arr)
 {
     std::ios_base::fmtflags f(os.flags());
     os << "[" << std::hex << std::setfill('0');
@@ -57,7 +57,7 @@ template <typename Composer> inline std::ostream& operator<<(std::ostream& os, p
     return os;
 }
 
-EXTERN_STDLIB_TYPE(packed_bytes);
+EXTERN_STDLIB_TYPE(packed_byte_array);
 
 } // namespace stdlib
 } // namespace plonk

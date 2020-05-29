@@ -2,6 +2,7 @@
 #include <plonk/composer/standard_composer.hpp>
 #include <stdlib/primitives/bit_array/bit_array.hpp>
 #include <stdlib/primitives/bool/bool.hpp>
+#include <stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
 #include <stdlib/primitives/byte_array/byte_array.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
@@ -20,7 +21,7 @@ typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;
 typedef stdlib::bool_t<Composer> bool_ct;
 typedef stdlib::byte_array<Composer> byte_array_ct;
-typedef stdlib::packed_bytes<Composer> packed_bytes_ct;
+typedef stdlib::packed_byte_array<Composer> packed_byte_array_ct;
 typedef stdlib::field_t<Composer> field_ct;
 typedef stdlib::uint8<Composer> uint8_ct;
 typedef stdlib::uint16<Composer> uint16_ct;

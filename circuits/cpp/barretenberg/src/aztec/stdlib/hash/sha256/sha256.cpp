@@ -137,7 +137,7 @@ template <typename Composer> byte_array<Composer> sha256_block(const byte_array<
     return result;
 }
 
-template <typename Composer> packed_bytes<Composer> sha256(const packed_bytes<Composer>& input)
+template <typename Composer> packed_byte_array<Composer> sha256(const packed_byte_array<Composer>& input)
 {
     if constexpr (Composer::type == waffle::ComposerType::PLOOKUP) {
         return sha256_plookup::sha256(input);
@@ -178,11 +178,11 @@ template <typename Composer> packed_bytes<Composer> sha256(const packed_bytes<Co
     }
 
     std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
-    return packed_bytes<Composer>(output, 4);
+    return packed_byte_array<Composer>(output, 4);
 }
 
 template byte_array<waffle::TurboComposer> sha256_block(const byte_array<waffle::TurboComposer>& input);
-template packed_bytes<waffle::TurboComposer> sha256(const packed_bytes<waffle::TurboComposer>& input);
-template packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupComposer>& input);
+template packed_byte_array<waffle::TurboComposer> sha256(const packed_byte_array<waffle::TurboComposer>& input);
+template packed_byte_array<waffle::PLookupComposer> sha256(const packed_byte_array<waffle::PLookupComposer>& input);
 } // namespace stdlib
 } // namespace plonk

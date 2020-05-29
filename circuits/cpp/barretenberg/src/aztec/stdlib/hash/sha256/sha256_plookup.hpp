@@ -7,7 +7,7 @@
 #include <numeric/bitop/sparse_form.hpp>
 
 #include "../../primitives/field/field.hpp"
-#include "../../primitives/packed_bytes/packed_bytes.hpp"
+#include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
 namespace waffle {
 class PLookupComposer;
@@ -87,7 +87,7 @@ std::array<field_t<waffle::PLookupComposer>, 8> sha256_block(
     const std::array<field_t<waffle::PLookupComposer>, 8>& h_init,
     const std::array<field_t<waffle::PLookupComposer>, 16>& input);
 
-packed_bytes<waffle::PLookupComposer> sha256(const packed_bytes<waffle::PLookupComposer>& input);
+packed_byte_array<waffle::PLookupComposer> sha256(const packed_byte_array<waffle::PLookupComposer>& input);
 } // namespace sha256_plookup
 } // namespace stdlib
 } // namespace plonk

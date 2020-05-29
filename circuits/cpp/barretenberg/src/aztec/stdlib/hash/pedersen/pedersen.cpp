@@ -4,7 +4,7 @@
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 
 #include "../../primitives/composers/composers.hpp"
-#include "../../primitives/packed_bytes/packed_bytes.hpp"
+#include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -262,7 +262,7 @@ template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t
 template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& input)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
-        return pedersen_plookup<C>::compress(packed_bytes(input));
+        return pedersen_plookup<C>::compress(packed_byte_array(input));
     }
     const size_t num_bytes = input.size();
     const size_t bytes_per_element = 31;

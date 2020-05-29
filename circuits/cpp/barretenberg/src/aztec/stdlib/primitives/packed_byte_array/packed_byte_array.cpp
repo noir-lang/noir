@@ -1,4 +1,4 @@
-#include "packed_bytes.hpp"
+#include "packed_byte_array.hpp"
 
 #include "../composers/composers.hpp"
 
@@ -20,7 +20,7 @@ template <typename Composer> Composer* get_context_from_fields(const std::vector
 } // namespace
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(Composer* parent_context, const size_t n)
+packed_byte_array<Composer>::packed_byte_array(Composer* parent_context, const size_t n)
     : context(parent_context)
     , num_bytes(n)
 {
@@ -29,7 +29,7 @@ packed_bytes<Composer>::packed_bytes(Composer* parent_context, const size_t n)
 }
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(const std::vector<field_t>& input, const size_t bytes_per_input)
+packed_byte_array<Composer>::packed_byte_array(const std::vector<field_t>& input, const size_t bytes_per_input)
     : context(get_context_from_fields(input))
     , num_bytes(bytes_per_input * input.size())
 {
@@ -50,7 +50,7 @@ packed_bytes<Composer>::packed_bytes(const std::vector<field_t>& input, const si
 }
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(Composer* parent_context, const std::vector<uint8_t>& input)
+packed_byte_array<Composer>::packed_byte_array(Composer* parent_context, const std::vector<uint8_t>& input)
     : context(parent_context)
     , num_bytes(input.size())
 {
@@ -73,7 +73,7 @@ packed_bytes<Composer>::packed_bytes(Composer* parent_context, const std::vector
 }
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(const byte_array& input)
+packed_byte_array<Composer>::packed_byte_array(const byte_array& input)
     : context(input.get_context())
     , num_bytes(input.size())
 {
@@ -95,25 +95,25 @@ packed_bytes<Composer>::packed_bytes(const byte_array& input)
 }
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(Composer* parent_context, const std::string& input)
-    : packed_bytes(parent_context, std::vector<uint8_t>(input.begin(), input.end()))
+packed_byte_array<Composer>::packed_byte_array(Composer* parent_context, const std::string& input)
+    : packed_byte_array(parent_context, std::vector<uint8_t>(input.begin(), input.end()))
 {}
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(const packed_bytes& other)
+packed_byte_array<Composer>::packed_byte_array(const packed_byte_array& other)
     : context(other.context)
     , num_bytes(other.num_bytes)
     , limbs(other.limbs.begin(), other.limbs.end())
 {}
 
 template <typename Composer>
-packed_bytes<Composer>::packed_bytes(packed_bytes&& other)
+packed_byte_array<Composer>::packed_byte_array(packed_byte_array&& other)
     : context(other.context)
     , num_bytes(other.num_bytes)
     , limbs(other.limbs.begin(), other.limbs.end())
 {}
 
-template <typename Composer> packed_bytes<Composer>& packed_bytes<Composer>::operator=(const packed_bytes& other)
+template <typename Composer> packed_byte_array<Composer>& packed_byte_array<Composer>::operator=(const packed_byte_array& other)
 {
     context = other.context;
     num_bytes = other.num_bytes;
@@ -121,7 +121,7 @@ template <typename Composer> packed_bytes<Composer>& packed_bytes<Composer>::ope
     return *this;
 }
 
-template <typename Composer> packed_bytes<Composer>& packed_bytes<Composer>::operator=(packed_bytes&& other)
+template <typename Composer> packed_byte_array<Composer>& packed_byte_array<Composer>::operator=(packed_byte_array&& other)
 {
     context = other.context;
     num_bytes = other.num_bytes;
@@ -129,7 +129,7 @@ template <typename Composer> packed_bytes<Composer>& packed_bytes<Composer>::ope
     return *this;
 }
 
-template <typename Composer> packed_bytes<Composer>::operator byte_array() const
+template <typename Composer> packed_byte_array<Composer>::operator byte_array() const
 {
     std::vector<bool_t> bits;
     const size_t num_bits = num_bytes * 8;
@@ -151,7 +151,7 @@ template <typename Composer> packed_bytes<Composer>::operator byte_array() const
     return byte_array(context, bits);
 }
 
-template <typename Composer> void packed_bytes<Composer>::append(const field_t& to_append, const size_t bytes_to_append)
+template <typename Composer> void packed_byte_array<Composer>::append(const field_t& to_append, const size_t bytes_to_append)
 {
     const size_t current_capacity = limbs.size() * BYTES_PER_ELEMENT;
     const size_t current_size = size();
@@ -195,7 +195,7 @@ template <typename Composer> void packed_bytes<Composer>::append(const field_t& 
 }
 
 template <typename Composer>
-std::vector<field_t<Composer>> packed_bytes<Composer>::to_unverified_byte_slices(const size_t bytes_per_slice) const
+std::vector<field_t<Composer>> packed_byte_array<Composer>::to_unverified_byte_slices(const size_t bytes_per_slice) const
 {
     std::vector<field_t> slices;
     for (size_t i = 0; i < limbs.size(); ++i) {
@@ -225,7 +225,7 @@ std::vector<field_t<Composer>> packed_bytes<Composer>::to_unverified_byte_slices
     return slices;
 }
 
-template <typename Composer> std::string packed_bytes<Composer>::get_value() const
+template <typename Composer> std::string packed_byte_array<Composer>::get_value() const
 {
     std::string bytes(num_bytes, 0);
     for (size_t i = 0; i < limbs.size(); ++i) {
@@ -242,7 +242,7 @@ template <typename Composer> std::string packed_bytes<Composer>::get_value() con
     return bytes;
 }
 
-INSTANTIATE_STDLIB_TYPE(packed_bytes);
+INSTANTIATE_STDLIB_TYPE(packed_byte_array);
 
 } // namespace stdlib
 } // namespace plonk

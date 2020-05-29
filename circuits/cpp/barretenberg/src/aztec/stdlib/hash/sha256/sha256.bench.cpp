@@ -24,7 +24,7 @@ void generate_test_plonk_circuit(Composer& composer, size_t num_bytes)
     for (size_t i = 0; i < num_bytes; ++i) {
         in[i] = get_random_char();
     }
-    packed_bytes_ct input(&composer, in);
+    packed_byte_array_ct input(&composer, in);
     plonk::stdlib::sha256(input);
 }
 

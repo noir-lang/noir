@@ -141,14 +141,14 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
 TEST(stdlib_sha256, test_plookup_55_bytes)
 {
     typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef plonk::stdlib::packed_bytes<waffle::PLookupComposer> packed_bytes_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    packed_bytes_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
+    packed_byte_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
-    packed_bytes_pt output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
@@ -177,9 +177,9 @@ TEST(stdlib_sha256, test_55_bytes)
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
     Composer composer = Composer();
-    packed_bytes_ct input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
+    packed_byte_array_ct input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
-    packed_bytes_ct output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_ct output_bits = plonk::stdlib::sha256(input);
 
     std::vector<field_ct> output = output_bits.to_unverified_byte_slices(4);
 
@@ -203,15 +203,15 @@ TEST(stdlib_sha256, test_55_bytes)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_sha256, test_NIST_vector_one_packed_bytes)
+TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 {
     typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef plonk::stdlib::packed_bytes<waffle::PLookupComposer> packed_bytes_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    packed_bytes_pt input(&composer, "abc");
-    packed_bytes_pt output_bytes = plonk::stdlib::sha256(input);
+    packed_byte_array_pt input(&composer, "abc");
+    packed_byte_array_pt output_bytes = plonk::stdlib::sha256(input);
     std::vector<field_pt> output = output_bytes.to_unverified_byte_slices(4);
     EXPECT_EQ(uint256_t(output[0].get_value()).data[0], (uint64_t)0xBA7816BFU);
     EXPECT_EQ(uint256_t(output[1].get_value()).data[0], (uint64_t)0x8F01CFEAU);
@@ -237,13 +237,13 @@ TEST(stdlib_sha256, test_NIST_vector_one_packed_bytes)
 TEST(stdlib_sha256, test_NIST_vector_one)
 {
     typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef plonk::stdlib::packed_bytes<waffle::PLookupComposer> packed_bytes_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    packed_bytes_pt input(&composer, "abc");
+    packed_byte_array_pt input(&composer, "abc");
 
-    packed_bytes_pt output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
@@ -276,7 +276,7 @@ TEST(stdlib_sha256, test_NIST_vector_two)
 
     byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    std::vector<field_ct> output = packed_bytes_ct(output_bits).to_unverified_byte_slices(4);
+    std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
     EXPECT_EQ(output[0].get_value(), 0x248D6A61ULL);
     EXPECT_EQ(output[1].get_value(), 0xD20638B8ULL);
@@ -308,7 +308,7 @@ TEST(stdlib_sha256, test_NIST_vector_three)
 
     byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    std::vector<field_ct> output = packed_bytes_ct(output_bits).to_unverified_byte_slices(4);
+    std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
     EXPECT_EQ(output[0].get_value(), 0x68325720ULL);
     EXPECT_EQ(output[1].get_value(), 0xaabd7c82ULL);
@@ -339,7 +339,7 @@ TEST(stdlib_sha256, test_NIST_vector_four)
 
     byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    std::vector<field_ct> output = packed_bytes_ct(output_bits).to_unverified_byte_slices(4);
+    std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
     EXPECT_EQ(output[0].get_value(), 0x7abc22c0ULL);
     EXPECT_EQ(output[1].get_value(), 0xae5af26cULL);
@@ -364,11 +364,11 @@ TEST(stdlib_sha256, test_NIST_vector_four)
 HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 {
     typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef plonk::stdlib::packed_bytes<waffle::PLookupComposer> packed_bytes_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    packed_bytes_pt input(
+    packed_byte_array_pt input(
         &composer,
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -381,7 +381,7 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAA");
 
-    packed_bytes_pt output_bits = plonk::stdlib::sha256<waffle::PLookupComposer>(input);
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256<waffle::PLookupComposer>(input);
 
     std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
