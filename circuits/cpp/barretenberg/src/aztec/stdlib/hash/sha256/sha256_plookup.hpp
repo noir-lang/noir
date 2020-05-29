@@ -7,6 +7,7 @@
 #include <numeric/bitop/sparse_form.hpp>
 
 #include "../../primitives/field/field.hpp"
+#include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
 namespace waffle {
 class PLookupComposer;
@@ -14,7 +15,7 @@ class PLookupComposer;
 
 namespace plonk {
 namespace stdlib {
-template <typename Composer> class bit_array;
+namespace sha256_plookup {
 
 struct sparse_ch_value {
     field_t<waffle::PLookupComposer> normal;
@@ -59,7 +60,8 @@ struct sparse_value {
         normal = in;
         if (normal.witness_index == UINT32_MAX) {
             sparse = field_t<waffle::PLookupComposer>(
-                in.get_context(), barretenberg::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));
+                in.get_context(),
+                barretenberg::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));
         }
     }
 
@@ -81,12 +83,11 @@ std::array<field_t<waffle::PLookupComposer>, 64> extend_witness(
 field_t<waffle::PLookupComposer> choose(sparse_value& e, const sparse_value& f, const sparse_value& g);
 field_t<waffle::PLookupComposer> majority(sparse_value& a, const sparse_value& b, const sparse_value& c);
 
-std::array<field_t<waffle::PLookupComposer>, 8> sha256_inner_block(
+std::array<field_t<waffle::PLookupComposer>, 8> sha256_block(
     const std::array<field_t<waffle::PLookupComposer>, 8>& h_init,
     const std::array<field_t<waffle::PLookupComposer>, 16>& input);
 
-bit_array<waffle::PLookupComposer> sha256(const bit_array<waffle::PLookupComposer>& input);
-byte_array<waffle::PLookupComposer> sha256_block(const byte_array<waffle::PLookupComposer>& input);
-
+packed_byte_array<waffle::PLookupComposer> sha256(const packed_byte_array<waffle::PLookupComposer>& input);
+} // namespace sha256_plookup
 } // namespace stdlib
 } // namespace plonk

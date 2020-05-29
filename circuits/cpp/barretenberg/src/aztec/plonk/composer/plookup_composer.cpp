@@ -2,12 +2,14 @@
 
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_range_widget.hpp>
-#include <plonk/proof_system/widgets/plookup_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_fixed_base_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_logic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/elliptic_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/plookup_widget.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/composer/plookup/compute_verification_key.hpp>
 
@@ -32,12 +34,13 @@ namespace waffle {
     auto& q_range = selectors[PLookupSelectors::QRANGE];                                                               \
     auto& q_logic = selectors[PLookupSelectors::QLOGIC];                                                               \
     auto& q_lookup_index = selectors[PLookupSelectors::QLOOKUPINDEX];                                                  \
-    auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];
+    auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];                                                    \
+    auto& q_elliptic = selectors[PLookupSelectors::QELLIPTIC];
 
 #define PLOOKUP_SEL_NAMES                                                                                              \
     {                                                                                                                  \
         "q_m", "q_c", "q_1", "q_2", "q_3", "q_4", "q_5", "q_arith", "q_ecc_1", "q_range", "q_logic", "q_lookup_index", \
-            "q_lookup_type"                                                                                            \
+            "q_lookup_type", "q_elliptic"                                                                              \
     }
 
 PLookupComposer::PLookupComposer()
@@ -48,49 +51,69 @@ PLookupComposer::PLookupComposer(std::string const& crs_path, const size_t size_
     : PLookupComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
-    : ComposerBase(std::move(crs_factory), 13, size_hint, PLOOKUP_SEL_NAMES)
+    : ComposerBase(std::move(crs_factory), NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_NAMES)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
-    zero_idx = put_constant_variable(fr::zero());
+    zero_idx = put_constant_variable(0);
 }
 
 PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
                                  std::shared_ptr<verification_key> const& v_key,
                                  size_t size_hint)
-    : ComposerBase(p_key, v_key, 13, size_hint, PLOOKUP_SEL_NAMES)
+    : ComposerBase(p_key, v_key, NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_NAMES)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
-    zero_idx = put_constant_variable(fr::zero());
+    zero_idx = put_constant_variable(0);
+}
+
+void PLookupComposer::ensure_nonzero_selectors(const size_t subgroup_size)
+{
+    PLOOKUP_SELECTOR_REFS
+    q_m[subgroup_size - 1] = 1;
+    q_c[subgroup_size - 1] = 1;
+    q_1[subgroup_size - 1] = 1;
+    q_2[subgroup_size - 1] = 1;
+    q_3[subgroup_size - 1] = 1;
+    q_4[subgroup_size - 1] = 1;
+    q_5[subgroup_size - 1] = 1;
+    q_arith[subgroup_size - 1] = 1;
+    q_ecc_1[subgroup_size - 1] = 1;
+    q_range[subgroup_size - 1] = 1;
+    q_logic[subgroup_size - 1] = 1;
+    q_lookup_index[subgroup_size - 1] = 1;
+    q_lookup_type[subgroup_size - 1] = 1;
+    q_elliptic[subgroup_size - 1] = 0;
 }
 
 void PLookupComposer::create_dummy_gate()
 {
 
     PLOOKUP_SELECTOR_REFS
-    uint32_t idx = add_variable(fr{ 1, 1, 1, 1 }.to_montgomery_form());
+    uint32_t idx = add_variable(fr(1));
     w_l.emplace_back(idx);
     w_r.emplace_back(idx);
     w_o.emplace_back(idx);
     w_4.emplace_back(idx);
-    q_arith.emplace_back(fr::zero());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_m.emplace_back(fr::zero());
-    q_1.emplace_back(fr::zero());
-    q_2.emplace_back(fr::zero());
-    q_3.emplace_back(fr::zero());
-    q_c.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -101,19 +124,20 @@ void PLookupComposer::create_add_gate(const add_triple& in)
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(zero_idx);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(0);
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_arith.emplace_back(1);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -124,19 +148,20 @@ void PLookupComposer::create_big_add_gate(const add_quad& in)
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(0);
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
+    q_arith.emplace_back(1);
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -147,19 +172,20 @@ void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(0);
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one() + fr::one());
+    q_arith.emplace_back(1 + 1);
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -175,14 +201,15 @@ void PLookupComposer::create_big_mul_gate(const mul_quad& in)
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
+    q_arith.emplace_back(1);
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -195,19 +222,20 @@ void PLookupComposer::create_balanced_add_gate(const add_quad& in)
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(0);
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
+    q_arith.emplace_back(1);
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::one());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_5.emplace_back(1);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -219,18 +247,19 @@ void PLookupComposer::create_mul_gate(const mul_triple& in)
     w_o.emplace_back(in.c);
     w_4.emplace_back(zero_idx);
     q_m.emplace_back(in.mul_scaling);
-    q_1.emplace_back(fr::zero());
-    q_2.emplace_back(fr::zero());
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_arith.emplace_back(1);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -241,20 +270,20 @@ void PLookupComposer::create_bool_gate(const uint32_t variable_index)
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
     w_4.emplace_back(zero_idx);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-
-    q_m.emplace_back(fr::one());
-    q_1.emplace_back(fr::zero());
-    q_2.emplace_back(fr::zero());
+    q_arith.emplace_back(1);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_m.emplace_back(1);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
     q_3.emplace_back(fr::neg_one());
-    q_c.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_c.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -270,15 +299,16 @@ void PLookupComposer::create_poly_gate(const poly_triple& in)
     q_2.emplace_back(in.q_r);
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
 
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_arith.emplace_back(1);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -291,20 +321,21 @@ void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
 
-    q_arith.emplace_back(fr::zero());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_m.emplace_back(fr::zero());
-    q_c.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_m.emplace_back(0);
+    q_c.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
 
     q_1.emplace_back(in.q_x_1);
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_ecc_1.emplace_back(in.q_y_2);
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -318,20 +349,93 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
 
-    q_arith.emplace_back(fr::zero());
+    q_arith.emplace_back(0);
     q_4.emplace_back(init.q_x_1);
     q_5.emplace_back(init.q_x_2);
     q_m.emplace_back(init.q_y_1);
     q_c.emplace_back(init.q_y_2);
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
 
     q_1.emplace_back(in.q_x_1);
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_ecc_1.emplace_back(in.q_y_2);
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
+    ++n;
+}
+
+void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
+{
+    /**
+     * | 1  | 2  | 3  | 4  |
+     * | a1 | a2 | x1 | y1 |
+     * | x2 | y2 | x3 | y3 |
+     * | -- | -- | x4 | y4 |
+     *
+     **/
+
+    PLOOKUP_SELECTOR_REFS
+
+    bool can_fuse_into_previous_gate = true;
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[n - 1] == in.x1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_o[n - 1] == in.y1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_3[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_4[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_5[n - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[n - 1] == 0);
+
+    if (can_fuse_into_previous_gate) {
+        ASSERT(w_r[n - 1] == in.x1);
+        ASSERT(w_o[n - 1] == in.y1);
+
+        q_3[n - 1] = in.endomorphism_coefficient;
+        q_4[n - 1] = in.endomorphism_coefficient.sqr();
+        q_5[n - 1] = in.sign_coefficient;
+        q_elliptic[n - 1] = 1;
+    } else {
+        w_l.emplace_back(zero_idx);
+        w_r.emplace_back(in.x1);
+        w_o.emplace_back(in.y1);
+        w_4.emplace_back(zero_idx);
+        q_3.emplace_back(in.endomorphism_coefficient);
+        q_4.emplace_back(in.endomorphism_coefficient.sqr());
+        q_5.emplace_back(in.sign_coefficient);
+
+        q_arith.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_m.emplace_back(0);
+        q_c.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+        q_elliptic.emplace_back(1);
+        ++n;
+    }
+
+    w_l.emplace_back(in.x2);
+    w_4.emplace_back(in.y2);
+    w_r.emplace_back(in.x3);
+    w_o.emplace_back(in.y3);
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -343,19 +447,20 @@ void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
     w_4.emplace_back(zero_idx);
-    q_m.emplace_back(fr::zero());
-    q_1.emplace_back(fr::one());
-    q_2.emplace_back(fr::zero());
-    q_3.emplace_back(fr::zero());
+    q_m.emplace_back(0);
+    q_1.emplace_back(1);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
     q_c.emplace_back(-witness_value);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    q_lookup_index.emplace_back(fr::zero());
-    q_lookup_type.emplace_back(fr::zero());
+    q_arith.emplace_back(1);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 }
 
@@ -436,7 +541,7 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
     const size_t num_quads = (num_quad_gates << 2);
     const size_t forced_zero_threshold = 1 + (((num_quads << 1) - num_bits) >> 1);
     std::vector<uint32_t> accumulators;
-    fr accumulator = fr::zero();
+    fr accumulator = 0;
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
         uint32_t accumulator_index;
@@ -466,22 +571,23 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
     }
 
     for (size_t i = 0; i < used_gates; ++i) {
-        q_m.emplace_back(fr::zero());
-        q_1.emplace_back(fr::zero());
-        q_2.emplace_back(fr::zero());
-        q_3.emplace_back(fr::zero());
-        q_c.emplace_back(fr::zero());
-        q_arith.emplace_back(fr::zero());
-        q_4.emplace_back(fr::zero());
-        q_5.emplace_back(fr::zero());
-        q_ecc_1.emplace_back(fr::zero());
-        q_logic.emplace_back(fr::zero());
-        q_range.emplace_back(fr::one());
-        q_lookup_index.emplace_back(fr::zero());
-        q_lookup_type.emplace_back(fr::zero());
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_range.emplace_back(1);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+        q_elliptic.emplace_back(0);
     }
 
-    q_range[q_range.size() - 1] = fr::zero();
+    q_range[q_range.size() - 1] = 0;
 
     w_l.emplace_back(zero_idx);
     w_r.emplace_back(zero_idx);
@@ -578,9 +684,9 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
     const size_t num_quads = (num_bits >> 1);
 
     waffle::accumulator_triple accumulators;
-    fr left_accumulator = fr::zero();
-    fr right_accumulator = fr::zero();
-    fr out_accumulator = fr::zero();
+    fr left_accumulator = 0;
+    fr right_accumulator = 0;
+    fr out_accumulator = 0;
 
     // Step 1: populate 1st row accumulators with zero
     w_l.emplace_back(zero_idx);
@@ -642,27 +748,28 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
     w_o.emplace_back(zero_idx);
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
-        q_m.emplace_back(fr::zero());
-        q_1.emplace_back(fr::zero());
-        q_2.emplace_back(fr::zero());
-        q_3.emplace_back(fr::zero());
-        q_arith.emplace_back(fr::zero());
-        q_4.emplace_back(fr::zero());
-        q_5.emplace_back(fr::zero());
-        q_ecc_1.emplace_back(fr::zero());
-        q_range.emplace_back(fr::zero());
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
         if (is_xor_gate) {
             q_c.emplace_back(fr::neg_one());
             q_logic.emplace_back(fr::neg_one());
         } else {
-            q_c.emplace_back(fr::one());
-            q_logic.emplace_back(fr::one());
+            q_c.emplace_back(1);
+            q_logic.emplace_back(1);
         }
-        q_lookup_index.emplace_back(fr::zero());
-        q_lookup_type.emplace_back(fr::zero());
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+        q_elliptic.emplace_back(0);
     }
-    q_c[q_c.size() - 1] = fr::zero();         // last gate is a noop
-    q_logic[q_logic.size() - 1] = fr::zero(); // last gate is a noop
+    q_c[q_c.size() - 1] = 0;         // last gate is a noop
+    q_logic[q_logic.size() - 1] = 0; // last gate is a noop
 
     assert_equal(accumulators.left[accumulators.left.size() - 1], a);
     accumulators.left[accumulators.left.size() - 1] = a;
@@ -723,7 +830,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    create_dummy_gate();
+
     ASSERT(n == q_m.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
@@ -748,62 +855,62 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     const size_t filled_gates = n + public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+
+    for (size_t i = filled_gates; i < subgroup_size; ++i) {
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+        q_elliptic.emplace_back(0);
     }
-    size_t new_n = 1UL << log2_n;
+    ensure_nonzero_selectors(subgroup_size);
 
-    for (size_t i = filled_gates; i < new_n; ++i) {
-        q_m.emplace_back(fr::zero());
-        q_1.emplace_back(fr::zero());
-        q_2.emplace_back(fr::zero());
-        q_3.emplace_back(fr::zero());
-        q_c.emplace_back(fr::zero());
-        q_4.emplace_back(fr::zero());
-        q_5.emplace_back(fr::zero());
-        q_arith.emplace_back(fr::zero());
-        q_ecc_1.emplace_back(fr::zero());
-        q_range.emplace_back(fr::zero());
-        q_logic.emplace_back(fr::zero());
-        q_lookup_index.emplace_back(fr::zero());
-        q_lookup_type.emplace_back(fr::zero());
-    }
+    auto crs = crs_factory_->get_prover_crs(subgroup_size);
+    circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
-    auto crs = crs_factory_->get_prover_crs(new_n);
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
-
-    polynomial poly_q_m(new_n);
-    polynomial poly_q_c(new_n);
-    polynomial poly_q_1(new_n);
-    polynomial poly_q_2(new_n);
-    polynomial poly_q_3(new_n);
-    polynomial poly_q_4(new_n);
-    polynomial poly_q_5(new_n);
-    polynomial poly_q_arith(new_n);
-    polynomial poly_q_ecc_1(new_n);
-    polynomial poly_q_range(new_n);
-    polynomial poly_q_logic(new_n);
-    polynomial poly_q_lookup_index(new_n + 1);
-    polynomial poly_q_lookup_type(new_n + 1);
+    polynomial poly_q_m(subgroup_size);
+    polynomial poly_q_c(subgroup_size);
+    polynomial poly_q_1(subgroup_size);
+    polynomial poly_q_2(subgroup_size);
+    polynomial poly_q_3(subgroup_size);
+    polynomial poly_q_4(subgroup_size);
+    polynomial poly_q_5(subgroup_size);
+    polynomial poly_q_arith(subgroup_size);
+    polynomial poly_q_ecc_1(subgroup_size);
+    polynomial poly_q_range(subgroup_size);
+    polynomial poly_q_logic(subgroup_size);
+    polynomial poly_q_lookup_index(subgroup_size + 1);
+    polynomial poly_q_lookup_type(subgroup_size + 1);
+    polynomial poly_q_elliptic(subgroup_size);
 
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        poly_q_m[i] = fr::zero();
-        poly_q_1[i] = fr::one();
-        poly_q_2[i] = fr::zero();
-        poly_q_3[i] = fr::zero();
-        poly_q_4[i] = fr::zero();
-        poly_q_5[i] = fr::zero();
-        poly_q_arith[i] = fr::zero();
-        poly_q_ecc_1[i] = fr::zero();
-        poly_q_c[i] = fr::zero();
-        poly_q_range[i] = fr::zero();
-        poly_q_logic[i] = fr::zero();
-        poly_q_lookup_index[i] = fr::zero();
-        poly_q_lookup_type[i] = fr::zero();
+        poly_q_m[i] = 0;
+        poly_q_1[i] = 1;
+        poly_q_2[i] = 0;
+        poly_q_3[i] = 0;
+        poly_q_4[i] = 0;
+        poly_q_5[i] = 0;
+        poly_q_arith[i] = 0;
+        poly_q_ecc_1[i] = 0;
+        poly_q_c[i] = 0;
+        poly_q_range[i] = 0;
+        poly_q_logic[i] = 0;
+        poly_q_lookup_index[i] = 0;
+        poly_q_lookup_type[i] = 0;
+        poly_q_elliptic[i] = 0;
     }
 
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
+    for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
         poly_q_m[i] = q_m[i - public_inputs.size()];
         poly_q_1[i] = q_1[i - public_inputs.size()];
         poly_q_2[i] = q_2[i - public_inputs.size()];
@@ -817,6 +924,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         poly_q_logic[i] = q_logic[i - public_inputs.size()];
         poly_q_lookup_index[i] = q_lookup_index[i - public_inputs.size()];
         poly_q_lookup_type[i] = q_lookup_type[i - public_inputs.size()];
+        poly_q_elliptic[i] = q_elliptic[i - public_inputs.size()];
     }
 
     add_selector(poly_q_1, "q_1");
@@ -830,18 +938,19 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     add_selector(poly_q_ecc_1, "q_ecc_1");
     add_selector(poly_q_range, "q_range");
     add_selector(poly_q_logic, "q_logic");
+    add_selector(poly_q_elliptic, "q_elliptic");
 
-    polynomial poly_q_table_1(new_n + 1);
-    polynomial poly_q_table_2(new_n + 1);
-    polynomial poly_q_table_3(new_n + 1);
-    polynomial poly_q_table_4(new_n + 1);
-    size_t offset = new_n - tables_size;
+    polynomial poly_q_table_1(subgroup_size + 1);
+    polynomial poly_q_table_2(subgroup_size + 1);
+    polynomial poly_q_table_3(subgroup_size + 1);
+    polynomial poly_q_table_4(subgroup_size + 1);
+    size_t offset = subgroup_size - tables_size;
 
     for (size_t i = 0; i < offset; ++i) {
-        poly_q_table_1[i] = fr::zero();
-        poly_q_table_2[i] = fr::zero();
-        poly_q_table_3[i] = fr::zero();
-        poly_q_table_4[i] = fr::zero();
+        poly_q_table_1[i] = 0;
+        poly_q_table_2[i] = 0;
+        poly_q_table_3[i] = 0;
+        poly_q_table_4[i] = 0;
     }
 
     for (const auto& table : lookup_tables) {
@@ -863,14 +972,19 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     add_lookup_selector(poly_q_lookup_index, "table_index");
     add_lookup_selector(poly_q_lookup_type, "table_type");
 
-    polynomial z_lookup_fft(new_n * 4 + 4, new_n * 4 + 4);
-    polynomial s_fft(new_n * 4 + 4, new_n * 4 + 4);
+    polynomial z_lookup_fft(subgroup_size * 4 + 4, subgroup_size * 4 + 4);
+    polynomial s_fft(subgroup_size * 4 + 4, subgroup_size * 4 + 4);
     circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
     circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
 
     circuit_proving_key->num_lookup_tables = lookup_tables.size();
 
     compute_sigma_permutations<4>(circuit_proving_key.get());
+
+    std::copy(plookup_polynomial_manifest,
+              plookup_polynomial_manifest + 29,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 
@@ -904,47 +1018,43 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     const size_t filled_gates = n + public_inputs.size();
     const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
 
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
-    for (size_t i = filled_gates; i < new_n; ++i) {
+    for (size_t i = filled_gates; i < subgroup_size; ++i) {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
         w_o.emplace_back(zero_idx);
         w_4.emplace_back(zero_idx);
     }
 
-    polynomial poly_w_1(new_n);
-    polynomial poly_w_2(new_n);
-    polynomial poly_w_3(new_n);
-    polynomial poly_w_4(new_n);
-    polynomial s_1(new_n);
-    polynomial s_2(new_n);
-    polynomial s_3(new_n);
-    polynomial s_4(new_n);
-    polynomial z_lookup(new_n + 1);
+    polynomial poly_w_1(subgroup_size);
+    polynomial poly_w_2(subgroup_size);
+    polynomial poly_w_3(subgroup_size);
+    polynomial poly_w_4(subgroup_size);
+    polynomial s_1(subgroup_size);
+    polynomial s_2(subgroup_size);
+    polynomial s_3(subgroup_size);
+    polynomial s_4(subgroup_size);
+    polynomial z_lookup(subgroup_size + 1);
     for (size_t i = 0; i < public_inputs.size(); ++i) {
-        poly_w_1[i] = fr(0);
+        poly_w_1[i] = 0;
         poly_w_2[i] = variables[public_inputs[i]];
-        poly_w_3[i] = fr(0);
-        poly_w_4[i] = fr(0);
+        poly_w_3[i] = 0;
+        poly_w_4[i] = 0;
     }
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
+    for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
         poly_w_1[i] = variables[w_l[i - public_inputs.size()]];
         poly_w_2[i] = variables[w_r[i - public_inputs.size()]];
         poly_w_3[i] = variables[w_o[i - public_inputs.size()]];
         poly_w_4[i] = variables[w_4[i - public_inputs.size()]];
     }
 
-    size_t count = new_n - tables_size - lookups_size;
+    size_t count = subgroup_size - tables_size - lookups_size;
     for (size_t i = 0; i < count; ++i) {
-        s_1[i] = fr::zero();
-        s_2[i] = fr::zero();
-        s_3[i] = fr::zero();
-        s_4[i] = fr::zero();
+        s_1[i] = 0;
+        s_2[i] = 0;
+        s_3[i] = 0;
+        s_4[i] = 0;
     }
 
     for (auto& table : lookup_tables) {
@@ -959,7 +1069,7 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
                     },
                     {
                         table.column_3[i],
-                        fr(0),
+                        0,
                     },
                 });
             } else {
@@ -1013,18 +1123,27 @@ PLookupProver PLookupComposer::create_prover()
         std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
-    output_state.widgets.emplace_back(std::move(plookup_widget));
+    std::unique_ptr<ProverTurboArithmeticWidget<plookup_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<plookup_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget<plookup_settings>> range_widget =
+        std::make_unique<ProverTurboRangeWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<plookup_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverEllipticWidget<plookup_settings>> elliptic_widget =
+        std::make_unique<ProverEllipticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.random_widgets.emplace_back(std::move(plookup_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
+    output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
+
     return output_state;
 }
 
@@ -1039,18 +1158,27 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
         std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
-    output_state.widgets.emplace_back(std::move(plookup_widget));
+    std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),
+                                                                               witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
+        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverEllipticWidget<unrolled_turbo_settings>> elliptic_widget =
+        std::make_unique<ProverEllipticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.random_widgets.emplace_back(std::move(plookup_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
+    output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
 
     return output_state;
 }
@@ -1074,14 +1202,14 @@ UnrolledPLookupVerifier PLookupComposer::create_unrolled_verifier()
 }
 
 void PLookupComposer::initialize_precomputed_table(
-    const PLookupTableId id,
+    const PLookupBasicTableId id,
     bool (*generator)(std::vector<fr>&, std ::vector<fr>&, std::vector<fr>&),
     std::array<fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>))
 {
     for (auto table : lookup_tables) {
         ASSERT(table.id != id);
     }
-    PLookupTable new_table;
+    PLookupBasicTable new_table;
     new_table.id = id;
     new_table.table_index = lookup_tables.size() + 1;
     new_table.use_twin_keys = generator(new_table.column_1, new_table.column_2, new_table.column_3);
@@ -1090,19 +1218,19 @@ void PLookupComposer::initialize_precomputed_table(
     lookup_tables.emplace_back(new_table);
 }
 
-PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
+PLookupBasicTable& PLookupComposer::get_table(const PLookupBasicTableId id)
 {
-    for (PLookupTable& table : lookup_tables) {
+    for (PLookupBasicTable& table : lookup_tables) {
         if (table.id == id) {
             return table;
         }
     }
     // Hmm. table doesn't exist! try to create it
-    lookup_tables.emplace_back(plookup::create_table(id, lookup_tables.size()));
+    lookup_tables.emplace_back(plookup::create_basic_table(id, lookup_tables.size()));
     return lookup_tables[lookup_tables.size() - 1];
 }
 
-// PLookupMultiTable& PLookupComposer::get_multi_table(const PLookupMultiTableId id)
+// PLookupMultiTable& PLookupComposer::create_table(const PLookupMultiTableId id)
 // {
 //     for (PLookupMultiTable& table : lookup_multi_tables) {
 //         if (table.id == id) {
@@ -1113,27 +1241,27 @@ PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
 //     switch (id) {
 //     case SHA256_CH_INPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_choose_input_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_MAJ_INPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_majority_input_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_WITNESS_INPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_witness_extension_input_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_CH_OUTPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_choose_output_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_MAJ_OUTPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_majority_output_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     case SHA256_WITNESS_OUTPUT: {
 //         lookup_multi_tables.emplace_back(std::move(sha256_tables::get_witness_extension_output_table(id)));
-//         return get_multi_table(id);
+//         return create_table(id);
 //     }
 //     default: {
 //         throw;
@@ -1141,11 +1269,11 @@ PLookupTable& PLookupComposer::get_table(const PLookupTableId id)
 //     }
 // }
 
-void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> indices)
+void PLookupComposer::validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> indices)
 {
     PLOOKUP_SELECTOR_REFS;
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     table.lookup_gates.push_back({ {
                                        variables[indices[0]].from_montgomery_form().data[0],
@@ -1153,31 +1281,32 @@ void PLookupComposer::validate_lookup(const PLookupTableId id, const std::array<
                                    },
                                    {
                                        variables[indices[2]],
-                                       fr(0),
+                                       0,
                                    } });
 
-    q_lookup_type.emplace_back(fr::one());
+    q_lookup_type.emplace_back(1);
     q_lookup_index.emplace_back(fr(table.table_index));
     w_l.emplace_back(indices[0]);
     w_r.emplace_back(indices[1]);
     w_o.emplace_back(indices[2]);
     w_4.emplace_back(zero_idx);
-    q_1.emplace_back(fr(0));
-    q_2.emplace_back(fr(0));
-    q_3.emplace_back(fr(0));
-    q_m.emplace_back(fr(0));
-    q_c.emplace_back(fr(0));
-    q_arith.emplace_back(fr(0));
-    q_4.emplace_back(fr(0));
-    q_5.emplace_back(fr(0));
-    q_ecc_1.emplace_back(fr(0));
-    q_range.emplace_back(fr(0));
-    q_logic.emplace_back(fr(0));
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_m.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_elliptic.emplace_back(0);
 
     ++n;
 }
 
-uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
+uint32_t PLookupComposer::read_from_table(const PLookupBasicTableId id,
                                           const uint32_t first_key_idx,
                                           const uint32_t second_key_idx)
 {
@@ -1187,43 +1316,44 @@ uint32_t PLookupComposer::read_from_table(const PLookupTableId id,
         second_key_idx == UINT32_MAX ? zero_idx : second_key_idx,
     };
 
-    const std::array<uint64_t, 2> keys{
-        variables[key_indices[0]].from_montgomery_form().data[0],
-        variables[key_indices[1]].from_montgomery_form().data[0],
+    const std::array<uint256_t, 2> keys{
+        variables[key_indices[0]],
+        variables[key_indices[1]],
     };
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
-    const auto values = table.get_values_from_key(keys);
+    const auto values = table.get_values_from_key({ keys[0].data[0], keys[1].data[0] });
 
-    const uint32_t value_index = add_variable(table.get_values_from_key(keys)[0]);
+    const uint32_t value_index = add_variable(table.get_values_from_key({ keys[0].data[0], keys[1].data[0] })[0]);
 
     table.lookup_gates.push_back({ keys, values });
 
-    q_lookup_type.emplace_back(fr::one());
+    q_lookup_type.emplace_back(1);
     q_lookup_index.emplace_back(fr(table.table_index));
     w_l.emplace_back(key_indices[0]);
     w_r.emplace_back(key_indices[1]);
     w_o.emplace_back(value_index);
     w_4.emplace_back(zero_idx);
-    q_1.emplace_back(fr(0));
-    q_2.emplace_back(fr(0));
-    q_3.emplace_back(fr(0));
-    q_m.emplace_back(fr(0));
-    q_c.emplace_back(fr(0));
-    q_arith.emplace_back(fr(0));
-    q_4.emplace_back(fr(0));
-    q_5.emplace_back(fr(0));
-    q_ecc_1.emplace_back(fr(0));
-    q_range.emplace_back(fr(0));
-    q_logic.emplace_back(fr(0));
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_m.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_elliptic.emplace_back(0);
 
     ++n;
 
     return value_index;
 }
 
-std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id, const uint32_t key_idx)
+std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupBasicTableId id, const uint32_t key_idx)
 {
     PLOOKUP_SELECTOR_REFS;
 
@@ -1237,7 +1367,7 @@ std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id
         0,
     };
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     const auto values = table.get_values_from_key(keys);
     const std::array<uint32_t, 2> value_indices{
@@ -1245,38 +1375,38 @@ std::array<uint32_t, 2> PLookupComposer::read_from_table(const PLookupTableId id
         add_variable(table.get_values_from_key(keys)[1]),
     };
 
-    table.lookup_gates.push_back({ keys, values });
+    table.lookup_gates.push_back({ { keys[0], keys[1] }, values });
 
-    q_lookup_type.emplace_back(fr::one());
+    q_lookup_type.emplace_back(1);
     q_lookup_index.emplace_back(fr(table.table_index));
     w_l.emplace_back(key_indices[0]);
     w_r.emplace_back(value_indices[0]);
     w_o.emplace_back(value_indices[1]);
     w_4.emplace_back(zero_idx);
-    q_1.emplace_back(fr(0));
-    q_2.emplace_back(fr(0));
-    q_3.emplace_back(fr(0));
-    q_m.emplace_back(fr(0));
-    q_c.emplace_back(fr(0));
-    q_arith.emplace_back(fr(0));
-    q_4.emplace_back(fr(0));
-    q_5.emplace_back(fr(0));
-    q_ecc_1.emplace_back(fr(0));
-    q_range.emplace_back(fr(0));
-    q_logic.emplace_back(fr(0));
-
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_m.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_range.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_elliptic.emplace_back(0);
     ++n;
 
     return value_indices;
 }
 
-std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
+std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(const PLookupBasicTableId id,
                                                                                const uint32_t key_index_a,
                                                                                const uint32_t key_index_b,
                                                                                const size_t num_lookups)
 {
     PLOOKUP_SELECTOR_REFS;
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     const uint64_t base_a = uint256_t(table.column_1_step_size).data[0];
     const uint64_t base_b = uint256_t(table.column_2_step_size).data[0];
@@ -1379,17 +1509,18 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(c
         w_r.emplace_back(second_idx);
         w_o.emplace_back(third_idx);
         w_4.emplace_back(zero_idx);
-        q_1.emplace_back(fr(0));
-        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_1_step_size));
-        q_3.emplace_back(fr(0));
-        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_2_step_size));
-        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_3_step_size));
-        q_arith.emplace_back(fr(0));
-        q_4.emplace_back(fr(0));
-        q_5.emplace_back(fr(0));
-        q_ecc_1.emplace_back(fr(0));
-        q_range.emplace_back(fr(0));
-        q_logic.emplace_back(fr(0));
+        q_1.emplace_back(0);
+        q_2.emplace_back((i == (num_lookups - 1) ? 0 : -table.column_1_step_size));
+        q_3.emplace_back(0);
+        q_m.emplace_back((i == (num_lookups - 1) ? 0 : -table.column_2_step_size));
+        q_c.emplace_back((i == (num_lookups - 1) ? 0 : -table.column_3_step_size));
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_elliptic.emplace_back(0);
 
         ++n;
     }
@@ -1397,13 +1528,13 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_table(c
     return column_indices;
 }
 
-std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTableId id,
+std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupBasicTableId id,
                                                                 const std::vector<std::array<uint32_t, 2>>& key_indices)
 {
     PLOOKUP_SELECTOR_REFS;
     const size_t num_lookups = key_indices.size();
 
-    PLookupTable& table = get_table(id);
+    PLookupBasicTable& table = get_table(id);
 
     if (num_lookups == 0) {
         return std::vector<uint32_t>();
@@ -1413,9 +1544,9 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
     std::vector<std::array<uint64_t, 2>> keys;
     keys.reserve(key_indices.size());
 
-    std::array<uint64_t, 2> previous_key{
-        variables[key_indices[0][0]].from_montgomery_form().data[0],
-        variables[key_indices[0][1]].from_montgomery_form().data[0],
+    std::array<uint256_t, 2> previous_key{
+        variables[key_indices[0][0]],
+        variables[key_indices[0][1]],
     };
 
     const uint64_t step_1 = table.column_1_step_size.from_montgomery_form().data[0];
@@ -1425,8 +1556,8 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
     lookup_values.resize(num_lookups);
 
     for (size_t i = 0; i < num_lookups; ++i) {
-        std::array<uint64_t, 2> difference_key{};
-        std::array<uint64_t, 2> key{};
+        std::array<uint256_t, 2> difference_key{};
+        std::array<uint256_t, 2> key{};
         fr value;
 
         if (i == num_lookups - 1) {
@@ -1434,8 +1565,8 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
             key = previous_key;
         } else {
             difference_key = {
-                variables[key_indices[i + 1][0]].from_montgomery_form().data[0],
-                variables[key_indices[i + 1][1]].from_montgomery_form().data[0],
+                variables[key_indices[i + 1][0]],
+                variables[key_indices[i + 1][1]],
             };
             key = {
                 previous_key[0] - difference_key[0] * step_1,
@@ -1443,14 +1574,14 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
             };
         }
 
-        value = table.get_values_from_key(key)[0];
+        value = table.get_values_from_key({ key[0].data[0], key[1].data[0] })[0];
         lookup_values[num_lookups - 1 - i] = (value);
 
         previous_key = difference_key;
 
         table.lookup_gates.push_back({
             key,
-            { value, fr(0) },
+            { value, 0 },
         });
     }
 
@@ -1468,17 +1599,18 @@ std::vector<uint32_t> PLookupComposer::read_sequence_from_table(const PLookupTab
         w_r.emplace_back(key_indices[i][1]);
         w_o.emplace_back(value_idx);
         w_4.emplace_back(zero_idx);
-        q_1.emplace_back(fr(0));
-        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_1_step_size));
-        q_3.emplace_back(fr(0));
-        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_2_step_size));
-        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -table.column_3_step_size));
-        q_arith.emplace_back(fr(0));
-        q_4.emplace_back(fr(0));
-        q_5.emplace_back(fr(0));
-        q_ecc_1.emplace_back(fr(0));
-        q_range.emplace_back(fr(0));
-        q_logic.emplace_back(fr(0));
+        q_1.emplace_back(0);
+        q_2.emplace_back((i == (num_lookups - 1) ? 0 : -table.column_1_step_size));
+        q_3.emplace_back(0);
+        q_m.emplace_back((i == (num_lookups - 1) ? 0 : -table.column_2_step_size));
+        q_c.emplace_back((i == (num_lookups - 1) ? 0 : -table.column_3_step_size));
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_elliptic.emplace_back(0);
 
         ++n;
     }
@@ -1491,7 +1623,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
 
 {
     PLOOKUP_SELECTOR_REFS;
-    const auto& multi_table = plookup::get_multi_table(id);
+    const auto& multi_table = plookup::create_table(id);
     const size_t num_lookups = read_values.column_1_accumulator_values.size();
     std::array<std::vector<uint32_t>, 3> column_indices;
     for (size_t i = 0; i < num_lookups; ++i) {
@@ -1513,17 +1645,18 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
         w_r.emplace_back(second_idx);
         w_o.emplace_back(third_idx);
         w_4.emplace_back(zero_idx);
-        q_1.emplace_back(fr(0));
-        q_2.emplace_back((i == (num_lookups - 1) ? fr(0) : -multi_table.column_1_step_sizes[i + 1]));
-        q_3.emplace_back(fr(0));
-        q_m.emplace_back((i == (num_lookups - 1) ? fr(0) : -multi_table.column_2_step_sizes[i + 1]));
-        q_c.emplace_back((i == (num_lookups - 1) ? fr(0) : -multi_table.column_3_step_sizes[i + 1]));
-        q_arith.emplace_back(fr(0));
-        q_4.emplace_back(fr(0));
-        q_5.emplace_back(fr(0));
-        q_ecc_1.emplace_back(fr(0));
-        q_range.emplace_back(fr(0));
-        q_logic.emplace_back(fr(0));
+        q_1.emplace_back(0);
+        q_2.emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_1_step_sizes[i + 1]));
+        q_3.emplace_back(0);
+        q_m.emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_2_step_sizes[i + 1]));
+        q_c.emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_3_step_sizes[i + 1]));
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_range.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_elliptic.emplace_back(0);
 
         ++n;
     }

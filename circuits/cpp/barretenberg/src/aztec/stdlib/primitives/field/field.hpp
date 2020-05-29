@@ -137,7 +137,19 @@ template <typename ComposerContext> class field_t {
     {
         const field_t lhs = *this;
         ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
-        ASSERT(ctx != nullptr);
+
+        if (lhs.witness_index == UINT32_MAX && rhs.witness_index == UINT32_MAX) {
+            ASSERT(lhs.get_value() == rhs.get_value());
+            return;
+        }
+        if (lhs.witness_index == UINT32_MAX) {
+            ctx->assert_equal_constant(rhs.witness_index, lhs.get_value());
+            return;
+        }
+        if (rhs.witness_index == UINT32_MAX) {
+            ctx->assert_equal_constant(lhs.witness_index, rhs.get_value());
+            return;
+        }
         field_t left = lhs.normalize();
         field_t right = rhs.normalize();
         ctx->assert_equal(left.witness_index, right.witness_index);
@@ -176,7 +188,7 @@ template <typename ComposerContext> class field_t {
 
     ComposerContext* get_context() const { return context; }
 
-    bool_t<ComposerContext> is_zero();
+    bool_t<ComposerContext> is_zero() const;
     void assert_is_not_zero();
     void assert_is_zero();
     bool is_constant() const { return witness_index == static_cast<uint32_t>(-1); }

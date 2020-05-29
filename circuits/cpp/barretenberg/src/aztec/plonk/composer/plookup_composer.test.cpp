@@ -2,8 +2,8 @@
 #include <crypto/pedersen/pedersen.hpp>
 #include <gtest/gtest.h>
 #include <numeric/bitop/get_msb.hpp>
-#include "../proof_system/widgets/create_dummy_transcript.hpp"
-#include "../proof_system/widgets/plookup_widget.hpp"
+#include "../proof_system/widgets/transition_widgets/create_dummy_transcript.hpp"
+#include "../proof_system/widgets/random_widgets/plookup_widget.hpp"
 
 #include "./plookup_tables/sha256.hpp"
 
@@ -17,10 +17,10 @@ std::array<barretenberg::fr, 2> get_values_from_key(const std::array<uint64_t, 2
 {
     return { fr(key[0] ^ key[1]), fr(0) };
 }
-waffle::PLookupTable generate_xor_table()
+waffle::PLookupBasicTable generate_xor_table()
 {
-    waffle::PLookupTable table;
-    table.id = waffle::PLookupTableId::XOR;
+    waffle::PLookupBasicTable table;
+    table.id = waffle::PLookupBasicTableId::XOR;
     table.table_index = 1;
     const size_t num_bits = numeric::get_msb(static_cast<uint64_t>(256));
     const size_t num_entries = 1UL << (num_bits / 2);
@@ -54,13 +54,13 @@ std::array<barretenberg::fr, 2> get_sparse_map_values(const std::array<uint64_t,
     return { barretenberg::fr(t0), barretenberg::fr(t1) };
 }
 
-waffle::PLookupTable generate_sparse_map()
+waffle::PLookupBasicTable generate_sparse_map()
 {
     constexpr uint64_t base = 28;
     constexpr uint64_t num_rotated_bits = 6;
     constexpr uint64_t bits_per_slice = 11;
-    waffle::PLookupTable table;
-    table.id = waffle::PLookupTableId::SHA256_BASE28_ROTATE6;
+    waffle::PLookupBasicTable table;
+    table.id = waffle::PLookupBasicTableId::SHA256_BASE28_ROTATE6;
     table.table_index = 1;
     table.size = (1U << bits_per_slice);
     table.use_twin_keys = false;
@@ -100,7 +100,7 @@ TEST(plookup_composer, read_from_table_with_single_key)
             uint32_t left_idx = composer.add_variable(fr(left));
 
             const std::array<uint32_t, 2> result_indices =
-                composer.read_from_table(waffle::PLookupTableId::SHA256_BASE28_ROTATE6, left_idx);
+                composer.read_from_table(waffle::PLookupBasicTableId::SHA256_BASE28_ROTATE6, left_idx);
 
             const auto expected_a = numeric::map_into_sparse_form<28>(left);
             const auto expected_b = numeric::map_into_sparse_form<28>(numeric::rotate32((uint32_t)left, 6));
@@ -109,13 +109,9 @@ TEST(plookup_composer, read_from_table_with_single_key)
             EXPECT_EQ(composer.get_variable(result_indices[1]), fr(expected_b));
         }
     }
-
     auto prover = composer.create_prover();
-
     auto verifier = composer.create_verifier();
-
     auto proof = prover.construct_proof();
-
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, true);
 }
@@ -146,8 +142,8 @@ TEST(plookup_composer, read_sequence_with_single_key)
             slices[2],
         };
 
-        const auto indices =
-            composer.read_sequence_from_table(waffle::PLookupTableId::SHA256_BASE28_ROTATE6, left_idx, UINT32_MAX, 3);
+        const auto indices = composer.read_sequence_from_table(
+            waffle::PLookupBasicTableId::SHA256_BASE28_ROTATE6, left_idx, UINT32_MAX, 3);
 
         const uint256_t expected_sparse = numeric::map_into_sparse_form<28>(left);
 
@@ -201,7 +197,7 @@ TEST(plookup_composer, read_from_table_with_key_pair)
             uint32_t left_idx = composer.add_variable(fr(left));
             uint32_t right_idx = composer.add_variable(fr(right));
 
-            uint32_t result_idx = composer.read_from_table(waffle::PLookupTableId::XOR, left_idx, right_idx);
+            uint32_t result_idx = composer.read_from_table(waffle::PLookupBasicTableId::XOR, left_idx, right_idx);
 
             EXPECT_EQ(composer.get_variable(result_idx), fr(left ^ right));
         }
@@ -266,7 +262,7 @@ TEST(plookup_composer, read_sequence_from_table)
                 composer.add_variable(fr(right_accumulators[3])),
             };
 
-            auto xor_indices = composer.read_sequence_from_table(waffle::PLookupTableId::XOR,
+            auto xor_indices = composer.read_sequence_from_table(waffle::PLookupBasicTableId::XOR,
                                                                  {
                                                                      { left_indices[0], right_indices[0] },
                                                                      { left_indices[1], right_indices[1] },
@@ -343,7 +339,7 @@ TEST(plookup_composer, read_alternate_sequence_from_table)
             uint32_t right_index = composer.add_variable(fr(right_accumulators[0]));
 
             auto xor_indices =
-                composer.read_sequence_from_table(waffle::PLookupTableId::XOR, left_index, right_index, 4);
+                composer.read_sequence_from_table(waffle::PLookupBasicTableId::XOR, left_index, right_index, 4);
             //  {
             //      { left_indices[0], right_indices[0] },
             //      { left_indices[1], right_indices[1] },
@@ -381,7 +377,7 @@ TEST(plookup_composer, test_quotient_polynomial_absolute_lookup)
             uint32_t left_idx = composer.add_variable(fr(left));
             uint32_t right_idx = composer.add_variable(fr(right));
 
-            uint32_t result_idx = composer.read_from_table(waffle::PLookupTableId::XOR, left_idx, right_idx);
+            uint32_t result_idx = composer.read_from_table(waffle::PLookupBasicTableId::XOR, left_idx, right_idx);
 
             uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
             composer.create_big_add_gate(
@@ -510,7 +506,7 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
                                        composer.add_variable(fr(right_accumulators[2])),
                                        composer.add_variable(fr(right_accumulators[3])) };
 
-            auto result_indices = composer.read_sequence_from_table(waffle::PLookupTableId::XOR,
+            auto result_indices = composer.read_sequence_from_table(waffle::PLookupBasicTableId::XOR,
                                                                     { { left_indices[0], right_indices[0] },
                                                                       { left_indices[1], right_indices[1] },
                                                                       { left_indices[2], right_indices[2] },
@@ -637,7 +633,7 @@ TEST(plookup_composer, test_relative_lookup_proof)
             uint32_t left_idx = composer.add_variable(fr(left));
             uint32_t right_idx = composer.add_variable(fr(right));
 
-            uint32_t result_idx = composer.read_from_table(waffle::PLookupTableId::XOR, left_idx, right_idx);
+            uint32_t result_idx = composer.read_from_table(waffle::PLookupBasicTableId::XOR, left_idx, right_idx);
 
             uint32_t add_idx = composer.add_variable(fr(left) + fr(right) + composer.get_variable(result_idx));
             composer.create_big_add_gate(
@@ -672,6 +668,54 @@ TEST(plookup_composer, test_no_lookup_proof)
                 { left_idx, right_idx, result_idx, add_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
         }
     }
+
+    auto prover = composer.create_prover();
+
+    auto verifier = composer.create_verifier();
+
+    auto proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(plookup_composer, test_elliptic_gate)
+{
+    typedef grumpkin::g1::affine_element affine_element;
+    typedef grumpkin::g1::element element;
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    affine_element p1 = crypto::pedersen::get_generator(0);
+    affine_element p2 = crypto::pedersen::get_generator(1);
+    affine_element p3(element(p1) + element(p2));
+
+    uint32_t x1 = composer.add_variable(p1.x);
+    uint32_t y1 = composer.add_variable(p1.y);
+    uint32_t x2 = composer.add_variable(p2.x);
+    uint32_t y2 = composer.add_variable(p2.y);
+    uint32_t x3 = composer.add_variable(p3.x);
+    uint32_t y3 = composer.add_variable(p3.y);
+
+    waffle::ecc_add_gate gate{ x1, y1, x2, y2, x3, y3, 1, 1 };
+    composer.create_ecc_add_gate(gate);
+
+    affine_element p2_endo = p2;
+    p2_endo.x *= grumpkin::fq::beta();
+    p3 = affine_element(element(p1) + element(p2_endo));
+    x3 = composer.add_variable(p3.x);
+    y3 = composer.add_variable(p3.y);
+    gate = waffle::ecc_add_gate{ x1, y1, x2, y2, x3, y3, grumpkin::fq::beta(), 1 };
+    composer.create_ecc_add_gate(gate);
+
+    p2_endo.x *= grumpkin::fq::beta();
+    p3 = affine_element(element(p1) - element(p2_endo));
+    x3 = composer.add_variable(p3.x);
+    y3 = composer.add_variable(p3.y);
+    gate = waffle::ecc_add_gate{ x1, y1, x2, y2, x3, y3, grumpkin::fq::beta().sqr(), -1 };
+    composer.create_ecc_add_gate(gate);
+
+    composer.create_dummy_gate();
+    composer.create_dummy_gate();
 
     auto prover = composer.create_prover();
 

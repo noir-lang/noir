@@ -5,6 +5,8 @@
 namespace barretenberg {
 template <class base, class T> constexpr field2<base, T> field2<base, T>::operator*(const field2& other) const noexcept
 {
+    // no funny primes please! we assume -1 is not a quadratic residue
+    static_assert((base::modulus.data[0] & 0x3UL) == 0x3UL);
     base t1 = c0 * other.c0;
     base t2 = c1 * other.c1;
     base t3 = c0 + c1;
@@ -106,6 +108,33 @@ template <class base, class T> constexpr void field2<base, T>::self_neg() noexce
 {
     c0.self_neg();
     c1.self_neg();
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::pow(const uint256_t& exponent) const noexcept
+{
+
+    field2 accumulator = *this;
+    field2 to_mul = *this;
+    const uint64_t maximum_set_bit = exponent.get_msb();
+
+    for (int i = static_cast<int>(maximum_set_bit) - 1; i >= 0; --i) {
+        accumulator.self_sqr();
+        if (exponent.get_bit(static_cast<uint64_t>(i))) {
+            accumulator *= to_mul;
+        }
+    }
+
+    if (*this == zero()) {
+        accumulator = zero();
+    } else if (exponent == uint256_t(0)) {
+        accumulator = one();
+    }
+    return accumulator;
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::pow(const uint64_t exponent) const noexcept
+{
+    return pow({ exponent, 0, 0, 0 });
 }
 
 template <class base, class T> constexpr field2<base, T> field2<base, T>::invert() const noexcept

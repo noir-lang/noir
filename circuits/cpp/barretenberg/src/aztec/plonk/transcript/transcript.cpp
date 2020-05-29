@@ -78,12 +78,11 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript,
 
 void Transcript::compute_challenge_map()
 {
-    size_t index_counter = 0;
-    challenge_map = std::map<std::string, size_t>();
+    challenge_map = std::map<std::string, int>();
     for (const auto& manifest : manifest.get_round_manifests()) {
         if (manifest.map_challenges) {
             for (const auto& element : manifest.elements) {
-                challenge_map.insert({ element.name, index_counter++ });
+                challenge_map.insert({ element.name, element.challenge_map_index });
             }
         }
     }
@@ -208,17 +207,30 @@ std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(cons
     return challenges.at(challenge_name)[idx].data;
 }
 
-size_t Transcript::get_challenge_index_from_map(const std::string& challenge_map_name) const
+int Transcript::get_challenge_index_from_map(const std::string& challenge_map_name) const
 {
     const auto key = challenge_map.at(challenge_map_name);
     return key;
+}
+
+bool Transcript::has_challenge(const std::string& challenge_name) const
+{
+    return (challenges.count(challenge_name) > 0);
 }
 
 std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge_from_map(
     const std::string& challenge_name, const std::string& challenge_map_name) const
 {
     const auto key = challenge_map.at(challenge_map_name);
-    const auto value = challenges.at(challenge_name)[key];
+    if (key == -1) {
+        std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> result;
+        for (size_t i = 0; i < Transcript::PRNG_OUTPUT_SIZE - 1; ++i) {
+            result[i] = 0;
+        }
+        result[Transcript::PRNG_OUTPUT_SIZE - 1] = 1;
+        return result;
+    }
+    const auto value = challenges.at(challenge_name)[static_cast<size_t>(key)];
     return value.data;
 }
 

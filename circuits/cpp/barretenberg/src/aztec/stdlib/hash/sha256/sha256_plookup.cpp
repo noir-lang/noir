@@ -12,6 +12,7 @@ using namespace barretenberg;
 
 namespace plonk {
 namespace stdlib {
+namespace sha256_plookup {
 namespace internal {
 
 constexpr size_t get_num_blocks(const size_t num_bits)
@@ -130,9 +131,16 @@ std::array<field_t<waffle::PLookupComposer>, 64> extend_witness(
         field_pt xor_result = plookup::read_from_table(waffle::SHA256_WITNESS_OUTPUT, xor_result_sparse);
 
         // TODO NORMALIZE WITH RANGE CHECK
+
         field_pt w_out_raw = xor_result.add_two(w_sparse[i - 16].normal, w_sparse[i - 7].normal);
-        field_pt w_out = witness_t<waffle::PLookupComposer>(
-            ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
+        field_pt w_out;
+        if (w_out_raw.witness_index == UINT32_MAX) {
+            w_out = field_pt(ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
+
+        } else {
+            w_out = witness_t<waffle::PLookupComposer>(
+                ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
+        }
         w_sparse[i] = sparse_witness_limbs(w_out);
     }
 
@@ -218,6 +226,12 @@ field_t<waffle::PLookupComposer> add_normalize(const field_t<waffle::PLookupComp
 
     waffle::PLookupComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
 
+    if (a.witness_index == UINT32_MAX && b.witness_index == UINT32_MAX) {
+        auto sum = uint256_t(a.get_value() + b.get_value());
+        uint64_t normalized = static_cast<uint32_t>(sum.data[0]);
+        return field_pt(ctx, normalized);
+    }
+
     uint256_t sum = a.get_value() + b.get_value();
 
     uint256_t normalized_sum = static_cast<uint32_t>(sum.data[0]);
@@ -234,7 +248,7 @@ field_t<waffle::PLookupComposer> add_normalize(const field_t<waffle::PLookupComp
     return result;
 }
 
-std::array<field_t<waffle::PLookupComposer>, 8> sha256_inner_block(
+std::array<field_t<waffle::PLookupComposer>, 8> sha256_block(
     const std::array<field_t<waffle::PLookupComposer>, 8>& h_init,
     const std::array<field_t<waffle::PLookupComposer>, 16>& input)
 {
@@ -301,71 +315,46 @@ std::array<field_t<waffle::PLookupComposer>, 8> sha256_inner_block(
     return output;
 }
 
-byte_array<waffle::PLookupComposer> sha256_block(const byte_array<waffle::PLookupComposer>& input)
+packed_byte_array<waffle::PLookupComposer> sha256(const packed_byte_array<waffle::PLookupComposer>& input)
 {
-    typedef uint32<waffle::PLookupComposer> uint32;
-    typedef field_t<waffle::PLookupComposer> field_pt;
-
-    ASSERT(input.size() == 64);
-    std::array<field_pt, 8> hash;
-    prepare_constants(hash);
-    std::array<field_pt, 16> hash_input;
-    for (size_t i = 0; i < 16; ++i) {
-        hash_input[i] = field_pt(uint32(input.slice(i * 4, 4)));
-    }
-    hash = sha256_inner_block(hash, hash_input);
-
-    byte_array<waffle::PLookupComposer> result(input.get_context());
-    for (size_t i = 0; i < 8; ++i) {
-        uint32 out(hash[i]);
-        result.write(static_cast<byte_array<waffle::PLookupComposer>>(out));
-    }
-
-    return result;
-}
-
-bit_array<waffle::PLookupComposer> sha256(const bit_array<waffle::PLookupComposer>& input)
-{
-    typedef uint32<waffle::PLookupComposer> uint32;
-    typedef bit_array<waffle::PLookupComposer> bit_array;
     typedef field_t<waffle::PLookupComposer> field_pt;
 
     waffle::PLookupComposer* ctx = input.get_context();
 
-    size_t num_bits = input.size();
-    size_t num_blocks = internal::get_num_blocks(num_bits);
+    auto message_schedule(input);
 
-    bit_array message_schedule = bit_array(input.get_context(), num_blocks * 512UL);
+    const size_t message_bits = message_schedule.size() * 8;
+    message_schedule.append(field_t(ctx, 128), 1);
 
-    // begin filling message schedule from most significant to least significant
-    size_t offset = message_schedule.size() - input.size();
+    constexpr size_t bytes_per_block = 64;
+    const size_t num_bytes = message_schedule.size() + 8;
+    const size_t num_blocks = num_bytes / bytes_per_block + (num_bytes % bytes_per_block != 0);
 
-    for (size_t i = input.size() - 1; i < input.size(); --i) {
-        size_t idx = offset + i;
-        message_schedule[idx] = input[i];
+    const size_t num_total_bytes = num_blocks * bytes_per_block;
+    for (size_t i = num_bytes; i < num_total_bytes; ++i) {
+        message_schedule.append(field_t(ctx, 0), 1);
     }
-    message_schedule[offset - 1] = true;
-    for (size_t i = 0; i < 32; ++i) {
-        message_schedule[i] = static_cast<bool>((num_bits >> i) & 1);
-    }
+
+    message_schedule.append(field_t(ctx, message_bits), 8);
+
+    const auto slices = message_schedule.to_unverified_byte_slices(4);
+
+    constexpr size_t slices_per_block = 16;
 
     std::array<field_pt, 8> rolling_hash;
     prepare_constants(rolling_hash);
     for (size_t i = 0; i < num_blocks; ++i) {
-        std::array<uint32, 16> hash_input_u32;
-        message_schedule.populate_uint32_array(i * 512, hash_input_u32);
         std::array<field_pt, 16> hash_input;
         for (size_t j = 0; j < 16; ++j) {
-            hash_input[j] = field_pt::from_witness_index(ctx, ctx->add_variable(hash_input_u32[j].get_value()));
+            hash_input[j] = slices[i * slices_per_block + j];
         }
-        rolling_hash = sha256_inner_block(rolling_hash, hash_input);
+        rolling_hash = sha256_block(rolling_hash, hash_input);
     }
-    std::array<uint32, 8> out;
-    for (size_t i = 0; i < 8; ++i) {
-        out[i] = uint32(rolling_hash[i]);
-    }
-    return bit_array(out);
+
+    std::vector<field_pt> output(rolling_hash.begin(), rolling_hash.end());
+    return packed_byte_array<waffle::PLookupComposer>(output, 4);
 }
 
+} // namespace sha256_plookup
 } // namespace stdlib
 } // namespace plonk

@@ -5,6 +5,8 @@
 #include <polynomials/evaluation_domain.hpp>
 #include <polynomials/polynomial.hpp>
 
+#include "../types/polynomial_manifest.hpp"
+
 namespace waffle {
 
 enum LookupType {
@@ -15,7 +17,7 @@ enum LookupType {
 
 struct proving_key {
   public:
-    proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
+        proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
 
     proving_key(const proving_key& other);
 
@@ -58,6 +60,8 @@ struct proving_key {
     barretenberg::polynomial quotient_large;
 
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
+
+    std::vector<PolynomialDescriptor> polynomial_manifest;
 
     std::vector<LookupType> lookup_mapping;
     std::vector<size_t> table_indices;

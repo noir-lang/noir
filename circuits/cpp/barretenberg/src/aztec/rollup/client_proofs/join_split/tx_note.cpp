@@ -44,7 +44,7 @@ bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
         } else {
             sum = p_2;
         }
-        grumpkin::g1::affine_element p_3 = crypto::pedersen::compress_to_point_native(public_key.x, public_key.y, 0);
+        grumpkin::g1::affine_element p_3 = crypto::pedersen::encrypt_native({ public_key.x, public_key.y }, 0);
 
         sum += p_3;
 

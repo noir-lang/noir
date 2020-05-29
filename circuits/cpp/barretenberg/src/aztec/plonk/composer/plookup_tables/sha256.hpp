@@ -1,11 +1,12 @@
 #pragma once
 
-#include "./types.hpp"
-
 #include <crypto/aes128/aes128.hpp>
 #include <numeric/bitop/rotate.hpp>
 #include <numeric/bitop/sparse_form.hpp>
 #include <numeric/bitop/pow.hpp>
+
+#include "types.hpp"
+#include "sparse.hpp"
 
 namespace waffle {
 namespace sha256_tables {
@@ -91,150 +92,35 @@ static constexpr uint64_t witness_extension_normalization_table[16]{
     2,
 };
 
-template <uint64_t base, uint64_t num_rotated_bits>
-inline std::array<barretenberg::fr, 2> get_sparse_table_with_rotation_values(const std::array<uint64_t, 2> key)
+inline PLookupBasicTable generate_witness_extension_normalization_table(PLookupBasicTableId id,
+                                                                        const size_t table_index)
 {
-    const auto t0 = numeric::map_into_sparse_form<base>(key[0]);
-    barretenberg::fr t1;
-    if constexpr (num_rotated_bits > 0) {
-        t1 = numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)key[0], num_rotated_bits));
-    } else {
-        t1 = t0;
-    }
-    return { barretenberg::fr(t0), barretenberg::fr(t1) };
+    return sparse_tables::generate_sparse_normalization_table<16, 3, witness_extension_normalization_table>(
+        id, table_index);
 }
 
-template <uint64_t base, uint64_t bits_per_slice, uint64_t num_rotated_bits>
-inline PLookupTable generate_sparse_table_with_rotation(PLookupTableId id, const size_t table_index)
+inline PLookupBasicTable generate_choose_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
-    PLookupTable table;
-    table.id = id;
-    table.table_index = table_index;
-    table.size = (1U << bits_per_slice);
-    table.use_twin_keys = false;
-
-    for (uint64_t i = 0; i < table.size; ++i) {
-        const uint64_t source = i;
-        const auto target = numeric::map_into_sparse_form<base>(source);
-        table.column_1.emplace_back(barretenberg::fr(source));
-        table.column_2.emplace_back(barretenberg::fr(target));
-
-        if constexpr (num_rotated_bits > 0) {
-            const auto rotated =
-                numeric::map_into_sparse_form<base>(numeric::rotate32((uint32_t)source, num_rotated_bits));
-            table.column_3.emplace_back(barretenberg::fr(rotated));
-        } else {
-            table.column_3.emplace_back(barretenberg::fr(target));
-        }
-    }
-
-    table.get_values_from_key = &get_sparse_table_with_rotation_values<base, num_rotated_bits>;
-
-    uint256_t sparse_step_size = 1;
-    for (size_t i = 0; i < bits_per_slice; ++i) {
-        sparse_step_size *= base;
-    }
-    table.column_1_step_size = barretenberg::fr((1 << 11));
-    table.column_2_step_size = barretenberg::fr(sparse_step_size);
-    table.column_3_step_size = barretenberg::fr(sparse_step_size);
-
-    return table;
+    return sparse_tables::generate_sparse_normalization_table<28, 2, choose_normalization_table>(id, table_index);
 }
 
-
-template <size_t base, const uint64_t* base_table>
-inline std::array<barretenberg::fr, 2> get_sparse_normalization_values(const std::array<uint64_t, 2> key)
+inline PLookupBasicTable generate_majority_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
-    uint64_t accumulator = 0;
-    uint64_t input = key[0];
-    uint64_t count = 0;
-    while (input > 0) {
-        uint64_t slice = input % base;
-        uint64_t bit = base_table[static_cast<size_t>(slice)];
-        accumulator += (bit << count);
-        input -= slice;
-        input /= base;
-        ++count;
-    }
-    return { barretenberg::fr(accumulator), barretenberg::fr(0) };
-}
-
-template <size_t base, uint64_t num_bits, const uint64_t* base_table>
-inline PLookupTable generate_sparse_normalization_table(PLookupTableId id, const size_t table_index)
-{
-    /**
-     * If t = 7*((e >>> 6) + (e >>> 11) + (e >>> 25)) + e + 2f + 3g
-     * we can create a mapping between the 28 distinct values, and the result of
-     * (e >>> 6) ^ (e >>> 11) ^ (e >>> 25) + e + 2f + 3g
-     */
-
-    PLookupTable table;
-    table.id = id;
-    table.table_index = table_index;
-    table.use_twin_keys = false;
-    table.size = numeric::pow64(static_cast<uint64_t>(base), num_bits);
-
-    numeric::sparse_int<base, num_bits> accumulator(0);
-    numeric::sparse_int<base, num_bits> to_add(1);
-    for (size_t i = 0; i < table.size; ++i) {
-        const auto& limbs = accumulator.get_limbs();
-        uint64_t key = 0;
-        for (size_t j = 0; j < num_bits; ++j) {
-            const size_t table_idx = static_cast<size_t>(limbs[j]);
-            key += ((base_table[table_idx]) << static_cast<uint64_t>(j));
-        }
-
-        table.column_1.emplace_back(accumulator.get_sparse_value());
-        table.column_2.emplace_back(key);
-        table.column_3.emplace_back(barretenberg::fr(0));
-        accumulator += to_add;
-    }
-
-    table.get_values_from_key = &get_sparse_normalization_values<base, base_table>;
-
-    table.column_1_step_size = barretenberg::fr(table.size);
-    table.column_2_step_size = barretenberg::fr(((uint64_t)1 << num_bits));
-    table.column_3_step_size = barretenberg::fr(0);
-    return table;
-}
-
-inline PLookupTable generate_witness_extension_normalization_table(PLookupTableId id, const size_t table_index)
-{
-    return generate_sparse_normalization_table<16, 3, witness_extension_normalization_table>(id, table_index);
-}
-
-inline PLookupTable generate_choose_normalization_table(PLookupTableId id, const size_t table_index)
-{
-    return generate_sparse_normalization_table<28, 2, choose_normalization_table>(id, table_index);
-}
-
-inline PLookupTable generate_majority_normalization_table(PLookupTableId id, const size_t table_index)
-{
-    return generate_sparse_normalization_table<16, 3, majority_normalization_table>(id, table_index);
+    return sparse_tables::generate_sparse_normalization_table<16, 3, majority_normalization_table>(id, table_index);
 }
 
 inline PLookupMultiTable get_witness_extension_output_table(const PLookupMultiTableId id = SHA256_WITNESS_OUTPUT)
 {
-    const size_t num_entries = 16;
+    const size_t num_entries = 11;
 
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
-
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(barretenberg::fr(16).pow(3 * i));
-        column_2_coefficients.emplace_back(1 << (3 * i));
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(16 * 16 * 16);
+        table.slice_sizes.emplace_back(numeric::pow64(16, 3));
         table.lookup_ids.emplace_back(SHA256_WITNESS_NORMALIZE);
         table.get_table_values.emplace_back(
-            &get_sparse_normalization_values<16, witness_extension_normalization_table>);
+            &sparse_tables::get_sparse_normalization_values<16, witness_extension_normalization_table>);
     }
     return table;
 }
@@ -243,22 +129,14 @@ inline PLookupMultiTable get_choose_output_table(const PLookupMultiTableId id = 
 {
     const size_t num_entries = 16;
 
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
+    PLookupMultiTable table(numeric::pow64(28, 2), 1 << 2, 0, num_entries);
 
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(barretenberg::fr(28).pow(2 * i));
-        column_2_coefficients.emplace_back(1 << (2 * i));
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(28 * 28);
+        table.slice_sizes.emplace_back(numeric::pow64(28, 2));
         table.lookup_ids.emplace_back(SHA256_CH_NORMALIZE);
-        table.get_table_values.emplace_back(&get_sparse_normalization_values<28, choose_normalization_table>);
+        table.get_table_values.emplace_back(
+            &sparse_tables::get_sparse_normalization_values<28, choose_normalization_table>);
     }
     return table;
 }
@@ -267,23 +145,14 @@ inline PLookupMultiTable get_majority_output_table(const PLookupMultiTableId id 
 {
     const size_t num_entries = 11;
 
-    std::vector<barretenberg::fr> column_1_coefficients;
-    std::vector<barretenberg::fr> column_2_coefficients;
-    std::vector<barretenberg::fr> column_3_coefficients;
-
-    for (size_t i = 0; i < num_entries; ++i) {
-        column_1_coefficients.emplace_back(barretenberg::fr(16).pow(3 * i));
-        column_2_coefficients.emplace_back(1 << (3 * i));
-        column_3_coefficients.emplace_back(0);
-    }
-
-    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
-        table.slice_sizes.emplace_back(16 * 16 * 16);
+        table.slice_sizes.emplace_back(numeric::pow64(16, 3));
         table.lookup_ids.emplace_back(SHA256_MAJ_NORMALIZE);
-        table.get_table_values.emplace_back(&get_sparse_normalization_values<16, majority_normalization_table>);
+        table.get_table_values.emplace_back(
+            &sparse_tables::get_sparse_normalization_values<16, majority_normalization_table>);
     }
     return table;
 }
@@ -366,15 +235,9 @@ inline std::array<barretenberg::fr, 3> get_choose_rotation_multipliers()
 
 inline PLookupMultiTable get_witness_extension_input_table(const PLookupMultiTableId id = SHA256_WITNESS_INPUT)
 {
-    std::vector<barretenberg::fr> column_1_coefficients{
-        barretenberg::fr(1), barretenberg::fr(1 << 3), barretenberg::fr(1 << 10), barretenberg::fr(1 << 18)
-    };
-    std::vector<barretenberg::fr> column_2_coefficients{
-        barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0)
-    };
-    std::vector<barretenberg::fr> column_3_coefficients{
-        barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0), barretenberg::fr(0)
-    };
+    std::vector<barretenberg::fr> column_1_coefficients{ 1, 1 << 3, 1 << 10, 1 << 18 };
+    std::vector<barretenberg::fr> column_2_coefficients{ 0, 0, 0, 0 };
+    std::vector<barretenberg::fr> column_3_coefficients{ 0, 0, 0, 0 };
     PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 3), (1 << 7), (1 << 8), (1 << 18) };
@@ -384,10 +247,10 @@ inline PLookupMultiTable get_witness_extension_input_table(const PLookupMultiTab
                          SHA256_WITNESS_SLICE_14_ROTATE_1 };
 
     table.get_table_values = {
-        &get_sparse_table_with_rotation_values<16, 0>,
-        &get_sparse_table_with_rotation_values<16, 4>,
-        &get_sparse_table_with_rotation_values<16, 7>,
-        &get_sparse_table_with_rotation_values<16, 1>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 0>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 4>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 7>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 1>,
     };
     return table;
 }
@@ -490,9 +353,9 @@ inline PLookupMultiTable get_choose_input_table(const PLookupMultiTableId id = S
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
     table.lookup_ids = { SHA256_BASE28_ROTATE6, SHA256_BASE28, SHA256_BASE28_ROTATE3 };
 
-    table.get_table_values.push_back(&get_sha256_sparse_map_values<28, 6>);
-    table.get_table_values.push_back(&get_sha256_sparse_map_values<28, 0>);
-    table.get_table_values.push_back(&get_sha256_sparse_map_values<28, 3>);
+    table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 6>);
+    table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 0>);
+    table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 3>);
     // table.get_table_values = std::vector<PLookupMultiTable::table_out (*)(PLookupMultiTable::table_in)>{
 
     //     &get_sha256_sparse_map_values<28, 0, 0>,
@@ -558,9 +421,9 @@ inline PLookupMultiTable get_majority_input_table(const PLookupMultiTableId id =
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
     table.lookup_ids = { SHA256_BASE16_ROTATE2, SHA256_BASE16_ROTATE2, SHA256_BASE16 };
     table.get_table_values = {
-        &get_sha256_sparse_map_values<16, 2>,
-        &get_sha256_sparse_map_values<16, 2>,
-        &get_sha256_sparse_map_values<16, 0>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 2>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 2>,
+        &sparse_tables::get_sparse_table_with_rotation_values<16, 0>,
     };
     return table;
 }

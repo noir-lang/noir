@@ -310,6 +310,11 @@ template <typename Composer> class Transcript {
         return result;
     }
 
+    bool has_challenge(const std::string& challenge_name) const
+    {
+        return transcript_base.has_challenge(challenge_name);
+    }
+
     field_pt get_challenge_field_element(const std::string& challenge_name, const size_t challenge_idx = 0) const
     {
         const int cache_idx = check_challenge_cache(challenge_name, challenge_idx);
@@ -320,10 +325,13 @@ template <typename Composer> class Transcript {
     field_pt get_challenge_field_element_from_map(const std::string& challenge_name,
                                                   const std::string& challenge_map_name) const
     {
-        const size_t challenge_idx = transcript_base.get_challenge_index_from_map(challenge_map_name);
-        const int cache_idx = check_challenge_cache(challenge_name, challenge_idx);
+        const int challenge_idx = transcript_base.get_challenge_index_from_map(challenge_map_name);
+        if (challenge_idx == -1) {
+            return field_pt(nullptr, 1);
+        }
+        const int cache_idx = check_challenge_cache(challenge_name, static_cast<size_t>(challenge_idx));
         ASSERT(cache_idx != -1);
-        return challenge_values[static_cast<size_t>(cache_idx)][challenge_idx];
+        return challenge_values[static_cast<size_t>(cache_idx)][static_cast<size_t>(challenge_idx)];
     }
 
     barretenberg::g1::affine_element get_group_element(const std::string& element_name) const

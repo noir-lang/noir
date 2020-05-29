@@ -86,7 +86,7 @@ void native_pedersen_eight_hash_bench(State& state) noexcept
         elements[i] = grumpkin::fq::random_element();
     }
     for (auto _ : state) {
-        crypto::pedersen::compress_eight_native(elements);
+        crypto::pedersen::compress_native(elements);
     }
 }
 BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);

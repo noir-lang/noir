@@ -3,6 +3,8 @@
 #include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
 
+#include "../types/polynomial_manifest.hpp"
+
 namespace waffle {
 
 struct verification_key {
@@ -24,6 +26,8 @@ struct verification_key {
     std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
 
     std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
+
+    std::vector<PolynomialDescriptor> polynomial_manifest;
 
     std::map<std::string, size_t> scalar_multiplication_indices;
     size_t program_width = 3;

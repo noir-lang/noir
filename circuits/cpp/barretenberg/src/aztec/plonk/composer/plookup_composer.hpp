@@ -7,6 +7,10 @@ namespace waffle {
 class PLookupComposer : public ComposerBase {
 
   public:
+    static constexpr ComposerType type = ComposerType::PLOOKUP;
+
+    static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
+    static constexpr size_t NUM_RESERVED_GATES = 2;
     enum PLookupSelectors {
         QM = 0,
         QC = 1,
@@ -21,6 +25,7 @@ class PLookupComposer : public ComposerBase {
         QLOGIC = 10,
         QLOOKUPINDEX = 11,
         QLOOKUPTYPE = 12,
+        QELLIPTIC = 13,
     };
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
@@ -45,23 +50,23 @@ class PLookupComposer : public ComposerBase {
     UnrolledPLookupVerifier create_unrolled_verifier();
 
     void initialize_precomputed_table(
-        const PLookupTableId id,
+        const PLookupBasicTableId id,
         bool (*generator)(std::vector<barretenberg::fr>&,
                           std::vector<barretenberg::fr>&,
                           std::vector<barretenberg::fr>&),
         std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
 
-    PLookupTable& get_table(const PLookupTableId id);
-    PLookupMultiTable& get_multi_table(const PLookupMultiTableId id);
+    PLookupBasicTable& get_table(const PLookupBasicTableId id);
+    PLookupMultiTable& create_table(const PLookupMultiTableId id);
 
-    std::array<uint32_t, 2> read_from_table(const PLookupTableId id, const uint32_t key_idx);
-    uint32_t read_from_table(const PLookupTableId id, const uint32_t key_a, const uint32_t key_b);
-    // std::pair<uint32_t, uint32_t> read_from_table(const PLookupTableId id, const uint32_t key);
+    std::array<uint32_t, 2> read_from_table(const PLookupBasicTableId id, const uint32_t key_idx);
+    uint32_t read_from_table(const PLookupBasicTableId id, const uint32_t key_a, const uint32_t key_b);
+    // std::pair<uint32_t, uint32_t> read_from_table(const PLookupBasicTableId id, const uint32_t key);
 
-    std::vector<uint32_t> read_sequence_from_table(const PLookupTableId id,
+    std::vector<uint32_t> read_sequence_from_table(const PLookupBasicTableId id,
                                                    const std::vector<std::array<uint32_t, 2>>& key_indices);
 
-    std::array<std::vector<uint32_t>, 3> read_sequence_from_table(const PLookupTableId id,
+    std::array<std::vector<uint32_t>, 3> read_sequence_from_table(const PLookupBasicTableId id,
                                                                   const uint32_t key_index_a,
                                                                   const uint32_t key_index_b,
                                                                   const size_t num_lookups);
@@ -70,7 +75,9 @@ class PLookupComposer : public ComposerBase {
                                                                         const PLookupReadData& read_values,
                                                                         const uint32_t key_index);
 
-    void validate_lookup(const PLookupTableId id, const std::array<uint32_t, 3> keys);
+    void validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> keys);
+    void ensure_nonzero_selectors(const size_t subgroup_size);
+
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
 
@@ -84,6 +91,9 @@ class PLookupComposer : public ComposerBase {
     void create_poly_gate(const poly_triple& in) override;
     void create_fixed_group_add_gate(const fixed_group_add_quad& in);
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
+
+    void create_ecc_add_gate(const ecc_add_gate& in);
+
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
     std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits);
@@ -113,7 +123,7 @@ class PLookupComposer : public ComposerBase {
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
 
-    std::vector<PLookupTable> lookup_tables;
+    std::vector<PLookupBasicTable> lookup_tables;
     std::vector<PLookupMultiTable> lookup_multi_tables;
 
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
@@ -141,42 +151,48 @@ class PLookupComposer : public ComposerBase {
                                                     { "T_4", g1_size, false } },
                                                   "z",
                                                   1),
-              transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
-                                                    { "w_2", fr_size, false },
-                                                    { "w_3", fr_size, false },
-                                                    { "w_4", fr_size, false },
-                                                    { "z_omega", fr_size, false },
-                                                    { "sigma_1", fr_size, false },
-                                                    { "sigma_2", fr_size, false },
-                                                    { "sigma_3", fr_size, false },
-                                                    { "q_arith", fr_size, false },
-                                                    { "q_ecc_1", fr_size, false },
-                                                    { "q_2", fr_size, false },
-                                                    { "q_m", fr_size, false },
-                                                    { "q_c", fr_size, false },
-                                                    { "table_value_1", fr_size, false },
-                                                    { "table_value_2", fr_size, false },
-                                                    { "table_value_3", fr_size, false },
-                                                    { "table_value_4", fr_size, false },
-                                                    { "table_index", fr_size, false },
-                                                    { "table_type", fr_size, false },
-                                                    { "s", fr_size, false },
-                                                    { "z_lookup", fr_size, false },
-                                                    { "r", fr_size, false },
-                                                    { "w_1_omega", fr_size, false },
-                                                    { "w_2_omega", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
-                                                    { "w_4_omega", fr_size, false },
-                                                    { "table_value_1_omega", fr_size, false },
-                                                    { "table_value_2_omega", fr_size, false },
-                                                    { "table_value_3_omega", fr_size, false },
-                                                    { "table_value_4_omega", fr_size, false },
-                                                    { "s_omega", fr_size, false },
-                                                    { "z_lookup_omega", fr_size, false },
-                                                    { "t", fr_size, true } },
-                                                  "nu",
-                                                  22,
-                                                  true),
+              transcript::Manifest::RoundManifest(
+                  {
+                      { "t", fr_size, true, -1 },
+                      { "w_1", fr_size, false, 0 },
+                      { "w_2", fr_size, false, 1 },
+                      { "w_3", fr_size, false, 2 },
+                      { "w_4", fr_size, false, 3 },
+                      { "sigma_1", fr_size, false, 4 },
+                      { "sigma_2", fr_size, false, 5 },
+                      { "sigma_3", fr_size, false, 6 },
+                      { "q_arith", fr_size, false, 7 },
+                      { "q_ecc_1", fr_size, false, 8 },
+                      { "q_2", fr_size, false, 9 },
+                      { "q_3", fr_size, false, 10 },
+                      { "q_4", fr_size, false, 11 },
+                      { "q_5", fr_size, false, 12 },
+                      { "q_m", fr_size, false, 13 },
+                      { "q_c", fr_size, false, 14 },
+                      { "table_value_1", fr_size, false, 15 },
+                      { "table_value_2", fr_size, false, 16 },
+                      { "table_value_3", fr_size, false, 17 },
+                      { "table_value_4", fr_size, false, 18 },
+                      { "table_index", fr_size, false, 19 },
+                      { "table_type", fr_size, false, 20 },
+                      { "s", fr_size, false, 21 },
+                      { "z_lookup", fr_size, false, 22 },
+                      { "r", fr_size, false, 23 },
+                      { "z_omega", fr_size, false, -1 },
+                      { "w_1_omega", fr_size, false, 0 },
+                      { "w_2_omega", fr_size, false, 1 },
+                      { "w_3_omega", fr_size, false, 2 },
+                      { "w_4_omega", fr_size, false, 3 },
+                      { "table_value_1_omega", fr_size, false, 4 },
+                      { "table_value_2_omega", fr_size, false, 5 },
+                      { "table_value_3_omega", fr_size, false, 6 },
+                      { "table_value_4_omega", fr_size, false, 7 },
+                      { "s_omega", fr_size, false, 8 },
+                      { "z_lookup_omega", fr_size, false, 9 },
+                  },
+                  "nu",
+                  24,
+                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
@@ -209,49 +225,50 @@ class PLookupComposer : public ComposerBase {
                                                   1),
               transcript::Manifest::RoundManifest(
                   {
-                      { "w_1", fr_size, false },
-                      { "w_2", fr_size, false },
-                      { "w_3", fr_size, false },
-                      { "w_4", fr_size, false },
-                      { "z_omega", fr_size, false },
-                      { "sigma_1", fr_size, false },
-                      { "sigma_2", fr_size, false },
-                      { "sigma_3", fr_size, false },
-                      { "sigma_4", fr_size, false },
-                      { "q_1", fr_size, false },
-                      { "q_2", fr_size, false },
-                      { "q_3", fr_size, false },
-                      { "q_4", fr_size, false },
-                      { "q_5", fr_size, false },
-                      { "q_m", fr_size, false },
-                      { "q_c", fr_size, false },
-                      { "q_arith", fr_size, false },
-                      { "q_logic", fr_size, false },
-                      { "q_range", fr_size, false },
-                      { "q_ecc_1", fr_size, false },
-                      { "table_value_1", fr_size, false },
-                      { "table_value_2", fr_size, false },
-                      { "table_value_3", fr_size, false },
-                      { "table_value_4", fr_size, false },
-                      { "table_index", fr_size, false },
-                      { "table_type", fr_size, false },
-                      { "s", fr_size, false },
-                      { "z_lookup", fr_size, false },
-                      { "w_1_omega", fr_size, false },
-                      { "w_2_omega", fr_size, false },
-                      { "w_3_omega", fr_size, false },
-                      { "w_4_omega", fr_size, false },
-                      { "z", fr_size, false },
-                      { "table_value_1_omega", fr_size, false },
-                      { "table_value_2_omega", fr_size, false },
-                      { "table_value_3_omega", fr_size, false },
-                      { "table_value_4_omega", fr_size, false },
-                      { "s_omega", fr_size, false },
-                      { "z_lookup_omega", fr_size, false },
-                      { "t", fr_size, true },
+                      { "t", fr_size, true, -1 },
+                      { "w_1", fr_size, false, 0 },
+                      { "w_2", fr_size, false, 1 },
+                      { "w_3", fr_size, false, 2 },
+                      { "w_4", fr_size, false, 3 },
+                      { "sigma_1", fr_size, false, 4 },
+                      { "sigma_2", fr_size, false, 5 },
+                      { "sigma_3", fr_size, false, 6 },
+                      { "sigma_4", fr_size, false, 7 },
+                      { "q_1", fr_size, false, 8 },
+                      { "q_2", fr_size, false, 9 },
+                      { "q_3", fr_size, false, 10 },
+                      { "q_4", fr_size, false, 11 },
+                      { "q_5", fr_size, false, 12 },
+                      { "q_m", fr_size, false, 13 },
+                      { "q_c", fr_size, false, 14 },
+                      { "q_arith", fr_size, false, 15 },
+                      { "q_logic", fr_size, false, 16 },
+                      { "q_range", fr_size, false, 17 },
+                      { "q_ecc_1", fr_size, false, 18 },
+                      { "q_elliptic", fr_size, false, 19 },
+                      { "table_index", fr_size, false, 20 },
+                      { "table_type", fr_size, false, 21 },
+                      { "s", fr_size, false, 22 },
+                      { "z_lookup", fr_size, false, 23 },
+                      { "table_value_1", fr_size, false, 24 },
+                      { "table_value_2", fr_size, false, 25 },
+                      { "table_value_3", fr_size, false, 26 },
+                      { "table_value_4", fr_size, false, 27 },
+                      { "z", fr_size, false, 28 },
+                      { "z_omega", fr_size, false, -1 },
+                      { "w_1_omega", fr_size, false, 0 },
+                      { "w_2_omega", fr_size, false, 1 },
+                      { "w_3_omega", fr_size, false, 2 },
+                      { "w_4_omega", fr_size, false, 3 },
+                      { "s_omega", fr_size, false, 4 },
+                      { "z_lookup_omega", fr_size, false, 5 },
+                      { "table_value_1_omega", fr_size, false, 6 },
+                      { "table_value_2_omega", fr_size, false, 7 },
+                      { "table_value_3_omega", fr_size, false, 8 },
+                      { "table_value_4_omega", fr_size, false, 9 },
                   },
                   "nu",
-                  28,
+                  29,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });

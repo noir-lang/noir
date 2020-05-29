@@ -18,7 +18,7 @@ std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> read_sequence_from_
 {
     Composer* ctx = key.get_context();
 
-    const auto sequence_data = waffle::plookup::get_multi_table_values(id, key.get_value());
+    const auto sequence_data = waffle::plookup::get_table_values(id, key.get_value());
 
     std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> sequence_values;
     if (key.witness_index == UINT32_MAX) {

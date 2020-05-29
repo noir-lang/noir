@@ -2,12 +2,13 @@
 #include "../proving_key/proving_key.hpp"
 #include "../utils/linearizer.hpp"
 #include "../utils/permutation.hpp"
-#include "../widgets/arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/arithmetic_widget.hpp"
 #include "verifier.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <gtest/gtest.h>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 
 namespace verifier_helpers {
 
@@ -29,18 +30,21 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
           transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
           transcript::Manifest::RoundManifest(
               { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
-          transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
-                                                { "w_2", fr_size, false },
-                                                { "w_3", fr_size, false },
-                                                { "w_3_omega", fr_size, false },
-                                                { "z_omega", fr_size, false },
-                                                { "sigma_1", fr_size, false },
-                                                { "sigma_2", fr_size, false },
-                                                { "r", fr_size, false },
-                                                { "t", fr_size, true } },
-                                              "nu",
-                                              10,
-                                              true),
+          transcript::Manifest::RoundManifest(
+              {
+                  { "t", fr_size, true, -1 },
+                  { "w_1", fr_size, false, 0 },
+                  { "w_2", fr_size, false, 1 },
+                  { "w_3", fr_size, false, 2 },
+                  { "sigma_1", fr_size, false, 3 },
+                  { "sigma_2", fr_size, false, 4 },
+                  { "r", fr_size, false, 5 },
+                  { "z_omega", fr_size, false, -1 },
+                  { "w_3_omega", fr_size, false, 2 },
+              },
+              "nu",
+              7,
+              true),
           transcript::Manifest::RoundManifest(
               { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
@@ -87,6 +91,10 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[6] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[7] });
 
+    std::copy(standard_polynomial_manifest,
+              standard_polynomial_manifest + 12,
+              std::back_inserter(circuit_verification_key->polynomial_manifest));
+
     Verifier verifier(circuit_verification_key, create_manifest());
     // std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
     // verifier.verifier_widgets.emplace_back(std::move(widget));
@@ -95,7 +103,7 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
 
 waffle::Prover generate_test_data(const size_t n)
 {
-    // state.widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
+    // state.random_widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
 
     // create some constraints that satisfy our arithmetic circuit relation
     fr T0;
@@ -267,15 +275,18 @@ waffle::Prover generate_test_data(const size_t n)
     key->constraint_selector_ffts.insert({ "q_m_fft", std::move(q_m_fft) });
     key->constraint_selector_ffts.insert({ "q_c_fft", std::move(q_c_fft) });
 
+    std::copy(
+        standard_polynomial_manifest, standard_polynomial_manifest + 12, std::back_inserter(key->polynomial_manifest));
+
     std::unique_ptr<waffle::ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<waffle::ProverPermutationWidget<3>>(key.get(), witness.get());
 
-    std::unique_ptr<waffle::ProverArithmeticWidget> widget =
-        std::make_unique<waffle::ProverArithmeticWidget>(key.get(), witness.get());
+    std::unique_ptr<waffle::ProverArithmeticWidget<waffle::standard_settings>> widget =
+        std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get(), witness.get());
 
     waffle::Prover state = waffle::Prover(std::move(key), std::move(witness), create_manifest());
-    state.widgets.emplace_back(std::move(permutation_widget));
-    state.widgets.emplace_back(std::move(widget));
+    state.random_widgets.emplace_back(std::move(permutation_widget));
+    state.transition_widgets.emplace_back(std::move(widget));
     return state;
 }
 } // namespace verifier_helpers

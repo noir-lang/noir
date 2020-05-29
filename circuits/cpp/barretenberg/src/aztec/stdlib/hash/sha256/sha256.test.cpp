@@ -1,5 +1,4 @@
 #include "sha256.hpp"
-#include "sha256_plookup.hpp"
 #include <common/test.hpp>
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/plookup_tables/plookup_tables.hpp>
@@ -108,36 +107,6 @@ std::array<uint64_t, 8> inner_block(std::array<uint64_t, 64>& w)
     return output;
 }
 
-TEST(stdlib_sha256_plookup, witness_extension)
-{
-
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
-
-    std::array<uint64_t, 16> w_inputs;
-    std::array<plonk::stdlib::field_t<waffle::PLookupComposer>, 16> w_elements;
-
-    for (size_t i = 0; i < 16; ++i) {
-        w_inputs[i] = engine.get_random_uint32();
-        w_elements[i] = plonk::stdlib::witness_t<waffle::PLookupComposer>(&composer, barretenberg::fr(w_inputs[i]));
-    }
-
-    const auto expected = extend_witness(w_inputs);
-
-    const auto result = plonk::stdlib::extend_witness(w_elements);
-    for (size_t i = 0; i < 8; ++i) {
-        EXPECT_EQ(uint256_t(result[i].get_value()).data[0] & 0xffffffffUL,
-                  uint256_t(expected[i]).data[0] & 0xffffffffUL);
-    }
-    printf("composer gates = %zu\n", composer.get_num_gates());
-
-    auto prover = composer.create_prover();
-
-    auto verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
 // TEST(stdlib_sha256_plookup, test_round)
 // {
 
@@ -171,26 +140,26 @@ TEST(stdlib_sha256_plookup, witness_extension)
 
 TEST(stdlib_sha256, test_plookup_55_bytes)
 {
-    typedef plonk::stdlib::uint32<waffle::PLookupComposer> uint32_pt;
-    typedef plonk::stdlib::bit_array<waffle::PLookupComposer> bit_array_pt;
+    typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
     waffle::PLookupComposer composer = waffle::PLookupComposer();
-    bit_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
+    packed_byte_array_pt input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
-    bit_array_pt output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
 
-    std::vector<uint32_pt> output = output_bits.to_uint32_vector();
+    std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
-    EXPECT_EQ(output[0].get_value(), 0x51b2529fU);
-    EXPECT_EQ(output[1].get_value(), 0x872e839aU);
-    EXPECT_EQ(output[2].get_value(), 0xb686c3c2U);
-    EXPECT_EQ(output[3].get_value(), 0x483c872eU);
-    EXPECT_EQ(output[4].get_value(), 0x975bd672U);
-    EXPECT_EQ(output[5].get_value(), 0xbde22ab0U);
-    EXPECT_EQ(output[6].get_value(), 0x54a8fac7U);
-    EXPECT_EQ(output[7].get_value(), 0x93791fc7U);
+    EXPECT_EQ(uint256_t(output[0].get_value()), 0x51b2529fU);
+    EXPECT_EQ(uint256_t(output[1].get_value()), 0x872e839aU);
+    EXPECT_EQ(uint256_t(output[2].get_value()), 0xb686c3c2U);
+    EXPECT_EQ(uint256_t(output[3].get_value()), 0x483c872eU);
+    EXPECT_EQ(uint256_t(output[4].get_value()), 0x975bd672U);
+    EXPECT_EQ(uint256_t(output[5].get_value()), 0xbde22ab0U);
+    EXPECT_EQ(uint256_t(output[6].get_value()), 0x54a8fac7U);
+    EXPECT_EQ(uint256_t(output[7].get_value()), 0x93791fc7U);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
     auto prover = composer.create_prover();
@@ -208,20 +177,20 @@ TEST(stdlib_sha256, test_55_bytes)
     // 55 bytes is the largest number of bytes that can be hashed in a single block,
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
     Composer composer = Composer();
-    bit_array_ct input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
+    packed_byte_array_ct input(&composer, "An 8 character password? Snow White and the 7 Dwarves..");
 
-    bit_array_ct output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_ct output_bits = plonk::stdlib::sha256(input);
 
-    std::vector<uint32_ct> output = output_bits.to_uint32_vector();
+    std::vector<field_ct> output = output_bits.to_unverified_byte_slices(4);
 
-    EXPECT_EQ(output[0].get_value(), 0x51b2529fU);
-    EXPECT_EQ(output[1].get_value(), 0x872e839aU);
-    EXPECT_EQ(output[2].get_value(), 0xb686c3c2U);
-    EXPECT_EQ(output[3].get_value(), 0x483c872eU);
-    EXPECT_EQ(output[4].get_value(), 0x975bd672U);
-    EXPECT_EQ(output[5].get_value(), 0xbde22ab0U);
-    EXPECT_EQ(output[6].get_value(), 0x54a8fac7U);
-    EXPECT_EQ(output[7].get_value(), 0x93791fc7U);
+    EXPECT_EQ(output[0].get_value(), fr(0x51b2529fULL));
+    EXPECT_EQ(output[1].get_value(), fr(0x872e839aULL));
+    EXPECT_EQ(output[2].get_value(), fr(0xb686c3c2ULL));
+    EXPECT_EQ(output[3].get_value(), fr(0x483c872eULL));
+    EXPECT_EQ(output[4].get_value(), fr(0x975bd672ULL));
+    EXPECT_EQ(output[5].get_value(), fr(0xbde22ab0ULL));
+    EXPECT_EQ(output[6].get_value(), fr(0x54a8fac7ULL));
+    EXPECT_EQ(output[7].get_value(), fr(0x93791fc7ULL));
     printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
@@ -234,27 +203,58 @@ TEST(stdlib_sha256, test_55_bytes)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_sha256, test_NIST_vector_one)
+TEST(stdlib_sha256, test_NIST_vector_one_packed_byte_array)
 {
-    typedef plonk::stdlib::uint32<waffle::PLookupComposer> uint32_pt;
-    typedef plonk::stdlib::bit_array<waffle::PLookupComposer> bit_array_pt;
+    typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
     waffle::PLookupComposer composer = waffle::PLookupComposer();
 
-    bit_array_pt input(&composer, "abc");
+    packed_byte_array_pt input(&composer, "abc");
+    packed_byte_array_pt output_bytes = plonk::stdlib::sha256(input);
+    std::vector<field_pt> output = output_bytes.to_unverified_byte_slices(4);
+    EXPECT_EQ(uint256_t(output[0].get_value()).data[0], (uint64_t)0xBA7816BFU);
+    EXPECT_EQ(uint256_t(output[1].get_value()).data[0], (uint64_t)0x8F01CFEAU);
+    EXPECT_EQ(uint256_t(output[2].get_value()).data[0], (uint64_t)0x414140DEU);
+    EXPECT_EQ(uint256_t(output[3].get_value()).data[0], (uint64_t)0x5DAE2223U);
+    EXPECT_EQ(uint256_t(output[4].get_value()).data[0], (uint64_t)0xB00361A3U);
+    EXPECT_EQ(uint256_t(output[5].get_value()).data[0], (uint64_t)0x96177A9CU);
+    EXPECT_EQ(uint256_t(output[6].get_value()).data[0], (uint64_t)0xB410FF61U);
+    EXPECT_EQ(uint256_t(output[7].get_value()).data[0], (uint64_t)0xF20015ADU);
+    printf("composer gates = %zu\n", composer.get_num_gates());
 
-    bit_array_pt output_bits = plonk::stdlib::sha256(input);
+    auto prover = composer.create_prover();
 
-    std::vector<uint32_pt> output = output_bits.to_uint32_vector();
+    auto verifier = composer.create_verifier();
+    printf("constructing proof \n");
+    waffle::plonk_proof proof = prover.construct_proof();
+    printf("constructed proof \n");
 
-    EXPECT_EQ(output[0].get_value(), 0xBA7816BFU);
-    EXPECT_EQ(output[1].get_value(), 0x8F01CFEAU);
-    EXPECT_EQ(output[2].get_value(), 0x414140DEU);
-    EXPECT_EQ(output[3].get_value(), 0x5DAE2223U);
-    EXPECT_EQ(output[4].get_value(), 0xB00361A3U);
-    EXPECT_EQ(output[5].get_value(), 0x96177A9CU);
-    EXPECT_EQ(output[6].get_value(), 0xB410FF61U);
-    EXPECT_EQ(output[7].get_value(), 0xF20015ADU);
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_sha256, test_NIST_vector_one)
+{
+    typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
+
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    packed_byte_array_pt input(&composer, "abc");
+
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256(input);
+
+    std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
+
+    EXPECT_EQ(output[0].get_value(), fr(0xBA7816BFULL));
+    EXPECT_EQ(output[1].get_value(), fr(0x8F01CFEAULL));
+    EXPECT_EQ(output[2].get_value(), fr(0x414140DEULL));
+    EXPECT_EQ(output[3].get_value(), fr(0x5DAE2223ULL));
+    EXPECT_EQ(output[4].get_value(), fr(0xB00361A3ULL));
+    EXPECT_EQ(output[5].get_value(), fr(0x96177A9CULL));
+    EXPECT_EQ(output[6].get_value(), fr(0xB410FF61ULL));
+    EXPECT_EQ(output[7].get_value(), fr(0xF20015ADULL));
     printf("composer gates = %zu\n", composer.get_num_gates());
 
     auto prover = composer.create_prover();
@@ -272,20 +272,20 @@ TEST(stdlib_sha256, test_NIST_vector_two)
 {
     Composer composer = Composer();
 
-    bit_array_ct input(&composer, "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq");
+    byte_array_ct input(&composer, "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq");
 
-    bit_array_ct output_bits = plonk::stdlib::sha256(input);
+    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    std::vector<uint32_ct> output = output_bits.to_uint32_vector();
+    std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
-    EXPECT_EQ(output[0].get_value(), 0x248D6A61U);
-    EXPECT_EQ(output[1].get_value(), 0xD20638B8U);
-    EXPECT_EQ(output[2].get_value(), 0xE5C02693U);
-    EXPECT_EQ(output[3].get_value(), 0x0C3E6039U);
-    EXPECT_EQ(output[4].get_value(), 0xA33CE459U);
-    EXPECT_EQ(output[5].get_value(), 0x64FF2167U);
-    EXPECT_EQ(output[6].get_value(), 0xF6ECEDD4U);
-    EXPECT_EQ(output[7].get_value(), 0x19DB06C1U);
+    EXPECT_EQ(output[0].get_value(), 0x248D6A61ULL);
+    EXPECT_EQ(output[1].get_value(), 0xD20638B8ULL);
+    EXPECT_EQ(output[2].get_value(), 0xE5C02693ULL);
+    EXPECT_EQ(output[3].get_value(), 0x0C3E6039ULL);
+    EXPECT_EQ(output[4].get_value(), 0xA33CE459ULL);
+    EXPECT_EQ(output[5].get_value(), 0x64FF2167ULL);
+    EXPECT_EQ(output[6].get_value(), 0xF6ECEDD4ULL);
+    EXPECT_EQ(output[7].get_value(), 0x19DB06C1ULL);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
@@ -304,28 +304,20 @@ TEST(stdlib_sha256, test_NIST_vector_three)
     Composer composer = Composer();
 
     // one byte, 0xbd
-    bit_array_ct input(&composer, 8);
-    input[0] = witness_ct(&composer, true);
-    input[1] = witness_ct(&composer, false);
-    input[2] = witness_ct(&composer, true);
-    input[3] = witness_ct(&composer, true);
-    input[4] = witness_ct(&composer, true);
-    input[5] = witness_ct(&composer, true);
-    input[6] = witness_ct(&composer, false);
-    input[7] = witness_ct(&composer, true);
+    byte_array_ct input(&composer, std::vector<uint8_t>{ 0xbd });
 
-    bit_array_ct output_bits = plonk::stdlib::sha256(input);
+    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    std::vector<uint32_ct> output = output_bits.to_uint32_vector();
+    std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
-    EXPECT_EQ(output[0].get_value(), 0x68325720U);
-    EXPECT_EQ(output[1].get_value(), 0xaabd7c82U);
-    EXPECT_EQ(output[2].get_value(), 0xf30f554bU);
-    EXPECT_EQ(output[3].get_value(), 0x313d0570U);
-    EXPECT_EQ(output[4].get_value(), 0xc95accbbU);
-    EXPECT_EQ(output[5].get_value(), 0x7dc4b5aaU);
-    EXPECT_EQ(output[6].get_value(), 0xe11204c0U);
-    EXPECT_EQ(output[7].get_value(), 0x8ffe732bU);
+    EXPECT_EQ(output[0].get_value(), 0x68325720ULL);
+    EXPECT_EQ(output[1].get_value(), 0xaabd7c82ULL);
+    EXPECT_EQ(output[2].get_value(), 0xf30f554bULL);
+    EXPECT_EQ(output[3].get_value(), 0x313d0570ULL);
+    EXPECT_EQ(output[4].get_value(), 0xc95accbbULL);
+    EXPECT_EQ(output[5].get_value(), 0x7dc4b5aaULL);
+    EXPECT_EQ(output[6].get_value(), 0xe11204c0ULL);
+    EXPECT_EQ(output[7].get_value(), 0x8ffe732bULL);
     printf("composer gates = %zu\n", composer.get_num_gates());
 
     Prover prover = composer.create_prover();
@@ -343,22 +335,20 @@ TEST(stdlib_sha256, test_NIST_vector_four)
     Composer composer = Composer();
 
     // 4 bytes, 0xc98c8e55
-    std::array<uint32_ct, 1> data;
-    data[0] = witness_ct(&composer, 0xc98c8e55);
-    bit_array_ct input(data);
+    byte_array_ct input(&composer, std::vector<uint8_t>{ 0xc9, 0x8c, 0x8e, 0x55 });
 
-    bit_array_ct output_bits = plonk::stdlib::sha256(input);
+    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    std::vector<uint32_ct> output = output_bits.to_uint32_vector();
+    std::vector<field_ct> output = packed_byte_array_ct(output_bits).to_unverified_byte_slices(4);
 
-    EXPECT_EQ(output[0].get_value(), 0x7abc22c0U);
-    EXPECT_EQ(output[1].get_value(), 0xae5af26cU);
-    EXPECT_EQ(output[2].get_value(), 0xe93dbb94U);
-    EXPECT_EQ(output[3].get_value(), 0x433a0e0bU);
-    EXPECT_EQ(output[4].get_value(), 0x2e119d01U);
-    EXPECT_EQ(output[5].get_value(), 0x4f8e7f65U);
-    EXPECT_EQ(output[6].get_value(), 0xbd56c61cU);
-    EXPECT_EQ(output[7].get_value(), 0xcccd9504U);
+    EXPECT_EQ(output[0].get_value(), 0x7abc22c0ULL);
+    EXPECT_EQ(output[1].get_value(), 0xae5af26cULL);
+    EXPECT_EQ(output[2].get_value(), 0xe93dbb94ULL);
+    EXPECT_EQ(output[3].get_value(), 0x433a0e0bULL);
+    EXPECT_EQ(output[4].get_value(), 0x2e119d01ULL);
+    EXPECT_EQ(output[5].get_value(), 0x4f8e7f65ULL);
+    EXPECT_EQ(output[6].get_value(), 0xbd56c61cULL);
+    EXPECT_EQ(output[7].get_value(), 0xcccd9504ULL);
 
     Prover prover = composer.create_prover();
 
@@ -373,9 +363,12 @@ TEST(stdlib_sha256, test_NIST_vector_four)
 
 HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 {
-    Composer composer = Composer();
+    typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef plonk::stdlib::packed_byte_array<waffle::PLookupComposer> packed_byte_array_pt;
 
-    bit_array_ct input(
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    packed_byte_array_pt input(
         &composer,
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -388,23 +381,23 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "AAAAAAAAAA");
 
-    bit_array_ct output_bits = plonk::stdlib::sha256(input);
+    packed_byte_array_pt output_bits = plonk::stdlib::sha256<waffle::PLookupComposer>(input);
 
-    std::vector<uint32_ct> output = output_bits.to_uint32_vector();
+    std::vector<field_pt> output = output_bits.to_unverified_byte_slices(4);
 
-    EXPECT_EQ(output[0].get_value(), 0xc2e68682U);
-    EXPECT_EQ(output[1].get_value(), 0x3489ced2U);
-    EXPECT_EQ(output[2].get_value(), 0x017f6059U);
-    EXPECT_EQ(output[3].get_value(), 0xb8b23931U);
-    EXPECT_EQ(output[4].get_value(), 0x8b6364f6U);
-    EXPECT_EQ(output[5].get_value(), 0xdcd835d0U);
-    EXPECT_EQ(output[6].get_value(), 0xa519105aU);
-    EXPECT_EQ(output[7].get_value(), 0x1eadd6e4U);
+    EXPECT_EQ(output[0].get_value(), 0xc2e68682ULL);
+    EXPECT_EQ(output[1].get_value(), 0x3489ced2ULL);
+    EXPECT_EQ(output[2].get_value(), 0x017f6059ULL);
+    EXPECT_EQ(output[3].get_value(), 0xb8b23931ULL);
+    EXPECT_EQ(output[4].get_value(), 0x8b6364f6ULL);
+    EXPECT_EQ(output[5].get_value(), 0xdcd835d0ULL);
+    EXPECT_EQ(output[6].get_value(), 0xa519105aULL);
+    EXPECT_EQ(output[7].get_value(), 0x1eadd6e4ULL);
 
-    Prover prover = composer.create_prover();
+    auto prover = composer.create_prover();
 
     printf("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
+    auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
 

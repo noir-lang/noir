@@ -1,30 +1,3 @@
-// #pragma once
-// #include <stdlib/types/turbo.hpp>
-
-// namespace plonk {
-// namespace stdlib {
-// namespace pedersen {
-
-// using namespace plonk::stdlib::types::turbo;
-
-// field_ct compress_eight(std::array<field_ct, 8>& inputs, bool handle_edge_cases = false);
-
-// // TODO: use unique generators for each range
-// field_ct compress(std::vector<field_ct>& inputs, bool handle_edge_cases = false);
-
-// field_ct compress(const field_ct& left,
-//                   const field_ct& right,
-//                   const size_t hash_index = 0,
-//                   bool handle_edge_cases = false);
-
-// byte_array_ct compress(const byte_array_ct& inputs);
-
-// point_ct compress_to_point(const field_ct& left, const field_ct& right, const size_t hash_index = 0);
-
-// } // namespace pedersen
-// } // namespace stdlib
-// } // namespace plonk
-
 #pragma once
 #include "../../primitives/composers/composers_fwd.hpp"
 #include "../../primitives/field/field.hpp"
@@ -41,30 +14,31 @@ template <typename ComposerContext> class pedersen {
     typedef plonk::stdlib::bool_t<ComposerContext> bool_t;
 
     static point hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases = false);
-    static field_t accumulate(std::vector<point>& to_accumulate);
-    static field_t conditionally_accumulate(std::vector<point>& to_accumulate, std::vector<field_t>& inputs);
+    static point accumulate(const std::vector<point>& to_accumulate);
+    static point conditionally_accumulate(const std::vector<point>& to_accumulate, const std::vector<field_t>& inputs);
 
   public:
-    static field_t compress_eight(std::array<field_t, 8>& inputs, bool handle_edge_cases = false);
-
-    // TODO: use unique generators for each range
-    static field_t compress(std::vector<field_t>& inputs, bool handle_edge_cases = false);
-
-    static field_t compress(const field_t& left, const field_t& right, const size_t hash_index, bool handle_edge_cases);
-
-    static field_t compress(const field_t& left, const field_t& right, const size_t hash_index)
+    static field_t compress(const field_t& left,
+                            const field_t& right,
+                            const size_t hash_index = 0,
+                            const bool handle_edge_cases = false);
+    static field_t compress(const std::vector<field_t>& inputs, const bool handle_edge_cases = false);
+    template <size_t T>
+    static field_t compress(const std::array<field_t, T>& inputs, const bool handle_edge_cases = false)
     {
-        return compress(left, right, hash_index, false);
+        std::vector<field_t> in(inputs.begin(), inputs.end());
+        return compress(in, handle_edge_cases);
     }
-
-    static field_t compress(const field_t& left, const field_t& right) { return compress(left, right, 0, false); }
-
     static byte_array compress(const byte_array& inputs);
-
     static point compress_to_point(const field_t& left, const field_t& right, const size_t hash_index = 0);
+
+    static point encrypt(const std::vector<field_t>& inputs,
+                         const size_t hash_index = 0,
+                         const bool handle_edge_cases = true);
 };
 
 extern template class pedersen<waffle::TurboComposer>;
 extern template class pedersen<waffle::PLookupComposer>;
+
 } // namespace stdlib
 } // namespace plonk

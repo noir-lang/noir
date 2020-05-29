@@ -2,8 +2,9 @@
 #include "../types/plonk_proof.hpp"
 #include "../types/program_settings.hpp"
 #include "../verification_key/verification_key.hpp"
-#include "../widgets/base_widget.hpp"
+#include "../widgets/random_widgets/random_widget.hpp"
 #include <plonk/transcript/manifest.hpp>
+#include <plonk/transcript/transcript_wrappers.hpp>
 
 namespace waffle {
 template <typename program_settings> class VerifierBase {
@@ -16,11 +17,15 @@ template <typename program_settings> class VerifierBase {
     VerifierBase& operator=(const VerifierBase& other) = delete;
     VerifierBase& operator=(VerifierBase&& other);
 
-    bool verify_proof(const waffle::plonk_proof& proof);
+    bool validate_commitments();
+    bool validate_scalars();
 
+    bool verify_proof(const waffle::plonk_proof& proof);
     transcript::Manifest manifest;
 
     std::shared_ptr<verification_key> key;
+    std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
+    std::map<std::string, barretenberg::fr> kate_fr_elements;
 };
 
 extern template class VerifierBase<unrolled_standard_verifier_settings>;
