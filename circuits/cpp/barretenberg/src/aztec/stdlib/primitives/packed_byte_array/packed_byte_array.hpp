@@ -11,14 +11,14 @@ template <typename Composer> class packed_byte_array {
   private:
     typedef field_t<Composer> field_pt;
     typedef bool_t<Composer> bool_pt;
-    typedef byte_array<Composer> byte_array;
+    typedef byte_array<Composer> byte_array_pt;
 
   public:
     packed_byte_array(Composer* parent_context, size_t const num_bytes = 0);
     packed_byte_array(const std::vector<field_pt>& input, const size_t bytes_per_input = BYTES_PER_ELEMENT);
     packed_byte_array(Composer* parent_context, const std::vector<uint8_t>& input);
     packed_byte_array(Composer* parent_context, const std::string& input);
-    packed_byte_array(const byte_array& input);
+    packed_byte_array(const byte_array_pt& input);
 
     packed_byte_array(const packed_byte_array& other);
     packed_byte_array(packed_byte_array&& other);
@@ -26,7 +26,7 @@ template <typename Composer> class packed_byte_array {
     packed_byte_array& operator=(const packed_byte_array& other);
     packed_byte_array& operator=(packed_byte_array&& other);
 
-    operator byte_array() const;
+    operator byte_array_pt() const;
 
     std::vector<field_pt> to_unverified_byte_slices(const size_t bytes_per_slice) const;
     std::vector<field_pt> get_limbs() const { return limbs; }

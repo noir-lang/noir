@@ -73,7 +73,7 @@ packed_byte_array<Composer>::packed_byte_array(Composer* parent_context, const s
 }
 
 template <typename Composer>
-packed_byte_array<Composer>::packed_byte_array(const byte_array& input)
+packed_byte_array<Composer>::packed_byte_array(const byte_array_pt& input)
     : context(input.get_context())
     , num_bytes(input.size())
 {
@@ -131,7 +131,7 @@ packed_byte_array<Composer>& packed_byte_array<Composer>::operator=(packed_byte_
     return *this;
 }
 
-template <typename Composer> packed_byte_array<Composer>::operator byte_array() const
+template <typename Composer> packed_byte_array<Composer>::operator byte_array_pt() const
 {
     std::vector<bool_pt> bits;
     const size_t num_bits = num_bytes * 8;
@@ -150,7 +150,7 @@ template <typename Composer> packed_byte_array<Composer>::operator byte_array() 
         }
         accumulator.assert_equal(limbs[i]);
     }
-    return byte_array(context, bits);
+    return byte_array_pt(context, bits);
 }
 
 template <typename Composer>
