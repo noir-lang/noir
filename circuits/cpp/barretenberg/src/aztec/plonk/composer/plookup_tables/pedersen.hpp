@@ -29,7 +29,7 @@ inline PLookupBasicTable generate_sidon_pedersen_table(PLookupBasicTableId id, c
 
     const auto& sidon_table = crypto::pedersen::sidon::get_table(generator_index);
 
-    for (uint64_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table.size; ++i) {
         table.column_1.emplace_back(i);
         table.column_2.emplace_back(sidon_table[i].x);
         table.column_3.emplace_back(sidon_table[i].y);

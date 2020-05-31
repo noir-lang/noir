@@ -45,8 +45,8 @@ template <uint64_t base> constexpr uint256_t map_into_sparse_form(const uint64_t
     uint64_t converted = (uint64_t)input;
 
     constexpr auto base_powers = get_base_powers<base, 32>();
-    for (uint64_t i = 0; i < 32; ++i) {
-        uint64_t sparse_bit = ((converted >> i) & 1ULL);
+    for (size_t i = 0; i < 32; ++i) {
+        uint64_t sparse_bit = ((converted >> i) & 1U);
         if (sparse_bit) {
             out += base_powers[i];
         }
@@ -83,13 +83,13 @@ template <uint64_t base> constexpr uint64_t map_from_sparse_form(const uint256_t
     return output;
 }
 
-template <uint64_t base, uint64_t num_bits> class sparse_int {
+template <uint64_t base, size_t num_bits> class sparse_int {
   public:
     sparse_int(const uint64_t input = 0)
         : value(input)
     {
-        for (uint64_t i = 0; i < num_bits; ++i) {
-            const uint64_t bit = (input >> i) & 1;
+        for (size_t i = 0; i < num_bits; ++i) {
+            const uint64_t bit = (input >> i) & 1U;
             limbs[i] = bit;
         }
     }
@@ -126,7 +126,7 @@ template <uint64_t base, uint64_t num_bits> class sparse_int {
     uint64_t get_sparse_value() const
     {
         uint64_t result = 0;
-        for (uint64_t i = num_bits - 1; i < num_bits; --i) {
+        for (size_t i = num_bits - 1; i < num_bits; --i) {
             result *= base;
             result += limbs[i];
         }
