@@ -528,10 +528,6 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
         auto& selector = origin ? key->permutation_selector_ffts.at(tag) : key->constraint_selector_ffts.at(tag);
         selector.coset_ifft(key->large_domain);
         selector.fft(key->large_domain);
-        selector[key->large_domain.size] = selector[0];
-        selector[key->large_domain.size + 1] = selector[1];
-        selector[key->large_domain.size + 2] = selector[2];
-        selector[key->large_domain.size + 3] = selector[3];
     };
 
     adjust_ffts("table_value_1_fft", true);
@@ -587,10 +583,6 @@ TEST(plookup_composer, test_quotient_polynomial_relative_lookup)
                 poly_fft[i] = 0;
             }
             poly_fft.fft(key->large_domain);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
-            poly_fft.add_lagrange_base_coefficient(poly_fft[0]);
         };
 
         adjust_witness_fft("w_1", true);

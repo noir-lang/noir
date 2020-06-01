@@ -72,25 +72,6 @@ PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
     zero_idx = put_constant_variable(0);
 }
 
-void PLookupComposer::ensure_nonzero_selectors(const size_t subgroup_size)
-{
-    PLOOKUP_SELECTOR_REFS
-    q_m[subgroup_size - 1] = 1;
-    q_c[subgroup_size - 1] = 1;
-    q_1[subgroup_size - 1] = 1;
-    q_2[subgroup_size - 1] = 1;
-    q_3[subgroup_size - 1] = 1;
-    q_4[subgroup_size - 1] = 1;
-    q_5[subgroup_size - 1] = 1;
-    q_arith[subgroup_size - 1] = 1;
-    q_ecc_1[subgroup_size - 1] = 1;
-    q_range[subgroup_size - 1] = 1;
-    q_logic[subgroup_size - 1] = 1;
-    q_lookup_index[subgroup_size - 1] = 1;
-    q_lookup_type[subgroup_size - 1] = 1;
-    q_elliptic[subgroup_size - 1] = 0;
-}
-
 void PLookupComposer::create_dummy_gate()
 {
 
@@ -857,7 +838,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
 
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
-    for (size_t i = filled_gates; i < subgroup_size; ++i) {
+    for (size_t i = filled_gates; i < subgroup_size - 1; ++i) {
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -873,7 +854,22 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
     }
-    ensure_nonzero_selectors(subgroup_size);
+    {
+        q_m.emplace_back(1);
+        q_1.emplace_back(1);
+        q_2.emplace_back(1);
+        q_3.emplace_back(1);
+        q_c.emplace_back(1);
+        q_4.emplace_back(1);
+        q_5.emplace_back(1);
+        q_arith.emplace_back(1);
+        q_ecc_1.emplace_back(1);
+        q_range.emplace_back(1);
+        q_logic.emplace_back(1);
+        q_lookup_index.emplace_back(1);
+        q_lookup_type.emplace_back(1);
+        q_elliptic.emplace_back(1);
+    }
 
     auto crs = crs_factory_->get_prover_crs(subgroup_size);
     circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
