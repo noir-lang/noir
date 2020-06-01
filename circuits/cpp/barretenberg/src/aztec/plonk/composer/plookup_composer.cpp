@@ -790,15 +790,10 @@ uint32_t PLookupComposer::put_constant_variable(const barretenberg::fr& variable
 
 void PLookupComposer::add_lookup_selector(polynomial& small, const std::string& tag)
 {
-    polynomial lagrange_base(small, circuit_proving_key->small_domain.size + 1);
+    polynomial lagrange_base(small, circuit_proving_key->small_domain.size);
     small.ifft(circuit_proving_key->small_domain);
-    polynomial large(small, circuit_proving_key->n * 4 + 4);
+    polynomial large(small, circuit_proving_key->n * 4);
     large.coset_fft(circuit_proving_key->large_domain);
-
-    large.add_lagrange_base_coefficient(large[0]);
-    large.add_lagrange_base_coefficient(large[1]);
-    large.add_lagrange_base_coefficient(large[2]);
-    large.add_lagrange_base_coefficient(large[3]);
 
     circuit_proving_key->permutation_selectors.insert({ tag, std::move(small) });
     circuit_proving_key->permutation_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
