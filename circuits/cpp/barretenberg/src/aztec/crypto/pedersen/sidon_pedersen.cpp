@@ -89,15 +89,15 @@ grumpkin::g1::element compress_single(const grumpkin::fq& input, const bool pari
         const size_t index = table_index_offset + i;
         if (i == 0) {
             accumulators = {
-                sidon_pedersen_tables[index][slice_a],
-                sidon_pedersen_tables[index][slice_b],
-                sidon_pedersen_tables[index][slice_c],
+                sidon_pedersen_tables[index][static_cast<size_t>(slice_a)],
+                sidon_pedersen_tables[index][static_cast<size_t>(slice_b)],
+                sidon_pedersen_tables[index][static_cast<size_t>(slice_c)],
             };
         } else {
-            accumulators[0] += sidon_pedersen_tables[index][slice_a];
-            accumulators[1] += sidon_pedersen_tables[index][slice_b];
+            accumulators[0] += sidon_pedersen_tables[index][static_cast<size_t>(slice_a)];
+            accumulators[1] += sidon_pedersen_tables[index][static_cast<size_t>(slice_b)];
             if (i < (num_rounds - 1)) {
-                accumulators[2] += sidon_pedersen_tables[index][slice_c];
+                accumulators[2] += sidon_pedersen_tables[index][static_cast<size_t>(slice_c)];
             }
         }
         bits >>= (BITS_PER_TABLE);

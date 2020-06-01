@@ -211,8 +211,8 @@ std::vector<field_t<Composer>> packed_byte_array<Composer>::to_unverified_byte_s
         for (size_t j = 0; j < num_slices; ++j) {
             const size_t bytes_in_slice =
                 (j == num_slices - 1) ? bytes_in_limb - (j * bytes_per_slice) : bytes_per_slice;
-            const size_t end = (BYTES_PER_ELEMENT - (j * bytes_in_slice)) << 3;
-            const size_t start = (BYTES_PER_ELEMENT - ((j + 1) * bytes_in_slice)) << 3;
+            const uint64_t end = (BYTES_PER_ELEMENT - (j * bytes_in_slice)) << 3;
+            const uint64_t start = (BYTES_PER_ELEMENT - ((j + 1) * bytes_in_slice)) << 3;
 
             const uint256_t slice = limb_value.slice(start, end);
 
@@ -237,8 +237,8 @@ template <typename Composer> std::string packed_byte_array<Composer>::get_value(
         uint256_t limb_value(limbs[i].get_value());
 
         for (size_t j = 0; j < bytes_in_limb; ++j) {
-            const size_t end = (BYTES_PER_ELEMENT - (j)) << 3;
-            const size_t start = (BYTES_PER_ELEMENT - ((j + 1))) << 3;
+            const uint64_t end = (BYTES_PER_ELEMENT - (j)) << 3;
+            const uint64_t start = (BYTES_PER_ELEMENT - ((j + 1))) << 3;
             const uint8_t slice = static_cast<uint8_t>(limb_value.slice(start, end).data[0]);
             bytes[i * BYTES_PER_ELEMENT + j] = static_cast<char>(slice);
         }
