@@ -139,7 +139,7 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         for (size_t k = 0; k < public_inputs.size(); ++k) {
             poly[k] = fr::zero();
         }
-        for (size_t k = public_inputs.size(); k < subgroup_size - 1; ++k) {
+        for (size_t k = public_inputs.size(); k < subgroup_size; ++k) {
             poly[k] = coeffs[k - public_inputs.size()];
         }
 
