@@ -39,6 +39,7 @@ class uint256_t {
     constexpr uint64_t get_msb() const;
 
     constexpr uint256_t slice(const uint64_t start, const uint64_t end) const;
+    constexpr uint256_t pow(const uint256_t& exponent) const;
 
     constexpr uint256_t operator+(const uint256_t& other) const;
     constexpr uint256_t operator-(const uint256_t& other) const;

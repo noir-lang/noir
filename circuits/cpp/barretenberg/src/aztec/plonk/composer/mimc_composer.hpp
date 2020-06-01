@@ -20,6 +20,8 @@ struct mimc_quadruplet {
 
 class MiMCComposer : public StandardComposer {
   public:
+    static constexpr ComposerType type = ComposerType::STANDARD;
+
     MiMCComposer(const size_t size_hint = 0)
         : StandardComposer(7, size_hint, MIMC_SEL_NAMES, { false, false, false, false, false, true, true })
     {
@@ -195,6 +197,7 @@ class MiMCComposer : public StandardComposer {
         const transcript::Manifest output = transcript::Manifest(
             { transcript::Manifest::RoundManifest(
                   { { "circuit_size", 4, true }, { "public_input_size", 4, true } }, "init", 1),
+              transcript::Manifest::RoundManifest({}, "eta", 0),
               transcript::Manifest::RoundManifest({ { "public_inputs", public_input_size, false },
                                                     { "W_1", g1_size, false },
                                                     { "W_2", g1_size, false },
@@ -204,19 +207,23 @@ class MiMCComposer : public StandardComposer {
               transcript::Manifest::RoundManifest({ { "Z", g1_size, false } }, "alpha", 1),
               transcript::Manifest::RoundManifest(
                   { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
-              transcript::Manifest::RoundManifest({ { "w_1", fr_size, false },
-                                                    { "w_2", fr_size, false },
-                                                    { "w_3", fr_size, false },
-                                                    { "w_3_omega", fr_size, false },
-                                                    { "z_omega", fr_size, false },
-                                                    { "sigma_1", fr_size, false },
-                                                    { "sigma_2", fr_size, false },
-                                                    { "r", fr_size, false },
-                                                    { "q_mimc_coefficient", fr_size, false },
-                                                    { "t", fr_size, true } },
-                                                  "nu",
-                                                  10,
-                                                  true),
+              transcript::Manifest::RoundManifest(
+                  {
+                      { "t", fr_size, true, -1 },
+                      { "w_1", fr_size, false, 0 },
+                      { "w_2", fr_size, false, 1 },
+                      { "w_3", fr_size, false, 2 },
+                      { "sigma_1", fr_size, false, 3 },
+                      { "sigma_2", fr_size, false, 4 },
+                      { "r", fr_size, false, 5 },
+                      { "q_mimc_coefficient", fr_size, false, 6 },
+                      { "z_omega", fr_size, false, -1 },
+                      { "w_3_omega", fr_size, false, 0 },
+
+                  },
+                  "nu",
+                  10,
+                  true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;

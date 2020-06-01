@@ -2,12 +2,13 @@
 #include "tx_note.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
+#include <stdlib/types/turbo.hpp>
 
 namespace rollup {
 namespace client_proofs {
 namespace join_split {
 
-using namespace plonk::stdlib;
+using namespace plonk::stdlib::types::turbo;
 
 struct join_split_tx {
     grumpkin::g1::affine_element owner_pub_key;

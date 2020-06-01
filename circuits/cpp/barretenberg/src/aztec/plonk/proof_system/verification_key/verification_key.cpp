@@ -27,6 +27,7 @@ verification_key::verification_key(const verification_key& other)
     , reference_string(other.reference_string)
     , constraint_selectors(other.constraint_selectors)
     , permutation_selectors(other.permutation_selectors)
+    , polynomial_manifest(other.polynomial_manifest)
 {}
 
 verification_key::verification_key(verification_key&& other)
@@ -36,6 +37,7 @@ verification_key::verification_key(verification_key&& other)
     , reference_string(other.reference_string)
     , constraint_selectors(other.constraint_selectors)
     , permutation_selectors(other.permutation_selectors)
+    , polynomial_manifest(other.polynomial_manifest)
 {}
 
 verification_key& verification_key::operator=(verification_key&& other)
@@ -45,6 +47,7 @@ verification_key& verification_key::operator=(verification_key&& other)
     reference_string = std::move(other.reference_string);
     constraint_selectors = std::move(other.constraint_selectors);
     permutation_selectors = std::move(other.permutation_selectors);
+    polynomial_manifest = std::move(other.polynomial_manifest);
     return *this;
 }
 } // namespace waffle

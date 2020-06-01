@@ -8,7 +8,6 @@
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 
 #include <polynomials/polynomial_arithmetic.hpp>
 
@@ -482,9 +481,6 @@ HEAVY_TEST(stdlib_biggroup, test_one)
             scalar_a -= barretenberg::fr(1); // make a have skew
         }
         stdlib::bn254::g1 P_a = stdlib::bn254::g1::one(&composer);
-        // std::cout << "a" << std::endl;
-        // P_a = P_a.dbl();
-        // std::cout << "b" << std::endl;
         stdlib::bn254::fr x_a = convert_inputs(&composer, scalar_a);
         stdlib::bn254::g1 c = P_a * x_a;
         barretenberg::g1::affine_element expected(barretenberg::g1::one * scalar_a);
@@ -514,9 +510,6 @@ HEAVY_TEST(stdlib_biggroup, test_one_secp256r1)
             scalar_a -= secp256r1::fr(1); // make a have skew
         }
         stdlib::secp256r::g1 P_a = stdlib::secp256r::g1::one(&composer);
-        // std::cout << "a" << std::endl;
-        // P_a = P_a.dbl();
-        // std::cout << "b" << std::endl;
         stdlib::secp256r::fr x_a = convert_inputs_secp256r1(&composer, scalar_a);
         stdlib::secp256r::g1 c = P_a * x_a;
         secp256r1::g1::affine_element expected(secp256r1::g1::one * scalar_a);

@@ -2,6 +2,7 @@
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/reference_string/reference_string.hpp>
 
 namespace waffle {
@@ -58,6 +59,10 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[12] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[13] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_4", commitments[14] });
+
+    std::copy(turbo_polynomial_manifest,
+              turbo_polynomial_manifest + 20,
+              std::back_inserter(circuit_verification_key->polynomial_manifest));
 
     return circuit_verification_key;
 }

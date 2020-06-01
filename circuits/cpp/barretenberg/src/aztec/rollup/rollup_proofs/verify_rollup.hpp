@@ -13,7 +13,7 @@ using namespace barretenberg;
 using namespace rollup::rollup_proofs;
 using namespace plonk::stdlib::types::turbo;
 
-bool pairing_checks(std::vector<recursion_output<field_ct, group_ct>> recursion_outputs,
+bool pairing_checks(std::vector<recursion_output<bn254>> recursion_outputs,
                     std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
     auto verified = true;

@@ -9,7 +9,6 @@
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 
 using namespace barretenberg;
-using namespace plonk::stdlib;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::client_proofs::join_split;
 

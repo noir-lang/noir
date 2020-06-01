@@ -12,9 +12,9 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
 
 void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory);
 
-void build_circuit(Composer& composer);
+void build_circuit(plonk::stdlib::types::standard::Composer& composer);
 
-Prover new_prover();
+plonk::stdlib::types::standard::Prover new_prover();
 
 bool verify_proof(waffle::plonk_proof const& proof);
 

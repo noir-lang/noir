@@ -17,7 +17,7 @@ signature sign_notes(std::array<tx_note, 4> const& notes, key_pair<grumpkin::fr,
         to_compress[i * 2] = encrypted.x;
         to_compress[i * 2 + 1] = encrypted.y;
     }
-    fr compressed = compress_eight_native(to_compress);
+    fr compressed = compress_native(to_compress);
     std::vector<uint8_t> message(sizeof(fr));
     fr::serialize_to_buffer(compressed, &message[0]);
     crypto::schnorr::signature signature =

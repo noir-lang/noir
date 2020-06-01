@@ -1,22 +1,24 @@
 #include "pedersen.hpp"
+#include "pedersen_plookup.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 
+#include "../../primitives/composers/composers.hpp"
+#include "../../primitives/packed_byte_array/packed_byte_array.hpp"
+
 namespace plonk {
 namespace stdlib {
-namespace pedersen {
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
 
 namespace {
-point add_points(const point& first, const point& second)
+template <typename C> point<C> add_points(const point<C>& first, const point<C>& second)
 {
-    field_ct lhs = second.y - first.y;
-    field_ct rhs = second.x - first.x;
-    field_ct lambda = lhs / rhs;
-    field_ct x_3 = lambda * lambda - second.x - first.x;
-    field_ct y_3 = lambda * (first.x - x_3) - first.y;
+    field_t<C> lhs = second.y - first.y;
+    field_t<C> rhs = second.x - first.x;
+    field_t<C> lambda = lhs / rhs;
+    field_t<C> x_3 = lambda * lambda - second.x - first.x;
+    field_t<C> y_3 = lambda * (first.x - x_3) - first.y;
     return { x_3, y_3 };
 }
 } // namespace
@@ -25,13 +27,14 @@ point add_points(const point& first, const point& second)
  * edge cases are if scalar multiplier is 1 or 0
  * not neccessary to check if scalar multiplier is the output of a PRNG (e.g. SHA256)
  **/
-point hash_single(const field_ct& in, const size_t hash_index, const bool validate_edge_cases = false)
+template <typename C>
+point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases)
 {
-    field_ct scalar = in;
+    field_t scalar = in;
     if (!(in.additive_constant == fr::zero()) || !(in.multiplicative_constant == fr::one())) {
         scalar = scalar.normalize();
     }
-    waffle::TurboComposer* ctx = in.context;
+    C* ctx = in.context;
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
 
@@ -149,16 +152,16 @@ point hash_single(const field_ct& in, const size_t hash_index, const bool valida
     ctx->create_big_add_gate(add_quad);
 
     point result;
-    result.x = field_ct(ctx);
+    result.x = field_t(ctx);
     result.x.witness_index = add_quad.a;
-    result.y = field_ct(ctx);
+    result.y = field_t(ctx);
     result.y.witness_index = add_quad.b;
 
     if (validate_edge_cases) {
-        field_ct reconstructed_scalar(ctx);
+        field_t reconstructed_scalar(ctx);
         reconstructed_scalar.witness_index = add_quad.d;
-        field_ct lhs = reconstructed_scalar * in;
-        field_ct rhs = in * in;
+        field_t lhs = reconstructed_scalar * in;
+        field_t rhs = in * in;
         ctx->assert_equal(lhs.witness_index, rhs.witness_index);
     } else {
         ctx->assert_equal(add_quad.d, in.witness_index);
@@ -166,35 +169,37 @@ point hash_single(const field_ct& in, const size_t hash_index, const bool valida
     return result;
 }
 
-field_ct accumulate(std::vector<point>& to_accumulate)
+template <typename C> point<C> pedersen<C>::accumulate(const std::vector<point>& to_accumulate)
 {
     if (to_accumulate.size() == 0) {
-        return field_ct(0);
+        return point{ 0, 0 };
     }
 
     point accumulator = to_accumulate[0];
     for (size_t i = 1; i < to_accumulate.size(); ++i) {
         accumulator = add_points(accumulator, to_accumulate[i]);
     }
-    return accumulator.x;
+    return accumulator;
 }
 
-field_ct conditionally_accumulate(std::vector<point>& to_accumulate, std::vector<field_ct>& inputs)
+template <typename C>
+point<C> pedersen<C>::conditionally_accumulate(const std::vector<point>& to_accumulate,
+                                               const std::vector<field_t>& inputs)
 {
     if (to_accumulate.size() == 0) {
-        return field_ct(0);
+        return point{ 0, 0 };
     }
 
     point accumulator = to_accumulate[0];
-    bool_ct is_accumulator_zero = inputs[0].is_zero();
+    bool_t is_accumulator_zero = inputs[0].is_zero();
 
     for (size_t i = 1; i < to_accumulate.size(); ++i) {
-        bool_ct current_is_zero = inputs[i].is_zero();
-        bool_ct initialize_instead_of_add = (is_accumulator_zero && !current_is_zero);
+        bool_t current_is_zero = inputs[i].is_zero();
+        bool_t initialize_instead_of_add = (is_accumulator_zero && !current_is_zero);
 
-        field_ct lambda = (to_accumulate[i].y - accumulator.y) / (to_accumulate[i].x - accumulator.x);
-        field_ct x_3 = lambda * lambda - (to_accumulate[i].x + accumulator.x);
-        field_ct y_3 = lambda * (accumulator.x - x_3) - accumulator.y;
+        field_t lambda = (to_accumulate[i].y - accumulator.y) / (to_accumulate[i].x - accumulator.x);
+        field_t x_3 = lambda * lambda - (to_accumulate[i].x + accumulator.x);
+        field_t y_3 = lambda * (accumulator.x - x_3) - accumulator.y;
 
         x_3 = (to_accumulate[i].x - x_3).madd(initialize_instead_of_add, x_3);
         y_3 = (to_accumulate[i].y - y_3).madd(initialize_instead_of_add, y_3);
@@ -205,30 +210,42 @@ field_ct conditionally_accumulate(std::vector<point>& to_accumulate, std::vector
         is_accumulator_zero = is_accumulator_zero && current_is_zero;
     }
 
-    accumulator.x = (field_ct(0) - accumulator.x).madd(is_accumulator_zero, accumulator.x);
-    return accumulator.x;
+    accumulator.x = (field_t(0) - accumulator.x).madd(is_accumulator_zero, accumulator.x);
+    return accumulator;
 }
 
-field_ct compress(const field_ct& in_left, const field_ct& in_right, const size_t hash_index, bool handle_edge_cases)
+template <typename C>
+field_t<C> pedersen<C>::compress(const field_t& in_left,
+                                 const field_t& in_right,
+                                 const size_t hash_index,
+                                 const bool handle_edge_cases)
 {
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+        return pedersen_plookup<C>::compress(in_left, in_right);
+    }
+
     std::vector<point> accumulators;
     accumulators.push_back(hash_single(in_left, hash_index, handle_edge_cases));
     accumulators.push_back(hash_single(in_right, hash_index + 1, handle_edge_cases));
     if (handle_edge_cases) {
-        std::vector<field_ct> inputs;
+        std::vector<field_t> inputs;
         inputs.push_back(in_left);
         inputs.push_back(in_right);
-        return conditionally_accumulate(accumulators, inputs);
+        return conditionally_accumulate(accumulators, inputs).x;
     }
-    return accumulate(accumulators);
+    return accumulate(accumulators).x;
 }
 
-field_ct compress(std::vector<field_ct>& inputs, bool handle_edge_cases)
+template <typename C>
+point<C> pedersen<C>::encrypt(const std::vector<field_t>& inputs, const size_t hash_index, const bool handle_edge_cases)
 {
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+        return pedersen_plookup<C>::encrypt(inputs);
+    }
+
     std::vector<point> to_accumulate;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        inputs[i] = inputs[i].normalize();
-        to_accumulate.push_back(hash_single(inputs[i], i, handle_edge_cases));
+        to_accumulate.push_back(hash_single(inputs[i].normalize(), hash_index + i, handle_edge_cases));
     }
     if (handle_edge_cases) {
         return conditionally_accumulate(to_accumulate, inputs);
@@ -236,13 +253,24 @@ field_ct compress(std::vector<field_ct>& inputs, bool handle_edge_cases)
     return accumulate(to_accumulate);
 }
 
-byte_array_ct compress(const byte_array_ct& input)
+template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const bool handle_edge_cases)
 {
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+        return pedersen_plookup<C>::compress(inputs);
+    }
+    return encrypt(inputs, 0, handle_edge_cases).x;
+}
+
+template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& input)
+{
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+        return pedersen_plookup<C>::compress(packed_byte_array(input));
+    }
     const size_t num_bytes = input.size();
     const size_t bytes_per_element = 31;
     size_t num_elements = (num_bytes % bytes_per_element != 0) + (num_bytes / bytes_per_element);
 
-    std::vector<field_ct> elements;
+    std::vector<field_t> elements;
     for (size_t i = 0; i < num_elements; ++i) {
         size_t bytes_to_slice = 0;
         if (i == num_elements - 1) {
@@ -251,26 +279,27 @@ byte_array_ct compress(const byte_array_ct& input)
             bytes_to_slice = bytes_per_element;
         }
 
-        field_ct element = static_cast<field_ct>(input.slice(i * bytes_per_element, bytes_to_slice));
+        field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice));
         elements.emplace_back(element);
     }
 
-    field_ct compressed = compress(elements, true);
-    return byte_array_ct(compressed);
+    field_t compressed = compress(elements, true);
+    return byte_array(compressed);
 }
 
-field_ct compress_eight(std::array<field_ct, 8>& inputs, bool handle_edge_cases)
+template <typename C>
+point<C> pedersen<C>::compress_to_point(const field_t& in_left, const field_t& in_right, const size_t hash_index)
 {
-    std::vector<field_ct> converted(inputs.begin(), inputs.end());
-    return compress(converted, handle_edge_cases);
-}
-
-point compress_to_point(const field_ct& in_left, const field_ct& in_right, const size_t hash_index)
-{
+    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+        return pedersen_plookup<C>::compress_to_point(in_left, in_right);
+    }
     point first = hash_single(in_left, hash_index);
     point second = hash_single(in_right, hash_index + 1);
     return add_points(first, second);
 }
-} // namespace pedersen
+
+template class pedersen<waffle::TurboComposer>;
+template class pedersen<waffle::PLookupComposer>;
+
 } // namespace stdlib
 } // namespace plonk

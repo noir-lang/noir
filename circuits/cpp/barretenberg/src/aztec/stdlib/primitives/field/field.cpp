@@ -26,7 +26,7 @@ template <typename ComposerContext>
 field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barretenberg::fr& value)
     : context(parent_context)
 {
-    barretenberg::fr::__copy(value, additive_constant);
+    additive_constant = value;
     multiplicative_constant = barretenberg::fr::zero();
     witness_index = static_cast<uint32_t>(-1);
 }
@@ -410,7 +410,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not
     context->create_poly_gate(gate_coefficients);
 }
 
-template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero()
+template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero() const
 {
     if (witness_index == static_cast<uint32_t>(-1)) {
         return bool_t(context, (get_value() == barretenberg::fr::zero()));
