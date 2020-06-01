@@ -452,7 +452,8 @@ template <typename settings> void ProverBase<settings>::add_polynomial_evaluatio
             return key->permutation_selectors.at(poly_label);
         }
         default: {
-            throw;
+            barretenberg::errors::throw_or_abort("invalid polynomial source");
+            return witness->wires.at("w_1");
         }
         }
     };

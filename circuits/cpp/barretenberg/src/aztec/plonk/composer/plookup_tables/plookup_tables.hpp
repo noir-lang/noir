@@ -116,7 +116,8 @@ inline PLookupBasicTable create_basic_table(const PLookupBasicTableId id, const 
         return pedersen_tables::generate_sidon_pedersen_table<17>(PEDERSEN_17, index);
     }
     default: {
-        throw;
+        barretenberg::errors::throw_or_abort("table id does not exist");
+        return sparse_tables::generate_sparse_table_with_rotation<9, 8, 0>(AES_SPARSE_MAP, index);
     }
     }
 }
