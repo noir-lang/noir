@@ -86,6 +86,11 @@ WASM_EXPORT void prover_execute_fifth_round(waffle::UnrolledTurboProver* prover)
     prover->execute_fifth_round();
 }
 
+WASM_EXPORT void prover_execute_sixth_round(waffle::UnrolledTurboProver* prover)
+{
+    prover->execute_sixth_round();
+}
+
 WASM_EXPORT size_t prover_export_proof(waffle::UnrolledTurboProver* prover, uint8_t** proof_data_buf)
 {
     auto& proof_data = prover->export_proof().proof_data;

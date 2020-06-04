@@ -29,6 +29,8 @@ class StandardTranscript : public Transcript {
     barretenberg::fr get_challenge_field_element(const std::string& challenge_name, const size_t idx = 0) const;
     barretenberg::fr get_challenge_field_element_from_map(const std::string& challenge_name,
                                                           const std::string& challenge_map_name) const;
+
+    std::vector<uint8_t> export_transcript() const { return Transcript::export_transcript(); }
 };
 
 } // namespace transcript

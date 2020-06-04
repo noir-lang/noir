@@ -3,6 +3,7 @@
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <plonk/proof_system/types/prover_settings.hpp>
 
 namespace waffle {
 
@@ -89,9 +90,27 @@ struct accumulator_triple {
     std::vector<uint32_t> out;
 };
 
+struct ecc_add_gate {
+    uint32_t x1;
+    uint32_t y1;
+    uint32_t x2;
+    uint32_t y2;
+    uint32_t x3;
+    uint32_t y3;
+    barretenberg::fr endomorphism_coefficient;
+    barretenberg::fr sign_coefficient;
+};
+
+enum ComposerType {
+    STANDARD,
+    TURBO,
+    PLOOKUP,
+};
+
 class ComposerBase {
   public:
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
+    static constexpr size_t NUM_RESERVED_GATES = 1;
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
     struct cycle_node {
@@ -227,7 +246,9 @@ class ComposerBase {
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    virtual std::shared_ptr<proving_key> compute_proving_key();
+
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_circuit_size = 0);
+    virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual std::shared_ptr<program_witness> compute_witness() = 0;
     template <class program_settings> std::shared_ptr<program_witness> compute_witness_base();
@@ -289,6 +310,28 @@ class ComposerBase {
 
     template <size_t program_width> void compute_wire_copy_cycles();
     template <size_t program_width> void compute_sigma_permutations(proving_key* key);
+
+    void add_selector(polynomial& small, const std::string& tag, bool preserve_lagrange_base = false)
+    {
+        if (preserve_lagrange_base) {
+            polynomial lagrange_base(small, circuit_proving_key->n);
+            circuit_proving_key->constraint_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
+        }
+        small.ifft(circuit_proving_key->small_domain);
+        polynomial large(small, circuit_proving_key->n * 4);
+        large.coset_fft(circuit_proving_key->large_domain);
+        circuit_proving_key->constraint_selectors.insert({ tag, std::move(small) });
+        circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
+    }
+
+    size_t get_circuit_subgroup_size(const size_t num_gates)
+    {
+        size_t log2_n = static_cast<size_t>(numeric::get_msb(num_gates));
+        if ((1UL << log2_n) != (num_gates)) {
+            ++log2_n;
+        }
+        return 1UL << log2_n;
+    }
 
   public:
     size_t n;

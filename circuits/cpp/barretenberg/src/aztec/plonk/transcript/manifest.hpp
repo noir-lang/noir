@@ -9,6 +9,7 @@ class Manifest {
         std::string name;
         size_t num_bytes;
         bool derived_by_verifier;
+        int challenge_map_index = 0;
     };
     struct RoundManifest {
         RoundManifest(std::initializer_list<ManifestEntry> element_names,

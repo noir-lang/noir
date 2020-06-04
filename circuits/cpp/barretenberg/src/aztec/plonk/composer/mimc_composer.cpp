@@ -1,9 +1,10 @@
 #include "mimc_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/mimc_widget.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/mimc_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
+#include <plonk/proof_system/types/polynomial_manifest.hpp>
 
 using namespace barretenberg;
 #define STANDARD_SELECTOR_REFS                                                                                         \
@@ -268,6 +269,11 @@ std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
     circuit_proving_key->constraint_selector_ffts.insert({ "q_3_fft", std::move(poly_q_3_fft) });
 
     compute_sigma_permutations<3>(circuit_proving_key.get());
+
+    std::copy(mimc_polynomial_manifest,
+              mimc_polynomial_manifest + 14,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 
@@ -320,6 +326,10 @@ std::shared_ptr<verification_key> MiMCComposer::compute_verification_key()
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_1", commitments[7] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[8] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[9] });
+
+    std::copy(mimc_polynomial_manifest,
+              mimc_polynomial_manifest + 14,
+              std::back_inserter(circuit_verification_key->polynomial_manifest));
 
     return circuit_verification_key;
 }
@@ -380,14 +390,15 @@ Prover MiMCComposer::preprocess()
 
     std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
         std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverMiMCWidget> mimc_widget =
-        std::make_unique<ProverMiMCWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverArithmeticWidget> arithmetic_widget =
-        std::make_unique<ProverArithmeticWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverMiMCWidget<standard_settings>> mimc_widget =
+        std::make_unique<ProverMiMCWidget<standard_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverArithmeticWidget<standard_settings>> arithmetic_widget =
+        std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(arithmetic_widget));
-    output_state.widgets.emplace_back(std::move(mimc_widget));
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.transition_widgets.emplace_back(std::move(mimc_widget));
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+
     return output_state;
 }
 

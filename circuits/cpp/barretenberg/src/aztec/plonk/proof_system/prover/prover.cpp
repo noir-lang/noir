@@ -20,7 +20,7 @@ ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key,
     , witness(input_witness)
     , queue(key.get(), witness.get(), &transcript)
 {
-    if (witness->wires.count("z") == 0) {
+    if (input_witness && witness->wires.count("z") == 0) {
         witness->wires.insert({ "z", polynomial(n, n) });
     }
 }
@@ -33,8 +33,11 @@ ProverBase<settings>::ProverBase(ProverBase<settings>&& other)
     , witness(std::move(other.witness))
     , queue(key.get(), witness.get(), &transcript)
 {
-    for (size_t i = 0; i < other.widgets.size(); ++i) {
-        widgets.emplace_back(std::move(other.widgets[i]));
+    for (size_t i = 0; i < other.random_widgets.size(); ++i) {
+        random_widgets.emplace_back(std::move(other.random_widgets[i]));
+    }
+    for (size_t i = 0; i < other.transition_widgets.size(); ++i) {
+        transition_widgets.emplace_back(std::move(other.transition_widgets[i]));
     }
 }
 
@@ -42,11 +45,14 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
 {
     n = other.n;
 
-    widgets.resize(0);
-    for (size_t i = 0; i < other.widgets.size(); ++i) {
-        widgets.emplace_back(std::move(other.widgets[i]));
+    random_widgets.resize(0);
+    transition_widgets.resize(0);
+    for (size_t i = 0; i < other.random_widgets.size(); ++i) {
+        random_widgets.emplace_back(std::move(other.random_widgets[i]));
     }
-
+    for (size_t i = 0; i < other.transition_widgets.size(); ++i) {
+        transition_widgets.emplace_back(std::move(other.transition_widgets[i]));
+    }
     transcript = other.transcript;
     key = std::move(other.key);
     witness = std::move(other.witness);
@@ -143,7 +149,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
     start = std::chrono::steady_clock::now();
 #endif
     compute_wire_pre_commitments();
-    for (auto& widget : widgets) {
+    for (auto& widget : random_widgets) {
         widget->compute_round_commitments(transcript, 1, queue);
     }
 #ifdef DEBUG_TIMING
@@ -154,6 +160,15 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 }
 
 template <typename settings> void ProverBase<settings>::execute_second_round()
+{
+    queue.flush_queue();
+    transcript.apply_fiat_shamir("eta");
+    for (auto& widget : random_widgets) {
+        widget->compute_round_commitments(transcript, 2, queue);
+    }
+}
+
+template <typename settings> void ProverBase<settings>::execute_third_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("beta");
@@ -168,8 +183,8 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    for (auto& widget : widgets) {
-        widget->compute_round_commitments(transcript, 2, queue);
+    for (auto& widget : random_widgets) {
+        widget->compute_round_commitments(transcript, 3, queue);
     }
 
     for (size_t i = 0; i < settings::program_width; ++i) {
@@ -189,7 +204,7 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
 #endif
 }
 
-template <typename settings> void ProverBase<settings>::execute_third_round()
+template <typename settings> void ProverBase<settings>::execute_fourth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("alpha");
@@ -219,20 +234,21 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
     std::cout << "compute permutation grand product coeffs: " << diff.count() << "ms" << std::endl;
 #endif
     fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-    // fr alpha_base = alpha.sqr().sqr();
 
-    for (size_t i = 0; i < widgets.size(); ++i) {
+    for (auto& widget : random_widgets) {
 #ifdef DEBUG_TIMING
         std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-        alpha_base = widgets[i]->compute_quotient_contribution(alpha_base, transcript);
+        alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
 #ifdef DEBUG_TIMING
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "widget " << i << " quotient compute time: " << diff.count() << "ms" << std::endl;
 #endif
     }
-
+    for (auto& widget : transition_widgets) {
+        alpha_base = widget->compute_quotient_contribution(alpha_base, transcript);
+    }
     fr* q_mid = &key->quotient_mid[0];
     fr* q_large = &key->quotient_large[0];
 
@@ -276,12 +292,12 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
 #endif
-}
+} // namespace waffle
 
-template <typename settings> void ProverBase<settings>::execute_fourth_round()
+template <typename settings> void ProverBase<settings>::execute_fifth_round()
 {
     queue.flush_queue();
-    transcript.apply_fiat_shamir("z"); // end of 3rd round
+    transcript.apply_fiat_shamir("z"); // end of 4th round
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
@@ -293,105 +309,15 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #endif
 }
 
-template <typename settings> void ProverBase<settings>::execute_fifth_round()
+template <typename settings> void ProverBase<settings>::execute_sixth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-    std::vector<fr> nu_challenges;
-    std::vector<fr> shifted_nu_challenges;
 
-    if constexpr (settings::use_linearisation) {
-        nu_challenges.emplace_back(fr::serialize_from_buffer(transcript.get_challenge_from_map("nu", "r").begin()));
-    }
-    for (size_t i = 0; i < settings::program_width; ++i) {
-        if (settings::requires_shifted_wire(settings::wire_shift_settings, i)) {
-            shifted_nu_challenges.emplace_back(fr::serialize_from_buffer(
-                transcript.get_challenge_from_map("nu", "w_" + std::to_string(i + 1)).begin()));
-        }
-        nu_challenges.emplace_back(
-            fr::serialize_from_buffer(transcript.get_challenge_from_map("nu", "w_" + std::to_string(i + 1)).begin()));
-    }
-
-    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    fr* r = key->linear_poly.get_coefficients();
-
-    std::array<fr*, settings::program_width> wires;
-    for (size_t i = 0; i < settings::program_width; ++i) {
-        wires[i] = &witness->wires.at("w_" + std::to_string(i + 1))[0];
-    }
-
-    // Next step: compute the two Kate polynomial commitments, and associated opening proofs
-    // We have two evaluation points: z and z.omega
-    // We need to create random linear combinations of each individual polynomial and combine them
-
-    polynomial& opening_poly = key->opening_poly;
-    polynomial& shifted_opening_poly = key->shifted_opening_poly;
-
-    std::array<fr, settings::program_width> z_powers;
-    z_powers[0] = z_challenge;
-    for (size_t i = 1; i < settings::program_width; ++i) {
-        z_powers[i] = z_challenge.pow(static_cast<uint64_t>(n * i));
-    }
-
-    polynomial& quotient_large = key->quotient_large;
-
-    ITERATE_OVER_DOMAIN_START(key->small_domain);
-
-    fr T0;
-    fr quotient_temp = fr::zero();
-    if constexpr (settings::use_linearisation) {
-        quotient_temp = r[i] * nu_challenges[0];
-    }
-    for (size_t k = 1; k < settings::program_width; ++k) {
-        T0 = quotient_large[i + (k * n)] * z_powers[k];
-        quotient_temp += T0;
-    }
-    for (size_t k = 0; k < settings::program_width; ++k) {
-        T0 = wires[k][i] * nu_challenges[k + settings::use_linearisation];
-        quotient_temp += T0;
-    }
-    shifted_opening_poly[i] = 0;
-
-    opening_poly[i] = quotient_large[i] + quotient_temp;
-
-    ITERATE_OVER_DOMAIN_END;
-
-    if constexpr (settings::wire_shift_settings > 0) {
-        ITERATE_OVER_DOMAIN_START(key->small_domain);
-        size_t nu_ptr = 0;
-        if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 0)) {
-            fr T0;
-            T0 = shifted_nu_challenges[nu_ptr++] * wires[0][i];
-            shifted_opening_poly[i] += T0;
-        }
-        if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 1)) {
-            fr T0;
-            T0 = shifted_nu_challenges[nu_ptr++] * wires[1][i];
-            shifted_opening_poly[i] += T0;
-        }
-        if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 2)) {
-            fr T0;
-            T0 = shifted_nu_challenges[nu_ptr++] * wires[2][i];
-            shifted_opening_poly[i] += T0;
-        }
-        if constexpr (settings::requires_shifted_wire(settings::wire_shift_settings, 3)) {
-            fr T0;
-            T0 = shifted_nu_challenges[nu_ptr++] * wires[3][i];
-            shifted_opening_poly[i] += T0;
-        }
-        for (size_t k = 4; k < settings::program_width; ++k) {
-            if (settings::requires_shifted_wire(settings::wire_shift_settings, k)) {
-                fr T0;
-                T0 = shifted_nu_challenges[nu_ptr++] * wires[k][i];
-                shifted_opening_poly[i] += T0;
-            }
-        }
-        ITERATE_OVER_DOMAIN_END;
-    }
-
+    compute_batch_opening_polynomials();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -400,23 +326,23 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    // Currently code assumes permutation_widget is first.
-    for (size_t i = 0; i < widgets.size(); ++i) {
-        widgets[i]->compute_opening_poly_contribution(transcript, settings::use_linearisation);
-    }
+
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "compute widget opening poly contributions: " << diff.count() << "ms" << std::endl;
 #endif
-    fr shifted_z;
-    shifted_z = z_challenge * key->small_domain.root;
+    const auto zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+    const auto zeta_omega = zeta * key->small_domain.root;
+    polynomial& opening_poly = key->opening_poly;
+    polynomial& shifted_opening_poly = key->shifted_opening_poly;
+
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
 #endif
-    opening_poly.compute_kate_opening_coefficients(z_challenge);
+    opening_poly.compute_kate_opening_coefficients(zeta);
 
-    shifted_opening_poly.compute_kate_opening_coefficients(shifted_z);
+    shifted_opening_poly.compute_kate_opening_coefficients(zeta_omega);
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -447,44 +373,124 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #endif
 }
 
+template <typename settings> void ProverBase<settings>::compute_batch_opening_polynomials()
+{
+    std::vector<std::pair<fr*, fr>> opened_polynomials_at_zeta;
+    std::vector<std::pair<fr*, fr>> opened_polynomials_at_zeta_omega;
+
+    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
+        const auto& info = key->polynomial_manifest[i];
+        const std::string poly_label(info.polynomial_label);
+        fr* poly = nullptr;
+        switch (info.source) {
+        case PolynomialSource::WITNESS: {
+            poly = &witness->wires.at(poly_label)[0];
+            break;
+        }
+        case PolynomialSource::SELECTOR: {
+            poly = &key->constraint_selectors.at(poly_label)[0];
+            break;
+        }
+        case PolynomialSource::PERMUTATION: {
+            poly = &key->permutation_selectors.at(poly_label)[0];
+            break;
+        }
+        }
+        if (!info.is_linearised || !settings::use_linearisation) {
+            const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
+            opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
+        }
+        if (info.requires_shifted_evaluation) {
+            const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
+            opened_polynomials_at_zeta_omega.push_back({ poly, nu_challenge });
+        }
+    }
+
+    const auto zeta = transcript.get_challenge_field_element("z");
+
+    for (size_t i = 1; i < settings::program_width; ++i) {
+        const size_t offset = i * key->small_domain.size;
+        const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
+        opened_polynomials_at_zeta.push_back({ &key->quotient_large[offset], scalar });
+    }
+
+    if constexpr (settings::use_linearisation) {
+        const fr linear_challenge = transcript.get_challenge_field_element_from_map("nu", "r");
+        opened_polynomials_at_zeta.push_back({ &key->linear_poly[0], linear_challenge });
+    }
+
+    polynomial& opening_poly = key->opening_poly;
+    polynomial& shifted_opening_poly = key->shifted_opening_poly;
+
+    ITERATE_OVER_DOMAIN_START(key->small_domain);
+    opening_poly[i] = key->quotient_large[i];
+    for (const auto& [poly, challenge] : opened_polynomials_at_zeta) {
+        opening_poly[i] += poly[i] * challenge;
+    }
+    shifted_opening_poly[i] = 0;
+    for (const auto& [poly, challenge] : opened_polynomials_at_zeta_omega) {
+        shifted_opening_poly[i] += poly[i] * challenge;
+    }
+    ITERATE_OVER_DOMAIN_END;
+}
+
+template <typename settings> void ProverBase<settings>::add_polynomial_evaluations_to_transcript()
+{
+    fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+    fr shifted_z = zeta * key->small_domain.root;
+
+    const auto get_polynomial = [key = this->key, witness = this->witness](const auto& poly_info,
+                                                                           const auto& poly_label) -> polynomial& {
+        switch (poly_info.source) {
+        case PolynomialSource::WITNESS: {
+            return witness->wires.at(poly_label);
+        }
+        case PolynomialSource::SELECTOR: {
+            return key->constraint_selectors.at(poly_label);
+        }
+        case PolynomialSource::PERMUTATION: {
+            return key->permutation_selectors.at(poly_label);
+        }
+        default: {
+            barretenberg::errors::throw_or_abort("invalid polynomial source");
+            return witness->wires.at("w_1");
+        }
+        }
+    };
+    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
+        const auto& info = key->polynomial_manifest[i];
+        std::string label(info.polynomial_label);
+        polynomial& poly = get_polynomial(info, label);
+
+        if (!info.is_linearised || !settings::use_linearisation) {
+            transcript.add_element(label, poly.evaluate(zeta, key->small_domain.size).to_buffer());
+        }
+        if (info.requires_shifted_evaluation) {
+            transcript.add_element(label + "_omega", poly.evaluate(shifted_z, key->small_domain.size).to_buffer());
+        }
+    }
+}
+
 template <typename settings> barretenberg::fr ProverBase<settings>::compute_linearisation_coefficients()
 {
 
-    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    fr shifted_z = z_challenge * key->small_domain.root;
+    fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
     polynomial& r = key->linear_poly;
-    // ok... now we need to evaluate polynomials. Jeepers
 
-    // evaluate the prover and instance polynomials.
-    // (we don't need to evaluate the quotient polynomial, that can be derived by the verifier)
-    for (size_t i = 0; i < settings::program_width; ++i) {
-        std::string wire_key = "w_" + std::to_string(i + 1);
-        const polynomial& wire = witness->wires.at(wire_key);
-        fr wire_eval;
-        wire_eval = wire.evaluate(z_challenge, n);
-        transcript.add_element(wire_key, wire_eval.to_buffer());
-
-        if (settings::requires_shifted_wire(settings::wire_shift_settings, i)) {
-            fr shifted_wire_eval;
-            shifted_wire_eval = wire.evaluate(shifted_z, n);
-            transcript.add_element(wire_key + "_omega", shifted_wire_eval.to_buffer());
-        }
-    }
-
-    for (size_t i = 0; i < widgets.size(); ++i) {
-        widgets[i]->compute_transcript_elements(transcript, settings::use_linearisation);
-    }
-
-    fr t_eval = key->quotient_large.evaluate(z_challenge, 4 * n);
+    add_polynomial_evaluations_to_transcript();
+    fr t_eval = key->quotient_large.evaluate(zeta, 4 * n);
 
     if constexpr (settings::use_linearisation) {
         fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
-        for (size_t i = 0; i < widgets.size(); ++i) {
-            alpha_base = widgets[i]->compute_linear_contribution(alpha_base, transcript, r);
-        }
 
-        fr linear_eval = r.evaluate(z_challenge, n);
+        for (auto& widget : random_widgets) {
+            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, r);
+        }
+        for (auto& widget : transition_widgets) {
+            alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &r[0]);
+        }
+        fr linear_eval = r.evaluate(zeta, n);
         transcript.add_element("r", linear_eval.to_buffer());
     }
     transcript.add_element("t", t_eval.to_buffer());
@@ -508,7 +514,9 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::construc
     execute_third_round();
     queue.process_queue();
     execute_fourth_round();
+    queue.process_queue();
     execute_fifth_round();
+    execute_sixth_round();
     queue.process_queue();
     return export_proof();
 }
@@ -521,7 +529,9 @@ template <typename settings> void ProverBase<settings>::reset()
 
 template class ProverBase<unrolled_standard_settings>;
 template class ProverBase<unrolled_turbo_settings>;
+template class ProverBase<unrolled_plookup_settings>;
 template class ProverBase<standard_settings>;
 template class ProverBase<turbo_settings>;
+template class ProverBase<plookup_settings>;
 
 } // namespace waffle

@@ -7,11 +7,11 @@ namespace pedersen_note {
 using namespace plonk::stdlib::types::turbo;
 
 struct public_note {
-    point ciphertext;
+    point_ct ciphertext;
 };
 
 struct private_note {
-    point owner;
+    point_ct owner;
     uint32_ct value;
     field_ct secret;
 };

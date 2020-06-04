@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <numeric/bitop/get_msb.hpp>
+#include <iostream>
 
 namespace barretenberg {
 namespace wnaf {
@@ -365,6 +366,62 @@ inline void fixed_wnaf(uint64_t* scalar, uint64_t* wnaf, bool& skew_map, const s
     skew_map = ((scalar[0] & 1) == 0);
     uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + (uint64_t)skew_map;
     wnaf_round<num_bits, num_points, wnaf_bits, 1UL>(scalar, wnaf, point_index, previous);
+}
+
+template <size_t scalar_bits, size_t num_points, size_t wnaf_bits, size_t round_i>
+inline void wnaf_round_with_restricted_first_slice(uint64_t* scalar,
+                                                   uint64_t* wnaf,
+                                                   const uint64_t point_index,
+                                                   const uint64_t previous) noexcept
+{
+    constexpr size_t wnaf_entries = (scalar_bits + wnaf_bits - 1) / wnaf_bits;
+    constexpr size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
+    constexpr size_t bits_in_first_slice = scalar_bits % wnaf_bits;
+    if constexpr (round_i == 1) {
+        uint64_t slice = get_wnaf_bits_const<wnaf_bits, (round_i - 1) * wnaf_bits + bits_in_first_slice>(scalar);
+        uint64_t predicate = ((slice & 1UL) == 0UL);
+
+        wnaf[(wnaf_entries - round_i) << log2_num_points] =
+            ((((previous - (predicate << (bits_in_first_slice /*+ 1*/))) ^ (0UL - predicate)) >> 1UL) |
+             (predicate << 31UL)) |
+            (point_index << 32UL);
+        if (round_i == 1) {
+            std::cout << "writing value " << std::hex << wnaf[(wnaf_entries - round_i) << log2_num_points] << std::dec
+                      << " at index " << ((wnaf_entries - round_i) << log2_num_points) << std::endl;
+        }
+        wnaf_round_with_restricted_first_slice<scalar_bits, num_points, wnaf_bits, round_i + 1>(
+            scalar, wnaf, point_index, slice + predicate);
+
+    } else if constexpr (round_i < wnaf_entries - 1) {
+        uint64_t slice = get_wnaf_bits_const<wnaf_bits, (round_i - 1) * wnaf_bits + bits_in_first_slice>(scalar);
+        uint64_t predicate = ((slice & 1UL) == 0UL);
+        wnaf[(wnaf_entries - round_i) << log2_num_points] =
+            ((((previous - (predicate << (wnaf_bits /*+ 1*/))) ^ (0UL - predicate)) >> 1UL) | (predicate << 31UL)) |
+            (point_index << 32UL);
+        wnaf_round_with_restricted_first_slice<scalar_bits, num_points, wnaf_bits, round_i + 1>(
+            scalar, wnaf, point_index, slice + predicate);
+    } else {
+        uint64_t slice = get_wnaf_bits_const<wnaf_bits, (wnaf_entries - 1) * wnaf_bits>(scalar);
+        uint64_t predicate = ((slice & 1UL) == 0UL);
+        wnaf[num_points] =
+            ((((previous - (predicate << (wnaf_bits /*+ 1*/))) ^ (0UL - predicate)) >> 1UL) | (predicate << 31UL)) |
+            (point_index << 32UL);
+        wnaf[0] = ((slice + predicate) >> 1UL) | (point_index << 32UL);
+    }
+}
+
+template <size_t num_bits, size_t num_points, size_t wnaf_bits>
+inline void fixed_wnaf_with_restricted_first_slice(uint64_t* scalar,
+                                                   uint64_t* wnaf,
+                                                   bool& skew_map,
+                                                   const size_t point_index) noexcept
+{
+    constexpr size_t bits_in_first_slice = num_bits % wnaf_bits;
+    std::cout << "bits in first slice = " << bits_in_first_slice << std::endl;
+    skew_map = ((scalar[0] & 1) == 0);
+    uint64_t previous = get_wnaf_bits_const<bits_in_first_slice, 0>(scalar) + (uint64_t)skew_map;
+    std::cout << "previous = " << previous << std::endl;
+    wnaf_round_with_restricted_first_slice<num_bits, num_points, wnaf_bits, 1UL>(scalar, wnaf, point_index, previous);
 }
 
 // template <size_t wnaf_bits>

@@ -4,9 +4,9 @@
 #include "../types/plonk_proof.hpp"
 #include "../types/program_settings.hpp"
 #include "../types/program_witness.hpp"
-#include "../widgets/base_widget.hpp"
+#include "../widgets/random_widgets/random_widget.hpp"
 #include "./work_queue.hpp"
-
+#include "../widgets/transition_widgets/transition_widget.hpp"
 namespace waffle {
 
 template <typename settings> class ProverBase {
@@ -26,7 +26,10 @@ template <typename settings> class ProverBase {
     void execute_third_round();
     void execute_fourth_round();
     void execute_fifth_round();
+    void execute_sixth_round();
 
+    void add_polynomial_evaluations_to_transcript();
+    void compute_batch_opening_polynomials();
     void compute_wire_pre_commitments();
     void compute_quotient_pre_commitment();
     void init_quotient_polynomials();
@@ -78,7 +81,8 @@ template <typename settings> class ProverBase {
     std::vector<uint32_t> sigma_2_mapping;
     std::vector<uint32_t> sigma_3_mapping;
 
-    std::vector<std::unique_ptr<ProverBaseWidget>> widgets;
+    std::vector<std::unique_ptr<ProverRandomWidget>> random_widgets;
+    std::vector<std::unique_ptr<widget::TransitionWidgetBase<barretenberg::fr>>> transition_widgets;
     transcript::StandardTranscript transcript;
 
     std::shared_ptr<proving_key> key;
@@ -99,5 +103,7 @@ typedef ProverBase<unrolled_standard_settings> UnrolledProver;
 typedef ProverBase<unrolled_turbo_settings> UnrolledTurboProver;
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
+typedef ProverBase<plookup_settings> PLookupProver;
+typedef ProverBase<unrolled_plookup_settings> UnrolledPLookupProver;
 
 } // namespace waffle

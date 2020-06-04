@@ -9,7 +9,7 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
 struct note_triple {
-    point base;
+    point_ct base;
     field_ct scalar;
 };
 
@@ -182,7 +182,7 @@ public_note encrypt_note(const private_note& plaintext)
     field_ct x_4 = (p_2.base.x - x_3) * field_ct(is_zero) + x_3;
     field_ct y_4 = (p_2.base.y - y_3) * field_ct(is_zero) + y_3;
 
-    point p_3 = plonk::stdlib::pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y);
+    point_ct p_3 = pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y);
 
     field_ct lambda_out = (p_3.y - y_4) / (p_3.x - x_4);
     field_ct x_out = (lambda_out * lambda_out) - (p_3.x + x_4);

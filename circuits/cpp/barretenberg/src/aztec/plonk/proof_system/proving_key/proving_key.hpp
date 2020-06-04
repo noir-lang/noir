@@ -5,6 +5,8 @@
 #include <polynomials/evaluation_domain.hpp>
 #include <polynomials/polynomial.hpp>
 
+#include "../types/polynomial_manifest.hpp"
+
 namespace waffle {
 
 struct proving_key_data {
@@ -29,6 +31,12 @@ inline bool operator==(proving_key_data const& lhs, proving_key_data const& rhs)
 
 struct proving_key {
   public:
+    enum LookupType {
+        NONE,
+        ABSOLUTE_LOOKUP,
+        RELATIVE_LOOKUP,
+    };
+
     proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenceString> const& crs);
 
     proving_key(const size_t num_gates, const size_t num_inputs, std::shared_ptr<ProverReferenceString> const& crs);
@@ -47,8 +55,10 @@ struct proving_key {
 
     size_t n;
     size_t num_public_inputs;
+    size_t num_lookup_tables;
 
     std::map<std::string, barretenberg::polynomial> constraint_selectors;
+    std::map<std::string, barretenberg::polynomial> constraint_selectors_lagrange_base;
     std::map<std::string, barretenberg::polynomial> constraint_selector_ffts;
 
     std::map<std::string, barretenberg::polynomial> permutation_selectors;
@@ -72,6 +82,11 @@ struct proving_key {
     barretenberg::polynomial quotient_large;
 
     barretenberg::scalar_multiplication::pippenger_runtime_state pippenger_runtime_state;
+
+    std::vector<PolynomialDescriptor> polynomial_manifest;
+
+    std::vector<LookupType> lookup_mapping;
+    std::vector<size_t> table_indices;
 
     size_t opening_poly_challenge_index;
     size_t shifted_opening_poly_challenge_index;

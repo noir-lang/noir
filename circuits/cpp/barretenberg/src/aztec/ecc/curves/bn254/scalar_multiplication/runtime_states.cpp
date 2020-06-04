@@ -1,6 +1,7 @@
 #include "runtime_states.hpp"
 
 #include <common/mem.hpp>
+#include <numeric/bitop/get_msb.hpp>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -13,6 +14,7 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
 {
     constexpr size_t MAX_NUM_ROUNDS = 256;
     num_points = num_initial_points * 2;
+    const size_t num_points_floor = static_cast<size_t>(1ULL << (numeric::get_msb(num_points)));
     const size_t num_buckets = static_cast<size_t>(
         1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
 #ifndef NO_MULTITHREADING
@@ -22,7 +24,7 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
 #endif
     const size_t prefetch_overflow = 16 * num_threads;
     const size_t num_rounds =
-        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points)));
+        static_cast<size_t>(barretenberg::scalar_multiplication::get_num_rounds(static_cast<size_t>(num_points_floor)));
     point_schedule = (uint64_t*)(aligned_alloc(
         64, (static_cast<size_t>(num_points) * num_rounds + prefetch_overflow) * sizeof(uint64_t)));
     skew_table = (bool*)(aligned_alloc(64, static_cast<size_t>(num_points) * sizeof(bool)));
@@ -152,9 +154,6 @@ pippenger_runtime_state& pippenger_runtime_state::operator=(pippenger_runtime_st
 affine_product_runtime_state pippenger_runtime_state::get_affine_product_runtime_state(const size_t num_threads,
                                                                                        const size_t thread_index)
 {
-    // if (!point_pairs_1) {
-    //     init();
-    // }
     const size_t points_per_thread = static_cast<size_t>(num_points / num_threads);
     const size_t num_buckets = static_cast<size_t>(
         1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_points) / 2));

@@ -30,7 +30,7 @@ bool_t<Composer> check_subtree_membership(Composer& composer,
         //     std::cout << "is_left " << is_left.get_value() << std::endl;
         //     std::cout << "is_right " << is_right.get_value() << std::endl;
         // }
-        current = pedersen::compress(hashes[i].first, hashes[i].second);
+        current = pedersen<Composer>::compress(hashes[i].first, hashes[i].second);
     }
 
     // std::cout << "current " << current << " root " << root << std::endl;
@@ -135,7 +135,7 @@ bool_t<Composer> check_tree(field_t<Composer> const& root, std::vector<byte_arra
     while (layer.size() > 1) {
         std::vector<field_t<Composer>> next_layer(layer.size() / 2);
         for (size_t i = 0; i < next_layer.size(); ++i) {
-            next_layer[i] = pedersen::compress(layer[i * 2], layer[i * 2 + 1]);
+            next_layer[i] = pedersen<Composer>::compress(layer[i * 2], layer[i * 2 + 1]);
         }
         layer = std::move(next_layer);
     }

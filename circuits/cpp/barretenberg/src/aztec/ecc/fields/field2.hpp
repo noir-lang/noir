@@ -70,9 +70,13 @@ template <class base_field, class Params> struct alignas(32) field2 {
     // constexpr bool operator>(const field& other) const noexcept;
     // constexpr bool operator<(const field& other) const noexcept;
     constexpr bool operator==(const field2& other) const noexcept;
-
+    constexpr bool operator!=(const field2& other) const noexcept { return !(*this == other); }
     constexpr field2 sqr() const noexcept;
     constexpr void self_sqr() noexcept;
+
+    constexpr field2 pow(const uint256_t& exponent) const noexcept;
+    constexpr field2 pow(const uint64_t exponent) const noexcept;
+
     constexpr field2 invert() const noexcept;
 
     constexpr void self_neg() noexcept;

@@ -715,5 +715,28 @@ void element<Fq, Fr, T>::batch_normalize(element* elements, const size_t num_ele
         elements[i].z = Fq::one();
     }
 }
+
+template <typename Fq, typename Fr, typename T>
+template <typename>
+element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::random::Engine* engine) noexcept
+{
+    bool found_one = false;
+    Fq yy;
+    Fq x;
+    Fq y;
+    Fq t0;
+    while (!found_one) {
+        x = Fq::random_element(engine);
+        yy = x.sqr() * x + T::b;
+        if constexpr (T::has_a) {
+            yy += (x * T::a);
+        }
+        y = yy.sqrt();
+        t0 = y.sqr();
+        found_one = (yy == t0);
+    }
+    return { x, y, Fq::one() };
+}
+
 } // namespace group_elements
 } // namespace barretenberg

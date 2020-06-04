@@ -50,9 +50,11 @@ class Transcript {
 
     void apply_fiat_shamir(const std::string& challenge_name /*, const bool debug = false*/);
 
+    bool has_challenge(const std::string& challenge_name) const;
+
     std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge(const std::string& challenge_name, const size_t idx = 0) const;
 
-    size_t get_challenge_index_from_map(const std::string& challenge_map_name) const;
+    int get_challenge_index_from_map(const std::string& challenge_map_name) const;
 
     std::array<uint8_t, PRNG_OUTPUT_SIZE> get_challenge_from_map(const std::string& challenge_name,
                                                                  const std::string& challenge_map_name) const;
@@ -78,7 +80,7 @@ class Transcript {
     challenge current_challenge;
 
     Manifest manifest;
-    std::map<std::string, size_t> challenge_map;
+    std::map<std::string, int> challenge_map;
 };
 
 } // namespace transcript
