@@ -394,10 +394,6 @@ template <typename settings> void ProverBase<settings>::compute_batch_opening_po
             poly = &key->permutation_selectors.at(poly_label)[0];
             break;
         }
-        case PolynomialSource::IDENTITY: {
-            poly = &key->id_selectors.at(poly_label)[0];
-            break;
-        }
         }
         if (!info.is_linearised || !settings::use_linearisation) {
             const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
@@ -453,9 +449,6 @@ template <typename settings> void ProverBase<settings>::add_polynomial_evaluatio
         }
         case PolynomialSource::PERMUTATION: {
             return key->permutation_selectors.at(poly_label);
-        }
-        case PolynomialSource::IDENTITY: {
-            return key->id_selectors.at(poly_label);
         }
         default: {
             barretenberg::errors::throw_or_abort("invalid polynomial source");

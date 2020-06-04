@@ -5,7 +5,7 @@
 
 namespace waffle {
 
-enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION, IDENTITY };
+enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION };
 
 enum PolynomialIndex {
     Q_1,
@@ -198,10 +198,10 @@ static constexpr PolynomialDescriptor genperm_polynomial_manifest[24]{
     PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                          //
     PolynomialDescriptor("SIGMA_3", "sigma_3", false, false, PERMUTATION, SIGMA_3),                          //
     PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
-    PolynomialDescriptor("ID_1", "id_1", false, false, IDENTITY, ID_1),                                      //
-    PolynomialDescriptor("ID_2", "id_2", false, false, IDENTITY, ID_2),                                      //
-    PolynomialDescriptor("ID_3", "id_3", false, false, IDENTITY, ID_3),                                      //
-    PolynomialDescriptor("ID_4", "id_4", false, false, IDENTITY, ID_4),                                      //
+    PolynomialDescriptor("ID_1", "id_1", false, false, PERMUTATION, ID_1),                                   //
+    PolynomialDescriptor("ID_2", "id_2", false, false, PERMUTATION, ID_2),                                   //
+    PolynomialDescriptor("ID_3", "id_3", false, false, PERMUTATION, ID_3),                                   //
+    PolynomialDescriptor("ID_4", "id_4", false, false, PERMUTATION, ID_4),                                   //
 };
 
 } // namespace waffle

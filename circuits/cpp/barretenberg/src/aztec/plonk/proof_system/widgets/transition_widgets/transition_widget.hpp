@@ -151,10 +151,6 @@ class FFTGetter : public BaseGetter<Field, Transcript, Settings, num_widget_rela
                 poly = &key->permutation_selector_ffts.at(label)[0];
                 break;
             }
-            case PolynomialSource::IDENTITY: {
-                poly = &key->id_selector_ffts.at(label)[0];
-                break;
-            }
             }
             result.coefficients[info.index] = poly;
         }
@@ -197,10 +193,6 @@ class MonomialGetter : public BaseGetter<Field, Transcript, Settings, num_widget
             }
             case PolynomialSource::PERMUTATION: {
                 poly = &key->permutation_selectors.at(label)[0];
-                break;
-            }
-            case PolynomialSource::IDENTITY: {
-                poly = &key->id_selectors.at(label)[0];
                 break;
             }
             }

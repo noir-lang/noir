@@ -319,10 +319,10 @@ std::shared_ptr<verification_key> GenPermComposer::compute_verification_key()
     poly_coefficients[13] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
     poly_coefficients[14] = circuit_proving_key->permutation_selectors.at("sigma_4").get_coefficients();
 
-    poly_coefficients[15] = circuit_proving_key->id_selectors.at("id_1").get_coefficients();
-    poly_coefficients[16] = circuit_proving_key->id_selectors.at("id_2").get_coefficients();
-    poly_coefficients[17] = circuit_proving_key->id_selectors.at("id_3").get_coefficients();
-    poly_coefficients[18] = circuit_proving_key->id_selectors.at("id_4").get_coefficients();
+    poly_coefficients[15] = circuit_proving_key->permutation_selectors.at("id_1").get_coefficients();
+    poly_coefficients[16] = circuit_proving_key->permutation_selectors.at("id_2").get_coefficients();
+    poly_coefficients[17] = circuit_proving_key->permutation_selectors.at("id_3").get_coefficients();
+    poly_coefficients[18] = circuit_proving_key->permutation_selectors.at("id_4").get_coefficients();
 
     scalar_multiplication::pippenger_runtime_state state(circuit_proving_key->n);
     std::vector<barretenberg::g1::affine_element> commitments;
@@ -356,10 +356,10 @@ std::shared_ptr<verification_key> GenPermComposer::compute_verification_key()
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_2", commitments[12] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[13] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_4", commitments[14] });
-    circuit_verification_key->id_selectors.insert({ "ID_1", commitments[15] });
-    circuit_verification_key->id_selectors.insert({ "ID_2", commitments[16] });
-    circuit_verification_key->id_selectors.insert({ "ID_3", commitments[17] });
-    circuit_verification_key->id_selectors.insert({ "ID_4", commitments[18] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_1", commitments[15] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_2", commitments[16] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_3", commitments[17] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_4", commitments[18] });
 
     std::copy(genperm_polynomial_manifest,
               genperm_polynomial_manifest + 24,
@@ -429,8 +429,6 @@ GenPermProver GenPermComposer::create_prover()
         std::make_unique<ProverTurboArithmeticWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<turbo_settings>> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
-    // std::unique_ptr<ProverTurboRangeWidget<turbo_settings>> range_widget =
-    //     std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
         std::make_unique<ProverTurboLogicWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverGenPermSortWidget<turbo_settings>> sort_widget =
@@ -439,7 +437,6 @@ GenPermProver GenPermComposer::create_prover()
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
     output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
-    // output_state.transition_widgets.emplace_back(std::move(range_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
     output_state.transition_widgets.emplace_back(std::move(sort_widget));
 

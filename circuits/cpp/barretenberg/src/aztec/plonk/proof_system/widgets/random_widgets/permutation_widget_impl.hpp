@@ -96,7 +96,7 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
         lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
         lagrange_base_sigmas[i] = &key->permutation_selectors_lagrange_base.at("sigma_" + std::to_string(i + 1))[0];
         if constexpr (idpolys)
-            lagrange_base_ids[i] = &key->id_selectors_lagrange_base.at("id_" + std::to_string(i + 1))[0];
+            lagrange_base_ids[i] = &key->permutation_selectors_lagrange_base.at("id_" + std::to_string(i + 1))[0];
     }
 
 #ifndef NO_MULTITHREADING
@@ -245,7 +245,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
         wire_ffts[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
         sigma_ffts[i] = &key->permutation_selector_ffts.at("sigma_" + std::to_string(i + 1) + "_fft")[0];
         if constexpr (idpolys)
-            id_ffts[i] = &key->id_selector_ffts.at("id_" + std::to_string(i + 1) + "_fft")[0];
+            id_ffts[i] = &key->permutation_selector_ffts.at("id_" + std::to_string(i + 1) + "_fft")[0];
     }
 
     const polynomial& l_1 = key->lagrange_1;
@@ -256,6 +256,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
     barretenberg::fr public_input_delta =
         compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 
+    const size_t block_mask = key->large_domain.size - 1;
     polynomial& quotient_large = key->quotient_large;
     // Step 4: Set the quotient polynomial to be equal to
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
@@ -305,7 +306,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
             }
 
             numerator *= z_fft[i];
-            denominator *= z_fft[i + 4];
+            denominator *= z_fft[(i + 4) & block_mask];
 
             /**
              * Permutation bounds check
@@ -336,9 +337,9 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
             // z_fft already contains evaluations of Z(X).(\alpha^2)
             // at the (2n)'th roots of unity
             // => to get Z(X.w) instead of Z(X), index element (i+2) instead of i
-            T0 = z_fft[i + 4] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
-            T0 *= alpha_base;                       // T0 = (Z(X.w) - (delta)).(\alpha^3)
-            T0 *= l_1[i + 8];                       // T0 = (Z(X.w)-delta).(\alpha^3).L{n-1}
+            T0 = z_fft[(i + 4) & block_mask] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
+            T0 *= alpha_base;                                      // T0 = (Z(X.w) - (delta)).(\alpha^3)
+            T0 *= l_1[(i + 8) & block_mask];                       // T0 = (Z(X.w)-delta).(\alpha^3).L{n-1}
             numerator += T0;
 
             // Step 2: Compute (Z(X) - 1).(\alpha^4).L1(X)

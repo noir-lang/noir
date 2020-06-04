@@ -64,9 +64,6 @@ struct proving_key {
     std::map<std::string, barretenberg::polynomial> permutation_selectors;
     std::map<std::string, barretenberg::polynomial> permutation_selectors_lagrange_base;
     std::map<std::string, barretenberg::polynomial> permutation_selector_ffts;
-    std::map<std::string, barretenberg::polynomial> id_selectors;
-    std::map<std::string, barretenberg::polynomial> id_selectors_lagrange_base;
-    std::map<std::string, barretenberg::polynomial> id_selector_ffts;
 
     std::map<std::string, barretenberg::polynomial> wire_ffts;
 

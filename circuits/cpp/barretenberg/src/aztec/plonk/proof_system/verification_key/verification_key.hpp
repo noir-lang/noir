@@ -57,7 +57,6 @@ struct verification_key {
     std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
 
     std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
-    std::map<std::string, barretenberg::g1::affine_element> id_selectors;
 
     std::vector<PolynomialDescriptor> polynomial_manifest;
 

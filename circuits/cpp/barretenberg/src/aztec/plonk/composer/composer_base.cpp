@@ -131,12 +131,12 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
                 id_polynomial, id_mappings[i], key->small_domain);
 
             barretenberg::polynomial id_polynomial_lagrange_base(id_polynomial);
-            key->id_selectors_lagrange_base.insert({ "id_" + index, std::move(id_polynomial_lagrange_base) });
+            key->permutation_selectors_lagrange_base.insert({ "id_" + index, std::move(id_polynomial_lagrange_base) });
             id_polynomial.ifft(key->small_domain);
             barretenberg::polynomial id_fft(id_polynomial, key->large_domain.size);
             id_fft.coset_fft(key->large_domain);
-            key->id_selectors.insert({ "id_" + index, std::move(id_polynomial) });
-            key->id_selector_ffts.insert({ "id_" + index + "_fft", std::move(id_fft) });
+            key->permutation_selectors.insert({ "id_" + index, std::move(id_polynomial) });
+            key->permutation_selector_ffts.insert({ "id_" + index + "_fft", std::move(id_fft) });
         }
     }
 }
