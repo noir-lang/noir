@@ -4,11 +4,12 @@
 
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_range_widget.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_fixed_base_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_logic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/genperm_sort_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/proof_system/utils/permutation.hpp>
 
@@ -29,8 +30,8 @@ namespace waffle {
     auto& q_range = selectors[TurboSelectors::QRANGE];                                                                 \
     auto& q_logic = selectors[TurboSelectors::QLOGIC];
 
-GenPermComposer::GenPermComposer(const size_t size_hint)
-    : TurboComposer(size_hint)
+GenPermComposer::GenPermComposer()
+    : TurboComposer()
 {
     tau.insert({ DUMMY_TAG, DUMMY_TAG });
 };
@@ -46,21 +47,21 @@ GenPermComposer::RangeList GenPermComposer::create_range_list(const uint64_t tar
     result.range_tag = range_tag;
     result.tau_tag = tau_tag;
 
-   const uint64_t num_multiples_of_three = (target_range / 3);
+    const uint64_t num_multiples_of_three = (target_range / 3);
 
-   result.variable_indices.reserve(num_multiples_of_three);
-   for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
-       const uint32_t index = add_variable(i * 3);
-       result.variable_indices.emplace_back(index);
-       assign_tag(index, result.range_tag);
-   }
-   {
-       const uint32_t index = add_variable(target_range);
-       result.variable_indices.emplace_back(index);
-       assign_tag(index, result.range_tag);
-   }
-   // Need this because these variables will not appear in the witness otherwise
-   create_dummy_constraint(result.variable_indices);
+    result.variable_indices.reserve(num_multiples_of_three);
+    for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
+        const uint32_t index = add_variable(i * 3);
+        result.variable_indices.emplace_back(index);
+        assign_tag(index, result.range_tag);
+    }
+    {
+        const uint32_t index = add_variable(target_range);
+        result.variable_indices.emplace_back(index);
+        assign_tag(index, result.range_tag);
+    }
+    // Need this because these variables will not appear in the witness otherwise
+    create_dummy_constraint(result.variable_indices);
 
     return result;
 }
@@ -102,9 +103,10 @@ void GenPermComposer::process_range_list(const RangeList& list)
     }
     create_sort_constraint_with_edges(indices, 0, list.target_range);
 }
-void GenPermComposer::process_range_lists(){
-    for (const auto& i:range_lists)
-    process_range_list(i.second);
+void GenPermComposer::process_range_lists()
+{
+    for (const auto& i : range_lists)
+        process_range_list(i.second);
 }
 /*
  Create range constraint:
@@ -163,7 +165,8 @@ void GenPermComposer::create_sort_constraint(const std::vector<uint32_t> variabl
     q_logic.emplace_back(fr::zero());
     q_range.emplace_back(fr::zero());
 }
-//useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in multiples of three
+// useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
+// multiples of three
 void GenPermComposer::create_dummy_constraint(const std::vector<uint32_t> variable_index)
 {
     TURBO_SELECTOR_REFS
@@ -198,7 +201,7 @@ void GenPermComposer::create_sort_constraint_with_edges(const std::vector<uint32
 {
     TURBO_SELECTOR_REFS
     // Convenient to assume size is at least 8 for separate gates for start and end conditions
-    ASSERT(variable_index.size() % 4 == 0 && variable_index.size()>4);
+    ASSERT(variable_index.size() % 4 == 0 && variable_index.size() > 4);
     for (size_t i = 0; i < variable_index.size(); i++) {
         ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
     }
@@ -280,8 +283,13 @@ std::shared_ptr<proving_key> GenPermComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    ComposerBase::compute_proving_key();
+    ComposerBase::compute_proving_key_base();
     compute_sigma_permutations<4, true>(circuit_proving_key.get());
+
+    std::copy(genperm_polynomial_manifest,
+              genperm_polynomial_manifest + 24,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 
@@ -352,6 +360,11 @@ std::shared_ptr<verification_key> GenPermComposer::compute_verification_key()
     circuit_verification_key->id_selectors.insert({ "ID_2", commitments[16] });
     circuit_verification_key->id_selectors.insert({ "ID_3", commitments[17] });
     circuit_verification_key->id_selectors.insert({ "ID_4", commitments[18] });
+
+    std::copy(genperm_polynomial_manifest,
+              genperm_polynomial_manifest + 24,
+              std::back_inserter(circuit_verification_key->polynomial_manifest));
+
     return circuit_verification_key;
 }
 
@@ -402,27 +415,33 @@ std::shared_ptr<verification_key> GenPermComposer::compute_verification_key()
 //     return witness;
 // }
 
-TurboProver GenPermComposer::create_prover()
+GenPermProver GenPermComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();
 
-    TurboProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
+    GenPermProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
 
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverGenPermSortWidget> range_widget =
-        std::make_unique<ProverGenPermSortWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboArithmeticWidget<turbo_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<turbo_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    // std::unique_ptr<ProverTurboRangeWidget<turbo_settings>> range_widget =
+    //     std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverGenPermSortWidget<turbo_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    // output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
+    output_state.transition_widgets.emplace_back(std::move(sort_widget));
 
     return output_state;
 }
@@ -468,17 +487,21 @@ UnrolledTurboProver GenPermComposer::create_unrolled_prover()
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboArithmeticWidget<turbo_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
+    std::unique_ptr<ProverTurboFixedBaseWidget<turbo_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverGenPermSortWidget<turbo_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
+    output_state.transition_widgets.emplace_back(std::move(sort_widget));
 
     return output_state;
 }

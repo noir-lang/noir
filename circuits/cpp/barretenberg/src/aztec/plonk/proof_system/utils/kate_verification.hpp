@@ -79,6 +79,11 @@ void populate_kate_element_map(verification_key* key,
             kate_g1_elements.insert({ label, element });
             break;
         }
+        case PolynomialSource::IDENTITY: {
+            const auto element = key->id_selectors.at(label);
+            kate_g1_elements.insert({ label, element });
+            break;
+        }
         }
         Field kate_fr_scalar(0);
         if (item.requires_shifted_evaluation) {

@@ -135,14 +135,13 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
             id_polynomial.ifft(key->small_domain);
             barretenberg::polynomial id_fft(id_polynomial, key->large_domain.size);
             id_fft.coset_fft(key->large_domain);
-
             key->id_selectors.insert({ "id_" + index, std::move(id_polynomial) });
             key->id_selector_ffts.insert({ "id_" + index + "_fft", std::move(id_fft) });
         }
     }
 }
 
-std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base()
+std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t minimum_circuit_size)
 {
     const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
 

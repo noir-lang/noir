@@ -1110,8 +1110,8 @@ PLookupProver PLookupComposer::create_prover()
 
     PLookupProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
 
@@ -1145,8 +1145,8 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
 
     UnrolledPLookupProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
 

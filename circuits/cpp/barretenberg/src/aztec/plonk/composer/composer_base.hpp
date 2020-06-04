@@ -248,7 +248,7 @@ class ComposerBase {
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_circuit_size = 0);
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_ciricut_size = 0);
     virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual std::shared_ptr<program_witness> compute_witness() = 0;
@@ -310,7 +310,7 @@ class ComposerBase {
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx);
 
     template <size_t program_width> void compute_wire_copy_cycles();
-    template <size_t program_width, bool with_tags> void compute_sigma_permutations(proving_key* key);
+    template <size_t program_width, bool with_tags = false> void compute_sigma_permutations(proving_key* key);
 
     void add_selector(polynomial& small, const std::string& tag, bool preserve_lagrange_base = false)
     {
