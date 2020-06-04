@@ -55,8 +55,7 @@ struct Secp256k1FqParams {
         0, 0, 0, 0, 0, 0, 0, 0,
     };
 
-    static constexpr uint64_t r_inv =
-        15580212934572586289ULL;
+    static constexpr uint64_t r_inv = 15580212934572586289ULL;
 
     static constexpr uint64_t cube_root_0 = 0UL;
     static constexpr uint64_t cube_root_1 = 0UL;
@@ -80,8 +79,7 @@ struct Secp256k1FrParams {
     static constexpr uint64_t r_squared_2 = 16616019711348246470ULL;
     static constexpr uint64_t r_squared_3 = 11342065889886772165ULL;
 
-    static constexpr uint64_t r_inv =
-        5408259542528602431ULL;
+    static constexpr uint64_t r_inv = 5408259542528602431ULL;
 
     static constexpr uint64_t coset_generators_0[8]{
         0x40e4273feef0b9bbULL, 0x8111c8b31eba787aULL, 0xc13f6a264e843739ULL, 0x16d0b997e4df5f8ULL,

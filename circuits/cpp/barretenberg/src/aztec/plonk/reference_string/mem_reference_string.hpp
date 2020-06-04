@@ -32,7 +32,7 @@ class VerifierMemReferenceString : public VerifierReferenceString {
 class MemReferenceString : public ProverReferenceString {
   public:
     MemReferenceString(const size_t num_points, uint8_t const* buffer)
-      : pippenger_(buffer, num_points)
+        : pippenger_(buffer, num_points)
     {}
 
     g1::affine_element* get_monomials() { return pippenger_.get_point_table(); }

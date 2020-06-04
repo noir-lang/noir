@@ -1,7 +1,8 @@
 #pragma once
 #include <array>
-#include <common/inline.hpp>
 #include <common/assert.hpp>
+#include <common/inline.hpp>
+#include <common/serialize.hpp>
 #include <cstdint>
 #include <iostream>
 #include <numeric/random/engine.hpp>
@@ -29,12 +30,6 @@ template <class Params> struct alignas(32) field {
     {
         self_to_montgomery_form();
     }
-
-    // static constexpr field from_uint128(uint128_t const input)
-    //     : data{ (uint64_t)input, (uint64_t)(input >> 64), 0, 0 }
-    // {
-    //     self_to_montgomery_form();
-    // }
 
     constexpr field(const unsigned long input) noexcept
         : data{ input, 0, 0, 0 }
@@ -191,54 +186,11 @@ template <class Params> struct alignas(32) field {
 
     static constexpr field get_root_of_unity(const size_t degree) noexcept;
 
-    static void serialize_to_buffer(const field& value, uint8_t* buffer)
-    {
-        const field input = value.from_montgomery_form();
-        for (size_t j = 0; j < 4; ++j) {
-            for (size_t i = 0; i < 8; ++i) {
-                uint8_t byte = static_cast<uint8_t>(input.data[3 - j] >> (56 - (i * 8)));
-                buffer[j * 8 + i] = byte;
-            }
-        }
-    }
+    static void serialize_to_buffer(const field& value, uint8_t* buffer) { write(buffer, value); }
 
-    static field serialize_from_buffer(const uint8_t* buffer)
-    {
-        field result{ 0, 0, 0, 0 };
-        for (size_t j = 0; j < 4; ++j) {
-            for (size_t i = 0; i < 8; ++i) {
-                uint8_t byte = buffer[j * 8 + i];
-                result.data[3 - j] = result.data[3 - j] | (static_cast<uint64_t>(byte) << (56 - (i * 8)));
-            }
-        }
-        return result.to_montgomery_form();
-    }
+    static field serialize_from_buffer(const uint8_t* buffer) { return from_buffer<field>(buffer); }
 
-    inline std::vector<uint8_t> to_buffer() const
-    {
-        std::vector<uint8_t> buffer(sizeof(field));
-        field::serialize_to_buffer(*this, &buffer[0]);
-        return buffer;
-    }
-
-    static inline std::vector<uint8_t> to_buffer(const std::vector<field>& ele)
-    {
-        std::vector<uint8_t> buffer(sizeof(field) * ele.size());
-        for (size_t i = 0; i < ele.size(); ++i) {
-            field::serialize_to_buffer(ele[i], &buffer[i * sizeof(field)]);
-        }
-        return buffer;
-    }
-
-    static inline std::vector<field> from_buffer(const std::vector<uint8_t>& buffer)
-    {
-        const size_t num_elements = buffer.size() / sizeof(field);
-        std::vector<field> elements;
-        for (size_t i = 0; i < num_elements; ++i) {
-            elements.push_back(field::serialize_from_buffer(&buffer[i * sizeof(field)]));
-        }
-        return elements;
-    }
+    inline std::vector<uint8_t> to_buffer() const { return ::to_buffer(*this); }
 
     struct wide_array {
         uint64_t data[8];
@@ -482,6 +434,25 @@ template <class Params> struct alignas(32) field {
     static constexpr uint128_t lo_mask = 0xffffffffffffffffUL;
 #endif
 };
+
+template <typename B, typename Params> void read(B& it, field<Params>& value)
+{
+    field<Params> result{ 0, 0, 0, 0 };
+    ::read(it, result.data[3]);
+    ::read(it, result.data[2]);
+    ::read(it, result.data[1]);
+    ::read(it, result.data[0]);
+    value = result.to_montgomery_form();
+}
+
+template <typename B, typename Params> void write(B& buf, field<Params> const& value)
+{
+    const field input = value.from_montgomery_form();
+    ::write(buf, input.data[3]);
+    ::write(buf, input.data[2]);
+    ::write(buf, input.data[1]);
+    ::write(buf, input.data[0]);
+}
 
 } // namespace barretenberg
 

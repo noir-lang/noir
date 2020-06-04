@@ -170,18 +170,24 @@ template <typename ComposerContext> byte_array<ComposerContext> byte_array<Compo
     return byte_array(context, bits);
 }
 
-template <typename ComposerContext> std::string byte_array<ComposerContext>::get_value() const
+template <typename ComposerContext> std::vector<uint8_t> byte_array<ComposerContext>::get_value() const
 {
     size_t length = values.size();
     size_t num = (length / 8) + (length % 8 != 0);
-    std::string bytes(num, 0);
+    std::vector<uint8_t> bytes(num, 0);
     for (size_t i = 0; i < length; ++i) {
         size_t index = i / 8;
-        char shift = static_cast<char>(7 - (i - index * 8));
-        char value = static_cast<char>(values[i].get_value() << shift);
+        uint8_t shift = static_cast<uint8_t>(7 - (i - index * 8));
+        uint8_t value = static_cast<uint8_t>(values[i].get_value() << shift);
         bytes[index] |= value;
     }
     return bytes;
+}
+
+template <typename ComposerContext> std::string byte_array<ComposerContext>::get_string() const
+{
+    auto v = get_value();
+    return std::string(v.begin(), v.end());
 }
 
 INSTANTIATE_STDLIB_TYPE(byte_array);

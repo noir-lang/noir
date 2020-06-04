@@ -13,7 +13,6 @@
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 
 #include <memory>
 #include <polynomials/polynomial_arithmetic.hpp>

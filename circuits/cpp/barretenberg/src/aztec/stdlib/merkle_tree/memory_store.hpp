@@ -1,30 +1,89 @@
 #pragma once
 #include "hash_path.hpp"
+#include <common/streams.hpp>
+#include <map>
+#include <set>
 
 namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-using namespace barretenberg;
-
 class MemoryStore {
   public:
-    MemoryStore(size_t depth);
+    MemoryStore() {}
 
-    fr_hash_path get_hash_path(size_t index);
+    MemoryStore(MemoryStore const& rhs) = default;
+    MemoryStore(MemoryStore&& rhs) = default;
+    MemoryStore& operator=(MemoryStore const& rhs) = default;
+    MemoryStore& operator=(MemoryStore&& rhs) = default;
 
-    void update_element(size_t index, std::string const& value);
+    bool put(std::vector<uint8_t> const& key, std::vector<uint8_t> const& value)
+    {
+        auto key_str = to_string(key);
+        return put(key_str, value);
+    }
 
-    std::string const& get_element(size_t index);
+    bool put(std::string const& key, std::vector<uint8_t> const& value)
+    {
+        puts_[key] = to_string(value);
+        deletes_.erase(key);
+        return true;
+    }
 
-    fr root() const { return root_; }
+    bool del(std::vector<uint8_t> const& key)
+    {
+        auto key_str = to_string(key);
+        puts_.erase(key_str);
+        deletes_.insert(key_str);
+        return true;
+    };
+
+    bool get(std::vector<uint8_t> const& key, std::vector<uint8_t>& value) { return get(to_string(key), value); }
+
+    bool get(std::string const& key, std::vector<uint8_t>& value)
+    {
+        if (deletes_.find(key) != deletes_.end()) {
+            return false;
+        }
+        auto it = puts_.find(key);
+        if (it != puts_.end()) {
+            value = std::vector<uint8_t>(it->second.begin(), it->second.end());
+            return true;
+        } else {
+            std::string result;
+            auto it = store_.find(key);
+            if (it != store_.end()) {
+                value = { it->second.begin(), it->second.end() };
+                return true;
+            }
+            return false;
+        }
+    }
+
+    void commit()
+    {
+        for (auto it : puts_) {
+            store_.insert(it);
+        }
+        for (auto key : deletes_) {
+            store_.erase(key);
+        }
+        puts_.clear();
+        deletes_.clear();
+    }
+
+    void rollback()
+    {
+        puts_.clear();
+        deletes_.clear();
+    }
 
   private:
-    size_t depth_;
-    size_t total_size_;
-    barretenberg::fr root_;
-    std::vector<barretenberg::fr> hashes_;
-    std::vector<std::string> preimages_;
+    std::string to_string(std::vector<uint8_t> const& input) { return std::string((char*)input.data(), input.size()); }
+
+    std::map<std::string, std::string> store_;
+    std::map<std::string, std::string> puts_;
+    std::set<std::string> deletes_;
 };
 
 } // namespace merkle_tree

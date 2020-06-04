@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../byte_array/byte_array.hpp"
 #include "../bigfield/bigfield.hpp"
+#include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"
 
 namespace plonk {

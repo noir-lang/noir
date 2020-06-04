@@ -1,13 +1,13 @@
 #include "turbo_composer.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <numeric/bitop/get_msb.hpp>
-#include <plonk/proof_system/widgets/permutation_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_arithmetic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_fixed_base_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_logic_widget.hpp>
-#include <plonk/proof_system/widgets/turbo_range_widget.hpp>
-#include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
+#include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_fixed_base_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_logic_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
+#include <plonk/reference_string/file_reference_string.hpp>
 
 using namespace barretenberg;
 
@@ -36,8 +36,6 @@ TurboComposer::TurboComposer()
 
 TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint)
     : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
-TurboComposer::TurboComposer(const size_t size_hint)
-    : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory("../srs_db")), size_hint){};
 
 TurboComposer::TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
     : ComposerBase(std::move(crs_factory), 11, size_hint, TURBO_SEL_NAMES)
@@ -427,7 +425,7 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
         // hmmmm
         (*(wires + (i & 3)))->emplace_back(accumulator_index);
     }
-    size_t used_gates = (num_quads + 1) / 4;  
+    size_t used_gates = (num_quads + 1) / 4;
 
     // TODO: handle partially used gates. For now just set them to be zero
     if (used_gates * 4 != (num_quads + 1)) {
@@ -519,7 +517,7 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
      * |  A  |  B  |  C  |  D  |
      * +-----+-----+-----+-----+
      * | 0   | 0   | w1  | 0   |
-     * | a1  | a1  | w2  | c1  |
+     * | a1  | b1  | w2  | c1  |
      * | a2  | b2  | w3  | c2  |
      * |  :  |  :  |  :  |  :  |
      * | an  | bn  | --- | cn  |
@@ -672,8 +670,13 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     }
     create_dummy_gate();
 
-    ComposerBase::compute_proving_key();
+    ComposerBase::compute_proving_key_base();
     compute_sigma_permutations<4, false>(circuit_proving_key.get());
+
+    std::copy(turbo_polynomial_manifest,
+              turbo_polynomial_manifest + 20,
+              std::back_inserter(circuit_proving_key->polynomial_manifest));
+
     return circuit_proving_key;
 }
 
@@ -708,17 +711,22 @@ TurboProver TurboComposer::create_prover()
 
     std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboRangeWidget<turbo_settings>> range_widget =
+        std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
+    std::unique_ptr<ProverTurboArithmeticWidget<turbo_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<turbo_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
     return output_state;
 }
@@ -732,17 +740,24 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
 
     std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget> range_widget =
-        std::make_unique<ProverTurboRangeWidget>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget> logic_widget =
-        std::make_unique<ProverTurboLogicWidget>(circuit_proving_key.get(), witness.get());
 
-    output_state.widgets.emplace_back(std::move(permutation_widget));
-    output_state.widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.widgets.emplace_back(std::move(range_widget));
-    output_state.widgets.emplace_back(std::move(logic_widget));
+    std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
+        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+
+    std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),
+                                                                               witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+
+    output_state.random_widgets.emplace_back(std::move(permutation_widget));
+
+    output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+    output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
+    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
     return output_state;
 }

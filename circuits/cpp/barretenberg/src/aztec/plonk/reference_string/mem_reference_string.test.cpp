@@ -16,8 +16,7 @@ TEST(reference_string, mem_file_consistency)
     transcript.read((char*)g2x.data(), 128);
     transcript.close();
 
-    auto mem_crs = std::make_unique<waffle::MemReferenceStringFactory>(
-        monomials.data(), monomials.size(), g2x.data());
+    auto mem_crs = std::make_unique<waffle::MemReferenceStringFactory>(monomials.data(), monomials.size(), g2x.data());
     auto mem_prover = mem_crs->get_prover_crs(23123);
     auto mem_verifier = mem_crs->get_verifier_crs();
 

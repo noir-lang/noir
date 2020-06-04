@@ -109,6 +109,11 @@ template <typename Composer, typename Native> bool_t<Composer> uint<Composer, Na
 {
     return (field_t<Composer>(*this).is_zero()).normalize();
 }
+template class uint<waffle::PLookupComposer, uint8_t>;
+template class uint<waffle::PLookupComposer, uint16_t>;
+template class uint<waffle::PLookupComposer, uint32_t>;
+template class uint<waffle::PLookupComposer, uint64_t>;
+
 template class uint<waffle::TurboComposer, uint8_t>;
 template class uint<waffle::TurboComposer, uint16_t>;
 template class uint<waffle::TurboComposer, uint32_t>;

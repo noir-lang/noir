@@ -1,6 +1,7 @@
 #include "schnorr.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <gtest/gtest.h>
+#include <stdlib/types/turbo.hpp>
 
 namespace test_stdlib_schnorr {
 
@@ -21,9 +22,10 @@ TEST(stdlib_schnorr, test_scalar_mul)
 
     grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
     expected = expected.normalize();
-    point input{ witness_ct(&composer, grumpkin::g1::affine_one.x), witness_ct(&composer, grumpkin::g1::affine_one.y) };
+    point_ct input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
+                    witness_ct(&composer, grumpkin::g1::affine_one.y) };
 
-    point output = plonk::stdlib::schnorr::variable_base_mul(input, scalar_bits);
+    point_ct output = plonk::stdlib::schnorr::variable_base_mul(input, scalar_bits);
 
     EXPECT_EQ((output.x.get_value() == expected.x), true);
     EXPECT_EQ((output.y.get_value() == expected.y), true);
@@ -58,7 +60,7 @@ TEST(stdlib_schnorr, verify_signature)
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
-    point pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
+    point_ct pub_key{ witness_ct(&composer, account.public_key.x), witness_ct(&composer, account.public_key.y) };
     stdlib::schnorr::signature_bits sig = stdlib::schnorr::convert_signature(&composer, signature);
     bit_array_ct message = stdlib::schnorr::convert_message(&composer, message_string);
     bool signature_result = stdlib::schnorr::verify_signature(message, pub_key, sig);

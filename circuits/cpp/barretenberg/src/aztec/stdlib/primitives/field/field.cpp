@@ -26,7 +26,7 @@ template <typename ComposerContext>
 field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barretenberg::fr& value)
     : context(parent_context)
 {
-    barretenberg::fr::__copy(value, additive_constant);
+    additive_constant = value;
     multiplicative_constant = barretenberg::fr::zero();
     witness_index = static_cast<uint32_t>(-1);
 }
@@ -410,7 +410,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not
     context->create_poly_gate(gate_coefficients);
 }
 
-template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero()
+template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero() const
 {
     if (witness_index == static_cast<uint32_t>(-1)) {
         return bool_t(context, (get_value() == barretenberg::fr::zero()));
@@ -610,16 +610,6 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
     barretenberg::fr q_4 = d.multiplicative_constant;
     barretenberg::fr q_c = a.additive_constant * b.additive_constant + c.additive_constant + d.additive_constant;
 
-    // debug TODO REMOVE
-
-    barretenberg::fr t1 = a.get_value();
-    barretenberg::fr t2 = b.get_value();
-    barretenberg::fr t3 = c.get_value();
-    barretenberg::fr t4 = d.get_value();
-    if (t1 * t2 != -(t3 + t4)) {
-        printf("polynomial identity does not validate!\n");
-        std::cout << "t1 * t2 + t3 + t4 = " << (t1 * t2 + t3 + t4) << std::endl;
-    }
     const waffle::mul_quad gate_coefficients{
         a.witness_index == UINT32_MAX ? ctx->zero_idx : a.witness_index,
         b.witness_index == UINT32_MAX ? ctx->zero_idx : b.witness_index,

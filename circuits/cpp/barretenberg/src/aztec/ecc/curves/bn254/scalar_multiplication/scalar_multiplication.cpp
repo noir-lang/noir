@@ -11,9 +11,9 @@
 #include <numeric/bitop/get_msb.hpp>
 
 #include <array>
-#include <cstdlib>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>

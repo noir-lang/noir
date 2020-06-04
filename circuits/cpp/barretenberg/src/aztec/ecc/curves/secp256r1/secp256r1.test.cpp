@@ -405,8 +405,7 @@ TEST(secp256r1, group_exponentiation_consistency_check)
 TEST(secp256r1, derive_generators)
 {
     constexpr size_t num_generators = 128;
-    auto result =
-        secp256r1::g1::derive_generators<num_generators>();
+    auto result = secp256r1::g1::derive_generators<num_generators>();
 
     const auto is_unique = [&result](const secp256r1::g1::affine_element& y, const size_t j) {
         for (size_t i = 0; i < result.size(); ++i) {

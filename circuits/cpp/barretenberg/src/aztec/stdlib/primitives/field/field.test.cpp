@@ -2,6 +2,8 @@
 #include "field.hpp"
 #include <gtest/gtest.h>
 #include <plonk/composer/standard_composer.hpp>
+#include <plonk/composer/plookup_composer.hpp>
+#include <plonk/composer/turbo_composer.hpp>
 
 namespace test_stdlib_field {
 using namespace barretenberg;

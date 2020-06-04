@@ -1,17 +1,17 @@
 #pragma once
 
-#include <plonk/transcript/transcript.hpp>
-#include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/fq.hpp>
+#include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/bn254/g1.hpp>
+#include <plonk/transcript/transcript.hpp>
 
-#include "../../primitives/witness/witness.hpp"
-#include "../../primitives/field/field.hpp"
-#include "../../primitives/bool/bool.hpp"
-#include "../../primitives/bigfield/bigfield.hpp"
-#include "../../primitives/biggroup/biggroup.hpp"
 #include "../../hash/blake2s/blake2s.hpp"
 #include "../../hash/pedersen/pedersen.hpp"
+#include "../../primitives/bigfield/bigfield.hpp"
+#include "../../primitives/biggroup/biggroup.hpp"
+#include "../../primitives/bool/bool.hpp"
+#include "../../primitives/field/field.hpp"
+#include "../../primitives/witness/witness.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -22,6 +22,7 @@ template <typename Composer> class Transcript {
     using witness_pt = witness_t<Composer>;
     using fq_pt = bigfield<Composer, barretenberg::Bn254FqParams>;
     using group_pt = element<Composer, fq_pt, field_pt, barretenberg::g1>;
+    using pedersen = plonk::stdlib::pedersen<Composer>;
 
     Transcript(Composer* in_context, const transcript::Manifest input_manifest)
         : context(in_context)
@@ -116,13 +117,19 @@ template <typename Composer> class Transcript {
         for (size_t i = 0; i < elements.size(); ++i) {
             values.push_back(elements[i].get_value());
         }
-        transcript_base.add_element(element_name, barretenberg::fr::to_buffer(values));
+        transcript_base.add_element(element_name, to_buffer(values));
         field_vector_keys.push_back(element_name);
         field_vector_values.push_back(elements);
     }
 
     void apply_fiat_shamir(const std::string& challenge_name)
     {
+        const size_t num_challenges = get_manifest().get_round_manifest(current_round).num_challenges;
+
+        if (num_challenges == 0) {
+            ++current_round;
+            return;
+        }
         const size_t bytes_per_element = 31;
         const auto split = [&](field_pt& work_element,
                                std::vector<field_pt>& element_buffer,
@@ -233,8 +240,6 @@ template <typename Composer> class Transcript {
 
         byte_array<Composer> base_hash = blake2s(compressed_buffer);
 
-        const size_t num_challenges = get_manifest().get_round_manifest(current_round).num_challenges;
-
         byte_array<Composer> first(field_pt(0), 16);
         first.write(base_hash.slice(0, 16));
         round_challenges.push_back(first);
@@ -293,7 +298,7 @@ template <typename Composer> class Transcript {
         if (cache_idx != -1) {
             return field_vector_values[static_cast<size_t>(cache_idx)];
         }
-        std::vector<barretenberg::fr> values = barretenberg::fr::from_buffer(transcript_base.get_element(element_name));
+        std::vector<barretenberg::fr> values = many_from_buffer<fr>(transcript_base.get_element(element_name));
         std::vector<field_pt> result;
 
         for (size_t i = 0; i < values.size(); ++i) {
@@ -303,6 +308,11 @@ template <typename Composer> class Transcript {
         field_vector_keys.push_back(element_name);
         field_vector_values.push_back(result);
         return result;
+    }
+
+    bool has_challenge(const std::string& challenge_name) const
+    {
+        return transcript_base.has_challenge(challenge_name);
     }
 
     field_pt get_challenge_field_element(const std::string& challenge_name, const size_t challenge_idx = 0) const
@@ -315,10 +325,13 @@ template <typename Composer> class Transcript {
     field_pt get_challenge_field_element_from_map(const std::string& challenge_name,
                                                   const std::string& challenge_map_name) const
     {
-        const size_t challenge_idx = transcript_base.get_challenge_index_from_map(challenge_map_name);
-        const int cache_idx = check_challenge_cache(challenge_name, challenge_idx);
+        const int challenge_idx = transcript_base.get_challenge_index_from_map(challenge_map_name);
+        if (challenge_idx == -1) {
+            return field_pt(nullptr, 1);
+        }
+        const int cache_idx = check_challenge_cache(challenge_name, static_cast<size_t>(challenge_idx));
         ASSERT(cache_idx != -1);
-        return challenge_values[static_cast<size_t>(cache_idx)][challenge_idx];
+        return challenge_values[static_cast<size_t>(cache_idx)][static_cast<size_t>(challenge_idx)];
     }
 
     barretenberg::g1::affine_element get_group_element(const std::string& element_name) const

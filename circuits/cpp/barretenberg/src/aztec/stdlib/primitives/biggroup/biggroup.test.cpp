@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include <common/test.hpp>
 
 #include "../bigfield/bigfield.hpp"
 #include "../biggroup/biggroup.hpp"
@@ -8,7 +8,6 @@
 #include <plonk/composer/turbo_composer.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
-#include <plonk/proof_system/widgets/arithmetic_widget.hpp>
 
 #include <polynomials/polynomial_arithmetic.hpp>
 
@@ -28,15 +27,13 @@ namespace stdlib {
 namespace bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FrParams> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1>
-    g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
 
 } // namespace bn254
 namespace alt_bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::field_t<typename waffle::TurboComposer> fr;
-typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1>
-    g1;
+typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
 } // namespace alt_bn254
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
@@ -254,7 +251,7 @@ TEST(stdlib_biggroup, test_montgomery_ladder)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_mul)
+HEAVY_TEST(stdlib_biggroup, test_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -286,7 +283,7 @@ TEST(stdlib_biggroup, test_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_twin_mul)
+HEAVY_TEST(stdlib_biggroup, test_twin_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -326,7 +323,7 @@ TEST(stdlib_biggroup, test_twin_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_triple_mul)
+HEAVY_TEST(stdlib_biggroup, test_triple_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -372,7 +369,7 @@ TEST(stdlib_biggroup, test_triple_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_quad_mul)
+HEAVY_TEST(stdlib_biggroup, test_quad_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -423,7 +420,7 @@ TEST(stdlib_biggroup, test_quad_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
+HEAVY_TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -474,7 +471,7 @@ TEST(stdlib_biggroup, test_quad_mul_alt_bn254)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_one)
+HEAVY_TEST(stdlib_biggroup, test_one)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -484,9 +481,6 @@ TEST(stdlib_biggroup, test_one)
             scalar_a -= barretenberg::fr(1); // make a have skew
         }
         stdlib::bn254::g1 P_a = stdlib::bn254::g1::one(&composer);
-        // std::cout << "a" << std::endl;
-        // P_a = P_a.dbl();
-        // std::cout << "b" << std::endl;
         stdlib::bn254::fr x_a = convert_inputs(&composer, scalar_a);
         stdlib::bn254::g1 c = P_a * x_a;
         barretenberg::g1::affine_element expected(barretenberg::g1::one * scalar_a);
@@ -506,7 +500,7 @@ TEST(stdlib_biggroup, test_one)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_one_secp256r1)
+HEAVY_TEST(stdlib_biggroup, test_one_secp256r1)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();
     size_t num_repetitions = 1;
@@ -516,9 +510,6 @@ TEST(stdlib_biggroup, test_one_secp256r1)
             scalar_a -= secp256r1::fr(1); // make a have skew
         }
         stdlib::secp256r::g1 P_a = stdlib::secp256r::g1::one(&composer);
-        // std::cout << "a" << std::endl;
-        // P_a = P_a.dbl();
-        // std::cout << "b" << std::endl;
         stdlib::secp256r::fr x_a = convert_inputs_secp256r1(&composer, scalar_a);
         stdlib::secp256r::g1 c = P_a * x_a;
         secp256r1::g1::affine_element expected(secp256r1::g1::one * scalar_a);
@@ -538,7 +529,7 @@ TEST(stdlib_biggroup, test_one_secp256r1)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_batch_mul)
+HEAVY_TEST(stdlib_biggroup, test_batch_mul)
 {
     const size_t num_points = 5;
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -580,7 +571,7 @@ TEST(stdlib_biggroup, test_batch_mul)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_batch_mul_short_scalars)
+HEAVY_TEST(stdlib_biggroup, test_batch_mul_short_scalars)
 {
     const size_t num_points = 11;
     waffle::TurboComposer composer = waffle::TurboComposer();
@@ -625,7 +616,7 @@ TEST(stdlib_biggroup, test_batch_mul_short_scalars)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_biggroup, test_mixed_batch_mul)
+HEAVY_TEST(stdlib_biggroup, test_mixed_batch_mul)
 {
     const size_t num_big_points = 10;
     const size_t num_small_points = 11;

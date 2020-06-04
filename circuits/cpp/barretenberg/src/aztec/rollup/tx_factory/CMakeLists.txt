@@ -5,8 +5,5 @@ add_executable(
 
 target_link_libraries(
     tx_factory
-    rollup_tx
-    schnorr
-    pedersen
-    env
+    rollup_proofs
 )

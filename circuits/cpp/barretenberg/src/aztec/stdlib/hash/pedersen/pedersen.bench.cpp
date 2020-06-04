@@ -43,7 +43,7 @@ void generate_test_pedersen_circuit(waffle::TurboComposer& turbo_composer, size_
         plonk::stdlib::witness_t(&turbo_composer, barretenberg::fr::random_element()));
 
     for (size_t i = 0; i < num_repetitions; ++i) {
-        out = plonk::stdlib::pedersen::compress(left, out);
+        out = plonk::stdlib::pedersen<waffle::TurboComposer>::compress(left, out);
     }
 }
 
@@ -86,7 +86,7 @@ void native_pedersen_eight_hash_bench(State& state) noexcept
         elements[i] = grumpkin::fq::random_element();
     }
     for (auto _ : state) {
-        crypto::pedersen::compress_eight_native(elements);
+        crypto::pedersen::compress_native(elements);
     }
 }
 BENCHMARK(native_pedersen_eight_hash_bench)->MinTime(3);

@@ -33,10 +33,7 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
 
     constexpr bool operator==(const affine_element& other) const noexcept;
 
-    constexpr affine_element operator-() const noexcept
-    {
-        return { x, -y };
-    }
+    constexpr affine_element operator-() const noexcept { return { x, -y }; }
 
     static void serialize_to_buffer(const affine_element& value, uint8_t* buffer)
     {
@@ -73,6 +70,20 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     Fq x;
     Fq y;
 };
+
+template <typename B, typename Fq, typename Fr, typename Params> void read(B& it, affine_element<Fq, Fr, Params>& value)
+{
+    read(it, value.x);
+    read(it, value.y);
+}
+
+template <typename B, typename Fq, typename Fr, typename Params>
+void write(B& buf, affine_element<Fq, Fr, Params> const& value)
+{
+    write(buf, value.x);
+    write(buf, value.y);
+}
+
 } // namespace group_elements
 } // namespace barretenberg
 

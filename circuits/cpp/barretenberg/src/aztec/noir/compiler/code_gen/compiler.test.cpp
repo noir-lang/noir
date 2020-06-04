@@ -1,7 +1,7 @@
 #include "../parser/parse.hpp"
 #include "compiler.hpp"
+#include <common/test.hpp>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <stdlib/types/turbo.hpp>
 
 using namespace plonk::stdlib::types::turbo;
@@ -67,51 +67,6 @@ TEST(noir, symbol_constant)
     EXPECT_EQ(boost::get<uint_nt>(r.first.value()).get_value(), 3ULL);
 }
 
-/*
-TEST(noir, bool_circuit)
-{
-    std::string code = "                      \n\
-    bool main(bool a, bool b) {               \n\
-      a = a ^ b;         // a = 1             \n\
-      b = !b;            // b = 1 (witness 0) \n\
-      bool c = (a == b); // c = 1             \n\
-      bool d;            // d = ?             \n\
-      d = false;         // d = 0             \n\
-      bool e = a | d;    // e = 1 = a         \n\
-      bool f = e ^ b;    // f = 0             \n\
-      d = (!f) & a;      // d = 1             \n\
-    }                                         \n\
-    ";
-    auto ast = parse(code);
-
-    auto composer = Composer();
-    auto compiler = Compiler(composer);
-    std::vector<var_t> inputs = { bool_t(witness_t(&composer, true)), bool_t(witness_t(&composer, false)) };
-    auto r = compiler.start(ast, inputs);
-    auto prover = std::move(r.second);
-
-    EXPECT_EQ(prover.w_l[0], fr(1));
-    EXPECT_EQ(prover.w_r[0], fr(1));
-    EXPECT_EQ(prover.w_o[0], fr(1));
-    EXPECT_EQ(prover.w_l[1], fr(0));
-    EXPECT_EQ(prover.w_r[1], fr(0));
-    EXPECT_EQ(prover.w_o[1], fr(0));
-    EXPECT_EQ(prover.w_l[2], fr(1));
-    EXPECT_EQ(prover.w_r[2], fr(0));
-    EXPECT_EQ(prover.w_o[2], fr(1));
-    EXPECT_EQ(prover.w_l[3], fr(1));
-    EXPECT_EQ(prover.w_r[3], fr(0));
-    EXPECT_EQ(prover.w_o[3], fr(1));
-    EXPECT_EQ(prover.w_l[4], fr(1));
-    EXPECT_EQ(prover.w_r[4], fr(0));
-    EXPECT_EQ(prover.w_o[4], fr(0));
-    EXPECT_EQ(prover.w_l[5], fr(0));
-    EXPECT_EQ(prover.w_r[5], fr(1));
-    EXPECT_EQ(prover.w_o[5], fr(1));
-    EXPECT_EQ(prover.n, 8UL);
-}
-*/
-
 TEST(noir, uint_nt)
 {
     auto composer = Composer();
@@ -160,7 +115,7 @@ TEST(noir, sha256_NIST_one)
     test_sha256(input, expected);
 }
 
-TEST(noir, sha256_NIST_two)
+HEAVY_TEST(noir, sha256_NIST_two)
 {
     std::string input = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     std::vector<uint8_t> expected = {
@@ -170,7 +125,7 @@ TEST(noir, sha256_NIST_two)
     test_sha256(input, expected);
 }
 
-TEST(noir, sha256_NIST_three)
+HEAVY_TEST(noir, sha256_NIST_three)
 {
     std::vector<uint8_t> input = { 0xbd };
     std::vector<uint8_t> expected = {
@@ -180,7 +135,7 @@ TEST(noir, sha256_NIST_three)
     test_sha256(input, expected);
 }
 
-TEST(noir, sha256_NIST_four)
+HEAVY_TEST(noir, sha256_NIST_four)
 {
     std::vector<uint8_t> input = { 0xc9, 0x8c, 0x8e, 0x55 };
     std::vector<uint8_t> expected = {

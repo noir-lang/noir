@@ -11,7 +11,7 @@ TEST(standard_composer, test_add_gate_proofs)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
     fr a = fr::one();
-    uint32_t a_idx  = composer.add_public_variable(a);
+    uint32_t a_idx = composer.add_public_variable(a);
     fr b = fr::one();
     fr c = a + b;
     fr d = a + c;

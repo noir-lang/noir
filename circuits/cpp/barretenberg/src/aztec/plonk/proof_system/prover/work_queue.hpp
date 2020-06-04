@@ -4,9 +4,9 @@
 #include "../proving_key/proving_key.hpp"
 #include "../types/program_witness.hpp"
 
+#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <polynomials/iterate_over_domain.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
-#include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 
 namespace waffle {
 class work_queue {
