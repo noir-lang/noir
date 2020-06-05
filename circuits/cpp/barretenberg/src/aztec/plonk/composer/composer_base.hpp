@@ -110,6 +110,46 @@ enum ComposerType {
 
 class ComposerBase {
   public:
+    struct SelectorProperties {
+        std::string name;
+        bool use_mid_for_selectorfft = false;           // use middomain instead of large for selectorfft
+        bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
+
+        // constexpr SelectorProperties(const std::string& name,
+        //                              const bool use_mid_for_selectorfft = false,
+        //                              const bool requires_lagrange_base_polynomial = false)
+        //     : name(name)
+        //     , use_mid_for_selectorfft(use_mid_for_selectorfft)
+        //     , requires_lagrange_base_polynomial(requires_lagrange_base_polynomial)
+        // {}
+
+        // constexpr SelectorProperties(const SelectorProperties& other)
+        //     : name(other.name)
+        //     , use_mid_for_selectorfft(other.use_mid_for_selectorfft)
+        //     , requires_lagrange_base_polynomial(other.requires_lagrange_base_polynomial){};
+
+        // constexpr SelectorProperties(SelectorProperties&& other)
+        //     : name(other.name)
+        //     , use_mid_for_selectorfft(other.use_mid_for_selectorfft)
+        //     , requires_lagrange_base_polynomial(other.requires_lagrange_base_polynomial){};
+
+        // constexpr SelectorProperties& operator=(const SelectorProperties& other)
+        // {
+        //     name = other.name;
+        //     use_mid_for_selectorfft = other.use_mid_for_selectorfft;
+        //     requires_lagrange_base_polynomial = other.requires_lagrange_base_polynomial;
+        //     return *this;
+        // };
+
+        // constexpr SelectorProperties& operator=(SelectorProperties&& other)
+        // {
+        //     name = other.name;
+        //     use_mid_for_selectorfft = other.use_mid_for_selectorfft;
+        //     requires_lagrange_base_polynomial = other.requires_lagrange_base_polynomial;
+        //     return *this;
+        // };
+    };
+
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
     static constexpr size_t NUM_RESERVED_GATES = 1;
 
@@ -149,106 +189,57 @@ class ComposerBase {
     ComposerBase(std::unique_ptr<ReferenceStringFactory>&& crs_factory,
                  size_t selector_num = 0,
                  size_t size_hint = 0,
-                 std::vector<std::string> selector_names = {})
+                 std::vector<SelectorProperties> selector_properties = {})
         : n(0)
         , crs_factory_(std::move(crs_factory))
         , selector_num(selector_num)
         , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(selector_num, false)
+        , selector_properties(selector_properties)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
-    ComposerBase(std::unique_ptr<ReferenceStringFactory>&& crs_factory,
-                 size_t selector_num,
-                 size_t size_hint,
-                 std::vector<std::string> selector_names,
-                 std::vector<bool> use_mid_for_selectorfft)
-        : n(0)
-        , crs_factory_(std::move(crs_factory))
-        , selector_num(selector_num)
-        , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(use_mid_for_selectorfft)
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
-        }
-    }
-    ComposerBase(size_t selector_num = 0, size_t size_hint = 0, std::vector<std::string> selector_names = {})
-        : n(0)
-        , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db"))
-        , selector_num(selector_num)
-        , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(selector_num, false)
 
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
-        }
-    }
-    ComposerBase(size_t selector_num,
-                 size_t size_hint,
-                 std::vector<std::string> selector_names,
-                 std::vector<bool> use_mid_for_selectorfft)
+    ComposerBase(size_t selector_num = 0,
+                 size_t size_hint = 0,
+                 std::vector<SelectorProperties> selector_properties = {})
         : n(0)
         , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db"))
         , selector_num(selector_num)
         , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(use_mid_for_selectorfft)
+        , selector_properties(selector_properties)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
+
     ComposerBase(std::shared_ptr<proving_key> const& p_key,
                  std::shared_ptr<verification_key> const& v_key,
                  size_t selector_num = 0,
                  size_t size_hint = 0,
-                 std::vector<std::string> selector_names = {})
+                 std::vector<SelectorProperties> selector_properties = {})
         : n(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
         , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
         , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(selector_num, false)
-
+        , selector_properties(selector_properties)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
-    ComposerBase(std::shared_ptr<proving_key> const& p_key,
-                 std::shared_ptr<verification_key> const& v_key,
-                 size_t selector_num,
-                 size_t size_hint,
-                 std::vector<std::string> selector_names,
-                 std::vector<bool> use_mid_for_selectorfft)
-        : n(0)
-        , circuit_proving_key(p_key)
-        , circuit_verification_key(v_key)
-        , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
-        , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(use_mid_for_selectorfft)
 
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
-        }
-    }
     ComposerBase(ComposerBase&& other) = default;
     ComposerBase& operator=(ComposerBase&& other) = default;
     virtual ~ComposerBase(){};
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
-    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_ciricut_size = 0);
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_ciricut_size = 0,
+                                                                  const size_t num_reserved_gates = NUM_RESERVED_GATES);
     virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual std::shared_ptr<program_witness> compute_witness() = 0;
@@ -357,9 +348,8 @@ class ComposerBase {
     std::unique_ptr<ReferenceStringFactory> crs_factory_;
     size_t selector_num;
     std::vector<std::vector<barretenberg::fr>> selectors;
-    std::vector<std::string> selector_names;
-    std::vector<bool> use_mid_for_selectorfft; // use middomain instead of large for selectorfft
-};                                             // ComposerBase
+    std::vector<SelectorProperties> selector_properties;
+};
 
 extern template void ComposerBase::compute_wire_copy_cycles<3>();
 extern template void ComposerBase::compute_wire_copy_cycles<4>();

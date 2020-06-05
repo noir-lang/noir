@@ -55,7 +55,6 @@ struct proving_key {
 
     size_t n;
     size_t num_public_inputs;
-    size_t num_lookup_tables;
 
     std::map<std::string, barretenberg::polynomial> constraint_selectors;
     std::map<std::string, barretenberg::polynomial> constraint_selectors_lagrange_base;

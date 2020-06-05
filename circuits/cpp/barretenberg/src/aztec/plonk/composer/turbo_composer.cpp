@@ -26,10 +26,12 @@ namespace waffle {
     auto& q_range = selectors[TurboSelectors::QRANGE];                                                                 \
     auto& q_logic = selectors[TurboSelectors::QLOGIC];
 
-#define TURBO_SEL_NAMES                                                                                                \
-    {                                                                                                                  \
-        "q_m", "q_c", "q_1", "q_2", "q_3", "q_4", "q_5", "q_arith", "q_ecc_1", "q_range", "q_logic"                    \
-    }
+static const std::vector<ComposerBase::SelectorProperties> TURBO_SEL_PROPS = {
+    { "q_m", false, false },     { "q_c", false, false },     { "q_1", false, false },     { "q_2", false, false },
+    { "q_3", false, false },     { "q_4", false, false },     { "q_5", false, false },     { "q_arith", false, false },
+    { "q_ecc_1", false, false }, { "q_range", false, false }, { "q_logic", false, false },
+}; // namespace waffle
+
 TurboComposer::TurboComposer()
     : TurboComposer("../srs_db", 0)
 {}
@@ -38,7 +40,7 @@ TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint
     : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 TurboComposer::TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
-    : ComposerBase(std::move(crs_factory), 11, size_hint, TURBO_SEL_NAMES)
+    : ComposerBase(std::move(crs_factory), 11, size_hint, TURBO_SEL_PROPS)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -51,7 +53,7 @@ TurboComposer::TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_facto
 TurboComposer::TurboComposer(std::shared_ptr<proving_key> const& p_key,
                              std::shared_ptr<verification_key> const& v_key,
                              size_t size_hint)
-    : ComposerBase(p_key, v_key, 11, size_hint, TURBO_SEL_NAMES)
+    : ComposerBase(p_key, v_key, 11, size_hint, TURBO_SEL_PROPS)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);

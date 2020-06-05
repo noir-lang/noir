@@ -31,8 +31,8 @@ std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> plookup_base<Compos
             sequence_values[2].emplace_back(field_t<Composer>(ctx, sequence_data.column_3_accumulator_values[i]));
         }
     } else {
-        const auto sequence_indices = ctx->read_sequence_from_multi_table(
-            id, sequence_data, key_a.witness_index, key_b.witness_index, is_2_to_1_lookup);
+        const auto sequence_indices =
+            ctx->read_sequence_from_multi_table(id, sequence_data, key_a.witness_index, key_b.witness_index);
         for (size_t i = 0; i < sequence_data.column_1_accumulator_values.size(); ++i) {
             sequence_values[0].emplace_back(field_t<Composer>::from_witness_index(ctx, sequence_indices[0][i]));
             sequence_values[1].emplace_back(field_t<Composer>::from_witness_index(ctx, sequence_indices[1][i]));

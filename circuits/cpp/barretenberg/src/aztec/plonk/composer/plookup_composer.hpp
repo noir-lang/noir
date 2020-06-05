@@ -23,9 +23,9 @@ class PLookupComposer : public ComposerBase {
         QECC_1 = 8,
         QRANGE = 9,
         QLOGIC = 10,
-        QLOOKUPINDEX = 11,
-        QLOOKUPTYPE = 12,
-        QELLIPTIC = 13,
+        QELLIPTIC = 11,
+        QLOOKUPINDEX = 12,
+        QLOOKUPTYPE = 13,
     };
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);

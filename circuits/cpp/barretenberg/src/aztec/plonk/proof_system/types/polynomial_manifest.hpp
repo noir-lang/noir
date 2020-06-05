@@ -169,12 +169,12 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
     PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                          //
     PolynomialDescriptor("SIGMA_3", "sigma_3", false, false, PERMUTATION, SIGMA_3),                          //
     PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
-    PolynomialDescriptor("TABLE_1", "table_value_1", false, true, PERMUTATION, TABLE_1),                     //
-    PolynomialDescriptor("TABLE_2", "table_value_2", false, true, PERMUTATION, TABLE_2),                     //
-    PolynomialDescriptor("TABLE_3", "table_value_3", false, true, PERMUTATION, TABLE_3),                     //
-    PolynomialDescriptor("TABLE_4", "table_value_4", false, true, PERMUTATION, TABLE_4),                     //
-    PolynomialDescriptor("TABLE_INDEX", "table_index", false, false, PERMUTATION, TABLE_INDEX),              //
-    PolynomialDescriptor("TABLE_TYPE", "table_type", false, false, PERMUTATION, TABLE_TYPE),                 //
+    PolynomialDescriptor("TABLE_1", "table_value_1", false, true, SELECTOR, TABLE_1),                        //
+    PolynomialDescriptor("TABLE_2", "table_value_2", false, true, SELECTOR, TABLE_2),                        //
+    PolynomialDescriptor("TABLE_3", "table_value_3", false, true, SELECTOR, TABLE_3),                        //
+    PolynomialDescriptor("TABLE_4", "table_value_4", false, true, SELECTOR, TABLE_4),                        //
+    PolynomialDescriptor("TABLE_INDEX", "table_index", false, false, SELECTOR, TABLE_INDEX),                 //
+    PolynomialDescriptor("TABLE_TYPE", "table_type", false, false, SELECTOR, TABLE_TYPE),                    //
 };
 
 static constexpr PolynomialDescriptor genperm_polynomial_manifest[24]{

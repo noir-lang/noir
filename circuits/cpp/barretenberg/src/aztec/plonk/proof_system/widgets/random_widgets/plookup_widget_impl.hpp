@@ -84,14 +84,14 @@ void ProverPLookupWidget::compute_grand_product_commitment(transcript::StandardT
     // beta = fr(1);
     std::array<fr*, 3> lagrange_base_wires;
     std::array<fr*, 4> lagrange_base_tables{
-        &key->permutation_selectors_lagrange_base.at("table_value_1")[0],
-        &key->permutation_selectors_lagrange_base.at("table_value_2")[0],
-        &key->permutation_selectors_lagrange_base.at("table_value_3")[0],
-        &key->permutation_selectors_lagrange_base.at("table_value_4")[0],
+        &key->constraint_selectors_lagrange_base.at("table_value_1")[0],
+        &key->constraint_selectors_lagrange_base.at("table_value_2")[0],
+        &key->constraint_selectors_lagrange_base.at("table_value_3")[0],
+        &key->constraint_selectors_lagrange_base.at("table_value_4")[0],
     };
 
-    fr* lookup_selector = &key->permutation_selectors_lagrange_base.at("table_type")[0];
-    fr* lookup_index_selector = &key->permutation_selectors_lagrange_base.at("table_index")[0];
+    fr* lookup_selector = &key->constraint_selectors_lagrange_base.at("table_type")[0];
+    fr* lookup_index_selector = &key->constraint_selectors_lagrange_base.at("table_index")[0];
     for (size_t i = 0; i < 3; ++i) {
         lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
     }
@@ -281,18 +281,18 @@ barretenberg::fr ProverPLookupWidget::compute_quotient_contribution(const fr& al
     fr* s_fft = &key->wire_ffts.at("s_fft")[0];
 
     std::array<fr*, 4> table_ffts{
-        &key->permutation_selector_ffts.at("table_value_1_fft")[0],
-        &key->permutation_selector_ffts.at("table_value_2_fft")[0],
-        &key->permutation_selector_ffts.at("table_value_3_fft")[0],
-        &key->permutation_selector_ffts.at("table_value_4_fft")[0],
+        &key->constraint_selector_ffts.at("table_value_1_fft")[0],
+        &key->constraint_selector_ffts.at("table_value_2_fft")[0],
+        &key->constraint_selector_ffts.at("table_value_3_fft")[0],
+        &key->constraint_selector_ffts.at("table_value_4_fft")[0],
     };
 
     fr* column_1_step_size = &key->constraint_selector_ffts.at("q_2_fft")[0];
     fr* column_2_step_size = &key->constraint_selector_ffts.at("q_m_fft")[0];
     fr* column_3_step_size = &key->constraint_selector_ffts.at("q_c_fft")[0];
 
-    fr* lookup_fft = &key->permutation_selector_ffts.at("table_type_fft")[0];
-    fr* lookup_index_fft = &key->permutation_selector_ffts.at("table_index_fft")[0];
+    fr* lookup_fft = &key->constraint_selector_ffts.at("table_type_fft")[0];
+    fr* lookup_index_fft = &key->constraint_selector_ffts.at("table_index_fft")[0];
 
     polynomial& quotient_large = key->quotient_large;
 

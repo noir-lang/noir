@@ -141,11 +141,12 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
     }
 }
 
-std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t minimum_circuit_size)
+std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t minimum_circuit_size,
+                                                                    const size_t num_reserved_gates)
 {
+    const size_t num_filled_gates = n + public_inputs.size();
     const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
-
-    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + num_reserved_gates);
 
     auto crs = crs_factory_->get_prover_crs(subgroup_size);
     circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
@@ -153,11 +154,13 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     for (size_t i = 0; i < selector_num; ++i) {
 
         std::vector<barretenberg::fr>& coeffs = selectors[i];
+        const auto& properties = selector_properties[i];
         ASSERT(n == coeffs.size());
-        for (size_t j = total_num_gates; j < subgroup_size; ++j) {
+        for (size_t j = num_filled_gates; j < subgroup_size; ++j) {
             coeffs.emplace_back(fr::zero());
         }
-        polynomial poly(subgroup_size);
+        coeffs.emplace_back(1); // ensure selectors are nonzero
+        polynomial poly(subgroup_size + 1);
 
         for (size_t k = 0; k < public_inputs.size(); ++k) {
             poly[k] = fr::zero();
@@ -165,19 +168,22 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         for (size_t k = public_inputs.size(); k < subgroup_size; ++k) {
             poly[k] = coeffs[k - public_inputs.size()];
         }
-        coeffs.emplace_back(1); // ensure selectors are nonzero
 
+        if (properties.requires_lagrange_base_polynomial) {
+            polynomial lagrange_base_poly(poly, subgroup_size);
+            circuit_proving_key->constraint_selectors_lagrange_base.insert(
+                { properties.name, std::move(lagrange_base_poly) });
+        }
         poly.ifft(circuit_proving_key->small_domain);
-        polynomial poly_fft(poly, subgroup_size * 4);
+        polynomial poly_fft(poly, subgroup_size * 4 + 4);
 
-        if (use_mid_for_selectorfft[i]) {
-
+        if (properties.use_mid_for_selectorfft) {
             poly_fft.coset_fft(circuit_proving_key->mid_domain);
         } else {
             poly_fft.coset_fft(circuit_proving_key->large_domain);
         }
-        circuit_proving_key->constraint_selectors.insert({ selector_names[i], std::move(poly) });
-        circuit_proving_key->constraint_selector_ffts.insert({ selector_names[i] + "_fft", std::move(poly_fft) });
+        circuit_proving_key->constraint_selectors.insert({ properties.name, std::move(poly) });
+        circuit_proving_key->constraint_selector_ffts.insert({ properties.name + "_fft", std::move(poly_fft) });
     }
     return circuit_proving_key;
 }

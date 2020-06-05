@@ -33,15 +33,17 @@ namespace waffle {
     auto& q_ecc_1 = selectors[PLookupSelectors::QECC_1];                                                               \
     auto& q_range = selectors[PLookupSelectors::QRANGE];                                                               \
     auto& q_logic = selectors[PLookupSelectors::QLOGIC];                                                               \
+    auto& q_elliptic = selectors[PLookupSelectors::QELLIPTIC];                                                         \
     auto& q_lookup_index = selectors[PLookupSelectors::QLOOKUPINDEX];                                                  \
-    auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];                                                    \
-    auto& q_elliptic = selectors[PLookupSelectors::QELLIPTIC];
+    auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];
 
-#define PLOOKUP_SEL_NAMES                                                                                              \
-    {                                                                                                                  \
-        "q_m", "q_c", "q_1", "q_2", "q_3", "q_4", "q_5", "q_arith", "q_ecc_1", "q_range", "q_logic", "q_lookup_index", \
-            "q_lookup_type", "q_elliptic"                                                                              \
-    }
+const static std::vector<ComposerBase::SelectorProperties> PLOOKUP_SEL_PROPS = {
+    { "q_m", false, true },         { "q_c", false, true },        { "q_1", false, false },
+    { "q_2", false, true },         { "q_3", false, false },       { "q_4", false, false },
+    { "q_5", false, false },        { "q_arith", false, false },   { "q_ecc_1", false, false },
+    { "q_range", false, false },    { "q_logic", false, false },   { "q_elliptic", false, false },
+    { "table_index", false, true }, { "table_type", false, true },
+};
 
 PLookupComposer::PLookupComposer()
     : PLookupComposer("../srs_db", 0)
@@ -51,7 +53,7 @@ PLookupComposer::PLookupComposer(std::string const& crs_path, const size_t size_
     : PLookupComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
-    : ComposerBase(std::move(crs_factory), NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_NAMES)
+    : ComposerBase(std::move(crs_factory), NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_PROPS)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -63,7 +65,7 @@ PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_f
 PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
                                  std::shared_ptr<verification_key> const& v_key,
                                  size_t size_hint)
-    : ComposerBase(p_key, v_key, NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_NAMES)
+    : ComposerBase(p_key, v_key, NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_PROPS)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -795,9 +797,9 @@ void PLookupComposer::add_lookup_selector(polynomial& small, const std::string& 
     polynomial large(small, circuit_proving_key->n * 4);
     large.coset_fft(circuit_proving_key->large_domain);
 
-    circuit_proving_key->permutation_selectors.insert({ tag, std::move(small) });
-    circuit_proving_key->permutation_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
-    circuit_proving_key->permutation_selector_ffts.insert({ tag + "_fft", std::move(large) });
+    circuit_proving_key->constraint_selectors.insert({ tag, std::move(small) });
+    circuit_proving_key->constraint_selectors_lagrange_base.insert({ tag, std::move(lagrange_base) });
+    circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
 }
 
 std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
@@ -808,6 +810,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     }
 
     ASSERT(n == q_m.size());
+    ASSERT(n == q_c.size());
     ASSERT(n == q_1.size());
     ASSERT(n == q_2.size());
     ASSERT(n == q_3.size());
@@ -816,6 +819,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     ASSERT(n == q_5.size());
     ASSERT(n == q_arith.size());
     ASSERT(n == q_ecc_1.size());
+    ASSERT(n == q_elliptic.size());
     ASSERT(n == q_range.size());
     ASSERT(n == q_logic.size());
     ASSERT(n == q_lookup_index.size());
@@ -828,113 +832,14 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
         lookups_size += table.lookup_gates.size();
     }
 
-    const size_t filled_gates = n + public_inputs.size();
-    const size_t total_num_gates = std::max(filled_gates, tables_size + lookups_size);
+    ComposerBase::compute_proving_key_base(tables_size + lookups_size, NUM_RESERVED_GATES);
 
-    const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
+    const size_t subgroup_size = circuit_proving_key->n;
 
-    for (size_t i = filled_gates; i < subgroup_size - 1; ++i) {
-        q_m.emplace_back(0);
-        q_1.emplace_back(0);
-        q_2.emplace_back(0);
-        q_3.emplace_back(0);
-        q_c.emplace_back(0);
-        q_4.emplace_back(0);
-        q_5.emplace_back(0);
-        q_arith.emplace_back(0);
-        q_ecc_1.emplace_back(0);
-        q_range.emplace_back(0);
-        q_logic.emplace_back(0);
-        q_lookup_index.emplace_back(0);
-        q_lookup_type.emplace_back(0);
-        q_elliptic.emplace_back(0);
-    }
-    {
-        q_m.emplace_back(1);
-        q_1.emplace_back(1);
-        q_2.emplace_back(1);
-        q_3.emplace_back(1);
-        q_c.emplace_back(1);
-        q_4.emplace_back(1);
-        q_5.emplace_back(1);
-        q_arith.emplace_back(1);
-        q_ecc_1.emplace_back(1);
-        q_range.emplace_back(1);
-        q_logic.emplace_back(1);
-        q_lookup_index.emplace_back(1);
-        q_lookup_type.emplace_back(1);
-        q_elliptic.emplace_back(1);
-    }
-
-    auto crs = crs_factory_->get_prover_crs(subgroup_size);
-    circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
-
-    polynomial poly_q_m(subgroup_size);
-    polynomial poly_q_c(subgroup_size);
-    polynomial poly_q_1(subgroup_size);
-    polynomial poly_q_2(subgroup_size);
-    polynomial poly_q_3(subgroup_size);
-    polynomial poly_q_4(subgroup_size);
-    polynomial poly_q_5(subgroup_size);
-    polynomial poly_q_arith(subgroup_size);
-    polynomial poly_q_ecc_1(subgroup_size);
-    polynomial poly_q_range(subgroup_size);
-    polynomial poly_q_logic(subgroup_size);
-    polynomial poly_q_lookup_index(subgroup_size + 1);
-    polynomial poly_q_lookup_type(subgroup_size + 1);
-    polynomial poly_q_elliptic(subgroup_size);
-
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        poly_q_m[i] = 0;
-        poly_q_1[i] = 1;
-        poly_q_2[i] = 0;
-        poly_q_3[i] = 0;
-        poly_q_4[i] = 0;
-        poly_q_5[i] = 0;
-        poly_q_arith[i] = 0;
-        poly_q_ecc_1[i] = 0;
-        poly_q_c[i] = 0;
-        poly_q_range[i] = 0;
-        poly_q_logic[i] = 0;
-        poly_q_lookup_index[i] = 0;
-        poly_q_lookup_type[i] = 0;
-        poly_q_elliptic[i] = 0;
-    }
-
-    for (size_t i = public_inputs.size(); i < subgroup_size; ++i) {
-        poly_q_m[i] = q_m[i - public_inputs.size()];
-        poly_q_1[i] = q_1[i - public_inputs.size()];
-        poly_q_2[i] = q_2[i - public_inputs.size()];
-        poly_q_3[i] = q_3[i - public_inputs.size()];
-        poly_q_c[i] = q_c[i - public_inputs.size()];
-        poly_q_4[i] = q_4[i - public_inputs.size()];
-        poly_q_5[i] = q_5[i - public_inputs.size()];
-        poly_q_arith[i] = q_arith[i - public_inputs.size()];
-        poly_q_ecc_1[i] = q_ecc_1[i - public_inputs.size()];
-        poly_q_range[i] = q_range[i - public_inputs.size()];
-        poly_q_logic[i] = q_logic[i - public_inputs.size()];
-        poly_q_lookup_index[i] = q_lookup_index[i - public_inputs.size()];
-        poly_q_lookup_type[i] = q_lookup_type[i - public_inputs.size()];
-        poly_q_elliptic[i] = q_elliptic[i - public_inputs.size()];
-    }
-
-    add_selector(poly_q_1, "q_1");
-    add_selector(poly_q_2, "q_2", true);
-    add_selector(poly_q_3, "q_3");
-    add_selector(poly_q_4, "q_4");
-    add_selector(poly_q_5, "q_5");
-    add_selector(poly_q_m, "q_m", true);
-    add_selector(poly_q_c, "q_c", true);
-    add_selector(poly_q_arith, "q_arith");
-    add_selector(poly_q_ecc_1, "q_ecc_1");
-    add_selector(poly_q_range, "q_range");
-    add_selector(poly_q_logic, "q_logic");
-    add_selector(poly_q_elliptic, "q_elliptic");
-
-    polynomial poly_q_table_1(subgroup_size + 1);
-    polynomial poly_q_table_2(subgroup_size + 1);
-    polynomial poly_q_table_3(subgroup_size + 1);
-    polynomial poly_q_table_4(subgroup_size + 1);
+    polynomial poly_q_table_1(subgroup_size);
+    polynomial poly_q_table_2(subgroup_size);
+    polynomial poly_q_table_3(subgroup_size);
+    polynomial poly_q_table_4(subgroup_size);
     size_t offset = subgroup_size - tables_size;
 
     for (size_t i = 0; i < offset; ++i) {
@@ -955,20 +860,15 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
             ++offset;
         }
     }
-
     add_lookup_selector(poly_q_table_1, "table_value_1");
     add_lookup_selector(poly_q_table_2, "table_value_2");
     add_lookup_selector(poly_q_table_3, "table_value_3");
     add_lookup_selector(poly_q_table_4, "table_value_4");
-    add_lookup_selector(poly_q_lookup_index, "table_index");
-    add_lookup_selector(poly_q_lookup_type, "table_type");
 
-    polynomial z_lookup_fft(subgroup_size * 4 + 4, subgroup_size * 4 + 4);
-    polynomial s_fft(subgroup_size * 4 + 4, subgroup_size * 4 + 4);
+    polynomial z_lookup_fft(subgroup_size * 4, subgroup_size * 4);
+    polynomial s_fft(subgroup_size * 4, subgroup_size * 4);
     circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
     circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
-
-    circuit_proving_key->num_lookup_tables = lookup_tables.size();
 
     compute_sigma_permutations<4>(circuit_proving_key.get());
 
