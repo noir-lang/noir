@@ -145,7 +145,7 @@ static constexpr PolynomialDescriptor turbo_polynomial_manifest[20]{
     PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
 };
 
-static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
+static constexpr PolynomialDescriptor plookup_polynomial_manifest[33]{
     PolynomialDescriptor("W_1", "w_1", false, true, WITNESS, W_1),                                           //
     PolynomialDescriptor("W_2", "w_2", false, true, WITNESS, W_2),                                           //
     PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
@@ -175,6 +175,10 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
     PolynomialDescriptor("TABLE_4", "table_value_4", false, true, SELECTOR, TABLE_4),                        //
     PolynomialDescriptor("TABLE_INDEX", "table_index", false, false, SELECTOR, TABLE_INDEX),                 //
     PolynomialDescriptor("TABLE_TYPE", "table_type", false, false, SELECTOR, TABLE_TYPE),                    //
+    PolynomialDescriptor("ID_1", "id_1", false, false, PERMUTATION, ID_1),                                   //
+    PolynomialDescriptor("ID_2", "id_2", false, false, PERMUTATION, ID_2),                                   //
+    PolynomialDescriptor("ID_3", "id_3", false, false, PERMUTATION, ID_3),                                   //
+    PolynomialDescriptor("ID_4", "id_4", false, false, PERMUTATION, ID_4),                                   //
 };
 
 static constexpr PolynomialDescriptor genperm_polynomial_manifest[24]{

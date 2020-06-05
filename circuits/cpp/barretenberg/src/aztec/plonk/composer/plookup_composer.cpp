@@ -5,7 +5,7 @@
 #include <plonk/proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/transition_widgets/turbo_fixed_base_widget.hpp>
 #include <plonk/proof_system/widgets/transition_widgets/turbo_logic_widget.hpp>
-#include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
+#include <plonk/proof_system/widgets/transition_widgets/genperm_sort_widget.hpp>
 #include <plonk/proof_system/widgets/transition_widgets/elliptic_widget.hpp>
 #include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
 #include <plonk/proof_system/widgets/random_widgets/plookup_widget.hpp>
@@ -60,6 +60,7 @@ PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_f
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
     zero_idx = put_constant_variable(0);
+    tau.insert({ DUMMY_TAG, DUMMY_TAG });
 }
 
 PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
@@ -870,10 +871,10 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     circuit_proving_key->wire_ffts.insert({ "z_lookup_fft", std::move(z_lookup_fft) });
     circuit_proving_key->wire_ffts.insert({ "s_fft", std::move(s_fft) });
 
-    compute_sigma_permutations<4>(circuit_proving_key.get());
+    compute_sigma_permutations<4, true>(circuit_proving_key.get());
 
     std::copy(plookup_polynomial_manifest,
-              plookup_polynomial_manifest + 29,
+              plookup_polynomial_manifest + 33,
               std::back_inserter(circuit_proving_key->polynomial_manifest));
 
     return circuit_proving_key;
@@ -1007,11 +1008,10 @@ PLookupProver PLookupComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();
-
     PLookupProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
 
@@ -1019,8 +1019,8 @@ PLookupProver PLookupComposer::create_prover()
         std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<plookup_settings>> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget<plookup_settings>> range_widget =
-        std::make_unique<ProverTurboRangeWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverGenPermSortWidget<plookup_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboLogicWidget<plookup_settings>> logic_widget =
         std::make_unique<ProverTurboLogicWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverEllipticWidget<plookup_settings>> elliptic_widget =
@@ -1031,7 +1031,7 @@ PLookupProver PLookupComposer::create_prover()
 
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
     output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(sort_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
     output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
 
@@ -1045,8 +1045,8 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
 
     UnrolledPLookupProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverPLookupWidget> plookup_widget =
         std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
 
@@ -1055,8 +1055,8 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
                                                                                witness.get());
     std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
         std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
-        std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverGenPermSortWidget<unrolled_turbo_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
         std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverEllipticWidget<unrolled_turbo_settings>> elliptic_widget =
@@ -1067,7 +1067,7 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
 
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
     output_state.transition_widgets.emplace_back(std::move(fixed_base_widget));
-    output_state.transition_widgets.emplace_back(std::move(range_widget));
+    output_state.transition_widgets.emplace_back(std::move(sort_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
     output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
 
@@ -1168,6 +1168,272 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
         ++n;
     }
     return column_indices;
+}
+
+/**
+ * Generalized Permutation Methods
+ **/
+
+PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t target_range)
+{
+    RangeList result;
+    const auto range_tag = get_new_tag(); // current_tag + 1;
+    const auto tau_tag = get_new_tag();   // current_tag + 2;
+    create_tag(range_tag, tau_tag);
+    create_tag(tau_tag, range_tag);
+    result.target_range = target_range;
+    result.range_tag = range_tag;
+    result.tau_tag = tau_tag;
+
+    const uint64_t num_multiples_of_three = (target_range / 3);
+
+    result.variable_indices.reserve(num_multiples_of_three);
+    for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
+        const uint32_t index = add_variable(i * 3);
+        result.variable_indices.emplace_back(index);
+        assign_tag(index, result.range_tag);
+    }
+    {
+        const uint32_t index = add_variable(target_range);
+        result.variable_indices.emplace_back(index);
+        assign_tag(index, result.range_tag);
+    }
+    // Need this because these variables will not appear in the witness otherwise
+    create_dummy_constraint(result.variable_indices);
+
+    return result;
+}
+
+void PLookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
+{
+    if (range_lists.count(target_range) == 0) {
+        range_lists.insert({ target_range, create_range_list(target_range) });
+    }
+
+    auto& list = range_lists[target_range];
+    assign_tag(variable_index, list.range_tag);
+    list.variable_indices.emplace_back(variable_index);
+}
+void PLookupComposer::process_range_list(const RangeList& list)
+{
+    // go over variables
+    // for each variable, create mirror variable with same value - with tau tag
+    // need to make sure that, in original list, increments of at most 3
+    std::vector<uint64_t> sorted_list;
+    sorted_list.reserve(list.variable_indices.size());
+    for (const auto variable_index : list.variable_indices) {
+        const auto& field_element = get_variable(variable_index);
+        const uint64_t shrinked_value = field_element.from_montgomery_form().data[0];
+        sorted_list.emplace_back(shrinked_value);
+    }
+    std::sort(sorted_list.begin(), sorted_list.end());
+    std::vector<uint32_t> indices;
+
+    // list must be padded to a multipe of 4
+    const size_t padding = 4 - (list.variable_indices.size() % 4) % 4; // TODO: this 4 maybe tied to program_width
+    for (size_t i = 0; i < padding; ++i) {
+        indices.emplace_back(zero_idx);
+    }
+    for (const auto sorted_value : sorted_list) {
+        const uint32_t index = add_variable(sorted_value);
+        assign_tag(index, list.tau_tag);
+        indices.emplace_back(index);
+    }
+    create_sort_constraint_with_edges(indices, 0, list.target_range);
+}
+void PLookupComposer::process_range_lists()
+{
+    for (const auto& i : range_lists)
+        process_range_list(i.second);
+}
+/*
+ Create range constraint:
+  * add variable index to a list of range constrained variables
+  * data structures: vector of lists, each list contains:
+  *    - the range size
+  *    - the list of variables in the range
+  *    - a generalised permutation tag
+  *
+  * create range constraint parameters: variable index && range size
+  *
+  * std::map<uint64_t, RangeList> range_lists;
+*/
+// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
+void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variable_index)
+{
+    PLOOKUP_SELECTOR_REFS
+    ASSERT(variable_index.size() % 4 == 0);
+    for (size_t i = 0; i < variable_index.size(); i++) {
+        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+    }
+
+    for (size_t i = 0; i < variable_index.size(); i += 4) {
+        w_l.emplace_back(variable_index[i]);
+        w_r.emplace_back(variable_index[i + 1]);
+        w_o.emplace_back(variable_index[i + 2]);
+        w_4.emplace_back(variable_index[i + 3]);
+        ++n;
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_range.emplace_back(1);
+        q_elliptic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+    }
+    // dummy gate needed because of sort widget's check of next row
+    w_l.emplace_back(variable_index[variable_index.size() - 1]);
+    w_r.emplace_back(zero_idx);
+    w_o.emplace_back(zero_idx);
+    w_4.emplace_back(zero_idx);
+    ++n;
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_range.emplace_back(0);
+    q_elliptic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+}
+// useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
+// multiples of three
+void PLookupComposer::create_dummy_constraint(const std::vector<uint32_t>& variable_index)
+{
+    PLOOKUP_SELECTOR_REFS
+    ASSERT(variable_index.size() % 4 == 0);
+    for (size_t i = 0; i < variable_index.size(); i++) {
+        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+    }
+
+    for (size_t i = 0; i < variable_index.size(); i += 4) {
+        w_l.emplace_back(variable_index[i]);
+        w_r.emplace_back(variable_index[i + 1]);
+        w_o.emplace_back(variable_index[i + 2]);
+        w_4.emplace_back(variable_index[i + 3]);
+        ++n;
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_range.emplace_back(0);
+        q_elliptic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+    }
+}
+// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
+void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
+                                                        const fr& start,
+                                                        const fr& end)
+{
+    PLOOKUP_SELECTOR_REFS
+    // Convenient to assume size is at least 8 for separate gates for start and end conditions
+    ASSERT(variable_index.size() % 4 == 0 && variable_index.size() > 4);
+    for (size_t i = 0; i < variable_index.size(); i++) {
+        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+    }
+    // enforce range checks of first row and starting at start
+    w_l.emplace_back(variable_index[0]);
+    w_r.emplace_back(variable_index[1]);
+    w_o.emplace_back(variable_index[2]);
+    w_4.emplace_back(variable_index[3]);
+    ++n;
+    q_m.emplace_back(0);
+    q_1.emplace_back(1);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(-start);
+    q_arith.emplace_back(1);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_range.emplace_back(1);
+    q_elliptic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    // enforce range check for middle rows
+    for (size_t i = 4; i < variable_index.size() - 4; i += 4) {
+        w_l.emplace_back(variable_index[i]);
+        w_r.emplace_back(variable_index[i + 1]);
+        w_o.emplace_back(variable_index[i + 2]);
+        w_4.emplace_back(variable_index[i + 3]);
+        ++n;
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_range.emplace_back(1);
+        q_elliptic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+    }
+    // enforce range checks of last row and ending at end
+    w_l.emplace_back(variable_index[variable_index.size() - 4]);
+    w_r.emplace_back(variable_index[variable_index.size() - 3]);
+    w_o.emplace_back(variable_index[variable_index.size() - 2]);
+    w_4.emplace_back(variable_index[variable_index.size() - 1]);
+    ++n;
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(-end);
+    q_arith.emplace_back(1);
+    q_4.emplace_back(1);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_range.emplace_back(1);
+    q_elliptic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+    // dummy gate needed because of sort widget's check of next row
+    w_l.emplace_back(variable_index[variable_index.size() - 1]);
+    w_r.emplace_back(zero_idx);
+    w_o.emplace_back(zero_idx);
+    w_4.emplace_back(zero_idx);
+    ++n;
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_range.emplace_back(0);
+    q_elliptic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
 }
 
 } // namespace waffle

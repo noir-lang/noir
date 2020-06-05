@@ -287,37 +287,6 @@ TEST(genperm_composer, bad_tag_permutation)
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, false);
 }
-// Check rejection on mismatch of size of cycle sets between tags
-// TEST(genperm_composer, bad_tag_permutation2)
-// {
-//     waffle::GenPermComposer composer = waffle::GenPermComposer();
-//     fr a = fr::random_element();
-//     fr b = -a;
-
-//     auto a_idx = composer.add_variable(a);
-//     auto b_idx = composer.add_variable(b);
-//     auto c_idx = composer.add_variable(b);
-//     auto d_idx = composer.add_variable(a);
-//     auto e_idx = composer.add_variable(a);
-//     auto f_idx = composer.add_variable(b);
-
-//     composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, 1, 1, 0, 0 });
-//     composer.create_add_gate({ c_idx, d_idx, composer.zero_idx, 1, 1, 0, -1 });
-
-//     composer.create_tag(1, 2);
-//     composer.create_tag(2, 1);
-
-//     composer.assign_tag(a_idx, 1);
-//     composer.assign_tag(b_idx, 1);
-//     composer.assign_tag(c_idx, 2);
-//     composer.assign_tag(d_idx, 2);
-//     waffle::TurboProver prover = composer.create_prover();
-//     waffle::GenPermVerifier verifier = composer.create_verifier();
-//     waffle::plonk_proof proof = prover.construct_proof();
-
-//     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
-//     EXPECT_EQ(result, false);
-// }
 
 // same as above but with turbocomposer to check reason of failue is really tag mismatch
 TEST(genperm_composer, bad_tag_turbo_permutation)
