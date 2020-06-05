@@ -8,32 +8,31 @@
 
 namespace plonk {
 namespace stdlib {
-namespace plookup {
-template <typename Composer>
-plonk::stdlib::field_t<Composer> read_from_table(const waffle::PLookupMultiTableId id,
-                                                 const plonk::stdlib::field_t<Composer> key_a,
-                                                 const plonk::stdlib::field_t<Composer> key_b = 0);
 
-template <typename Composer>
-std::pair<plonk::stdlib::field_t<Composer>, plonk::stdlib::field_t<Composer>> read_pair_from_table(
-    const waffle::PLookupMultiTableId id, const plonk::stdlib::field_t<Composer>& key);
+template <typename Composer> class plookup_base {
+    typedef field_t<Composer> field_pt;
 
-template <typename Composer>
-std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> read_sequence_from_table(
-    const waffle::PLookupMultiTableId id, const plonk::stdlib::field_t<Composer>& key);
+  public:
+    static field_pt read_from_table(const waffle::PLookupMultiTableId id,
+                                    const field_pt key_a,
+                                    const field_pt key_b = 0);
 
-extern template plonk::stdlib::field_t<waffle::PLookupComposer> read_from_table(
-    const waffle::PLookupMultiTableId id,
-    const plonk::stdlib::field_t<waffle::PLookupComposer> key_a,
-    const plonk::stdlib::field_t<waffle::PLookupComposer> key_b);
+    static std::pair<field_pt, field_pt> read_pair_from_table(const waffle::PLookupMultiTableId id,
+                                                              const field_pt& key);
 
-extern template std::pair<plonk::stdlib::field_t<waffle::PLookupComposer>,
-                          plonk::stdlib::field_t<waffle::PLookupComposer>>
-read_pair_from_table(const waffle::PLookupMultiTableId id, const plonk::stdlib::field_t<waffle::PLookupComposer>& key);
+    static field_pt read_from_2_to_1_table(const waffle::PLookupMultiTableId id,
+                                           const field_pt& key_a,
+                                           const field_pt& key_b);
+    static field_pt read_from_1_to_2_table(const waffle::PLookupMultiTableId id, const field_pt& key_a);
 
-extern template std::array<std::vector<plonk::stdlib::field_t<waffle::PLookupComposer>>, 3> read_sequence_from_table(
-    const waffle::PLookupMultiTableId id, const plonk::stdlib::field_t<waffle::PLookupComposer>& key);
+    static std::array<std::vector<field_pt>, 3> read_sequence_from_table(const waffle::PLookupMultiTableId id,
+                                                                         const field_pt& key_a,
+                                                                         const field_pt& key_b = 0,
+                                                                         const bool is_2_to_1_lookup = false);
+};
 
-} // namespace plookup
+extern template class plookup_base<waffle::PLookupComposer>;
+
+typedef plookup_base<waffle::PLookupComposer> plookup;
 } // namespace stdlib
 } // namespace plonk

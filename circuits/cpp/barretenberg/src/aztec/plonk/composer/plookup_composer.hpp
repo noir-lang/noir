@@ -59,23 +59,10 @@ class PLookupComposer : public ComposerBase {
     PLookupBasicTable& get_table(const PLookupBasicTableId id);
     PLookupMultiTable& create_table(const PLookupMultiTableId id);
 
-    std::array<uint32_t, 2> read_from_table(const PLookupBasicTableId id, const uint32_t key_idx);
-    uint32_t read_from_table(const PLookupBasicTableId id, const uint32_t key_a, const uint32_t key_b);
-    // std::pair<uint32_t, uint32_t> read_from_table(const PLookupBasicTableId id, const uint32_t key);
-
-    std::vector<uint32_t> read_sequence_from_table(const PLookupBasicTableId id,
-                                                   const std::vector<std::array<uint32_t, 2>>& key_indices);
-
-    std::array<std::vector<uint32_t>, 3> read_sequence_from_table(const PLookupBasicTableId id,
-                                                                  const uint32_t key_index_a,
-                                                                  const uint32_t key_index_b,
-                                                                  const size_t num_lookups);
-
     std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTableId& id,
                                                                         const PLookupReadData& read_values,
-                                                                        const uint32_t key_index);
-
-    void validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> keys);
+                                                                        const uint32_t key_a_index,
+                                                                        const uint32_t key_b_index = UINT32_MAX);
 
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
