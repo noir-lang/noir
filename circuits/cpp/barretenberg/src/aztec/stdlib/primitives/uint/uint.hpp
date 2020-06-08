@@ -24,7 +24,9 @@ template <typename Composer, typename Native> class uint {
         : uint(static_cast<uint256_t>(v))
     {}
 
-    std::vector<uint32_t> constrain_accumulators(Composer* ctx, const uint32_t witness_index) const;
+    std::vector<uint32_t> constrain_accumulators(Composer* ctx,
+                                                 const uint32_t witness_index,
+                                                 const size_t num_bits = width) const;
 
     static constexpr size_t num_accumulators()
     {

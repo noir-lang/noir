@@ -8,9 +8,11 @@ namespace stdlib {
 
 template <typename Composer, typename Native>
 std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* context,
-                                                                     const uint32_t witness_index) const
+                                                                     const uint32_t witness_index,
+                                                                     const size_t num_bits) const
 {
     if constexpr (Composer::type == waffle::PLOOKUP) {
+        // TODO: manage higher bit ranges
         const auto sequence = plonk::stdlib::plookup::read_sequence_from_table(
             waffle::PLookupMultiTableId::UINT32_XOR,
             field_t<Composer>::from_witness_index(context, witness_index),
@@ -23,7 +25,7 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
         }
         return out;
     }
-    return context->create_range_constraint(witness_index, width);
+    return context->create_range_constraint(witness_index, num_bits);
 }
 
 template <typename Composer, typename Native>
