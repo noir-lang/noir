@@ -19,6 +19,7 @@ static const std::vector<ComposerBase::SelectorProperties> STANDARD_SEL_PROPS = 
 class StandardComposer : public ComposerBase {
   public:
     static constexpr ComposerType type = ComposerType::STANDARD;
+    static constexpr size_t UINT_LOG2_BASE = 2;
 
     StandardComposer(const size_t size_hint = 0)
         : ComposerBase(5, size_hint, STANDARD_SEL_PROPS)

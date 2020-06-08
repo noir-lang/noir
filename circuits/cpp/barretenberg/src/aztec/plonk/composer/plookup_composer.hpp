@@ -10,6 +10,7 @@ class PLookupComposer : public ComposerBase {
     static constexpr ComposerType type = ComposerType::PLOOKUP;
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
     static constexpr size_t NUM_RESERVED_GATES = 2;
+    static constexpr size_t UINT_LOG2_BASE = 6;
 
     struct RangeList {
         uint64_t target_range;

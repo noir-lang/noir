@@ -5,6 +5,7 @@ namespace waffle {
 class TurboComposer : public ComposerBase {
   public:
     static constexpr ComposerType type = ComposerType::TURBO;
+    static constexpr size_t UINT_LOG2_BASE = 2;
     enum TurboSelectors {
         QM = 0,
         QC = 1,
