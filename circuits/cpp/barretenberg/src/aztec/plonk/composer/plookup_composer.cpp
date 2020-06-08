@@ -1199,7 +1199,7 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
         assign_tag(index, result.range_tag);
     }
     // Need this because these variables will not appear in the witness otherwise
-    create_dummy_constraint(result.variable_indices);
+    create_dummy_constraints(result.variable_indices);
 
     return result;
 }
@@ -1311,7 +1311,7 @@ void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
 }
 // useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
 // multiples of three
-void PLookupComposer::create_dummy_constraint(const std::vector<uint32_t>& variable_index)
+void PLookupComposer::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
 {
     PLOOKUP_SELECTOR_REFS
     ASSERT(variable_index.size() % 4 == 0);

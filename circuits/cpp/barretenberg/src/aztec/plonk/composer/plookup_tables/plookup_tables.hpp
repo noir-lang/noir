@@ -5,6 +5,7 @@
 #include "aes128.hpp"
 #include "sparse.hpp"
 #include "pedersen.hpp"
+#include "uint.hpp"
 
 namespace waffle {
 namespace plookup {
@@ -117,6 +118,12 @@ inline PLookupBasicTable create_basic_table(const PLookupBasicTableId id, const 
     }
     case PEDERSEN_17: {
         return pedersen_tables::generate_sidon_pedersen_table<17>(PEDERSEN_17, index);
+    }
+    case UINT_XOR_ROTATE0: {
+        return uint_tables::generate_xor_rotate_table<6, 0>(UINT_XOR_ROTATE0, index);
+    }
+    case UINT_AND_ROTATE0: {
+        return uint_tables::generate_and_rotate_table<6, 0>(UINT_AND_ROTATE0, index);
     }
     default: {
         barretenberg::errors::throw_or_abort("table id does not exist");

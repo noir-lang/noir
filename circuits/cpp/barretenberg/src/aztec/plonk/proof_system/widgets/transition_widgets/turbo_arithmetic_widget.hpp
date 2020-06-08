@@ -6,7 +6,7 @@ namespace waffle {
 namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class TurboArithmeticKernel {
-public:
+  public:
     static constexpr bool use_quotient_mid = false;
     static constexpr size_t num_independent_relations = 2;
 

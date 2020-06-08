@@ -46,6 +46,8 @@ enum PLookupBasicTableId {
     PEDERSEN_2,
     PEDERSEN_1,
     PEDERSEN_0,
+    UINT_XOR_ROTATE0,
+    UINT_AND_ROTATE0,
 };
 
 enum PLookupMultiTableId {
@@ -60,7 +62,9 @@ enum PLookupMultiTableId {
     AES_SBOX = 8,
     PEDERSEN_LEFT = 9,
     PEDERSEN_RIGHT = 10,
-    NUM_MULTI_TABLES = 11,
+    UINT32_XOR = 11,
+    UINT32_AND = 12,
+    NUM_MULTI_TABLES = 13,
 };
 
 struct PLookupMultiTable {

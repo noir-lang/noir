@@ -262,7 +262,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
     }
     const size_t num_big_points = big_points.size();
     const size_t num_small_points = small_points.size();
-    C* ctx;
+    C* ctx = nullptr;
     for (auto element : big_points) {
         if (element.get_context()) {
             ctx = element.get_context();

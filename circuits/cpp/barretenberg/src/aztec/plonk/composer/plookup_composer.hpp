@@ -116,7 +116,7 @@ class PLookupComposer : public ComposerBase {
     /**
      * Generalized Permutation Methods
      **/
-    void create_dummy_constraint(const std::vector<uint32_t>& variable_index);
+    void create_dummy_constraints(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
                                            const barretenberg::fr&,

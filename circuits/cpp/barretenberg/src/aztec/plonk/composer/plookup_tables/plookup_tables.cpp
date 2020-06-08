@@ -31,6 +31,8 @@ void init_multi_tables()
         pedersen_tables::get_pedersen_left_table(PLookupMultiTableId::PEDERSEN_LEFT);
     MULTI_TABLES[PLookupMultiTableId::PEDERSEN_RIGHT] =
         pedersen_tables::get_pedersen_right_table(PLookupMultiTableId::PEDERSEN_RIGHT);
+    MULTI_TABLES[PLookupMultiTableId::UINT32_XOR] = uint_tables::get_uint32_xor_table(PLookupMultiTableId::UINT32_XOR);
+    MULTI_TABLES[PLookupMultiTableId::UINT32_AND] = uint_tables::get_uint32_and_table(PLookupMultiTableId::UINT32_AND);
 }
 } // namespace
 
