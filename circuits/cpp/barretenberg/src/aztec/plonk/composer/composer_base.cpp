@@ -111,21 +111,6 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     auto crs = crs_factory_->get_prover_crs(subgroup_size);
     circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        cycle_node left{ static_cast<uint32_t>(i - public_inputs.size()), WireType::LEFT };
-        cycle_node right{ static_cast<uint32_t>(i - public_inputs.size()), WireType::RIGHT };
-
-        std::vector<cycle_node>& old_cycle = wire_copy_cycles[static_cast<size_t>(public_inputs[i])];
-
-        std::vector<cycle_node> new_cycle;
-
-        new_cycle.emplace_back(left);
-        new_cycle.emplace_back(right);
-        for (size_t i = 0; i < old_cycle.size(); ++i) {
-            new_cycle.emplace_back(old_cycle[i]);
-        }
-        old_cycle = new_cycle;
-    }
 
     for (size_t i = 0; i < selector_num; ++i) {
 
@@ -150,7 +135,6 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         polynomial poly_fft(poly, subgroup_size * 4);
 
         if (use_mid_for_selectorfft[i]) {
-
             poly_fft.coset_fft(circuit_proving_key->mid_domain);
         } else {
             poly_fft.coset_fft(circuit_proving_key->large_domain);
@@ -172,15 +156,19 @@ template <class program_settings> std::shared_ptr<program_witness> ComposerBase:
     const size_t total_num_gates = n + public_inputs.size();
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + NUM_RESERVED_GATES);
 
-    for (size_t i = total_num_gates; i < subgroup_size; ++i) {
+    for (size_t i = total_num_gates; i < subgroup_size - 1; ++i) {
         w_l.emplace_back(zero_idx);
         w_r.emplace_back(zero_idx);
         w_o.emplace_back(zero_idx);
     }
+    w_l.emplace_back(add_variable(barretenberg::fr::random_element()));
+    w_r.emplace_back(add_variable(barretenberg::fr::random_element()));
+    w_o.emplace_back(add_variable(barretenberg::fr::random_element()));
     if (program_settings::program_width > 3) {
-        for (size_t i = total_num_gates; i < subgroup_size; ++i) {
+        for (size_t i = total_num_gates; i < subgroup_size - 1; ++i) {
             w_4.emplace_back(zero_idx);
         }
+        w_4.emplace_back(add_variable(barretenberg::fr::random_element()));
     }
     polynomial poly_w_1 = polynomial(subgroup_size);
     polynomial poly_w_2 = polynomial(subgroup_size);

@@ -60,7 +60,6 @@ struct verification_key {
 
     std::vector<PolynomialDescriptor> polynomial_manifest;
 
-    std::map<std::string, size_t> scalar_multiplication_indices;
     size_t program_width = 3;
 };
 

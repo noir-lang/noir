@@ -48,6 +48,7 @@ verification_key& verification_key::operator=(verification_key&& other)
     constraint_selectors = std::move(other.constraint_selectors);
     permutation_selectors = std::move(other.permutation_selectors);
     polynomial_manifest = std::move(other.polynomial_manifest);
+    domain = std::move(other.domain);
     return *this;
 }
 } // namespace waffle

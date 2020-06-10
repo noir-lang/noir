@@ -23,6 +23,25 @@ TEST(turbo_composer, base_case)
     EXPECT_EQ(result, true);
 }
 
+TEST(turbo_composer, composer_from_keys)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    fr a = fr::one();
+    composer.add_public_variable(a);
+
+    waffle::TurboComposer composer2 =
+        waffle::TurboComposer(composer.compute_proving_key(), composer.compute_verification_key());
+    composer2.add_public_variable(a);
+
+    waffle::TurboProver prover = composer2.create_prover();
+    waffle::TurboVerifier verifier = composer2.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
 TEST(turbo_composer, test_add_gate_proofs)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();

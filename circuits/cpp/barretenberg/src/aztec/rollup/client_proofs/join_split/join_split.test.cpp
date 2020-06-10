@@ -86,6 +86,26 @@ HEAVY_TEST_F(client_proofs_join_split, test_0_input_notes)
     EXPECT_TRUE(sign_and_verify(tx));
 }
 
+HEAVY_TEST_F(client_proofs_join_split, test_noop)
+{
+    tx_note gibberish_note = { user.public_key, 0, fr::random_element() };
+    auto gibberish_path =
+        plonk::stdlib::merkle_tree::fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
+
+    join_split_tx tx;
+    tx.owner_pub_key = user.public_key;
+    tx.public_input = 0;
+    tx.public_output = 0;
+    tx.num_input_notes = 0;
+    tx.input_index = { 0, 1 };
+    tx.merkle_root = fr::random_element();
+    tx.input_path = { gibberish_path, gibberish_path };
+    tx.input_note = { gibberish_note, gibberish_note };
+    tx.output_note = { gibberish_note, gibberish_note };
+
+    EXPECT_TRUE(sign_and_verify(tx));
+}
+
 HEAVY_TEST_F(client_proofs_join_split, test_2_input_notes)
 {
     preload_two_notes();

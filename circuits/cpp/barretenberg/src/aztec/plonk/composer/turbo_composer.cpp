@@ -682,61 +682,6 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     }
     create_dummy_gate();
 
-    // std::cout << "Q1 ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_1[i] << std::endl;
-    // }
-
-    // std::cout << "Q2 ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_2[i] << std::endl;
-    // }
-
-    // std::cout << "Q3 ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_3[i] << std::endl;
-    // }
-
-    // std::cout << "Q4 ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_4[i] << std::endl;
-    // }
-
-    // std::cout << "Q5 ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_5[i] << std::endl;
-    // }
-
-    // std::cout << "QM ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_m[i] << std::endl;
-    // }
-
-    // std::cout << "QC ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_c[i] << std::endl;
-    // }
-
-    // std::cout << "QARITH ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_arith[i] << std::endl;
-    // }
-
-    // std::cout << "QECC1 ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_ecc1[i] << std::endl;
-    // }
-
-    // std::cout << "QRANGE ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_range[i] << std::endl;
-    // }
-
-    // std::cout << "QLOGIC ###" << std::endl;
-    // for (size_t i = 0; i < n; ++i) {
-    //     std::cout << q_logic[i] << std::endl;
-    // }
-
     ComposerBase::compute_proving_key_base();
     compute_sigma_permutations<4>(circuit_proving_key.get());
 

@@ -26,7 +26,6 @@ bool pairing_checks(std::vector<recursion_output<bn254>> recursion_outputs,
         barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
             P, inner_verification_key->reference_string->get_precomputed_g2_lines(), 2);
         verified &= inner_proof_result == barretenberg::fq12::one();
-        // std::cerr << "pairing check " << (verified ? "OK" : "Failed") << std::endl;
     }
     return verified;
 }
@@ -62,16 +61,23 @@ verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data 
         auto recursion_outputs =
             rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
 
-        auto verified = !composer.failed;
+        if (composer.failed) {
+            throw std::runtime_error("Circuit logic failed.");
+        }
 
         auto prover = composer.create_prover();
         auto proof = prover.construct_proof();
 
         auto verifier = composer.create_verifier();
-        verified &= verifier.verify_proof(proof);
-        verified &= pairing_checks(recursion_outputs, circuit_data.inner_verification_key);
+        if (!verifier.verify_proof(proof)) {
+            throw std::runtime_error("Proof validation failed.");
+        }
 
-        return { verified, proof.proof_data };
+        if (!pairing_checks(recursion_outputs, circuit_data.inner_verification_key)) {
+            throw std::runtime_error("Pairing checks failed.");
+        }
+
+        return { true, proof.proof_data };
     } catch (std::runtime_error const& err) {
         std::cerr << err.what() << std::endl;
         return { false, {} };

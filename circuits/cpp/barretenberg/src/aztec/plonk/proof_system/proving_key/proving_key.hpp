@@ -85,11 +85,6 @@ struct proving_key {
 
     std::vector<PolynomialDescriptor> polynomial_manifest;
 
-    std::vector<LookupType> lookup_mapping;
-    std::vector<size_t> table_indices;
-
-    size_t opening_poly_challenge_index;
-    size_t shifted_opening_poly_challenge_index;
     static constexpr size_t min_thread_block = 4UL;
 };
 

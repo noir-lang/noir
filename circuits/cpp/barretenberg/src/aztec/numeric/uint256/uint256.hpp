@@ -15,7 +15,7 @@
 #include <iomanip>
 #include <iostream>
 
-class uint256_t {
+class alignas(32) uint256_t {
   public:
     constexpr uint256_t(const uint64_t a = 0)
         : data{ a, 0, 0, 0 }

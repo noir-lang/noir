@@ -160,7 +160,7 @@ TEST(plookup_composer, read_sequence_with_single_key)
         };
 
         EXPECT_EQ(composer.get_variable(indices[0][0]), left);
-        EXPECT_EQ(composer.get_variable(indices[1][0]), expected_sparse);
+        EXPECT_EQ(composer.get_variable(indices[1][0]), fr(expected_sparse));
         EXPECT_EQ(composer.get_variable(indices[0][0]), fr(expected_accumulators[0]));
         EXPECT_EQ(composer.get_variable(indices[0][1]), fr(expected_accumulators[1]));
         EXPECT_EQ(composer.get_variable(indices[0][2]), fr(expected_accumulators[2]));
