@@ -4,8 +4,6 @@
 #include "memory_store.hpp"
 #include <common/net.hpp>
 #include <iostream>
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
 #include <numeric/bitop/count_leading_zeros.hpp>
 #include <numeric/bitop/keep_n_lsb.hpp>
 #include <numeric/uint128/uint128.hpp>
@@ -132,9 +130,10 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
 
 template <typename Store> typename MerkleTree<Store>::value_t MerkleTree<Store>::get_element(index_t index)
 {
+    using serialize::write;
     value_t leaf_key;
-    ::write(leaf_key, tree_id_);
-    ::write(leaf_key, index);
+    write(leaf_key, tree_id_);
+    write(leaf_key, index);
 
     value_t data;
     auto status = store_.get(leaf_key, data);
@@ -143,9 +142,10 @@ template <typename Store> typename MerkleTree<Store>::value_t MerkleTree<Store>:
 
 template <typename Store> fr MerkleTree<Store>::update_element(index_t index, value_t const& value)
 {
+    using serialize::write;
     value_t leaf_key;
-    ::write(leaf_key, tree_id_);
-    ::write(leaf_key, index);
+    write(leaf_key, tree_id_);
+    write(leaf_key, index);
     store_.put(leaf_key, value);
 
     fr sha_leaf = hash_value_native(value);
@@ -298,7 +298,9 @@ template <typename Store> void MerkleTree<Store>::put_stump(fr const& key, index
     // std::cout << "PUT STUMP key:" << key << " index:" << (uint64_t)index << " value:" << value << std::endl;
 }
 
+#ifndef __wasm__
 template class MerkleTree<LevelDbStore>;
+#endif
 template class MerkleTree<MemoryStore>;
 
 } // namespace merkle_tree

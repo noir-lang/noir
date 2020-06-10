@@ -16,16 +16,18 @@ struct verification_key_data {
 
 template <typename B> inline void read(B& buf, verification_key_data& key)
 {
-    ::read(buf, key.n);
-    ::read(buf, key.num_public_inputs);
+    using serialize::read;
+    read(buf, key.n);
+    read(buf, key.num_public_inputs);
     read(buf, key.constraint_selectors);
     read(buf, key.permutation_selectors);
 }
 
 template <typename B> inline void write(B& buf, verification_key_data const& key)
 {
-    ::write(buf, key.n);
-    ::write(buf, key.num_public_inputs);
+    using serialize::write;
+    write(buf, key.n);
+    write(buf, key.num_public_inputs);
     write(buf, key.constraint_selectors);
     write(buf, key.permutation_selectors);
 }
@@ -65,8 +67,9 @@ struct verification_key {
 
 template <typename B> inline void write(B& buf, verification_key const& key)
 {
-    ::write(buf, static_cast<uint32_t>(key.n));
-    ::write(buf, static_cast<uint32_t>(key.num_public_inputs));
+    using serialize::write;
+    write(buf, static_cast<uint32_t>(key.n));
+    write(buf, static_cast<uint32_t>(key.num_public_inputs));
     write(buf, key.constraint_selectors);
     write(buf, key.permutation_selectors);
 }

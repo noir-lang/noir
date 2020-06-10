@@ -10,10 +10,11 @@ using namespace barretenberg;
 
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 {
+    using serialize::write;
     write(buf, tx.owner_pub_key);
-    ::write(buf, tx.public_input);
-    ::write(buf, tx.public_output);
-    ::write(buf, tx.num_input_notes);
+    write(buf, tx.public_input);
+    write(buf, tx.public_output);
+    write(buf, tx.num_input_notes);
     write(buf, tx.input_index);
     write(buf, tx.merkle_root);
     write(buf, tx.input_path);
@@ -24,10 +25,11 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 
 void read(uint8_t const*& it, join_split_tx& tx)
 {
+    using serialize::read;
     read(it, tx.owner_pub_key);
-    ::read(it, tx.public_input);
-    ::read(it, tx.public_output);
-    ::read(it, tx.num_input_notes);
+    read(it, tx.public_input);
+    read(it, tx.public_output);
+    read(it, tx.num_input_notes);
     read(it, tx.input_index);
     read(it, tx.merkle_root);
     read(it, tx.input_path);

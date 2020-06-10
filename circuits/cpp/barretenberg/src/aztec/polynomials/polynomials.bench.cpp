@@ -134,7 +134,7 @@ void pippenger_bench(State& state) noexcept
     // printf("pippenger. %" PRIu64 " points. clock cycles = %" PRIu64 "\n", (num_points), (avg_cycles));
     // printf("pippenger clock cycles per mul = %" PRIu64 "\n", (avg_cycles / (MAX_GATES)));
 }
-BENCHMARK(pippenger_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
+BENCHMARK(pippenger_bench)->RangeMultiplier(2)->Range(START, MAX_GATES)->Unit(benchmark::kMillisecond);
 
 void unsafe_pippenger_bench(State& state) noexcept
 {

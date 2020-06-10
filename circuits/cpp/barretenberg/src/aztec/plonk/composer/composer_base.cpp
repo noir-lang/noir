@@ -111,7 +111,6 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     auto crs = crs_factory_->get_prover_crs(subgroup_size);
     circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
-
     for (size_t i = 0; i < selector_num; ++i) {
 
         std::vector<barretenberg::fr>& coeffs = selectors[i];

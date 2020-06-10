@@ -65,9 +65,10 @@ inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
 
 template <typename B> inline void read(B& buf, rollup_tx& tx)
 {
-    ::read(buf, tx.rollup_id);
-    ::read(buf, tx.num_txs);
-    ::read(buf, tx.data_start_index);
+    using serialize::read;
+    read(buf, tx.rollup_id);
+    read(buf, tx.num_txs);
+    read(buf, tx.data_start_index);
     read(buf, tx.txs);
 
     read(buf, tx.rollup_root);
@@ -88,9 +89,10 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
 
 template <typename B> inline void write(B& buf, rollup_tx const& tx)
 {
-    ::write(buf, tx.rollup_id);
-    ::write(buf, tx.num_txs);
-    ::write(buf, tx.data_start_index);
+    using serialize::write;
+    write(buf, tx.rollup_id);
+    write(buf, tx.num_txs);
+    write(buf, tx.data_start_index);
 
     write(buf, tx.txs);
     write(buf, tx.rollup_root);

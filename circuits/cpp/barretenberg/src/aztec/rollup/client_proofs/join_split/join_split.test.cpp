@@ -5,11 +5,12 @@
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
-#include <stdlib/merkle_tree/leveldb_store.hpp>
+#include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::client_proofs::join_split;
 
 std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -32,9 +33,8 @@ class client_proofs_join_split : public ::testing::Test {
 
     virtual void SetUp()
     {
-        merkle_tree::LevelDbStore::destroy("/tmp/client_proofs_join_split_db");
-        store = std::make_unique<merkle_tree::LevelDbStore>("/tmp/client_proofs_join_split_db");
-        tree = std::make_unique<merkle_tree::LevelDbTree>(*store, 32);
+        store = std::make_unique<MemoryStore>();
+        tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
         user = rollup::tx::create_user_context();
     }
 
@@ -61,8 +61,8 @@ class client_proofs_join_split : public ::testing::Test {
     }
 
     rollup::tx::user_context user;
-    std::unique_ptr<merkle_tree::LevelDbStore> store;
-    std::unique_ptr<merkle_tree::LevelDbTree> tree;
+    std::unique_ptr<MemoryStore> store;
+    std::unique_ptr<MerkleTree<MemoryStore>> tree;
 };
 
 HEAVY_TEST_F(client_proofs_join_split, test_0_input_notes)

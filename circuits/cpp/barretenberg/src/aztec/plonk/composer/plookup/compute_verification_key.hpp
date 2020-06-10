@@ -12,4 +12,4 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
                                                            std::shared_ptr<VerifierReferenceString> const& vrs);
 
 }
-}
+} // namespace waffle

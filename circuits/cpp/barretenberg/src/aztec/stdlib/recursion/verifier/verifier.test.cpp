@@ -5,6 +5,7 @@
 #include <ecc/curves/bn254/g1.hpp>
 
 #include <plonk/transcript/transcript.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 #include <stdlib/types/turbo.hpp>
 
 #include <ecc/curves/bn254/fq12.hpp>
@@ -131,46 +132,45 @@ HEAVY_TEST(stdlib_verifier, test_recursive_proof_composition)
     EXPECT_EQ(result, true);
 }
 
-// TODO: need a bigger SRS to run this!
-// HEAVY_TEST(stdlib_verifier, test_double_verification)
-// {
-//     waffle::TurboComposer inner_composer_a = waffle::TurboComposer();
-//     waffle::TurboComposer inner_composer_b = waffle::TurboComposer();
+HEAVY_TEST(stdlib_verifier, test_double_verification)
+{
+    waffle::TurboComposer inner_composer_a = waffle::TurboComposer("../srs_db/ignition");
+    waffle::TurboComposer inner_composer_b = waffle::TurboComposer("../srs_db/ignition");
 
-//     waffle::TurboComposer outer_composer = waffle::TurboComposer();
-//     std::vector<barretenberg::fr> inner_inputs{ barretenberg::fr::random_element(),
-//                                                 barretenberg::fr::random_element() };
+    waffle::TurboComposer outer_composer = waffle::TurboComposer("../srs_db/ignition");
+    std::vector<barretenberg::fr> inner_inputs{ barretenberg::fr::random_element(),
+                                                barretenberg::fr::random_element() };
 
-//     create_inner_circuit(inner_composer_a, inner_inputs);
-//     create_inner_circuit(inner_composer_b, inner_inputs);
+    create_inner_circuit(inner_composer_a, inner_inputs);
+    create_inner_circuit(inner_composer_b, inner_inputs);
 
-//     auto circuit_output = create_double_outer_circuit(inner_composer_a, inner_composer_b, outer_composer);
-//     g1::affine_element P[2];
-//     P[0].x = barretenberg::fq(circuit_output.recursion_output.P0.x.get_value().lo);
-//     P[0].y = barretenberg::fq(circuit_output.recursion_output.P0.y.get_value().lo);
-//     P[1].x = barretenberg::fq(circuit_output.recursion_output.P1.x.get_value().lo);
-//     P[1].y = barretenberg::fq(circuit_output.recursion_output.P1.y.get_value().lo);
-//     barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
-//         P, circuit_output.verification_key->reference_string->get_precomputed_g2_lines(), 2);
+    auto circuit_output = create_double_outer_circuit(inner_composer_a, inner_composer_b, outer_composer);
+    g1::affine_element P[2];
+    P[0].x = barretenberg::fq(circuit_output.recursion_output.P0.x.get_value().lo);
+    P[0].y = barretenberg::fq(circuit_output.recursion_output.P0.y.get_value().lo);
+    P[1].x = barretenberg::fq(circuit_output.recursion_output.P1.x.get_value().lo);
+    P[1].y = barretenberg::fq(circuit_output.recursion_output.P1.y.get_value().lo);
+    barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
+        P, circuit_output.verification_key->reference_string->get_precomputed_g2_lines(), 2);
 
-//     EXPECT_EQ(circuit_output.recursion_output.public_inputs[0].get_value(), inner_inputs[0]);
-//     EXPECT_EQ(circuit_output.recursion_output.public_inputs[1].get_value(), inner_inputs[1]);
+    EXPECT_EQ(circuit_output.recursion_output.public_inputs[0].get_value(), inner_inputs[0]);
+    EXPECT_EQ(circuit_output.recursion_output.public_inputs[1].get_value(), inner_inputs[1]);
 
-//     EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
+    EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
-//     printf("composer gates = %zu\n", outer_composer.get_num_gates());
+    printf("composer gates = %zu\n", outer_composer.get_num_gates());
 
-//     std::cout << "creating prover" << std::endl;
-//     waffle::TurboProver prover = outer_composer.create_prover();
-//     std::cout << "created prover" << std::endl;
+    std::cout << "creating prover" << std::endl;
+    waffle::TurboProver prover = outer_composer.create_prover();
+    std::cout << "created prover" << std::endl;
 
-//     std::cout << "creating verifier" << std::endl;
-//     waffle::TurboVerifier verifier = outer_composer.create_verifier();
+    std::cout << "creating verifier" << std::endl;
+    waffle::TurboVerifier verifier = outer_composer.create_verifier();
 
-//     std::cout << "validated. creating proof" << std::endl;
-//     waffle::plonk_proof proof = prover.construct_proof();
-//     std::cout << "created proof" << std::endl;
+    std::cout << "validated. creating proof" << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    std::cout << "created proof" << std::endl;
 
-//     bool result = verifier.verify_proof(proof);
-//     EXPECT_EQ(result, true);
-// }
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}

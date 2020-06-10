@@ -6,11 +6,12 @@
 #include <common/streams.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <gtest/gtest.h>
-#include <stdlib/merkle_tree/leveldb_store.hpp>
+#include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
+using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::client_proofs::join_split;
 
 class client_proofs_join_split_data : public ::testing::Test {
@@ -25,9 +26,8 @@ class client_proofs_join_split_data : public ::testing::Test {
 
     virtual void SetUp()
     {
-        merkle_tree::LevelDbStore::destroy("/tmp/client_proofs_join_split_data_db");
-        store = std::make_unique<merkle_tree::LevelDbStore>("/tmp/client_proofs_join_split_data_db");
-        tree = std::make_unique<merkle_tree::LevelDbTree>(*store, 32);
+        store = std::make_unique<MemoryStore>();
+        tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
         user = rollup::tx::create_user_context();
     }
 
@@ -40,8 +40,8 @@ class client_proofs_join_split_data : public ::testing::Test {
     }
 
     rollup::tx::user_context user;
-    std::unique_ptr<merkle_tree::LevelDbStore> store;
-    std::unique_ptr<merkle_tree::LevelDbTree> tree;
+    std::unique_ptr<MemoryStore> store;
+    std::unique_ptr<MerkleTree<MemoryStore>> tree;
 };
 
 TEST_F(client_proofs_join_split_data, test_proof_to_data)

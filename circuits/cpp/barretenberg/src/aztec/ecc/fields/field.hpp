@@ -426,21 +426,23 @@ template <class Params> struct alignas(32) field {
 
 template <typename B, typename Params> void read(B& it, field<Params>& value)
 {
+    using serialize::read;
     field<Params> result{ 0, 0, 0, 0 };
-    ::read(it, result.data[3]);
-    ::read(it, result.data[2]);
-    ::read(it, result.data[1]);
-    ::read(it, result.data[0]);
+    read(it, result.data[3]);
+    read(it, result.data[2]);
+    read(it, result.data[1]);
+    read(it, result.data[0]);
     value = result.to_montgomery_form();
 }
 
 template <typename B, typename Params> void write(B& buf, field<Params> const& value)
 {
+    using serialize::write;
     const field input = value.from_montgomery_form();
-    ::write(buf, input.data[3]);
-    ::write(buf, input.data[2]);
-    ::write(buf, input.data[1]);
-    ::write(buf, input.data[0]);
+    write(buf, input.data[3]);
+    write(buf, input.data[2]);
+    write(buf, input.data[1]);
+    write(buf, input.data[0]);
 }
 
 } // namespace barretenberg

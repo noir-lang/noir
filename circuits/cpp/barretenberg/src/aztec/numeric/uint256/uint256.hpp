@@ -7,7 +7,7 @@
  * Constructor and all methods are constexpr.
  * Ideally, uint256_t should be able to be treated like any other literal type.
  *
- * Not optimized for performance, this code doesn't touch any of our hot paths when constructing PLONK proofs
+ * Not optimized for performance, this code doesn't touch any of our hot paths when constructing PLONK proofs.
  **/
 #pragma once
 

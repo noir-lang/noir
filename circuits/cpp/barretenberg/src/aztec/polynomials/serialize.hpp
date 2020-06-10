@@ -8,7 +8,7 @@ template <typename B> inline void read(B& buf, polynomial& p)
 {
     p = polynomial();
     uint32_t size;
-    ::read(buf, size);
+    serialize::read(buf, size);
     p.resize_unsafe(size);
     memcpy(&p[0], buf, size * sizeof(fr));
 
@@ -30,7 +30,7 @@ template <typename B> inline void read(B& buf, polynomial& p)
 inline void write(uint8_t*& buf, polynomial const& p)
 {
     auto size = p.get_size();
-    ::write(buf, static_cast<uint32_t>(size));
+    serialize::write(buf, static_cast<uint32_t>(size));
     memcpy(&buf[0], &p[0], size * sizeof(fr));
     buf += size * sizeof(fr);
 }
@@ -38,7 +38,7 @@ inline void write(uint8_t*& buf, polynomial const& p)
 inline void write(std::vector<uint8_t>& buf, polynomial const& p)
 {
     auto size = p.get_size();
-    ::write(buf, static_cast<uint32_t>(size));
+    serialize::write(buf, static_cast<uint32_t>(size));
     auto len = (size * sizeof(fr));
     buf.resize(buf.size() + len);
     auto ptr = &*buf.end() - len;
@@ -49,7 +49,7 @@ inline void read(std::istream& is, polynomial& p)
 {
     p = polynomial();
     uint32_t size;
-    ::read(is, size);
+    serialize::read(is, size);
     p.resize_unsafe(size);
     is.read((char*)&p[0], (std::streamsize)(size * sizeof(fr)));
 
@@ -71,7 +71,7 @@ inline void write(std::ostream& os, polynomial const& p)
 {
     auto size = p.get_size();
     auto len = size * sizeof(fr);
-    ::write(os, static_cast<uint32_t>(size));
+    serialize::write(os, static_cast<uint32_t>(size));
     os.write((char*)&p[0], (std::streamsize)len);
 }
 
