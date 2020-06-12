@@ -16,7 +16,8 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
     read(ptr, new_data_root);
     read(ptr, old_null_root);
     read(ptr, new_null_root);
-    read(ptr, data_roots_root);
+    read(ptr, old_data_roots_root);
+    read(ptr, new_data_roots_root);
     ptr += 28;
     read(ptr, num_txs);
 
@@ -32,6 +33,7 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
         read(ptr, inner_proofs[i].nullifier1);
         ptr += 16;
         read(ptr, inner_proofs[i].nullifier2);
+        read(ptr, inner_proofs[i].public_owner);
     }
 }
 

@@ -18,6 +18,7 @@ void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_c
     composer.set_public_input(public_inputs[5].witness_index);
     composer.set_public_input(public_inputs[7].witness_index);
     composer.set_public_input(public_inputs[8].witness_index);
+    composer.set_public_input(public_inputs[9].witness_index);
 }
 
 std::vector<recursion_output<bn254>> rollup_circuit(
@@ -33,7 +34,8 @@ std::vector<recursion_output<bn254>> rollup_circuit(
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
     auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
     public_witness_ct(&composer, rollup.new_null_roots.back());
-    auto data_roots_root = field_ct(public_witness_ct(&composer, rollup.data_roots_root));
+    auto old_data_roots_root = field_ct(public_witness_ct(&composer, rollup.old_data_roots_root));
+    auto new_data_roots_root = field_ct(public_witness_ct(&composer, rollup.new_data_roots_root));
     auto num_txs = uint32_ct(public_witness_ct(&composer, rollup.num_txs));
     auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
 
@@ -64,10 +66,11 @@ std::vector<recursion_output<bn254>> rollup_circuit(
         auto data_root = public_inputs[6];
         auto data_roots_path = create_witness_hash_path(composer, rollup.data_roots_paths[i]);
         auto data_root_index = uint32_ct(witness_ct(&composer, rollup.data_roots_indicies[i]));
-        bool_ct valid =
-            data_root_index <= rollup_id &&
-            check_membership(
-                composer, data_roots_root, data_roots_path, byte_array_ct(data_root), byte_array_ct(data_root_index));
+        bool_ct valid = data_root_index <= rollup_id && check_membership(composer,
+                                                                         old_data_roots_root,
+                                                                         data_roots_path,
+                                                                         byte_array_ct(data_root),
+                                                                         byte_array_ct(data_root_index));
         composer.assert_equal(is_real.witness_index, valid.witness_index);
         if (can_throw && composer.failed) {
             throw std::runtime_error("Data root incorrect for proof: " + std::to_string(i));
@@ -77,6 +80,24 @@ std::vector<recursion_output<bn254>> rollup_circuit(
         new_null_indicies.push_back(public_inputs[8]);
 
         propagate_inner_proof_public_inputs(composer, public_inputs);
+    }
+
+    auto empty_tree_value = byte_array_ct(&composer, 64);
+    auto new_data_roots_path = create_witness_hash_path(composer, rollup.new_data_roots_path);
+    auto old_data_roots_path = create_witness_hash_path(composer, rollup.old_data_roots_path);
+    auto new_data_root_arr = byte_array_ct(new_data_root);
+    auto one = field_ct(witness_ct(&composer, 1));
+    auto index = byte_array_ct(rollup_id + one);
+    update_membership(composer,
+                      new_data_roots_root,
+                      new_data_roots_path,
+                      new_data_root_arr,
+                      old_data_roots_root,
+                      old_data_roots_path,
+                      empty_tree_value,
+                      index);
+    if (can_throw && composer.failed) {
+        throw std::runtime_error("Failed root tree update.");
     }
 
     // std::cout << new_data_values[0] << std::endl;

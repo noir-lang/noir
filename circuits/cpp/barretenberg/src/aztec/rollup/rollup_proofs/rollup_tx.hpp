@@ -30,7 +30,10 @@ struct rollup_tx {
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
 
-    fr data_roots_root;
+    fr old_data_roots_root;
+    fr new_data_roots_root;
+    fr_hash_path old_data_roots_path;
+    fr_hash_path new_data_roots_path;
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint32_t> data_roots_indicies;
 
@@ -57,7 +60,10 @@ inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
         lhs.old_null_paths == rhs.old_null_paths &&
         lhs.new_null_paths == rhs.new_null_paths &&
 
-        lhs.data_roots_root == rhs.data_roots_root &&
+        lhs.old_data_roots_root == rhs.old_data_roots_root &&
+        lhs.new_data_roots_root == rhs.new_data_roots_root &&
+        lhs.old_data_roots_path == rhs.old_data_roots_path &&
+        lhs.new_data_roots_path == rhs.new_data_roots_path &&
         lhs.data_roots_paths == rhs.data_roots_paths &&
         lhs.data_roots_indicies == rhs.data_roots_indicies;
     // clang-format on
@@ -82,7 +88,10 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.old_null_paths);
     read(buf, tx.new_null_paths);
 
-    read(buf, tx.data_roots_root);
+    read(buf, tx.old_data_roots_root);
+    read(buf, tx.new_data_roots_root);
+    read(buf, tx.old_data_roots_path);
+    read(buf, tx.new_data_roots_path);
     read(buf, tx.data_roots_paths);
     read(buf, tx.data_roots_indicies);
 }
@@ -106,7 +115,10 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.old_null_paths);
     write(buf, tx.new_null_paths);
 
-    write(buf, tx.data_roots_root);
+    write(buf, tx.old_data_roots_root);
+    write(buf, tx.new_data_roots_root);
+    write(buf, tx.old_data_roots_path);
+    write(buf, tx.new_data_roots_path);
     write(buf, tx.data_roots_paths);
     write(buf, tx.data_roots_indicies);
 }
@@ -143,7 +155,10 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
         os << e << "\n";
     }
 
-    os << "data_roots_root: " << tx.data_roots_root << "\n";
+    os << "old_data_roots_root: " << tx.old_data_roots_root << "\n";
+    os << "new_data_roots_root: " << tx.new_data_roots_root << "\n";
+    os << "old_data_roots_path: " << tx.old_data_roots_path << "\n";
+    os << "new_data_roots_path: " << tx.new_data_roots_path << "\n";
     os << "data_roots_paths:\n";
     for (auto e : tx.data_roots_paths) {
         os << e << "\n";

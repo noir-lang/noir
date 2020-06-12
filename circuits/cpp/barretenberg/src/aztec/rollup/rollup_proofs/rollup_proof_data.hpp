@@ -14,6 +14,7 @@ struct inner_proof_data {
     std::array<uint8_t, 64> new_note2;
     uint128_t nullifier1;
     uint128_t nullifier2;
+    barretenberg::fr public_owner;
 };
 
 struct rollup_proof_data {
@@ -23,7 +24,8 @@ struct rollup_proof_data {
     fr new_data_root;
     fr old_null_root;
     fr new_null_root;
-    fr data_roots_root;
+    fr old_data_roots_root;
+    fr new_data_roots_root;
     uint32_t num_txs;
     std::vector<inner_proof_data> inner_proofs;
 

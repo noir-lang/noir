@@ -21,6 +21,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.input_note);
     write(buf, tx.output_note);
     write(buf, tx.signature);
+    write(buf, tx.public_owner);
 }
 
 void read(uint8_t const*& it, join_split_tx& tx)
@@ -36,6 +37,7 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.input_note);
     read(it, tx.output_note);
     read(it, tx.signature);
+    read(it, tx.public_owner);
 }
 
 bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
@@ -50,7 +52,8 @@ bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
         && lhs.input_path == rhs.input_path
         && lhs.input_note == rhs.input_note
         && lhs.output_note == rhs.output_note
-        && lhs.signature == rhs.signature;
+        && lhs.signature == rhs.signature
+        && lhs.public_owner == rhs.public_owner;
     // clang-format on
 }
 
@@ -69,7 +72,8 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "in_note2: " << tx.input_note[1] << "\n"
               << "out_note1: " << tx.output_note[0] << "\n"
               << "out_note2: " << tx.output_note[1] << "\n"
-              << "signature: " << tx.signature << "\n";
+              << "signature: " << tx.signature << "\n"
+              << "public_owner: " << tx.public_owner << "\n";
 }
 
 } // namespace join_split

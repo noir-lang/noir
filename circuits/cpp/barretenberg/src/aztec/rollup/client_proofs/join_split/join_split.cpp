@@ -100,6 +100,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 
     composer.set_public_input(nullifier1.witness_index);
     composer.set_public_input(nullifier2.witness_index);
+
+    public_witness_ct(&composer, tx.public_owner);
 }
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
@@ -148,7 +150,8 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx)
 
 bool verify_proof(waffle::plonk_proof const& proof)
 {
-    UnrolledVerifier verifier(verification_key, Composer::create_unrolled_manifest(9));
+    UnrolledVerifier verifier(verification_key,
+                              Composer::create_unrolled_manifest(verification_key->num_public_inputs));
     return verifier.verify_proof(proof);
 }
 

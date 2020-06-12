@@ -83,10 +83,10 @@ void update_membership(Composer& composer,
                        byte_array<Composer> const& old_value,
                        byte_array<Composer> const& index)
 {
-    // Check check that the old_value, is in the tree given by old_root, at index.
+    // Check that the old_value, is in the tree given by old_root, at index.
     assert_check_membership(composer, old_root, old_hashes, old_value, index);
 
-    // Check check that the new_value, is in the tree given by new_root, at index.
+    // Check that the new_value, is in the tree given by new_root, at index.
     assert_check_membership(composer, new_root, new_hashes, new_value, index);
 
     // Check that the old and new values, are actually in the same tree.

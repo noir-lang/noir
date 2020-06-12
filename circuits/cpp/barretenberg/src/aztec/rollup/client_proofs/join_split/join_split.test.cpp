@@ -82,6 +82,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_0_input_notes)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { gibberish, gibberish };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify(tx));
 }
@@ -125,6 +126,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_2_input_notes)
     tx.input_path = { tree->get_hash_path(1), tree->get_hash_path(0) };
     tx.input_note = { input_note2, input_note1 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify(tx));
 }
@@ -148,6 +150,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_0_output_notes)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify(tx));
 }
@@ -171,6 +174,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_joining_same_note_fails)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(0) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify(tx));
 }
@@ -194,6 +198,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_unbalanced_notes_fails)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify(tx));
 }
@@ -217,6 +222,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_wrong_input_note_owner_fails)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify(tx));
 }
@@ -240,6 +246,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_random_output_owners_succeeds)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify(tx));
 }
@@ -263,6 +270,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_wrong_hash_path_fails)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify(tx));
 }
@@ -286,6 +294,7 @@ HEAVY_TEST_F(client_proofs_join_split, test_wrong_merkle_root_fails)
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify(tx));
 }
@@ -307,16 +316,51 @@ HEAVY_TEST_F(client_proofs_join_split, test_wrong_signature_fails)
     tx.public_input = 0;
     tx.public_output = 0;
     tx.num_input_notes = 2;
-    tx.input_index = { 0, 2 };
+    tx.input_index = { 0, 1 };
     tx.merkle_root = tree->root();
     tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
     tx.input_note = { input_note1, input_note2 };
     tx.output_note = { output_note1, output_note2 };
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                               { pk, grumpkin::g1::one * pk });
+    tx.public_owner = fr::random_element();
 
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();
+
+    EXPECT_FALSE(verify_proof(proof));
+}
+
+HEAVY_TEST_F(client_proofs_join_split, test_tainted_public_owner_fails)
+{
+    preload_two_notes();
+
+    tx_note input_note1 = { user.public_key, 100, user.note_secret };
+    tx_note input_note2 = { user.public_key, 50, user.note_secret };
+    tx_note output_note1 = { user.public_key, 70, user.note_secret };
+    tx_note output_note2 = { user.public_key, 80, user.note_secret };
+
+    join_split_tx tx;
+    tx.owner_pub_key = user.public_key;
+    tx.public_input = 0;
+    tx.public_output = 0;
+    tx.num_input_notes = 2;
+    tx.input_index = { 1, 0 };
+    tx.merkle_root = tree->root();
+    tx.input_path = { tree->get_hash_path(1), tree->get_hash_path(0) };
+    tx.input_note = { input_note2, input_note1 };
+    tx.output_note = { output_note1, output_note2 };
+    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
+                              { user.private_key, user.public_key });
+    uint8_t public_owner[] = { 0x45, 0xaa, 0x42, 0xd4, 0x72, 0x88, 0x8e, 0xae, 0xa5, 0x56, 0x39,
+                               0x46, 0xeb, 0x5c, 0xf5, 0x6c, 0x81, 0x6,  0x4d, 0x80, 0xc6, 0xf5,
+                               0xa5, 0x38, 0xcc, 0x87, 0xae, 0x54, 0xae, 0xdb, 0x75, 0xd9 };
+    tx.public_owner = barretenberg::fr::serialize_from_buffer(public_owner);
+
+    auto prover = new_join_split_prover(tx);
+    auto proof = prover.construct_proof();
+    EXPECT_EQ(proof.proof_data[9 * 32 + 1], 0x45);
+    proof.proof_data[9 * 32] = 0x55;
 
     EXPECT_FALSE(verify_proof(proof));
 }

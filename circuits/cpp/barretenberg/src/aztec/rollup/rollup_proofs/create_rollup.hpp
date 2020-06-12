@@ -30,7 +30,6 @@ rollup_tx create_rollup(uint32_t rollup_id,
     auto data_start_index = (uint32_t)data_tree.size();
     auto old_data_root = data_tree.root();
     auto old_data_path = data_tree.get_hash_path(data_start_index);
-    auto root_tree_root = root_tree.root();
 
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint128_t> nullifier_indicies;
@@ -56,9 +55,6 @@ rollup_tx create_rollup(uint32_t rollup_id,
         nullifier_indicies.push_back(struct_data.nullifier2);
     }
 
-    auto data_root = to_buffer(data_tree.root());
-    root_tree.update_element(rollup_id + 1, data_root);
-
     // Compute nullifier tree data.
     auto old_null_root = null_tree.root();
     std::vector<fr> new_null_roots;
@@ -75,6 +71,14 @@ rollup_tx create_rollup(uint32_t rollup_id,
         new_null_roots.push_back(null_tree.root());
     }
 
+    // Compute root tree data.
+    auto old_root_tree_root = root_tree.root();
+    auto old_root_tree_path = root_tree.get_hash_path(rollup_id + 1);
+    auto data_root = to_buffer(data_tree.root());
+    root_tree.update_element(rollup_id + 1, data_root);
+    auto new_root_tree_root = root_tree.root();
+    auto new_root_tree_path = root_tree.get_hash_path(rollup_id + 1);
+
     // Compose our rollup.
     rollup_tx rollup = {
         rollup_id,
@@ -90,7 +94,10 @@ rollup_tx create_rollup(uint32_t rollup_id,
         new_null_roots,
         old_null_paths,
         new_null_paths,
-        root_tree_root,
+        old_root_tree_root,
+        new_root_tree_root,
+        old_root_tree_path,
+        new_root_tree_path,
         data_roots_paths,
         data_roots_indicies,
     };

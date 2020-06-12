@@ -13,6 +13,7 @@ join_split_data::join_split_data(std::vector<uint8_t> const& proof_data)
     merkle_root = from_buffer<barretenberg::fr>(proof_data, 6 * 32);
     nullifier1 = from_buffer<uint128_t>(proof_data, 7 * 32 + 16);
     nullifier2 = from_buffer<uint128_t>(proof_data, 8 * 32 + 16);
+    public_owner = from_buffer<barretenberg::fr>(proof_data, 9 * 32);
 }
 
 } // namespace join_split

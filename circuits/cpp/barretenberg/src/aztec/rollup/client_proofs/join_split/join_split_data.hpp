@@ -15,6 +15,7 @@ struct join_split_data {
     std::array<uint8_t, 64> new_note2;
     uint128_t nullifier1;
     uint128_t nullifier2;
+    barretenberg::fr public_owner;
 
     join_split_data(std::vector<uint8_t> const& proof_data);
 };
