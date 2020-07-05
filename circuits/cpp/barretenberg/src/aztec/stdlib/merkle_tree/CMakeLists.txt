@@ -1,4 +1,5 @@
 if(NOT WASM)
+    include(FetchContent)
     FetchContent_Declare(
         leveldb
         GIT_REPOSITORY https://github.com/google/leveldb.git
