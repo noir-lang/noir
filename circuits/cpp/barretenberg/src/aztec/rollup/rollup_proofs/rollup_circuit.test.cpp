@@ -84,7 +84,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         uint8_t owner_address[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,
                                     0x43, 0xe5, 0xa5, 0xb9, 0x57, 0x0f, 0x75, 0xc5, 0x96, 0x04 };
-        tx.public_owner = from_buffer<fr>(owner_address);
+        tx.input_owner = from_buffer<fr>(owner_address);
+        tx.output_owner = fr::random_element();
 
         Composer composer =
             Composer(inner_circuit_data.proving_key, inner_circuit_data.verification_key, inner_circuit_data.num_gates);
@@ -498,7 +499,8 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup_full_proof)
     EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
     EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
     EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-    EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
+    EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
+    EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
 }
 
 HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
@@ -542,6 +544,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
         EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
         EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
         EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-        EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
+        EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
+        EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
     }
 }

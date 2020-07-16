@@ -45,7 +45,8 @@ join_split_tx noop_tx()
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                               { user.private_key, user.public_key });
 
-    tx.public_owner = fr::random_element();
+    tx.input_owner = fr::random_element();
+    tx.output_owner = fr::random_element();
 
     return tx;
 }

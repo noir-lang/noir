@@ -21,7 +21,8 @@ struct join_split_tx {
     std::array<tx_note, 2> input_note;
     std::array<tx_note, 2> output_note;
     crypto::schnorr::signature signature;
-    barretenberg::fr public_owner;
+    barretenberg::fr input_owner;
+    barretenberg::fr output_owner;
 };
 
 void read(uint8_t const*& it, join_split_tx& tx);

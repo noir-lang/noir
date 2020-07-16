@@ -68,7 +68,8 @@ TEST_F(client_proofs_join_split_data, test_proof_to_data)
     tx.output_note = { output_note1, output_note2 };
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                               { user.private_key, user.public_key });
-    tx.public_owner = fr::random_element();
+    tx.input_owner = fr::random_element();
+    tx.output_owner = fr::random_element();
 
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();
@@ -79,5 +80,6 @@ TEST_F(client_proofs_join_split_data, test_proof_to_data)
     EXPECT_EQ(data.merkle_root, tx.merkle_root);
     EXPECT_EQ(data.nullifier1, static_cast<uint128_t>(0x8e918141efe8189b) << 64 | 0x9304085fa8822c2b);
     EXPECT_EQ(data.nullifier2, static_cast<uint128_t>(0x4cc6a449b48527bc) << 64 | 0x3d02fd1e11a213bb);
-    EXPECT_EQ(data.public_owner, tx.public_owner);
+    EXPECT_EQ(data.input_owner, tx.input_owner);
+    EXPECT_EQ(data.output_owner, tx.output_owner);
 }

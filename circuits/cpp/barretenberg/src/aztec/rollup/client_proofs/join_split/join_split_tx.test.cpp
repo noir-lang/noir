@@ -40,7 +40,8 @@ TEST(client_proofs_join_split_tx, test_serialization)
     memset(&tx.signature.e, 1, 32);
     memset(&tx.signature.s, 2, 32);
 
-    tx.public_owner = fr::random_element();
+    tx.input_owner = fr::random_element();
+    tx.output_owner = fr::random_element();
 
     auto buffer = to_buffer(tx);
     auto tx2 = from_buffer<join_split_tx>(buffer.data());

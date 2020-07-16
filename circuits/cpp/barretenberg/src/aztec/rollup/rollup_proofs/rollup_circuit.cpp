@@ -19,6 +19,7 @@ void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_c
     composer.set_public_input(public_inputs[7].witness_index);
     composer.set_public_input(public_inputs[8].witness_index);
     composer.set_public_input(public_inputs[9].witness_index);
+    composer.set_public_input(public_inputs[10].witness_index);
 }
 
 std::vector<recursion_output<bn254>> rollup_circuit(

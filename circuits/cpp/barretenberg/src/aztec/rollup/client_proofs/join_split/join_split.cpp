@@ -101,7 +101,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     composer.set_public_input(nullifier1.witness_index);
     composer.set_public_input(nullifier2.witness_index);
 
-    public_witness_ct(&composer, tx.public_owner);
+    public_witness_ct(&composer, tx.input_owner);
+    public_witness_ct(&composer, tx.output_owner);
 }
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)

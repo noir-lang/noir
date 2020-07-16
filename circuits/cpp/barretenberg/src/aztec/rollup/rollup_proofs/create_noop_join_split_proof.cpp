@@ -37,7 +37,8 @@ std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const&
 
     tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                               { user.private_key, user.public_key });
-    tx.public_owner = fr::random_element();
+    tx.input_owner = fr::random_element();
+    tx.output_owner = fr::random_element();
 
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
     join_split_circuit(composer, tx);
