@@ -5,13 +5,14 @@
 
 namespace waffle {
 
-void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx)
+void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
 {
     uint32_t b_real_idx = get_real_variable_index(b_variable_idx);
-    variable_index_map[b_real_idx] = a_variable_idx;
-    if (variables[a_variable_idx] != variables[b_variable_idx]) {
+    if (variables[a_variable_idx] != variables[b_real_idx] && !failed) {
         failed = true;
+        err = msg;
     }
+    variable_index_map[b_real_idx] = a_variable_idx;
 }
 
 template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()

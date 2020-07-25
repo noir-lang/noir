@@ -51,6 +51,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
 
     waffle::TurboProver prover = composer.create_prover();
 
+    std::cout << "composer failed = " << composer.failed << std::endl;
     printf("composer gates = %zu\n", composer.get_num_gates());
     waffle::TurboVerifier verifier = composer.create_verifier();
 
@@ -99,6 +100,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
 
     waffle::TurboProver prover = composer.create_prover();
 
+    std::cout << "composer failed = " << composer.failed << std::endl;
     printf("composer gates = %zu\n", composer.get_num_gates());
     waffle::TurboVerifier verifier = composer.create_verifier();
 

@@ -29,6 +29,7 @@ struct rollup_tx {
     std::vector<fr> new_null_roots;
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
+    std::vector<fr_hash_path> account_null_paths;
 
     fr old_data_roots_root;
     fr new_data_roots_root;
@@ -59,6 +60,7 @@ inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
         lhs.new_null_roots == rhs.new_null_roots &&
         lhs.old_null_paths == rhs.old_null_paths &&
         lhs.new_null_paths == rhs.new_null_paths &&
+        lhs.account_null_paths == rhs.account_null_paths &&
 
         lhs.old_data_roots_root == rhs.old_data_roots_root &&
         lhs.new_data_roots_root == rhs.new_data_roots_root &&
@@ -87,6 +89,7 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.new_null_roots);
     read(buf, tx.old_null_paths);
     read(buf, tx.new_null_paths);
+    read(buf, tx.account_null_paths);
 
     read(buf, tx.old_data_roots_root);
     read(buf, tx.new_data_roots_root);
@@ -114,6 +117,7 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.new_null_roots);
     write(buf, tx.old_null_paths);
     write(buf, tx.new_null_paths);
+    write(buf, tx.account_null_paths);
 
     write(buf, tx.old_data_roots_root);
     write(buf, tx.new_data_roots_root);
@@ -152,6 +156,10 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     }
     os << "new_null_paths:\n";
     for (auto e : tx.new_null_paths) {
+        os << e << "\n";
+    }
+    os << "account_null_paths:\n";
+    for (auto e : tx.account_null_paths) {
         os << e << "\n";
     }
 

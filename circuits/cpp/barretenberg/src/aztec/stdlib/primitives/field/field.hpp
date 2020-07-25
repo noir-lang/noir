@@ -181,6 +181,7 @@ template <typename ComposerContext> class field_t {
     field_t madd(const field_t& to_mul, const field_t& to_add) const;
     field_t add_two(const field_t& add_a, const field_t& add_b) const;
     bool_t<ComposerContext> operator==(const field_t& other) const;
+    bool_t<ComposerContext> operator!=(const field_t& other) const;
 
     field_t normalize() const;
 

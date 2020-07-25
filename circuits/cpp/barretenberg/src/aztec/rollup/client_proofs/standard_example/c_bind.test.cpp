@@ -1,4 +1,3 @@
-#include "../../tx/user_context.hpp"
 #include "c_bind.h"
 #include "standard_example.hpp"
 #include <common/log.hpp>
@@ -11,7 +10,6 @@
 
 using namespace barretenberg;
 using namespace rollup::client_proofs::standard_example;
-using namespace rollup::tx;
 
 TEST(client_proofs, test_standard_example_c_bindings)
 {

@@ -1,6 +1,5 @@
 #pragma once
 #include "compute_rollup_circuit_data.hpp"
-#include "create_noop_join_split_proof.hpp"
 #include "verify_rollup.hpp"
 #include <rollup/client_proofs/join_split/join_split_data.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
@@ -33,6 +32,7 @@ rollup_tx create_rollup(uint32_t rollup_id,
 
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint128_t> nullifier_indicies;
+    std::vector<uint128_t> account_nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
 
     std::vector<uint32_t> data_roots_indicies(data_roots_indicies_);
@@ -53,6 +53,7 @@ rollup_tx create_rollup(uint32_t rollup_id,
 
         nullifier_indicies.push_back(struct_data.nullifier1);
         nullifier_indicies.push_back(struct_data.nullifier2);
+        account_nullifier_indicies.push_back(struct_data.account_nullifier);
     }
 
     // Compute nullifier tree data.
@@ -69,6 +70,11 @@ rollup_tx create_rollup(uint32_t rollup_id,
         null_tree.update_element(nullifier_indicies[i], nullifier_value);
         new_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
         new_null_roots.push_back(null_tree.root());
+    }
+
+    std::vector<fr_hash_path> account_null_paths;
+    for (size_t i = 0; i < account_nullifier_indicies.size(); ++i) {
+        account_null_paths.push_back(null_tree.get_hash_path(account_nullifier_indicies[i]));
     }
 
     // Compute root tree data.
@@ -94,6 +100,7 @@ rollup_tx create_rollup(uint32_t rollup_id,
         new_null_roots,
         old_null_paths,
         new_null_paths,
+        account_null_paths,
         old_root_tree_root,
         new_root_tree_root,
         old_root_tree_path,
@@ -107,6 +114,7 @@ rollup_tx create_rollup(uint32_t rollup_id,
     rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
     rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
     rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
+    rollup.account_null_paths.resize(rollup_size, rollup.account_null_paths.back());
     auto zero_roots_path = root_tree.get_hash_path(0);
     rollup.data_roots_paths.resize(rollup_size, zero_roots_path);
     rollup.data_roots_indicies.resize(rollup_size, 0);

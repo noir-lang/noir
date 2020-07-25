@@ -28,6 +28,9 @@ grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext)
     return { sum.x, sum.y };
 }
 
+/**
+ * Brute force decryption up to values of 1000.
+ */
 bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
                   grumpkin::fr const& private_key,
                   fr const& viewing_key,

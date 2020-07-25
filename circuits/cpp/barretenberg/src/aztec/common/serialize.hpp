@@ -1,3 +1,31 @@
+/**
+ * This is the core serialization library.
+ * It enables the reading and writing of big-endian formatted integers and various standard library types
+ * to and from the following supported types:
+ *  - uint8_t*
+ *  - std::vector<uint8_t>
+ *  - std::ostream / std::istream
+ *
+ * To support custom types, free functions taking the following form should be defined alongside the custom type:
+ *  - template <typename B> inline void read(B& it, my_custom_type& value)
+ *  - template <typename B> inline void write(B& it, my_custom_type const& value)
+ * They should be implemented in terms of lower level read/write functions.
+ * Be aware that if B is a uint8_t*, it will be advanced appropriately during reads and writes.
+ *
+ * For understanding, given integers do not belong in any namespace, they have been defined inside the serialize
+ * namespace. It may sometimes be necessary to specify a `using serialize::read` or `using serialize::write` to
+ * find them. This is prefereable to polluting the global namespace which comes with its own issues.
+ *
+ * Standard library types are defined inside the `std` namespace, so they can be discovered using argument dependent
+ * lookup. Placing them inside the serialize namespace was an option, but would mean integers and std types would need
+ * to have the serialize namespace specified, but custom types would not. By leveraging ADL we can avoid needing
+ * to specify the serialize namespace in almost all cases.
+ *
+ * A few helpers are defined at global namespace:
+ *  - from_buffer<T>
+ *  - many_from_buffer<T>
+ *  - to_buffer
+ */
 #pragma once
 #include <array>
 #include <common/net.hpp>

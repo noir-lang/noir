@@ -1,8 +1,6 @@
 #pragma once
 #include "../client_proofs/join_split/sign_notes.hpp"
-#include "../tx/user_context.hpp"
 #include "compute_rollup_circuit_data.hpp"
-#include "create_noop_join_split_proof.hpp"
 #include "rollup_circuit.hpp"
 #include <stdlib/types/turbo.hpp>
 
@@ -38,10 +36,15 @@ bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& cir
         auto recursion_outputs =
             rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
 
-        auto verified = !composer.failed;
-        verified &= pairing_checks(recursion_outputs, circuit_data.inner_verification_key);
+        if (composer.failed) {
+            throw std::runtime_error("Rollup circuit logic failure.");
+        }
 
-        return verified;
+        if (!pairing_checks(recursion_outputs, circuit_data.inner_verification_key)) {
+            throw std::runtime_error("Pairing checks failed.");
+        }
+
+        return true;
     } catch (std::runtime_error const& err) {
         std::cerr << err.what() << std::endl;
         return false;

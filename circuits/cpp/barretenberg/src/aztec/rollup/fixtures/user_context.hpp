@@ -3,25 +3,33 @@
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 
 namespace rollup {
-namespace tx {
+namespace fixtures {
 
-struct user_context {
-    barretenberg::fr note_secret;
+struct grumpkin_key_pair {
     grumpkin::fr private_key;
     grumpkin::g1::affine_element public_key;
 };
 
-inline user_context create_user_context()
+struct user_context {
+    barretenberg::fr note_secret;
+    grumpkin_key_pair owner;
+    grumpkin_key_pair signing_keys[2];
+};
+
+inline grumpkin_key_pair create_key_pair()
 {
-    uint8_t pk[] = { 0x0b, 0x9b, 0x3a, 0xde, 0xe6, 0xb3, 0xd8, 0x1b, 0x28, 0xa0, 0x88, 0x6b, 0x2a, 0x84, 0x15, 0xc7,
-                     0xda, 0x31, 0x29, 0x1a, 0x5e, 0x96, 0xbb, 0x7a, 0x56, 0x63, 0x9e, 0x17, 0x7d, 0x30, 0x1b, 0xeb };
-    uint8_t vk[] = { 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11,
-                     0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11 };
-    grumpkin::fr owner_secret = grumpkin::fr::serialize_from_buffer(pk);
-    barretenberg::fr note_secret = barretenberg::fr::serialize_from_buffer(vk);
-    grumpkin::g1::affine_element owner_pub_key = grumpkin::g1::one * owner_secret;
-    return { note_secret, owner_secret, owner_pub_key };
+    grumpkin::fr priv_key = grumpkin::fr::random_element();
+    grumpkin::g1::affine_element pub_key = grumpkin::g1::one * priv_key;
+    return { priv_key, pub_key };
 }
 
-} // namespace tx
+inline user_context create_user_context()
+{
+    uint8_t vk[] = { 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11,
+                     0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11 };
+    barretenberg::fr note_secret = barretenberg::fr::serialize_from_buffer(vk);
+    return { note_secret, create_key_pair(), { create_key_pair(), create_key_pair() } };
+}
+
+} // namespace fixtures
 } // namespace rollup

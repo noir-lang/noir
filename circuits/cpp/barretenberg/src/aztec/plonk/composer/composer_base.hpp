@@ -306,7 +306,7 @@ class ComposerBase {
         }
     }
 
-    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx);
+    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "");
 
     template <size_t program_width> void compute_wire_copy_cycles();
     template <size_t program_width> void compute_sigma_permutations(proving_key* key);
@@ -355,6 +355,7 @@ class ComposerBase {
     std::vector<std::string> selector_names;
     std::vector<bool> use_mid_for_selectorfft; // use middomain instead of large for selectorfft
     bool failed = false;
+    std::string err;
 };
 
 extern template void ComposerBase::compute_sigma_permutations<3>(proving_key* key);

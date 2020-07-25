@@ -1,85 +1,44 @@
-#include "../../pedersen_note/pedersen_note.hpp"
-#include "../../tx/user_context.hpp"
-#include "join_split.hpp"
-#include "join_split_data.cpp"
-#include "sign_notes.hpp"
-#include <common/streams.hpp>
-#include <crypto/schnorr/schnorr.hpp>
+#include "join_split_data.hpp"
 #include <gtest/gtest.h>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::client_proofs::join_split;
 
-class client_proofs_join_split_data : public ::testing::Test {
-  protected:
-    static void SetUpTestCase()
-    {
-        auto null_crs_factory = std::make_unique<waffle::ReferenceStringFactory>();
-        init_proving_key(std::move(null_crs_factory));
-        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
-        init_verification_key(std::move(crs_factory));
-    }
-
-    virtual void SetUp()
-    {
-        store = std::make_unique<MemoryStore>();
-        tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
-        user = rollup::tx::create_user_context();
-    }
-
-    std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
-    {
-        std::vector<uint8_t> buf;
-        write(buf, enc_note.x);
-        write(buf, enc_note.y);
-        return buf;
-    }
-
-    rollup::tx::user_context user;
-    std::unique_ptr<MemoryStore> store;
-    std::unique_ptr<MerkleTree<MemoryStore>> tree;
-};
-
-TEST_F(client_proofs_join_split_data, test_proof_to_data)
+TEST(client_proofs_join_split_data, test_proof_to_data)
 {
-    tx_note input_note1 = { user.public_key, 60, user.note_secret };
-    tx_note input_note2 = { user.public_key, 40, user.note_secret };
-    auto enc_note1 = encrypt_note(input_note1);
-    tree->update_element(0, create_leaf_data(enc_note1));
-    auto enc_note2 = encrypt_note(input_note2);
-    tree->update_element(1, create_leaf_data(enc_note2));
+    uint32_t public_input = 100;
+    uint32_t public_output = 20;
+    std::array<uint8_t, 64> note1 = { 0x01 };
+    std::array<uint8_t, 64> note2 = { 0x02 };
+    auto merkle_root = fr::random_element();
+    uint128_t nullifier1 = static_cast<uint128_t>(0x8e918141efe8189b) << 64 | 0x9304085fa8822c2b;
+    uint128_t nullifier2 = static_cast<uint128_t>(0x4cc6a449b48527bc) << 64 | 0x3d02fd1e11a213bb;
+    auto input_owner = fr::random_element();
+    auto output_owner = fr::random_element();
 
-    tx_note output_note1 = { user.public_key, 80, user.note_secret };
-    tx_note output_note2 = { user.public_key, 0, user.note_secret };
+    using serialize::write;
+    std::vector<uint8_t> proof_data;
+    write(proof_data, uint256_t(public_input));
+    write(proof_data, uint256_t(public_output));
+    write(proof_data, note1);
+    write(proof_data, note2);
+    write(proof_data, uint256_t::from_uint128(nullifier1));
+    write(proof_data, uint256_t::from_uint128(nullifier2));
+    write(proof_data, input_owner);
+    write(proof_data, output_owner);
+    write(proof_data, merkle_root);
+    write(proof_data, uint256_t::from_uint128(nullifier1));
 
-    join_split_tx tx;
-    tx.owner_pub_key = user.public_key;
-    tx.public_input = 100;
-    tx.public_output = 20;
-    tx.num_input_notes = 2;
-    tx.input_index = { 0, 1 };
-    tx.merkle_root = tree->root();
-    tx.input_path = { tree->get_hash_path(0), tree->get_hash_path(1) };
-    tx.input_note = { input_note1, input_note2 };
-    tx.output_note = { output_note1, output_note2 };
-    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                              { user.private_key, user.public_key });
-    tx.input_owner = fr::random_element();
-    tx.output_owner = fr::random_element();
+    auto data = join_split_data(proof_data);
 
-    auto prover = new_join_split_prover(tx);
-    auto proof = prover.construct_proof();
-    auto data = join_split_data(proof.proof_data);
-
-    EXPECT_EQ(data.public_input, tx.public_input);
-    EXPECT_EQ(data.public_output, tx.public_output);
-    EXPECT_EQ(data.merkle_root, tx.merkle_root);
-    EXPECT_EQ(data.nullifier1, static_cast<uint128_t>(0x8e918141efe8189b) << 64 | 0x9304085fa8822c2b);
-    EXPECT_EQ(data.nullifier2, static_cast<uint128_t>(0x4cc6a449b48527bc) << 64 | 0x3d02fd1e11a213bb);
-    EXPECT_EQ(data.input_owner, tx.input_owner);
-    EXPECT_EQ(data.output_owner, tx.output_owner);
+    EXPECT_EQ(data.public_input, public_input);
+    EXPECT_EQ(data.public_output, public_output);
+    EXPECT_EQ(data.nullifier1, nullifier1);
+    EXPECT_EQ(data.nullifier2, nullifier2);
+    EXPECT_EQ(data.input_owner, input_owner);
+    EXPECT_EQ(data.output_owner, output_owner);
+    EXPECT_EQ(data.merkle_root, merkle_root);
+    EXPECT_EQ(data.account_nullifier, nullifier1);
 }

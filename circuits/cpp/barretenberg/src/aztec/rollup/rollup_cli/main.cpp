@@ -51,6 +51,7 @@ int main(int argc, char** argv)
             rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
             rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
             rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
+            rollup.account_null_paths.resize(rollup_size, rollup.account_null_paths.back());
             rollup.data_roots_paths.resize(rollup_size, gibberish_data_roots_path);
             rollup.data_roots_indicies.resize(rollup_size, 0);
         }

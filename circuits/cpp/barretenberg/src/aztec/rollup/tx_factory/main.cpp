@@ -4,7 +4,6 @@
 #include "../rollup_proofs/create_noop_join_split_proof.hpp"
 #include "../rollup_proofs/create_rollup.hpp"
 #include "../rollup_proofs/rollup_tx.hpp"
-#include "../tx/user_context.hpp"
 #include <common/streams.hpp>
 #include <iostream>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
