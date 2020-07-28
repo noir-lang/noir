@@ -76,6 +76,13 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
                                  create_account_leaf_data(user.owner.public_key, user.signing_keys[1].public_key));
     }
 
+    void nullify_account(grumpkin::g1::affine_element const& owner_key, grumpkin::g1::affine_element const& signing_key)
+    {
+        auto data = create_account_leaf_data(owner_key, signing_key);
+        auto nullifier = merkle_tree::hash_value_native(data);
+        null_tree.update_element(uint128_t(nullifier), { 1 });
+    }
+
     void update_root_tree_with_data_root(size_t index)
     {
         auto data_root = to_buffer(data_tree.root());
@@ -406,6 +413,23 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_2_rollup)
     auto verified = verify_rollup_logic(rollup, rollup_2_keyless);
 
     EXPECT_TRUE(verified);
+}
+
+TEST_F(rollup_proofs_rollup_circuit, test_cannot_use_nullified_signing_key)
+{
+    size_t rollup_size = 2;
+
+    append_account_notes();
+    nullify_account(user.owner.public_key, user.signing_keys[0].public_key);
+    append_notes({ 100, 50 });
+    update_root_tree_with_data_root(1);
+    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
+
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+
+    auto verified = verify_rollup_logic(rollup, rollup_2_keyless);
+
+    EXPECT_FALSE(verified);
 }
 
 TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup)

@@ -23,6 +23,11 @@ template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in,
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
 
+    if (scalar_multiplier.get_msb() > num_bits) {
+        ctx->failed = true;
+        ctx->err = "fixed_base_scalar_mul scalar multiplier is larger than num_bits";
+    }
+
     // constexpr size_t num_bits = 250;
     constexpr size_t num_quads_base = (num_bits - 1) >> 1;
     constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;

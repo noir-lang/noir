@@ -127,7 +127,6 @@ void check_accounts_not_nullified(Composer& composer,
 {
 
     // Check that 0 exists at each of the account nullifier indicies.
-    // old_null_root now contains the latest null root...
     for (size_t i = 0; i < account_null_indicies.size(); ++i) {
         auto is_real = num_txs > uint32_ct(witness_ct(&composer, i));
         auto exists = check_membership(composer,
@@ -135,7 +134,8 @@ void check_accounts_not_nullified(Composer& composer,
                                        create_witness_hash_path(composer, account_null_paths[i]),
                                        byte_array_ct(&composer, 64),
                                        byte_array_ct(account_null_indicies[i]));
-        composer.assert_equal(exists.witness_index, is_real.witness_index);
+        auto good = exists || !is_real;
+        composer.assert_equal_constant(good.witness_index, 1);
         if (can_throw && composer.failed) {
             throw std::runtime_error("Failed account not nullified: " + std::to_string(i));
         }

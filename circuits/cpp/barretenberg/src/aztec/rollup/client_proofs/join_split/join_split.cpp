@@ -105,10 +105,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     note_pair output_note1_data = create_note_pair(composer, tx.output_note[0]);
     note_pair output_note2_data = create_note_pair(composer, tx.output_note[1]);
 
-    // There is currently a bug in encrypt_note that causes an assertion to fail (but proof still passes).
-    // Or bug maybe with how composer.failed is set. Either way fix!
-    composer.failed = false;
-
     // Verify input and output notes balance. Use field_ct to prevent overflow.
     field_ct total_in_value =
         field_ct(input_note1_data.first.value) + field_ct(input_note2_data.first.value) + field_ct(public_input);
@@ -127,9 +123,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         input_note1_data.second, input_note2_data.second, output_note1_data.second, output_note2_data.second
     };
     verify_signature(composer, notes, tx.signing_pub_key, tx.signature);
-    if (composer.failed) {
-        composer.err = "bad signature";
-    }
 
     field_ct merkle_root = witness_ct(&composer, tx.merkle_root);
 

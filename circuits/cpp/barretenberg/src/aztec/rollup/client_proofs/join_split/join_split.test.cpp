@@ -154,7 +154,7 @@ class client_proofs_join_split : public ::testing::Test {
 
 HEAVY_TEST_F(client_proofs_join_split, test_0_input_notes)
 {
-    tx_note gibberish = { user.owner.public_key, 0, fr::random_element() };
+    tx_note gibberish = { user.owner.public_key, 0, user.note_secret };
 
     join_split_tx tx = simple_setup();
     tx.public_input = 150;

@@ -33,7 +33,7 @@ template <typename C> bit_array<C> convert_message(C* context, const std::string
         for (size_t j = 7; j < 8; --j) {
             uint8_t msg_shift = static_cast<uint8_t>(msg_byte >> j);
             bool msg_bit = (msg_shift & 1U) == 1U;
-            message[i * 8 + (7 - j)] = witness_t<C>(context, msg_bit);
+            message[(message_string.size() - i - 1) * 8 + j] = witness_t<C>(context, msg_bit);
         }
     }
     return message;
@@ -91,20 +91,19 @@ bool verify_signature(const bit_array<C>& message, const point<C>& pub_key, cons
 
     field_t<C> sum(context, barretenberg::fr::one());
     field_t<C> accumulator(context, barretenberg::fr::zero());
-    size_t input_length = 256 + message.size();
 
     for (size_t i = 0; i < 256; ++i) {
         bool_t<C> temp = witness_t<C>(context, r_x.get_bit(i));
         accumulator = accumulator + (sum * field_t<C>(temp));
         sum = sum + sum;
         temp = temp.normalize();
-        hash_input[input_length - 1 - (255 - i)] = temp;
+        hash_input[message.size() + i] = temp;
     }
     accumulator = accumulator.normalize();
     context->assert_equal(accumulator.witness_index, x_3.witness_index);
 
     for (size_t i = 0; i < message.size(); ++i) {
-        hash_input[input_length - 1 - (256 + i)] = message[i];
+        hash_input[i] = message[i];
     }
 
     bit_array<C> output = blake2s(byte_array<C>(hash_input));
@@ -113,7 +112,7 @@ bool verify_signature(const bit_array<C>& message, const point<C>& pub_key, cons
     for (size_t i = 0; i < 256; ++i) {
         valid = valid && (output[255 - i].get_value() == sig.e[i].get_value());
 
-        context->assert_equal(output[255 - i].witness_index, sig.e[i].witness_index);
+        context->assert_equal(output[255 - i].witness_index, sig.e[i].witness_index, "bad signature");
     }
     return valid;
 }
