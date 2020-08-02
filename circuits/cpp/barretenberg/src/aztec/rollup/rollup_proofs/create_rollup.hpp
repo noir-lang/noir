@@ -1,7 +1,7 @@
 #pragma once
 #include "compute_rollup_circuit_data.hpp"
 #include "verify_rollup.hpp"
-#include <rollup/client_proofs/join_split/join_split_data.hpp>
+#include <rollup/client_proofs/inner_proof_data.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
@@ -9,7 +9,7 @@
 namespace rollup {
 namespace rollup_proofs {
 
-using namespace rollup::client_proofs::join_split;
+using namespace rollup::client_proofs;
 
 template <typename Tree>
 rollup_tx create_rollup(uint32_t rollup_id,
@@ -40,7 +40,7 @@ rollup_tx create_rollup(uint32_t rollup_id,
 
     for (size_t i = 0; i < num_txs; ++i) {
         auto proof_data = txs[i];
-        auto struct_data = join_split_data(proof_data);
+        auto struct_data = inner_proof_data(proof_data);
         auto data_value1 = struct_data.new_note1;
         auto data_value2 = struct_data.new_note2;
 

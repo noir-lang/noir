@@ -49,11 +49,11 @@ template <typename ComposerContext> class witness_t {
 };
 
 template <typename ComposerContext> class public_witness_t : public witness_t<ComposerContext> {
+  public:
     using witness_t<ComposerContext>::context;
     using witness_t<ComposerContext>::witness;
     using witness_t<ComposerContext>::witness_index;
 
-  public:
     public_witness_t() = default;
     public_witness_t(ComposerContext* parent_context, const barretenberg::fr& in)
     {

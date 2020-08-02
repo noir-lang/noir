@@ -53,7 +53,7 @@ inline void write(uint8_t*& it, uint8_t value)
 
 inline void read(uint8_t const*& it, bool& value)
 {
-    value = true;
+    value = *it;
     it += 1;
 }
 

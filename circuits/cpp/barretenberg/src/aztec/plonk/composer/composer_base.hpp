@@ -142,14 +142,14 @@ class ComposerBase {
     };
 
     ComposerBase()
-        : ComposerBase(std::make_unique<FileReferenceStringFactory>("../srs_db"))
+        : ComposerBase(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory("../srs_db")))
     {}
-    ComposerBase(std::unique_ptr<ReferenceStringFactory>&& crs_factory,
+    ComposerBase(std::shared_ptr<ReferenceStringFactory> const& crs_factory,
                  size_t selector_num = 0,
                  size_t size_hint = 0,
                  std::vector<std::string> selector_names = {})
         : n(0)
-        , crs_factory_(std::move(crs_factory))
+        , crs_factory_(crs_factory)
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_names(selector_names)
@@ -349,7 +349,7 @@ class ComposerBase {
     bool computed_witness = false;
     std::shared_ptr<program_witness> witness;
 
-    std::unique_ptr<ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<ReferenceStringFactory> crs_factory_;
     size_t selector_num;
     std::vector<std::vector<barretenberg::fr>> selectors;
     std::vector<std::string> selector_names;

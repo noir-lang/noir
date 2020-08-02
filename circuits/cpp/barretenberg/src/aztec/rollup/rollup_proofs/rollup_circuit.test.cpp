@@ -4,6 +4,7 @@
 #include "rollup_proof_data.hpp"
 #include "verify_rollup.hpp"
 #include "../fixtures/user_context.hpp"
+#include "../client_proofs/inner_proof_data.hpp"
 #include <common/test.hpp>
 #include <rollup/client_proofs/join_split/join_split.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
@@ -14,6 +15,7 @@
 
 using namespace barretenberg;
 using namespace rollup::rollup_proofs;
+using namespace rollup::client_proofs;
 using namespace rollup::client_proofs::join_split;
 using namespace plonk::stdlib::merkle_tree;
 
@@ -267,7 +269,7 @@ TEST_F(rollup_proofs_rollup_circuit, test_1_proof_with_old_root_in_1_rollup)
     auto rollup = create_rollup(
         2, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof, { data_root_index });
 
-    join_split_data data(join_split_proof);
+    inner_proof_data data(join_split_proof);
     EXPECT_TRUE(data.merkle_root != rollup.old_data_root);
 
     auto verified = verify_rollup_logic(rollup, rollup_1_keyless);
@@ -352,8 +354,8 @@ TEST_F(rollup_proofs_rollup_circuit, test_reuse_spent_note_fails)
     append_notes({ 100, 50 });
     update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    join_split_data join_split_data(join_split_proof);
-    null_tree.update_element(join_split_data.nullifier1, { 64, 1 });
+    inner_proof_data inner_proof_data(join_split_proof);
+    null_tree.update_element(inner_proof_data.nullifier1, { 64, 1 });
 
     auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
@@ -536,7 +538,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup_full_proof)
     EXPECT_EQ(rollup_data.num_txs, 1U);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
 
-    auto tx_data = join_split_data(join_split_proof);
+    auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
     EXPECT_EQ(inner_data.public_input, tx_data.public_input);
     EXPECT_EQ(inner_data.public_output, tx_data.public_output);
@@ -579,7 +581,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
-        auto tx_data = join_split_data(txs[i]);
+        auto tx_data = inner_proof_data(txs[i]);
         auto inner_data = rollup_data.inner_proofs[i];
         EXPECT_EQ(inner_data.public_input, tx_data.public_input);
         EXPECT_EQ(inner_data.public_output, tx_data.public_output);

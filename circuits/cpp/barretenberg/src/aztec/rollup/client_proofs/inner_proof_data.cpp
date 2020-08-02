@@ -1,10 +1,9 @@
-#include "join_split_data.hpp"
+#include "inner_proof_data.hpp"
 
 namespace rollup {
 namespace client_proofs {
-namespace join_split {
 
-join_split_data::join_split_data(std::vector<uint8_t> const& proof_data)
+inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
 {
     public_input = from_buffer<uint32_t>(proof_data, 28);
     public_output = from_buffer<uint32_t>(proof_data, 60);
@@ -18,6 +17,5 @@ join_split_data::join_split_data(std::vector<uint8_t> const& proof_data)
     account_nullifier = from_buffer<uint128_t>(proof_data, 11 * 32 + 16);
 }
 
-} // namespace join_split
 } // namespace client_proofs
 } // namespace rollup

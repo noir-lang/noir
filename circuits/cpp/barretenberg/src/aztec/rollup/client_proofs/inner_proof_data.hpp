@@ -3,11 +3,10 @@
 
 namespace rollup {
 namespace client_proofs {
-namespace join_split {
 
 using namespace plonk::stdlib::types::turbo;
 
-struct join_split_data {
+struct inner_proof_data {
     uint32_t public_input;
     uint32_t public_output;
     std::array<uint8_t, 64> new_note1;
@@ -20,9 +19,8 @@ struct join_split_data {
     barretenberg::fr merkle_root;
     uint128_t account_nullifier;
 
-    join_split_data(std::vector<uint8_t> const& proof_data);
+    inner_proof_data(std::vector<uint8_t> const& proof_data);
 };
 
-} // namespace join_split
 } // namespace client_proofs
 } // namespace rollup

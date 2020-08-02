@@ -7,7 +7,7 @@ namespace join_split {
 
 using namespace plonk::stdlib::types::turbo;
 
-struct inner_proof_data {
+struct propagated_inner_proof_data {
     uint32_t public_input;
     uint32_t public_output;
     std::array<uint8_t, 64> new_note1;
@@ -28,7 +28,7 @@ struct rollup_proof_data {
     fr old_data_roots_root;
     fr new_data_roots_root;
     uint32_t num_txs;
-    std::vector<inner_proof_data> inner_proofs;
+    std::vector<propagated_inner_proof_data> inner_proofs;
 
     rollup_proof_data(std::vector<uint8_t> const& proof_data);
 };

@@ -1,14 +1,12 @@
 #pragma once
 #include <ecc/curves/bn254/fr.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <crypto/schnorr/schnorr.hpp>
 
 namespace rollup {
 namespace fixtures {
 
-struct grumpkin_key_pair {
-    grumpkin::fr private_key;
-    grumpkin::g1::affine_element public_key;
-};
+typedef crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> grumpkin_key_pair;
 
 struct user_context {
     barretenberg::fr note_secret;

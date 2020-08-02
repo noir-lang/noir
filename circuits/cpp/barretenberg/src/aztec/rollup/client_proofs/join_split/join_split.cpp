@@ -1,6 +1,6 @@
 #include "join_split.hpp"
 #include "../../pedersen_note/pedersen_note.hpp"
-#include "account_note.hpp"
+#include "../notes/account_note.hpp"
 #include "note_pair.hpp"
 #include "verify_signature.hpp"
 #include <common/log.hpp>
@@ -32,6 +32,7 @@ field_ct process_input_note(Composer& composer,
     // Check that the input note data, follows the given hash paths, to the publically given merkle root.
     auto witness_hash_path = merkle_tree::create_witness_hash_path(composer, hash_path);
 
+    // TODO: Add the note type prefix. Also add to nullifier. Not done yet to not break things...
     byte_array_ct leaf(&composer);
     leaf.write(note.second.ciphertext.x).write(note.second.ciphertext.y);
 
@@ -45,7 +46,7 @@ field_ct process_input_note(Composer& composer,
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
     // tree to ensure notes will always have unique entries. The is_real flag protects against nullifing a real
     // note when the number of input notes < 2.
-    // [256 bits of encrypted note x coord][32 least sig bits of index][223 bits of note viewing key][1 bit is_real]
+    // [256 bits of encrypted note x coord][32 least sig bits of index][223 bits of note secret][1 bit is_real]
     byte_array_ct note_hash_data = byte_array_ct(&composer);
     note_hash_data.write(note.second.ciphertext.x)
         .write(byte_array_ct(index).slice(28, 4))
@@ -62,15 +63,13 @@ field_ct process_account_note(Composer& composer,
                               field_ct const& merkle_root,
                               merkle_tree::fr_hash_path const& hash_path,
                               field_ct const& index,
-                              account_note const& account_note,
+                              notes::account_note const& account_note,
                               bool_ct must_exist)
 {
     // Check that the input note data, follows the given hash paths, to the publically given merkle root.
     auto witness_hash_path = merkle_tree::create_witness_hash_path(composer, hash_path);
 
-    // TODO: Is it ok to just use the x coord?
-    byte_array_ct leaf(&composer);
-    leaf.write(account_note.account_key.x).write(account_note.signing_key.x);
+    byte_array_ct leaf = account_note.leaf_data();
 
     field_ct hashed = stdlib::merkle_tree::hash_value(leaf);
 
@@ -134,9 +133,9 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 
     // Verify that the signing key is owned by the owner of the notes.
     field_ct account_index = witness_ct(&composer, tx.account_index);
-    auto account_note = create_account_note(composer, tx.input_note[0].owner, tx.signing_pub_key);
+    auto account_note = notes::account_note(note1_owner, tx.signing_pub_key, true);
     // The first condition means we can spend notes with only an account key (e.g. if there are no account notes).
-    bool_ct must_exist = account_note.account_key.x != account_note.signing_key.x && num_input_notes >= 1;
+    bool_ct must_exist = account_note.owner_pub_key().x != account_note.signing_pub_key().x && num_input_notes >= 1;
     field_ct account_nullifier =
         process_account_note(composer, merkle_root, tx.account_path, account_index, account_note, must_exist);
 

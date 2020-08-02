@@ -1,12 +1,12 @@
-#include "join_split_data.hpp"
+#include "inner_proof_data.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
-using namespace rollup::client_proofs::join_split;
+using namespace rollup::client_proofs;
 
-TEST(client_proofs_join_split_data, test_proof_to_data)
+TEST(client_proofs_inner_proof_data, test_proof_to_data)
 {
     uint32_t public_input = 100;
     uint32_t public_output = 20;
@@ -31,7 +31,7 @@ TEST(client_proofs_join_split_data, test_proof_to_data)
     write(proof_data, merkle_root);
     write(proof_data, uint256_t::from_uint128(nullifier1));
 
-    auto data = join_split_data(proof_data);
+    auto data = inner_proof_data(proof_data);
 
     EXPECT_EQ(data.public_input, public_input);
     EXPECT_EQ(data.public_output, public_output);
