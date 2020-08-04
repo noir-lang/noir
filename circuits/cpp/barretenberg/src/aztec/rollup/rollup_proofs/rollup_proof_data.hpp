@@ -2,8 +2,7 @@
 #include <stdlib/types/turbo.hpp>
 
 namespace rollup {
-namespace client_proofs {
-namespace join_split {
+namespace rollup_proofs {
 
 using namespace plonk::stdlib::types::turbo;
 
@@ -29,10 +28,10 @@ struct rollup_proof_data {
     fr new_data_roots_root;
     uint32_t num_txs;
     std::vector<propagated_inner_proof_data> inner_proofs;
+    g1::affine_element recursion_output[2];
 
     rollup_proof_data(std::vector<uint8_t> const& proof_data);
 };
 
-} // namespace join_split
-} // namespace client_proofs
+} // namespace rollup_proofs
 } // namespace rollup

@@ -1,8 +1,7 @@
 #include "rollup_proof_data.hpp"
 
 namespace rollup {
-namespace client_proofs {
-namespace join_split {
+namespace rollup_proofs {
 
 rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
 {
@@ -36,8 +35,18 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
         read(ptr, inner_proofs[i].input_owner);
         read(ptr, inner_proofs[i].output_owner);
     }
+
+    for (size_t pi = 0; pi < 2; ++pi) {
+        for (auto& coord : { &recursion_output[pi].x, &recursion_output[pi].y }) {
+            uint256_t limb[4];
+            for (size_t li = 0; li < 4; ++li) {
+                read(ptr, limb[li]);
+            }
+            *coord = limb[0] + (uint256_t(1) << 68) * limb[1] + (uint256_t(1) << 136) * limb[2] +
+                     (uint256_t(1) << 204) * limb[3];
+        }
+    }
 }
 
-} // namespace join_split
-} // namespace client_proofs
+} // namespace rollup_proofs
 } // namespace rollup
