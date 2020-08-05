@@ -12,6 +12,24 @@ struct permutation_subgroup_element {
     bool is_tag = false;
 };
 
+/**
+ * TODO: Remove need for this. We have a lot of old tests that use a vector of uint32s
+ * instead of permutation_subgroup_element
+ **/
+template <typename program_settings>
+inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& output,
+                                                     const std::vector<uint32_t>& permutation,
+                                                     const barretenberg::evaluation_domain& small_domain)
+{
+    std::vector<permutation_subgroup_element> subgroup_elements;
+    for (const auto& permutation_element : permutation) {
+        uint32_t index = permutation_element & (uint32_t)0xffffffU;
+        uint32_t column = permutation_element >> 30U;
+        subgroup_elements.emplace_back(permutation_subgroup_element{ index, (uint8_t)column, false, false });
+        compute_permutation_lagrange_base_single<program_settings>(output, subgroup_elements, small_domain);
+    }
+}
+
 template <typename program_settings>
 inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& output,
                                                      const std::vector<permutation_subgroup_element>& permutation,
@@ -26,7 +44,7 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // 0 = left
     // 1 = right
     // 2 = output
-    ASSERT(small_domain.log2_size > 1); 
+    ASSERT(small_domain.log2_size > 1);
     const barretenberg::fr* roots = small_domain.get_round_roots()[small_domain.log2_size - 2];
     const size_t root_size = small_domain.size >> 1UL;
     const size_t log2_root_size = static_cast<size_t>(numeric::get_msb(root_size));

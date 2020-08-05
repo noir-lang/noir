@@ -25,7 +25,7 @@ extern template class VerifierPermutationWidget<barretenberg::fr,
                                                 barretenberg::g1::affine_element,
                                                 transcript::StandardTranscript>;
 
-template <size_t program_width, bool idpolys> class ProverPermutationWidget : public ProverRandomWidget {
+template <size_t program_width, bool idpolys = false> class ProverPermutationWidget : public ProverRandomWidget {
   public:
     ProverPermutationWidget(proving_key*, program_witness*);
     ProverPermutationWidget(const ProverPermutationWidget& other);

@@ -479,7 +479,7 @@ TEST(plookup_composer, range_constraint)
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 128);
         }
-        composer.create_dummy_constraint(indices);
+        composer.create_dummy_constraints(indices);
         composer.process_range_lists();
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
