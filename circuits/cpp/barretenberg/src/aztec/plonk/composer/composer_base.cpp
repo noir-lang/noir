@@ -8,7 +8,7 @@ namespace waffle {
 void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
 {
     bool values_equal = (get_variable(a_variable_idx) == get_variable(b_variable_idx));
-    if (!values_equal) {
+    if (!values_equal && !failed) {
         failed = true;
         err = msg;
     }
@@ -16,9 +16,8 @@ void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_
     variable_index_map[b_real_idx] = a_variable_idx;
     uint32_t a_real_idx = get_real_variable_index(a_variable_idx);
     bool no_tag_clash = (variable_tags[a_real_idx] == DUMMY_TAG || variable_tags[b_real_idx] == DUMMY_TAG ||
-           variable_tags[a_real_idx] == variable_tags[b_real_idx]);
-    if (no_tag_clash)
-    {
+                         variable_tags[a_real_idx] == variable_tags[b_real_idx]);
+    if (!no_tag_clash && !failed) {
         failed = true;
         err = msg;
     }
@@ -165,11 +164,11 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         std::vector<barretenberg::fr>& coeffs = selectors[i];
         const auto& properties = selector_properties[i];
         ASSERT(n == coeffs.size());
-        for (size_t j = num_filled_gates; j < subgroup_size; ++j) {
+        for (size_t j = num_filled_gates; j < subgroup_size - 1; ++j) {
             coeffs.emplace_back(fr::zero());
         }
         coeffs.emplace_back(1); // ensure selectors are nonzero
-        polynomial poly(subgroup_size + 1);
+        polynomial poly(subgroup_size);
 
         for (size_t k = 0; k < public_inputs.size(); ++k) {
             poly[k] = fr::zero();

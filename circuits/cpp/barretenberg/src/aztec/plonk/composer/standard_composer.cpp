@@ -247,6 +247,8 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
             accumulator_idx = new_accumulator_idx;
         }
     }
+
+    assert_equal(witness_index, accumulator_idx);
     return accumulators;
 }
 

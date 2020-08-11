@@ -298,7 +298,9 @@ class ComposerBase {
         }
     }
 
-    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "");
+    virtual void assert_equal(const uint32_t a_idx,
+                              const uint32_t b_idx,
+                              std::string const& msg = "assert equal failed");
 
     template <size_t program_width> void compute_wire_copy_cycles();
     template <size_t program_width, bool with_tags = false> void compute_sigma_permutations(proving_key* key);

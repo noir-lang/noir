@@ -67,7 +67,7 @@ class TurboComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b, std::string const& msg = "")
+    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b, std::string const& msg = "assert equal constant failed")
     {
         // ASSERT(variables[a_idx] == b);
         if (variables[a_idx] != b && !failed) {

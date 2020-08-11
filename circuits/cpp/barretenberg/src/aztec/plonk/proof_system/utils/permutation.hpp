@@ -26,8 +26,8 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
         uint32_t index = permutation_element & (uint32_t)0xffffffU;
         uint32_t column = permutation_element >> 30U;
         subgroup_elements.emplace_back(permutation_subgroup_element{ index, (uint8_t)column, false, false });
-        compute_permutation_lagrange_base_single<program_settings>(output, subgroup_elements, small_domain);
     }
+    compute_permutation_lagrange_base_single<program_settings>(output, subgroup_elements, small_domain);
 }
 
 template <typename program_settings>

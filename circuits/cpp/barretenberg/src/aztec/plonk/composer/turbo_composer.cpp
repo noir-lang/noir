@@ -454,7 +454,7 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
 
-    assert_equal(accumulators[accumulators.size() - 1], witness_index);
+    assert_equal(witness_index, accumulators[accumulators.size() - 1]);
     accumulators[accumulators.size() - 1] = witness_index;
 
     n += used_gates;
