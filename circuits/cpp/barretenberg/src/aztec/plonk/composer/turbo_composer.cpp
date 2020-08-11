@@ -37,10 +37,10 @@ TurboComposer::TurboComposer()
 {}
 
 TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint)
-    : TurboComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
+    : TurboComposer(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
-TurboComposer::TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
-    : ComposerBase(std::move(crs_factory), 11, size_hint, TURBO_SEL_PROPS)
+TurboComposer::TurboComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint)
+    : ComposerBase(crs_factory, 11, size_hint, TURBO_SEL_PROPS)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);

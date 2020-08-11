@@ -8,9 +8,9 @@ using namespace benchmark;
 using namespace plonk::stdlib::types::plookup;
 
 constexpr size_t NUM_HASHES = 8;
-constexpr uint BYTES_PER_CHUNK = 512;
-constexpr uint START_BYTES = BYTES_PER_CHUNK - 9;
-constexpr uint MAX_BYTES = START_BYTES + (BYTES_PER_CHUNK * (NUM_HASHES - 1));
+constexpr size_t BYTES_PER_CHUNK = 512;
+constexpr size_t START_BYTES = BYTES_PER_CHUNK - 9;
+constexpr size_t MAX_BYTES = START_BYTES + (BYTES_PER_CHUNK * (NUM_HASHES - 1));
 
 char get_random_char()
 {

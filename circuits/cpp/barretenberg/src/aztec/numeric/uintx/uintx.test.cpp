@@ -1,15 +1,10 @@
 #include "../random/engine.hpp"
 #include "./uintx.hpp"
-
-#include <ecc/curves/bn254/fq.hpp>
-#include <ecc/curves/bn254/fr.hpp>
 #include <gtest/gtest.h>
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
-}
-
-using namespace barretenberg;
+} // namespace
 
 TEST(uintx, get_bit)
 {
@@ -72,38 +67,41 @@ TEST(uintx, div_and_mod)
     EXPECT_EQ(r, uint1024_t(0));
 }
 
-TEST(uintx, mulmod)
+// We should not be depending on ecc in numeric.
+TEST(uintx, DISABLED_mulmod)
 {
-    barretenberg::fq a = barretenberg::fq::random_element();
-    barretenberg::fq b = barretenberg::fq::random_element();
-    // barretenberg::fq a_converted = a.from_montgomery_form();
-    // barretenberg::fq b_converted = b.from_montgomery_form();
-    uint256_t a_uint =
-        uint256_t(a); // { a_converted.data[0], a_converted.data[1], a_converted.data[2], a_converted.data[3] };
-    uint256_t b_uint =
-        uint256_t(b); // { b_converted.data[0], b_converted.data[1], b_converted.data[2], b_converted.data[3] };
-    uint256_t modulus_uint{ barretenberg::Bn254FqParams::modulus_0,
-                            barretenberg::Bn254FqParams::modulus_1,
-                            barretenberg::Bn254FqParams::modulus_2,
-                            barretenberg::Bn254FqParams::modulus_3 };
-    uint1024_t a_uintx = uint1024_t(uint512_t(a_uint));
-    uint1024_t b_uintx = uint1024_t(uint512_t(b_uint));
-    uint1024_t modulus_uintx = uint1024_t(uint512_t(modulus_uint));
+    /*
+        barretenberg::fq a = barretenberg::fq::random_element();
+        barretenberg::fq b = barretenberg::fq::random_element();
+        // barretenberg::fq a_converted = a.from_montgomery_form();
+        // barretenberg::fq b_converted = b.from_montgomery_form();
+        uint256_t a_uint =
+            uint256_t(a); // { a_converted.data[0], a_converted.data[1], a_converted.data[2], a_converted.data[3] };
+        uint256_t b_uint =
+            uint256_t(b); // { b_converted.data[0], b_converted.data[1], b_converted.data[2], b_converted.data[3] };
+        uint256_t modulus_uint{ barretenberg::Bn254FqParams::modulus_0,
+                                barretenberg::Bn254FqParams::modulus_1,
+                                barretenberg::Bn254FqParams::modulus_2,
+                                barretenberg::Bn254FqParams::modulus_3 };
+        uint1024_t a_uintx = uint1024_t(uint512_t(a_uint));
+        uint1024_t b_uintx = uint1024_t(uint512_t(b_uint));
+        uint1024_t modulus_uintx = uint1024_t(uint512_t(modulus_uint));
 
-    const auto [quotient, remainder] = (a_uintx * b_uintx).divmod(modulus_uintx);
+        const auto [quotient, remainder] = (a_uintx * b_uintx).divmod(modulus_uintx);
 
-    // barretenberg::fq expected_a = a_converted.to_montgomery_form();
-    // barretenberg::fq expected_b = b_converted.to_montgomery_form();
-    barretenberg::fq expected = (a * b).from_montgomery_form();
+        // barretenberg::fq expected_a = a_converted.to_montgomery_form();
+        // barretenberg::fq expected_b = b_converted.to_montgomery_form();
+        barretenberg::fq expected = (a * b).from_montgomery_form();
 
-    EXPECT_EQ(remainder.lo.lo.data[0], expected.data[0]);
-    EXPECT_EQ(remainder.lo.lo.data[1], expected.data[1]);
-    EXPECT_EQ(remainder.lo.lo.data[2], expected.data[2]);
-    EXPECT_EQ(remainder.lo.lo.data[3], expected.data[3]);
+        EXPECT_EQ(remainder.lo.lo.data[0], expected.data[0]);
+        EXPECT_EQ(remainder.lo.lo.data[1], expected.data[1]);
+        EXPECT_EQ(remainder.lo.lo.data[2], expected.data[2]);
+        EXPECT_EQ(remainder.lo.lo.data[3], expected.data[3]);
 
-    const auto rhs = (quotient * modulus_uintx) + remainder;
-    const auto lhs = a_uintx * b_uintx;
-    EXPECT_EQ(lhs, rhs);
+        const auto rhs = (quotient * modulus_uintx) + remainder;
+        const auto lhs = a_uintx * b_uintx;
+        EXPECT_EQ(lhs, rhs);
+    */
 }
 
 TEST(uintx, sub)
@@ -203,9 +201,11 @@ TEST(uintx, not_equal)
     EXPECT_EQ(a != b, true);
 }
 
-TEST(uintx, invmod)
+// We should not be depending on ecc in numeric.
+TEST(uintx, DISABLED_invmod)
 {
-    uint256_t prime_lo = fr::modulus;
+    /*
+    uint256_t prime_lo = prime_256;
     uint1024_t prime = uint1024_t(uint512_t(prime_lo));
     uint256_t target_lo = engine.get_random_uint256();
     uint1024_t target = uint1024_t(uint512_t(target_lo));
@@ -213,15 +213,17 @@ TEST(uintx, invmod)
 
     uint256_t expected = uint256_t(fr(target_lo).invert());
     EXPECT_EQ(inverse, expected);
+    */
 }
 
-TEST(uintx, r_inv)
+TEST(uintx, DISABLED_r_inv)
 {
-    uint256_t prime_256 = fr::modulus;
+    /*
     uint512_t r{ 0, 1 };
     // -(1/q) mod r
     uint512_t q{ -prime_256, 0 };
     uint256_t q_inv = q.invmod(r).lo;
     uint64_t result = q_inv.data[0];
     EXPECT_EQ(result, Bn254FrParams::r_inv);
+    */
 }

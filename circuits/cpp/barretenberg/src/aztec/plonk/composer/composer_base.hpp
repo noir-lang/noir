@@ -184,14 +184,14 @@ class ComposerBase {
     };
 
     ComposerBase()
-        : ComposerBase(std::make_unique<FileReferenceStringFactory>("../srs_db"))
+        : ComposerBase(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory("../srs_db")))
     {}
-    ComposerBase(std::unique_ptr<ReferenceStringFactory>&& crs_factory,
+    ComposerBase(std::shared_ptr<ReferenceStringFactory> const& crs_factory,
                  size_t selector_num = 0,
                  size_t size_hint = 0,
                  std::vector<SelectorProperties> selector_properties = {})
         : n(0)
-        , crs_factory_(std::move(crs_factory))
+        , crs_factory_(crs_factory)
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
@@ -298,7 +298,7 @@ class ComposerBase {
         }
     }
 
-    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx);
+    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "");
 
     template <size_t program_width> void compute_wire_copy_cycles();
     template <size_t program_width, bool with_tags = false> void compute_sigma_permutations(proving_key* key);
@@ -345,10 +345,12 @@ class ComposerBase {
     bool computed_witness = false;
     std::shared_ptr<program_witness> witness;
 
-    std::unique_ptr<ReferenceStringFactory> crs_factory_;
+    std::shared_ptr<ReferenceStringFactory> crs_factory_;
     size_t selector_num;
     std::vector<std::vector<barretenberg::fr>> selectors;
     std::vector<SelectorProperties> selector_properties;
+    bool failed = false;
+    std::string err;
 };
 
 extern template void ComposerBase::compute_wire_copy_cycles<3>();

@@ -10,12 +10,11 @@ namespace rollup_proofs {
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 
-std::vector<recursion_output<bn254>> rollup_circuit(
-    Composer& composer,
-    rollup_tx const& proofs,
-    std::shared_ptr<waffle::verification_key> const& inner_verification_key,
-    size_t rollup_size,
-    bool can_throw = true);
+recursion_output<bn254> rollup_circuit(Composer& composer,
+                                       rollup_tx const& proofs,
+                                       std::shared_ptr<waffle::verification_key> const& inner_verification_key,
+                                       size_t rollup_size,
+                                       bool can_throw = true);
 
 } // namespace rollup_proofs
 } // namespace rollup

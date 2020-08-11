@@ -34,15 +34,17 @@ inline std::ostream& operator<<(std::ostream& os, tx_note const& note)
 
 inline void read(uint8_t const*& it, tx_note& note)
 {
+    using serialize::read;
     read(it, note.owner);
-    ::read(it, note.value);
+    read(it, note.value);
     read(it, note.secret);
 }
 
 inline void write(std::vector<uint8_t>& buf, tx_note const& note)
 {
+    using serialize::write;
     write(buf, note.owner);
-    ::write(buf, note.value);
+    write(buf, note.value);
     write(buf, note.secret);
 }
 

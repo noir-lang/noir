@@ -29,8 +29,12 @@ struct rollup_tx {
     std::vector<fr> new_null_roots;
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
+    std::vector<fr_hash_path> account_null_paths;
 
-    fr data_roots_root;
+    fr old_data_roots_root;
+    fr new_data_roots_root;
+    fr_hash_path old_data_roots_path;
+    fr_hash_path new_data_roots_path;
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint32_t> data_roots_indicies;
 
@@ -56,8 +60,12 @@ inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
         lhs.new_null_roots == rhs.new_null_roots &&
         lhs.old_null_paths == rhs.old_null_paths &&
         lhs.new_null_paths == rhs.new_null_paths &&
+        lhs.account_null_paths == rhs.account_null_paths &&
 
-        lhs.data_roots_root == rhs.data_roots_root &&
+        lhs.old_data_roots_root == rhs.old_data_roots_root &&
+        lhs.new_data_roots_root == rhs.new_data_roots_root &&
+        lhs.old_data_roots_path == rhs.old_data_roots_path &&
+        lhs.new_data_roots_path == rhs.new_data_roots_path &&
         lhs.data_roots_paths == rhs.data_roots_paths &&
         lhs.data_roots_indicies == rhs.data_roots_indicies;
     // clang-format on
@@ -65,9 +73,10 @@ inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
 
 template <typename B> inline void read(B& buf, rollup_tx& tx)
 {
-    ::read(buf, tx.rollup_id);
-    ::read(buf, tx.num_txs);
-    ::read(buf, tx.data_start_index);
+    using serialize::read;
+    read(buf, tx.rollup_id);
+    read(buf, tx.num_txs);
+    read(buf, tx.data_start_index);
     read(buf, tx.txs);
 
     read(buf, tx.rollup_root);
@@ -80,17 +89,22 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.new_null_roots);
     read(buf, tx.old_null_paths);
     read(buf, tx.new_null_paths);
+    read(buf, tx.account_null_paths);
 
-    read(buf, tx.data_roots_root);
+    read(buf, tx.old_data_roots_root);
+    read(buf, tx.new_data_roots_root);
+    read(buf, tx.old_data_roots_path);
+    read(buf, tx.new_data_roots_path);
     read(buf, tx.data_roots_paths);
     read(buf, tx.data_roots_indicies);
 }
 
 template <typename B> inline void write(B& buf, rollup_tx const& tx)
 {
-    ::write(buf, tx.rollup_id);
-    ::write(buf, tx.num_txs);
-    ::write(buf, tx.data_start_index);
+    using serialize::write;
+    write(buf, tx.rollup_id);
+    write(buf, tx.num_txs);
+    write(buf, tx.data_start_index);
 
     write(buf, tx.txs);
     write(buf, tx.rollup_root);
@@ -103,8 +117,12 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.new_null_roots);
     write(buf, tx.old_null_paths);
     write(buf, tx.new_null_paths);
+    write(buf, tx.account_null_paths);
 
-    write(buf, tx.data_roots_root);
+    write(buf, tx.old_data_roots_root);
+    write(buf, tx.new_data_roots_root);
+    write(buf, tx.old_data_roots_path);
+    write(buf, tx.new_data_roots_path);
     write(buf, tx.data_roots_paths);
     write(buf, tx.data_roots_indicies);
 }
@@ -140,8 +158,15 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     for (auto e : tx.new_null_paths) {
         os << e << "\n";
     }
+    os << "account_null_paths:\n";
+    for (auto e : tx.account_null_paths) {
+        os << e << "\n";
+    }
 
-    os << "data_roots_root: " << tx.data_roots_root << "\n";
+    os << "old_data_roots_root: " << tx.old_data_roots_root << "\n";
+    os << "new_data_roots_root: " << tx.new_data_roots_root << "\n";
+    os << "old_data_roots_path: " << tx.old_data_roots_path << "\n";
+    os << "new_data_roots_path: " << tx.new_data_roots_path << "\n";
     os << "data_roots_paths:\n";
     for (auto e : tx.data_roots_paths) {
         os << e << "\n";

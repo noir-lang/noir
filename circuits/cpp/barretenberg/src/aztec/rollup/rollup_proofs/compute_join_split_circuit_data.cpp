@@ -1,6 +1,5 @@
 #include "compute_join_split_circuit_data.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include <rollup/tx/user_context.hpp>
 #include <rollup/client_proofs/join_split/join_split.hpp>
 #include <rollup/client_proofs/join_split/sign_notes.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
@@ -26,13 +25,14 @@ bool exists(std::string const& path)
 
 join_split_tx noop_tx()
 {
-    auto user = rollup::tx::create_user_context();
-
-    tx_note gibberish_note = { user.public_key, 0, fr::random_element() };
+    grumpkin::fr priv_key = grumpkin::fr::random_element();
+    grumpkin::g1::affine_element pub_key = grumpkin::g1::one * priv_key;
+    tx_note gibberish_note = { pub_key, 0, fr::random_element() };
+    gibberish_note.secret.data[3] = gibberish_note.secret.data[3] & 0x0FFFFFFFFFFFFFFULL;
+    gibberish_note.secret = gibberish_note.secret.to_montgomery_form();
     auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
 
     join_split_tx tx;
-    tx.owner_pub_key = user.public_key;
     tx.public_input = 0;
     tx.public_output = 0;
     tx.num_input_notes = 0;
@@ -41,9 +41,15 @@ join_split_tx noop_tx()
     tx.input_path = { gibberish_path, gibberish_path };
     tx.input_note = { gibberish_note, gibberish_note };
     tx.output_note = { gibberish_note, gibberish_note };
+    tx.account_index = 0;
+    tx.account_path = gibberish_path;
+    tx.signing_pub_key = pub_key;
 
-    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                              { user.private_key, user.public_key });
+    tx.signature =
+        sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] }, { priv_key, pub_key });
+
+    tx.input_owner = fr::random_element();
+    tx.output_owner = fr::random_element();
 
     return tx;
 }

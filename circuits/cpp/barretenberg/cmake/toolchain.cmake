@@ -1,6 +1,5 @@
 if(APPLE)
-    set(CMAKE_CXX_COMPILER "/usr/local/opt/llvm/bin/clang++")
-    set(CMAKE_C_COMPILER "/usr/local/opt/llvm/bin/clang")
+    include("./cmake/toolchains/x86_64-apple-clang.cmake")
 endif()
 
 if(LINUX_CLANG)

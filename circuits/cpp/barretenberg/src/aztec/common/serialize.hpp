@@ -1,3 +1,31 @@
+/**
+ * This is the core serialization library.
+ * It enables the reading and writing of big-endian formatted integers and various standard library types
+ * to and from the following supported types:
+ *  - uint8_t*
+ *  - std::vector<uint8_t>
+ *  - std::ostream / std::istream
+ *
+ * To support custom types, free functions taking the following form should be defined alongside the custom type:
+ *  - template <typename B> inline void read(B& it, my_custom_type& value)
+ *  - template <typename B> inline void write(B& it, my_custom_type const& value)
+ * They should be implemented in terms of lower level read/write functions.
+ * Be aware that if B is a uint8_t*, it will be advanced appropriately during reads and writes.
+ *
+ * For understanding, given integers do not belong in any namespace, they have been defined inside the serialize
+ * namespace. It may sometimes be necessary to specify a `using serialize::read` or `using serialize::write` to
+ * find them. This is prefereable to polluting the global namespace which comes with its own issues.
+ *
+ * Standard library types are defined inside the `std` namespace, so they can be discovered using argument dependent
+ * lookup. Placing them inside the serialize namespace was an option, but would mean integers and std types would need
+ * to have the serialize namespace specified, but custom types would not. By leveraging ADL we can avoid needing
+ * to specify the serialize namespace in almost all cases.
+ *
+ * A few helpers are defined at global namespace:
+ *  - from_buffer<T>
+ *  - many_from_buffer<T>
+ *  - to_buffer
+ */
 #pragma once
 #include <array>
 #include <common/net.hpp>
@@ -8,6 +36,7 @@
 
 __extension__ using uint128_t = unsigned __int128;
 
+namespace serialize {
 // Basic integer read / write, to / from raw buffers.
 // Pointers to buffers are advanced by length of type.
 inline void read(uint8_t const*& it, uint8_t& value)
@@ -24,7 +53,7 @@ inline void write(uint8_t*& it, uint8_t value)
 
 inline void read(uint8_t const*& it, bool& value)
 {
-    value = true;
+    value = *it;
     it += 1;
 }
 
@@ -90,14 +119,14 @@ inline void write(uint8_t*& it, uint128_t value)
 template <typename T> inline std::enable_if_t<std::is_integral_v<T>> read(std::vector<uint8_t> const& buf, T& value)
 {
     auto ptr = &buf[0];
-    ::read(ptr, value);
+    read(ptr, value);
 }
 
 template <typename T> inline std::enable_if_t<std::is_integral_v<T>> write(std::vector<uint8_t>& buf, T value)
 {
     buf.resize(buf.size() + sizeof(T));
     uint8_t* ptr = &*buf.end() - sizeof(T);
-    ::write(ptr, value);
+    write(ptr, value);
 }
 
 // Reading writing integer types to / from streams.
@@ -106,28 +135,29 @@ template <typename T> inline std::enable_if_t<std::is_integral_v<T>> read(std::i
     std::array<uint8_t, sizeof(T)> buf;
     is.read((char*)buf.data(), sizeof(T));
     uint8_t const* ptr = &buf[0];
-    ::read(ptr, value);
+    read(ptr, value);
 }
 
 template <typename T> inline std::enable_if_t<std::is_integral_v<T>> write(std::ostream& os, T value)
 {
     std::array<uint8_t, sizeof(T)> buf;
     uint8_t* ptr = &buf[0];
-    ::write(ptr, value);
+    write(ptr, value);
     os.write((char*)buf.data(), sizeof(T));
 }
+} // namespace serialize
 
 namespace std {
 
 // Forwarding functions from std to global namespace for integers.
 template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> read(B& buf, T& value)
 {
-    ::read(buf, value);
+    serialize::read(buf, value);
 }
 
 template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> write(B& buf, T value)
 {
-    ::write(buf, value);
+    serialize::write(buf, value);
 }
 
 // Optimised specialisation for reading arrays of bytes from a raw buffer.
@@ -283,6 +313,7 @@ template <typename B, typename T, typename U> inline void write(B& buf, std::map
 // Helper functions that have return values.
 template <typename T, typename B> T from_buffer(B const& buffer, size_t offset = 0)
 {
+    using serialize::read;
     T result;
     auto ptr = (uint8_t const*)&buffer[offset];
     read(ptr, result);
@@ -291,6 +322,7 @@ template <typename T, typename B> T from_buffer(B const& buffer, size_t offset =
 
 template <typename T> std::vector<uint8_t> to_buffer(T const& value)
 {
+    using serialize::write;
     std::vector<uint8_t> buf;
     write(buf, value);
     return buf;
@@ -309,6 +341,7 @@ template <typename T> std::vector<T> many_from_buffer(std::vector<uint8_t> const
 // By default, if calling to_buffer on a vector of types, we don't prefix the vector size.
 template <bool include_size = false, typename T> std::vector<uint8_t> to_buffer(std::vector<T> const& value)
 {
+    using serialize::write;
     std::vector<uint8_t> buf;
     for (auto e : value) {
         write(buf, e);

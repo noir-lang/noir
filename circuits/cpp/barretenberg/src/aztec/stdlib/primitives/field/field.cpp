@@ -511,6 +511,12 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
 }
 
 template <typename ComposerContext>
+bool_t<ComposerContext> field_t<ComposerContext>::operator!=(const field_t& other) const
+{
+    return !operator==(other);
+}
+
+template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::conditional_negate(const bool_t<ComposerContext>& predicate) const
 {
     field_t<ComposerContext> predicate_field(predicate);

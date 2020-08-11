@@ -4,3 +4,7 @@ if(WASM)
     # had the patience to wait it out...
     add_compile_options(-fno-exceptions -fno-slp-vectorize)
 endif()
+
+if(NOT WASM)
+    add_compile_options(-march=native)
+endif()

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 mkdir -p ignition
 ARGS=$@
 [ $# -ne 0 ] || ARGS=$(seq 0 19)

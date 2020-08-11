@@ -5,14 +5,23 @@
 
 namespace waffle {
 
-void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx)
+void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
 {
-    ASSERT(get_variable(a_variable_idx) == get_variable(b_variable_idx));
+    bool values_equal = (get_variable(a_variable_idx) == get_variable(b_variable_idx));
+    if (!values_equal) {
+        failed = true;
+        err = msg;
+    }
     uint32_t b_real_idx = get_real_variable_index(b_variable_idx);
     variable_index_map[b_real_idx] = a_variable_idx;
     uint32_t a_real_idx = get_real_variable_index(a_variable_idx);
-    ASSERT(variable_tags[a_real_idx] == DUMMY_TAG || variable_tags[b_real_idx] == DUMMY_TAG ||
+    bool no_tag_clash = (variable_tags[a_real_idx] == DUMMY_TAG || variable_tags[b_real_idx] == DUMMY_TAG ||
            variable_tags[a_real_idx] == variable_tags[b_real_idx]);
+    if (no_tag_clash)
+    {
+        failed = true;
+        err = msg;
+    }
     if (variable_tags[a_real_idx] == DUMMY_TAG)
         variable_tags[a_real_idx] = variable_tags[b_real_idx];
 }

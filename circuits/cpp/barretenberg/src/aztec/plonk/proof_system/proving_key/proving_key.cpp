@@ -31,6 +31,8 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
     , pippenger_runtime_state(n)
 {
     init();
+    // TODO: Currently only supporting TurboComposer in serialization!
+    std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
 }
 
 void proving_key::init()

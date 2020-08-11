@@ -21,7 +21,7 @@ class TurboComposer : public ComposerBase {
     };
     TurboComposer();
     TurboComposer(std::string const& crs_path, const size_t size_hint = 0);
-    TurboComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
+    TurboComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0);
     TurboComposer(std::shared_ptr<proving_key> const& p_key,
                   std::shared_ptr<verification_key> const& v_key,
                   size_t size_hint = 0);
@@ -67,9 +67,13 @@ class TurboComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b)
+    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b, std::string const& msg = "")
     {
-        ASSERT(variables[a_idx] == b);
+        // ASSERT(variables[a_idx] == b);
+        if (variables[a_idx] != b && !failed) {
+            failed = true;
+            err = msg;
+        }
         const add_triple gate_coefficients{
             a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
         };

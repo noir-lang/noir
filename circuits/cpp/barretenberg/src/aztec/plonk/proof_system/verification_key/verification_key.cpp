@@ -18,7 +18,10 @@ verification_key::verification_key(verification_key_data&& data, std::shared_ptr
     , reference_string(crs)
     , constraint_selectors(std::move(data.constraint_selectors))
     , permutation_selectors(std::move(data.permutation_selectors))
-{}
+{
+    // TODO: Currently only supporting TurboComposer in serialization!
+    std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
+}
 
 verification_key::verification_key(const verification_key& other)
     : n(other.n)
@@ -48,6 +51,7 @@ verification_key& verification_key::operator=(verification_key&& other)
     constraint_selectors = std::move(other.constraint_selectors);
     permutation_selectors = std::move(other.permutation_selectors);
     polynomial_manifest = std::move(other.polynomial_manifest);
+    domain = std::move(other.domain);
     return *this;
 }
 } // namespace waffle

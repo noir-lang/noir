@@ -102,12 +102,12 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() > 1 && args[1] == "reset") {
-        LevelDbStore::destroy(DB_PATH);
+        LevelDbStore::destroy(args.size() > 2 ? args[2] : DB_PATH);
         std::cout << "Erased db." << std::endl;
         return 0;
     }
 
-    WorldStateDb world_state_db(DB_PATH);
+    WorldStateDb world_state_db(args.size() > 1 ? args[1] : DB_PATH);
 
     world_state_db.write_metadata(std::cout);
 

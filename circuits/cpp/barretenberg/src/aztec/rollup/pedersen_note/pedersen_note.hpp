@@ -13,6 +13,7 @@ struct public_note {
 struct private_note {
     point_ct owner;
     uint32_ct value;
+    // this secret must be 250 bits or smaller - it cannot be taken from the entire field_ct range
     field_ct secret;
 };
 

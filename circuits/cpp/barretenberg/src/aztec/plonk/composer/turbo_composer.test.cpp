@@ -1,6 +1,7 @@
 #include "turbo_composer.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <gtest/gtest.h>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 
@@ -20,6 +21,33 @@ TEST(turbo_composer, base_case)
     waffle::plonk_proof proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
+    EXPECT_EQ(result, true);
+}
+
+TEST(turbo_composer, composer_from_serialized_keys)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    fr a = fr::one();
+    composer.add_public_variable(a);
+
+    auto pk_buf = to_buffer(*composer.compute_proving_key());
+    auto vk_buf = to_buffer(*composer.compute_verification_key());
+    auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
+    auto vk_data = from_buffer<waffle::verification_key_data>(vk_buf);
+
+    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
+    auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n));
+    auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+
+    waffle::TurboComposer composer2 = waffle::TurboComposer(proving_key, verification_key);
+    composer2.add_public_variable(a);
+
+    waffle::TurboProver prover = composer2.create_prover();
+    waffle::TurboVerifier verifier = composer2.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
     EXPECT_EQ(result, true);
 }
 

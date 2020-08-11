@@ -1,5 +1,5 @@
 #include "../../pedersen_note/pedersen_note.hpp"
-#include "../../tx/user_context.hpp"
+#include "../../fixtures/user_context.hpp"
 #include "standard_example.hpp"
 #include <common/streams.hpp>
 #include <gtest/gtest.h>
@@ -7,7 +7,6 @@
 using namespace barretenberg;
 using namespace plonk::stdlib::types::standard;
 using namespace rollup::client_proofs::standard_example;
-using namespace rollup::tx;
 
 TEST(client_proofs, test_standard_example)
 {

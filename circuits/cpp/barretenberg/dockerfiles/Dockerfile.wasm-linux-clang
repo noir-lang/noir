@@ -1,9 +1,13 @@
-FROM aztecprotocol/clang:9.0.0
+FROM aztecprotocol/cmake:3.16.5 AS builder
+RUN apt update && apt install -y curl
 RUN curl https://wasmtime.dev/install.sh -sSf | bash
 WORKDIR /usr/src/barretenberg/src
 RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk-8.0-linux.tar.gz | tar zxfv -
 RUN sed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
 WORKDIR /usr/src/barretenberg
 COPY . .
-RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc) barretenberg.wasm noir_tests
-RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/noir/compiler/noir_tests -- --gtest_filter=noir.sha256_NIST_one
+RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc) barretenberg.wasm rollup_client_proofs_tests
+RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/rollup/client_proofs/rollup_client_proofs_tests -- --gtest_filter=client_proofs_join_split.test_2_input_notes
+
+FROM alpine:latest
+COPY --from=builder /usr/src/barretenberg/build/src/aztec/barretenberg.wasm /usr/src/barretenberg/build/src/aztec/barretenberg.wasm

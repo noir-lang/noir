@@ -88,4 +88,4 @@ class unrolled_turbo_settings : public settings_base {
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = false;
 };
-}
+} // namespace waffle

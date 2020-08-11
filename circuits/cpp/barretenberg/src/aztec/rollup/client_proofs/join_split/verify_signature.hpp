@@ -8,7 +8,7 @@ namespace join_split {
 
 using namespace rollup::pedersen_note;
 
-void verify_signature(Composer& composer,
+bool verify_signature(Composer& composer,
                       std::array<public_note, 4> const& notes,
                       grumpkin::g1::affine_element const& pub_key,
                       crypto::schnorr::signature const& sig)
@@ -21,8 +21,7 @@ void verify_signature(Composer& composer,
         to_compress[i * 2 + 1] = notes[i].ciphertext.y;
     }
     byte_array_ct message = pedersen::compress(to_compress);
-    byte_array_ct message2(&composer, message.bits().rbegin(), message.bits().rend());
-    stdlib::schnorr::verify_signature(message2, owner_pub_key, signature);
+    return stdlib::schnorr::verify_signature(message, owner_pub_key, signature);
 }
 
 } // namespace join_split

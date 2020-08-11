@@ -1,4 +1,5 @@
 #pragma once
+#ifndef __wasm__
 #include "hash_path.hpp"
 #include <common/streams.hpp>
 #include <leveldb/db.h>
@@ -101,3 +102,4 @@ class LevelDbStore {
 } // namespace merkle_tree
 } // namespace stdlib
 } // namespace plonk
+#endif

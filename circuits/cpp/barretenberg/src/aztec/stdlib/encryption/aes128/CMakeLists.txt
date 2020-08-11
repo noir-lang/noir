@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_aes128 numeric stdlib_primitives crypto)
+barretenberg_module(stdlib_aes128 numeric stdlib_primitives)

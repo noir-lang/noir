@@ -7,15 +7,17 @@
  * Constructor and all methods are constexpr.
  * Ideally, uint256_t should be able to be treated like any other literal type.
  *
- * Not optimized for performance, this code doesn't touch any of our hot paths when constructing PLONK proofs
+ * Not optimized for performance, this code doesn't touch any of our hot paths when constructing PLONK proofs.
  **/
 #pragma once
 
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <common/serialize.hpp>
+#include "../uint128/uint128.hpp"
 
-class uint256_t {
+class alignas(32) uint256_t {
   public:
     constexpr uint256_t(const uint64_t a = 0)
         : data{ a, 0, 0, 0 }
@@ -28,6 +30,11 @@ class uint256_t {
     constexpr uint256_t(const uint256_t& other)
         : data{ other.data[0], other.data[1], other.data[2], other.data[3] }
     {}
+
+    static constexpr uint256_t from_uint128(const uint128_t a)
+    {
+        return uint256_t(static_cast<uint64_t>(a), static_cast<uint64_t>(a >> 64), 0, 0);
+    }
 
     constexpr uint256_t& operator=(const uint256_t& other) = default;
 
@@ -164,3 +171,25 @@ inline std::ostream& operator<<(std::ostream& os, uint256_t const& a)
     os.flags(f);
     return os;
 }
+
+namespace serialize {
+
+template <typename B> inline void read(B& it, uint256_t& value)
+{
+    uint64_t a, b, c, d;
+    read(it, d);
+    read(it, c);
+    read(it, b);
+    read(it, a);
+    value = uint256_t(a, b, c, d);
+}
+
+template <typename B> inline void write(B& it, uint256_t const& value)
+{
+    write(it, value.data[3]);
+    write(it, value.data[2]);
+    write(it, value.data[1]);
+    write(it, value.data[0]);
+}
+
+} // namespace serialize

@@ -10,7 +10,7 @@
 
 namespace plonk {
 namespace stdlib {
-    
+
 namespace aes128 {
 
 std::vector<field_t<waffle::PLookupComposer>> encrypt_buffer_cbc(

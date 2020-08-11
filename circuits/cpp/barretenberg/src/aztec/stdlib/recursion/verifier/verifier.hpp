@@ -155,8 +155,8 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta_large;
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta_omega;
 
-    const auto PI_Z = transcript.get_group_element("PI_Z");
-    const auto PI_Z_OMEGA = transcript.get_group_element("PI_Z_OMEGA");
+    const auto PI_Z = transcript.get_circuit_group_element("PI_Z");
+    const auto PI_Z_OMEGA = transcript.get_circuit_group_element("PI_Z_OMEGA");
 
     field_t circuit_size(stdlib::witness_t(context, barretenberg::fr(key->n)));
     field_t public_input_size(stdlib::witness_t(context, barretenberg::fr(key->num_public_inputs)));
@@ -206,13 +206,13 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     std::vector<g1_ct> elements_to_add;
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta) {
         const auto& g1_value = kate_g1_elements[label];
-        if (!g1_value.on_curve()) {
-            continue; // TODO handle this
-        }
+        // if (!g1_value.on_curve()) {
+        //     continue; // TODO handle this
+        // }
 
-        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
-            continue;
-        }
+        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        //     continue;
+        // }
 
         if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
             elements_to_add.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
@@ -224,13 +224,10 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_large) {
         const auto& g1_value = kate_g1_elements[label];
-        if (!g1_value.on_curve()) {
-            continue; // TODO handle this
-        }
 
-        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
-            continue;
-        }
+        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        //     continue;
+        // }
 
         if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
             elements_to_add.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
@@ -242,13 +239,10 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_omega) {
         const auto& g1_value = kate_g1_elements[label];
-        if (!g1_value.on_curve()) {
-            continue; // TODO handle this
-        }
 
-        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
-            continue;
-        }
+        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        //     continue;
+        // }
         double_opening_scalars.emplace_back(fr_value);
         double_opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
     }

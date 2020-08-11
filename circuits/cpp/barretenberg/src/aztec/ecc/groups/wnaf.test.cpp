@@ -90,15 +90,11 @@ TEST(wnaf, wnaf_fixed_simple_hi)
 
 TEST(wnaf, wnaf_fixed_with_endo_split)
 {
-    uint256_t buffer = engine.get_random_uint256();
-    buffer.data[3] &= 0x0fffffffffffffffUL;
+    fr k = engine.get_random_uint256();
+    k.data[3] &= 0x0fffffffffffffffUL;
 
-    fr k{ 0, 0, 0, 0 };
-    fr::__copy(*(fr*)&buffer.data[0], k);
     fr k1{ 0, 0, 0, 0 };
-    ;
     fr k2{ 0, 0, 0, 0 };
-    ;
 
     fr::split_into_endomorphism_scalars(k, k1, k2);
     uint64_t wnaf[WNAF_SIZE(5)] = { 0 };
@@ -109,9 +105,7 @@ TEST(wnaf, wnaf_fixed_with_endo_split)
     wnaf::fixed_wnaf<1, 5>(&k2.data[0], endo_wnaf, endo_skew, 0);
 
     fr k1_recovered{ 0, 0, 0, 0 };
-    ;
     fr k2_recovered{ 0, 0, 0, 0 };
-    ;
 
     recover_fixed_wnaf(wnaf, skew, k1_recovered.data[1], k1_recovered.data[0], 5);
     recover_fixed_wnaf(endo_wnaf, endo_skew, k2_recovered.data[1], k2_recovered.data[0], 5);

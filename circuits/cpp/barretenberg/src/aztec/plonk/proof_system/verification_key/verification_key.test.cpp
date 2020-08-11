@@ -35,7 +35,7 @@ TEST(verification_key, stream_serialization)
     write(s, key);
 
     verification_key_data result;
-    read(s, result);
+    read(static_cast<std::istream&>(s), result);
 
     EXPECT_EQ(key, result);
 }
