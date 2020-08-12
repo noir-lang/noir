@@ -193,9 +193,9 @@ TEST(stdlib_plookup, uint32_xor)
     }
 
     for (size_t i = 0; i < num_lookups; ++i) {
-        EXPECT_EQ(sequence[0][i].get_value(), left_expected[i]);
-        EXPECT_EQ(sequence[1][i].get_value(), right_expected[i]);
-        EXPECT_EQ(sequence[2][i].get_value(), out_expected[i]);
+        EXPECT_EQ(sequence[0][i].get_value(), barretenberg::fr(left_expected[i]));
+        EXPECT_EQ(sequence[1][i].get_value(), barretenberg::fr(right_expected[i]));
+        EXPECT_EQ(sequence[2][i].get_value(), barretenberg::fr(out_expected[i]));
     }
 
     auto prover = composer.create_prover();
