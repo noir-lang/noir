@@ -1187,7 +1187,7 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
 
     const uint64_t num_multiples_of_three = (target_range / 3);
 
-    result.variable_indices.reserve(num_multiples_of_three);
+    result.variable_indices.reserve((uint32_t)num_multiples_of_three);
     for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
         const uint32_t index = add_variable(i * 3);
         result.variable_indices.emplace_back(index);
