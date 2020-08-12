@@ -16,7 +16,7 @@ void build_circuit(Composer& composer)
     uint32_ct a(witness_ct(&composer, 123));
     uint32_ct b(public_witness_ct(&composer, 456));
     bool_ct r = (a + b) == 579;
-    composer.assert_equal(r.get_value(), 1);
+    composer.assert_equal_constant(r.witness_index, 1);
 }
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
