@@ -359,6 +359,24 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         return uint<Composer, Native>(ctx, out);
     }
 
+    if constexpr (Composer::type == waffle::PLOOKUP) {
+        std::array<std::vector<field_t<Composer>>, 3> sequence;
+        if (op_type == XOR) {
+            sequence = plookup::read_sequence_from_table(
+                waffle::PLookupMultiTableId::UINT32_XOR, field_t<Composer>(*this), field_t<Composer>(other), true);
+        } else {
+            sequence = plookup::read_sequence_from_table(
+                waffle::PLookupMultiTableId::UINT32_AND, field_t<Composer>(*this), field_t<Composer>(other), true);
+        }
+        uint<Composer, Native> result(ctx);
+        for (size_t i = 0; i < num_accumulators(); ++i) {
+            result.accumulators.emplace_back(sequence[2][num_accumulators() - 1 - i].witness_index);
+        }
+        result.witness_index = result.accumulators[num_accumulators() - 1];
+        result.witness_status = WitnessStatus::OK;
+        return result;
+    }
+
     const uint32_t lhs_idx = is_constant() ? ctx->add_variable(lhs) : witness_index;
     const uint32_t rhs_idx = other.is_constant() ? ctx->add_variable(rhs) : other.witness_index;
 
@@ -382,7 +400,7 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         ctx->assert_equal(lhs_idx, constant_idx);
     } else {
         accumulators = logic_accumulators.left;
-        witness_index = accumulators[((width >> 1) - 1)];
+        witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
 
@@ -391,16 +409,17 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         ctx->assert_equal(rhs_idx, constant_idx);
     } else {
         other.accumulators = logic_accumulators.right;
-        other.witness_index = other.accumulators[(width >> 1) - 1];
+        other.witness_index = other.accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
 
     uint<Composer, Native> result(ctx);
     result.accumulators = logic_accumulators.out;
-    result.witness_index = result.accumulators[(width >> 1) - 1];
+    result.witness_index = result.accumulators[num_accumulators() - 1];
     result.witness_status = WitnessStatus::OK;
     return result;
 }
+
 template class uint<waffle::PLookupComposer, uint8_t>;
 template class uint<waffle::PLookupComposer, uint16_t>;
 template class uint<waffle::PLookupComposer, uint32_t>;

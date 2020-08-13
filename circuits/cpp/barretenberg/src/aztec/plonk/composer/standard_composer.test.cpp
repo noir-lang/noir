@@ -416,3 +416,20 @@ TEST(standard_composer, test_unrolled_composer)
 
     EXPECT_EQ(result, true);
 }
+
+TEST(standard_composer, test_range_constraint_fail)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    uint32_t witness_index = composer.add_variable(fr::neg_one());
+    composer.create_range_constraint(witness_index, 32);
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    EXPECT_EQ(result, false);
+}

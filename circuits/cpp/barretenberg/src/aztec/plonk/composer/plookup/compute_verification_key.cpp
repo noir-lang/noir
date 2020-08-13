@@ -14,7 +14,7 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
                                                            std::shared_ptr<VerifierReferenceString> const& vrs)
 {
 
-    std::array<fr*, 22> poly_coefficients;
+    std::array<fr*, 26> poly_coefficients;
     poly_coefficients[0] = circuit_proving_key->constraint_selectors.at("q_1").get_coefficients();
     poly_coefficients[1] = circuit_proving_key->constraint_selectors.at("q_2").get_coefficients();
     poly_coefficients[2] = circuit_proving_key->constraint_selectors.at("q_3").get_coefficients();
@@ -33,17 +33,22 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
     poly_coefficients[14] = circuit_proving_key->permutation_selectors.at("sigma_3").get_coefficients();
     poly_coefficients[15] = circuit_proving_key->permutation_selectors.at("sigma_4").get_coefficients();
 
-    poly_coefficients[16] = circuit_proving_key->permutation_selectors.at("table_value_1").get_coefficients();
-    poly_coefficients[17] = circuit_proving_key->permutation_selectors.at("table_value_2").get_coefficients();
-    poly_coefficients[18] = circuit_proving_key->permutation_selectors.at("table_value_3").get_coefficients();
-    poly_coefficients[19] = circuit_proving_key->permutation_selectors.at("table_value_4").get_coefficients();
-    poly_coefficients[20] = circuit_proving_key->permutation_selectors.at("table_index").get_coefficients();
-    poly_coefficients[21] = circuit_proving_key->permutation_selectors.at("table_type").get_coefficients();
+    poly_coefficients[16] = circuit_proving_key->constraint_selectors.at("table_value_1").get_coefficients();
+    poly_coefficients[17] = circuit_proving_key->constraint_selectors.at("table_value_2").get_coefficients();
+    poly_coefficients[18] = circuit_proving_key->constraint_selectors.at("table_value_3").get_coefficients();
+    poly_coefficients[19] = circuit_proving_key->constraint_selectors.at("table_value_4").get_coefficients();
+    poly_coefficients[20] = circuit_proving_key->constraint_selectors.at("table_index").get_coefficients();
+    poly_coefficients[21] = circuit_proving_key->constraint_selectors.at("table_type").get_coefficients();
+
+    poly_coefficients[22] = circuit_proving_key->permutation_selectors.at("id_1").get_coefficients();
+    poly_coefficients[23] = circuit_proving_key->permutation_selectors.at("id_2").get_coefficients();
+    poly_coefficients[24] = circuit_proving_key->permutation_selectors.at("id_3").get_coefficients();
+    poly_coefficients[25] = circuit_proving_key->permutation_selectors.at("id_4").get_coefficients();
 
     std::vector<barretenberg::g1::affine_element> commitments;
-    commitments.resize(22);
+    commitments.resize(26);
 
-    for (size_t i = 0; i < 22; ++i) {
+    for (size_t i = 0; i < 26; ++i) {
         commitments[i] =
             g1::affine_element(scalar_multiplication::pippenger(poly_coefficients[i],
                                                                 circuit_proving_key->reference_string->get_monomials(),
@@ -72,16 +77,21 @@ std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<provi
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_3", commitments[14] });
     circuit_verification_key->permutation_selectors.insert({ "SIGMA_4", commitments[15] });
 
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_1", commitments[16] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_2", commitments[17] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_3", commitments[18] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_4", commitments[19] });
+    circuit_verification_key->constraint_selectors.insert({ "TABLE_1", commitments[16] });
+    circuit_verification_key->constraint_selectors.insert({ "TABLE_2", commitments[17] });
+    circuit_verification_key->constraint_selectors.insert({ "TABLE_3", commitments[18] });
+    circuit_verification_key->constraint_selectors.insert({ "TABLE_4", commitments[19] });
 
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_INDEX", commitments[20] });
-    circuit_verification_key->permutation_selectors.insert({ "TABLE_TYPE", commitments[21] });
+    circuit_verification_key->constraint_selectors.insert({ "TABLE_INDEX", commitments[20] });
+    circuit_verification_key->constraint_selectors.insert({ "TABLE_TYPE", commitments[21] });
+
+    circuit_verification_key->permutation_selectors.insert({ "ID_1", commitments[22] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_2", commitments[23] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_3", commitments[24] });
+    circuit_verification_key->permutation_selectors.insert({ "ID_4", commitments[25] });
 
     std::copy(plookup_polynomial_manifest,
-              plookup_polynomial_manifest + 29,
+              plookup_polynomial_manifest + 33,
               std::back_inserter(circuit_verification_key->polynomial_manifest));
 
     return circuit_verification_key;

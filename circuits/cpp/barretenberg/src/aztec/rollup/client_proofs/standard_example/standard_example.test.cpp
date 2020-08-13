@@ -11,7 +11,6 @@ using namespace rollup::client_proofs::standard_example;
 TEST(client_proofs, test_standard_example)
 {
     Composer composer = Composer("../srs_db");
-
     build_circuit(composer);
 
     Prover prover = composer.create_prover();

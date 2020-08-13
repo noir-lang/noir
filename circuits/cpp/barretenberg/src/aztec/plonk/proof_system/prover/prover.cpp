@@ -316,7 +316,6 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 #endif
-
     compute_batch_opening_polynomials();
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

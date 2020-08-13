@@ -32,6 +32,10 @@ enum PolynomialIndex {
     SIGMA_2,
     SIGMA_3,
     SIGMA_4,
+    ID_1,
+    ID_2,
+    ID_3,
+    ID_4,
     W_1,
     W_2,
     W_3,
@@ -141,7 +145,7 @@ static constexpr PolynomialDescriptor turbo_polynomial_manifest[20]{
     PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
 };
 
-static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
+static constexpr PolynomialDescriptor plookup_polynomial_manifest[33]{
     PolynomialDescriptor("W_1", "w_1", false, true, WITNESS, W_1),                                           //
     PolynomialDescriptor("W_2", "w_2", false, true, WITNESS, W_2),                                           //
     PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
@@ -165,11 +169,43 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[29]{
     PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                          //
     PolynomialDescriptor("SIGMA_3", "sigma_3", false, false, PERMUTATION, SIGMA_3),                          //
     PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
-    PolynomialDescriptor("TABLE_1", "table_value_1", false, true, PERMUTATION, TABLE_1),                     //
-    PolynomialDescriptor("TABLE_2", "table_value_2", false, true, PERMUTATION, TABLE_2),                     //
-    PolynomialDescriptor("TABLE_3", "table_value_3", false, true, PERMUTATION, TABLE_3),                     //
-    PolynomialDescriptor("TABLE_4", "table_value_4", false, true, PERMUTATION, TABLE_4),                     //
-    PolynomialDescriptor("TABLE_INDEX", "table_index", false, false, PERMUTATION, TABLE_INDEX),              //
-    PolynomialDescriptor("TABLE_TYPE", "table_type", false, false, PERMUTATION, TABLE_TYPE),                 //
+    PolynomialDescriptor("TABLE_1", "table_value_1", false, true, SELECTOR, TABLE_1),                        //
+    PolynomialDescriptor("TABLE_2", "table_value_2", false, true, SELECTOR, TABLE_2),                        //
+    PolynomialDescriptor("TABLE_3", "table_value_3", false, true, SELECTOR, TABLE_3),                        //
+    PolynomialDescriptor("TABLE_4", "table_value_4", false, true, SELECTOR, TABLE_4),                        //
+    PolynomialDescriptor("TABLE_INDEX", "table_index", false, false, SELECTOR, TABLE_INDEX),                 //
+    PolynomialDescriptor("TABLE_TYPE", "table_type", false, false, SELECTOR, TABLE_TYPE),                    //
+    PolynomialDescriptor("ID_1", "id_1", false, false, PERMUTATION, ID_1),                                   //
+    PolynomialDescriptor("ID_2", "id_2", false, false, PERMUTATION, ID_2),                                   //
+    PolynomialDescriptor("ID_3", "id_3", false, false, PERMUTATION, ID_3),                                   //
+    PolynomialDescriptor("ID_4", "id_4", false, false, PERMUTATION, ID_4),                                   //
 };
+
+static constexpr PolynomialDescriptor genperm_polynomial_manifest[24]{
+    PolynomialDescriptor("W_1", "w_1", false, true, WITNESS, W_1),                                           //
+    PolynomialDescriptor("W_2", "w_2", false, true, WITNESS, W_2),                                           //
+    PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                           //
+    PolynomialDescriptor("W_4", "w_4", false, true, WITNESS, W_4),                                           //
+    PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                                                  //
+    PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                                          //
+    PolynomialDescriptor("Q_2", "q_2", true, false, SELECTOR, Q_2),                                          //
+    PolynomialDescriptor("Q_3", "q_3", true, false, SELECTOR, Q_3),                                          //
+    PolynomialDescriptor("Q_4", "q_4", true, false, SELECTOR, Q_4),                                          //
+    PolynomialDescriptor("Q_5", "q_5", true, false, SELECTOR, Q_5),                                          //
+    PolynomialDescriptor("Q_M", "q_m", true, false, SELECTOR, Q_M),                                          //
+    PolynomialDescriptor("Q_C", "q_c", false, false, SELECTOR, Q_C),                                         //
+    PolynomialDescriptor("Q_ARITHMETIC_SELECTOR", "q_arith", false, false, SELECTOR, Q_ARITHMETIC_SELECTOR), //
+    PolynomialDescriptor("Q_RANGE_SELECTOR", "q_range", true, false, SELECTOR, Q_RANGE_SELECTOR),            //
+    PolynomialDescriptor("Q_FIXED_BASE_SELECTOR", "q_ecc_1", false, false, SELECTOR, Q_FIXED_BASE_SELECTOR), //
+    PolynomialDescriptor("Q_LOGIC_SELECTOR", "q_logic", true, false, SELECTOR, Q_LOGIC_SELECTOR),            //
+    PolynomialDescriptor("SIGMA_1", "sigma_1", false, false, PERMUTATION, SIGMA_1),                          //
+    PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                          //
+    PolynomialDescriptor("SIGMA_3", "sigma_3", false, false, PERMUTATION, SIGMA_3),                          //
+    PolynomialDescriptor("SIGMA_4", "sigma_4", true, false, PERMUTATION, SIGMA_4),                           //
+    PolynomialDescriptor("ID_1", "id_1", false, false, PERMUTATION, ID_1),                                   //
+    PolynomialDescriptor("ID_2", "id_2", false, false, PERMUTATION, ID_2),                                   //
+    PolynomialDescriptor("ID_3", "id_3", false, false, PERMUTATION, ID_3),                                   //
+    PolynomialDescriptor("ID_4", "id_4", false, false, PERMUTATION, ID_4),                                   //
+};
+
 } // namespace waffle

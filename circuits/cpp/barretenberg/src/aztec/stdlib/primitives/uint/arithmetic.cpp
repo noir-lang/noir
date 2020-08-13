@@ -147,11 +147,11 @@ uint<Composer, Native> uint<Composer, Native>::operator*(const uint& other) cons
     ctx->create_big_mul_gate(gate);
 
     // discard the high bits
-    ctx->create_range_constraint(gate.d, width + 4);
+    constrain_accumulators(context, gate.d, width + 4);
 
     uint<Composer, Native> result(ctx);
-    result.accumulators = ctx->create_range_constraint(gate.c, width);
-    result.witness_index = result.accumulators[(width >> 1) - 1];
+    result.accumulators = constrain_accumulators(ctx, gate.c);
+    result.witness_index = result.accumulators[num_accumulators() - 1];
     result.witness_status = WitnessStatus::OK;
 
     return result;

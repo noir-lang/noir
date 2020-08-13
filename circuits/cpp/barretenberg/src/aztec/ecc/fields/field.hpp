@@ -113,6 +113,17 @@ template <class Params> struct alignas(32) field {
         return result;
     }
 
+    static constexpr field tag_coset_generator()
+    {
+        const field result{
+            Params::coset_generators_0[6],
+            Params::coset_generators_1[6],
+            Params::coset_generators_2[6],
+            Params::coset_generators_3[6],
+        };
+        return result;
+    }
+
     static constexpr field coset_generator(const size_t idx)
     {
         ASSERT(idx < 7); // TODO: well-named constants for enforcing PI elements disjointess instead of this

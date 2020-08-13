@@ -5,13 +5,17 @@
 #include "aes128.hpp"
 #include "sparse.hpp"
 #include "pedersen.hpp"
+#include "uint.hpp"
 
 namespace waffle {
 namespace plookup {
 
 const PLookupMultiTable& create_table(const PLookupMultiTableId id);
 
-PLookupReadData get_table_values(const PLookupMultiTableId id, const barretenberg::fr& key);
+PLookupReadData get_table_values(const PLookupMultiTableId id,
+                                 const barretenberg::fr& key_a,
+                                 const barretenberg::fr& key_b = 0,
+                                 const bool is_2_to_1_map = false);
 
 inline PLookupBasicTable create_basic_table(const PLookupBasicTableId id, const size_t index)
 {
@@ -114,6 +118,12 @@ inline PLookupBasicTable create_basic_table(const PLookupBasicTableId id, const 
     }
     case PEDERSEN_17: {
         return pedersen_tables::generate_sidon_pedersen_table<17>(PEDERSEN_17, index);
+    }
+    case UINT_XOR_ROTATE0: {
+        return uint_tables::generate_xor_rotate_table<6, 0>(UINT_XOR_ROTATE0, index);
+    }
+    case UINT_AND_ROTATE0: {
+        return uint_tables::generate_and_rotate_table<6, 0>(UINT_AND_ROTATE0, index);
     }
     default: {
         barretenberg::errors::throw_or_abort("table id does not exist");

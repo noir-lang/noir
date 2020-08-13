@@ -24,7 +24,7 @@ typedef std::pair<field_t, field_t> byte_pair;
 field_t normalize_sparse_form(waffle::PLookupComposer*, field_t& byte)
 {
     byte = byte.normalize();
-    auto result = plookup::read_from_table(waffle::AES_NORMALIZE, byte);
+    auto result = plookup::read_from_1_to_2_table(waffle::AES_NORMALIZE, byte);
     return result;
 }
 

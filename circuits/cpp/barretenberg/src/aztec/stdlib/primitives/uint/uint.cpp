@@ -7,12 +7,34 @@ namespace plonk {
 namespace stdlib {
 
 template <typename Composer, typename Native>
+std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* context,
+                                                                     const uint32_t witness_index,
+                                                                     const size_t num_bits) const
+{
+    if constexpr (Composer::type == waffle::PLOOKUP) {
+        // TODO: manage higher bit ranges
+        const auto sequence = plonk::stdlib::plookup::read_sequence_from_table(
+            waffle::PLookupMultiTableId::UINT32_XOR,
+            field_t<Composer>::from_witness_index(context, witness_index),
+            field_t<Composer>::from_witness_index(context, context->zero_idx),
+            true);
+
+        std::vector<uint32_t> out(num_accumulators());
+        for (size_t i = 0; i < num_accumulators(); ++i) {
+            out[i] = sequence[0][num_accumulators() - i - 1].witness_index;
+        }
+        return out;
+    }
+    return context->create_range_constraint(witness_index, num_bits);
+}
+
+template <typename Composer, typename Native>
 uint<Composer, Native>::uint(const witness_t<Composer>& witness)
     : context(witness.context)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
-    , accumulators(context->create_range_constraint(witness.witness_index, width))
-    , witness_index(accumulators[(width >> 1) - 1])
+    , accumulators(constrain_accumulators(context, witness.witness_index))
+    , witness_index(accumulators[num_accumulators() - 1])
 {}
 
 template <typename Composer, typename Native>
@@ -27,8 +49,8 @@ uint<Composer, Native>::uint(const field_t<Composer>& value)
         additive_constant = value.additive_constant;
     } else {
         field_t<Composer> norm = value.normalize();
-        accumulators = context->create_range_constraint(norm.witness_index, width);
-        witness_index = accumulators[(width >> 1) - 1];
+        accumulators = constrain_accumulators(context, norm.witness_index);
+        witness_index = accumulators[num_accumulators() - 1];
     }
 }
 
@@ -239,14 +261,14 @@ template <typename Composer, typename Native> uint<Composer, Native> uint<Compos
     }
 
     if (witness_status == WitnessStatus::WEAK_NORMALIZED) {
-        accumulators = context->create_range_constraint(witness_index, width);
-        witness_index = accumulators[(width >> 1) - 1];
+        accumulators = constrain_accumulators(context, witness_index);
+        witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
     if (witness_status == WitnessStatus::NOT_NORMALIZED) {
         weak_normalize();
-        accumulators = context->create_range_constraint(witness_index, width);
-        witness_index = accumulators[(width >> 1) - 1];
+        accumulators = constrain_accumulators(context, witness_index);
+        witness_index = accumulators[num_accumulators() - 1];
         witness_status = WitnessStatus::OK;
     }
     return *this;

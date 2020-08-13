@@ -4,9 +4,35 @@
 #include <polynomials/polynomial.hpp>
 
 namespace waffle {
+
+struct permutation_subgroup_element {
+    uint32_t subgroup_index = 0;
+    uint8_t column_index = 0;
+    bool is_public_input = false;
+    bool is_tag = false;
+};
+
+/**
+ * TODO: Remove need for this. We have a lot of old tests that use a vector of uint32s
+ * instead of permutation_subgroup_element
+ **/
 template <typename program_settings>
 inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& output,
                                                      const std::vector<uint32_t>& permutation,
+                                                     const barretenberg::evaluation_domain& small_domain)
+{
+    std::vector<permutation_subgroup_element> subgroup_elements;
+    for (const auto& permutation_element : permutation) {
+        uint32_t index = permutation_element & (uint32_t)0xffffffU;
+        uint32_t column = permutation_element >> 30U;
+        subgroup_elements.emplace_back(permutation_subgroup_element{ index, (uint8_t)column, false, false });
+    }
+    compute_permutation_lagrange_base_single<program_settings>(output, subgroup_elements, small_domain);
+}
+
+template <typename program_settings>
+inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& output,
+                                                     const std::vector<permutation_subgroup_element>& permutation,
                                                      const barretenberg::evaluation_domain& small_domain)
 {
     if (output.get_size() < permutation.size()) {
@@ -18,6 +44,7 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // 0 = left
     // 1 = right
     // 2 = output
+    ASSERT(small_domain.log2_size > 1);
     const barretenberg::fr* roots = small_domain.get_round_roots()[small_domain.log2_size - 2];
     const size_t root_size = small_domain.size >> 1UL;
     const size_t log2_root_size = static_cast<size_t>(numeric::get_msb(root_size));
@@ -32,9 +59,9 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     // unity
 
     // Step 1: mask the high bits and get the permutation index
-    size_t raw_idx = static_cast<size_t>(permutation[i] & ~program_settings::permutation_mask);
-    bool is_public_input = raw_idx >= small_domain.size;
-    raw_idx = is_public_input ? raw_idx - small_domain.size : raw_idx;
+    size_t raw_idx = permutation[i].subgroup_index;
+    bool is_public_input = permutation[i].is_public_input;
+    bool is_tag = permutation[i].is_tag;
 
     // Step 2: is `raw_idx` >= (n / 2)? if so, we will need to index `-roots[raw_idx - subgroup_size / 2]` instead
     // of `roots[raw_idx]`
@@ -59,12 +86,16 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
 
     if (is_public_input) {
         output[i] *= barretenberg::fr::external_coset_generator();
+    } else if (is_tag) {
+        output[i] *= barretenberg::fr::tag_coset_generator();
     } else {
-        // isolate the highest 2 bits of `permutation[i]` and shunt them down into the 2 least significant bits
-        const uint32_t column_index =
-            ((permutation[i] & program_settings::permutation_mask) >> program_settings::permutation_shift);
-        if (column_index > 0) {
-            output[i] *= barretenberg::fr::coset_generator(column_index - 1);
+        {
+            // isolate the highest 2 bits of `permutation[i]` and shunt them down into the 2 least significant bits
+            const uint32_t column_index = permutation[i].column_index;
+            // ((permutation[i] & program_settings::permutation_mask) >> program_settings::permutation_shift);
+            if (column_index > 0) {
+                output[i] *= barretenberg::fr::coset_generator(column_index - 1);
+            }
         }
     }
     ITERATE_OVER_DOMAIN_END;

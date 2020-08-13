@@ -10,6 +10,7 @@
 #include "../widgets/transition_widgets/turbo_logic_widget.hpp"
 #include "../widgets/transition_widgets/turbo_range_widget.hpp"
 #include "../widgets/transition_widgets/elliptic_widget.hpp"
+#include "../widgets/transition_widgets/genperm_sort_widget.hpp"
 #include "../widgets/random_widgets/random_widget.hpp"
 #include "../widgets/random_widgets/permutation_widget.hpp"
 #include "../widgets/random_widgets/plookup_widget.hpp"
@@ -28,6 +29,7 @@ class standard_verifier_settings : public standard_settings {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
+    static constexpr bool idpolys = false;
 
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
@@ -65,6 +67,8 @@ class unrolled_standard_verifier_settings : public standard_settings {
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr bool use_linearisation = false;
+    static constexpr bool idpolys = false;
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
@@ -104,6 +108,8 @@ class mimc_verifier_settings : public standard_settings {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
+    static constexpr bool idpolys = false;
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
@@ -151,6 +157,8 @@ class turbo_verifier_settings : public turbo_settings {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
+    static constexpr bool idpolys = false;
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const transcript::StandardTranscript& transcript,
@@ -199,7 +207,7 @@ class plookup_verifier_settings : public plookup_settings {
     typedef transcript::StandardTranscript Transcript;
     typedef VerifierTurboArithmeticWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboArithmeticWidget;
     typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboFixedBaseWidget;
-    typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboRangeWidget;
+    typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript, plookup_settings> GenPermSortWidget;
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
     typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
@@ -208,13 +216,15 @@ class plookup_verifier_settings : public plookup_settings {
     static constexpr size_t num_challenge_bytes = 32;
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
+    static constexpr bool idpolys = true;
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const transcript::StandardTranscript& transcript,
                                                   std::map<std::string, fr>& scalars)
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, scalars, use_linearisation);
+            key, alpha_base, transcript, scalars, use_linearisation, true);
         updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
 
@@ -222,7 +232,7 @@ class plookup_verifier_settings : public plookup_settings {
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
-        updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+        updated_alpha = GenPermSortWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
         updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
@@ -238,7 +248,7 @@ class plookup_verifier_settings : public plookup_settings {
                                                                      fr& t_eval)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, use_linearisation);
+            key, alpha_base, transcript, t_eval, use_linearisation, true);
         updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
@@ -246,7 +256,7 @@ class plookup_verifier_settings : public plookup_settings {
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
@@ -273,6 +283,8 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr bool use_linearisation = false;
+    static constexpr bool idpolys = false;
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
@@ -332,6 +344,8 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr bool use_linearisation = false;
+    static constexpr bool idpolys = false;
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,
@@ -380,4 +394,68 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
         return updated_alpha_base;
     }
 };
+
+class generalized_permutation_verifier_settings : public turbo_settings {
+  public:
+    typedef barretenberg::fr fr;
+    typedef barretenberg::g1 g1;
+    typedef transcript::StandardTranscript Transcript;
+    typedef VerifierTurboArithmeticWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboArithmeticWidget;
+    typedef VerifierTurboFixedBaseWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboFixedBaseWidget;
+    // typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboRangeWidget;
+    typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, turbo_settings> TurboLogicWidget;
+    typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript, turbo_settings> GenPermSortWidget;
+
+    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
+
+    static constexpr size_t num_challenge_bytes = 32;
+    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
+    static constexpr bool use_linearisation = true;
+    static constexpr bool idpolys = true;
+
+    static fr append_scalar_multiplication_inputs(verification_key* key,
+                                                  const fr& alpha_base,
+                                                  const transcript::StandardTranscript& transcript,
+                                                  std::map<std::string, fr>& scalars)
+    {
+        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
+            key, alpha_base, transcript, scalars, use_linearisation, true);
+
+        updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = TurboFixedBaseWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
+        // updated_alpha = TurboRangeWidget::append_scalar_multiplication_inputs(
+        //     key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = TurboLogicWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
+        updated_alpha = GenPermSortWidget::append_scalar_multiplication_inputs(
+            key, updated_alpha, transcript, scalars, use_linearisation);
+
+        return updated_alpha;
+    }
+
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& t_eval)
+    {
+        auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
+            key, alpha_base, transcript, t_eval, use_linearisation, true);
+
+        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        // updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
+        //     key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
+            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+
+        return updated_alpha_base;
+    }
+};
+
 } // namespace waffle

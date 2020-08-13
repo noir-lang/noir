@@ -8,9 +8,17 @@ class PLookupComposer : public ComposerBase {
 
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
-
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
     static constexpr size_t NUM_RESERVED_GATES = 2;
+    static constexpr size_t UINT_LOG2_BASE = 6;
+
+    struct RangeList {
+        uint64_t target_range;
+        uint32_t range_tag;
+        uint32_t tau_tag;
+        std::vector<uint32_t> variable_indices;
+    };
+
     enum PLookupSelectors {
         QM = 0,
         QC = 1,
@@ -23,9 +31,9 @@ class PLookupComposer : public ComposerBase {
         QECC_1 = 8,
         QRANGE = 9,
         QLOGIC = 10,
-        QLOOKUPINDEX = 11,
-        QLOOKUPTYPE = 12,
-        QELLIPTIC = 13,
+        QELLIPTIC = 11,
+        QLOOKUPINDEX = 12,
+        QLOOKUPTYPE = 13,
     };
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
@@ -37,8 +45,6 @@ class PLookupComposer : public ComposerBase {
     PLookupComposer& operator=(PLookupComposer&& other) = default;
     ~PLookupComposer() {}
 
-    void add_lookup_selector(polynomial& small, const std::string& tag);
-
     std::shared_ptr<proving_key> compute_proving_key() override;
     std::shared_ptr<verification_key> compute_verification_key() override;
     std::shared_ptr<program_witness> compute_witness() override;
@@ -48,34 +54,6 @@ class PLookupComposer : public ComposerBase {
 
     UnrolledPLookupProver create_unrolled_prover();
     UnrolledPLookupVerifier create_unrolled_verifier();
-
-    void initialize_precomputed_table(
-        const PLookupBasicTableId id,
-        bool (*generator)(std::vector<barretenberg::fr>&,
-                          std::vector<barretenberg::fr>&,
-                          std::vector<barretenberg::fr>&),
-        std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
-
-    PLookupBasicTable& get_table(const PLookupBasicTableId id);
-    PLookupMultiTable& create_table(const PLookupMultiTableId id);
-
-    std::array<uint32_t, 2> read_from_table(const PLookupBasicTableId id, const uint32_t key_idx);
-    uint32_t read_from_table(const PLookupBasicTableId id, const uint32_t key_a, const uint32_t key_b);
-    // std::pair<uint32_t, uint32_t> read_from_table(const PLookupBasicTableId id, const uint32_t key);
-
-    std::vector<uint32_t> read_sequence_from_table(const PLookupBasicTableId id,
-                                                   const std::vector<std::array<uint32_t, 2>>& key_indices);
-
-    std::array<std::vector<uint32_t>, 3> read_sequence_from_table(const PLookupBasicTableId id,
-                                                                  const uint32_t key_index_a,
-                                                                  const uint32_t key_index_b,
-                                                                  const size_t num_lookups);
-
-    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTableId& id,
-                                                                        const PLookupReadData& read_values,
-                                                                        const uint32_t key_index);
-
-    void validate_lookup(const PLookupBasicTableId id, const std::array<uint32_t, 3> keys);
 
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
@@ -117,6 +95,60 @@ class PLookupComposer : public ComposerBase {
         create_add_gate(gate_coefficients);
     }
 
+    /**
+     * Plookup Methods
+     **/
+    void add_lookup_selector(polynomial& small, const std::string& tag);
+    void initialize_precomputed_table(
+        const PLookupBasicTableId id,
+        bool (*generator)(std::vector<barretenberg::fr>&,
+                          std::vector<barretenberg::fr>&,
+                          std::vector<barretenberg::fr>&),
+        std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
+
+    PLookupBasicTable& get_table(const PLookupBasicTableId id);
+    PLookupMultiTable& create_table(const PLookupMultiTableId id);
+
+    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTableId& id,
+                                                                        const PLookupReadData& read_values,
+                                                                        const uint32_t key_a_index,
+                                                                        const uint32_t key_b_index = UINT32_MAX);
+
+    /**
+     * Generalized Permutation Methods
+     **/
+    void create_dummy_constraints(const std::vector<uint32_t>& variable_index);
+    void create_sort_constraint(const std::vector<uint32_t>& variable_index);
+    void create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
+                                           const barretenberg::fr&,
+                                           const barretenberg::fr&);
+    void assign_tag(const uint32_t variable_index, const uint32_t tag)
+    {
+        ASSERT(tag <= current_tag);
+        ASSERT(variable_tags[get_real_variable_index(variable_index)] == DUMMY_TAG);
+        variable_tags[get_real_variable_index(variable_index)] = tag;
+    }
+
+    uint32_t create_tag(const uint32_t tag_index, const uint32_t tau_index)
+    {
+        tau.insert({ tag_index, tau_index });
+        current_tag++;
+        return current_tag;
+    }
+    uint32_t get_new_tag()
+    {
+        current_tag++;
+        return current_tag;
+    }
+
+    RangeList create_range_list(const uint64_t target_range);
+    void create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range);
+    void process_range_list(const RangeList& list);
+    void process_range_lists();
+
+    /**
+     * Member Variables
+     **/
     uint32_t zero_idx = 0;
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
@@ -124,7 +156,11 @@ class PLookupComposer : public ComposerBase {
 
     std::vector<PLookupBasicTable> lookup_tables;
     std::vector<PLookupMultiTable> lookup_multi_tables;
+    std::map<uint64_t, RangeList> range_lists;
 
+    /**
+     * Program Manifests
+     **/
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
         // add public inputs....
@@ -177,6 +213,10 @@ class PLookupComposer : public ComposerBase {
                       { "s", fr_size, false, 21 },
                       { "z_lookup", fr_size, false, 22 },
                       { "r", fr_size, false, 23 },
+                      { "id_1", fr_size, false, 24 },
+                      { "id_2", fr_size, false, 25 },
+                      { "id_3", fr_size, false, 26 },
+                      { "id_4", fr_size, false, 27 },
                       { "z_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
@@ -190,7 +230,7 @@ class PLookupComposer : public ComposerBase {
                       { "z_lookup_omega", fr_size, false, 9 },
                   },
                   "nu",
-                  24,
+                  28,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
@@ -254,6 +294,10 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_3", fr_size, false, 26 },
                       { "table_value_4", fr_size, false, 27 },
                       { "z", fr_size, false, 28 },
+                      { "id_1", fr_size, false, 29 },
+                      { "id_2", fr_size, false, 30 },
+                      { "id_3", fr_size, false, 31 },
+                      { "id_4", fr_size, false, 32 },
                       { "z_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
@@ -267,7 +311,7 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_4_omega", fr_size, false, 9 },
                   },
                   "nu",
-                  29,
+                  33,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });

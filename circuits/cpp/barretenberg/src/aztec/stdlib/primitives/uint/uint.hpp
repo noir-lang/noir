@@ -3,6 +3,7 @@
 #include "../byte_array/byte_array.hpp"
 #include "../composers/composers_fwd.hpp"
 #include "../field/field.hpp"
+#include "../plookup/plookup.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -22,6 +23,15 @@ template <typename Composer, typename Native> class uint {
     uint(const Native v)
         : uint(static_cast<uint256_t>(v))
     {}
+
+    std::vector<uint32_t> constrain_accumulators(Composer* ctx,
+                                                 const uint32_t witness_index,
+                                                 const size_t num_bits = width) const;
+
+    static constexpr size_t num_accumulators()
+    {
+        return (width + Composer::UINT_LOG2_BASE - 1) / Composer::UINT_LOG2_BASE;
+    }
 
     // uint(const char v)
     //     : uint(uint256_t((uint8_t)v))

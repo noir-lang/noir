@@ -7,13 +7,21 @@
 
 namespace numeric {
 
-inline std::vector<uint64_t> slice_input(const uint256_t input, const uint64_t base)
+inline std::vector<uint64_t> slice_input(const uint256_t input, const uint64_t base, const size_t num_slices = 0)
 {
     uint256_t target = input;
     std::vector<uint64_t> slices;
-    while (target > 0) {
-        slices.push_back((target % base).data[0]);
-        target /= base;
+    if (num_slices > 0) {
+        for (size_t i = 0; i < num_slices; ++i) {
+            slices.push_back((target % base).data[0]);
+            target /= base;
+        }
+    } else {
+
+        while (target > 0) {
+            slices.push_back((target % base).data[0]);
+            target /= base;
+        }
     }
     return slices;
 }

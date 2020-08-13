@@ -128,7 +128,7 @@ std::array<field_t<waffle::PLookupComposer>, 64> extend_witness(
                                            .add_two(w_right.rotated_limbs[3], left_xor_sparse)
                                            .normalize();
 
-        field_pt xor_result = plookup::read_from_table(waffle::SHA256_WITNESS_OUTPUT, xor_result_sparse);
+        field_pt xor_result = plookup::read_from_1_to_2_table(waffle::SHA256_WITNESS_OUTPUT, xor_result_sparse);
 
         // TODO NORMALIZE WITH RANGE CHECK
 
@@ -156,7 +156,7 @@ sparse_value map_into_choose_sparse_form(const field_t<waffle::PLookupComposer>&
 {
     sparse_value result;
     result.normal = e;
-    result.sparse = plookup::read_from_table(waffle::SHA256_CH_INPUT, e);
+    result.sparse = plookup::read_from_1_to_2_table(waffle::SHA256_CH_INPUT, e);
 
     return result;
 }
@@ -165,7 +165,7 @@ sparse_value map_into_maj_sparse_form(const field_t<waffle::PLookupComposer>& e)
 {
     sparse_value result;
     result.normal = e;
-    result.sparse = plookup::read_from_table(waffle::SHA256_MAJ_INPUT, e);
+    result.sparse = plookup::read_from_1_to_2_table(waffle::SHA256_MAJ_INPUT, e);
 
     return result;
 }
@@ -189,7 +189,7 @@ field_t<waffle::PLookupComposer> choose(sparse_value& e, const sparse_value& f, 
 
     field_pt choose_result_sparse = xor_result.add_two(f.sparse + f.sparse, g.sparse + g.sparse + g.sparse).normalize();
 
-    field_pt choose_result = plookup::read_from_table(waffle::SHA256_CH_OUTPUT, choose_result_sparse);
+    field_pt choose_result = plookup::read_from_1_to_2_table(waffle::SHA256_CH_OUTPUT, choose_result_sparse);
 
     return choose_result;
 }
@@ -213,7 +213,7 @@ field_t<waffle::PLookupComposer> majority(sparse_value& a, const sparse_value& b
 
     field_pt majority_result_sparse = xor_result.add_two(b.sparse, c.sparse).normalize();
 
-    field_pt majority_result = plookup::read_from_table(waffle::SHA256_MAJ_OUTPUT, majority_result_sparse);
+    field_pt majority_result = plookup::read_from_1_to_2_table(waffle::SHA256_MAJ_OUTPUT, majority_result_sparse);
 
     return majority_result;
 }

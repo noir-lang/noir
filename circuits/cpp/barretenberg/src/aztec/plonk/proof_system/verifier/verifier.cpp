@@ -142,5 +142,6 @@ template class VerifierBase<standard_verifier_settings>;
 template class VerifierBase<mimc_verifier_settings>;
 template class VerifierBase<turbo_verifier_settings>;
 template class VerifierBase<plookup_verifier_settings>;
+template class VerifierBase<generalized_permutation_verifier_settings>;
 
 } // namespace waffle

@@ -26,10 +26,17 @@ namespace waffle {
     auto& q_range = selectors[TurboSelectors::QRANGE];                                                                 \
     auto& q_logic = selectors[TurboSelectors::QLOGIC];
 
-#define TURBO_SEL_NAMES                                                                                                \
-    {                                                                                                                  \
-        "q_m", "q_c", "q_1", "q_2", "q_3", "q_4", "q_5", "q_arith", "q_ecc_1", "q_range", "q_logic"                    \
-    }
+std::vector<ComposerBase::SelectorProperties> turbo_sel_props()
+{
+    const std::vector<ComposerBase::SelectorProperties> result{
+        { "q_m", false, false },     { "q_c", false, false },     { "q_1", false, false },
+        { "q_2", false, false },     { "q_3", false, false },     { "q_4", false, false },
+        { "q_5", false, false },     { "q_arith", false, false }, { "q_ecc_1", false, false },
+        { "q_range", false, false }, { "q_logic", false, false },
+    };
+    return result;
+}
+
 TurboComposer::TurboComposer()
     : TurboComposer("../srs_db", 0)
 {}
@@ -38,32 +45,20 @@ TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint
     : TurboComposer(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 TurboComposer::TurboComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint)
-    : ComposerBase(crs_factory, 11, size_hint, TURBO_SEL_NAMES)
+    : ComposerBase(crs_factory, 11, size_hint, turbo_sel_props())
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
-    // q_m.reserve(size_hint);
-    // q_1.reserve(size_hint);
-    // q_2.reserve(size_hint);
-    // q_3.reserve(size_hint);
-    // q_4.reserve(size_hint);
-    // q_arith.reserve(size_hint);
-    // q_c.reserve(size_hint);
-    // q_5.reserve(size_hint);
-    // q_ecc_1.reserve(size_hint);
-    // q_range.reserve(size_hint);
-    // q_logic.reserve(size_hint);
 
     zero_idx = put_constant_variable(fr::zero());
-    // zero_idx = add_variable(barretenberg::fr::zero());
 }
 
 TurboComposer::TurboComposer(std::shared_ptr<proving_key> const& p_key,
                              std::shared_ptr<verification_key> const& v_key,
                              size_t size_hint)
-    : ComposerBase(p_key, v_key, 11, size_hint, TURBO_SEL_NAMES)
+    : ComposerBase(p_key, v_key, 11, size_hint, turbo_sel_props())
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -464,7 +459,7 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
 
-    assert_equal(accumulators[accumulators.size() - 1], witness_index);
+    assert_equal(witness_index, accumulators[accumulators.size() - 1]);
     accumulators[accumulators.size() - 1] = witness_index;
 
     n += used_gates;
@@ -683,7 +678,7 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     create_dummy_gate();
 
     ComposerBase::compute_proving_key_base();
-    compute_sigma_permutations<4>(circuit_proving_key.get());
+    compute_sigma_permutations<4, false>(circuit_proving_key.get());
 
     std::copy(turbo_polynomial_manifest,
               turbo_polynomial_manifest + 20,
@@ -721,8 +716,8 @@ TurboProver TurboComposer::create_prover()
 
     TurboProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboRangeWidget<turbo_settings>> range_widget =
         std::make_unique<ProverTurboRangeWidget<turbo_settings>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverTurboLogicWidget<turbo_settings>> logic_widget =
@@ -750,8 +745,8 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
 
     UnrolledTurboProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<4>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<4>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<4, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<4, false>>(circuit_proving_key.get(), witness.get());
 
     std::unique_ptr<ProverTurboRangeWidget<unrolled_turbo_settings>> range_widget =
         std::make_unique<ProverTurboRangeWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());

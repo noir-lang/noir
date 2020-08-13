@@ -247,6 +247,8 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
             accumulator_idx = new_accumulator_idx;
         }
     }
+
+    assert_equal(witness_index, accumulator_idx);
     return accumulators;
 }
 
@@ -467,7 +469,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     }
     ComposerBase::compute_proving_key_base();
 
-    compute_sigma_permutations<3>(circuit_proving_key.get());
+    compute_sigma_permutations<3, false>(circuit_proving_key.get());
 
     std::copy(standard_polynomial_manifest,
               standard_polynomial_manifest + 12,
@@ -516,8 +518,8 @@ UnrolledProver StandardComposer::create_unrolled_prover()
     compute_witness();
     UnrolledProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
     std::unique_ptr<ProverArithmeticWidget<unrolled_standard_settings>> arithmetic_widget =
         std::make_unique<ProverArithmeticWidget<unrolled_standard_settings>>(circuit_proving_key.get(), witness.get());
 
@@ -534,8 +536,8 @@ Prover StandardComposer::create_prover()
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<ProverPermutationWidget<3>> permutation_widget =
-        std::make_unique<ProverPermutationWidget<3>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPermutationWidget<3, false>> permutation_widget =
+        std::make_unique<ProverPermutationWidget<3, false>>(circuit_proving_key.get(), witness.get());
 
     std::unique_ptr<ProverArithmeticWidget<standard_settings>> arithmetic_widget =
         std::make_unique<ProverArithmeticWidget<standard_settings>>(circuit_proving_key.get(), witness.get());

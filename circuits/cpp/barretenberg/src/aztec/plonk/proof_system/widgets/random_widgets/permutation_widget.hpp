@@ -10,20 +10,22 @@ template <typename Field, typename Group, typename Transcript> class VerifierPer
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
-                                                          const bool use_linearisation);
+                                                          const bool use_linearisation,
+                                                          const bool idpolys = false);
 
     static Field append_scalar_multiplication_inputs(verification_key*,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
                                                      std::map<std::string, Field>& scalars,
-                                                     const bool use_linearisation);
+                                                     const bool use_linearisation,
+                                                     const bool idpolys = false);
 };
 
 extern template class VerifierPermutationWidget<barretenberg::fr,
                                                 barretenberg::g1::affine_element,
                                                 transcript::StandardTranscript>;
 
-template <size_t program_width> class ProverPermutationWidget : public ProverRandomWidget {
+template <size_t program_width, bool idpolys = false> class ProverPermutationWidget : public ProverRandomWidget {
   public:
     ProverPermutationWidget(proving_key*, program_witness*);
     ProverPermutationWidget(const ProverPermutationWidget& other);
@@ -41,9 +43,6 @@ template <size_t program_width> class ProverPermutationWidget : public ProverRan
                                                  const transcript::StandardTranscript& transcript,
                                                  barretenberg::polynomial& r) override;
 };
-
-extern template class ProverPermutationWidget<3>;
-extern template class ProverPermutationWidget<4>;
 
 } // namespace waffle
 

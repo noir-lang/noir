@@ -35,6 +35,7 @@ extern template class VerifierBase<unrolled_plookup_verifier_settings>;
 extern template class VerifierBase<mimc_verifier_settings>;
 extern template class VerifierBase<turbo_verifier_settings>;
 extern template class VerifierBase<plookup_verifier_settings>;
+extern template class VerifierBase<generalized_permutation_verifier_settings>;
 
 typedef VerifierBase<unrolled_standard_verifier_settings> UnrolledVerifier;
 typedef VerifierBase<unrolled_turbo_verifier_settings> UnrolledTurboVerifier;
@@ -43,5 +44,6 @@ typedef VerifierBase<mimc_verifier_settings> MiMCVerifier;
 typedef VerifierBase<turbo_verifier_settings> TurboVerifier;
 typedef VerifierBase<plookup_verifier_settings> PLookupVerifier;
 typedef VerifierBase<unrolled_plookup_verifier_settings> UnrolledPLookupVerifier;
+typedef VerifierBase<generalized_permutation_verifier_settings> GenPermVerifier;
 
 } // namespace waffle

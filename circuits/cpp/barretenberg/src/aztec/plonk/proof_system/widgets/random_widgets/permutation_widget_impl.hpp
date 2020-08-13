@@ -12,41 +12,41 @@
 
 namespace waffle {
 
-template <size_t program_width>
-ProverPermutationWidget<program_width>::ProverPermutationWidget(proving_key* input_key, program_witness* input_witness)
+template <size_t program_width, bool idpolys>
+ProverPermutationWidget<program_width, idpolys>::ProverPermutationWidget(proving_key* input_key,
+                                                                         program_witness* input_witness)
     : ProverRandomWidget(input_key, input_witness)
 {}
 
-template <size_t program_width>
-ProverPermutationWidget<program_width>::ProverPermutationWidget(const ProverPermutationWidget& other)
+template <size_t program_width, bool idpolys>
+ProverPermutationWidget<program_width, idpolys>::ProverPermutationWidget(const ProverPermutationWidget& other)
     : ProverRandomWidget(other)
 {}
 
-template <size_t program_width>
-ProverPermutationWidget<program_width>::ProverPermutationWidget(ProverPermutationWidget&& other)
+template <size_t program_width, bool idpolys>
+ProverPermutationWidget<program_width, idpolys>::ProverPermutationWidget(ProverPermutationWidget&& other)
     : ProverRandomWidget(other)
 {}
 
-template <size_t program_width>
-ProverPermutationWidget<program_width>& ProverPermutationWidget<program_width>::operator=(
+template <size_t program_width, bool idpolys>
+ProverPermutationWidget<program_width, idpolys>& ProverPermutationWidget<program_width, idpolys>::operator=(
     const ProverPermutationWidget& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-template <size_t program_width>
-ProverPermutationWidget<program_width>& ProverPermutationWidget<program_width>::operator=(
+template <size_t program_width, bool idpolys>
+ProverPermutationWidget<program_width, idpolys>& ProverPermutationWidget<program_width, idpolys>::operator=(
     ProverPermutationWidget&& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-template <size_t program_width>
-void ProverPermutationWidget<program_width>::compute_round_commitments(transcript::StandardTranscript& transcript,
-                                                                       const size_t round_number,
-                                                                       work_queue& queue)
+template <size_t program_width, bool idpolys>
+void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
+    transcript::StandardTranscript& transcript, const size_t round_number, work_queue& queue)
 {
     if (round_number != 3) {
         return;
@@ -85,15 +85,18 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
         accumulators[(k - 1) * 2 + 1] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
     }
 
-    fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     std::array<fr*, program_width> lagrange_base_wires;
     std::array<fr*, program_width> lagrange_base_sigmas;
+    [[maybe_unused]] std::array<fr*, program_width> lagrange_base_ids;
 
     for (size_t i = 0; i < program_width; ++i) {
         lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
         lagrange_base_sigmas[i] = &key->permutation_selectors_lagrange_base.at("sigma_" + std::to_string(i + 1))[0];
+        if constexpr (idpolys)
+            lagrange_base_ids[i] = &key->permutation_selectors_lagrange_base.at("id_" + std::to_string(i + 1))[0];
     }
 
 #ifndef NO_MULTITHREADING
@@ -104,29 +107,40 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
 #pragma omp for
 #endif
         for (size_t j = 0; j < key->small_domain.num_threads; ++j) {
-            fr thread_root = key->small_domain.root.pow(static_cast<uint64_t>(j * key->small_domain.thread_size));
-            fr work_root = thread_root * beta;
-            fr T0;
-            fr wire_plus_gamma;
+            barretenberg::fr thread_root =
+                key->small_domain.root.pow(static_cast<uint64_t>(j * key->small_domain.thread_size));
+            [[maybe_unused]] barretenberg::fr cur_root_times_beta = thread_root * beta;
+            barretenberg::fr T0;
+            barretenberg::fr wire_plus_gamma;
             size_t start = j * key->small_domain.thread_size;
             size_t end = (j + 1) * key->small_domain.thread_size;
             for (size_t i = start; i < end; ++i) {
                 wire_plus_gamma = gamma + lagrange_base_wires[0][i];
-                accumulators[0][i] = wire_plus_gamma + work_root;
+                if constexpr (!idpolys) {
+                    accumulators[0][i] = wire_plus_gamma + cur_root_times_beta;
+                }
+                if constexpr (idpolys) {
+                    T0 = lagrange_base_ids[0][i] * beta;
+                    accumulators[0][i] = T0 + wire_plus_gamma;
+                }
 
                 T0 = lagrange_base_sigmas[0][i] * beta;
                 accumulators[program_width][i] = T0 + wire_plus_gamma;
 
                 for (size_t k = 1; k < program_width; ++k) {
                     wire_plus_gamma = gamma + lagrange_base_wires[k][i];
-                    T0 = fr::coset_generator(k - 1) * work_root;
+                    if constexpr (idpolys) {
+                        T0 = lagrange_base_ids[k][i] * beta;
+                    } else {
+                        T0 = fr::coset_generator(k - 1) * cur_root_times_beta;
+                    }
                     accumulators[k][i] = T0 + wire_plus_gamma;
 
                     T0 = lagrange_base_sigmas[k][i] * beta;
                     accumulators[k + program_width][i] = T0 + wire_plus_gamma;
                 }
-
-                work_root *= key->small_domain.root;
+                if constexpr (!idpolys)
+                    cur_root_times_beta *= key->small_domain.root;
             }
         }
 
@@ -150,7 +164,7 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
             const size_t start = j * key->small_domain.thread_size;
             const size_t end =
                 ((j + 1) * key->small_domain.thread_size) - ((j == key->small_domain.num_threads - 1) ? 1 : 0);
-            fr inversion_accumulator = fr::one();
+            barretenberg::fr inversion_accumulator = fr::one();
             constexpr size_t inversion_index = (program_width == 1) ? 2 : program_width * 2 - 1;
             fr* inversion_coefficients = &accumulators[inversion_index][0];
             for (size_t i = start; i < end; ++i) {
@@ -195,15 +209,15 @@ void ProverPermutationWidget<program_width>::compute_round_commitments(transcrip
     });
 }
 
-template <size_t program_width>
-barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contribution(
+template <size_t program_width, bool idpolys>
+barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotient_contribution(
     const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_fft");
 
-    fr alpha_squared = alpha_base.sqr();
-    fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    barretenberg::fr alpha_squared = alpha_base.sqr();
+    barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
 
     // Our permutation check boils down to two 'grand product' arguments,
     // that we represent with a single polynomial Z(X).
@@ -225,10 +239,13 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
 
     std::array<fr*, program_width> wire_ffts;
     std::array<fr*, program_width> sigma_ffts;
+    [[maybe_unused]] std::array<fr*, program_width> id_ffts;
 
     for (size_t i = 0; i < program_width; ++i) {
         wire_ffts[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
         sigma_ffts[i] = &key->permutation_selector_ffts.at("sigma_" + std::to_string(i + 1) + "_fft")[0];
+        if constexpr (idpolys)
+            id_ffts[i] = &key->permutation_selector_ffts.at("id_" + std::to_string(i + 1) + "_fft")[0];
     }
 
     const polynomial& l_1 = key->lagrange_1;
@@ -236,8 +253,10 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
     // compute our public input component
     std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
 
-    fr public_input_delta = compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
+    barretenberg::fr public_input_delta =
+        compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
 
+    const size_t block_mask = key->large_domain.size - 1;
     polynomial& quotient_large = key->quotient_large;
     // Step 4: Set the quotient polynomial to be equal to
     // (w_l(X) + \beta.sigma1(X) + \gamma).(w_r(X) + \beta.sigma2(X) + \gamma).(w_o(X) + \beta.sigma3(X) +
@@ -249,20 +268,23 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
         const size_t start = j * key->large_domain.thread_size;
         const size_t end = (j + 1) * key->large_domain.thread_size;
 
-        fr work_root = key->large_domain.root.pow(static_cast<uint64_t>(j * key->large_domain.thread_size));
-        work_root *= key->small_domain.generator;
-        // work_root *= fr::coset_generator(0);
-        work_root *= beta;
+        barretenberg::fr cur_root_times_beta =
+            key->large_domain.root.pow(static_cast<uint64_t>(j * key->large_domain.thread_size));
+        cur_root_times_beta *= key->small_domain.generator;
+        cur_root_times_beta *= beta;
 
-        fr wire_plus_gamma;
-        fr T0;
-        fr denominator;
-        fr numerator;
+        barretenberg::fr wire_plus_gamma;
+        barretenberg::fr T0;
+        barretenberg::fr denominator;
+        barretenberg::fr numerator;
         for (size_t i = start; i < end; ++i) {
             wire_plus_gamma = gamma + wire_ffts[0][i];
 
             // Numerator computation
-            numerator = work_root + wire_plus_gamma;
+            if constexpr (!idpolys)
+                numerator = cur_root_times_beta + wire_plus_gamma;
+            else
+                numerator = id_ffts[0][i] * beta + wire_plus_gamma;
 
             // Denominator computation
             denominator = sigma_ffts[0][i] * beta;
@@ -270,7 +292,11 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
 
             for (size_t k = 1; k < program_width; ++k) {
                 wire_plus_gamma = gamma + wire_ffts[k][i];
-                T0 = fr::coset_generator(k - 1) * work_root;
+                if constexpr (!idpolys)
+                    T0 = fr::coset_generator(k - 1) * cur_root_times_beta;
+                if constexpr (idpolys)
+                    T0 = id_ffts[k][i] * beta;
+
                 T0 += wire_plus_gamma;
                 numerator *= T0;
 
@@ -280,7 +306,7 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
             }
 
             numerator *= z_fft[i];
-            denominator *= z_fft[i + 4];
+            denominator *= z_fft[(i + 4) & block_mask];
 
             /**
              * Permutation bounds check
@@ -311,9 +337,9 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
             // z_fft already contains evaluations of Z(X).(\alpha^2)
             // at the (2n)'th roots of unity
             // => to get Z(X.w) instead of Z(X), index element (i+2) instead of i
-            T0 = z_fft[i + 4] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
-            T0 *= alpha_base;                       // T0 = (Z(X.w) - (delta)).(\alpha^3)
-            T0 *= l_1[i + 8];                       // T0 = (Z(X.w)-delta).(\alpha^3).L{n-1}
+            T0 = z_fft[(i + 4) & block_mask] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
+            T0 *= alpha_base;                                      // T0 = (Z(X.w) - (delta)).(\alpha^3)
+            T0 *= l_1[(i + 8) & block_mask];                       // T0 = (Z(X.w)-delta).(\alpha^3).L{n-1}
             numerator += T0;
 
             // Step 2: Compute (Z(X) - 1).(\alpha^4).L1(X)
@@ -330,50 +356,63 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_quotient_contri
             quotient_large[i] = T0 * alpha_base;
 
             // Update our working root of unity
-            work_root *= key->large_domain.root;
+            cur_root_times_beta *= key->large_domain.root;
         }
     }
     return alpha_base.sqr().sqr();
 }
 
-template <size_t program_width>
-barretenberg::fr ProverPermutationWidget<program_width>::compute_linear_contribution(
+template <size_t program_width, bool idpolys>
+barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_linear_contribution(
     const fr& alpha, const transcript::StandardTranscript& transcript, polynomial& r)
 {
     polynomial& z = witness->wires.at("z");
-    fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+    barretenberg::fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
     barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
         barretenberg::polynomial_arithmetic::get_lagrange_evaluations(z_challenge, key->small_domain);
 
-    fr alpha_cubed = alpha.sqr() * alpha;
-    fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
-    fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
-    fr z_beta = z_challenge * beta;
+    barretenberg::fr alpha_cubed = alpha.sqr() * alpha;
+    barretenberg::fr beta = fr::serialize_from_buffer(transcript.get_challenge("beta").begin());
+    barretenberg::fr gamma = fr::serialize_from_buffer(transcript.get_challenge("beta", 1).begin());
+    barretenberg::fr z_beta = z_challenge * beta;
 
     std::array<fr, program_width> wire_evaluations;
     for (size_t i = 0; i < program_width; ++i) {
         wire_evaluations[i] = fr::serialize_from_buffer(&transcript.get_element("w_" + std::to_string(i + 1))[0]);
     }
 
-    fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
+    barretenberg::fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
 
-    fr T0;
-    fr z_contribution = fr(1);
-    for (size_t i = 0; i < program_width; ++i) {
-        fr coset_generator = (i == 0) ? fr(1) : fr::coset_generator(i - 1);
-        T0 = z_beta * coset_generator;
-        T0 += wire_evaluations[i];
-        T0 += gamma;
-        z_contribution *= T0;
+    barretenberg::fr T0;
+    barretenberg::fr z_contribution = fr(1);
+
+    if (!idpolys) {
+        for (size_t i = 0; i < program_width; ++i) {
+            barretenberg::fr coset_generator = (i == 0) ? fr(1) : fr::coset_generator(i - 1);
+            T0 = z_beta * coset_generator;
+            T0 += wire_evaluations[i];
+            T0 += gamma;
+            z_contribution *= T0;
+        }
+    } else {
+        for (size_t i = 0; i < program_width; ++i) {
+            barretenberg::fr id_evaluation =
+                fr::serialize_from_buffer(&transcript.get_element("id_" + std::to_string(i + 1))[0]);
+            T0 = id_evaluation * beta;
+            T0 += wire_evaluations[i];
+            T0 += gamma;
+            z_contribution *= T0;
+        }
     }
-    fr z_1_multiplicand = z_contribution * alpha;
+
+    barretenberg::fr z_1_multiplicand = z_contribution * alpha;
     T0 = lagrange_evals.l_1 * alpha_cubed;
     z_1_multiplicand += T0;
 
-    fr sigma_contribution = fr(1);
+    barretenberg::fr sigma_contribution = fr(1);
     for (size_t i = 0; i < program_width - 1; ++i) {
-        fr permutation_evaluation =
+        barretenberg::fr permutation_evaluation =
             fr::serialize_from_buffer(&transcript.get_element("sigma_" + std::to_string(i + 1))[0]);
         T0 = permutation_evaluation * beta;
         T0 += wire_evaluations[i];
@@ -381,7 +420,7 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_linear_contribu
         sigma_contribution *= T0;
     }
     sigma_contribution *= z_1_shifted_eval;
-    fr sigma_last_multiplicand = -(sigma_contribution * alpha);
+    barretenberg::fr sigma_last_multiplicand = -(sigma_contribution * alpha);
     sigma_last_multiplicand *= beta;
 
     const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(program_width));
@@ -391,9 +430,6 @@ barretenberg::fr ProverPermutationWidget<program_width>::compute_linear_contribu
 
     return alpha.sqr().sqr();
 }
-
-template class ProverPermutationWidget<3>;
-template class ProverPermutationWidget<4>;
 
 // ###
 
@@ -407,7 +443,8 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
     const Field& alpha,
     const Transcript& transcript,
     Field& t_eval,
-    const bool use_linearisation)
+    const bool use_linearisation,
+    const bool idpolys)
 {
 
     Field alpha_cubed = alpha.sqr() * alpha;
@@ -512,6 +549,22 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
         Field z_eval = transcript.get_field_element("z");
         t_eval += (z_1_multiplicand * z_eval);
         t_eval += (sigma_last_multiplicand * sigma_evaluations[key->program_width - 1]);
+
+        if (idpolys) {
+            Field z_eval = transcript.get_field_element("z");
+
+            Field id_contribution = Field(1);
+            for (size_t i = 0; i < key->program_width; ++i) {
+                Field id_evaluation = transcript.get_field_element("id_" + std::to_string(i + 1));
+                T0 = id_evaluation * beta;
+                T0 += wire_evaluations[i];
+                T0 += gamma;
+                id_contribution *= T0;
+            }
+            id_contribution *= z_eval;
+            Field id_last_multiplicand = (id_contribution * alpha);
+            id_last_multiplicand *= beta;
+        }
     }
 
     return alpha.sqr().sqr();
@@ -523,12 +576,12 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
     const Field& alpha_base,
     const Transcript& transcript,
     std::map<std::string, Field>& scalars,
-    const bool use_linearisation)
+    const bool use_linearisation,
+    const bool idpolys)
 {
     Field alpha_step = transcript.get_challenge_field_element("alpha");
 
     Field alpha_cubed = alpha_base * alpha_step.sqr();
-    // Field u = transcript.get_challenge_field_element("separator");
     Field shifted_z_eval = transcript.get_field_element("z_omega");
 
     Field z = transcript.get_challenge_field_element("z");
@@ -555,18 +608,27 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
         Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
         Field T0;
         Field z_contribution = Field(1);
-        for (size_t i = 0; i < key->program_width; ++i) {
-            Field coset_generator = (i == 0) ? Field(1) : Field::coset_generator(i - 1);
-            T0 = z_beta * coset_generator;
-            T0 += wire_evaluations[i];
-            T0 += gamma;
-            z_contribution *= T0;
+        if (!idpolys) {
+            for (size_t i = 0; i < key->program_width; ++i) {
+                Field coset_generator = (i == 0) ? Field(1) : Field::coset_generator(i - 1);
+                T0 = z_beta * coset_generator;
+                T0 += wire_evaluations[i];
+                T0 += gamma;
+                z_contribution *= T0;
+            }
+        } else {
+            for (size_t i = 0; i < key->program_width; ++i) {
+                Field id_evaluation = transcript.get_field_element("id_" + std::to_string(i + 1));
+                Field T0 = id_evaluation * beta;
+                T0 += wire_evaluations[i];
+                T0 += gamma;
+                z_contribution *= T0;
+            }
         }
         Field z_1_multiplicand = z_contribution * alpha_base;
         T0 = l_1 * alpha_cubed;
         z_1_multiplicand += T0;
         z_1_multiplicand *= linear_nu;
-        // z_1_multiplicand += u; // (u * z_omega_challenge);
         scalars["Z"] += (z_1_multiplicand);
     }
 

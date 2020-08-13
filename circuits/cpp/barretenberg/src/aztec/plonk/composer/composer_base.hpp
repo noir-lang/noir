@@ -6,6 +6,7 @@
 #include <plonk/proof_system/types/prover_settings.hpp>
 
 namespace waffle {
+static constexpr uint32_t DUMMY_TAG = 0;
 
 struct proving_key;
 struct verification_key;
@@ -109,10 +110,17 @@ enum ComposerType {
 
 class ComposerBase {
   public:
+    struct SelectorProperties {
+        std::string name;
+        bool use_mid_for_selectorfft = false;           // use middomain instead of large for selectorfft
+        bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
+    };
+
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
     static constexpr size_t NUM_RESERVED_GATES = 1;
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
+
     struct cycle_node {
         uint32_t gate_index;
         WireType wire_type;
@@ -147,107 +155,57 @@ class ComposerBase {
     ComposerBase(std::shared_ptr<ReferenceStringFactory> const& crs_factory,
                  size_t selector_num = 0,
                  size_t size_hint = 0,
-                 std::vector<std::string> selector_names = {})
+                 std::vector<SelectorProperties> selector_properties = {})
         : n(0)
         , crs_factory_(crs_factory)
         , selector_num(selector_num)
         , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(selector_num, false)
+        , selector_properties(selector_properties)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
-    ComposerBase(std::unique_ptr<ReferenceStringFactory>&& crs_factory,
-                 size_t selector_num,
-                 size_t size_hint,
-                 std::vector<std::string> selector_names,
-                 std::vector<bool> use_mid_for_selectorfft)
-        : n(0)
-        , crs_factory_(std::move(crs_factory))
-        , selector_num(selector_num)
-        , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(use_mid_for_selectorfft)
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
-        }
-    }
-    ComposerBase(size_t selector_num = 0, size_t size_hint = 0, std::vector<std::string> selector_names = {})
-        : n(0)
-        , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db"))
-        , selector_num(selector_num)
-        , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(selector_num, false)
 
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
-        }
-    }
-    ComposerBase(size_t selector_num,
-                 size_t size_hint,
-                 std::vector<std::string> selector_names,
-                 std::vector<bool> use_mid_for_selectorfft)
+    ComposerBase(size_t selector_num = 0,
+                 size_t size_hint = 0,
+                 std::vector<SelectorProperties> selector_properties = {})
         : n(0)
         , crs_factory_(std::make_unique<FileReferenceStringFactory>("../srs_db"))
         , selector_num(selector_num)
         , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(use_mid_for_selectorfft)
+        , selector_properties(selector_properties)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
+
     ComposerBase(std::shared_ptr<proving_key> const& p_key,
                  std::shared_ptr<verification_key> const& v_key,
                  size_t selector_num = 0,
                  size_t size_hint = 0,
-                 std::vector<std::string> selector_names = {})
+                 std::vector<SelectorProperties> selector_properties = {})
         : n(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
-        , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
+        , selector_num(p_key ? p_key->constraint_selectors.size() : selector_num)
         , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(selector_num, false)
-
+        , selector_properties(selector_properties)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
     }
-    ComposerBase(std::shared_ptr<proving_key> const& p_key,
-                 std::shared_ptr<verification_key> const& v_key,
-                 size_t selector_num,
-                 size_t size_hint,
-                 std::vector<std::string> selector_names,
-                 std::vector<bool> use_mid_for_selectorfft)
-        : n(0)
-        , circuit_proving_key(p_key)
-        , circuit_verification_key(v_key)
-        , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
-        , selectors(selector_num)
-        , selector_names(selector_names)
-        , use_mid_for_selectorfft(use_mid_for_selectorfft)
 
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
-        }
-    }
     ComposerBase(ComposerBase&& other) = default;
     ComposerBase& operator=(ComposerBase&& other) = default;
     virtual ~ComposerBase(){};
 
     virtual size_t get_num_gates() const { return n; }
     virtual size_t get_num_variables() const { return variables.size(); }
-
-    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_circuit_size = 0);
+    virtual std::shared_ptr<proving_key> compute_proving_key_base(const size_t minimum_ciricut_size = 0,
+                                                                  const size_t num_reserved_gates = NUM_RESERVED_GATES);
     virtual std::shared_ptr<proving_key> compute_proving_key() = 0;
     virtual std::shared_ptr<verification_key> compute_verification_key() = 0;
     virtual std::shared_ptr<program_witness> compute_witness() = 0;
@@ -259,8 +217,6 @@ class ComposerBase {
     virtual void create_bool_gate(const uint32_t a) = 0;
     virtual void create_poly_gate(const poly_triple& in) = 0;
     virtual size_t get_num_constant_gates() const = 0;
-
-    std::vector<uint32_t> variable_index_map;
 
     uint32_t get_real_variable_index(uint32_t index) const
     {
@@ -281,6 +237,7 @@ class ComposerBase {
     {
         variables.emplace_back(in);
         variable_index_map.emplace_back(REAL_VARIABLE);
+        variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
         return static_cast<uint32_t>(variables.size()) - 1U;
     }
@@ -289,6 +246,7 @@ class ComposerBase {
     {
         variables.emplace_back(in);
         variable_index_map.emplace_back(REAL_VARIABLE);
+        variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
         const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
         public_inputs.emplace_back(index);
@@ -306,10 +264,12 @@ class ComposerBase {
         }
     }
 
-    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "");
+    virtual void assert_equal(const uint32_t a_idx,
+                              const uint32_t b_idx,
+                              std::string const& msg = "assert equal failed");
 
     template <size_t program_width> void compute_wire_copy_cycles();
-    template <size_t program_width> void compute_sigma_permutations(proving_key* key);
+    template <size_t program_width, bool with_tags = false> void compute_sigma_permutations(proving_key* key);
 
     void add_selector(polynomial& small, const std::string& tag, bool preserve_lagrange_base = false)
     {
@@ -341,6 +301,10 @@ class ComposerBase {
     std::vector<uint32_t> w_4;
     std::vector<uint32_t> public_inputs;
     std::vector<barretenberg::fr> variables;
+    std::vector<uint32_t> variable_index_map;
+    std::vector<uint32_t> variable_tags;
+    uint32_t current_tag = DUMMY_TAG;
+    std::map<uint32_t, uint32_t> tau; // the permutation on variable tags;
     std::vector<std::vector<cycle_node>> wire_copy_cycles;
 
     std::shared_ptr<proving_key> circuit_proving_key;
@@ -352,15 +316,17 @@ class ComposerBase {
     std::shared_ptr<ReferenceStringFactory> crs_factory_;
     size_t selector_num;
     std::vector<std::vector<barretenberg::fr>> selectors;
-    std::vector<std::string> selector_names;
-    std::vector<bool> use_mid_for_selectorfft; // use middomain instead of large for selectorfft
+    std::vector<SelectorProperties> selector_properties;
     bool failed = false;
     std::string err;
 };
 
-extern template void ComposerBase::compute_sigma_permutations<3>(proving_key* key);
-extern template void ComposerBase::compute_sigma_permutations<4>(proving_key* key);
+extern template void ComposerBase::compute_wire_copy_cycles<3>();
+extern template void ComposerBase::compute_wire_copy_cycles<4>();
+extern template void ComposerBase::compute_sigma_permutations<3, false>(proving_key* key);
+extern template void ComposerBase::compute_sigma_permutations<4, false>(proving_key* key);
 extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<standard_settings>();
 extern template std::shared_ptr<program_witness> ComposerBase::compute_witness_base<turbo_settings>();
+extern template void ComposerBase::compute_sigma_permutations<4, true>(proving_key* key);
 
 } // namespace waffle
