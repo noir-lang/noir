@@ -14,7 +14,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     grumpkin::g1::element note_owner_pub_key = grumpkin::g1::element::random_element();
 
     fr view_key_value = fr::random_element();
-    view_key_value.data[3] = view_key_value.data[3] & 0x0FFFFFFFFFFFFFFULL;
+    view_key_value.data[3] = view_key_value.data[3] & 0x03FFFFFFFFFFFFFFULL;
     view_key_value = view_key_value.to_montgomery_form();
 
     fr note_value = fr{ 9999, 0, 0, 0 }.to_montgomery_form();
@@ -47,6 +47,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
 
     waffle::TurboProver prover = composer.create_prover();
 
+    EXPECT_FALSE(composer.failed);
     printf("composer gates = %zu\n", composer.get_num_gates());
     waffle::TurboVerifier verifier = composer.create_verifier();
 
@@ -63,7 +64,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     grumpkin::g1::element note_owner_pub_key = grumpkin::g1::element::random_element();
 
     fr view_key_value = fr::random_element();
-    view_key_value.data[3] = view_key_value.data[3] & 0x0FFFFFFFFFFFFFFULL;
+    view_key_value.data[3] = view_key_value.data[3] & 0x03FFFFFFFFFFFFFFULL;
     view_key_value = view_key_value.to_montgomery_form();
 
     fr note_value = fr{ 0, 0, 0, 0 }.to_montgomery_form();
@@ -91,6 +92,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
 
     waffle::TurboProver prover = composer.create_prover();
 
+    EXPECT_FALSE(composer.failed);
     printf("composer gates = %zu\n", composer.get_num_gates());
     waffle::TurboVerifier verifier = composer.create_verifier();
 

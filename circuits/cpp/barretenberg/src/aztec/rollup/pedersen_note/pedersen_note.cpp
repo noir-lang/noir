@@ -23,9 +23,10 @@ template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in,
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
 
-    if (scalar_multiplier.get_msb() > num_bits) {
+    if (scalar_multiplier.get_msb() >= num_bits) {
         ctx->failed = true;
-        ctx->err = "fixed_base_scalar_mul scalar multiplier is larger than num_bits";
+        ctx->err = format(
+            "fixed_base_scalar_mul scalar multiplier ", scalar_multiplier, " is larger than num_bits ", num_bits);
     }
 
     // constexpr size_t num_bits = 250;
