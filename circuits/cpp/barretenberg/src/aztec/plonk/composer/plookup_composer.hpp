@@ -8,7 +8,7 @@ class PLookupComposer : public ComposerBase {
 
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
-    static constexpr size_t NUM_PLOOKUP_SELECTORS = 14;
+    static constexpr size_t NUM_PLOOKUP_SELECTORS = 15;
     static constexpr size_t NUM_RESERVED_GATES = 2;
     static constexpr size_t UINT_LOG2_BASE = 6;
 
@@ -30,10 +30,11 @@ class PLookupComposer : public ComposerBase {
         QARITH = 7,
         QECC_1 = 8,
         QRANGE = 9,
-        QLOGIC = 10,
-        QELLIPTIC = 11,
-        QLOOKUPINDEX = 12,
-        QLOOKUPTYPE = 13,
+QSORT = 10,
+        QLOGIC = 11,
+        QELLIPTIC = 12,
+        QLOOKUPINDEX = 13,
+        QLOOKUPTYPE = 14,
     };
     PLookupComposer();
     PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
@@ -283,21 +284,22 @@ class PLookupComposer : public ComposerBase {
                       { "q_arith", fr_size, false, 15 },
                       { "q_logic", fr_size, false, 16 },
                       { "q_range", fr_size, false, 17 },
-                      { "q_ecc_1", fr_size, false, 18 },
-                      { "q_elliptic", fr_size, false, 19 },
-                      { "table_index", fr_size, false, 20 },
-                      { "table_type", fr_size, false, 21 },
-                      { "s", fr_size, false, 22 },
-                      { "z_lookup", fr_size, false, 23 },
-                      { "table_value_1", fr_size, false, 24 },
-                      { "table_value_2", fr_size, false, 25 },
-                      { "table_value_3", fr_size, false, 26 },
-                      { "table_value_4", fr_size, false, 27 },
-                      { "z", fr_size, false, 28 },
-                      { "id_1", fr_size, false, 29 },
-                      { "id_2", fr_size, false, 30 },
-                      { "id_3", fr_size, false, 31 },
-                      { "id_4", fr_size, false, 32 },
+                      { "q_sort", fr_size, false, 18 },
+                      { "q_ecc_1", fr_size, false, 19 },
+                      { "q_elliptic", fr_size, false, 20 },
+                      { "table_index", fr_size, false, 21 },
+                      { "table_type", fr_size, false, 22 },
+                      { "s", fr_size, false, 23 },
+                      { "z_lookup", fr_size, false, 24 },
+                      { "table_value_1", fr_size, false, 25 },
+                      { "table_value_2", fr_size, false, 26 },
+                      { "table_value_3", fr_size, false, 27 },
+                      { "table_value_4", fr_size, false, 28 },
+                      { "z", fr_size, false, 29 },
+                      { "id_1", fr_size, false, 30 },
+                      { "id_2", fr_size, false, 31 },
+                      { "id_3", fr_size, false, 32 },
+                      { "id_4", fr_size, false, 33 },
                       { "z_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },
@@ -311,7 +313,7 @@ class PLookupComposer : public ComposerBase {
                       { "table_value_4_omega", fr_size, false, 9 },
                   },
                   "nu",
-                  33,
+                  34,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });

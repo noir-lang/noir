@@ -32,6 +32,7 @@ namespace waffle {
     auto& q_arith = selectors[PLookupSelectors::QARITH];                                                               \
     auto& q_ecc_1 = selectors[PLookupSelectors::QECC_1];                                                               \
     auto& q_range = selectors[PLookupSelectors::QRANGE];                                                               \
+    auto& q_sort = selectors[PLookupSelectors::QSORT];                                                               \
     auto& q_logic = selectors[PLookupSelectors::QLOGIC];                                                               \
     auto& q_elliptic = selectors[PLookupSelectors::QELLIPTIC];                                                         \
     auto& q_lookup_index = selectors[PLookupSelectors::QLOOKUPINDEX];                                                  \
@@ -41,7 +42,7 @@ const static std::vector<ComposerBase::SelectorProperties> PLOOKUP_SEL_PROPS = {
     { "q_m", false, true },         { "q_c", false, true },        { "q_1", false, false },
     { "q_2", false, true },         { "q_3", false, false },       { "q_4", false, false },
     { "q_5", false, false },        { "q_arith", false, false },   { "q_ecc_1", false, false },
-    { "q_range", false, false },    { "q_logic", false, false },   { "q_elliptic", false, false },
+    { "q_range", false, false },{ "q_sort", false, false },    { "q_logic", false, false },   { "q_elliptic", false, false },
     { "table_index", false, true }, { "table_type", false, true },
 };
 
@@ -94,6 +95,7 @@ void PLookupComposer::create_dummy_gate()
     q_3.emplace_back(0);
     q_c.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -118,6 +120,7 @@ void PLookupComposer::create_add_gate(const add_triple& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -142,6 +145,7 @@ void PLookupComposer::create_big_add_gate(const add_quad& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -166,6 +170,7 @@ void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -190,6 +195,7 @@ void PLookupComposer::create_big_mul_gate(const mul_quad& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -216,6 +222,7 @@ void PLookupComposer::create_balanced_add_gate(const add_quad& in)
     q_5.emplace_back(1);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -240,6 +247,7 @@ void PLookupComposer::create_mul_gate(const mul_triple& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -259,6 +267,7 @@ void PLookupComposer::create_bool_gate(const uint32_t variable_index)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_m.emplace_back(1);
     q_1.emplace_back(0);
     q_2.emplace_back(0);
@@ -284,6 +293,7 @@ void PLookupComposer::create_poly_gate(const poly_triple& in)
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
 
     q_arith.emplace_back(1);
@@ -311,6 +321,7 @@ void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in
     q_m.emplace_back(0);
     q_c.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
 
     q_1.emplace_back(in.q_x_1);
@@ -339,6 +350,7 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     q_m.emplace_back(init.q_y_1);
     q_c.emplace_back(init.q_y_2);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
 
     q_1.emplace_back(in.q_x_1);
@@ -395,6 +407,7 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
         q_c.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
+    q_sort.emplace_back(0);
         q_logic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
@@ -416,6 +429,7 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -441,6 +455,7 @@ void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -566,6 +581,7 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
         q_range.emplace_back(1);
+    q_sort.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
@@ -741,6 +757,7 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
+    q_sort.emplace_back(0);
         if (is_xor_gate) {
             q_c.emplace_back(fr::neg_one());
             q_logic.emplace_back(fr::neg_one());
@@ -822,6 +839,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     ASSERT(n == q_ecc_1.size());
     ASSERT(n == q_elliptic.size());
     ASSERT(n == q_range.size());
+    ASSERT(n == q_sort.size());
     ASSERT(n == q_logic.size());
     ASSERT(n == q_lookup_index.size());
     ASSERT(n == q_lookup_type.size());
@@ -874,7 +892,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     compute_sigma_permutations<4, true>(circuit_proving_key.get());
 
     std::copy(plookup_polynomial_manifest,
-              plookup_polynomial_manifest + 33,
+              plookup_polynomial_manifest + 34,
               std::back_inserter(circuit_proving_key->polynomial_manifest));
 
     return circuit_proving_key;
@@ -1162,6 +1180,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
+        q_sort.emplace_back(0);
         q_logic.emplace_back(0);
         q_elliptic.emplace_back(0);
 
@@ -1283,7 +1302,8 @@ void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
-        q_range.emplace_back(1);
+        q_range.emplace_back(0);
+        q_sort.emplace_back(1);
         q_elliptic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
@@ -1305,6 +1325,7 @@ void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
     q_range.emplace_back(0);
+        q_sort.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -1336,12 +1357,13 @@ void PLookupComposer::create_dummy_constraints(const std::vector<uint32_t>& vari
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
         q_range.emplace_back(0);
+        q_sort.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
     }
 }
-// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
+// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checks)
 void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
                                                         const fr& start,
                                                         const fr& end)
@@ -1368,7 +1390,8 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
-    q_range.emplace_back(1);
+    q_range.emplace_back(0);
+    q_sort.emplace_back(1);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -1389,7 +1412,8 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
-        q_range.emplace_back(1);
+        q_range.emplace_back(0);
+        q_sort.emplace_back(1);
         q_elliptic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
@@ -1410,7 +1434,8 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
-    q_range.emplace_back(1);
+    q_range.emplace_back(0);
+    q_sort.emplace_back(1);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -1431,6 +1456,7 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
