@@ -31,8 +31,8 @@ fn read_crs() -> Vec<u8> {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 eprintln!("please run again with appropriate permissions.");
             }
-            panic!("{}", e);
-        }
+            panic!("Could not find file transcript00.dat at location ignition/transcript00.dat.");
+                    }
     }
 }
 
