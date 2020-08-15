@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "rasa_field",
+    "barretenberg-rs",
+]
