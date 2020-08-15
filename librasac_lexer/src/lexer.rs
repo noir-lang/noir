@@ -6,6 +6,7 @@ use std::str::Chars;
 // XXX(low) : Currently the Lexer does not return Result. It would be more idiomatic to do this, instead of returning Token::Error
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
 // XXX(low) : Possibly use &str instead of String when applicable
+// XXX(med) : Add line numbers to the token information
 
 pub struct Lexer<'a> {
     char_iter: Peekable<Chars<'a>>,
