@@ -156,7 +156,6 @@ impl Token {
     }
 }
 
-
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
 // Special Keywords allowed in the target language
 pub enum Keyword {
@@ -165,10 +164,9 @@ pub enum Keyword {
     If,
     Else,
     While,
-    Return,
     As,
     Constrain,
-    // You can declare a variable using pub which will give it the Public type 
+    // You can declare a variable using pub which will give it the Public type
     Pub,
     Public,
     // You can declare a variable using private, which will give it the Witness type
@@ -191,7 +189,6 @@ impl fmt::Display for Keyword {
             Keyword::While => write!(f, "while"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Let => write!(f, "let"),
-            Keyword::Return => write!(f, "return"),
             Keyword::As => write!(f, "as"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::Public => write!(f, "Public"),
@@ -215,11 +212,10 @@ impl Keyword {
             "while" => Some(Token::Keyword(Keyword::While)),
             "constrain" => Some(Token::Keyword(Keyword::Constrain)),
             "let" => Some(Token::Keyword(Keyword::Let)),
-            "return" => Some(Token::Keyword(Keyword::Return)),
             "as" => Some(Token::Keyword(Keyword::As)),
             "true" => Some(Token::Bool(true)),
             "false" => Some(Token::Bool(false)),
-            
+
             "priv" => Some(Token::Keyword(Keyword::Private)),
             "pub" => Some(Token::Keyword(Keyword::Pub)),
             "const" => Some(Token::Keyword(Keyword::Const)),
@@ -228,6 +224,37 @@ impl Keyword {
             "Public" => Some(Token::Keyword(Keyword::Public)),
             "Constant" => Some(Token::Keyword(Keyword::Constant)),
             _ => None,
+        }
+    }
+}
+
+// The list of keyword tokens which can start "variable" declarations. "fn" is for function declarations
+// XXX(low) : It might make sense to create a Keyword::Declarations Variant
+const fn declaration_keywords() -> [Keyword; 4] {
+    [Keyword::Let, Keyword::Const, Keyword::Pub, Keyword::Private]
+}
+
+impl Token {
+    /// Converts Token into a declaration keyword
+    /// Panics if the token cannot start a declaration
+    pub fn to_declaration_keyword(&self) -> Keyword {
+        assert!(self.can_start_declaration());
+        match self {
+            Token::Keyword(kw) => *kw,
+            _ => panic!("All tokens which can start declarations, must be keyword"),
+        }
+    }
+    // The set of keyword which can declare variables
+    pub fn can_start_declaration(&self) -> bool {
+        // First check it is a keyword
+        let is_keyword = self.kind() == TokenKind::Keyword;
+        if !is_keyword {
+            return false;
+        }
+
+        match self {
+            Token::Keyword(kw) => declaration_keywords().contains(kw),
+            _ => false,
         }
     }
 }

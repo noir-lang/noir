@@ -83,7 +83,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Given that some tokens can contain two characters, such as <= , !=, >=
-    /// Glue will take the first character of the token and check if it can be glued onto the next character 
+    /// Glue will take the first character of the token and check if it can be glued onto the next character
     /// forming a double token
     fn glue(&mut self, prev_token: Token) -> Token {
         match prev_token {
