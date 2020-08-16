@@ -122,9 +122,8 @@ impl ConstraintSystem {
     }
 
     pub fn size(&self) -> usize {
-
         // XXX: We do not want the user to need to enter the circuit size for a circuit
-        // as this is prone to error. For now, we will create a dummy standard composer, which will 
+        // as this is prone to error. For now, we will create a dummy standard composer, which will
         // call get_circuit_size and then we drop it
         let mut dummy_composer = StandardComposer::new(2);
         dummy_composer.get_circuit_size(&self) as usize
@@ -252,7 +251,6 @@ impl StandardComposer {
         self.barretenberg.free(cs_ptr);
         self.barretenberg.free(proof_ptr);
         self.barretenberg.free(g2_ptr);
-    
 
         match verified.to_u128() {
             0 => false,
@@ -264,7 +262,6 @@ impl StandardComposer {
 #[cfg(test)]
 mod test {
     use super::*;
-
 
     #[test]
     fn test_a_single_constraint() {
@@ -279,7 +276,6 @@ mod test {
             qc: 0,
         };
 
-        
         let constraint_system = ConstraintSystem {
             var_num: 3,
             pub_var_num: 0,
@@ -387,13 +383,11 @@ mod test {
             qc: 1,
         };
 
-
         let constraint_system = ConstraintSystem {
             var_num: 4,
             pub_var_num: 1,
             constraints: vec![constraint, constraint2],
         };
-
 
         let case_1 = WitnessResult {
             witness: Assignments(vec![1, 1, 2, 3]),

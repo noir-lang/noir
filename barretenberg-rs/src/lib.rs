@@ -13,7 +13,7 @@ use wasmer_runtime::types::MemoryDescriptor;
 use wasmer_runtime::units::Pages;
 use wasmer_runtime::{
     compile, func, imports,
-    memory::{Memory, MemoryView},
+    memory::Memory,
     Ctx, Instance, Module, Value,
 };
 use wasmer_wasi::generate_import_object_for_version;

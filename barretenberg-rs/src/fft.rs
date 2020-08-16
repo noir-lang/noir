@@ -14,10 +14,6 @@ impl FFT {
         FFT { domain_ptr }
     }
 
-    pub fn destroy(&mut self, barretenberg: &mut Barretenberg) {
-        barretenberg.call("delete_evaluation_domain", &self.domain_ptr);
-    }
-
     pub fn fft(
         &mut self,
         barretenberg: &mut Barretenberg,

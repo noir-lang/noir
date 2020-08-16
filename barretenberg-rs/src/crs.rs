@@ -32,7 +32,7 @@ fn read_crs() -> Vec<u8> {
                 eprintln!("please run again with appropriate permissions.");
             }
             panic!("Could not find file transcript00.dat at location ignition/transcript00.dat.");
-                    }
+        }
     }
 }
 
@@ -49,7 +49,7 @@ fn does_not_panic() {
 
     let crs_ptr = barretenberg.allocate(&crs.g1_data);
 
-    let pippenger_ptr = barretenberg.call_multiple(
+    let _ = barretenberg.call_multiple(
         "new_pippenger",
         vec![&crs_ptr, &Value::I32(num_points as i32)],
     );
