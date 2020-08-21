@@ -11,6 +11,11 @@ class PLookupComposer : public ComposerBase {
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 15;
     static constexpr size_t NUM_RESERVED_GATES = 2;
     static constexpr size_t UINT_LOG2_BASE = 6;
+    //the plookup range proof requires work linear in range size, thus cannot be used directly for
+    //large ranges such as 2^64. For such ranges the element will be decomposed into smaller 
+    // chuncks according to the parameter below
+static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = 16;
+static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_BITNUM)-1;
 
     struct RangeList {
         uint64_t target_range;
@@ -30,7 +35,7 @@ class PLookupComposer : public ComposerBase {
         QARITH = 7,
         QECC_1 = 8,
         QRANGE = 9,
-QSORT = 10,
+        QSORT = 10,
         QLOGIC = 11,
         QELLIPTIC = 12,
         QLOOKUPINDEX = 13,
@@ -118,6 +123,7 @@ QSORT = 10,
     /**
      * Generalized Permutation Methods
      **/
+void decompose_into_default_range(const uint32_t variable_index, const size_t num_bits);
     void create_dummy_constraints(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,

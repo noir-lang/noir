@@ -174,23 +174,23 @@ TEST(plookup_composer, non_trivial_tag_permutation)
 {
     waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::random_element();
-    fr b = -a;
+    // fr b = -a;
 
-    auto a_idx = composer.add_variable(a);
-    auto b_idx = composer.add_variable(b);
-    auto c_idx = composer.add_variable(b);
-    auto d_idx = composer.add_variable(a);
+    auto a_idx = composer.add_public_variable(a);
+    // auto b_idx = composer.add_variable(b);
+    // auto c_idx = composer.add_variable(b);
+    // auto d_idx = composer.add_variable(a);
 
-    composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
-    composer.create_add_gate({ c_idx, d_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
+    // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
+    // composer.create_add_gate({ c_idx, d_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
 
-    composer.create_tag(1, 2);
-    composer.create_tag(2, 1);
+    composer.create_tag(1, 1);
+    // composer.create_tag(2, 1);
 
     composer.assign_tag(a_idx, 1);
-    composer.assign_tag(b_idx, 1);
-    composer.assign_tag(c_idx, 2);
-    composer.assign_tag(d_idx, 2);
+    // composer.assign_tag(b_idx, 1);
+    // composer.assign_tag(c_idx, 2);
+    // composer.assign_tag(d_idx, 2);
 
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
@@ -458,7 +458,7 @@ TEST(plookup_composer, range_constraint)
     }
     {
         waffle::PLookupComposer composer = waffle::PLookupComposer();
-        auto indices = add_variables(composer, { 1, 2, 3, 4, 5, 6, 25, 8 });
+        auto indices = add_variables(composer, { 1, 2, 3, 4, 5, 6, 8, 25 });
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 8);
         }
@@ -496,7 +496,7 @@ TEST(plookup_composer, range_constraint)
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 79);
         }
-        composer.create_sort_constraint(indices);
+        composer.create_dummy_constraints(indices);
         composer.process_range_lists();
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
@@ -584,4 +584,43 @@ TEST(plookup_composer, sort_widget_neg)
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, false);
+}
+TEST(plookup_composer, composed_range_constraint)
+{
+
+    {
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
+        uint256_t a = 1;
+        auto b = a << 35;
+
+        auto a_idx = composer.add_variable(fr(b));
+        composer.decompose_into_default_range(a_idx, 48);
+
+        composer.process_range_lists();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, true);
+    }
+    {
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
+        uint256_t a = 1;
+        uint256_t b = a << 35;
+        auto a_idx = composer.add_variable(fr(b));
+        composer.decompose_into_default_range(a_idx, 48);
+
+        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
+        
+        composer.process_range_lists();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, false);
+    }
 }

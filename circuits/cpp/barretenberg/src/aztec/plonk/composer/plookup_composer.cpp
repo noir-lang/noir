@@ -1,3 +1,7 @@
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 #include "plookup_composer.hpp"
 
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
@@ -32,18 +36,18 @@ namespace waffle {
     auto& q_arith = selectors[PLookupSelectors::QARITH];                                                               \
     auto& q_ecc_1 = selectors[PLookupSelectors::QECC_1];                                                               \
     auto& q_range = selectors[PLookupSelectors::QRANGE];                                                               \
-    auto& q_sort = selectors[PLookupSelectors::QSORT];                                                               \
+    auto& q_sort = selectors[PLookupSelectors::QSORT];                                                                 \
     auto& q_logic = selectors[PLookupSelectors::QLOGIC];                                                               \
     auto& q_elliptic = selectors[PLookupSelectors::QELLIPTIC];                                                         \
     auto& q_lookup_index = selectors[PLookupSelectors::QLOOKUPINDEX];                                                  \
     auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];
 
 const static std::vector<ComposerBase::SelectorProperties> PLOOKUP_SEL_PROPS = {
-    { "q_m", false, true },         { "q_c", false, true },        { "q_1", false, false },
-    { "q_2", false, true },         { "q_3", false, false },       { "q_4", false, false },
-    { "q_5", false, false },        { "q_arith", false, false },   { "q_ecc_1", false, false },
-    { "q_range", false, false },{ "q_sort", false, false },    { "q_logic", false, false },   { "q_elliptic", false, false },
-    { "table_index", false, true }, { "table_type", false, true },
+    { "q_m", false, true },         { "q_c", false, true },         { "q_1", false, false },
+    { "q_2", false, true },         { "q_3", false, false },        { "q_4", false, false },
+    { "q_5", false, false },        { "q_arith", false, false },    { "q_ecc_1", false, false },
+    { "q_range", false, false },    { "q_sort", false, false },     { "q_logic", false, false },
+    { "q_elliptic", false, false }, { "table_index", false, true }, { "table_type", false, true },
 };
 
 PLookupComposer::PLookupComposer()
@@ -61,7 +65,9 @@ PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_f
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
     zero_idx = put_constant_variable(0);
+
     tau.insert({ DUMMY_TAG, DUMMY_TAG });
+
 }
 
 PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
@@ -74,6 +80,7 @@ PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
     zero_idx = put_constant_variable(0);
+    tau.insert({ DUMMY_TAG, DUMMY_TAG });
 }
 
 void PLookupComposer::create_dummy_gate()
@@ -407,7 +414,7 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
         q_c.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
-    q_sort.emplace_back(0);
+        q_sort.emplace_back(0);
         q_logic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
@@ -581,7 +588,7 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
         q_range.emplace_back(1);
-    q_sort.emplace_back(0);
+        q_sort.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
@@ -757,7 +764,7 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
-    q_sort.emplace_back(0);
+        q_sort.emplace_back(0);
         if (is_xor_gate) {
             q_c.emplace_back(fr::neg_one());
             q_logic.emplace_back(fr::neg_one());
@@ -1204,8 +1211,8 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
     result.range_tag = range_tag;
     result.tau_tag = tau_tag;
 
-    const uint64_t num_multiples_of_three = (target_range / 3);
-
+    uint64_t num_multiples_of_three = (target_range / 3);
+    
     result.variable_indices.reserve((uint32_t)num_multiples_of_three);
     for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
         const uint32_t index = add_variable(i * 3);
@@ -1222,7 +1229,36 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
 
     return result;
 }
+// range constraint a value by decomposing it into limbs whose size should be the default range constraint size
+void PLookupComposer::decompose_into_default_range(const uint32_t variable_index, const size_t num_bits)
+{
+    const size_t limb_num = (size_t)std::ceil(num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM);
+    
+    const uint256_t val = (uint256_t)(get_variable(variable_index));
+    // check witness value is indeed in range (commented out cause interferes with negative tests)
+    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to uint256
+    ASSERT(limb_num % 3 == 0); //TODO: write version of method that doesn't need this
+    uint32_t val_limbs[limb_num];
+    uint32_t sum=0;
+    for (size_t i = 0; i < limb_num; i = i + 3) {
+        fr val0 = barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1)));
+        fr val1 =
+            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1), DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 2)));
+        fr val2 =
+            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 2), DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 3)));
 
+        val_limbs[i] = add_variable(val0);
+        val_limbs[i + 1] = add_variable(val1);
+        val_limbs[i + 2] = add_variable(val2);
+        create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
+        create_new_range_constraint(val_limbs[i + 1], DEFAULT_PLOOKUP_RANGE_SIZE);
+        create_new_range_constraint(val_limbs[i + 2], DEFAULT_PLOOKUP_RANGE_SIZE);
+        sum = add_variable(val0 + val1 + val2);
+        create_big_add_gate({ val_limbs[i], val_limbs[i + 1], val_limbs[i + 2], sum, 1, 1, 1, -1, 0 });
+    }
+    assert_equal(variable_index,sum);
+
+}
 void PLookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
 {
     if (range_lists.count(target_range) == 0) {
@@ -1249,7 +1285,7 @@ void PLookupComposer::process_range_list(const RangeList& list)
     std::vector<uint32_t> indices;
 
     // list must be padded to a multipe of 4
-    const size_t padding = 4 - (list.variable_indices.size() % 4) % 4; // TODO: this 4 maybe tied to program_width
+    const size_t padding = (4 - (list.variable_indices.size() % 4)) % 4; // TODO: this 4 maybe tied to program_width
     for (size_t i = 0; i < padding; ++i) {
         indices.emplace_back(zero_idx);
     }
@@ -1325,7 +1361,7 @@ void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
     q_range.emplace_back(0);
-        q_sort.emplace_back(0);
+    q_sort.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -1335,16 +1371,22 @@ void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
 void PLookupComposer::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(variable_index.size() % 4 == 0);
+    // ASSERT(variable_index.size() % 4 == 0);
+std::vector<uint32_t> padded_list = variable_index;
+    const uint64_t padding = (4 - (padded_list.size() % 4)) % 4;
+    for (uint64_t i = 0; i < padding; ++i)
+    {
+        padded_list.emplace_back(zero_idx);
+    }
     for (size_t i = 0; i < variable_index.size(); i++) {
-        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+        assert(static_cast<uint32_t>(variables.size()) > variable_index[i]);
     }
 
-    for (size_t i = 0; i < variable_index.size(); i += 4) {
-        w_l.emplace_back(variable_index[i]);
-        w_r.emplace_back(variable_index[i + 1]);
-        w_o.emplace_back(variable_index[i + 2]);
-        w_4.emplace_back(variable_index[i + 3]);
+    for (size_t i = 0; i < padded_list.size(); i += 4) {
+        w_l.emplace_back(padded_list[i]);
+        w_r.emplace_back(padded_list[i + 1]);
+        w_o.emplace_back(padded_list[i + 2]);
+        w_4.emplace_back(padded_list[i + 3]);
         ++n;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
@@ -1397,6 +1439,7 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_lookup_type.emplace_back(0);
     // enforce range check for middle rows
     for (size_t i = 4; i < variable_index.size() - 4; i += 4) {
+
         w_l.emplace_back(variable_index[i]);
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
