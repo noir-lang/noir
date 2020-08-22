@@ -6,6 +6,7 @@
 
 #include <common/serialize.hpp>
 #include <common/streams.hpp>
+#include <numeric/random/engine.hpp>
 #include <crypto/blake2s/blake2s.hpp>
 #include <crypto/keccak/keccak.hpp>
 #include <crypto/sha256/sha256.hpp>
@@ -33,7 +34,9 @@ template <typename Hash, typename Fq, typename Fr, typename G1>
 bool verify_signature(const std::string& message, const typename G1::affine_element& public_key, const signature& sig);
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account);
+signature construct_signature(const std::string& message,
+                              const key_pair<Fr, G1>& account,
+                              numeric::random::Engine* engine = nullptr);
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
 signature_b construct_signature_b(const std::string& message, const key_pair<Fr, G1>& account);

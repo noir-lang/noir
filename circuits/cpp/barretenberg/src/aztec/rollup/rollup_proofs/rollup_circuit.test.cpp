@@ -11,7 +11,6 @@
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
-#include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 using namespace rollup::rollup_proofs;
@@ -27,9 +26,10 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         : data_tree(store, 32, 0)
         , null_tree(store, 128, 1)
         , root_tree(store, 28, 2)
-        , user(rollup::fixtures::create_user_context())
     {
         update_root_tree_with_data_root(0);
+        rand_engine = &numeric::random::get_debug_engine(true);
+        user = rollup::fixtures::create_user_context(rand_engine);
     }
 
     static void SetUpTestCase()
@@ -113,7 +113,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         tx.input_note = { input_note1, input_note2 };
         tx.output_note = { output_note1, output_note2 };
         tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                  { user.signing_keys[0].private_key, user.signing_keys[0].public_key });
+                                  { user.signing_keys[0].private_key, user.signing_keys[0].public_key },
+                                  rand_engine);
         tx.account_index = account_note_idx;
         tx.account_path = data_tree.get_hash_path(account_note_idx);
         tx.signing_pub_key = user.signing_keys[0].public_key;
@@ -122,10 +123,11 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,
                                     0x43, 0xe5, 0xa5, 0xb9, 0x57, 0x0f, 0x75, 0xc5, 0x96, 0x04 };
         tx.input_owner = from_buffer<fr>(owner_address);
-        tx.output_owner = fr::random_element();
+        tx.output_owner = fr::random_element(rand_engine);
 
         Composer composer =
             Composer(inner_circuit_data.proving_key, inner_circuit_data.verification_key, inner_circuit_data.num_gates);
+        composer.rand_engine = rand_engine;
         join_split_circuit(composer, tx);
         auto prover = composer.create_unrolled_prover();
         auto join_split_proof = prover.construct_proof();
@@ -138,6 +140,7 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     MerkleTree<MemoryStore> null_tree;
     MerkleTree<MemoryStore> root_tree;
     rollup::fixtures::user_context user;
+    numeric::random::Engine* rand_engine;
     static join_split_circuit_data inner_circuit_data;
     static std::vector<uint8_t> padding_proof;
     static std::streambuf* old;
@@ -528,6 +531,47 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup_full_proof)
 
     auto rollup_data = rollup_proof_data(result.proof_data);
     EXPECT_EQ(rollup_data.rollup_id, 1UL);
+    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
+    EXPECT_EQ(rollup_data.data_start_index, 4UL);
+    EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
+    EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
+    EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
+    EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
+    EXPECT_EQ(rollup_data.old_data_roots_root, rollup.old_data_roots_root);
+    EXPECT_EQ(rollup_data.new_data_roots_root, rollup.new_data_roots_root);
+    EXPECT_EQ(rollup_data.num_txs, 1U);
+    EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
+
+    auto tx_data = inner_proof_data(join_split_proof);
+    auto inner_data = rollup_data.inner_proofs[0];
+    EXPECT_EQ(inner_data.public_input, tx_data.public_input);
+    EXPECT_EQ(inner_data.public_output, tx_data.public_output);
+    EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
+    EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
+    EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
+    EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
+    EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
+    EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
+}
+
+HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_2_rollup_full_proof)
+{
+    size_t rollup_size = 2;
+
+    append_account_notes();
+    append_notes({ 100, 50 });
+    update_root_tree_with_data_root(1);
+    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
+    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+
+    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, "../srs_db/ignition");
+    auto result = verify_rollup(rollup, rollup_circuit_data);
+
+    ASSERT_TRUE(result.verified);
+
+    auto rollup_data = rollup_proof_data(result.proof_data);
+    EXPECT_EQ(rollup_data.rollup_id, 1UL);
+    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
     EXPECT_EQ(rollup_data.data_start_index, 4UL);
     EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
     EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
@@ -570,6 +614,7 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
 
     auto rollup_data = rollup_proof_data(result.proof_data);
     EXPECT_EQ(rollup_data.rollup_id, 1UL);
+    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
     EXPECT_EQ(rollup_data.data_start_index, 8UL);
     EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
     EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);

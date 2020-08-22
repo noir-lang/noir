@@ -11,6 +11,8 @@ namespace random {
 
 class Engine {
   public:
+    Engine();
+
     Engine(std::seed_seq& seed);
 
     Engine(const Engine& other);
@@ -39,7 +41,7 @@ class Engine {
     std::uniform_int_distribution<uint64_t> dist = std::uniform_int_distribution<uint64_t>{ 0ULL, UINT64_MAX };
 };
 
-Engine& get_debug_engine();
+Engine& get_debug_engine(bool reset = false);
 Engine& get_engine();
 
 } // namespace random

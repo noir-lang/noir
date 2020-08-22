@@ -9,7 +9,9 @@ namespace join_split {
 using namespace crypto::schnorr;
 using namespace crypto::pedersen;
 
-signature sign_notes(std::array<tx_note, 4> const& notes, key_pair<grumpkin::fr, grumpkin::g1> const& keys)
+signature sign_notes(std::array<tx_note, 4> const& notes,
+                     key_pair<grumpkin::fr, grumpkin::g1> const& keys,
+                     numeric::random::Engine* engine)
 {
     std::array<grumpkin::fq, 8> to_compress;
     for (size_t i = 0; i < 4; ++i) {
@@ -22,7 +24,7 @@ signature sign_notes(std::array<tx_note, 4> const& notes, key_pair<grumpkin::fr,
     fr::serialize_to_buffer(compressed, &message[0]);
     crypto::schnorr::signature signature =
         crypto::schnorr::construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
-            std::string(message.begin(), message.end()), keys);
+            std::string(message.begin(), message.end()), keys, engine);
     return signature;
 }
 
