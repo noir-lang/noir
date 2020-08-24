@@ -15,6 +15,8 @@ auto generate_random_data()
 }
 } // namespace
 
+Engine::Engine() {}
+
 Engine::Engine(std::seed_seq& seed)
     : engine(std::mt19937_64(seed))
 {}
@@ -25,8 +27,8 @@ Engine::Engine(const Engine& other)
 {}
 
 Engine::Engine(Engine&& other)
-    : engine(other.engine)
-    , dist(other.dist)
+    : engine(std::move(other.engine))
+    , dist(std::move(other.dist))
 {}
 
 Engine& Engine::operator=(const Engine& other)
@@ -38,8 +40,8 @@ Engine& Engine::operator=(const Engine& other)
 
 Engine& Engine::operator=(Engine&& other)
 {
-    engine = other.engine;
-    dist = other.dist;
+    engine = std::move(other.engine);
+    dist = std::move(other.dist);
     return *this;
 }
 
@@ -80,10 +82,12 @@ uint1024_t Engine::get_random_uint1024()
     return uint1024_t(get_random_uint512(), get_random_uint512());
 }
 
-Engine& get_debug_engine()
+Engine& get_debug_engine(bool reset)
 {
-    static std::seed_seq debug_seed({ 1, 2, 3, 4, 5, 6, 7, 8 });
-    static Engine debug_engine(debug_seed);
+    static Engine debug_engine;
+    if (reset) {
+        debug_engine = Engine();
+    }
     return debug_engine;
 }
 

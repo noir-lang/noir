@@ -18,10 +18,10 @@ int main(int argc, char** argv)
 
     size_t rollup_size = (args.size() > 1) ? (size_t)atoi(args[1].c_str()) : 1;
     const std::string srs_path = (args.size() > 2) ? args[2] : "../srs_db/ignition";
-    const std::string key_path = "./data";
+    const std::string data_path = (args.size() > 3) ? args[3] : "./data";
 
-    auto inner_circuit_data = compute_or_load_join_split_circuit_data(srs_path, key_path);
-    auto circuit_data = compute_or_load_rollup_circuit_data(rollup_size, inner_circuit_data, srs_path, key_path);
+    auto inner_circuit_data = compute_or_load_join_split_circuit_data(srs_path, data_path);
+    auto circuit_data = compute_or_load_rollup_circuit_data(rollup_size, inner_circuit_data, srs_path, data_path);
     auto gibberish_data_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
 
     std::cerr << "Reading rollups from standard input..." << std::endl;

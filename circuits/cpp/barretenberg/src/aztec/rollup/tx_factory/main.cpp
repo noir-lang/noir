@@ -25,7 +25,7 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() < 3) {
-        std::cerr << "usage: " << args[0] << " <num_txs> <rollup_size>" << std::endl;
+        std::cerr << "usage: " << args[0] << " <num_txs> <rollup_size> [data_dir = ./data]" << std::endl;
         return -1;
     }
 
@@ -34,8 +34,9 @@ int main(int argc, char** argv)
 
     const uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t rollup_size = static_cast<uint32_t>(std::stoul(args[2]));
+    const std::string data_dir = args.size() > 3 ? args[3] : "./data";
 
-    auto join_split_circuit_data = compute_or_load_join_split_circuit_data("../srs_db/ignition", "./data");
+    auto join_split_circuit_data = compute_or_load_join_split_circuit_data("../srs_db/ignition", data_dir);
 
     std::cerr << "Generating a " << rollup_size << " rollup with " << num_txs << " txs..." << std::endl;
     auto proofs = std::vector<std::vector<uint8_t>>(num_txs);

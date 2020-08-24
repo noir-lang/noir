@@ -161,6 +161,7 @@ class ComposerBase {
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
+        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
@@ -175,6 +176,7 @@ class ComposerBase {
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
+        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
@@ -192,6 +194,7 @@ class ComposerBase {
         , selector_num(p_key ? p_key->constraint_selectors.size() : selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
+        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
@@ -293,6 +296,8 @@ class ComposerBase {
         return 1UL << log2_n;
     }
 
+    size_t get_num_public_inputs() const { return public_inputs.size(); }
+
   public:
     size_t n;
     std::vector<uint32_t> w_l;
@@ -319,6 +324,7 @@ class ComposerBase {
     std::vector<SelectorProperties> selector_properties;
     bool failed = false;
     std::string err;
+    numeric::random::Engine* rand_engine;
 };
 
 extern template void ComposerBase::compute_wire_copy_cycles<3>();

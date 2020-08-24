@@ -151,6 +151,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                        bool can_throw)
 {
     auto rollup_id = field_ct(public_witness_ct(&composer, rollup.rollup_id));
+    field_ct(public_witness_ct(&composer, rollup_size));
     auto data_start_index = field_ct(public_witness_ct(&composer, rollup.data_start_index));
     auto old_data_root = field_ct(public_witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
@@ -174,7 +175,6 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                                           recursive_manifest,
                                                                           waffle::plonk_proof{ rollup.txs[i] },
                                                                           recursion_output);
-
         if (can_throw && composer.failed) {
             throw std::runtime_error("Failed to verify proof: " + std::to_string(i));
         }
