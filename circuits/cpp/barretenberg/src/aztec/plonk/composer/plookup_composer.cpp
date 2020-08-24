@@ -67,7 +67,6 @@ PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_f
     zero_idx = put_constant_variable(0);
 
     tau.insert({ DUMMY_TAG, DUMMY_TAG });
-
 }
 
 PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
@@ -1212,7 +1211,7 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
     result.tau_tag = tau_tag;
 
     uint64_t num_multiples_of_three = (target_range / 3);
-    
+
     result.variable_indices.reserve((uint32_t)num_multiples_of_three);
     for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
         const uint32_t index = add_variable(i * 3);
@@ -1232,32 +1231,90 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
 void PLookupComposer::decompose_into_default_range(const uint32_t variable_index, const size_t num_bits)
 {
-    const size_t limb_num = (size_t)std::ceil(num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM);
-    
+    const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
+    const size_t last_limb_size = num_bits-(limb_num*DEFAULT_PLOOKUP_RANGE_BITNUM);
+    if(limb_num < 3){
+        std::cout<<"number of bits in range must be an integer multipe of DEFAULT_PLOOKUP_RANGE_BITNUM of size at least 3" << std::endl;
+        return;
+    }
+
     const uint256_t val = (uint256_t)(get_variable(variable_index));
     // check witness value is indeed in range (commented out cause interferes with negative tests)
-    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to uint256
-    ASSERT(limb_num % 3 == 0); //TODO: write version of method that doesn't need this
-    uint32_t val_limbs[limb_num];
-    uint32_t sum=0;
-    for (size_t i = 0; i < limb_num; i = i + 3) {
-        fr val0 = barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1)));
-        fr val1 =
-            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1), DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 2)));
-        fr val2 =
-            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 2), DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 3)));
-
-        val_limbs[i] = add_variable(val0);
-        val_limbs[i + 1] = add_variable(val1);
-        val_limbs[i + 2] = add_variable(val2);
+    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to
+    // uint256
+    // ASSERT(limb_num % 3 == 0); // TODO: write version of method that doesn't need this
+    std::vector<uint32_t> val_limbs;
+    std::vector<fr> val_slices;
+    std::vector<uint32_t> sums;
+    for (size_t i = 0; i < limb_num; i++) {
+        val_slices.emplace_back(
+            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
+        val_limbs.emplace_back(add_variable(val_slices[i]));
         create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
-        create_new_range_constraint(val_limbs[i + 1], DEFAULT_PLOOKUP_RANGE_SIZE);
-        create_new_range_constraint(val_limbs[i + 2], DEFAULT_PLOOKUP_RANGE_SIZE);
-        sum = add_variable(val0 + val1 + val2);
-        create_big_add_gate({ val_limbs[i], val_limbs[i + 1], val_limbs[i + 2], sum, 1, 1, 1, -1, 0 });
     }
-    assert_equal(variable_index,sum);
 
+uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
+    fr last_slice(0);
+    uint32_t last_limb(zero_idx);
+    size_t total_limb_num = limb_num;
+    if(last_limb_size>0){
+        std::cout << "in last limb" << std::endl;
+         val_slices.emplace_back(fr(val.slice(num_bits-last_limb_size,num_bits)));
+        val_limbs.emplace_back(add_variable(last_slice));
+        create_new_range_constraint(last_limb,last_limb_range);
+total_limb_num++;
+    }
+    // pad slices and limbs in case they are not 2 mod 3
+    if(total_limb_num % 3 == 1){
+        std::cout << "in mod 3" << std::endl;
+        val_limbs.emplace_back(zero_idx);//TODO: check this is zero
+        val_slices.emplace_back(0);
+        total_limb_num++;
+    }
+    fr shift = fr(1 << DEFAULT_PLOOKUP_RANGE_BITNUM);
+    fr second_shift = shift*shift;
+    sums.emplace_back(add_variable(val_slices[0] + shift*val_slices[1] + second_shift*val_slices[2]));
+    create_big_add_gate({ val_limbs[0], val_limbs[1], val_limbs[2], sums[0], 1, shift, second_shift, -1, 0 });
+    fr cur_shift = (shift*second_shift);
+    fr cur_second_shift = cur_shift*shift;
+    for (size_t i = 3; i < total_limb_num; i = i + 2) {
+        std::cout << "in loop" << std::endl;
+        sums.emplace_back(add_variable(get_variable(sums[sums.size()-1]) + cur_shift* val_slices[i] + cur_second_shift* val_slices[i + 1]));
+        create_big_add_gate(
+            { sums[sums.size() - 2], val_limbs[i], val_limbs[i + 1], sums[sums.size() - 1], 1, cur_shift, cur_second_shift, -1, 0 });
+       cur_shift*=second_shift;
+       cur_second_shift*=second_shift; 
+    }
+    // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[1]) << std::endl;
+    assert_equal(sums[sums.size() - 1], variable_index);
+
+    //     fr val0 = barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i +
+    //     1))); fr val1 =
+    //         barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1), DEFAULT_PLOOKUP_RANGE_BITNUM * (i +
+    //         2)));
+    //     fr val2 =
+    //         barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 2), DEFAULT_PLOOKUP_RANGE_BITNUM * (i +
+    //         3)));
+    // uint32_t sum=0;
+    // for (size_t i = 0; i < limb_num; i = i + 3) {
+    //     fr val0 = barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i +
+    //     1))); fr val1 =
+    //         barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1), DEFAULT_PLOOKUP_RANGE_BITNUM * (i +
+    //         2)));
+    //     fr val2 =
+    //         barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 2), DEFAULT_PLOOKUP_RANGE_BITNUM * (i +
+    //         3)));
+
+    //     val_limbs[i] = add_variable(val0);
+    //     val_limbs[i + 1] = add_variable(val1);
+    //     val_limbs[i + 2] = add_variable(val2);
+    //     create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
+    //     create_new_range_constraint(val_limbs[i + 1], DEFAULT_PLOOKUP_RANGE_SIZE);
+    //     create_new_range_constraint(val_limbs[i + 2], DEFAULT_PLOOKUP_RANGE_SIZE);
+    //     sum = add_variable(val0 + val1 + val2);
+    //     create_big_add_gate({ val_limbs[i], val_limbs[i + 1], val_limbs[i + 2], sum, 1, 1, 1, -1, 0 });
+    // }
+    // assert_equal(variable_index,sum);
 }
 void PLookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
 {
@@ -1372,10 +1429,9 @@ void PLookupComposer::create_dummy_constraints(const std::vector<uint32_t>& vari
 {
     PLOOKUP_SELECTOR_REFS
     // ASSERT(variable_index.size() % 4 == 0);
-std::vector<uint32_t> padded_list = variable_index;
+    std::vector<uint32_t> padded_list = variable_index;
     const uint64_t padding = (4 - (padded_list.size() % 4)) % 4;
-    for (uint64_t i = 0; i < padding; ++i)
-    {
+    for (uint64_t i = 0; i < padding; ++i) {
         padded_list.emplace_back(zero_idx);
     }
     for (size_t i = 0; i < variable_index.size(); i++) {

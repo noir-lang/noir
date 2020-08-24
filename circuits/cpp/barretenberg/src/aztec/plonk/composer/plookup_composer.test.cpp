@@ -591,10 +591,10 @@ TEST(plookup_composer, composed_range_constraint)
     {
         waffle::PLookupComposer composer = waffle::PLookupComposer();
         uint256_t a = 1;
-        auto b = a << 35;
+        auto b = a << 52;
 
         auto a_idx = composer.add_variable(fr(b));
-        composer.decompose_into_default_range(a_idx, 48);
+        composer.decompose_into_default_range(a_idx, 68);
 
         composer.process_range_lists();
         auto prover = composer.create_prover();
@@ -608,12 +608,45 @@ TEST(plookup_composer, composed_range_constraint)
     {
         waffle::PLookupComposer composer = waffle::PLookupComposer();
         uint256_t a = 1;
-        uint256_t b = a << 35;
-        auto a_idx = composer.add_variable(fr(b));
-        composer.decompose_into_default_range(a_idx, 48);
+        auto b = a << 75;
 
+        auto a_idx = composer.add_variable(fr(b));
         composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
-        
+        composer.decompose_into_default_range(a_idx, 68);
+
+        composer.process_range_lists();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, false);
+    }
+    {
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
+        uint256_t a = 1;
+        auto b = a << 35;
+
+        auto a_idx = composer.add_variable(fr(b));
+        composer.decompose_into_default_range(a_idx, 51);
+
+        composer.process_range_lists();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, true);
+    }
+    {
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
+        uint256_t a = 1;
+        uint256_t b = a << 53;
+        auto a_idx = composer.add_variable(fr(b));
+        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
+        composer.decompose_into_default_range(a_idx, 51);
         composer.process_range_lists();
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
