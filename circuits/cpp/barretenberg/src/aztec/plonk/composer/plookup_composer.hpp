@@ -4,7 +4,7 @@
 
 namespace waffle {
 
-class PLookupComposer : public ComposerBase {
+class PlookupComposer : public ComposerBase {
 
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
@@ -24,7 +24,7 @@ static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_B
         std::vector<uint32_t> variable_indices;
     };
 
-    enum PLookupSelectors {
+    enum PlookupSelectors {
         QM = 0,
         QC = 1,
         Q1 = 2,
@@ -41,25 +41,25 @@ static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_B
         QLOOKUPINDEX = 13,
         QLOOKUPTYPE = 14,
     };
-    PLookupComposer();
-    PLookupComposer(std::string const& crs_path, const size_t size_hint = 0);
-    PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
-    PLookupComposer(std::shared_ptr<proving_key> const& p_key,
+    PlookupComposer();
+    PlookupComposer(std::string const& crs_path, const size_t size_hint = 0);
+    PlookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0);
+    PlookupComposer(std::shared_ptr<proving_key> const& p_key,
                     std::shared_ptr<verification_key> const& v_key,
                     size_t size_hint = 0);
-    PLookupComposer(PLookupComposer&& other) = default;
-    PLookupComposer& operator=(PLookupComposer&& other) = default;
-    ~PLookupComposer() {}
+    PlookupComposer(PlookupComposer&& other) = default;
+    PlookupComposer& operator=(PlookupComposer&& other) = default;
+    ~PlookupComposer() {}
 
     std::shared_ptr<proving_key> compute_proving_key() override;
     std::shared_ptr<verification_key> compute_verification_key() override;
     std::shared_ptr<program_witness> compute_witness() override;
 
-    PLookupProver create_prover();
-    PLookupVerifier create_verifier();
+    PlookupProver create_prover();
+    PlookupVerifier create_verifier();
 
-    UnrolledPLookupProver create_unrolled_prover();
-    UnrolledPLookupVerifier create_unrolled_verifier();
+    UnrolledPlookupProver create_unrolled_prover();
+    UnrolledPlookupVerifier create_unrolled_verifier();
 
     void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
@@ -106,17 +106,17 @@ static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_B
      **/
     void add_lookup_selector(polynomial& small, const std::string& tag);
     void initialize_precomputed_table(
-        const PLookupBasicTableId id,
+        const PlookupBasicTableId id,
         bool (*generator)(std::vector<barretenberg::fr>&,
                           std::vector<barretenberg::fr>&,
                           std::vector<barretenberg::fr>&),
         std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>));
 
-    PLookupBasicTable& get_table(const PLookupBasicTableId id);
-    PLookupMultiTable& create_table(const PLookupMultiTableId id);
+    PlookupBasicTable& get_table(const PlookupBasicTableId id);
+    PlookupMultiTable& create_table(const PlookupMultiTableId id);
 
-    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PLookupMultiTableId& id,
-                                                                        const PLookupReadData& read_values,
+    std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PlookupMultiTableId& id,
+                                                                        const PlookupReadData& read_values,
                                                                         const uint32_t key_a_index,
                                                                         const uint32_t key_b_index = UINT32_MAX);
 
@@ -161,8 +161,8 @@ void decompose_into_default_range(const uint32_t variable_index, const size_t nu
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
 
-    std::vector<PLookupBasicTable> lookup_tables;
-    std::vector<PLookupMultiTable> lookup_multi_tables;
+    std::vector<PlookupBasicTable> lookup_tables;
+    std::vector<PlookupMultiTable> lookup_multi_tables;
     std::map<uint64_t, RangeList> range_lists;
 
     /**

@@ -23,10 +23,10 @@ auto& engine = numeric::random::get_debug_engine();
 
 TEST(stdlib_pedersen, test_pedersen_plookup)
 {
-    typedef stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef stdlib::witness_t<waffle::PLookupComposer> witness_pt;
+    typedef stdlib::field_t<waffle::PlookupComposer> field_pt;
+    typedef stdlib::witness_t<waffle::PlookupComposer> witness_pt;
 
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    waffle::PlookupComposer composer = waffle::PlookupComposer();
 
     fr left_in = fr::random_element();
     fr right_in = fr::random_element();
@@ -34,7 +34,7 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
     field_pt left = witness_pt(&composer, left_in);
     field_pt right = witness_pt(&composer, right_in);
 
-    field_pt result = stdlib::pedersen<waffle::PLookupComposer>::compress(left, right);
+    field_pt result = stdlib::pedersen<waffle::PlookupComposer>::compress(left, right);
 
     fr expected = crypto::pedersen::sidon::compress_native(left_in, right_in);
 
@@ -53,10 +53,10 @@ TEST(stdlib_pedersen, test_pedersen_plookup)
 
 TEST(stdlib_pedersen, test_compress_many_plookup)
 {
-    typedef stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef stdlib::witness_t<waffle::PLookupComposer> witness_pt;
+    typedef stdlib::field_t<waffle::PlookupComposer> field_pt;
+    typedef stdlib::witness_t<waffle::PlookupComposer> witness_pt;
 
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    waffle::PlookupComposer composer = waffle::PlookupComposer();
 
     std::vector<fr> input_values{
         fr::random_element(), fr::random_element(), fr::random_element(),
@@ -67,7 +67,7 @@ TEST(stdlib_pedersen, test_compress_many_plookup)
         inputs.emplace_back(witness_pt(&composer, input));
     }
 
-    field_pt result = stdlib::pedersen<waffle::PLookupComposer>::compress(inputs);
+    field_pt result = stdlib::pedersen<waffle::PlookupComposer>::compress(inputs);
 
     auto t0 = crypto::pedersen::sidon::compress_native(input_values[0], input_values[1]);
     auto t1 = crypto::pedersen::sidon::compress_native(input_values[2], input_values[3]);

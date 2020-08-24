@@ -19,9 +19,9 @@ namespace plookup {
 
 using namespace plonk;
 
-typedef waffle::PLookupComposer Composer;
-typedef waffle::PLookupProver Prover;
-typedef waffle::PLookupVerifier Verifier;
+typedef waffle::PlookupComposer Composer;
+typedef waffle::PlookupProver Prover;
+typedef waffle::PlookupVerifier Verifier;
 typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;
 typedef stdlib::bool_t<Composer> bool_ct;

@@ -27,7 +27,7 @@ TEST(stdlib_plookup, pedersen_lookup_left)
     field_ct input = witness_ct(&composer, input_value);
 
     const auto sequence =
-        plonk::stdlib::plookup::read_sequence_from_table(waffle::PLookupMultiTableId::PEDERSEN_LEFT, input);
+        plonk::stdlib::plookup::read_sequence_from_table(waffle::PlookupMultiTableId::PEDERSEN_LEFT, input);
 
     std::vector<barretenberg::fr> expected_x;
     std::vector<barretenberg::fr> expected_y;
@@ -97,7 +97,7 @@ TEST(stdlib_plookup, pedersen_lookup_right)
     field_ct input = witness_ct(&composer, input_value);
 
     const auto sequence =
-        plonk::stdlib::plookup::read_sequence_from_table(waffle::PLookupMultiTableId::PEDERSEN_RIGHT, input);
+        plonk::stdlib::plookup::read_sequence_from_table(waffle::PlookupMultiTableId::PEDERSEN_RIGHT, input);
 
     std::vector<barretenberg::fr> expected_x;
     std::vector<barretenberg::fr> expected_y;
@@ -172,7 +172,7 @@ TEST(stdlib_plookup, uint32_xor)
     field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
 
     const auto sequence =
-        plonk::stdlib::plookup::read_sequence_from_table(waffle::PLookupMultiTableId::UINT32_XOR, left, right, true);
+        plonk::stdlib::plookup::read_sequence_from_table(waffle::PlookupMultiTableId::UINT32_XOR, left, right, true);
 
     const auto left_slices = numeric::slice_input(left_value, 1 << 6);
     const auto right_slices = numeric::slice_input(right_value, 1 << 6);
@@ -222,7 +222,7 @@ TEST(stdlib_plookup, uint32_and)
     field_ct right = witness_ct(&composer, barretenberg::fr(right_value));
 
     const auto sequence =
-        plonk::stdlib::plookup::read_sequence_from_table(waffle::PLookupMultiTableId::UINT32_AND, left, right, true);
+        plonk::stdlib::plookup::read_sequence_from_table(waffle::PlookupMultiTableId::UINT32_AND, left, right, true);
     const auto left_slices = numeric::slice_input(left_value, 1 << 6, num_lookups);
     const auto right_slices = numeric::slice_input(right_value, 1 << 6, num_lookups);
     std::vector<uint256_t> out_expected(num_lookups);

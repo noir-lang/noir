@@ -299,7 +299,7 @@ point<C> pedersen<C>::compress_to_point(const field_t& in_left, const field_t& i
 }
 
 template class pedersen<waffle::TurboComposer>;
-template class pedersen<waffle::PLookupComposer>;
+template class pedersen<waffle::PlookupComposer>;
 
 } // namespace stdlib
 } // namespace plonk

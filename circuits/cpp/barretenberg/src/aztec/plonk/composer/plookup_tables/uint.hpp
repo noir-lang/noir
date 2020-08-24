@@ -14,10 +14,10 @@ inline std::array<barretenberg::fr, 2> get_xor_rotate_values_from_key(const std:
 }
 
 template <uint64_t bits_per_slice, uint64_t num_rotated_output_bits>
-inline PLookupBasicTable generate_xor_rotate_table(PLookupBasicTableId id, const size_t table_index)
+inline PlookupBasicTable generate_xor_rotate_table(PlookupBasicTableId id, const size_t table_index)
 {
     const uint64_t base = 1UL << bits_per_slice;
-    PLookupBasicTable table;
+    PlookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = base * base;
@@ -47,10 +47,10 @@ inline std::array<barretenberg::fr, 2> get_and_rotate_values_from_key(const std:
 }
 
 template <uint64_t bits_per_slice, uint64_t num_rotated_output_bits>
-inline PLookupBasicTable generate_and_rotate_table(PLookupBasicTableId id, const size_t table_index)
+inline PlookupBasicTable generate_and_rotate_table(PlookupBasicTableId id, const size_t table_index)
 {
     const uint64_t base = 1UL << bits_per_slice;
-    PLookupBasicTable table;
+    PlookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = base * base;
@@ -73,11 +73,11 @@ inline PLookupBasicTable generate_and_rotate_table(PLookupBasicTableId id, const
     return table;
 }
 
-inline PLookupMultiTable get_uint32_xor_table(const PLookupMultiTableId id = UINT32_XOR)
+inline PlookupMultiTable get_uint32_xor_table(const PlookupMultiTableId id = UINT32_XOR)
 {
     const size_t num_entries = (32 + 5) / 6;
     const uint64_t base = 1 << 6;
-    PLookupMultiTable table(base, base, base, num_entries);
+    PlookupMultiTable table(base, base, base, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -89,11 +89,11 @@ inline PLookupMultiTable get_uint32_xor_table(const PLookupMultiTableId id = UIN
 }
 
 
-inline PLookupMultiTable get_uint32_and_table(const PLookupMultiTableId id = UINT32_AND)
+inline PlookupMultiTable get_uint32_and_table(const PlookupMultiTableId id = UINT32_AND)
 {
     const size_t num_entries = (32 + 5) / 6;
     const uint64_t base = 1 << 6;
-    PLookupMultiTable table(base, base, base, num_entries);
+    PlookupMultiTable table(base, base, base, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {

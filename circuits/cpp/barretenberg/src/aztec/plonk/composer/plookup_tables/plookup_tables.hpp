@@ -10,14 +10,14 @@
 namespace waffle {
 namespace plookup {
 
-const PLookupMultiTable& create_table(const PLookupMultiTableId id);
+const PlookupMultiTable& create_table(const PlookupMultiTableId id);
 
-PLookupReadData get_table_values(const PLookupMultiTableId id,
+PlookupReadData get_table_values(const PlookupMultiTableId id,
                                  const barretenberg::fr& key_a,
                                  const barretenberg::fr& key_b = 0,
                                  const bool is_2_to_1_map = false);
 
-inline PLookupBasicTable create_basic_table(const PLookupBasicTableId id, const size_t index)
+inline PlookupBasicTable create_basic_table(const PlookupBasicTableId id, const size_t index)
 {
     switch (id) {
     case AES_SPARSE_MAP: {
