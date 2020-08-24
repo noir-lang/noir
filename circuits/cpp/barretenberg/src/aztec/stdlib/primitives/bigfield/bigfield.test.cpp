@@ -670,8 +670,8 @@ TEST(stdlib_bigfield, test_plookup)
         EXPECT_EQ(result.hi.data[2], 0ULL);
         EXPECT_EQ(result.hi.data[3], 0ULL);
     }
-    waffle::PlookupProver prover = composer.create_prover();
-    waffle::PlookupVerifier verifier = composer.create_verifier();
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

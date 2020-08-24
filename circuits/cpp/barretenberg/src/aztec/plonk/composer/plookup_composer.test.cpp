@@ -594,6 +594,7 @@ TEST(plookup_composer, composed_range_constraint)
         auto b = a << 52;
 
         auto a_idx = composer.add_variable(fr(b));
+        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
         composer.decompose_into_default_range(a_idx, 68);
 
         composer.process_range_lists();
@@ -629,6 +630,7 @@ TEST(plookup_composer, composed_range_constraint)
         auto b = a << 35;
 
         auto a_idx = composer.add_variable(fr(b));
+        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
         composer.decompose_into_default_range(a_idx, 51);
 
         composer.process_range_lists();

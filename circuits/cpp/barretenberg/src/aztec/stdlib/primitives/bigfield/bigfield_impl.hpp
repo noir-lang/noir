@@ -43,7 +43,13 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     field_t<C> high_prime_limb(context);
     field_t<C> low_prime_limb(context);
     if (low_bits.witness_index != UINT32_MAX) {
-        std::vector<uint32_t> low_accumulator =
+        std::vector<uint32_t> low_accumulator;
+        size_t mid_index;
+        if (context->ComposerType==PLOOKUP){
+low_accumulator = context->decompose_into_default_range(low_bits.witness_index,static_cast<size_t>(NUM_LIMB_BITS*2)); 
+mid_index = 
+        }
+        low_accumulator =
             context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
         limb_1.witness_index = low_accumulator[static_cast<size_t>((NUM_LIMB_BITS / 2) - 1)];
         low_prime_limb.witness_index = low_accumulator[static_cast<size_t>((NUM_LIMB_BITS)-1)];

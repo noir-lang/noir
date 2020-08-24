@@ -123,7 +123,8 @@ static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_B
     /**
      * Generalized Permutation Methods
      **/
-void decompose_into_default_range(const uint32_t variable_index, const size_t num_bits);
+std::vector<uint32_t> decompose_into_default_range(const uint32_t variable_index, const size_t num_bits);
+std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(const uint32_t variable_index, const size_t num_bits);
     void create_dummy_constraints(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
