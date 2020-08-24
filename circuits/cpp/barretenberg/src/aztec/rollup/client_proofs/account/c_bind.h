@@ -16,7 +16,7 @@ WASM_EXPORT void account__init_verification_key_from_buffer(uint8_t const* vk_bu
 
 WASM_EXPORT uint32_t account__get_new_verification_key_data(uint8_t** output);
 
-WASM_EXPORT void* account__new_prover(uint8_t const* account_buf);
+WASM_EXPORT void* account__new_prover(uint8_t const* account_buf, uint8_t* pk_buffer);
 
 WASM_EXPORT void account__delete_prover(void* prover);
 
