@@ -114,7 +114,7 @@ WASM_EXPORT bool join_split__decrypt_note(uint8_t const* encrypted_note_buf,
     read(viewing_key_buf, viewing_key);
     uint256_t result;
     bool success = decrypt_note(encrypted_note, private_key, viewing_key, result);
-    serialize::write(output, result);
+    write(output, result);
     return success;
 }
 

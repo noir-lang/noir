@@ -1,10 +1,11 @@
 #pragma once
-#include <stdlib/types/turbo.hpp>
+#include <numeric/uint256/uint256.hpp>
+#include <numeric/uint128/uint128.hpp>
+#include <ecc/curves/bn254/fr.hpp>
+#include <array>
 
 namespace rollup {
 namespace client_proofs {
-
-using namespace plonk::stdlib::types::turbo;
 
 struct inner_proof_data {
     uint256_t public_input;

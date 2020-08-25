@@ -2,8 +2,6 @@
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
-using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::client_proofs;
 
 TEST(client_proofs_inner_proof_data, test_proof_to_data)
