@@ -44,16 +44,29 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     field_t<C> low_prime_limb(context);
     if (low_bits.witness_index != UINT32_MAX) {
         std::vector<uint32_t> low_accumulator;
-        size_t mid_index;
-        if (context->ComposerType==PLOOKUP){
-low_accumulator = context->decompose_into_default_range(low_bits.witness_index,static_cast<size_t>(NUM_LIMB_BITS*2)); 
-mid_index = 
-        }
-        low_accumulator =
-            context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
-        limb_1.witness_index = low_accumulator[static_cast<size_t>((NUM_LIMB_BITS / 2) - 1)];
-        low_prime_limb.witness_index = low_accumulator[static_cast<size_t>((NUM_LIMB_BITS)-1)];
+        size_t mid_index, last_index;
+        if constexpr (context->type == waffle::PLOOKUP) {
+            // If this doesn't hold we're using a default plookup range size that doesn't work well with the limb size
+            // here
+            ASSERT(low_accumulator.size() % 2 == 0);
+            low_accumulator =
+                context->decompose_into_default_range(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
+            last_index = low_accumulator.size() - 1;
+            std::cout <<"size:" << low_accumulator.size() << std::endl;
+            mid_index = low_accumulator.size() / 2 - 1;
+            limb_0.witness_index = low_accumulator[mid_index];
+            limb_1 = low_bits - limb_0;
+        // limb_1.witness_index = low_bits.witness_index - low_accumulator[mid_index];
+            std::cout <<"after size:" << low_accumulator.size() << std::endl;
+        } else {
+            low_accumulator =
+                context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
+                last_index = static_cast<size_t>((NUM_LIMB_BITS)-1);
+                mid_index = static_cast<size_t>((NUM_LIMB_BITS / 2) - 1);
+        limb_1.witness_index = low_accumulator[mid_index];
         limb_0 = (low_prime_limb - (limb_1 * shift_1));
+        low_prime_limb.witness_index = low_accumulator[last_index];
+        }
     } else {
         uint256_t slice_0 = uint256_t(low_bits.additive_constant).slice(0, NUM_LIMB_BITS);
         uint256_t slice_1 = uint256_t(low_bits.additive_constant).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
