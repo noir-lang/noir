@@ -194,6 +194,8 @@ template <typename ComposerContext> class field_t {
     void assert_is_zero();
     bool is_constant() const { return witness_index == static_cast<uint32_t>(-1); }
 
+    uint32_t get_witness_index() const { return witness_index; }
+
     mutable ComposerContext* context = nullptr;
     mutable barretenberg::fr additive_constant;
     mutable barretenberg::fr multiplicative_constant;

@@ -24,9 +24,7 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
 
     inner_proofs.resize(rollup_size);
     for (size_t i = 0; i < rollup_size; ++i) {
-        ptr += 28;
         read(ptr, inner_proofs[i].public_input);
-        ptr += 28;
         read(ptr, inner_proofs[i].public_output);
         read(ptr, inner_proofs[i].new_note1);
         read(ptr, inner_proofs[i].new_note2);

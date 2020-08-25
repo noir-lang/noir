@@ -17,9 +17,11 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     view_key_value.data[3] = view_key_value.data[3] & 0x03FFFFFFFFFFFFFFULL;
     view_key_value = view_key_value.to_montgomery_form();
 
-    fr note_value = fr{ 9999, 0, 0, 0 }.to_montgomery_form();
+    fr note_value = fr::random_element();
+    note_value.data[3] = note_value.data[3] & 0x0FFFFFFFFFFFFFFFULL;
+    note_value = note_value.to_montgomery_form();
 
-    grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<32>(note_value, 0);
+    grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note_value, 0);
     grumpkin::g1::element right = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
     grumpkin::g1::element expected;
     expected = left + right;
@@ -33,11 +35,9 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     expected = expected.normalize();
 
     field_ct view_key = witness_ct(&composer, view_key_value);
-    field_ct note_value_field = witness_ct(&composer, note_value);
+    field_ct value = witness_ct(&composer, note_value);
     field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
-
-    uint32_ct value(note_value_field);
 
     private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key };
 
@@ -67,7 +67,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     view_key_value.data[3] = view_key_value.data[3] & 0x03FFFFFFFFFFFFFFULL;
     view_key_value = view_key_value.to_montgomery_form();
 
-    fr note_value = fr{ 0, 0, 0, 0 }.to_montgomery_form();
+    fr note_value(0);
 
     grumpkin::g1::element expected = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
 
@@ -78,11 +78,9 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     expected = expected.normalize();
 
     field_ct view_key = witness_ct(&composer, view_key_value);
-    field_ct note_value_field = witness_ct(&composer, note_value);
+    field_ct value = witness_ct(&composer, note_value);
     field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
-
-    uint32_ct value(note_value_field);
 
     private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key };
 

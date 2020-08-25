@@ -5,8 +5,10 @@ namespace client_proofs {
 
 inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
 {
-    public_input = from_buffer<uint32_t>(proof_data, 28);
-    public_output = from_buffer<uint32_t>(proof_data, 60);
+    using serialize::read;
+    auto ptr = proof_data.data();
+    read(ptr, public_input);
+    read(ptr, public_output);
     std::copy(proof_data.data() + 2 * 32, proof_data.data() + 2 * 32 + 64, new_note1.begin());
     std::copy(proof_data.data() + 4 * 32, proof_data.data() + 4 * 32 + 64, new_note2.begin());
     nullifier1 = from_buffer<uint128_t>(proof_data, 6 * 32 + 16);

@@ -11,8 +11,8 @@ namespace join_split {
 using namespace plonk::stdlib::types::turbo;
 
 struct join_split_tx {
-    uint32_t public_input;
-    uint32_t public_output;
+    uint256_t public_input;
+    uint256_t public_output;
     uint32_t num_input_notes;
     std::array<uint32_t, 2> input_index;
     barretenberg::fr merkle_root;

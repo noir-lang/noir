@@ -40,7 +40,7 @@ field_ct process_input_note(Composer& composer,
         merkle_tree::check_membership(composer, merkle_root, witness_hash_path, leaf, byte_array_ct(index)) || !is_real;
     composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
 
-    bool_ct validValue = note.first.value == uint32_ct(&composer, 0) || is_real;
+    bool_ct validValue = note.first.value == field_ct(&composer, 0) || is_real;
     composer.assert_equal_constant(validValue.witness_index, 1, "padding note non zero");
 
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
@@ -87,8 +87,9 @@ field_ct process_account_note(Composer& composer,
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
 {
-    uint32_ct public_input = witness_ct(&composer, tx.public_input);
-    uint32_ct public_output = witness_ct(&composer, tx.public_output);
+    field_ct public_input = witness_ct(&composer, tx.public_input);
+    field_ct public_output = witness_ct(&composer, tx.public_output);
+
     uint32_ct num_input_notes = witness_ct(&composer, tx.num_input_notes);
 
     field_ct input_note1_index = witness_ct(&composer, tx.input_index[0]);
@@ -105,10 +106,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     note_pair output_note2_data = create_note_pair(composer, tx.output_note[1]);
 
     // Verify input and output notes balance. Use field_ct to prevent overflow.
-    field_ct total_in_value =
-        field_ct(input_note1_data.first.value) + field_ct(input_note2_data.first.value) + field_ct(public_input);
-    field_ct total_out_value =
-        field_ct(output_note1_data.first.value) + field_ct(output_note2_data.first.value) + field_ct(public_output);
+    field_ct total_in_value = input_note1_data.first.value + input_note2_data.first.value + public_input;
+    field_ct total_out_value = output_note1_data.first.value + output_note2_data.first.value + public_output;
     composer.assert_equal(total_in_value.witness_index, total_out_value.witness_index, "values don't balance");
 
     // Verify input notes have the same owner.

@@ -7,8 +7,8 @@ namespace rollup_proofs {
 using namespace plonk::stdlib::types::turbo;
 
 struct propagated_inner_proof_data {
-    uint32_t public_input;
-    uint32_t public_output;
+    uint256_t public_input;
+    uint256_t public_output;
     std::array<uint8_t, 64> new_note1;
     std::array<uint8_t, 64> new_note2;
     uint128_t nullifier1;
