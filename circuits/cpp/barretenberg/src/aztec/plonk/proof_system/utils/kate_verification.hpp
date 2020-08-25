@@ -6,7 +6,7 @@
 namespace waffle {
 
 template <typename Field, typename Transcript, typename program_settings>
-Field compute_kate_batch_evaluation(verification_key* key, const Transcript& transcript)
+Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcript& transcript)
 {
     Field batch_eval(0);
 

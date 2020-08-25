@@ -737,6 +737,9 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const
 
 template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 {
+    if (is_constant()) {
+        return;
+    }
     const auto [quotient_value, remainder_value] = get_value().divmod(target_basis.modulus);
 
     bigfield quotient(context);

@@ -214,15 +214,25 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
         result.multiplicative_constant = multiplicative_constant * additive_multiplier;
         result.witness_index = witness_index;
     } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
-        if (!(other.additive_constant == barretenberg::fr::zero())) {
-            additive_multiplier = other.additive_constant.invert();
+        // numerator 0?
+        if (get_value() == 0) {
+            result.additive_constant = 0;
+            result.multiplicative_constant = 1;
+            result.witness_index = UINT32_MAX;
+        } else {
+            barretenberg::fr q_m = other.multiplicative_constant;
+            barretenberg::fr q_l = other.additive_constant;
+            barretenberg::fr q_c = -get_value();
+            barretenberg::fr out_value = get_value() / other.get_value();
+            result.witness_index = ctx->add_variable(out_value);
+            const waffle::poly_triple gate_coefficients{
+                result.witness_index, other.witness_index, result.witness_index, q_m, q_l, 0, 0, q_c
+            };
+            ctx->create_poly_gate(gate_coefficients);
         }
-        result.additive_constant = additive_constant * other.additive_constant;
-        result.multiplicative_constant = other.multiplicative_constant * additive_constant;
-        result.witness_index = other.witness_index;
     } else {
-        barretenberg::fr left = context->get_variable(witness_index);
-        barretenberg::fr right = context->get_variable(other.witness_index);
+        barretenberg::fr left = ctx->get_variable(witness_index);
+        barretenberg::fr right = ctx->get_variable(other.witness_index);
         barretenberg::fr out;
 
         // even if LHS is constant, if divisor is not constant we need a gate to compute the inverse

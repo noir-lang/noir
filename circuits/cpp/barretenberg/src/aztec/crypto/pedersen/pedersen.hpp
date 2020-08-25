@@ -18,6 +18,8 @@ const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t n
 const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits);
 grumpkin::g1::affine_element get_generator(const size_t generator_index);
 
+grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index);
+
 grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index = 0);
 
 grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& elements, const size_t hash_index = 0);

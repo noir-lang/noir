@@ -54,6 +54,15 @@ template <typename Composer, typename T> class bigfield {
     bigfield(const bigfield& other);
     bigfield(bigfield&& other);
 
+    static bigfield from_witness(Composer* ctx, const barretenberg::field<T>& input)
+    {
+        uint256_t input_u256(input);
+        field_t<Composer> low(witness_t<Composer>(ctx, barretenberg::fr(input_u256.slice(0, NUM_LIMB_BITS * 2))));
+        field_t<Composer> hi(
+            witness_t<Composer>(ctx, barretenberg::fr(input_u256.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4))));
+        return bigfield(low, hi);
+    }
+
     bigfield& operator=(const bigfield& other);
     bigfield& operator=(bigfield&& other);
 

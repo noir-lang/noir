@@ -17,6 +17,13 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
     element(const element& other);
     element(element&& other);
 
+    static element from_witness(Composer* ctx, const typename NativeGroup::affine_element& input)
+    {
+        Fq x = Fq::from_witness(ctx, input.x);
+        Fq y = Fq::from_witness(ctx, input.y);
+        return element(x, y);
+    }
+
     void validate_on_curve()
     {
         Fq xx = x.sqr();
@@ -79,6 +86,13 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
 
     element dbl() const;
     element montgomery_ladder(const element& other) const;
+
+    typename NativeGroup::affine_element get_value() const
+    {
+        uint512_t x_val = x.get_value();
+        uint512_t y_val = y.get_value();
+        return typename NativeGroup::affine_element(x_val.lo, y_val.lo);
+    }
 
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,

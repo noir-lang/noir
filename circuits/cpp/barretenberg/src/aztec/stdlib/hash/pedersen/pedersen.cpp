@@ -30,11 +30,18 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
 template <typename C>
 point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases)
 {
+    C* ctx = in.context;
+
     field_t scalar = in;
+
+    if (in.is_constant()) {
+        const auto hash_native = crypto::pedersen::hash_single(in.get_value(), hash_index).normalize();
+        return { field_t(ctx, hash_native.x), field_t(ctx, hash_native.y) };
+    }
+
     if (!(in.additive_constant == fr::zero()) || !(in.multiplicative_constant == fr::one())) {
         scalar = scalar.normalize();
     }
-    C* ctx = in.context;
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
 

@@ -115,6 +115,8 @@ template <typename ComposerContext> class field_t {
         return *this;
     }
 
+    field_t invert() const { return (field_t(1) / field_t(*this)).normalize(); }
+
     static field_t coset_generator(const size_t generator_idx)
     {
         return field_t(barretenberg::fr::coset_generator(generator_idx));
@@ -140,19 +142,17 @@ template <typename ComposerContext> class field_t {
 
         if (lhs.witness_index == UINT32_MAX && rhs.witness_index == UINT32_MAX) {
             ASSERT(lhs.get_value() == rhs.get_value());
-            return;
+        } else if (lhs.witness_index == UINT32_MAX) {
+            field_t right = rhs.normalize();
+            ctx->assert_equal_constant(right.witness_index, lhs.get_value());
+        } else if (rhs.witness_index == UINT32_MAX) {
+            field_t left = lhs.normalize();
+            ctx->assert_equal_constant(left.witness_index, rhs.get_value());
+        } else {
+            field_t left = lhs.normalize();
+            field_t right = rhs.normalize();
+            ctx->assert_equal(left.witness_index, right.witness_index);
         }
-        if (lhs.witness_index == UINT32_MAX) {
-            ctx->assert_equal_constant(rhs.witness_index, lhs.get_value());
-            return;
-        }
-        if (rhs.witness_index == UINT32_MAX) {
-            ctx->assert_equal_constant(lhs.witness_index, rhs.get_value());
-            return;
-        }
-        field_t left = lhs.normalize();
-        field_t right = rhs.normalize();
-        ctx->assert_equal(left.witness_index, right.witness_index);
     }
 
     static std::array<field_t, 4> preprocess_two_bit_table(const field_t& T0,
