@@ -21,11 +21,14 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
 
     // clang-format off
     os <<
+      "// SPDX-License-Identifier: GPL-2.0-only\n"
+      "// Copyright 2020 Spilsbury Holdings Ltd\n"
+      "\n"
       "pragma solidity >=0.6.0 <0.7.0;\n"
       "pragma experimental ABIEncoderV2;\n"
       "\n"
-      "import {Types} from '../library/Types.sol';\n"
-      "import {PairingsBn254} from '../library/PairingsBn254.sol';\n"
+      "import {Types} from '../cryptography/Types.sol';\n"
+      "import {PairingsBn254} from '../cryptography/PairingsBn254.sol';\n"
       "\n"
       "library " << class_name << " {\n"
       "  using PairingsBn254 for Types.G1Point;\n"
