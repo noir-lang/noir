@@ -175,6 +175,24 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
+TEST_F(client_proofs_join_split, test_large_output_note)
+{
+    auto deposit_value = (uint256_t(1) << 252) - 1;
+
+    tx_note gibberish = { user.owner.public_key, 0, user.note_secret };
+    tx_note output_note1 = { user.owner.public_key, deposit_value, user.note_secret };
+    tx_note output_note2 = { user.owner.public_key, 0, user.note_secret };
+
+    join_split_tx tx = simple_setup();
+    tx.public_input = deposit_value;
+    tx.public_output = 0;
+    tx.num_input_notes = 0;
+    tx.input_note = { gibberish, gibberish };
+    tx.output_note = { output_note1, output_note2 };
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
+}
+
 TEST_F(client_proofs_join_split, test_1_input_notes_with_account_key_signer)
 {
     preload_value_notes();

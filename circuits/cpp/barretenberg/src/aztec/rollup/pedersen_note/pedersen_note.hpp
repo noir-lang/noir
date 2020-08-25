@@ -6,13 +6,16 @@ namespace pedersen_note {
 
 using namespace plonk::stdlib::types::turbo;
 
+constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
+
 struct public_note {
     point_ct ciphertext;
 };
 
 struct private_note {
     point_ct owner;
-    uint32_ct value;
+    // note value must be 252 bits or smaller - we assume this is checked elsewhere
+    field_ct value;
     // this secret must be 250 bits or smaller - it cannot be taken from the entire field_ct range
     field_ct secret;
 };

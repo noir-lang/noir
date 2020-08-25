@@ -8,8 +8,8 @@ using namespace rollup::client_proofs;
 
 TEST(client_proofs_inner_proof_data, test_proof_to_data)
 {
-    uint32_t public_input = 100;
-    uint32_t public_output = 20;
+    uint256_t public_input = 100;
+    uint256_t public_output = 20;
     std::array<uint8_t, 64> note1 = { 0x01 };
     std::array<uint8_t, 64> note2 = { 0x02 };
     auto merkle_root = fr::random_element();
@@ -20,8 +20,8 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
 
     using serialize::write;
     std::vector<uint8_t> proof_data;
-    write(proof_data, uint256_t(public_input));
-    write(proof_data, uint256_t(public_output));
+    write(proof_data, public_input);
+    write(proof_data, public_output);
     write(proof_data, note1);
     write(proof_data, note2);
     write(proof_data, uint256_t::from_uint128(nullifier1));

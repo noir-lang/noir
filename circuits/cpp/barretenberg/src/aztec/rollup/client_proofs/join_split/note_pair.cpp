@@ -16,7 +16,10 @@ note_pair create_note_pair(Composer& composer, tx_note const& note)
     field_ct view_key = witness_ct(&composer, note.secret);
     field_ct note_owner_x = witness_ct(&composer, note.owner.x);
     field_ct note_owner_y = witness_ct(&composer, note.owner.y);
-    uint32_ct witness_value = witness_ct(&composer, note.value);
+    field_ct witness_value = witness_ct(&composer, note.value);
+
+    composer.create_range_constraint(witness_value.witness_index, pedersen_note::NOTE_VALUE_BIT_LENGTH);
+
     result.first = { { note_owner_x, note_owner_y }, witness_value, view_key };
     result.second = encrypt_note(result.first);
     return result;
