@@ -658,4 +658,20 @@ TEST(plookup_composer, composed_range_constraint)
         bool result = verifier.verify_proof(proof);
         EXPECT_EQ(result, false);
     }
+    {
+        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        uint256_t a = 1;
+        uint256_t b = a << 113;
+        auto a_idx = composer.add_variable(fr(b));
+        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
+        composer.decompose_into_default_range(a_idx, 134);
+        composer.process_range_lists();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, true);
+    }
 }

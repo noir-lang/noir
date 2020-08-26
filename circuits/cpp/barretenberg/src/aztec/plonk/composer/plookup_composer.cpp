@@ -1250,7 +1250,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
         val_slices.emplace_back(
             barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
         val_limbs.emplace_back(add_variable(val_slices[i]));
-        create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
+        // create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
     }
 
 uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
@@ -1286,7 +1286,7 @@ total_limb_num++;
        cur_second_shift*=second_shift; 
     }
     // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[sums.size()-1]) << std::endl;
-    assert_equal(sums[sums.size() - 1], variable_index);
+    // assert_equal(sums[sums.size() - 1], variable_index);
 return sums;
 }
 void PlookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
