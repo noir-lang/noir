@@ -1248,7 +1248,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     for (size_t i = 0; i < limb_num; i++) {
         val_slices.emplace_back(
             barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
-        std::cout << "limb num:" << val_slices[i] << std::endl;
+        std::cout << "limb val:" << val_slices[i] << std::endl;
         val_limbs.emplace_back(add_variable(val_slices[i]));
         create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
     }

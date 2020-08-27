@@ -1,4 +1,7 @@
 #pragma once
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/uintx/uintx.hpp>
@@ -97,7 +100,7 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     binary_basis_limbs[1] = Limb(limb_1, DEFAULT_MAXIMUM_LIMB);
     binary_basis_limbs[2] = Limb(limb_2, DEFAULT_MAXIMUM_LIMB);
     binary_basis_limbs[3] = Limb(limb_3, can_overflow ? DEFAULT_MAXIMUM_LIMB : DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-    prime_basis_limb = low_prime_limb + (high_prime_limb * shift_2);
+    prime_basis_limb = low_bits + (high_bits*shift_2);//low_prime_limb + (high_prime_limb * shift_2);
 }
 
 template <typename C, typename T>
@@ -313,19 +316,19 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
-        // quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-        //                     witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-        //                     true);
-        // remainder = bigfield(
-        //     witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-        //     witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
+        quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+                            witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
+                            true);
+        remainder = bigfield(
+            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     };
     std::cout << "reaminder after:" << remainder.get_value().lo << std::endl;
     std::cout << "reaminder value:" << remainder_value << std::endl;
     std::cout << "quotient after:" << quotient.get_value().lo << std::endl;
     std::cout << "quotient value:" << quotient_value << std::endl;
     
-    // evaluate_multiply_add(*this, other, {}, quotient, { remainder });
+    evaluate_multiply_add(*this, other, {}, quotient, { remainder });
     return remainder;
 }
 
