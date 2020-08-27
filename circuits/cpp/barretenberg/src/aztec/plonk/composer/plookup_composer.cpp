@@ -1234,6 +1234,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     std::vector<uint32_t> sums;
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
     const size_t last_limb_size = num_bits-(limb_num*DEFAULT_PLOOKUP_RANGE_BITNUM);
+        std::cout << "last limb size:" << last_limb_size << std::endl;
     if(limb_num < 2){
         std::cout<<"number of bits in range must be at least twice default range size" << std::endl;
         return sums;
@@ -1242,25 +1243,25 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     const uint256_t val = (uint256_t)(get_variable(variable_index));
     // check witness value is indeed in range (commented out cause interferes with negative tests)
     // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to
-    // uint256
-    // ASSERT(limb_num % 3 == 0); // TODO: write version of method that doesn't need this
     std::vector<uint32_t> val_limbs;
     std::vector<fr> val_slices;
     for (size_t i = 0; i < limb_num; i++) {
         val_slices.emplace_back(
             barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
+        std::cout << "limb num:" << val_slices[i] << std::endl;
         val_limbs.emplace_back(add_variable(val_slices[i]));
-        // create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
+        create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
     }
 
 uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
-    fr last_slice(0);
     uint32_t last_limb(zero_idx);
     size_t total_limb_num = limb_num;
     if(last_limb_size>0){
         std::cout << "in last limb" << std::endl;
          val_slices.emplace_back(fr(val.slice(num_bits-last_limb_size,num_bits)));
-        val_limbs.emplace_back(add_variable(last_slice));
+
+        std::cout << "last limb val" << val_slices[val_slices.size()-1]<< std::endl;
+        val_limbs.emplace_back(add_variable(val_slices[val_slices.size()-1]));
         create_new_range_constraint(last_limb,last_limb_range);
 total_limb_num++;
     }
@@ -1286,7 +1287,7 @@ total_limb_num++;
        cur_second_shift*=second_shift; 
     }
     // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[sums.size()-1]) << std::endl;
-    // assert_equal(sums[sums.size() - 1], variable_index);
+    assert_equal(sums[sums.size() - 1], variable_index);
 return sums;
 }
 void PlookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
@@ -1554,7 +1555,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range_better_for_o
     std::vector<fr> val_slices;
     for (size_t i = 0; i < limb_num; i++) {
         val_slices.emplace_back(
-            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
+            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1)-1)));
         val_limbs.emplace_back(add_variable(val_slices[i]));
         create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
     }

@@ -1,3 +1,6 @@
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <gtest/gtest.h>
 
 #include <numeric/random/engine.hpp>
@@ -48,20 +51,20 @@ TEST(stdlib_bigfield, test_mul)
                    witness_t(&composer,
                              barretenberg::fr(uint256_t(inputs[1]).slice(bigfield::NUM_LIMB_BITS * 2,
                                                                          bigfield::NUM_LIMB_BITS * 4))));
-        uint64_t before = composer.get_num_gates();
-        bigfield c = a * b;
-        uint64_t after = composer.get_num_gates();
-        if (i == num_repetitions - 1) {
-            std::cout << "num gates per mul = " << after - before << std::endl;
-        }
-        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-        //                    barretenberg::Bn254FqParams::modulus_1,
-        //                    barretenberg::Bn254FqParams::modulus_2,
-        //                    barretenberg::Bn254FqParams::modulus_3 };
+        // uint64_t before = composer.get_num_gates();
+        // bigfield c = a * b;
+        // uint64_t after = composer.get_num_gates();
+        // if (i == num_repetitions - 1) {
+        //     std::cout << "num gates per mul = " << after - before << std::endl;
+        // }
+        // // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        // //                    barretenberg::Bn254FqParams::modulus_1,
+        // //                    barretenberg::Bn254FqParams::modulus_2,
+        // //                    barretenberg::Bn254FqParams::modulus_3 };
 
-        fq expected = (inputs[0] * inputs[1]);
-        expected = expected.from_montgomery_form();
-        uint512_t result = c.get_value();
+        // fq expected = (inputs[0] * inputs[1]);
+        // expected = expected.from_montgomery_form();
+        // uint512_t result = c.get_value();
 
         EXPECT_EQ(result.lo.data[0], expected.data[0]);
         EXPECT_EQ(result.lo.data[1], expected.data[1]);
@@ -647,15 +650,11 @@ TEST(stdlib_bigfield, test_plookup)
                              barretenberg::fr(uint256_t(inputs[1]).slice(pbigfield::NUM_LIMB_BITS * 2,
                                                                          pbigfield::NUM_LIMB_BITS * 4))));
         uint64_t before = composer.get_num_gates();
-        pbigfield c = a * b;
+        // pbigfield c = a * b;
         uint64_t after = composer.get_num_gates();
         if (i == num_repetitions - 1) {
             std::cout << "num gates per mul = " << after - before << std::endl;
         }
-        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-        //                    barretenberg::Bn254FqParams::modulus_1,
-        //                    barretenberg::Bn254FqParams::modulus_2,
-        //                    barretenberg::Bn254FqParams::modulus_3 };
 
         fq expected = (inputs[0] * inputs[1]);
         expected = expected.from_montgomery_form();

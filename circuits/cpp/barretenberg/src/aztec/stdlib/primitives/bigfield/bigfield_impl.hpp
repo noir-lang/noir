@@ -313,12 +313,12 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
-        quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-                            witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
-        remainder = bigfield(
-            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
-            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
+        // quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+        //                     witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
+        //                     true);
+        // remainder = bigfield(
+        //     witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+        //     witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     };
     std::cout << "reaminder after:" << remainder.get_value().lo << std::endl;
     std::cout << "reaminder value:" << remainder_value << std::endl;
