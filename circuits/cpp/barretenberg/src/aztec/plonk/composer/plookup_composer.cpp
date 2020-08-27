@@ -1254,7 +1254,6 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     }
 
 uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
-    uint32_t last_limb(zero_idx);
     size_t total_limb_num = limb_num;
     if(last_limb_size>0){
         std::cout << "in last limb" << std::endl;
@@ -1262,7 +1261,7 @@ uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
 
         std::cout << "last limb val" << val_slices[val_slices.size()-1]<< std::endl;
         val_limbs.emplace_back(add_variable(val_slices[val_slices.size()-1]));
-        create_new_range_constraint(last_limb,last_limb_range);
+        create_new_range_constraint(val_limbs[val_limbs.size()-1],last_limb_range);
 total_limb_num++;
     }
     // pad slices and limbs in case there are odd num of them 
