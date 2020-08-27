@@ -4,7 +4,9 @@
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/bool/bool.hpp"
 #include "../../primitives/field/field.hpp"
+#include "../../primitives/field/pow.hpp"
 
+#include "../verification_key/verification_key.hpp"
 #include "../transcript/transcript.hpp"
 
 #include <plonk/proof_system/utils/linearizer.hpp>
@@ -36,16 +38,16 @@ template <typename Composer> struct lagrange_evaluations {
 };
 
 template <typename Curve, typename Transcript, typename program_settings>
-void populate_kate_element_map(waffle::verification_key* key,
+void populate_kate_element_map(typename Curve::Composer* ctx,
+                               typename Transcript::Key* key,
                                const Transcript& transcript,
-                               std::map<std::string, typename Curve::g1_base_t::affine_element>& kate_g1_elements,
+                               std::map<std::string, typename Curve::g1_ct>& kate_g1_elements,
                                std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta,
                                std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_large,
                                std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_omega)
 {
-    // const auto separator_challenge = transcript.get_challenge_field_element("separator", 0);
-    typedef typename Curve::fr_ct fr_ct;
-
+    using fr_ct = typename Curve::fr_ct;
+    using g1_ct = typename Curve::g1_ct;
     const auto& polynomial_manifest = key->polynomial_manifest;
     for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
         const auto& item = polynomial_manifest[i];
@@ -55,16 +57,22 @@ void populate_kate_element_map(waffle::verification_key* key,
         case waffle::PolynomialSource::WITNESS: {
             const auto element = transcript.get_group_element(label);
             ASSERT(element.on_curve());
-            kate_g1_elements.insert({ label, element });
+            kate_g1_elements.insert({ label, g1_ct::from_witness(ctx, element) });
             break;
         }
         case waffle::PolynomialSource::SELECTOR: {
             const auto element = key->constraint_selectors.at(label);
+            if (!element.get_value().on_curve()) {
+                std::cout << "c selector not on curve!" << std::endl;
+            }
             kate_g1_elements.insert({ label, element });
             break;
         }
         case waffle::PolynomialSource::PERMUTATION: {
             const auto element = key->permutation_selectors.at(label);
+            if (!element.get_value().on_curve()) {
+                std::cout << "p selector not on curve!" << std::endl;
+            }
             kate_g1_elements.insert({ label, element });
             break;
         }
@@ -81,20 +89,14 @@ void populate_kate_element_map(waffle::verification_key* key,
     const auto zeta = transcript.get_challenge_field_element("z", 0);
     const auto quotient_nu = transcript.get_challenge_field_element_from_map("nu", "t");
 
-    fr_ct z_pow_n = zeta;
-    const size_t log2_n = numeric::get_msb(key->n);
-    for (size_t j = 0; j < log2_n; ++j) {
-        z_pow_n = z_pow_n.sqr();
-    }
     fr_ct z_power = 1;
     for (size_t i = 0; i < program_settings::program_width; ++i) {
         std::string quotient_label = "T_" + std::to_string(i + 1);
         const auto element = transcript.get_group_element(quotient_label);
-        // const auto scalar = quotient_nu * zeta.pow(static_cast<uint64_t>(i * key->domain.size));
 
-        kate_g1_elements.insert({ quotient_label, element });
+        kate_g1_elements.insert({ quotient_label, g1_ct::from_witness(ctx, element) });
         kate_fr_elements_at_zeta_large.insert({ quotient_label, quotient_nu * z_power });
-        z_power *= z_pow_n;
+        z_power *= key->z_pow_n;
     }
 
     const auto PI_Z = transcript.get_group_element("PI_Z");
@@ -107,24 +109,21 @@ void populate_kate_element_map(waffle::verification_key* key,
     kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
     kate_fr_elements_at_zeta_large.insert({ "BATCH_EVALUATION", -batch_evaluation });
 
-    kate_g1_elements.insert({ "PI_Z_OMEGA", PI_Z_OMEGA });
+    kate_g1_elements.insert({ "PI_Z_OMEGA", g1_ct::from_witness(ctx, PI_Z_OMEGA) });
     kate_fr_elements_at_zeta_large.insert({ "PI_Z_OMEGA", zeta * key->domain.root * u });
 
-    kate_g1_elements.insert({ "PI_Z", PI_Z });
+    kate_g1_elements.insert({ "PI_Z", g1_ct::from_witness(ctx, PI_Z) });
     kate_fr_elements_at_zeta.insert({ "PI_Z", zeta });
 }
 
 template <typename Curve>
-lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(const typename Curve::fr_ct& z,
-                                                                        const evaluation_domain& domain)
+lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
+    const typename Curve::fr_ct& z, const evaluation_domain<typename Curve::Composer>& domain)
 {
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::Composer Composer;
 
-    fr_ct z_pow = z;
-    for (size_t i = 0; i < domain.log2_size; ++i) {
-        z_pow *= z_pow;
-    }
+    fr_ct z_pow = pow<Composer>(z, domain.size);
     fr_ct numerator = z_pow - fr_ct(1);
 
     lagrange_evaluations<Composer> result;
@@ -138,7 +137,7 @@ lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(const ty
 
 template <typename Curve, typename program_settings>
 recursion_output<Curve> verify_proof(typename Curve::Composer* context,
-                                     std::shared_ptr<waffle::verification_key> key,
+                                     std::shared_ptr<verification_key<Curve>> key,
                                      const transcript::Manifest& manifest,
                                      const waffle::plonk_proof& proof,
                                      const recursion_output<Curve> previous_output = recursion_output<Curve>())
@@ -150,7 +149,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     key->program_width = program_settings::program_width;
 
     Transcript<Composer> transcript = Transcript<Composer>(context, proof.proof_data, manifest);
-    std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
+    std::map<std::string, g1_ct> kate_g1_elements;
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta;
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta_large;
     std::map<std::string, fr_ct> kate_fr_elements_at_zeta_omega;
@@ -158,8 +157,8 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     const auto PI_Z = transcript.get_circuit_group_element("PI_Z");
     const auto PI_Z_OMEGA = transcript.get_circuit_group_element("PI_Z_OMEGA");
 
-    field_t circuit_size(stdlib::witness_t(context, barretenberg::fr(key->n)));
-    field_t public_input_size(stdlib::witness_t(context, barretenberg::fr(key->num_public_inputs)));
+    field_t circuit_size = key->n;
+    field_t public_input_size = key->num_public_inputs;
 
     transcript.add_field_element("circuit_size", circuit_size);
     transcript.add_field_element("public_input_size", public_input_size);
@@ -171,6 +170,8 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     transcript.apply_fiat_shamir("z");
     fr_ct alpha = transcript.get_challenge_field_element("alpha");
     fr_ct zeta = transcript.get_challenge_field_element("z");
+
+    key->z_pow_n = pow<Composer>(zeta, key->n);
     lagrange_evaluations<Composer> lagrange_evals = get_lagrange_evaluations<Curve>(zeta, key->domain);
 
     // reconstruct evaluation of quotient polynomial from prover messages
@@ -190,13 +191,13 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     fr_ct u = transcript.get_challenge_field_element("separator", 0);
 
-    populate_kate_element_map<Curve, Transcript<Composer>, program_settings>(key.get(),
+    populate_kate_element_map<Curve, Transcript<Composer>, program_settings>(context,
+                                                                             key.get(),
                                                                              transcript,
                                                                              kate_g1_elements,
                                                                              kate_fr_elements_at_zeta,
                                                                              kate_fr_elements_at_zeta_large,
                                                                              kate_fr_elements_at_zeta_omega);
-
     std::vector<fr_ct> double_opening_scalars;
     std::vector<g1_ct> double_opening_elements;
     std::vector<fr_ct> opening_scalars;
@@ -215,11 +216,11 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         // }
 
         if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
-            elements_to_add.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+            elements_to_add.emplace_back(g1_value);
             continue;
         }
         opening_scalars.emplace_back(fr_value);
-        opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+        opening_elements.emplace_back(g1_value);
     }
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_large) {
@@ -230,11 +231,11 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         // }
 
         if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
-            elements_to_add.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+            elements_to_add.emplace_back(g1_value);
             continue;
         }
         big_opening_scalars.emplace_back(fr_value);
-        big_opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+        big_opening_elements.emplace_back(g1_value);
     }
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_omega) {
@@ -244,7 +245,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         //     continue;
         // }
         double_opening_scalars.emplace_back(fr_value);
-        double_opening_elements.emplace_back(Transcript<waffle::TurboComposer>::convert_g1(context, g1_value));
+        double_opening_elements.emplace_back(g1_value);
     }
     const auto double_opening_result = g1_ct::batch_mul(double_opening_elements, double_opening_scalars, 128);
 
@@ -266,10 +267,8 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         lhs_elements.push_back((-(previous_output.P1)).normalize());
         lhs_scalars.push_back(random_separator);
     }
-
     auto opening_result =
         g1_ct::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
-
     opening_result = opening_result + double_opening_result;
     for (const auto& to_add : elements_to_add) {
         opening_result = opening_result + to_add;

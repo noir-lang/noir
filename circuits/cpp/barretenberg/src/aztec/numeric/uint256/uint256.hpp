@@ -17,6 +17,8 @@
 #include <common/serialize.hpp>
 #include "../uint128/uint128.hpp"
 
+namespace numeric {
+
 class alignas(32) uint256_t {
   public:
     constexpr uint256_t(const uint64_t a = 0)
@@ -172,10 +174,9 @@ inline std::ostream& operator<<(std::ostream& os, uint256_t const& a)
     return os;
 }
 
-namespace serialize {
-
 template <typename B> inline void read(B& it, uint256_t& value)
 {
+    using serialize::read;
     uint64_t a, b, c, d;
     read(it, d);
     read(it, c);
@@ -186,10 +187,13 @@ template <typename B> inline void read(B& it, uint256_t& value)
 
 template <typename B> inline void write(B& it, uint256_t const& value)
 {
+    using serialize::write;
     write(it, value.data[3]);
     write(it, value.data[2]);
     write(it, value.data[1]);
     write(it, value.data[0]);
 }
 
-} // namespace serialize
+} // namespace numeric
+
+using numeric::uint256_t;

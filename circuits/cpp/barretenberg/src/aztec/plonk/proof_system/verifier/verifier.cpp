@@ -73,8 +73,11 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     const auto zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
     const auto lagrange_evals = barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->domain);
 
+    key->z_pow_n = zeta;
+    for (size_t i = 0; i < key->domain.log2_size; ++i) {
+        key->z_pow_n *= key->z_pow_n;
+    }
     fr t_eval(0);
-
     program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, t_eval);
     t_eval *= lagrange_evals.vanishing_poly.invert();
     transcript.add_element("t", t_eval.to_buffer());

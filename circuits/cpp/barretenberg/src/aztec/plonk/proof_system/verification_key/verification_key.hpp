@@ -62,6 +62,9 @@ struct verification_key {
 
     std::vector<PolynomialDescriptor> polynomial_manifest;
 
+    // this is a member variable because stdlib::field has no `pow` method, we
+    // have to compute this differently for the normal and recursive settings respectively
+    barretenberg::fr z_pow_n;
     size_t program_width = 3;
 };
 

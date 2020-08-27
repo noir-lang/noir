@@ -88,6 +88,42 @@ TEST(stdlib_field, test_add_mul_with_constants)
     EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_field, test_div)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    field_t a = witness_t(&composer, barretenberg::fr::random_element());
+    a *= barretenberg::fr::random_element();
+    a += barretenberg::fr::random_element();
+
+    field_t b = witness_t(&composer, barretenberg::fr::random_element());
+    b *= barretenberg::fr::random_element();
+    b += barretenberg::fr::random_element();
+
+    // numerator constant
+    field_t out = field_t(&composer, b.get_value()) / a;
+    EXPECT_EQ(out.get_value(), b.get_value() / a.get_value());
+
+    out = b / a;
+    EXPECT_EQ(out.get_value(), b.get_value() / a.get_value());
+
+    // denominator constant
+    out = a / b.get_value();
+    EXPECT_EQ(out.get_value(), a.get_value() / b.get_value());
+
+    // numerator 0
+    out = field_t(0) / b;
+    EXPECT_EQ(out.get_value(), 0);
+    EXPECT_EQ(out.is_constant(), true);
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
 TEST(stdlib_field, test_field_fibbonaci)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

@@ -2,6 +2,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace plonk {
+    static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
 namespace stdlib {
 
 /*

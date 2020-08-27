@@ -17,6 +17,13 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
     element(const element& other);
     element(element&& other);
 
+    static element from_witness(Composer* ctx, const typename NativeGroup::affine_element& input)
+    {
+        Fq x = Fq::from_witness(ctx, input.x);
+        Fq y = Fq::from_witness(ctx, input.y);
+        return element(x, y);
+    }
+
     void validate_on_curve()
     {
         Fq xx = x.sqr();
@@ -79,6 +86,13 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
 
     element dbl() const;
     element montgomery_ladder(const element& other) const;
+
+    typename NativeGroup::affine_element get_value() const
+    {
+        uint512_t x_val = x.get_value();
+        uint512_t y_val = y.get_value();
+        return typename NativeGroup::affine_element(x_val.lo, y_val.lo);
+    }
 
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
@@ -235,7 +249,6 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
             to_add_y.binary_basis_limbs[1] = typename Fq::Limb(y_b1, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_y.binary_basis_limbs[2] = typename Fq::Limb(y_b2, Fq::DEFAULT_MAXIMUM_LIMB);
             to_add_y.binary_basis_limbs[3] = typename Fq::Limb(y_b3, Fq::DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-
             to_add_y.prime_basis_limb =
                 to_add_y.binary_basis_limbs[0].element.add_two(to_add_y.binary_basis_limbs[1].element * Fq::shift_1,
                                                                to_add_y.binary_basis_limbs[2].element * Fq::shift_2);

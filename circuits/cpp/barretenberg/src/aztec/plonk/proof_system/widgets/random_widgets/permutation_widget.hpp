@@ -6,14 +6,14 @@ template <typename Field, typename Group, typename Transcript> class VerifierPer
   public:
     VerifierPermutationWidget();
 
-    static Field compute_quotient_evaluation_contribution(verification_key*,
+    static Field compute_quotient_evaluation_contribution(typename Transcript::Key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
                                                           const bool use_linearisation,
                                                           const bool idpolys = false);
 
-    static Field append_scalar_multiplication_inputs(verification_key*,
+    static Field append_scalar_multiplication_inputs(typename Transcript::Key*,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
                                                      std::map<std::string, Field>& scalars,

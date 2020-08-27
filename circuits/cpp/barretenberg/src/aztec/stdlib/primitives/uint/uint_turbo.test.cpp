@@ -444,7 +444,7 @@ TEST(stdlib_turbo_uint32, test_gt)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
+            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
@@ -498,7 +498,7 @@ TEST(stdlib_turbo_uint32, test_lt)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
+            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
@@ -552,7 +552,7 @@ TEST(stdlib_turbo_uint32, test_gte)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
+            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
@@ -605,7 +605,7 @@ TEST(stdlib_turbo_uint32, test_lte)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
+            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
@@ -659,7 +659,7 @@ TEST(stdlib_turbo_uint32, test_equality_operator)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
+            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
@@ -713,7 +713,7 @@ TEST(stdlib_turbo_uint32, test_not_equality_operator)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == UINT32_MAX ? const_a - const_b + (a_val--)
+            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();

@@ -139,6 +139,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         process_account_note(composer, merkle_root, tx.account_path, account_index, account_note, must_exist);
 
     // The following make up the public inputs to the circuit.
+    public_witness_ct(&composer, 0); // proof_id
     composer.set_public_input(public_input.get_witness_index());
     composer.set_public_input(public_output.get_witness_index());
     set_note_public(composer, output_note1_data.second);

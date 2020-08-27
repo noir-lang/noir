@@ -83,6 +83,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
         process_account_note(composer, merkle_root, tx.account_path, account_index, signing_account_note, must_exist);
 
     // Expose public inputs.
+    public_witness_ct(&composer, 1); // proof_id
     public_witness_ct(&composer, 0); // public_input
     public_witness_ct(&composer, 0); // public_output
     new_account_note_1.set_public();

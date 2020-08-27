@@ -97,7 +97,7 @@ void construct_pedersen_witnesses_bench(State& state) noexcept
         waffle::TurboComposer composer =
             waffle::TurboComposer(BARRETENBERG_SRS_PATH, static_cast<size_t>(state.range(0)));
         generate_test_pedersen_circuit(composer, static_cast<size_t>(state.range(0)));
-        printf("compoesr gates = %lx \n", composer.n);
+        std::cout << "composer gates = " << composer.n << std::endl;
         composer.compute_witness();
     }
 }

@@ -2,12 +2,11 @@
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
-using namespace plonk::stdlib::types::turbo;
-using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::client_proofs;
 
 TEST(client_proofs_inner_proof_data, test_proof_to_data)
 {
+    uint256_t proof_id = 0;
     uint256_t public_input = 100;
     uint256_t public_output = 20;
     std::array<uint8_t, 64> note1 = { 0x01 };
@@ -20,6 +19,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
 
     using serialize::write;
     std::vector<uint8_t> proof_data;
+    write(proof_data, proof_id);
     write(proof_data, public_input);
     write(proof_data, public_output);
     write(proof_data, note1);
@@ -33,6 +33,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
 
     auto data = inner_proof_data(proof_data);
 
+    EXPECT_EQ(data.proof_id, proof_id);
     EXPECT_EQ(data.public_input, public_input);
     EXPECT_EQ(data.public_output, public_output);
     EXPECT_EQ(data.nullifier1, nullifier1);

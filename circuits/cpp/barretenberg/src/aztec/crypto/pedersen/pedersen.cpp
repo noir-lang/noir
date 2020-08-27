@@ -9,7 +9,7 @@ namespace crypto {
 namespace pedersen {
 namespace {
 
-static constexpr size_t num_generators = 128;
+static constexpr size_t num_generators = 256;
 static constexpr size_t bit_length = 256;
 static constexpr size_t quad_length = bit_length / 2;
 static std::array<grumpkin::g1::affine_element, num_generators> generators;
@@ -148,6 +148,9 @@ grumpkin::g1::affine_element get_generator(const size_t generator_index)
 
 grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index)
 {
+    if (!inited) {
+        init();
+    }
     barretenberg::fr scalar_multiplier = in.from_montgomery_form();
 
     constexpr size_t num_bits = 254;

@@ -1,5 +1,6 @@
 #include "../../pedersen_note/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
+#include "../inner_proof_data.hpp"
 #include "join_split.hpp"
 #include "sign_notes.hpp"
 #include <common/streams.hpp>
@@ -11,6 +12,7 @@
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
+using namespace rollup::client_proofs;
 using namespace rollup::client_proofs::join_split;
 
 std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -356,8 +358,8 @@ TEST_F(client_proofs_join_split, test_tainted_output_owner_fails)
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();
 
-    EXPECT_EQ(proof.proof_data[9 * 32], 0x01);
-    proof.proof_data[9 * 32] = 0x02;
+    EXPECT_EQ(proof.proof_data[InnerProofOffsets::OUTPUT_OWNER], 0x01);
+    proof.proof_data[InnerProofFields::OUTPUT_OWNER] = 0x02;
 
     EXPECT_FALSE(verify_proof(proof));
 }

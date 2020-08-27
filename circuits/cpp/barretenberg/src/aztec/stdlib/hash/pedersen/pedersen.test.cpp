@@ -385,4 +385,51 @@ TEST(stdlib_pedersen, test_compress_eight)
 
     EXPECT_EQ(result.get_value(), expected);
 }
+
+TEST(stdlib_pedersen, test_compress_constants)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    std::vector<barretenberg::fr> inputs;
+    std::vector<plonk::stdlib::field_t<waffle::TurboComposer>> witness_inputs;
+
+    for (size_t i = 0; i < 8; ++i) {
+        inputs.push_back(barretenberg::fr::random_element());
+        if (i % 2 == 1) {
+            witness_inputs.push_back(witness_t(&composer, inputs[i]));
+        } else {
+            witness_inputs.push_back(field_t(&composer, inputs[i]));
+        }
+    }
+
+    barretenberg::fr expected = crypto::pedersen::compress_native(inputs);
+    auto result = pedersen::compress(witness_inputs);
+
+    EXPECT_EQ(result.get_value(), expected);
+}
+
+TEST(stdlib_pedersen, test_sidon_compress_constants)
+{
+    typedef stdlib::field_t<waffle::PLookupComposer> field_pt;
+    typedef stdlib::witness_t<waffle::PLookupComposer> witness_pt;
+
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
+
+    std::vector<barretenberg::fr> inputs;
+    std::vector<plonk::stdlib::field_t<waffle::PLookupComposer>> witness_inputs;
+
+    for (size_t i = 0; i < 8; ++i) {
+        inputs.push_back(barretenberg::fr::random_element());
+        if (i % 2 == 1) {
+            witness_inputs.push_back(witness_pt(&composer, inputs[i]));
+        } else {
+            witness_inputs.push_back(field_pt(&composer, inputs[i]));
+        }
+    }
+
+    barretenberg::fr expected = crypto::pedersen::sidon::compress_native(inputs);
+    auto result = stdlib::pedersen<waffle::PLookupComposer>::compress(witness_inputs);
+
+    EXPECT_EQ(result.get_value(), expected);
+}
 } // namespace test_stdlib_pedersen

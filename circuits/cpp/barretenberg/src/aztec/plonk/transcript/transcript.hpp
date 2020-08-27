@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "../proof_system/verification_key/verification_key.hpp"
+
 namespace transcript {
 
 struct Keccak256Hasher {
@@ -30,6 +32,8 @@ class Transcript {
     };
 
   public:
+    typedef waffle::verification_key Key;
+
     Transcript(const Manifest input_manifest,
                const HashType hash_type = HashType::Keccak256,
                const size_t challenge_bytes = 32)

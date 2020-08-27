@@ -6,6 +6,8 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
+using namespace numeric;
+
 TEST(uint256, get_bit)
 {
     constexpr uint256_t a{ 0b0110011001110010011001100111001001100110011100100110011001110011,
@@ -300,4 +302,12 @@ TEST(uint256, greater_than_or_equal)
 
     b = uint256_t{ UINT64_MAX - 1, UINT64_MAX, UINT64_MAX, UINT64_MAX };
     EXPECT_EQ(a >= b, false);
+}
+
+TEST(uint256, to_from_buffer)
+{
+    uint256_t a{ 1, 2, 3, 4 };
+    auto buf = to_buffer(a);
+    uint256_t b = from_buffer<uint256_t>(buf);
+    EXPECT_EQ(a, b);
 }
