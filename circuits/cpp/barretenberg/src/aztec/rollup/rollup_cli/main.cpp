@@ -1,3 +1,4 @@
+#include "../rollup_proofs/compute_account_circuit_data.hpp"
 #include "../rollup_proofs/compute_join_split_circuit_data.hpp"
 #include "../rollup_proofs/compute_rollup_circuit_data.hpp"
 #include "../rollup_proofs/rollup_tx.hpp"
@@ -20,8 +21,10 @@ int main(int argc, char** argv)
     const std::string srs_path = (args.size() > 2) ? args[2] : "../srs_db/ignition";
     const std::string data_path = (args.size() > 3) ? args[3] : "./data";
 
-    auto inner_circuit_data = compute_or_load_join_split_circuit_data(srs_path, data_path);
-    auto circuit_data = compute_or_load_rollup_circuit_data(rollup_size, inner_circuit_data, srs_path, data_path);
+    auto account_circuit_data = compute_or_load_account_circuit_data(srs_path, data_path);
+    auto join_split_circuit_data = compute_or_load_join_split_circuit_data(srs_path, data_path);
+    auto circuit_data = compute_or_load_rollup_circuit_data(
+        rollup_size, join_split_circuit_data, account_circuit_data, srs_path, data_path);
     auto gibberish_data_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
@@ -47,7 +50,7 @@ int main(int argc, char** argv)
         auto padding = rollup_size - rollup.num_txs;
         std::cerr << "Padding required: " << padding << std::endl;
         for (size_t i = 0; i < padding; ++i) {
-            rollup.txs.push_back(inner_circuit_data.padding_proof);
+            rollup.txs.push_back(join_split_circuit_data.padding_proof);
             rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
             rollup.old_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
             rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());

@@ -148,7 +148,7 @@ void check_accounts_not_nullified(Composer& composer,
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
                                        rollup_tx const& rollup,
-                                       std::shared_ptr<waffle::verification_key> const& inner_verification_key,
+                                       std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,
                                        size_t rollup_size,
                                        bool can_throw)
 {
@@ -166,13 +166,17 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto new_data_values = std::vector<byte_array_ct>();
     auto new_null_indicies = std::vector<field_ct>();
     auto account_null_indicies = std::vector<field_ct>();
-    auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
-    auto recursive_verification_key =
-        plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
+    auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
 
     recursion_output<bn254> recursion_output;
 
     for (size_t i = 0; i < rollup_size; ++i) {
+        // Pick verification key and check it's permitted.
+        auto proof_id = from_buffer<uint32_t>(rollup.txs[i], InnerProofOffsets::PROOF_ID + 28);
+        auto recursive_verification_key =
+            plonk::stdlib::recursion::verification_key<bn254>::from_witness(&composer, verification_keys[proof_id]);
+        recursive_verification_key->validate_key_is_in_set(verification_keys);
+
         // Verify the inner proof.
         recursion_output =
             verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(&composer,

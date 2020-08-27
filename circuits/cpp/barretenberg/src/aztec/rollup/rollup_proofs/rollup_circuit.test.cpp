@@ -36,10 +36,11 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     {
         old = std::cerr.rdbuf();
         // std::cerr.rdbuf(swallow.rdbuf());
-        inner_circuit_data = compute_join_split_circuit_data(CRS_PATH);
-        padding_proof = inner_circuit_data.padding_proof;
-        rollup_1_keyless = compute_rollup_circuit_data(1, inner_circuit_data, false, CRS_PATH);
-        rollup_2_keyless = compute_rollup_circuit_data(2, inner_circuit_data, false, CRS_PATH);
+        account_cd = compute_account_circuit_data(CRS_PATH);
+        join_split_cd = compute_join_split_circuit_data(CRS_PATH);
+        padding_proof = join_split_cd.padding_proof;
+        rollup_1_keyless = compute_rollup_circuit_data(1, join_split_cd, account_cd, false, CRS_PATH);
+        rollup_2_keyless = compute_rollup_circuit_data(2, join_split_cd, account_cd, false, CRS_PATH);
     }
 
     static void TearDownTestCase() { std::cerr.rdbuf(old); }
@@ -126,7 +127,7 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
         tx.output_owner = fr::random_element(rand_engine);
 
         Composer composer =
-            Composer(inner_circuit_data.proving_key, inner_circuit_data.verification_key, inner_circuit_data.num_gates);
+            Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
         composer.rand_engine = rand_engine;
         join_split_circuit(composer, tx);
         auto prover = composer.create_unrolled_prover();
@@ -141,7 +142,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     MerkleTree<MemoryStore> root_tree;
     rollup::fixtures::user_context user;
     numeric::random::Engine* rand_engine;
-    static join_split_circuit_data inner_circuit_data;
+    static join_split_circuit_data join_split_cd;
+    static account_circuit_data account_cd;
     static std::vector<uint8_t> padding_proof;
     static std::streambuf* old;
     static std::stringstream swallow;
@@ -158,7 +160,8 @@ class rollup_proofs_rollup_circuit : public ::testing::Test {
     }
 };
 
-join_split_circuit_data rollup_proofs_rollup_circuit::inner_circuit_data;
+join_split_circuit_data rollup_proofs_rollup_circuit::join_split_cd;
+account_circuit_data rollup_proofs_rollup_circuit::account_cd;
 std::vector<uint8_t> rollup_proofs_rollup_circuit::padding_proof;
 std::streambuf* rollup_proofs_rollup_circuit::old;
 std::stringstream rollup_proofs_rollup_circuit::swallow;
@@ -167,8 +170,7 @@ rollup_circuit_data rollup_proofs_rollup_circuit::rollup_2_keyless;
 
 TEST_F(rollup_proofs_rollup_circuit, test_padding_proof)
 {
-    Composer composer =
-        Composer(inner_circuit_data.proving_key, inner_circuit_data.verification_key, inner_circuit_data.num_gates);
+    Composer composer = Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
     join_split_circuit(composer, noop_tx());
     auto verifier = composer.create_unrolled_verifier();
     EXPECT_TRUE(verifier.verify_proof({ padding_proof }));
@@ -177,7 +179,7 @@ TEST_F(rollup_proofs_rollup_circuit, test_padding_proof)
 TEST_F(rollup_proofs_rollup_circuit, test_1_deposit_proof_in_1_rollup)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(inner_circuit_data, data_tree.root());
+    auto join_split_proof = create_noop_join_split_proof(join_split_cd, data_tree.root());
 
     auto rollup = create_rollup(0, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
@@ -524,7 +526,8 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_1_rollup_full_proof)
     auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 50 }, 30, 60);
     auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, "../srs_db/ignition");
+    auto rollup_circuit_data =
+        compute_rollup_circuit_data(rollup_size, join_split_cd, account_cd, true, "../srs_db/ignition");
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -564,7 +567,8 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_1_proof_in_2_rollup_full_proof)
     auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
     auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, "../srs_db/ignition");
+    auto rollup_circuit_data =
+        compute_rollup_circuit_data(rollup_size, join_split_cd, account_cd, true, "../srs_db/ignition");
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -607,7 +611,8 @@ HEAVY_TEST_F(rollup_proofs_rollup_circuit, test_2_proofs_in_2_rollup_full_proof)
 
     auto rollup = create_rollup(1, txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
-    auto rollup_circuit_data = compute_rollup_circuit_data(rollup_size, inner_circuit_data, true, "../srs_db/ignition");
+    auto rollup_circuit_data =
+        compute_rollup_circuit_data(rollup_size, join_split_cd, account_cd, true, "../srs_db/ignition");
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);

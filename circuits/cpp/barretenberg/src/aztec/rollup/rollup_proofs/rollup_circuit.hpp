@@ -12,7 +12,7 @@ using namespace plonk::stdlib::recursion;
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
                                        rollup_tx const& proofs,
-                                       std::shared_ptr<waffle::verification_key> const& inner_verification_key,
+                                       std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,
                                        size_t rollup_size,
                                        bool can_throw = true);
 

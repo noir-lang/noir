@@ -31,13 +31,13 @@ bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& cir
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
         auto recursion_output =
-            rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
+            rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
 
         if (composer.failed) {
             throw std::runtime_error("Rollup circuit logic failure.");
         }
 
-        if (!pairing_check(recursion_output, circuit_data.inner_verification_key)) {
+        if (!pairing_check(recursion_output, circuit_data.verification_keys[0])) {
             throw std::runtime_error("Pairing check failed.");
         }
 
@@ -58,7 +58,7 @@ verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data 
     try {
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-        rollup_circuit(composer, rollup, circuit_data.inner_verification_key, circuit_data.rollup_size);
+        rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
 
         if (composer.failed) {
             throw std::runtime_error("Circuit logic failed.");
@@ -76,7 +76,7 @@ verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data 
         auto data = rollup_proof_data(proof.proof_data);
         auto pairing = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
                            data.recursion_output,
-                           circuit_data.inner_verification_key->reference_string->get_precomputed_g2_lines(),
+                           circuit_data.verification_keys[0]->reference_string->get_precomputed_g2_lines(),
                            2) == barretenberg::fq12::one();
         if (!pairing) {
             throw std::runtime_error("Pairing check failed.");
