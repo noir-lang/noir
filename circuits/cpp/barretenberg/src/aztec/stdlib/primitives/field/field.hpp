@@ -18,7 +18,7 @@ template <typename ComposerContext> class field_t {
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = static_cast<uint32_t>(-1);
+        witness_index = IS_CONSTANT;
     }
 
     field_t(const unsigned long long value)
@@ -26,7 +26,7 @@ template <typename ComposerContext> class field_t {
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = static_cast<uint32_t>(-1);
+        witness_index = IS_CONSTANT;
     }
 
     field_t(const unsigned long value)
@@ -34,14 +34,14 @@ template <typename ComposerContext> class field_t {
     {
         additive_constant = barretenberg::fr(value);
         multiplicative_constant = barretenberg::fr(0);
-        witness_index = static_cast<uint32_t>(-1);
+        witness_index = IS_CONSTANT;
     }
 
     field_t(const barretenberg::fr& value)
         : context(nullptr)
         , additive_constant(value)
         , multiplicative_constant(barretenberg::fr(1))
-        , witness_index(static_cast<uint32_t>(-1))
+        , witness_index(IS_CONSTANT)
     {}
 
     field_t(const witness_t<ComposerContext>& value);
@@ -192,14 +192,14 @@ template <typename ComposerContext> class field_t {
     bool_t<ComposerContext> is_zero() const;
     void assert_is_not_zero();
     void assert_is_zero();
-    bool is_constant() const { return witness_index == static_cast<uint32_t>(-1); }
+    bool is_constant() const { return witness_index == IS_CONSTANT; }
 
     uint32_t get_witness_index() const { return witness_index; }
 
     mutable ComposerContext* context = nullptr;
     mutable barretenberg::fr additive_constant;
     mutable barretenberg::fr multiplicative_constant;
-    mutable uint32_t witness_index = static_cast<uint32_t>(-1);
+    mutable uint32_t witness_index = IS_CONSTANT;
 };
 
 template <typename ComposerContext> inline std::ostream& operator<<(std::ostream& os, field_t<ComposerContext> const& v)

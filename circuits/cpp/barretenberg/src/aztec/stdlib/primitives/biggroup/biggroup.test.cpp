@@ -26,6 +26,7 @@ namespace plonk {
 namespace stdlib {
 namespace bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
+//Q:why not use regular fr?
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FrParams> fr;
 typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
 

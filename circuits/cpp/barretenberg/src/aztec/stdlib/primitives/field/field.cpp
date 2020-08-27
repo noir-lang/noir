@@ -10,7 +10,7 @@ field_t<ComposerContext>::field_t(ComposerContext* parent_context)
     : context(parent_context)
     , additive_constant(barretenberg::fr::zero())
     , multiplicative_constant(barretenberg::fr::one())
-    , witness_index(static_cast<uint32_t>(-1))
+    , witness_index(IS_CONSTANT)
 {}
 
 template <typename ComposerContext>
@@ -28,17 +28,17 @@ field_t<ComposerContext>::field_t(ComposerContext* parent_context, const barrete
 {
     additive_constant = value;
     multiplicative_constant = barretenberg::fr::zero();
-    witness_index = static_cast<uint32_t>(-1);
+    witness_index = IS_CONSTANT;
 }
 
 template <typename ComposerContext> field_t<ComposerContext>::field_t(const bool_t<ComposerContext>& other)
 {
     context = (other.context == nullptr) ? nullptr : other.context;
-    if (other.witness_index == static_cast<uint32_t>(-1)) {
+    if (other.witness_index == IS_CONSTANT) {
         additive_constant =
             (other.witness_bool ^ other.witness_inverted) ? barretenberg::fr::one() : barretenberg::fr::zero();
         multiplicative_constant = barretenberg::fr::one();
-        witness_index = static_cast<uint32_t>(-1);
+        witness_index = IS_CONSTANT;
     } else {
         witness_index = other.witness_index;
         additive_constant = other.witness_inverted ? barretenberg::fr::one() : barretenberg::fr::zero();
@@ -57,11 +57,11 @@ field_t<ComposerContext> field_t<ComposerContext>::from_witness_index(ComposerCo
 
 template <typename ComposerContext> field_t<ComposerContext>::operator bool_t<ComposerContext>()
 {
-    if (witness_index == static_cast<uint32_t>(-1)) {
+    if (witness_index == IS_CONSTANT) {
         bool_t<ComposerContext> result(context);
         result.witness_bool = (additive_constant == barretenberg::fr::one());
         result.witness_inverted = false;
-        result.witness_index = static_cast<uint32_t>(-1);
+        result.witness_index = IS_CONSTANT;
         return result;
     }
     bool add_constant_check = (additive_constant == barretenberg::fr::zero());
@@ -87,21 +87,21 @@ field_t<ComposerContext> field_t<ComposerContext>::operator+(const field_t& othe
 {
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);
-    ASSERT(ctx || (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
+    ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     if (witness_index == other.witness_index) {
         result.additive_constant = additive_constant + other.additive_constant;
         result.multiplicative_constant = multiplicative_constant + other.multiplicative_constant;
         result.witness_index = witness_index;
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // both inputs are constant - don't add a gate
         result.additive_constant = additive_constant + other.additive_constant;
-    } else if (witness_index != static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // one input is constant - don't add a gate, but update scaling factors
         result.additive_constant = additive_constant + other.additive_constant;
         barretenberg::fr::__copy(multiplicative_constant, result.multiplicative_constant);
         result.witness_index = witness_index;
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         result.additive_constant = additive_constant + other.additive_constant;
         barretenberg::fr::__copy(other.multiplicative_constant, result.multiplicative_constant);
         result.witness_index = other.witness_index;
@@ -143,17 +143,17 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
 {
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);
-    ASSERT(ctx || (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
+    ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
-    if (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    if (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // both inputs are constant - don't add a gate
         result.additive_constant = additive_constant * other.additive_constant;
-    } else if (witness_index != static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // one input is constant - don't add a gate, but update scaling factors
         result.additive_constant = additive_constant * other.additive_constant;
         result.multiplicative_constant = multiplicative_constant * other.additive_constant;
         result.witness_index = witness_index;
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         result.additive_constant = additive_constant * other.additive_constant;
         result.multiplicative_constant = other.multiplicative_constant * additive_constant;
         result.witness_index = other.witness_index;
@@ -195,17 +195,17 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
 {
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);
-    ASSERT(ctx || (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
+    ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     barretenberg::fr additive_multiplier = barretenberg::fr::one();
 
-    if (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    if (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // both inputs are constant - don't add a gate
         if (!(other.additive_constant == barretenberg::fr::zero())) {
             additive_multiplier = other.additive_constant.invert();
         }
         result.additive_constant = additive_constant * additive_multiplier;
-    } else if (witness_index != static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // one input is constant - don't add a gate, but update scaling factors
         if (!(other.additive_constant == barretenberg::fr::zero())) {
             additive_multiplier = other.additive_constant.invert();
@@ -213,7 +213,7 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
         result.additive_constant = additive_constant * additive_multiplier;
         result.multiplicative_constant = multiplicative_constant * additive_multiplier;
         result.witness_index = witness_index;
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         // numerator 0?
         if (get_value() == 0) {
             result.additive_constant = 0;
@@ -278,7 +278,7 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     ComposerContext* ctx =
         (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
-    if ((to_mul.witness_index == UINT32_MAX) && (to_add.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
+    if ((to_mul.witness_index == IS_CONSTANT) && (to_add.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
         return ((*this) * to_mul + to_add);
     }
 
@@ -289,11 +289,11 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     barretenberg::fr q_3 = to_add.multiplicative_constant;
     barretenberg::fr q_c = additive_constant * to_mul.additive_constant + to_add.additive_constant;
 
-    barretenberg::fr a = witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(witness_index);
+    barretenberg::fr a = witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(witness_index);
     barretenberg::fr b =
-        to_mul.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(to_mul.witness_index);
+        to_mul.witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(to_mul.witness_index);
     barretenberg::fr c =
-        to_add.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(to_add.witness_index);
+        to_add.witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(to_add.witness_index);
 
     barretenberg::fr out = a * b * q_m + a * q_1 + b * q_2 + c * q_3 + q_c;
 
@@ -301,9 +301,9 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index == UINT32_MAX ? ctx->zero_idx : witness_index,
-        to_mul.witness_index == UINT32_MAX ? ctx->zero_idx : to_mul.witness_index,
-        to_add.witness_index == UINT32_MAX ? ctx->zero_idx : to_add.witness_index,
+        witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
+        to_mul.witness_index == IS_CONSTANT ? ctx->zero_idx : to_mul.witness_index,
+        to_add.witness_index == IS_CONSTANT ? ctx->zero_idx : to_add.witness_index,
         result.witness_index,
         q_m,
         q_1,
@@ -321,7 +321,7 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
 {
     ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
-    if ((add_a.witness_index == UINT32_MAX) && (add_b.witness_index == UINT32_MAX) && (witness_index == UINT32_MAX)) {
+    if ((add_a.witness_index == IS_CONSTANT) && (add_b.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
         return ((*this) + add_a + add_b).normalize();
     }
     barretenberg::fr q_1 = multiplicative_constant;
@@ -329,11 +329,11 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     barretenberg::fr q_3 = add_b.multiplicative_constant;
     barretenberg::fr q_c = additive_constant + add_a.additive_constant + add_b.additive_constant;
 
-    barretenberg::fr a = witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(witness_index);
+    barretenberg::fr a = witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(witness_index);
     barretenberg::fr b =
-        add_a.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(add_a.witness_index);
+        add_a.witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(add_a.witness_index);
     barretenberg::fr c =
-        add_b.witness_index == UINT32_MAX ? barretenberg::fr(0) : ctx->get_variable(add_b.witness_index);
+        add_b.witness_index == IS_CONSTANT ? barretenberg::fr(0) : ctx->get_variable(add_b.witness_index);
 
     barretenberg::fr out = a * q_1 + b * q_2 + c * q_3 + q_c;
 
@@ -341,9 +341,9 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
     result.witness_index = ctx->add_variable(out);
 
     const waffle::mul_quad gate_coefficients{
-        witness_index == UINT32_MAX ? ctx->zero_idx : witness_index,
-        add_a.witness_index == UINT32_MAX ? ctx->zero_idx : add_a.witness_index,
-        add_b.witness_index == UINT32_MAX ? ctx->zero_idx : add_b.witness_index,
+        witness_index == IS_CONSTANT ? ctx->zero_idx : witness_index,
+        add_a.witness_index == IS_CONSTANT ? ctx->zero_idx : add_a.witness_index,
+        add_b.witness_index == IS_CONSTANT ? ctx->zero_idx : add_b.witness_index,
         result.witness_index,
         barretenberg::fr(0),
         q_1,
@@ -358,7 +358,7 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
 
 template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerContext>::normalize() const
 {
-    if (witness_index == static_cast<uint32_t>(-1) ||
+    if (witness_index == IS_CONSTANT ||
         ((multiplicative_constant == barretenberg::fr::one()) && (additive_constant == barretenberg::fr::zero()))) {
         return *this;
     }
@@ -383,7 +383,7 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
 
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero()
 {
-    if (witness_index == UINT32_MAX) {
+    if (witness_index == IS_CONSTANT) {
         ASSERT(additive_constant == barretenberg::fr(0));
         return;
     }
@@ -397,7 +397,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
 
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero()
 {
-    if (witness_index == UINT32_MAX) {
+    if (witness_index == IS_CONSTANT) {
         ASSERT(additive_constant != barretenberg::fr(0));
         return;
     }
@@ -422,7 +422,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not
 
 template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerContext>::is_zero() const
 {
-    if (witness_index == static_cast<uint32_t>(-1)) {
+    if (witness_index == IS_CONSTANT) {
         return bool_t(context, (get_value() == barretenberg::fr::zero()));
     }
 
@@ -472,7 +472,7 @@ template <typename ComposerContext> bool_t<ComposerContext> field_t<ComposerCont
 
 template <typename ComposerContext> barretenberg::fr field_t<ComposerContext>::get_value() const
 {
-    if (witness_index != static_cast<uint32_t>(-1)) {
+    if (witness_index != IS_CONSTANT) {
         ASSERT(context != nullptr);
         return (multiplicative_constant * context->get_variable(witness_index)) + additive_constant;
     } else {
@@ -554,6 +554,9 @@ std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two
     return table;
 }
 
+
+// Given T, stores the coefficients of the multilinear polynomial in t0,t1,t2, that on input a binary string b of length 3,
+// equals T_b
 template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_three_bit_table(const field_t& T0,
                                                                                              const field_t& T1,
@@ -565,14 +568,14 @@ std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_thr
                                                                                              const field_t& T7)
 {
     std::array<field_t, 8> table;
-    table[0] = T0;                                    // const
-    table[1] = T1 - T0;                               // t0
-    table[2] = T2 - T0;                               // t1
-    table[3] = T4 - T0;                               // t2
-    table[4] = T3 - T2 - T1 + T0;                     // t0t1
-    table[5] = T5 - T4 - T1 + T0;                     // t0t2
-    table[6] = T6 - T4 - T2 + T0;                     // t1t2
-    table[7] = T7 - T6 - T5 + T4 - T3 + T2 + T1 - T0; // t0t1t2
+    table[0] = T0;                                    // const coeff
+    table[1] = T1 - T0;                               // t0 coeff
+    table[2] = T2 - T0;                               // t1 coeff
+    table[3] = T4 - T0;                               // t2 coeff
+    table[4] = T3 - T2 - T1 + T0;                     // t0t1 coeff
+    table[5] = T5 - T4 - T1 + T0;                     // t0t2 coeff
+    table[6] = T6 - T4 - T2 + T0;                     // t1t2 coeff
+    table[7] = T7 - T6 - T5 + T4 - T3 + T2 + T1 - T0; // t0t1t2 coeff
     return table;
 }
 
@@ -587,6 +590,13 @@ field_t<ComposerContext> field_t<ComposerContext>::select_from_two_bit_table(con
     return R2;
 }
 
+
+//we wish to compute the multilinear polynomial stored at point (t0,t1,t2) in a minimal number of gates. 
+//The straightforward thing would be eight multiplications to get the monomials and several additions between them
+//It turns out you can do it in 7 multadd gates using the formula
+// X:= ((t0*a012+a12)*t1+a2)*t2+a_const  - 3 gates
+// Y:= (t0*a01+a1)*t1+X - 2 gates
+// Z:= (t2*a02 + a0)*t0 + Y - 2 gates
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::select_from_three_bit_table(const std::array<field_t, 8>& table,
                                                                                const bool_t<ComposerContext>& t2,
@@ -613,8 +623,8 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
                                ? (b.context == nullptr ? (c.context == nullptr ? d.context : c.context) : b.context)
                                : a.context;
 
-    if (a.witness_index == UINT32_MAX && b.witness_index == UINT32_MAX && c.witness_index == UINT32_MAX &&
-        d.witness_index == UINT32_MAX) {
+    if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT && c.witness_index == IS_CONSTANT &&
+        d.witness_index == IS_CONSTANT) {
         return;
     }
 
@@ -627,10 +637,10 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
     barretenberg::fr q_c = a.additive_constant * b.additive_constant + c.additive_constant + d.additive_constant;
 
     const waffle::mul_quad gate_coefficients{
-        a.witness_index == UINT32_MAX ? ctx->zero_idx : a.witness_index,
-        b.witness_index == UINT32_MAX ? ctx->zero_idx : b.witness_index,
-        c.witness_index == UINT32_MAX ? ctx->zero_idx : c.witness_index,
-        d.witness_index == UINT32_MAX ? ctx->zero_idx : d.witness_index,
+        a.witness_index == IS_CONSTANT ? ctx->zero_idx : a.witness_index,
+        b.witness_index == IS_CONSTANT ? ctx->zero_idx : b.witness_index,
+        c.witness_index == IS_CONSTANT ? ctx->zero_idx : c.witness_index,
+        d.witness_index == IS_CONSTANT ? ctx->zero_idx : d.witness_index,
         q_m,
         q_1,
         q_2,

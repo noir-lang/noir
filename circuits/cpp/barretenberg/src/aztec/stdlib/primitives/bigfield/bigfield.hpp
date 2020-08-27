@@ -25,7 +25,7 @@ template <typename Composer, typename T> class bigfield {
         Limb(const field_t<Composer>& input, const uint256_t max = uint256_t(0))
             : element(input)
         {
-            if (input.witness_index == UINT32_MAX) {
+            if (input.witness_index == IS_CONSTANT) {
                 maximum_value = uint256_t(input.additive_constant) + 1;
             } else if (max != uint256_t(0)) {
                 maximum_value = max;
@@ -65,16 +65,16 @@ template <typename Composer, typename T> class bigfield {
 
     bigfield& operator=(const bigfield& other);
     bigfield& operator=(bigfield&& other);
-
+//code assumes modulus is at most 256 bits so good to define it via a uint256_t
     static constexpr uint256_t modulus = (uint256_t(T::modulus_0, T::modulus_1, T::modulus_2, T::modulus_3));
     static constexpr uint512_t modulus_u512 = uint512_t(modulus);
-    static constexpr uint64_t NUM_LIMB_BITS = 68;
+    static constexpr uint64_t NUM_LIMB_BITS = 68;//should be smaller than quarter of log of brg::fr, because one of constructors
     static constexpr uint64_t NUM_LAST_LIMB_BITS = modulus_u512.get_msb() + 1 - (NUM_LIMB_BITS * 3);
     static constexpr uint256_t DEFAULT_MAXIMUM_LIMB = (uint256_t(1) << NUM_LIMB_BITS) - uint256_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB =
         (uint256_t(1) << NUM_LAST_LIMB_BITS) - uint256_t(1);
     static constexpr uint64_t LOG2_BINARY_MODULUS = NUM_LIMB_BITS * 4;
-    static constexpr bool is_composite = true;
+    static constexpr bool is_composite = true;//false only when fr is native
 
     static constexpr uint256_t prime_basis_maximum_limb =
         uint256_t(modulus_u512.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4));
@@ -159,11 +159,16 @@ template <typename Composer, typename T> class bigfield {
 
     void self_reduce() const;
 
-    bool is_constant() const { return prime_basis_limb.witness_index == UINT32_MAX; }
+    bool is_constant() const { return prime_basis_limb.witness_index == IS_CONSTANT; }
 
     static bigfield one()
     {
         bigfield result(nullptr, uint256_t(1));
+        return result;
+    }
+    static bigfield zero()
+    {
+        bigfield result(nullptr, uint256_t(0));
         return result;
     }
 
@@ -172,11 +177,17 @@ template <typename Composer, typename T> class bigfield {
     static constexpr uint512_t get_maximum_unreduced_value()
     {
         uint1024_t maximum_product = uint1024_t(binary_basis.modulus) * uint1024_t(prime_basis.modulus);
-        // TODO: compute square root
+        // TODO: compute square root (the following is a lower bound, so good for the CRT use)
         uint64_t maximum_product_bits = maximum_product.get_msb() - 1;
         return (uint512_t(1) << (maximum_product_bits >> 1)) - uint512_t(1);
     }
-    static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << 110; }
+    // a (currently generous) upper bound on the log of number of fr additions in any of the class operations
+    static constexpr uint64_t MAX_ADDITION_LOG = 10;
+    // the rationale of the expression is we should not overflow Fr when applying any bigfield operation (e.g. *) and starting with
+    // this max limb size
+    static constexpr uint64_t MAX_UNREDUCED_LIMB_SIZE = (barretenberg::fr::modulus.get_msb() + 1 )/2 - MAX_ADDITION_LOG;
+
+    static constexpr uint256_t get_maximum_unreduced_limb_value() {return uint256_t(1) << MAX_UNREDUCED_LIMB_SIZE  ; }
 
     Composer* context;
     mutable Limb binary_basis_limbs[4];
@@ -188,6 +199,7 @@ template <typename Composer, typename T> class bigfield {
                                       const std::vector<bigfield>& to_add,
                                       const bigfield& quotient,
                                       const std::vector<bigfield>& remainders);
+    static void verify_mod(const bigfield& left, const bigfield& quotient, const bigfield& remainder);
 
     static void evaluate_square_add(const bigfield& left,
                                     const std::vector<bigfield>& to_add,

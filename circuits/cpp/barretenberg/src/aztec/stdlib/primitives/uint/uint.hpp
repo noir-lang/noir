@@ -133,7 +133,7 @@ template <typename Composer, typename Native> class uint {
 
     uint256_t get_value() const;
 
-    bool is_constant() const { return witness_index == UINT32_MAX; }
+    bool is_constant() const { return witness_index == IS_CONSTANT; }
     Composer* get_context() const { return context; }
 
     bool_t<Composer> at(const size_t bit_index) const;
