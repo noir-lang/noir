@@ -110,4 +110,46 @@ void populate_kate_element_map(verification_key* key,
         z_power *= z_pow_n;
     }
 }
+
+/**
+ * Debug method for Turbo plonk proofs - prints verification key in the format required by our smart contracts
+ **/
+inline void print_turbo_verification_key(verification_key* key)
+{
+    const auto print_fr = [](const std::string& name, const barretenberg::fr& element) {
+        std::cerr << "vk." << name << " = PairingsBn254.new_fr(" << std::endl;
+        std::cerr << "  " << element << std::endl;
+        std::cerr << ");" << std::endl;
+    };
+    const auto print_g1 = [](const std::string& name, const barretenberg::g1::affine_element& element) {
+        std::cerr << "vk." << name << " = PairingsBn254.new_g1(" << std::endl;
+        std::cerr << "  " << element.x << "," << std::endl;
+        std::cerr << "  " << element.y << std::endl;
+        std::cerr << ");" << std::endl;
+    };
+    std::cerr << "### vk" << std::endl;
+    std::cerr << "vk.circuit_size = " << key->domain.size << ";" << std::endl;
+    std::cerr << "vk.num_inputs = " << key->num_public_inputs << ";" << std::endl;
+    print_fr("work_root", key->domain.root);
+    print_fr("domain_inverse", key->domain.domain_inverse);
+    print_fr("work_root_inverse", key->domain.root_inverse);
+    print_g1("Q1", key->constraint_selectors.at("Q_1"));
+    print_g1("Q2", key->constraint_selectors.at("Q_2"));
+    print_g1("Q3", key->constraint_selectors.at("Q_3"));
+    print_g1("Q4", key->constraint_selectors.at("Q_4"));
+    print_g1("Q5", key->constraint_selectors.at("Q_5"));
+    print_g1("QM", key->constraint_selectors.at("Q_M"));
+    print_g1("QC", key->constraint_selectors.at("Q_C"));
+    print_g1("QARITH", key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
+    print_g1("QECC", key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
+    print_g1("QRANGE", key->constraint_selectors.at("Q_RANGE_SELECTOR"));
+    print_g1("QLOGIC", key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
+    print_g1("sigma_commitments[0]", key->permutation_selectors.at("SIGMA_1"));
+    print_g1("sigma_commitments[1]", key->permutation_selectors.at("SIGMA_2"));
+    print_g1("sigma_commitments[2]", key->permutation_selectors.at("SIGMA_3"));
+    print_g1("sigma_commitments[3]", key->permutation_selectors.at("SIGMA_4"));
+    print_fr("permutation_non_residues[0]", 5);
+    print_fr("permutation_non_residues[1]", 6);
+    print_fr("permutation_non_residues[2]", 7);
+}
 } // namespace waffle

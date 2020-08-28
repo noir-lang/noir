@@ -73,6 +73,8 @@ class Transcript {
 
     void compute_challenge_map();
 
+    void print();
+
   private:
     size_t current_round = 0;
     size_t num_challenge_bytes;
