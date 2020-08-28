@@ -385,7 +385,7 @@ TEST(scalar_multiplication, reduce_buckets_basic)
                                                                        bucket_counts,
                                                                        &bit_offsets[0],
                                                                        state.point_schedule,
-                                                                       num_points,
+                                                                       (uint32_t)state.round_counts[0],
                                                                        static_cast<uint32_t>(num_buckets),
                                                                        bucket_empty_status };
 
