@@ -814,26 +814,26 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
     C* ctx = left.context ? left.context : to_mul.context;
 
     uint256_t max_b0 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
-    max_b0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
+    max_b0 += (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[0].maximum_value);
     uint256_t max_b1 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
-    max_b1 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+    max_b1 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[1].maximum_value);
     uint256_t max_c0 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
-    max_c0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
+    max_c0 += (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[1].maximum_value);
     uint256_t max_c1 = (left.binary_basis_limbs[2].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
-    max_c1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
+    max_c1 += (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[0].maximum_value);
     uint256_t max_c2 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[2].maximum_value);
-    max_c2 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+    max_c2 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[2].maximum_value);
     uint256_t max_d0 = (left.binary_basis_limbs[3].maximum_value * to_mul.binary_basis_limbs[0].maximum_value);
-    max_d0 += (neg_modulus_limbs_u256[3] << NUM_LIMB_BITS);
+    max_d0 += (neg_modulus_limbs_u256[3] * quotient.binary_basis_limbs[0].maximum_value);
     uint256_t max_d1 = (left.binary_basis_limbs[2].maximum_value * to_mul.binary_basis_limbs[1].maximum_value);
-    max_d1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
+    max_d1 += (neg_modulus_limbs_u256[2] * quotient.binary_basis_limbs[1].maximum_value);
     uint256_t max_d2 = (left.binary_basis_limbs[1].maximum_value * to_mul.binary_basis_limbs[2].maximum_value);
-    max_d2 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
+    max_d2 += (neg_modulus_limbs_u256[1] * quotient.binary_basis_limbs[2].maximum_value);
     uint256_t max_d3 = (left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[3].maximum_value);
-    max_d3 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+    max_d3 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[3].maximum_value);
 
     uint256_t max_r0 = left.binary_basis_limbs[0].maximum_value * to_mul.binary_basis_limbs[0].maximum_value;
-    max_r0 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
+    max_r0 += (neg_modulus_limbs_u256[0] * quotient.binary_basis_limbs[0].maximum_value);
 
     const uint256_t max_r1 = max_b0 + max_b1;
     const uint256_t max_r2 = max_c0 + max_c1 + max_c2;
@@ -942,10 +942,10 @@ std::cout <<"lowmsb:" << carry_lo_msb << " highmsb:" <<carry_hi_msb <<std::endl;
     if constexpr (ctx->type == waffle::PLOOKUP) {
         carry_lo = carry_lo.normalize();
 std::cout <<"carrylow:" << carry_lo << std::endl;
-std::cout <<"carrylowmsb:" << carry_lo.additive_constant.get_msb() << " bound:" << carry_lo_msb <<std::endl;
+std::cout <<"carrylowmsb:" << ((uint256_t)ctx->get_variable(carry_lo.witness_index)).get_msb() << " bound:" << carry_lo_msb <<std::endl;
         carry_hi = carry_hi.normalize();
          ctx->decompose_into_default_range(carry_lo.witness_index,
-                                                                    static_cast<size_t>(carry_lo_msb)+2);
+                                                                    static_cast<size_t>(carry_lo_msb));
          ctx->decompose_into_default_range(carry_hi.witness_index,
                                                                     static_cast<size_t>(carry_hi_msb));
 
