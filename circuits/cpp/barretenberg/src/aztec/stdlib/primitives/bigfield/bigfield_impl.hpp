@@ -940,10 +940,12 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
 std::cout <<"lowmsb:" << carry_lo_msb << " highmsb:" <<carry_hi_msb <<std::endl;
     if constexpr (ctx->type == waffle::PLOOKUP) {
-        carry_lo.normalize();
-        carry_hi.normalize();
-        //  ctx->decompose_into_default_range(carry_lo.witness_index,
-                                                                    // static_cast<size_t>(carry_lo_msb));
+        carry_lo = carry_lo.normalize();
+std::cout <<"carrylow:" << carry_lo << std::endl;
+std::cout <<"carrylowmsb:" << carry_lo.additive_constant.get_msb() << " bound:" << carry_lo_msb <<std::endl;
+        carry_hi = carry_hi.normalize();
+         ctx->decompose_into_default_range(carry_lo.witness_index,
+                                                                    static_cast<size_t>(carry_lo_msb)+2);
          ctx->decompose_into_default_range(carry_hi.witness_index,
                                                                     static_cast<size_t>(carry_hi_msb));
 
