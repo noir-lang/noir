@@ -3,20 +3,21 @@ use librasac_lexer::token::Token;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
-    Ident(String),
+    Ident(String), // an identifer can also produce a value. e.g. let x = y; y is an expression in this case
     If(Box<IfExpression>),
     Literal(Literal),
     Prefix(Box<PrefixExpression>),
     Infix(Box<InfixExpression>),
     Call(Box<CallExpression>),
+
+    Predicate(Box<InfixExpression>),
 }
 
 impl Expression {
-    /// Returns an infix if the expression is an InfixExpression
-    /// Returns None otherwise
     pub fn infix(self) -> Option<InfixExpression> {
         match self {
             Expression::Infix(infix) => Some(*infix),
+            Expression::Predicate(infix) => Some(*infix),
             _ => None,
         }
     }
@@ -36,6 +37,7 @@ pub enum BinaryOp {
     GreaterEqual,
     And,
     Or,
+    // This is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
 
