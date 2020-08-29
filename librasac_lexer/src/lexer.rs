@@ -176,7 +176,7 @@ impl<'a> Lexer<'a> {
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> Token {
         let word = self.eat_while(initial_char, |ch| {
-            ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '-'
+            ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
 
         // word can be either an identifier or a keyword
