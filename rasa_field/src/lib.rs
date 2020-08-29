@@ -1,5 +1,5 @@
 // XXX: Switch out for a trait and proper implementations
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FieldElement(pub i128);
 
 impl FieldElement {
