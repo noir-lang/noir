@@ -1,0 +1,16 @@
+[package]
+name = "rasa_wg"
+version = "0.1.0"
+authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+librasac_lexer = {path = "../librasac_lexer"}
+librasac_ast = {path = "../librasac_ast"}
+librasac_analyser = {path = "../librasac_analyser"}
+librasac_parser = {path = "../librasac_parser"}
+rasa_field = {path = "../rasa_field"}
+rasa_evaluator = {path = "../rasa_evaluator"}
+barretenberg-rs = {path = "../barretenberg-rs"}
