@@ -2,6 +2,7 @@
 /// We want the analyser to do quite a few things such as:
 /// - Be able to check for unused variables
 /// - Check if function parameters and arguments are lined up
+/// - Check if all variables are in scope
 /// 
 /// Note: Given private x = arith
 /// Throw an error, if private x is never used.
