@@ -6,6 +6,7 @@ mod statement;
 pub use expression::*;
 pub use statement::*;
 
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement,
@@ -20,6 +21,5 @@ pub enum Type {
     U32,
     Bool,
     Concrete(Ident, Vec<Type>),
-    Error,
-    Unknown, // XXX: Currently have not implemented structs, so this type is a stub
+    Error, // XXX: Currently have not implemented structs, so this type is a stub
 }

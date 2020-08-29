@@ -1,4 +1,4 @@
-use crate::{Expression, InfixExpression, Type};
+use crate::{Expression,  InfixExpression, Type};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Clone)]
 pub struct Ident(pub String);
@@ -13,7 +13,6 @@ impl From<String> for Ident {
 pub enum Statement {
     If(Box<IfStatement>),
     While(Box<WhileStatement>),
-    Return(Box<ReturnStatement>),
     Let(Box<LetStatement>),
     Const(Box<ConstStatement>),
     Constrain(Box<ConstrainStatement>),
@@ -36,9 +35,6 @@ pub struct WhileStatement {
     condition: Expression,
     block: Statement,
 }
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ReturnStatement(pub Expression);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BlockStatement(pub Vec<Statement>);
