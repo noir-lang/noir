@@ -1,0 +1,13 @@
+[package]
+name = "rasa_evaluator"
+version = "0.1.0"
+authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+librasac_lexer = {path = "../librasac_lexer"}
+librasac_ast = {path = "../librasac_ast"}
+librasac_parser = {path = "../librasac_parser"}
+rasa_field = {path = "../rasa_field"}
