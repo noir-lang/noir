@@ -11,11 +11,7 @@ use std::str;
 use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
 use wasmer_runtime::types::MemoryDescriptor;
 use wasmer_runtime::units::Pages;
-use wasmer_runtime::{
-    compile, func, imports,
-    memory::Memory,
-    Ctx, Instance, Module, Value,
-};
+use wasmer_runtime::{compile, func, imports, memory::Memory, Ctx, Instance, Module, Value};
 use wasmer_wasi::generate_import_object_for_version;
 
 /// Barretenberg is the low level struct which calls the WASM file

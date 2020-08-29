@@ -64,7 +64,7 @@ impl Assignments {
         Assignments(vec![])
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Hash, Debug)]
 pub struct Constraint {
     pub a: i32,
     pub b: i32,
@@ -95,7 +95,7 @@ impl Constraint {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Debug)]
 pub struct ConstraintSystem {
     pub var_num: u32,
     pub pub_var_num: u32,
@@ -104,7 +104,7 @@ pub struct ConstraintSystem {
 }
 
 impl ConstraintSystem {
-    fn to_bytes(&self, composer: &mut StandardComposer) -> Vec<u8> {
+    pub fn to_bytes(&self, composer: &mut StandardComposer) -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();
 
         // Push lengths onto the buffer
