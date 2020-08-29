@@ -18,7 +18,7 @@ impl DeclarationParser {
              },
             Keyword::Pub=>{
                   Statement::Public(parse_public_statement(parser))
-            },
+            }, 
             Keyword::Private => {
                   Statement::Private(parse_private_statement(parser))
             }
@@ -56,7 +56,7 @@ pub(crate) fn parse_let_statement(parser: &mut Parser) -> Box<LetStatement> {
     let (name, expr) = parse_generic_decl_statement(parser);
     let stmt = LetStatement {
         identifier: name,
-        r#type: Type::Unknown,
+        r#type: Type::Error,
         expression: expr,
     };
     Box::new(stmt)
