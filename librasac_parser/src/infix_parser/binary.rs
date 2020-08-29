@@ -2,6 +2,18 @@ use super::*;
 
 pub struct BinaryParser;
 
+// XXX(low) : Check that these are the only possible predicate ops
+const fn predicate_ops() -> [BinaryOp; 6] {
+    [
+        BinaryOp::Equal,
+        BinaryOp::NotEqual,
+        BinaryOp::LessEqual,
+        BinaryOp::Less,
+        BinaryOp::Greater,
+        BinaryOp::GreaterEqual,
+    ]
+}
+
 impl InfixParser for BinaryParser {
     fn parse(parser: &mut Parser, lhs: Expression) -> Expression {
         let operator: BinaryOp = parser.curr_token.clone().into();
@@ -11,6 +23,11 @@ impl InfixParser for BinaryParser {
 
         let rhs = parser.parse_expression(curr_precedence).unwrap();
 
-        Expression::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
+        let infix_expression = Box::new(InfixExpression { lhs, operator, rhs });
+
+        if predicate_ops().contains(&operator) {
+            return Expression::Predicate(infix_expression);
+        }
+        return Expression::Infix(infix_expression);
     }
 }
