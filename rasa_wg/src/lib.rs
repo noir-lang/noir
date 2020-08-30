@@ -11,12 +11,20 @@ pub struct ArithmeticSolver {
 }
 
 enum GateStatus {
-    GateSatisifed,
+    GateSatisifed(FieldElement),
     GateSolveable(FieldElement, (FieldElement, Witness)),
     GateUnsolveable,
 }
 
+
+enum MulTerm {
+    OneUnknown(FieldElement, Witness), // (qM * known_witness, unknown_witness)
+    TooManyUnknowns,
+    Solved(FieldElement)
+}
+
 impl ArithmeticSolver {
+
 
     /// Derives the rest of the witness based on the initial low level variables
     pub fn solve(initial_witness: &mut BTreeMap<Witness, FieldElement>, circuit: Circuit) {
@@ -27,52 +35,49 @@ impl ArithmeticSolver {
         let mut unsolved_gates = Circuit(Vec::new());
 
         for gate in circuit.0.into_iter() {
-            // XXX: Assuming that each gate has at least one element in the fan-in. Check correctness.
-            // qM * w_L * w_R + q_C
-            // For example, the above is skipped
-            if gate.simplified_fan.len() == 0 {
-                continue;
-            }
-
-            let mut result = FieldElement::zero();
-
             // Evaluate multiplication term
-            // Note: We assume that if any terms are missing in the mul situation, then the gate cannot be solved
             let mul_result = ArithmeticSolver::solve_mul_term(&gate, &initial_witness);
-            if mul_result.is_none() {
-                unsolved_gates.0.push(gate);
-                continue;
-            }
-            result += mul_result.unwrap();
-
             // Evaluate the fan-in terms
             let gate_status = ArithmeticSolver::solve_fan_in_term(&gate, &initial_witness);
-
-            match gate_status {
-                GateStatus::GateUnsolveable => {
+  
+            match (mul_result, gate_status) {
+                (MulTerm::TooManyUnknowns, _) => {
+                    unsolved_gates.0.push(gate);
+                    continue;
+                },
+                (_, GateStatus::GateUnsolveable) => {
                     unsolved_gates.0.push(gate);
                     continue;
                 }
-                GateStatus::GateSatisifed => {
+                (MulTerm::OneUnknown(_,_), GateStatus::GateSolveable(_,_)) =>{
+                    unsolved_gates.0.push(gate);
                     continue;
-                }
-                GateStatus::GateSolveable(sum, unknown_var) => {
-                    // If we are here, it means we have a single unknown
-                    result += sum;
+                },
+                (MulTerm::OneUnknown(partial_prod,unknown_var), GateStatus::GateSatisifed(sum)) =>{
+                    // We have one unknown in the mul term and the fan-in terms are solved. 
+                    // Hence the equation is solveable, since there is a single unknown
+                    // The equation is: partial_prod * unknown_var + sum + qC = 0
 
-                    // Add the constant term
-                    result += gate.q_C;
-
-                    // What we now have is:
-                    // result + Ax = 0
-                    // solving for x: x = - result/A
-                    let A = unknown_var.0;
-                    let x = unknown_var.1;
-                    let assignment = -FieldElement(result.0 / A.0); // XXX: Need to change this to use proper field elements. Division may not always be correct
-
+                    let total_sum = sum + gate.q_C;
+                    let assignment = -(total_sum / partial_prod);
                     // Add this into the witness assignments
-                    initial_witness.insert(x, assignment);
-                }
+                    initial_witness.insert(unknown_var, assignment);
+                },
+                (MulTerm::Solved(_), GateStatus::GateSatisifed(_)) =>{
+                    // All the variables in the MulTerm are solved and the Fan-in is also solved
+                    // There is nothing to solve
+                    continue 
+                },
+                (MulTerm::Solved(total_prod), GateStatus::GateSolveable(partial_sum,(coeff, unknown_var))) =>{
+                    // The variables in the MulTerm are solved nad there is one unknown in the Fan-in 
+                    // Hence the equation is solveable, since we have one unknown
+                    // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
+
+                    let total_sum = total_prod + partial_sum + gate.q_C;
+                    let assignment = -(total_sum / coeff);
+                    // Add this into the witness assignments
+                    initial_witness.insert(unknown_var, assignment);
+                },
             };
         }
         ArithmeticSolver::solve(initial_witness, unsolved_gates)
@@ -85,23 +90,26 @@ impl ArithmeticSolver {
     fn solve_mul_term(
         arith_gate: &Arithmetic,
         witness_assignments: &BTreeMap<Witness, FieldElement>,
-    ) -> Option<FieldElement> {
+    ) -> MulTerm {
         // First note that the mul term can only contain one/zero term
         // We are assuming it has been optimised.
         match arith_gate.mul_terms.len() {
-            0 => return Some(FieldElement::zero()),
+            0 => return MulTerm::Solved(FieldElement::zero()),
             1 => {
                 let q_m = &arith_gate.mul_terms[0].0;
                 let w_l = &arith_gate.mul_terms[0].1;
                 let w_r = &arith_gate.mul_terms[0].2;
 
                 // Check if these values are in the witness assignments
-                let w_l_value = *witness_assignments.get(w_l)?;
-                let w_r_value = *witness_assignments.get(w_r)?;
+                let w_l_value = witness_assignments.get(w_l);
+                let w_r_value = witness_assignments.get(w_r);
 
-                let result = *q_m * w_l_value * w_r_value;
-
-                return Some(result);
+                match (w_l_value, w_r_value) {
+                    (None, None) => {return MulTerm::TooManyUnknowns},
+                    (Some(w_l), Some(w_r)) => {return MulTerm::Solved(*q_m * *w_l * *w_r)},
+                    (None, Some(w_r)) => {return MulTerm::OneUnknown(*q_m * *w_r, w_l.clone())}
+                    (Some(w_l),None) => {return MulTerm::OneUnknown(*q_m * *w_l, w_r.clone())}
+                };
             }
             _ => panic!("Mul term in the arithmetic gate must contain either zero or one term"),
         }
@@ -144,7 +152,7 @@ impl ArithmeticSolver {
         }
 
         if num_unknowns == 0 {
-            return GateStatus::GateSatisifed;
+            return GateStatus::GateSatisifed(result);
         }
 
         GateStatus::GateSolveable(result, unknown_variable)
@@ -210,10 +218,10 @@ fn test_simple_circuit() {
     let zero = Witness("0".to_string(),0);
 
     let mut solved_witness = BTreeMap::new();
-    solved_witness.insert(zero, FieldElement(0));
-    solved_witness.insert(x, FieldElement(0));
-    solved_witness.insert(t, FieldElement(6));
-    solved_witness.insert(z, FieldElement(6));
+    solved_witness.insert(zero, FieldElement::from(0));
+    solved_witness.insert(x, FieldElement::from(0));
+    solved_witness.insert(t, FieldElement::from(6));
+    solved_witness.insert(z, FieldElement::from(6));
 
     let solver = ArithmeticSolver::solve(&mut solved_witness, circuit.clone());
 
@@ -226,16 +234,16 @@ fn test_simple_circuit() {
         let mut a: i32 = 0;
         let mut b: i32 = 0;
         let mut c: i32 = 0;
-        let mut qm: i32 = 0;
-        let mut ql: i32 = 0;
-        let mut qr: i32 = 0;
-        let mut qo: i32 = 0;
-        let mut qc: i32 = 0;
+        let mut qm: FieldElement = 0.into();
+        let mut ql: FieldElement = 0.into();
+        let mut qr: FieldElement = 0.into();
+        let mut qo: FieldElement = 0.into();
+        let mut qc: FieldElement = 0.into();
 
         // check mul gate
         if gate.mul_terms.len() != 0 {
             let mul_term = &gate.mul_terms[0];
-            qm = (mul_term.0).0 as i32;
+            qm = mul_term.0;
 
             // Get wL term
             let wL = &mul_term.1;
@@ -251,7 +259,7 @@ fn test_simple_circuit() {
         // This is incase, the qM term is non-zero
         if gate.simplified_fan.len() == 1 {
             let qO_wO_term = &gate.simplified_fan[0];
-            qo = (qO_wO_term.0).0 as i32;
+            qo = qO_wO_term.0;
 
             let wO = &qO_wO_term.1;
             c = fetch_index(&mut witness_to_index, wO.clone());
@@ -262,13 +270,13 @@ fn test_simple_circuit() {
         // Then add normally
         if gate.simplified_fan.len() == 2 {
             let qL_wL_term = &gate.simplified_fan[0];
-            ql = (qL_wL_term.0).0 as i32;
+            ql = qL_wL_term.0;
 
             let wL = &qL_wL_term.1;
             a = fetch_index(&mut witness_to_index, wL.clone());
 
             let qR_wR_term = &gate.simplified_fan[1];
-            qr = (qR_wR_term.0).0 as i32;
+            qr = qR_wR_term.0;
 
             let wR = &qR_wR_term.1;
             b = fetch_index(&mut witness_to_index, wR.clone());
@@ -276,26 +284,26 @@ fn test_simple_circuit() {
 
         if gate.simplified_fan.len() == 3 {
             let qL_wL_term = &gate.simplified_fan[0];
-            ql = (qL_wL_term.0).0 as i32;
+            ql = qL_wL_term.0;
 
             let wL = &qL_wL_term.1;
             a = fetch_index(&mut witness_to_index, wL.clone());
 
             let qR_wR_term = &gate.simplified_fan[1];
-            qr = (qR_wR_term.0).0 as i32;
+            qr = qR_wR_term.0;
 
             let wR = &qR_wR_term.1;
             b = fetch_index(&mut witness_to_index, wR.clone());
 
             let qO_wO_term = &gate.simplified_fan[2];
-            qo = (qO_wO_term.0).0 as i32;
+            qo = qO_wO_term.0;
 
             let wO = &qO_wO_term.1;
             c = fetch_index(&mut witness_to_index, wO.clone());
         }
 
         // Add the qc term
-        qc = (gate.q_C.0) as i32;
+        qc = gate.q_C;
 
         let constraint = Constraint {
             a,
@@ -327,7 +335,7 @@ fn test_simple_circuit() {
 
         let i_th_witness = solved_witness.get(witness).unwrap();
 
-        sorted_witness.push(i_th_witness.0 as i32);
+        sorted_witness.push(*i_th_witness);
     }
 
     let proof = composer.create_proof(&constraint_system, sorted_witness);
