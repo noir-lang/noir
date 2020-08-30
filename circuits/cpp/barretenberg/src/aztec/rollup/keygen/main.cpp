@@ -18,12 +18,11 @@ int main(int argc, char** argv)
 
     size_t rollup_size = (args.size() > 1) ? (size_t)atoi(args[1].c_str()) : 1;
     const std::string srs_path = (args.size() > 2) ? args[2] : "../srs_db/ignition";
-    const std::string key_path = (args.size() > 3) ? args[3] : "./data";
 
-    auto account_circuit_data = compute_or_load_account_circuit_data(srs_path, key_path);
-    auto join_split_circuit_data = compute_or_load_join_split_circuit_data(srs_path, key_path);
-    auto circuit_data = compute_or_load_rollup_circuit_data(
-        rollup_size, join_split_circuit_data, account_circuit_data, srs_path, key_path);
+    auto account_circuit_data = compute_account_circuit_data(srs_path);
+    auto join_split_circuit_data = compute_join_split_circuit_data(srs_path);
+    auto circuit_data =
+        compute_rollup_circuit_data(rollup_size, join_split_circuit_data, account_circuit_data, true, srs_path);
 
     auto class_name = std::string("Rollup") + std::to_string(rollup_size) + "Vk";
     output_vk_sol(std::cout, circuit_data.verification_key, class_name);

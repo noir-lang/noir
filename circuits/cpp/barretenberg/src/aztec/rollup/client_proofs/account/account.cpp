@@ -72,9 +72,12 @@ void account_circuit(Composer& composer, account_tx const& tx)
         owner_pub_key.x, new_account_note_1.signing_pub_key().x, new_account_note_2.signing_pub_key().x,
         alias,           remove_account.signing_pub_key().x,
     };
-    const byte_array_ct message = pedersen::compress(to_compress);
-    stdlib::schnorr::signature_bits signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
+    const byte_array_ct message = pedersen::compress(to_compress, true);
+    stdlib::schnorr::signature_bits<Composer> signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
     stdlib::schnorr::verify_signature(message, signing_account_note.signing_pub_key(), signature);
+    if (composer.failed) {
+        composer.err = "verify signature failed.";
+    }
 
     // Verify that the signing key is either the owner key, or another existing account key.
     field_ct account_index = witness_ct(&composer, tx.account_index);
@@ -83,9 +86,9 @@ void account_circuit(Composer& composer, account_tx const& tx)
         process_account_note(composer, merkle_root, tx.account_path, account_index, signing_account_note, must_exist);
 
     // Expose public inputs.
-    public_witness_ct(&composer, 1); // proof_id
-    public_witness_ct(&composer, 0); // public_input
-    public_witness_ct(&composer, 0); // public_output
+    public_witness_ct(&composer, 1);                          // proof_id
+    composer.set_public_input(owner_pub_key.x.witness_index); // public_input but using for owner x.
+    composer.set_public_input(owner_pub_key.y.witness_index); // public_output but using for owner y.
     new_account_note_1.set_public();
     new_account_note_2.set_public();
     composer.set_public_input(alias_nullifier.witness_index);

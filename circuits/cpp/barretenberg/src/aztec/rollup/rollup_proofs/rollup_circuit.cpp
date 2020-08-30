@@ -124,7 +124,7 @@ void check_data_tree_updated(Composer& composer,
 
 void check_accounts_not_nullified(Composer& composer,
                                   uint32_ct const& num_txs,
-                                  field_ct const& new_null_root,
+                                  field_ct const& null_root,
                                   std::vector<field_ct> const& account_null_indicies,
                                   std::vector<fr_hash_path> const& account_null_paths,
                                   bool can_throw)
@@ -134,7 +134,7 @@ void check_accounts_not_nullified(Composer& composer,
     for (size_t i = 0; i < account_null_indicies.size(); ++i) {
         auto is_real = num_txs > uint32_ct(witness_ct(&composer, i));
         auto exists = check_membership(composer,
-                                       new_null_root,
+                                       null_root,
                                        create_witness_hash_path(composer, account_null_paths[i]),
                                        byte_array_ct(&composer, 64),
                                        byte_array_ct(account_null_indicies[i]));
@@ -158,7 +158,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto old_data_root = field_ct(public_witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
     auto old_null_root = field_ct(public_witness_ct(&composer, rollup.old_null_root));
-    auto new_null_root = field_ct(public_witness_ct(&composer, rollup.new_null_roots.back()));
+    field_ct(public_witness_ct(&composer, rollup.new_null_roots.back()));
     auto old_data_roots_root = field_ct(public_witness_ct(&composer, rollup.old_data_roots_root));
     auto new_data_roots_root = field_ct(public_witness_ct(&composer, rollup.new_data_roots_root));
     auto num_txs = uint32_ct(public_witness_ct(&composer, rollup.num_txs));
@@ -229,7 +229,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     check_nullifiers_inserted(composer, rollup, num_txs, old_null_root, new_null_indicies, can_throw);
 
     check_accounts_not_nullified(
-        composer, num_txs, new_null_root, account_null_indicies, rollup.account_null_paths, can_throw);
+        composer, num_txs, old_null_root, account_null_indicies, rollup.account_null_paths, can_throw);
 
     // Publish pairing coords limbs as public inputs.
     for (auto coord :

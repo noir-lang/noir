@@ -87,7 +87,7 @@ WASM_EXPORT void* account__new_prover(uint8_t const* account_buf, uint8_t* pk_bu
 {
     auto tx = from_buffer<account_tx>(account_buf);
 
-    auto private_key = grumpkin::fr::serialize_from_buffer(pk_buffer);
+    auto private_key = from_buffer<grumpkin::fr>(pk_buffer);
     grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
     tx.sign({ private_key, public_key });
 

@@ -65,16 +65,16 @@ rollup_tx create_rollup(uint32_t rollup_id,
     auto nullifier_value = std::vector<uint8_t>(64, 0);
     nullifier_value[63] = 1;
 
+    std::vector<fr_hash_path> account_null_paths;
+    for (size_t i = 0; i < account_nullifier_indicies.size(); ++i) {
+        account_null_paths.push_back(null_tree.get_hash_path(account_nullifier_indicies[i]));
+    }
+
     for (size_t i = 0; i < nullifier_indicies.size(); ++i) {
         old_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
         null_tree.update_element(nullifier_indicies[i], nullifier_value);
         new_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
         new_null_roots.push_back(null_tree.root());
-    }
-
-    std::vector<fr_hash_path> account_null_paths;
-    for (size_t i = 0; i < account_nullifier_indicies.size(); ++i) {
-        account_null_paths.push_back(null_tree.get_hash_path(account_nullifier_indicies[i]));
     }
 
     // Compute root tree data.

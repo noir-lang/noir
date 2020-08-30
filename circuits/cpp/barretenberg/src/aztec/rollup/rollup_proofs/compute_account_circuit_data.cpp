@@ -60,6 +60,8 @@ account_circuit_data compute_account_circuit_data(std::string const& srs_path)
     std::cerr << "Generating account circuit keys..." << std::endl;
 
     account_tx tx;
+    tx.account_path.resize(32);
+
     Composer composer = Composer(srs_path);
     account_circuit(composer, tx);
 
