@@ -326,9 +326,9 @@ impl Optimiser {
                 "optim_inter_squash_mul_",
                 intermediate_variables.len(),
             );
-            let inter_var = Witness(inter_var_name,intermediate_variables.len() + num_witness); // XXX: We modify the index once all of the intermediate variables have been made. 0 is a place holder currently. Find a better way to do this
+            let inter_var = Witness(inter_var_name,intermediate_variables.len() + num_witness);
             let mut intermediate_gate = Arithmetic::default();
-
+   
             // Push mul term into the gate
             intermediate_gate.mul_terms.push(mul_term);
             // Constrain it to be equal to the intermediate variable
@@ -337,13 +337,16 @@ impl Optimiser {
                 .push((-FieldElement::one(), inter_var.clone()));
 
             // Add intermediate gate and variable to map
-            intermediate_variables.insert(inter_var, intermediate_gate);
+            intermediate_variables.insert(inter_var.clone(), intermediate_gate);
+    
+            // Add intermediate variable as a part of the fan-in for the original gate
+            gate.simplified_fan.push((FieldElement::one(),inter_var ));
         }
 
         // Remove all of the mul terms as we have intermediate variables to represent them now
         gate.mul_terms.clear();
 
-        // We now only have a polynomial with only fan-in/fan-out terms ie terms of the form Ax + By + Cd
+        // We now only have a polynomial with only fan-in/fan-out terms ie terms of the form Ax + By + Cd + ...
         // Lets create intermediate variables if all of them cannot fit into the width
         //
         // If the polynomial fits perfectly within the given width, we are finished
@@ -371,7 +374,7 @@ impl Optimiser {
                 "optim_inter_squash_fan_",
                 intermediate_variables.len(),
             );
-            let inter_var = Witness(inter_var_name,intermediate_variables.len() + num_witness); // XXX: We modify the index once all of the intermediate variables have been made. 0 is a place holder currently. Find a better way to do this
+            let inter_var = Witness(inter_var_name,intermediate_variables.len() + num_witness); 
 
             intermediate_gate
                 .simplified_fan

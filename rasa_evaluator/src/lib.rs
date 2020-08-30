@@ -80,9 +80,8 @@ impl Evaluator {
     // Returns the current counter value and then increments the counter
     // This is so that we can have unique variable names when the same function is called multiple times
     fn get_unique_value(&mut self) -> usize {
-        let val = self.counter;
-        self.counter = self.counter + 1;
-        val
+        self.counter += 1;
+        self.counter
     }
     // XXX: Fix this later, with Debug trait. Only using it now for REPL
     pub fn debug(&self) {
@@ -114,7 +113,6 @@ impl Evaluator {
             .into_iter()
             .map(|gate| match gate {
                 Gate::Arithmetic(arith) => {
-                    
                     
                 optimiser.optimise(arith, &mut intermediate_variables, num_witness)
                 
@@ -158,8 +156,8 @@ impl Evaluator {
         let inter_var_name = format!("{}_{}", "_inter", self.get_unique_value());
 
         // Add witness to the constraint system
-        let witness_poly = self.store_lone_variable(inter_var_name.clone(), env);
-        self.store_witness(inter_var_name);
+        self.store_witness(inter_var_name.clone());
+        let witness_poly = self.store_lone_variable(inter_var_name, env);
 
         // We know it is a Linear polynomial, so we match on that.
         let linear_poly = match witness_poly.clone() {
@@ -184,8 +182,9 @@ impl Evaluator {
             BinaryOp::Add => binary_op::handle_add_op(lhs, rhs),
             BinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs),
             BinaryOp::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
+            BinaryOp::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
             BinaryOp::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
-            BinaryOp::Equal => binary_op::handle_equal_op(lhs, rhs),
+            BinaryOp::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
             _ => panic!("Currently the {:?} op is not supported", op),
         }
     }
@@ -280,10 +279,14 @@ impl Evaluator {
     }
 
     // XXX(med) : combine these two methods and or rename
-    fn store_witness(&mut self, variable_name: String) {
+    // XXX(bug): If you call store_witness after store_lone_variable, then the Polynomial will have the index of the previous witness
+    // XXX: Maybe better to name it `create_witness`
+    fn store_witness(&mut self, variable_name: String) -> Witness{
         self.num_witness = self.num_witness + 1;
+        let witness = Witness(variable_name, self.num_witness);
         self.witnesses
-            .push(Witness(variable_name, self.num_witness));
+            .push(witness.clone());
+            witness
     }
     fn store_lone_variable(&mut self, variable_name: String, env: &mut Environment) -> Polynomial {
         let value = Polynomial::from_witness(Witness(variable_name.clone(), self.num_witness));
@@ -297,14 +300,13 @@ impl Evaluator {
     // It is also a new variable, since private is used to derive variables
     fn handle_private_statement(&mut self, env: &mut Environment, x: PrivateStatement) -> Polynomial{
         let variable_name: String = x.identifier.clone().0;
+        let witness = self.store_witness(variable_name.clone()); 
 
-        self.store_witness(variable_name.clone());    
         let rhs_poly = self.expression_to_polynomial(env, x.expression.clone());
         
         match rhs_poly.arithmetic() {
             Some(arith) => {
                 
-                let witness = Witness(variable_name.clone(), self.num_witness);
                 let witness_linear = Linear::from_witness(witness.clone());
 
                 let witness_poly = Polynomial::from_witness(witness);
@@ -331,15 +333,10 @@ impl Evaluator {
                 let lhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.lhs.clone());
                 let rhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.rhs.clone());
                 
-                // Add the result of the infix to the gates
-                let value = self.evaluate_infix_expression(env, lhs_poly.clone(), rhs_poly.clone(), constrain_stmt.0.operator);
-                match value {
-                    Polynomial::Null => panic!("Constrain statement cannot output a null polynomial"),
-                    Polynomial::Constants(_) => panic!("Cannot constrain two constants"),
-                    Polynomial::Linear(linear) => self.gates.push(Gate::Arithmetic(linear.into())),
-                    Polynomial::Arithmetic(arith) => self.gates.push(Gate::Arithmetic(arith))
-                };
+                // Evaluate the constrain infix statement
+                let _ = self.evaluate_infix_expression(env, lhs_poly.clone(), rhs_poly.clone(), constrain_stmt.0.operator);
 
+                // XXX: WE could probably move this into equal folder, as it is an optimisation that only applies to it
                 if constrain_stmt.0.operator == BinaryOp::Equal {
                     // Check if we have any lone variables and then if the other side is a linear/constant
                     let (witness, rhs ) = match (lhs_poly.is_unit_witness(),rhs_poly.is_unit_witness()) {
