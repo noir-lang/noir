@@ -113,4 +113,3 @@ impl SubAssign for FieldElement {
         self.0.sub_assign(&rhs.0);
     }
 }
-
