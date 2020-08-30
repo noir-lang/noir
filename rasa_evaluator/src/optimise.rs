@@ -239,7 +239,7 @@ impl Optimiser {
                         "optim_inter_full_gate_",
                         intermediate_variables.len(),
                     );
-                    let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness); // XXX: We modify the index once all of the intermediate variables have been made. 0 is a place holder currently. Find a better way to do this
+                    let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
 
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
