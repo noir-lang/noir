@@ -6,11 +6,11 @@ fn main() {
         a: 1,
         b: 2,
         c: 3,
-        qm: 0,
-        ql: 1,
-        qr: 1,
-        qo: -1,
-        qc: 0,
+        qm: 0.into(),
+        ql: 1.into(),
+        qr: 1.into(),
+        qo: (-1).into(),
+        qc: 0.into(),
     };
 
     let constraint_system = ConstraintSystem {
@@ -27,9 +27,9 @@ fn main() {
 
     let mut witness = Assignments::new();
     let num = 5;
-    witness.push(num);
-    witness.push(0);
-    witness.push(num);
+    witness.push_i32(num);
+    witness.push_i32(0);
+    witness.push_i32(num);
 
     println!("Creating proof");
     let proof = composer.create_proof(&constraint_system, witness);

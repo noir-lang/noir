@@ -86,15 +86,6 @@ impl Barretenberg {
     pub fn free(&mut self, pointer: Value) {
         self.call("bbfree", &pointer);
     }
-    /// Returns the i32 element as bytes
-    /// XXX: We have this as a special function because this will most likely be replaced in the future for a native solution
-    pub fn negate_field(&mut self, num: i32) -> Vec<u8> {
-        self.call_multiple(
-            "composer__negative_fr",
-            vec![&Value::I32(-num), &Value::I32(0)],
-        );
-        return self.slice_memory(0, 32);
-    }
 }
 
 fn load_module() -> Module {

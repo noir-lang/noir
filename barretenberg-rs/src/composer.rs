@@ -4,10 +4,7 @@ use super::pippenger::Pippenger;
 use super::prover::Prover;
 use super::Barretenberg;
 use wasmer_runtime::Value;
-
-// XXX: Notice when we convert i32 to field elements, we use the composer.to_field method
-// This is not very nice. Best method would be to call a library which can create the bytes slice for bn128 from numbers
-// We most likely will need it anyways, as currently it takes i32, but you could have Field elements and witnesses be more than range(i32)
+use rasa_field::FieldElement as Scalar;
 
 pub struct StandardComposer {
     barretenberg: Barretenberg,
@@ -40,44 +37,48 @@ impl StandardComposer {
 }
 
 #[derive(Clone)]
-pub struct Assignments(Vec<i32>);
+pub struct Assignments(Vec<Scalar>);
 pub type WitnessAssignments = Assignments;
 
 impl Assignments {
-    pub fn to_bytes(&self, composer: &mut StandardComposer) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
         let witness_len = self.0.len() as u32;
         buffer.extend_from_slice(&witness_len.to_be_bytes());
 
         for assignment in self.0.iter() {
-            buffer.extend(composer.to_field(*assignment));
+            buffer.extend_from_slice(&assignment.to_bytes());
         }
 
         buffer
     }
 
-    pub fn push(&mut self, value: i32) {
+    pub fn push_i32(&mut self, value: i32) {
+        self.0.push(Scalar::from(value as i128));
+    }
+    pub fn push(&mut self, value: Scalar) {
         self.0.push(value);
     }
     pub fn new() -> Assignments {
         Assignments(vec![])
     }
 }
+
 #[derive(Clone, Hash, Debug)]
 pub struct Constraint {
     pub a: i32,
     pub b: i32,
     pub c: i32,
-    pub qm: i32,
-    pub ql: i32,
-    pub qr: i32,
-    pub qo: i32,
-    pub qc: i32,
+    pub qm: Scalar,
+    pub ql: Scalar,
+    pub qr: Scalar,
+    pub qo: Scalar,
+    pub qc: Scalar,
 }
 
 impl Constraint {
-    fn to_bytes(&self, composer: &mut StandardComposer) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         // Serialiasing Wires
         buffer.extend_from_slice(&self.a.to_be_bytes());
@@ -85,11 +86,11 @@ impl Constraint {
         buffer.extend_from_slice(&self.c.to_be_bytes());
 
         // serialise selectors
-        buffer.extend(composer.to_field(self.qm));
-        buffer.extend(composer.to_field(self.ql));
-        buffer.extend(composer.to_field(self.qr));
-        buffer.extend(composer.to_field(self.qo));
-        buffer.extend(composer.to_field(self.qc));
+        buffer.extend_from_slice(&self.qm.to_bytes());
+        buffer.extend_from_slice(&self.ql.to_bytes());
+        buffer.extend_from_slice(&self.qr.to_bytes());
+        buffer.extend_from_slice(&self.qo.to_bytes());
+        buffer.extend_from_slice(&self.qc.to_bytes());
 
         buffer
     }
@@ -104,7 +105,7 @@ pub struct ConstraintSystem {
 }
 
 impl ConstraintSystem {
-    pub fn to_bytes(&self, composer: &mut StandardComposer) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();
 
         // Push lengths onto the buffer
@@ -115,7 +116,7 @@ impl ConstraintSystem {
         buffer.extend_from_slice(&constraints_len.to_be_bytes());
         // Serialise each arithmetic constraint
         for constraint in self.constraints.iter() {
-            buffer.extend(&constraint.to_bytes(composer));
+            buffer.extend(&constraint.to_bytes());
         }
 
         buffer
@@ -131,19 +132,8 @@ impl ConstraintSystem {
 }
 
 impl StandardComposer {
-    // XXX: See top of file : This should ideally be done natively
-    fn to_field(&mut self, num: i32) -> Vec<u8> {
-        if num >= 0 {
-            let mut buffer = vec![0; 28];
-            buffer.extend_from_slice(&(num as u32).to_be_bytes());
-            return buffer;
-        }
-
-        self.barretenberg.negate_field(num)
-    }
-
     pub fn get_circuit_size(&mut self, constraint_system: &ConstraintSystem) -> u128 {
-        let cs_buf = constraint_system.to_bytes(self);
+        let cs_buf = constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
         let circuit_size = self
@@ -161,10 +151,10 @@ impl StandardComposer {
         constraint_system: &ConstraintSystem,
         witness: WitnessAssignments,
     ) -> Vec<u8> {
-        let cs_buf = constraint_system.to_bytes(self);
+        let cs_buf = constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
-        let witness_buf = witness.to_bytes(self);
+        let witness_buf = witness.to_bytes();
         let witness_ptr = self.barretenberg.allocate(&witness_buf);
 
         let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
@@ -200,7 +190,7 @@ impl StandardComposer {
         proof: &[u8],
         public_inputs: Option<Assignments>,
     ) -> bool {
-        let cs_buf = constraint_system.to_bytes(self);
+        let cs_buf = constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
         let proof_ptr = self.barretenberg.allocate(proof);
@@ -225,7 +215,7 @@ impl StandardComposer {
                 verified.clone()
             }
             Some(pub_inputs) => {
-                let pub_inputs_buf = pub_inputs.to_bytes(self);
+                let pub_inputs_buf = pub_inputs.to_bytes();
                 let pub_inputs_ptr = self.barretenberg.allocate(&pub_inputs_buf);
 
                 let verified = self
@@ -269,11 +259,11 @@ mod test {
             a: 1,
             b: 2,
             c: 3,
-            qm: 0,
-            ql: 1,
-            qr: 1,
-            qo: -1,
-            qc: 0,
+            qm: Scalar::zero(),
+            ql: Scalar::one(),
+            qr: Scalar::one(),
+            qo: -Scalar::one(),
+            qc: Scalar::zero(),
         };
 
         let constraint_system = ConstraintSystem {
@@ -283,40 +273,40 @@ mod test {
         };
 
         let case_1 = WitnessResult {
-            witness: Assignments(vec![-1, 2, 1]),
+            witness: Assignments(vec![(-1).into(), 2.into(), 1.into()]),
             public_inputs: None,
             result: true,
         };
         let case_2 = WitnessResult {
-            witness: Assignments(vec![0, 0, 0]),
+            witness: Assignments(vec![Scalar::zero(), Scalar::zero(), Scalar::zero()]),
             public_inputs: None,
             result: true,
         };
         let case_3 = WitnessResult {
-            witness: Assignments(vec![10, -3, 7]),
+            witness: Assignments(vec![10.into(), (-3).into(), 7.into()]),
             public_inputs: None,
             result: true,
         };
         let case_4 = WitnessResult {
-            witness: Assignments(vec![0, 0, 1]),
+            witness: Assignments(vec![Scalar::zero(), Scalar::zero(), Scalar::one()]),
             public_inputs: None,
             result: false,
         };
         let case_5 = WitnessResult {
-            witness: Assignments(vec![1, 2, 6]),
+            witness: Assignments(vec![Scalar::one(), 2.into(), 6.into()]),
             public_inputs: None,
             result: false,
         };
         // This should fail as we specified that we do not have any public inputs
         let case_6a = WitnessResult {
-            witness: Assignments(vec![1, 2, 6]),
-            public_inputs: Some(Assignments(vec![1])),
+            witness: Assignments(vec![Scalar::one(), 2.into(), 6.into()]),
+            public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: false,
         };
         // Even if the public input is zero
         let case_6b = WitnessResult {
-            witness: Assignments(vec![1, 2, 6]),
-            public_inputs: Some(Assignments(vec![0])),
+            witness: Assignments(vec![Scalar::one(), Scalar::from(2), Scalar::from(6)]),
+            public_inputs: Some(Assignments(vec![Scalar::zero()])),
             result: false,
         };
 
@@ -344,13 +334,13 @@ mod test {
         };
 
         let case_7 = WitnessResult {
-            witness: Assignments(vec![1, 2, 3]),
-            public_inputs: Some(Assignments(vec![1, 2])),
+            witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
+            public_inputs: Some(Assignments(vec![1.into(), 2.into()])),
             result: true,
         };
         let case_8 = WitnessResult {
-            witness: Assignments(vec![1, 2, 3]),
-            public_inputs: Some(Assignments(vec![1, 3])),
+            witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
+            public_inputs: Some(Assignments(vec![Scalar::one(), 3.into()])),
             result: false,
         };
 
@@ -366,21 +356,21 @@ mod test {
             a: 1,
             b: 2,
             c: 3,
-            qm: 0,
-            ql: 1,
-            qr: 1,
-            qo: -1,
-            qc: 0,
+            qm: Scalar::zero(),
+            ql: Scalar::one(),
+            qr: Scalar::one(),
+            qo: -Scalar::one(),
+            qc: Scalar::zero(),
         };
         let constraint2 = Constraint {
             a: 2,
             b: 3,
             c: 4,
-            qm: 1,
-            ql: 0,
-            qr: 0,
-            qo: -1,
-            qc: 1,
+            qm: Scalar::one(),
+            ql: Scalar::zero(),
+            qr: Scalar::zero(),
+            qo: -Scalar::one(),
+            qc: Scalar::one(),
         };
 
         let constraint_system = ConstraintSystem {
@@ -390,12 +380,12 @@ mod test {
         };
 
         let case_1 = WitnessResult {
-            witness: Assignments(vec![1, 1, 2, 3]),
+            witness: Assignments(vec![1.into(), 1.into(), 2.into(), 3.into()]),
             public_inputs: None,
             result: true,
         };
         let case_2 = WitnessResult {
-            witness: Assignments(vec![1, 1, 2, 13]),
+            witness: Assignments(vec![1.into(), 1.into(), 2.into(), 13.into()]),
             public_inputs: None,
             result: false,
         };

@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 wasmer-runtime = "0.16.0"
 wasmer-wasi = "0.16.0"
+rasa_field = {path = "../rasa_field"}
