@@ -59,6 +59,6 @@ pub struct Selector(pub String, pub Polynomial); //XXX(med) I guess we know it's
 
 impl Default for Selector {
     fn default() -> Selector {
-        Selector("zero".to_string(), Polynomial::Constants(FieldElement(0)))
+        Selector("zero".to_string(), Polynomial::Constants(FieldElement::zero()))
     }
 }

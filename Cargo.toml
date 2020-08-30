@@ -2,5 +2,11 @@
 
 members = [
     "rasa_field",
+    "librasac_lexer",
+    "librasac_parser",
+    "librasac_analyser",
     "barretenberg-rs",
+    "rasa_evaluator",
+    "rasa_cli",
+    "rasa_wg",
 ]
