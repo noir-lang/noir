@@ -184,6 +184,7 @@ impl Evaluator {
             BinaryOp::Add => binary_op::handle_add_op(lhs, rhs),
             BinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs),
             BinaryOp::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
+            BinaryOp::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
             BinaryOp::Equal => binary_op::handle_equal_op(lhs, rhs),
             _ => panic!("Currently the {:?} op is not supported", op),
         }
@@ -379,7 +380,7 @@ impl Evaluator {
         expr: Expression,
     ) -> Polynomial {
         match expr {
-            Expression::Literal(Literal::Integer(x)) => Polynomial::Constants(FieldElement(x)),
+            Expression::Literal(Literal::Integer(x)) => Polynomial::Constants(x.into()),
             Expression::Ident(x) => self.evaluate_identifier(x.to_string(), env),
             Expression::Infix(infx) => {
                 let lhs = self.expression_to_polynomial(env, infx.lhs);
