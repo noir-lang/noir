@@ -23,8 +23,8 @@ impl ConstraintParser {
             panic!("Cannot use '=' with a constrain statement")
         }
 
-        if infix.operator != BinaryOp::Equal {
-            panic!("Can only use == with a constrain statement for now")
+        if (infix.operator == BinaryOp::And) || (infix.operator == BinaryOp::Or) {
+            panic!("Cannot use the & or | operator in a constraint statement. Currently, it has not been decided how they will be implemented\n Maybe they will be implemented only for bit strings? TBD")
         }
 
         let stmt = ConstrainStatement(infix);
