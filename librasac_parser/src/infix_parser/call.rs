@@ -3,16 +3,16 @@ use super::*;
 pub struct CallParser;
 
 impl InfixParser for CallParser {
-    fn parse(parser: &mut Parser, function: Expression) -> Expression {
+    fn parse(parser: &mut Parser, func_name: Expression) -> Expression {
         let arguments = CallParser::parse_call_arguments(parser);
 
-        let func_name = match function {
+        let func_name_string = match func_name {
             Expression::Ident(x) => x,
-            _ => unimplemented!("function expression should only be an identifier"),
+            _ => unimplemented!("function name expression should only be an identifier"),
         };
 
         let call_expr = CallExpression {
-            func_name: func_name.into(),
+            func_name: func_name_string.into(),
             arguments,
         };
 
