@@ -34,20 +34,24 @@ pub struct Evaluator {
 
 impl Evaluator {
     pub fn new(program: Program) -> Evaluator {
+
         let Program {
             statements,
             functions,
+            main
         } = program;
 
         let functions = Evaluator::parse_function_declarations(functions);
 
         // Check that we have a main function
-        let main_function = functions.get(&Ident("main".to_string()));
-        if main_function.is_none() {
-            panic!("Could not find a main function")
-        }
-        let main_function = main_function.unwrap().clone();
-
+        let main_function = match main {  
+            None => panic!("Could not find a main function, currently we do not support library projects"),
+            Some(main_func_dec) => {
+                let (_, func) = Evaluator::parse_function_declaration(main_func_dec);
+                func
+            }, 
+        };
+    
         Evaluator {
             num_witness: 0,
             num_selectors: 0,
@@ -68,16 +72,25 @@ impl Evaluator {
         let mut functions = HashMap::new();
 
         for func_dec in func_decs.into_iter() {
+            let (func_name, func) = Evaluator::parse_function_declaration(func_dec);
+
+            functions.insert(func_name, func);
+        }
+
+        functions
+    }
+    
+    /// Convert a function declarations into a function object
+    fn parse_function_declaration(func_dec: FunctionDefinition) -> (Ident, Function) {
             let func_name = func_dec.name;
             let body = func_dec.func.body;
             let parameters = func_dec.func.parameters;
 
             // Store function in evaluator
-            functions.insert(func_name, Function { body, parameters });
-        }
-
-        functions
+            (func_name, Function { body, parameters })
     }
+
+
 
     // Returns the current counter value and then increments the counter
     // This is so that we can have unique variable names when the same function is called multiple times

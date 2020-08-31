@@ -17,8 +17,7 @@ pub fn check(ast : &Program) {
 // Checks if each function has the right argument call size
 fn argument_size_check(ast : &Program) {
 
-    let main_func = find_function(ast, "main");
-    let main_func = match main_func {
+    let main_func = match &ast.main {
         Some(func) => func,
         None => panic!("No main function found")
     };
@@ -83,15 +82,6 @@ fn find_function<'a>(ast : &'a Program, func_name : &str) -> Option<&'a Function
         }
     }
     return None
-}
-
-/// Returns the program ABI, which is the parameters to main
-pub fn abi(ast : &Program) -> Option<Vec<String>> {
-let parameters = match find_function(ast, "main") {
-    None => return None,
-    Some(func) => func.func.parameters.iter().map(|(ident, _)| ident.0.clone()).collect()
-};
-return Some(parameters)
 }
 
 fn check_correct_number_of_arguments(func_def : &FunctionDefinition, num_called : usize) -> bool {
