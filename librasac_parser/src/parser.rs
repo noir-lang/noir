@@ -5,7 +5,7 @@ use librasac_ast::{
 };
 use librasac_lexer::lexer::Lexer;
 use crate::{Precedence, Program};
-use librasac_lexer::token::{Keyword, Token, TokenKind};
+use librasac_lexer::token::{Keyword, Token, TokenKind, Attribute};
 use std::error::Error;
 
 type PrefixFn = fn(parser: &mut Parser) -> Expression;
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_program(&mut self) -> Program {
-        use super::prefix_parser::FuncParser;
+        use super::prefix_parser::{FuncParser};
 
         let mut program = Program::with_capacity(self.lexer.by_ref().approx_len());
 
@@ -71,11 +71,22 @@ impl<'a> Parser<'a> {
             // Although we can have function literals starting with the function keyword
             // they will be self-contained within another function and they will start with a `let` token
             // Eg let add = fn(x,y) {x+y}
-            match self.curr_token {
+            match self.curr_token.clone() {
                 Token::Keyword(Keyword::Fn) => {
                     let func_def = FuncParser::parse_fn_decl(self);
-                    program.push_function(func_def);
+                    program.push_constraint_function(func_def);
                 }
+                // Attributes are always followed by a function definition
+                Token::Attribute(Attribute::Directive) => {
+                    self.advance_tokens(); // Skip the attribute
+                    let attr_func_def = FuncParser::parse_fn_decl(self);
+                    program.push_directive_function(None,attr_func_def);
+                },
+                Token::Attribute(Attribute::Str(attr)) => {
+                    self.advance_tokens(); // Skip the attribute
+                    let attr_func_def = FuncParser::parse_fn_decl(self);
+                    program.push_directive_function(Some(attr),attr_func_def);
+                },
                 _ => {
                     // Parse regular statements
                     let statement = self.parse_statement();

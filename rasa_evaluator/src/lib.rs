@@ -38,7 +38,9 @@ impl Evaluator {
         let Program {
             statements,
             functions,
-            main
+            main,
+            directives,
+            custom_directives,
         } = program;
 
         let functions = Evaluator::parse_function_declarations(functions);

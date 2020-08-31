@@ -118,6 +118,7 @@ impl FuncParser {
             Token::Keyword(Keyword::Constant) => Type::Constant,
             Token::Keyword(Keyword::Witness) => Type::Witness,
             Token::Keyword(Keyword::Public) => Type::Public,
+            Token::Keyword(Keyword::Field) => Type::FieldElement,
             k => panic!(
                 "Currently, we only accept types that are Constant, Witness or Public. Got {}",
                 k.clone()

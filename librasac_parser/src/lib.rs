@@ -12,6 +12,8 @@ use librasac_lexer::token::Token;
 pub struct Program {
     pub statements: Vec<Statement>,
     pub functions: Vec<FunctionDefinition>,
+    pub directives: Vec<FunctionDefinition>,
+    pub custom_directives: Vec<(String, FunctionDefinition)>,
     pub main : Option<FunctionDefinition>,
 }
 
@@ -24,6 +26,8 @@ impl Program {
     pub fn with_capacity(cap: usize) -> Self {
         Program {
             statements: Vec::with_capacity(cap),
+            custom_directives: Vec::with_capacity(cap),
+            directives: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
             main: None,
         }
@@ -31,11 +35,19 @@ impl Program {
     pub fn push_statement(&mut self, stmt: Statement) {
         self.statements.push(stmt)
     }
-    pub fn push_function(&mut self, func: FunctionDefinition) {
+    pub fn push_constraint_function(&mut self, func: FunctionDefinition) {
         if func.name == MAIN_FUNCTION.to_string().into() {
             self.main = Some(func)
         } else {
             self.functions.push(func);
+        }
+    }
+    pub fn push_directive_function(&mut self, name : Option<String>, func: FunctionDefinition) {
+            // If it has no name, it is a regular directive, which will be used to do field operations without constraints
+            // If it has a name, it is a custom directive, which will map to a custom gate
+        match name {
+            Some(name) => self.custom_directives.push((name, func)),
+            None => self.directives.push(func)
         }
     }
     /// Returns the program abi which is only present for executables and not libraries
