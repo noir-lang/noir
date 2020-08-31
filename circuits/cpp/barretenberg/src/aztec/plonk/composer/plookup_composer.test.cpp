@@ -462,6 +462,23 @@ TEST(plookup_composer, range_constraint)
     }
     {
         waffle::PlookupComposer composer = waffle::PlookupComposer();
+        auto indices = add_variables(composer, { 3});
+        for (size_t i = 0; i < indices.size(); i++) {
+            composer.create_new_range_constraint(indices[i], 3);
+        }
+        // auto ind = {a_idx,b_idx,c_idx,d_idx,e_idx,f_idx,g_idx,h_idx};
+        composer.create_dummy_constraints(indices);
+        composer.process_range_lists();
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, true);
+    }
+    {
+        waffle::PlookupComposer composer = waffle::PlookupComposer();
         auto indices = add_variables(composer, { 1, 2, 3, 4, 5, 6, 8, 25 });
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 8);

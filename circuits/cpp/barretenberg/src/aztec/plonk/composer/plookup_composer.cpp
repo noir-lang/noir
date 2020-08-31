@@ -1261,7 +1261,7 @@ uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
 
         std::cout << "last limb val" << val_slices[val_slices.size()-1]<< std::endl;
         val_limbs.emplace_back(add_variable(val_slices[val_slices.size()-1]));
-        // create_new_range_constraint(val_limbs[val_limbs.size()-1],last_limb_range);
+        create_new_range_constraint(val_limbs[val_limbs.size()-1],last_limb_range*2+1);
 total_limb_num++;
     }
     // pad slices and limbs in case there are odd num of them 
@@ -1301,6 +1301,7 @@ void PlookupComposer::create_new_range_constraint(const uint32_t variable_index,
 }
 void PlookupComposer::process_range_list(const RangeList& list)
 {
+ASSERT(list.variable_indices.size()>0);
     // go over variables
     // for each variable, create mirror variable with same value - with tau tag
     // need to make sure that, in original list, increments of at most 3
@@ -1314,8 +1315,10 @@ void PlookupComposer::process_range_list(const RangeList& list)
     std::sort(sorted_list.begin(), sorted_list.end());
     std::vector<uint32_t> indices;
 
-    // list must be padded to a multipe of 4
-    const size_t padding = (4 - (list.variable_indices.size() % 4)) % 4; // TODO: this 4 maybe tied to program_width
+    // list must be padded to a multipe of 4 and larger than 4
+    size_t padding = (4 - (list.variable_indices.size() % 4)) % 4; // TODO: this 4 maybe tied to program_width
+    if (list.variable_indices.size()==4) 
+        padding+=4;
     for (size_t i = 0; i < padding; ++i) {
         indices.emplace_back(zero_idx);
     }
