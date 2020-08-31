@@ -88,7 +88,6 @@ inline PlookupMultiTable get_uint32_xor_table(const PlookupMultiTableId id = UIN
     return table;
 }
 
-
 inline PlookupMultiTable get_uint32_and_table(const PlookupMultiTableId id = UINT32_AND)
 {
     const size_t num_entries = (32 + 5) / 6;
@@ -103,7 +102,6 @@ inline PlookupMultiTable get_uint32_and_table(const PlookupMultiTableId id = UIN
     }
     return table;
 }
-
 
 } // namespace uint_tables
 } // namespace waffle

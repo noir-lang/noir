@@ -27,7 +27,7 @@ template <typename Curve> class recursive_turbo_verifier_settings : public waffl
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake2s;
     static constexpr bool use_linearisation = false;
 
-    static fr_ct append_scalar_multiplication_inputs(waffle::verification_key* key,
+    static fr_ct append_scalar_multiplication_inputs(typename Transcript_pt::Key* key,
                                                      const fr_ct& alpha_base,
                                                      const Transcript_pt& transcript,
                                                      std::map<std::string, fr_ct>& scalars)
@@ -49,7 +49,7 @@ template <typename Curve> class recursive_turbo_verifier_settings : public waffl
         return updated_alpha;
     }
 
-    static fr_ct compute_quotient_evaluation_contribution(waffle::verification_key* key,
+    static fr_ct compute_quotient_evaluation_contribution(typename Transcript_pt::Key* key,
                                                           const fr_ct& alpha_base,
                                                           const Transcript_pt& transcript,
                                                           fr_ct& t_eval)

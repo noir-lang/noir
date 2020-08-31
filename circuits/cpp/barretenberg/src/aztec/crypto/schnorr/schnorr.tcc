@@ -3,10 +3,12 @@
 namespace crypto {
 namespace schnorr {
 template <typename Hash, typename Fq, typename Fr, typename G1>
-signature construct_signature(const std::string& message, const key_pair<Fr, G1>& account)
+signature construct_signature(const std::string& message,
+                              const key_pair<Fr, G1>& account,
+                              numeric::random::Engine* engine)
 {
     signature sig;
-    Fr k = Fr::random_element(); // TODO replace with HMAC
+    Fr k = Fr::random_element(engine); // TODO replace with HMAC
     typename G1::affine_element R(G1::one * k);
 
     std::vector<uint8_t> r(sizeof(Fq));

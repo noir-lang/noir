@@ -114,40 +114,6 @@ class ComposerBase {
         std::string name;
         bool use_mid_for_selectorfft = false;           // use middomain instead of large for selectorfft
         bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
-
-        // constexpr SelectorProperties(const std::string& name,
-        //                              const bool use_mid_for_selectorfft = false,
-        //                              const bool requires_lagrange_base_polynomial = false)
-        //     : name(name)
-        //     , use_mid_for_selectorfft(use_mid_for_selectorfft)
-        //     , requires_lagrange_base_polynomial(requires_lagrange_base_polynomial)
-        // {}
-
-        // constexpr SelectorProperties(const SelectorProperties& other)
-        //     : name(other.name)
-        //     , use_mid_for_selectorfft(other.use_mid_for_selectorfft)
-        //     , requires_lagrange_base_polynomial(other.requires_lagrange_base_polynomial){};
-
-        // constexpr SelectorProperties(SelectorProperties&& other)
-        //     : name(other.name)
-        //     , use_mid_for_selectorfft(other.use_mid_for_selectorfft)
-        //     , requires_lagrange_base_polynomial(other.requires_lagrange_base_polynomial){};
-
-        // constexpr SelectorProperties& operator=(const SelectorProperties& other)
-        // {
-        //     name = other.name;
-        //     use_mid_for_selectorfft = other.use_mid_for_selectorfft;
-        //     requires_lagrange_base_polynomial = other.requires_lagrange_base_polynomial;
-        //     return *this;
-        // };
-
-        // constexpr SelectorProperties& operator=(SelectorProperties&& other)
-        // {
-        //     name = other.name;
-        //     use_mid_for_selectorfft = other.use_mid_for_selectorfft;
-        //     requires_lagrange_base_polynomial = other.requires_lagrange_base_polynomial;
-        //     return *this;
-        // };
     };
 
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
@@ -195,6 +161,7 @@ class ComposerBase {
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
+        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
@@ -209,6 +176,7 @@ class ComposerBase {
         , selector_num(selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
+        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
@@ -223,9 +191,10 @@ class ComposerBase {
         : n(0)
         , circuit_proving_key(p_key)
         , circuit_verification_key(v_key)
-        , selector_num(p_key ? p_key->constraint_selectors.size() : 0)
+        , selector_num(p_key ? p_key->constraint_selectors.size() : selector_num)
         , selectors(selector_num)
         , selector_properties(selector_properties)
+        , rand_engine(nullptr)
     {
         for (auto& p : selectors) {
             p.reserve(size_hint);
@@ -327,6 +296,8 @@ class ComposerBase {
         return 1UL << log2_n;
     }
 
+    size_t get_num_public_inputs() const { return public_inputs.size(); }
+
   public:
     size_t n;
     std::vector<uint32_t> w_l;
@@ -353,6 +324,7 @@ class ComposerBase {
     std::vector<SelectorProperties> selector_properties;
     bool failed = false;
     std::string err;
+    numeric::random::Engine* rand_engine;
 };
 
 extern template void ComposerBase::compute_wire_copy_cycles<3>();

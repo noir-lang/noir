@@ -7,15 +7,19 @@ enum MimcSelectors {
 };
 
 namespace waffle {
-const static std::vector<ComposerBase::SelectorProperties> MIMC_SEL_PROPS = {
-    { "q_m", false, false },
-    { "q_c", false, false },
-    { "q_1", false, false },
-    { "q_2", false, false },
-    { "q_3", false, false },
-    { "q_mimc_coefficient", true, false },
-    { "q_mimc_selector", true, false },
-};
+inline std::vector<ComposerBase::SelectorProperties> mimc_sel_props()
+{
+    std::vector<ComposerBase::SelectorProperties> result{
+        { "q_m", false, false },
+        { "q_c", false, false },
+        { "q_1", false, false },
+        { "q_2", false, false },
+        { "q_3", false, false },
+        { "q_mimc_coefficient", true, false },
+        { "q_mimc_selector", true, false },
+    };
+    return result;
+}
 
 struct mimc_quadruplet {
     uint32_t x_in_idx;
@@ -31,7 +35,7 @@ class MiMCComposer : public StandardComposer {
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     MiMCComposer(const size_t size_hint = 0)
-        : StandardComposer(7, size_hint, MIMC_SEL_PROPS)
+        : StandardComposer(7, size_hint, mimc_sel_props())
     {
         auto& q_mimc_coefficient = selectors[MimcSelectors::QMIMC_COEFF];
         auto& q_mimc_selector = selectors[MimcSelectors::QMIMC_SELEC];

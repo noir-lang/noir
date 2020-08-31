@@ -58,21 +58,20 @@ PlookupComposer::PlookupComposer(std::string const& crs_path, const size_t size_
     : PlookupComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 PlookupComposer::PlookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
-    : ComposerBase(std::move(crs_factory), NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_PROPS)
+    : ComposerBase(std::move(crs_factory), NUM_PLOOKUP_SELECTORS, size_hint, plookup_sel_props())
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
     zero_idx = put_constant_variable(0);
-
     tau.insert({ DUMMY_TAG, DUMMY_TAG });
 }
 
 PlookupComposer::PlookupComposer(std::shared_ptr<proving_key> const& p_key,
                                  std::shared_ptr<verification_key> const& v_key,
                                  size_t size_hint)
-    : ComposerBase(p_key, v_key, NUM_PLOOKUP_SELECTORS, size_hint, PLOOKUP_SEL_PROPS)
+    : ComposerBase(p_key, v_key, NUM_PLOOKUP_SELECTORS, size_hint, plookup_sel_props())
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
@@ -1292,6 +1291,8 @@ void PlookupComposer::create_new_range_constraint(const uint32_t variable_index,
     if (range_lists.count(target_range) == 0) {
         range_lists.insert({ target_range, create_range_list(target_range) });
     }
+    std::sort(sorted_list.begin(), sorted_list.end());
+    std::vector<uint32_t> indices;
 
     auto& list = range_lists[target_range];
     assign_tag(variable_index, list.range_tag);
@@ -1596,4 +1597,5 @@ total_limb_num++;
     assert_equal(sums[sums.size() - 1], variable_index);
 return sums;
 }
+
 } // namespace waffle

@@ -23,9 +23,10 @@ template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in,
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
 
-    if (scalar_multiplier.get_msb() > num_bits) {
+    if (scalar_multiplier.get_msb() >= num_bits) {
         ctx->failed = true;
-        ctx->err = "fixed_base_scalar_mul scalar multiplier is larger than num_bits";
+        ctx->err = format(
+            "fixed_base_scalar_mul scalar multiplier ", scalar_multiplier, " is larger than num_bits ", num_bits);
     }
 
     // constexpr size_t num_bits = 250;
@@ -158,9 +159,9 @@ public_note encrypt_note(const private_note& plaintext)
 {
     Composer* context = plaintext.value.get_context();
 
-    field_ct k = static_cast<field_ct>(plaintext.value);
+    field_ct k = plaintext.value;
 
-    note_triple p_1 = fixed_base_scalar_mul<32>(k, 0);
+    note_triple p_1 = fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(k, 0);
     note_triple p_2 = fixed_base_scalar_mul<250>(plaintext.secret, 1);
 
     context->assert_equal(p_2.scalar.witness_index, plaintext.secret.witness_index);
@@ -199,7 +200,7 @@ public_note encrypt_note(const private_note& plaintext)
     return ciphertext;
 }
 
-template note_triple fixed_base_scalar_mul<32>(const field_ct& in, const size_t generator_index);
+template note_triple fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(const field_ct& in, const size_t generator_index);
 template note_triple fixed_base_scalar_mul<250>(const field_ct& in, const size_t generator_index);
 
 } // namespace pedersen_note

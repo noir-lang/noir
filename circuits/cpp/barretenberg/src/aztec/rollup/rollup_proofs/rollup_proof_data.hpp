@@ -7,18 +7,20 @@ namespace rollup_proofs {
 using namespace plonk::stdlib::types::turbo;
 
 struct propagated_inner_proof_data {
-    uint32_t public_input;
-    uint32_t public_output;
+    uint256_t proof_id;
+    uint256_t public_input;
+    uint256_t public_output;
     std::array<uint8_t, 64> new_note1;
     std::array<uint8_t, 64> new_note2;
     uint128_t nullifier1;
     uint128_t nullifier2;
-    barretenberg::fr input_owner;
-    barretenberg::fr output_owner;
+    fr input_owner;
+    fr output_owner;
 };
 
 struct rollup_proof_data {
     uint32_t rollup_id;
+    uint32_t rollup_size;
     uint32_t data_start_index;
     fr old_data_root;
     fr new_data_root;

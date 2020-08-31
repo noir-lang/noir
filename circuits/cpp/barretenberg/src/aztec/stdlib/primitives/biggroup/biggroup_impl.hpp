@@ -82,7 +82,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const element& ot
      *
      * We can skip computing the y-coordinate of C = A + B:
      *
-     * To compute D = C + A, we need the gradient of our two coordinates, specifically:
+     * To compute D = A + C, A=(x_1,y_1), we need the gradient of our two coordinates, specifically:
      *
      *
      *               y_3 - y_1    lambda_1 * (x_1 - x_3) - 2 * y_1                 2 * y_1
@@ -133,6 +133,8 @@ template <typename C, class Fq, class Fr, class G> element<C, Fq, Fr, G> element
 template <typename C, class Fq, class Fr, class G>
 std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, const size_t max_num_bits)
 {
+    
+   static_assert((Fr::modulus.get_msb()+1)/2< barretenberg::fr::modulus.get_msb() );
     C* ctx = scalar.context;
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
     uint256_t scalar_multiplier = scalar_multiplier_512.lo;
@@ -181,6 +183,7 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
         accumulator.assert_equal(scalar);
     } else {
         const auto reconstruct_half_naf = [](bool_t<C>* nafs, const size_t half_round_length) {
+            //Q: need constraint to start from zero?
             field_t<C> negative_accumulator(0);
             field_t<C> positive_accumulator(0);
             for (size_t i = 0; i < half_round_length; ++i) {
@@ -214,7 +217,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
 
     batch_lookup_table point_table(points);
 
-    const size_t num_rounds = (max_num_bits == 0) ? Fq::modulus.get_msb() + 1 : max_num_bits;
+    const size_t num_rounds = (max_num_bits == 0) ? Fr::modulus.get_msb() + 1 : max_num_bits;
 
     std::vector<std::vector<bool_t<C>>> naf_entries;
     for (size_t i = 0; i < num_points; ++i) {
@@ -245,7 +248,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::batch_mul(const std::vector<element
 
     return accumulator;
 }
-
+//Q:should Fr be template if we are assuming it's same as barr:fr? How does this go together when using secp? (not used there now)
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<element>& big_points,
                                                              const std::vector<Fr>& big_scalars,
@@ -276,11 +279,12 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
     std::vector<Fr> endo_scalars;
     for (size_t i = 0; i < num_big_points; ++i) {
         Fr scalar = big_scalars[i];
+        //Q:is it a problem if wraps? get_value is 512 bits
         barretenberg::fr k = scalar.get_value();
         barretenberg::fr k1(0);
         barretenberg::fr k2(0);
         barretenberg::fr::split_into_endomorphism_scalars(k.from_montgomery_form(), k1, k2);
-        Fr scalar_k1 = witness_t<C>(ctx, k1.to_montgomery_form());
+        Fr scalar_k1 = witness_t<C>(ctx, k1.to_montgomery_form());//Q:seems we are assuming barret fr and template Fr are same field
         Fr scalar_k2 = witness_t<C>(ctx, k2.to_montgomery_form());
         ctx->assert_equal((scalar_k1 - scalar_k2 * barretenberg::fr::beta()).witness_index,
                           scalar.normalize().witness_index);
@@ -362,7 +366,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator*(const Fr& scalar) const
      * specifics.
      *
      **/
-    constexpr uint64_t num_rounds = Fq::modulus_u512.get_msb() + 1;
+    constexpr uint64_t num_rounds = Fr::modulus_u512.get_msb() + 1;
 
     std::vector<bool_t<C>> naf_entries = compute_naf(scalar);
 

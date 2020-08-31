@@ -1,5 +1,6 @@
 #include "../../pedersen_note/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
+#include "../inner_proof_data.hpp"
 #include "join_split.hpp"
 #include "sign_notes.hpp"
 #include <common/streams.hpp>
@@ -11,6 +12,7 @@
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
+using namespace rollup::client_proofs;
 using namespace rollup::client_proofs::join_split;
 
 std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -171,6 +173,24 @@ TEST_F(client_proofs_join_split, test_0_input_notes)
     tx.public_input = 150;
     tx.num_input_notes = 0;
     tx.input_note = { gibberish, gibberish };
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
+}
+
+TEST_F(client_proofs_join_split, test_large_output_note)
+{
+    auto deposit_value = (uint256_t(1) << 252) - 1;
+
+    tx_note gibberish = { user.owner.public_key, 0, user.note_secret };
+    tx_note output_note1 = { user.owner.public_key, deposit_value, user.note_secret };
+    tx_note output_note2 = { user.owner.public_key, 0, user.note_secret };
+
+    join_split_tx tx = simple_setup();
+    tx.public_input = deposit_value;
+    tx.public_output = 0;
+    tx.num_input_notes = 0;
+    tx.input_note = { gibberish, gibberish };
+    tx.output_note = { output_note1, output_note2 };
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
@@ -338,8 +358,8 @@ TEST_F(client_proofs_join_split, test_tainted_output_owner_fails)
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();
 
-    EXPECT_EQ(proof.proof_data[9 * 32], 0x01);
-    proof.proof_data[9 * 32] = 0x02;
+    EXPECT_EQ(proof.proof_data[InnerProofOffsets::OUTPUT_OWNER], 0x01);
+    proof.proof_data[InnerProofFields::OUTPUT_OWNER] = 0x02;
 
     EXPECT_FALSE(verify_proof(proof));
 }

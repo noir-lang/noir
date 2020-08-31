@@ -45,8 +45,8 @@ field_ct process_account_note(Composer& composer,
 field_ct compute_alias_nullifier(Composer& composer, field_ct const& alias, bool register_alias_)
 {
     const bool_ct register_alias = bool_ct(witness_ct(&composer, register_alias_));
-    const uint8_ct prefix = (field_ct(witness_ct(&composer, notes::ALIAS)) * register_alias) +
-                            (field_ct(witness_ct(&composer, notes::GIBBERISH)) * !register_alias);
+    const uint8_ct prefix = (field_ct(witness_ct(&composer, (uint8_t)notes::ALIAS)) * register_alias) +
+                            (field_ct(witness_ct(&composer, (uint8_t)notes::GIBBERISH)) * !register_alias);
     const byte_array_ct alias_preimage = byte_array_ct(&composer).write(byte_array_ct(prefix)).write(alias);
     const auto alias_nullifier = field_ct(stdlib::blake2s(alias_preimage));
     return alias_nullifier;
@@ -83,6 +83,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
         process_account_note(composer, merkle_root, tx.account_path, account_index, signing_account_note, must_exist);
 
     // Expose public inputs.
+    public_witness_ct(&composer, 1); // proof_id
     public_witness_ct(&composer, 0); // public_input
     public_witness_ct(&composer, 0); // public_output
     new_account_note_1.set_public();

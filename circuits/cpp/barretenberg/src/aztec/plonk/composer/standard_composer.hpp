@@ -11,10 +11,14 @@ enum StandardSelectors {
     Q2 = 3,
     Q3 = 4,
 };
-static const std::vector<ComposerBase::SelectorProperties> STANDARD_SEL_PROPS = {
-    { "q_m", true, false }, { "q_c", true, false }, { "q_1", true, false },
-    { "q_2", true, false }, { "q_3", true, false },
-};
+inline std::vector<ComposerBase::SelectorProperties> standard_sel_props()
+{
+    std::vector<ComposerBase::SelectorProperties> result{
+        { "q_m", true, false }, { "q_c", true, false }, { "q_1", true, false },
+        { "q_2", true, false }, { "q_3", true, false },
+    };
+    return result;
+}
 
 class StandardComposer : public ComposerBase {
   public:
@@ -22,7 +26,7 @@ class StandardComposer : public ComposerBase {
     static constexpr size_t UINT_LOG2_BASE = 2;
 
     StandardComposer(const size_t size_hint = 0)
-        : ComposerBase(5, size_hint, STANDARD_SEL_PROPS)
+        : ComposerBase(5, size_hint, standard_sel_props())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -47,7 +51,7 @@ class StandardComposer : public ComposerBase {
                            size_hint){};
 
     StandardComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
-        : ComposerBase(std::move(crs_factory), 5, size_hint, STANDARD_SEL_PROPS)
+        : ComposerBase(std::move(crs_factory), 5, size_hint, standard_sel_props())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);
@@ -58,7 +62,7 @@ class StandardComposer : public ComposerBase {
     StandardComposer(std::shared_ptr<proving_key> const& p_key,
                      std::shared_ptr<verification_key> const& v_key,
                      size_t size_hint = 0)
-        : ComposerBase(p_key, v_key, 5, size_hint, STANDARD_SEL_PROPS)
+        : ComposerBase(p_key, v_key, 5, size_hint, standard_sel_props())
     {
         w_l.reserve(size_hint);
         w_r.reserve(size_hint);

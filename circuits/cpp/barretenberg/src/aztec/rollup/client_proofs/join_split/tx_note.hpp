@@ -10,7 +10,7 @@ using namespace barretenberg;
 
 struct tx_note {
     grumpkin::g1::affine_element owner;
-    uint32_t value;
+    uint256_t value;
     barretenberg::fr secret;
 };
 
@@ -18,7 +18,7 @@ grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext);
 bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
                   grumpkin::fr const& private_key,
                   fr const& viewing_key,
-                  uint32_t& r);
+                  uint256_t& r);
 
 inline bool operator==(tx_note const& lhs, tx_note const& rhs)
 {

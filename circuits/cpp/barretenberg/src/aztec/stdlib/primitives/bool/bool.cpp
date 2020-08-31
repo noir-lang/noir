@@ -11,7 +11,7 @@ bool_t<ComposerContext>::bool_t(const bool value)
     : context(nullptr)
     , witness_bool(value)
     , witness_inverted(false)
-    , witness_index(static_cast<uint32_t>(-1))
+    , witness_index(IS_CONSTANT)
 {}
 
 template <typename ComposerContext>
@@ -20,7 +20,7 @@ bool_t<ComposerContext>::bool_t(ComposerContext* parent_context)
 {
     witness_bool = false;
     witness_inverted = false;
-    witness_index = static_cast<uint32_t>(-1);
+    witness_index = IS_CONSTANT;
 }
 
 template <typename ComposerContext>
@@ -39,7 +39,7 @@ bool_t<ComposerContext>::bool_t(ComposerContext* parent_context, const bool valu
     : context(parent_context)
 {
     context = parent_context;
-    witness_index = static_cast<uint32_t>(-1);
+    witness_index = IS_CONSTANT;
     witness_bool = value;
     witness_inverted = false;
 }
@@ -65,7 +65,7 @@ bool_t<ComposerContext>::bool_t(bool_t<ComposerContext>&& other)
 template <typename ComposerContext> bool_t<ComposerContext>& bool_t<ComposerContext>::operator=(const bool other)
 {
     context = nullptr;
-    witness_index = static_cast<uint32_t>(-1);
+    witness_index = IS_CONSTANT;
     witness_bool = other;
     witness_inverted = false;
     return *this;
@@ -109,8 +109,8 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
     bool right = other.witness_inverted ^ other.witness_bool;
 
     ASSERT(result.context ||
-           (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
-    if (witness_index != static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
+    if (witness_index != IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         result.witness_bool = left & right;
         barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
         result.witness_index = context->add_variable(value);
@@ -130,25 +130,25 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
             (witness_inverted & other.witness_inverted) ? barretenberg::fr::one() : barretenberg::fr::zero()
         };
         context->create_poly_gate(gate_coefficients);
-    } else if (witness_index != static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         if (other.witness_bool ^ other.witness_inverted) {
             result = bool_t<ComposerContext>(*this);
         } else {
             result.witness_bool = false;
             result.witness_inverted = false;
-            result.witness_index = static_cast<uint32_t>(-1);
+            result.witness_index = IS_CONSTANT;
         }
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         if (witness_bool ^ witness_inverted) {
             result = bool_t<ComposerContext>(other);
         } else {
             result.witness_bool = false;
             result.witness_inverted = false;
-            result.witness_index = static_cast<uint32_t>(-1);
+            result.witness_index = IS_CONSTANT;
         }
     } else {
         result.witness_bool = left & right;
-        result.witness_index = static_cast<uint32_t>(-1);
+        result.witness_index = IS_CONSTANT;
         result.witness_inverted = false;
     }
     return result;
@@ -160,12 +160,12 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
     bool_t<ComposerContext> result(context == nullptr ? other.context : context);
 
     ASSERT(result.context ||
-           (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
+           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     result.witness_bool = (witness_bool ^ witness_inverted) | (other.witness_bool ^ other.witness_inverted);
     barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
     result.witness_inverted = false;
-    if ((other.witness_index != static_cast<uint32_t>(-1)) && (witness_index != static_cast<uint32_t>(-1))) {
+    if ((other.witness_index != IS_CONSTANT) && (witness_index != IS_CONSTANT)) {
         result.witness_index = context->add_variable(value);
         // result = a + b - ab
         // (1 - a) + (1 - b) - (1 - a)(1 - b) = 2 - a - b - ab - 1 + a + b = 1 - ab
@@ -201,17 +201,17 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
             left_coefficient, right_coefficient,   barretenberg::fr::neg_one(), constant_coefficient
         };
         context->create_poly_gate(gate_coefficients);
-    } else if (witness_index != static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         if (other.witness_bool ^ other.witness_inverted) {
-            result.witness_index = static_cast<uint32_t>(-1);
+            result.witness_index = IS_CONSTANT;
             result.witness_bool = true;
             result.witness_inverted = false;
         } else {
             result = bool_t<ComposerContext>(*this);
         }
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         if (witness_bool ^ witness_inverted) {
-            result.witness_index = static_cast<uint32_t>(-1);
+            result.witness_index = IS_CONSTANT;
             result.witness_bool = true;
             result.witness_inverted = false;
         } else {
@@ -219,7 +219,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
         }
     } else {
         result.witness_inverted = false;
-        result.witness_index = static_cast<uint32_t>(-1);
+        result.witness_index = IS_CONSTANT;
     }
     return result;
 }
@@ -230,13 +230,13 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
     bool_t<ComposerContext> result(context == nullptr ? other.context : context);
 
     ASSERT(result.context ||
-           (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
+           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     result.witness_bool = (witness_bool ^ witness_inverted) ^ (other.witness_bool ^ other.witness_inverted);
     barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
     result.witness_inverted = false;
 
-    if ((other.witness_index != static_cast<uint32_t>(-1)) && (witness_index != static_cast<uint32_t>(-1))) {
+    if ((other.witness_index != IS_CONSTANT) && (witness_index != IS_CONSTANT)) {
         result.witness_index = context->add_variable(value);
         // norm a, norm b: a + b - 2ab
         // inv  a, norm b: (1 - a) + b - 2(1 - a)b = 1 - a - b + 2ab
@@ -262,14 +262,14 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
             left_coefficient, right_coefficient,   barretenberg::fr::neg_one(), constant_coefficient
         };
         context->create_poly_gate(gate_coefficients);
-    } else if (witness_index != static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)) {
+    } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // witness ^ 1 = !witness
         if (other.witness_bool ^ other.witness_inverted) {
             result = !bool_t<ComposerContext>(*this);
         } else {
             result = bool_t<ComposerContext>(*this);
         }
-    } else if (witness_index == static_cast<uint32_t>(-1) && other.witness_index != static_cast<uint32_t>(-1)) {
+    } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         if (witness_bool ^ witness_inverted) {
             result = !bool_t<ComposerContext>(other);
         } else {
@@ -277,7 +277,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
         }
     } else {
         result.witness_inverted = false;
-        result.witness_index = static_cast<uint32_t>(-1);
+        result.witness_index = IS_CONSTANT;
     }
     return result;
 }
@@ -293,19 +293,19 @@ template <typename ComposerContext>
 bool_t<ComposerContext> bool_t<ComposerContext>::operator==(const bool_t& other) const
 {
     ASSERT(context || other.context ||
-           (witness_index == static_cast<uint32_t>(-1) && other.witness_index == static_cast<uint32_t>(-1)));
-    if ((other.witness_index == static_cast<uint32_t>(-1)) && (witness_index == static_cast<uint32_t>(-1))) {
+           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
+    if ((other.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
         bool_t<ComposerContext> result(context == nullptr ? other.context : context);
         result.witness_bool = (witness_bool ^ witness_inverted) == (other.witness_bool ^ other.witness_inverted);
-        result.witness_index = static_cast<uint32_t>(-1);
+        result.witness_index = IS_CONSTANT;
         return result;
-    } else if ((witness_index != static_cast<uint32_t>(-1)) && (other.witness_index == static_cast<uint32_t>(-1))) {
+    } else if ((witness_index != IS_CONSTANT) && (other.witness_index == IS_CONSTANT)) {
         if (other.witness_bool ^ other.witness_inverted) {
             return (*this);
         } else {
             return !(*this);
         }
-    } else if ((witness_index == static_cast<uint32_t>(-1)) && (other.witness_index != static_cast<uint32_t>(-1))) {
+    } else if ((witness_index == IS_CONSTANT) && (other.witness_index != IS_CONSTANT)) {
         if (witness_bool ^ witness_inverted) {
             return other;
         } else {
@@ -362,7 +362,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator||(const bool_t<Compose
 
 template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::normalize() const
 {
-    bool is_constant = (witness_index == static_cast<uint32_t>(-1));
+    bool is_constant = (witness_index == IS_CONSTANT);
     if (is_constant) {
         return *this;
     }

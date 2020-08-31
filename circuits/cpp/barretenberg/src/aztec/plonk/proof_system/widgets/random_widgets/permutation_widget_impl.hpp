@@ -439,7 +439,7 @@ VerifierPermutationWidget<Field, Group, Transcript>::VerifierPermutationWidget()
 
 template <typename Field, typename Group, typename Transcript>
 Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
-    verification_key* key,
+    typename Transcript::Key* key,
     const Field& alpha,
     const Transcript& transcript,
     Field& t_eval,
@@ -467,11 +467,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
         wire_evaluations.emplace_back(transcript.get_field_element("w_" + std::to_string(i + 1)));
     }
 
-    Field z_pow = z;
-    for (size_t i = 0; i < key->domain.log2_size; ++i) {
-        z_pow *= z_pow;
-    }
-    Field numerator = z_pow - Field(1);
+    Field numerator = key->z_pow_n - Field(1);
 
     numerator *= key->domain.domain_inverse;
     Field l_1 = numerator / (z - Field(1));
@@ -572,7 +568,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
 
 template <typename Field, typename Group, typename Transcript>
 Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
-    verification_key* key,
+    typename Transcript::Key* key,
     const Field& alpha_base,
     const Transcript& transcript,
     std::map<std::string, Field>& scalars,

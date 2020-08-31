@@ -14,7 +14,11 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
     if constexpr (Composer::type == waffle::PLOOKUP) {
         // TODO: manage higher bit ranges
         const auto sequence = plonk::stdlib::plookup::read_sequence_from_table(
+<<<<<<< HEAD
             waffle::PlookupMultiTableId::UINT32_XOR,
+=======
+            waffle::PlookupMultiTableId::UINT32_XOR,
+>>>>>>> master
             field_t<Composer>::from_witness_index(context, witness_index),
             field_t<Composer>::from_witness_index(context, context->zero_idx),
             true);
@@ -43,9 +47,9 @@ uint<Composer, Native>::uint(const field_t<Composer>& value)
     , additive_constant(0)
     , witness_status(WitnessStatus::OK)
     , accumulators()
-    , witness_index(UINT32_MAX)
+    , witness_index(IS_CONSTANT)
 {
-    if (value.witness_index == UINT32_MAX) {
+    if (value.witness_index == IS_CONSTANT) {
         additive_constant = value.additive_constant;
     } else {
         field_t<Composer> norm = value.normalize();
@@ -60,7 +64,7 @@ uint<Composer, Native>::uint(Composer* composer, const uint256_t& value)
     , additive_constant(value)
     , witness_status(WitnessStatus::OK)
     , accumulators()
-    , witness_index(UINT32_MAX)
+    , witness_index(IS_CONSTANT)
 {}
 
 template <typename Composer, typename Native>
@@ -69,7 +73,7 @@ uint<Composer, Native>::uint(const uint256_t& value)
     , additive_constant(value)
     , witness_status(WitnessStatus::OK)
     , accumulators()
-    , witness_index(UINT32_MAX)
+    , witness_index(IS_CONSTANT)
 {}
 
 template <typename Composer, typename Native>
@@ -78,7 +82,7 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
     , additive_constant(0)
     , witness_status(WitnessStatus::WEAK_NORMALIZED)
     , accumulators()
-    , witness_index(UINT32_MAX)
+    , witness_index(IS_CONSTANT)
 {
     field_t<Composer> accumulator(context, fr::zero());
     field_t<Composer> scaling_factor(context, fr::one());
@@ -87,7 +91,7 @@ uint<Composer, Native>::uint(const byte_array<Composer>& other)
         scaling_factor = scaling_factor + scaling_factor;
     }
     accumulator = accumulator.normalize();
-    if (accumulator.witness_index == UINT32_MAX) {
+    if (accumulator.witness_index == IS_CONSTANT) {
         additive_constant = uint256_t(accumulator.additive_constant);
     } else {
         witness_index = accumulator.witness_index;
@@ -105,7 +109,7 @@ uint<Composer, Native>::uint(Composer* parent_context, const std::vector<bool_t<
     , additive_constant(0)
     , witness_status(WitnessStatus::WEAK_NORMALIZED)
     , accumulators()
-    , witness_index(UINT32_MAX)
+    , witness_index(IS_CONSTANT)
 {
     field_t<Composer> accumulator(context, fr::zero());
     field_t<Composer> scaling_factor(context, fr::one());
@@ -114,7 +118,7 @@ uint<Composer, Native>::uint(Composer* parent_context, const std::vector<bool_t<
         scaling_factor = scaling_factor + scaling_factor;
     }
     accumulator = accumulator.normalize();
-    if (accumulator.witness_index == UINT32_MAX) {
+    if (accumulator.witness_index == IS_CONSTANT) {
         additive_constant = uint256_t(accumulator.additive_constant);
     } else {
         witness_index = accumulator.witness_index;

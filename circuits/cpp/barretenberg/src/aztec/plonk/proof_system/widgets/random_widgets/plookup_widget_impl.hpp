@@ -408,7 +408,7 @@ VerifierPlookupWidget<Field, Group, Transcript>::VerifierPlookupWidget()
 
 template <typename Field, typename Group, typename Transcript>
 Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
-    verification_key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
+    typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
 {
 
     std::array<Field, 3> wire_evaluations{
@@ -453,11 +453,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     Field beta = transcript.get_challenge_field_element("beta", 0);
     Field gamma = transcript.get_challenge_field_element("beta", 1);
     Field eta = transcript.get_challenge_field_element("eta", 0);
-    Field z_pow = z;
-    for (size_t i = 0; i < key->domain.log2_size; ++i) {
-        z_pow *= z_pow;
-    }
-    Field l_numerator = z_pow - Field(1);
+    Field l_numerator = key->z_pow_n - Field(1);
 
     l_numerator *= key->domain.domain_inverse;
     Field l_1 = l_numerator / (z - Field(1));
@@ -540,7 +536,11 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
 
 template <typename Field, typename Group, typename Transcript>
 Field VerifierPlookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
-    verification_key*, const Field& alpha_base, const Transcript& transcript, std::map<std::string, Field>&, const bool)
+    typename Transcript::Key*,
+    const Field& alpha_base,
+    const Transcript& transcript,
+    std::map<std::string, Field>&,
+    const bool)
 {
     Field alpha = transcript.get_challenge_field_element("alpha");
     return alpha_base * alpha.sqr() * alpha;

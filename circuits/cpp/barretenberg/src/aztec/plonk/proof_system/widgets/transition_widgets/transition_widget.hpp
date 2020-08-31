@@ -349,7 +349,7 @@ class GenericVerifierWidget {
     typedef KernelBase<Field, EvaluationGetter, poly_array> EvaluationKernel;
 
     static Field compute_quotient_evaluation_contribution(
-        verification_key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
+        typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
     {
         poly_array polynomial_evaluations =
             EvaluationGetter::get_polynomial_evaluations(key->polynomial_manifest, transcript);
@@ -365,7 +365,7 @@ class GenericVerifierWidget {
         return EvaluationGetter::update_alpha(challenges, num_independent_relations);
     }
 
-    static Field append_scalar_multiplication_inputs(verification_key* key,
+    static Field append_scalar_multiplication_inputs(typename Transcript::Key* key,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
                                                      std::map<std::string, Field>& scalars,

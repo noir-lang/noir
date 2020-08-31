@@ -178,23 +178,23 @@ TEST(plookup_composer, non_trivial_tag_permutation)
 {
     waffle::PlookupComposer composer = waffle::PlookupComposer();
     fr a = fr::random_element();
-    // fr b = -a;
+    fr b = -a;
 
-    auto a_idx = composer.add_public_variable(a);
-    // auto b_idx = composer.add_variable(b);
-    // auto c_idx = composer.add_variable(b);
-    // auto d_idx = composer.add_variable(a);
+    auto a_idx = composer.add_variable(a);
+    auto b_idx = composer.add_variable(b);
+    auto c_idx = composer.add_variable(b);
+    auto d_idx = composer.add_variable(a);
 
-    // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
-    // composer.create_add_gate({ c_idx, d_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
+    composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
+    composer.create_add_gate({ c_idx, d_idx, composer.zero_idx, fr::one(), fr::one(), fr::zero(), fr::zero() });
 
-    composer.create_tag(1, 1);
-    // composer.create_tag(2, 1);
+    composer.create_tag(1, 2);
+    composer.create_tag(2, 1);
 
     composer.assign_tag(a_idx, 1);
-    // composer.assign_tag(b_idx, 1);
-    // composer.assign_tag(c_idx, 2);
-    // composer.assign_tag(d_idx, 2);
+    composer.assign_tag(b_idx, 1);
+    composer.assign_tag(c_idx, 2);
+    composer.assign_tag(d_idx, 2);
 
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });

@@ -1,4 +1,5 @@
 #include "rollup_circuit.hpp"
+#include "../client_proofs/inner_proof_data.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -9,10 +10,11 @@ namespace rollup_proofs {
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
+using namespace rollup::client_proofs;
 
 void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_ct> const& public_inputs)
 {
-    for (size_t i = 0; i < 10; ++i) {
+    for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED; ++i) {
         composer.set_public_input(public_inputs[i].witness_index);
     }
 }
@@ -151,6 +153,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                        bool can_throw)
 {
     auto rollup_id = field_ct(public_witness_ct(&composer, rollup.rollup_id));
+    field_ct(public_witness_ct(&composer, rollup_size));
     auto data_start_index = field_ct(public_witness_ct(&composer, rollup.data_start_index));
     auto old_data_root = field_ct(public_witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(public_witness_ct(&composer, rollup.new_data_root));
@@ -164,17 +167,19 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto new_null_indicies = std::vector<field_ct>();
     auto account_null_indicies = std::vector<field_ct>();
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
+    auto recursive_verification_key =
+        plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
+
     recursion_output<bn254> recursion_output;
 
     for (size_t i = 0; i < rollup_size; ++i) {
         // Verify the inner proof.
         recursion_output =
             verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(&composer,
-                                                                          inner_verification_key,
+                                                                          recursive_verification_key,
                                                                           recursive_manifest,
                                                                           waffle::plonk_proof{ rollup.txs[i] },
                                                                           recursion_output);
-
         if (can_throw && composer.failed) {
             throw std::runtime_error("Failed to verify proof: " + std::to_string(i));
         }
@@ -183,13 +188,15 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         // TODO: i should be able to be a constant, but causes things to fail :/
         auto is_real = num_txs > uint32_ct(witness_ct(&composer, i));
         auto public_inputs = recursion_output.public_inputs;
-        new_data_values.push_back(
-            byte_array_ct(&composer).write(public_inputs[2] * is_real).write(public_inputs[3] * is_real));
-        new_data_values.push_back(
-            byte_array_ct(&composer).write(public_inputs[4] * is_real).write(public_inputs[5] * is_real));
+        new_data_values.push_back(byte_array_ct(&composer)
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_X] * is_real)
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_Y] * is_real));
+        new_data_values.push_back(byte_array_ct(&composer)
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_X] * is_real)
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_Y] * is_real));
 
         // Check this proofs data root exists in the data root tree (unless a padding entry).
-        auto data_root = public_inputs[10];
+        auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];
         auto data_roots_path = create_witness_hash_path(composer, rollup.data_roots_paths[i]);
         auto data_root_index = uint32_ct(witness_ct(&composer, rollup.data_roots_indicies[i]));
         bool_ct valid = data_root_index <= rollup_id && check_membership(composer,
@@ -202,9 +209,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
             throw std::runtime_error("Data root incorrect for proof: " + std::to_string(i));
         }
 
-        new_null_indicies.push_back(public_inputs[6]);
-        new_null_indicies.push_back(public_inputs[7]);
-        account_null_indicies.push_back(public_inputs[11]);
+        new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER1]);
+        new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER2]);
+        account_null_indicies.push_back(public_inputs[InnerProofFields::ACCOUNT_NULLIFIER]);
 
         propagate_inner_proof_public_inputs(composer, public_inputs);
     }

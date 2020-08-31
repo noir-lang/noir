@@ -2,6 +2,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace plonk {
+    static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
 namespace stdlib {
 
 /*
@@ -37,7 +38,8 @@ template <typename ComposerContext> class witness_t {
         witness_index = context->add_variable(witness);
     }
 
-    template <typename T> witness_t(ComposerContext* parent_context, T const in)
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    witness_t(ComposerContext* parent_context, T const in)
     {
         context = parent_context;
         witness = barretenberg::fr{ static_cast<uint64_t>(in), 0, 0, 0 }.to_montgomery_form();
