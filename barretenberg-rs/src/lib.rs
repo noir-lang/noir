@@ -92,7 +92,7 @@ fn load_module() -> Module {
     let cache_key = WasmHash::generate(WASM);
 
     // Load module from the cache if we already compiled it
-    let mut fs_cache = unsafe { FileSystemCache::new("mod_cache/").unwrap() };
+    let mut fs_cache = unsafe { FileSystemCache::new(mod_cache_location()).unwrap() };
     let module = match fs_cache.load(cache_key) {
         Ok(module) => module,
         Err(_) => {
@@ -105,6 +105,14 @@ fn load_module() -> Module {
     };
     module
 }
+
+fn mod_cache_location() -> std::path::PathBuf{
+    let mut mod_cache_dir = dirs::home_dir().unwrap();
+    mod_cache_dir.push(std::path::Path::new("rasa_cache"));
+    mod_cache_dir.push(std::path::Path::new("mod_cache"));
+    mod_cache_dir
+}
+
 impl Barretenberg {
     pub fn new() -> Barretenberg {
         let module = load_module();

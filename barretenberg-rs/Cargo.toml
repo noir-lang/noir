@@ -10,3 +10,6 @@ edition = "2018"
 wasmer-runtime = "0.16.0"
 wasmer-wasi = "0.16.0"
 rasa_field = {path = "../rasa_field"}
+reqwest = {version = "0.10.8",features = ["blocking"]}
+error-chain = "0.12.4"
+dirs = "3.0"
