@@ -41,14 +41,18 @@ namespace waffle {
     auto& q_elliptic = selectors[PlookupSelectors::QELLIPTIC];                                                         \
     auto& q_lookup_index = selectors[PlookupSelectors::QLOOKUPINDEX];                                                  \
     auto& q_lookup_type = selectors[PlookupSelectors::QLOOKUPTYPE];
-
-const static std::vector<ComposerBase::SelectorProperties> PLOOKUP_SEL_PROPS = {
+std::vector<ComposerBase::SelectorProperties> plookup_sel_props()
+{
+    std::vector<ComposerBase::SelectorProperties> result{
     { "q_m", false, true },         { "q_c", false, true },         { "q_1", false, false },
     { "q_2", false, true },         { "q_3", false, false },        { "q_4", false, false },
     { "q_5", false, false },        { "q_arith", false, false },    { "q_ecc_1", false, false },
     { "q_range", false, false },    { "q_sort", false, false },     { "q_logic", false, false },
     { "q_elliptic", false, false }, { "table_index", false, true }, { "table_type", false, true },
-};
+    };
+    return result;
+}
+
 
 PlookupComposer::PlookupComposer()
     : PlookupComposer("../srs_db", 0)
