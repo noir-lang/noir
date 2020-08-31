@@ -1,0 +1,246 @@
+use clap::{App, Arg};
+
+fn main() {
+    let matches = App::new("Rasa")
+        .about("A Domain Specific Language for PLONK")
+        .version("0.1")
+        .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
+        .subcommand(App::new("build").about("Builds the constraint system"))
+        .subcommand(
+            App::new("new")
+                .about("Create a new binary project")
+                .arg(
+                    Arg::with_name("package_name")
+                        .help("Name of the package")
+                        .required(true),
+                ),
+        )
+        .subcommand(
+            App::new("verify")
+                .about("Given a proof and a program, verify whether the proof is valid")
+                .arg(
+                    Arg::with_name("proof")
+                        .help("The proof to verify")
+                        .required(true),
+                ),
+        )
+        .subcommand(
+            App::new("prove")
+                .about("Create proof for this program")
+                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(
+                    Arg::with_name("witness values")
+                        .required(true)
+                        .min_values(1)
+                        .help("The values of the witness"),
+                ),
+        )
+        .get_matches();
+
+    match matches.subcommand_name() {
+        Some("new") => new_package(matches),
+        Some("build") => {
+            let _ = build_main();
+            println!("Constraint system successfully built!")
+        },
+        Some("prove") => prove(matches),
+        Some("verify") => verify(matches),
+        None => println!("No subcommand was used"),
+        _ => unreachable!(), // Assuming you've listed all direct children above, this is unreachable
+    }
+}
+
+use barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
+use clap::ArgMatches;
+use librasac_lexer::lexer::Lexer;
+use librasac_parser::Parser;
+use rasa_evaluator::circuit::Witness;
+use rasa_evaluator::{Circuit, Environment, Evaluator};
+use rasa_field::FieldElement;
+use rasa_wg::ArithmeticSolver;
+use std::collections::BTreeMap;
+
+struct CompiledMain {
+    standard_format_cs: ConstraintSystem,
+    circuit: Circuit,
+    abi: Vec<String>,
+}
+
+/// Looks for main.rasa in the current directory
+/// Returns the constraint system
+/// The compiled circuit (DSL variation)
+/// And the parameters for main
+fn build_main() -> CompiledMain {
+    let mut main_file = std::env::current_dir().unwrap();
+    main_file.push(std::path::PathBuf::from("bin"));
+    main_file.push(std::path::PathBuf::from("main.rasa"));
+    assert!(main_file.exists(), "Cannot find main file at located {}", main_file.display());
+
+    let file_as_string = std::fs::read_to_string(main_file).unwrap();
+
+    let mut parser = Parser::new(Lexer::new(&file_as_string));
+    let program = parser.parse_program();
+    librasac_analyser::check(&program);
+
+    // XXX: This maybe should not be in the analyser
+    let abi = librasac_analyser::abi(&program).unwrap();
+
+    let evaluator = Evaluator::new(program);
+
+    let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate(&mut Environment::new());
+
+    let constraint_system = rasa_cli::synthesiser::synthesise_circuit(&circuit, num_witnesses, num_public_inputs);
+
+    hash_constraint_system(&constraint_system);
+
+
+    CompiledMain {
+        standard_format_cs: constraint_system,
+        circuit,
+        abi,
+    }
+}
+
+
+
+fn new_package(args : ArgMatches) {
+    let package_name = args
+        .subcommand_matches("new")
+        .unwrap()
+        .value_of("package_name")
+        .unwrap();
+    let mut package_dir = std::env::current_dir().unwrap();
+    package_dir.push(Path::new(package_name));
+
+    const BINARY_DIR : &str= "bin";
+    const PROOFS_DIR : &str= "proofs";
+
+    create_directory(&package_dir.join(Path::new(BINARY_DIR)));
+    create_directory(&package_dir.join(Path::new(PROOFS_DIR)));
+
+    let example = "
+    fn main(x : Witness, y : Witness) {
+        constrain x != y;
+    }
+    ";
+
+    package_dir.push(Path::new(BINARY_DIR).join(Path::new("main.rasa")));
+    let path = write_to_file(example.as_bytes(), &package_dir);
+    println!("Project successfully created! Binary located at {}", path);
+
+}
+fn verify(args : ArgMatches) {
+    let proof_name = args
+        .subcommand_matches("verify")
+        .unwrap()
+        .value_of("proof")
+        .unwrap();
+    let mut proof_path = std::path::PathBuf::new();
+    proof_path.push(Path::new("proofs"));
+    proof_path.push(Path::new(proof_name));
+    proof_path.set_extension("rasa");
+
+
+    let proof : Vec<_> = std::fs::read(proof_path).unwrap();
+        
+    let compiled_main = build_main();
+
+    let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
+
+    let public_inputs = None;
+    let verified = composer.verify(&compiled_main.standard_format_cs, &proof, public_inputs);
+
+    println!("Proof verified : {}\n", verified);
+}
+
+fn prove(args: ArgMatches) {
+
+    let proof_name = args
+    .subcommand_matches("prove")
+    .unwrap()
+    .value_of("proof_name").unwrap();
+
+
+    let witness_values: Vec<i128> = args
+        .subcommand_matches("prove")
+        .unwrap()
+        .values_of("witness values")
+        .unwrap().map(|value| value.parse().expect("Expected witness values to be integers"))
+        .collect();
+
+    let compiled_main = build_main();
+
+    // Check that enough witness values were supplied
+    if compiled_main.abi.len() != witness_values.len() {
+        panic!(
+            "Expected {} number of values, but got {} number of values",
+            compiled_main.abi.len(),
+            witness_values.len()
+        )
+    }
+
+    let mut solved_witness = BTreeMap::new();
+
+    for (index, (param, value)) in compiled_main.abi.into_iter().zip(witness_values.into_iter()).enumerate() {
+        solved_witness.insert(Witness::new(param, index+1), FieldElement::from(value));
+    }
+
+    // Derive solution
+    ArithmeticSolver::solve(&mut solved_witness, compiled_main.circuit.clone());
+
+    let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
+
+    // Add witnesses in the correct order
+    // Note: The witnesses are sorted via their witness index, since we implement Ord on Witness and use a BTreeMap
+    let mut sorted_witness = Assignments::new();
+    for (_, value) in solved_witness.iter() {
+        sorted_witness.push(*value);
+    }
+
+    let proof = composer.create_proof(&compiled_main.standard_format_cs, sorted_witness);
+
+    let mut proof_path = std::path::PathBuf::new();
+    proof_path.push("proofs");
+    proof_path.push(proof_name);
+    proof_path.set_extension("rasa");
+
+    let path = write_to_file(&proof, &proof_path);
+    println!("Proof successfully created and located at {}", path)
+
+}
+
+use std::io::prelude::*;
+use std::path::Path;
+use std::fs::File;
+
+fn write_to_file(bytes : &[u8], path : &Path) -> String{
+    let display = path.display();
+
+    let mut file = match File::create(&path) {
+        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Ok(file) => file,
+    };
+
+    match file.write_all(bytes) {
+        Err(why) => panic!("couldn't write to {}: {}", display, why),
+        Ok(_) => display.to_string(),
+    }
+}
+
+
+fn create_directory(path : &std::path::Path) {
+    if path.exists() {
+        println!("This directory {} already exists", path.display());
+        return
+    }
+    std::fs::create_dir_all(path).unwrap();
+}
+
+fn hash_constraint_system(cs : &ConstraintSystem) {
+    use sha2::{Sha256,  Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(cs.to_bytes());
+    let result = hasher.finalize();
+    println!("hash of constraint system : {:x?}",&result[..]);
+
+}

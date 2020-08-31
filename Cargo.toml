@@ -7,5 +7,6 @@ members = [
     "librasac_analyser",
     "barretenberg-rs",
     "rasa_evaluator",
+    "rasa_cli",
     "rasa_wg",
 ]
