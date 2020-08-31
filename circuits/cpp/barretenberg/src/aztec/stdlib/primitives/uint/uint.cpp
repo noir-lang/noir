@@ -14,11 +14,7 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
     if constexpr (Composer::type == waffle::PLOOKUP) {
         // TODO: manage higher bit ranges
         const auto sequence = plonk::stdlib::plookup::read_sequence_from_table(
-<<<<<<< HEAD
             waffle::PlookupMultiTableId::UINT32_XOR,
-=======
-            waffle::PlookupMultiTableId::UINT32_XOR,
->>>>>>> master
             field_t<Composer>::from_witness_index(context, witness_index),
             field_t<Composer>::from_witness_index(context, context->zero_idx),
             true);

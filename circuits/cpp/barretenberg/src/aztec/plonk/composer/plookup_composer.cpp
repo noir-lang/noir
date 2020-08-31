@@ -1237,7 +1237,6 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     std::vector<uint32_t> sums;
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
     const size_t last_limb_size = num_bits-(limb_num*DEFAULT_PLOOKUP_RANGE_BITNUM);
-        std::cout << "last limb size:" << last_limb_size << std::endl;
     if(limb_num < 2){
         std::cout<<"number of bits in range must be at least twice default range size" << std::endl;
         return sums;
@@ -1251,7 +1250,6 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     for (size_t i = 0; i < limb_num; i++) {
         val_slices.emplace_back(
             barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
-        // std::cout << "limb val:" << val_slices[i] << std::endl;
         val_limbs.emplace_back(add_variable(val_slices[i]));
         create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
     }
@@ -1295,8 +1293,6 @@ void PlookupComposer::create_new_range_constraint(const uint32_t variable_index,
     if (range_lists.count(target_range) == 0) {
         range_lists.insert({ target_range, create_range_list(target_range) });
     }
-    std::sort(sorted_list.begin(), sorted_list.end());
-    std::vector<uint32_t> indices;
 
     auto& list = range_lists[target_range];
     assign_tag(variable_index, list.range_tag);
