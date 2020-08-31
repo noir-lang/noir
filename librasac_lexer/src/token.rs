@@ -13,6 +13,7 @@ pub enum Token {
     Bool(bool),
     Str(String),
     Keyword(Keyword),
+    Attribute(Attribute),
     // <
     Less,
     // <=
@@ -81,6 +82,7 @@ impl fmt::Display for Token {
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
             Token::Keyword(k) => write!(f, "{}", k),
+            Token::Attribute(ref k) => write!(f, "{}", k),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),
@@ -122,6 +124,7 @@ pub enum TokenKind {
     Ident,
     Literal,
     Keyword,
+    Attribute,
 }
 
 impl Token {
@@ -153,6 +156,35 @@ impl Token {
 
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
         return same_token_variant;
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+// Attributes are special language markers in the target language
+// An example of one is `#[directive]` . This is a directive attribute
+// The other type will be used for custom gates
+pub enum Attribute {
+    Directive,
+    Str(String)
+}
+
+impl fmt::Display for Attribute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Attribute::Directive => write!(f, "#[directive]"),
+            Attribute::Str(ref k) => write!(f, "#[{}]", k),
+        }
+    }
+}
+
+impl Attribute {
+    /// If the string is a fixed attribute return that, else
+    /// return the custom attribute
+    pub(crate) fn lookup_attribute(word: &str) -> Token {
+        match word {
+            "directive" => Token::Attribute(Attribute::Directive),
+            word => Token::Attribute(Attribute::Str(word.to_string())),
+        }
     }
 }
 

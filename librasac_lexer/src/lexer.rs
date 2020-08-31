@@ -1,4 +1,4 @@
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, Attribute};
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -56,7 +56,7 @@ impl<'a> Lexer<'a> {
             Some('<') => self.glue(Token::Less),
             Some('>') => self.glue(Token::Greater),
             Some('=') => self.glue(Token::Assign),
-            Some('#') => Token::Pound,
+            Some('#') => self.eat_attribute(),
             Some('/') => Token::Slash,
             Some('%') => Token::Percent,
             Some('&') => Token::Ampersand,
@@ -134,12 +134,15 @@ impl<'a> Lexer<'a> {
     }
 
     /// Keeps consuming tokens as long as the predicate is satisfied
-    fn eat_while<F: Fn(char) -> bool>(&mut self, initial_char: char, predicate: F) -> String {
+    fn eat_while<F: Fn(char) -> bool>(&mut self, initial_char: Option<char>, predicate: F) -> String {
         // This function is only called when we want to continue consuming a character of the same type.
         // For example, we see a digit and we want to consume the whole integer
         // Therefore, the current character which triggered this function will need to be appended
         let mut word = String::new();
-        word.push(initial_char);
+        match initial_char {
+            Some(init_char) => word.push(init_char),
+            _=> {}
+        };
 
         // Keep checking that we are not at the EOF
         while self.peek_char().is_some() {
@@ -172,10 +175,33 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn eat_attribute(&mut self) -> Token {
+
+        if !self.peek_char_is('[') {
+            let err_msg = format!("Lexer expected a '[' character after the '#' character, instead got {}", self.next_char().unwrap());
+            return Token::Error(err_msg.to_string());
+        }
+        self.next_char();
+        
+        let word = self.eat_while(None, |ch| {
+            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_') && (ch != ']')
+        });
+        
+        
+        if !self.peek_char_is(']') {
+            let err_msg = format!("Lexer expected a trailing ']' character instead got {}", self.next_char().unwrap());
+            return Token::Error(err_msg.to_string());
+        }
+        self.next_char();
+
+        Attribute::lookup_attribute(&word)
+    }
+
+
     //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> Token {
-        let word = self.eat_while(initial_char, |ch| {
+        let word = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
 
@@ -186,18 +212,17 @@ impl<'a> Lexer<'a> {
         return Token::Ident(word);
     }
     fn eat_digit(&mut self, initial_char: char) -> Token {
-        let integer_str = self.eat_while(initial_char, |ch| ch.is_numeric());
+        let integer_str = self.eat_while(Some(initial_char), |ch| ch.is_numeric());
         let integer: i128 = integer_str.parse().unwrap();
         return Token::Int(integer);
     }
     fn eat_string_literal(&mut self) -> Token {
-        let mut str_literal = self.eat_while('"', |ch| !(ch == '"'));
-        str_literal.remove(0); // Remove '"' that we added
+        let str_literal = self.eat_while(None, |ch| !(ch == '"'));
         return Token::Str(str_literal);
     }
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self) {
-        self.eat_while('\0', |ch| ch.is_whitespace());
+        self.eat_while(None, |ch| ch.is_whitespace());
     }
 }
 
@@ -210,7 +235,7 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[test]
 fn test_single_double_char() {
-    let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= # & - -> . % / * = ==";
+    let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . % / * = ==";
 
     let expected = vec![
         Token::Bang,
@@ -254,17 +279,14 @@ fn test_single_double_char() {
 
 #[test]
 fn test_custom_gate_syntax() {
-    let input = "#[sha256]";
+    let input = "#[sha256]#[directive]";
 
     let expected = vec![
-        Token::Pound,
-        Token::LeftBracket,
-        Token::Ident("sha256".to_string()),
-        Token::RightBracket,
-        Token::EOF,
+        Token::Attribute(Attribute::Str("sha256".to_string())),
+        Token::Attribute(Attribute::Directive),
     ];
-    let mut lexer = Lexer::new(input);
 
+    let mut lexer = Lexer::new(input);
     for token in expected.into_iter() {
         let got = lexer.next_token();
         assert_eq!(got, token);
