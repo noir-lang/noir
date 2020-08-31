@@ -25,6 +25,7 @@ pub struct Evaluator {
     pub(crate) witnesses: Vec<Witness>,
     selectors: Vec<Selector>,
     statements: Vec<Statement>,
+    num_public_inputs : usize,
     main_function: Function,
     gates: Vec<Gate>,                    // Identifier, Polynomial
     functions: HashMap<Ident, Function>, // XXX: We probably want an environment of functions that are available when we introduce imports. Not every file should have access to every function
@@ -50,6 +51,7 @@ impl Evaluator {
         Evaluator {
             num_witness: 0,
             num_selectors: 0,
+            num_public_inputs: 0,
             witnesses: Vec::new(),
             selectors: Vec::new(),
             statements,
@@ -97,7 +99,7 @@ impl Evaluator {
         self.num_witness
     }
 
-    pub fn evaluate(mut self, env: &mut Environment) -> (Circuit, usize) {
+    pub fn evaluate(mut self, env: &mut Environment) -> (Circuit, usize, usize) {
         self.parse_types(env);
         const WIDTH: usize = 3;
 
@@ -141,7 +143,7 @@ impl Evaluator {
             dbg!(i, witness);
         }
 
-        (Circuit(optimised_arith_gates), self.witnesses.len())
+        (Circuit(optimised_arith_gates), self.witnesses.len(), self.num_public_inputs)
     }
 
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
@@ -194,7 +196,6 @@ impl Evaluator {
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
     fn evaluate_identifier(&mut self, ident: String, env: &mut Environment) -> Polynomial {
-        dbg!(ident.clone());
         let polynomial = env.get(ident.clone());
         assert!(polynomial.is_linear());
         polynomial
@@ -205,13 +206,32 @@ impl Evaluator {
     // XXX: Should we use Ident for readability?
     pub fn parse_types(&mut self, env: &mut Environment) {
         // Add the parameters from the main function into the evaluator as witness variables
-        // XXX: We are not going to care about typing information for the main function
-        // Because the user will input field elements and we will apply the correct type information according to the parameters
-        // For now, lets just think of everything as witnesses
-        for (param_name, param_type) in self.main_function.parameters.clone().iter() {
+        // XXX: We are only going to care about Public and Private witnesses for now
+
+        let mut pub_inputs = Vec::new();
+        let mut witnesses = Vec::new();
+
+        for (param_name, param_type) in self.main_function.parameters.clone().into_iter() {
+
+            match param_type {
+                Type::Public =>{
+                    pub_inputs.push(param_name);
+                },
+                Type::Witness => {
+                    witnesses.push(param_name)
+                },
+                _=> unimplemented!("Currently we only have support for Private and Public inputs in the main function definition")
+            }
+        }
+
+        self.num_public_inputs = pub_inputs.len();
+
+        // Add all of the public inputs first, then the witnesses
+        for param_name in pub_inputs.into_iter().chain(witnesses.into_iter()) {
             self.store_witness(param_name.0.clone());
             self.store_lone_variable(param_name.0.clone(), env);
         }
+
 
         // Now call the main function
         for statement in self.main_function.body.0.clone().iter() {

@@ -209,7 +209,7 @@ fn test_simple_circuit() {
     librasac_analyser::check(&program);
     let evaluator = Evaluator::new(program);
 
-    let (circuit, _) = evaluator.evaluate(&mut Environment::new());
+    let (circuit, _,num_pub_inputs) = evaluator.evaluate(&mut Environment::new());
 
     // Parameters to main function
     let x = Witness("x".to_string(),1);
@@ -321,7 +321,7 @@ fn test_simple_circuit() {
     // Create constraint system
     let constraint_system = ConstraintSystem {
         var_num: solved_witness.len() as u32,
-        pub_var_num: 0,
+        pub_var_num: num_pub_inputs as u32,
         constraints: constraints,
     };
 
