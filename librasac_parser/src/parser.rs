@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
             match self.curr_token {
                 Token::Keyword(Keyword::Fn) => {
                     let func_def = FuncParser::parse_fn_decl(self);
-                    program.functions.push(func_def);
+                    program.push_function(func_def);
                 }
                 _ => {
                     // Parse regular statements

@@ -12,7 +12,10 @@ use librasac_lexer::token::Token;
 pub struct Program {
     pub statements: Vec<Statement>,
     pub functions: Vec<FunctionDefinition>,
+    pub main : Option<FunctionDefinition>,
 }
+
+const MAIN_FUNCTION : &str = "main";
 
 impl Program {
     pub fn new() -> Self {
@@ -22,10 +25,28 @@ impl Program {
         Program {
             statements: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
+            main: None,
         }
     }
     pub fn push_statement(&mut self, stmt: Statement) {
         self.statements.push(stmt)
+    }
+    pub fn push_function(&mut self, func: FunctionDefinition) {
+        if func.name == MAIN_FUNCTION.to_string().into() {
+            self.main = Some(func)
+        } else {
+            self.functions.push(func);
+        }
+    }
+    /// Returns the program abi which is only present for executables and not libraries
+    pub fn abi(&self) -> Option<Vec<String>>{
+        match &self.main {
+            Some(main_func) => {
+                let abi = main_func.func.parameters.iter().map(|(ident, _)| ident.0.clone()).collect();
+                Some(abi)
+            },
+            None => None
+        }
     }
 }
 
