@@ -43,8 +43,6 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     field_t<C> limb_1(context);
     field_t<C> limb_2(context);
     field_t<C> limb_3(context);
-    field_t<C> high_prime_limb(context);
-    field_t<C> low_prime_limb(context);
     if (low_bits.witness_index != UINT32_MAX) {
         std::vector<uint32_t> low_accumulator;
         if constexpr (context->type == waffle::PLOOKUP) {
@@ -63,15 +61,13 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
             last_index = static_cast<size_t>((NUM_LIMB_BITS)-1);
             mid_index = static_cast<size_t>((NUM_LIMB_BITS / 2) - 1);
             limb_1.witness_index = low_accumulator[mid_index];
-            low_prime_limb.witness_index = low_accumulator[last_index];
-            limb_0 = (low_prime_limb - (limb_1 * shift_1));
+            limb_0 = (low_bits - (limb_1 * shift_1));
         }
     } else {
         uint256_t slice_0 = uint256_t(low_bits.additive_constant).slice(0, NUM_LIMB_BITS);
         uint256_t slice_1 = uint256_t(low_bits.additive_constant).slice(NUM_LIMB_BITS, 2 * NUM_LIMB_BITS);
         limb_0 = field_t(context, barretenberg::fr(slice_0));
         limb_1 = field_t(context, barretenberg::fr(slice_1));
-        low_prime_limb = field_t<C>(context, barretenberg::fr(low_bits.additive_constant));
     }
 
     uint64_t num_last_limb_bits = (can_overflow) ? NUM_LIMB_BITS : NUM_LAST_LIMB_BITS;
@@ -92,15 +88,13 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
             high_accumulator =
                 context->create_range_constraint(high_bits.witness_index, static_cast<size_t>(num_high_limb_bits));
             limb_3.witness_index = high_accumulator[static_cast<size_t>((num_last_limb_bits / 2) - 1)];
-            high_prime_limb.witness_index = high_accumulator[static_cast<size_t>((num_high_limb_bits / 2) - 1)];
-            limb_2 = (high_prime_limb - (limb_3 * shift_1));
+            limb_2 = (high_bits - (limb_3 * shift_1));
         }
     } else {
         uint256_t slice_2 = uint256_t(high_bits.additive_constant).slice(0, NUM_LIMB_BITS);
         uint256_t slice_3 = uint256_t(high_bits.additive_constant).slice(NUM_LIMB_BITS, num_high_limb_bits);
         limb_2 = field_t(context, barretenberg::fr(slice_2));
         limb_3 = field_t(context, barretenberg::fr(slice_3));
-        high_prime_limb = field_t<C>(context, barretenberg::fr(high_bits.additive_constant));
     }
     binary_basis_limbs[0] = Limb(limb_0, DEFAULT_MAXIMUM_LIMB);
     binary_basis_limbs[1] = Limb(limb_1, DEFAULT_MAXIMUM_LIMB);
