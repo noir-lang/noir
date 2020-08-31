@@ -3,6 +3,7 @@ use super::*;
 pub struct BinaryParser;
 
 // XXX(low) : Check that these are the only possible predicate ops
+// predicate operators are capable of returning a 0 or 1
 const fn predicate_ops() -> [BinaryOp; 6] {
     [
         BinaryOp::Equal,
