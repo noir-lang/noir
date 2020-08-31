@@ -82,8 +82,7 @@ fn build_main() -> CompiledMain {
     let program = parser.parse_program();
     librasac_analyser::check(&program);
 
-    // XXX: This maybe should not be in the analyser
-    let abi = librasac_analyser::abi(&program).unwrap();
+    let abi = program.abi().unwrap();
 
     let evaluator = Evaluator::new(program);
 
@@ -153,6 +152,10 @@ fn verify(args : ArgMatches) {
     println!("Proof verified : {}\n", verified);
 }
 
+/// In Barretenberg, the proof system adds a zero witness in the first index,
+/// So when we add witness values, their index start from 1.
+const WITNESS_OFFSET : usize = 1;
+
 fn prove(args: ArgMatches) {
 
     let proof_name = args
@@ -181,8 +184,11 @@ fn prove(args: ArgMatches) {
 
     let mut solved_witness = BTreeMap::new();
 
+    // Since the Public values are added first. Even if the first parameter is a Witness, it may not be 
+    // The first in the witness Vector. We do however, still want people to enter the values as the ABI states, so we must
+    // match the correct values to the correct indices
     for (index, (param, value)) in compiled_main.abi.into_iter().zip(witness_values.into_iter()).enumerate() {
-        solved_witness.insert(Witness::new(param, index+1), FieldElement::from(value));
+        solved_witness.insert(Witness::new(param, index+WITNESS_OFFSET), FieldElement::from(value));
     }
 
     // Derive solution
