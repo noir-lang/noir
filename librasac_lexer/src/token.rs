@@ -209,6 +209,8 @@ pub enum Keyword {
     Constant,
     // Let declarations will be for Structures and possibly closures, if they are added
     Let,
+    // Field type can only be used in Directive functions. They are explicitly for doing Field operations without applying constraints
+    Field,
 }
 
 impl fmt::Display for Keyword {
@@ -227,6 +229,7 @@ impl fmt::Display for Keyword {
             Keyword::Private => write!(f, "priv"),
             Keyword::Witness => write!(f, "Witness"),
             Keyword::Constant => write!(f, "Constant"),
+            Keyword::Field => write!(f, "Field"),
             Keyword::Const => write!(f, "const"),
         }
     }
@@ -255,6 +258,7 @@ impl Keyword {
             "Witness" => Some(Token::Keyword(Keyword::Witness)),
             "Public" => Some(Token::Keyword(Keyword::Public)),
             "Constant" => Some(Token::Keyword(Keyword::Constant)),
+            "Field" => Some(Token::Keyword(Keyword::Field)),
             _ => None,
         }
     }
