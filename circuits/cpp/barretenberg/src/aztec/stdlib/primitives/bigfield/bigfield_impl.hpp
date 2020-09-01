@@ -1,7 +1,4 @@
 #pragma once
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/uintx/uintx.hpp>
@@ -58,10 +55,9 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
             limb_0.witness_index = low_accumulator[mid_index];
             limb_1 = (low_bits - limb_0) * shift_right_1;
         } else {
-            size_t mid_index, last_index;
+            size_t mid_index;
             low_accumulator =
                 context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
-            last_index = static_cast<size_t>((NUM_LIMB_BITS)-1);
             mid_index = static_cast<size_t>((NUM_LIMB_BITS / 2) - 1);
         // Turbo plonk range constraint returns an array of partial sums, midpoint will happen to hold the big limb
         // value

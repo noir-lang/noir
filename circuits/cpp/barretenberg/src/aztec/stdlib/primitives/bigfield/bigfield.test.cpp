@@ -1,6 +1,3 @@
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <gtest/gtest.h>
 
 #include <numeric/random/engine.hpp>
