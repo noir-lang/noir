@@ -1,6 +1,16 @@
+#!/bin/bash
+set -e
+
+# Download ignition transcript 0.
+if [ ! -d ./srs_db/ignition ]; then
+  cd ./srs_db
+  ./download_ignition.sh 0
+  cd ..
+fi
+
 # Build native.
 mkdir -p build && cd build
-cmake ..
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
 cmake --build . --parallel
 cd ..
 
