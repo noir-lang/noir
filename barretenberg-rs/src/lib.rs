@@ -1,5 +1,5 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg-std.wasm");
+pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
 
 pub mod composer;
 mod crs;
