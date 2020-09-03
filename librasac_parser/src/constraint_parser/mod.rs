@@ -14,7 +14,12 @@ pub struct ConstraintParser;
 // Example2 `constrain x / y` becomes `constrain x/y == 0`
 // XXX: However, I'm wondering if we should avoid doing anything under the hood and just have users explicitly writing what they mean?
 fn disallowed_operators() -> Vec<BinaryOp> {
-    vec![BinaryOp::And, BinaryOp::Or, BinaryOp::Divide,BinaryOp::Multiply]
+    vec![
+        BinaryOp::And,
+        BinaryOp::Or,
+        BinaryOp::Divide,
+        BinaryOp::Multiply,
+    ]
 }
 
 impl ConstraintParser {
@@ -34,9 +39,12 @@ impl ConstraintParser {
         }
 
         if disallowed_operators().contains(&infix.operator) {
-            panic!("Cannot use the {:?} operator in a constraint statement." , &infix.operator)
+            panic!(
+                "Cannot use the {:?} operator in a constraint statement.",
+                &infix.operator
+            )
         }
-        
+
         let stmt = ConstrainStatement(infix);
         Box::new(stmt)
     }

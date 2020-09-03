@@ -6,7 +6,6 @@ mod statement;
 pub use expression::*;
 pub use statement::*;
 
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement,

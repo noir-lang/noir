@@ -6,26 +6,26 @@ mod infix_evaluator;
 pub mod optimise;
 pub mod polynomial;
 
-use std::collections::BTreeMap;
-use librasac_ast::*;
 pub use circuit::{Circuit, Selector, Witness};
 pub use environment::Environment;
-use rasa_field::FieldElement;
 use func::Function;
+use librasac_ast::*;
+use rasa_field::FieldElement;
+use std::collections::BTreeMap;
 
+pub use circuit::gate::{Directive, Gate};
 use librasac_parser::Program;
-pub use circuit::gate::Gate;
 use optimise::Optimiser;
 pub use polynomial::{Arithmetic, Linear, Polynomial};
 use std::collections::HashMap;
 
 pub struct Evaluator {
-    num_witness: usize,
-    num_selectors: usize,
+    num_witness: usize,   // XXX: Can possibly remove
+    num_selectors: usize, // XXX: Can possibly remove
     pub(crate) witnesses: Vec<Witness>,
     selectors: Vec<Selector>,
     statements: Vec<Statement>,
-    num_public_inputs : usize,
+    num_public_inputs: usize,
     main_function: Function,
     gates: Vec<Gate>,                    // Identifier, Polynomial
     functions: HashMap<Ident, Function>, // XXX: We probably want an environment of functions that are available when we introduce imports. Not every file should have access to every function
@@ -34,7 +34,6 @@ pub struct Evaluator {
 
 impl Evaluator {
     pub fn new(program: Program) -> Evaluator {
-
         let Program {
             statements,
             functions,
@@ -46,14 +45,16 @@ impl Evaluator {
         let functions = Evaluator::parse_function_declarations(functions);
 
         // Check that we have a main function
-        let main_function = match main {  
-            None => panic!("Could not find a main function, currently we do not support library projects"),
+        let main_function = match main {
+            None => panic!(
+                "Could not find a main function, currently we do not support library projects"
+            ),
             Some(main_func_dec) => {
                 let (_, func) = Evaluator::parse_function_declaration(main_func_dec);
                 func
-            }, 
+            }
         };
-    
+
         Evaluator {
             num_witness: 0,
             num_selectors: 0,
@@ -81,18 +82,16 @@ impl Evaluator {
 
         functions
     }
-    
+
     /// Convert a function declarations into a function object
     fn parse_function_declaration(func_dec: FunctionDefinition) -> (Ident, Function) {
-            let func_name = func_dec.name;
-            let body = func_dec.func.body;
-            let parameters = func_dec.func.parameters;
+        let func_name = func_dec.name;
+        let body = func_dec.func.body;
+        let parameters = func_dec.func.parameters;
 
-            // Store function in evaluator
-            (func_name, Function { body, parameters })
+        // Store function in evaluator
+        (func_name, Function { body, parameters })
     }
-
-
 
     // Returns the current counter value and then increments the counter
     // This is so that we can have unique variable names when the same function is called multiple times
@@ -114,10 +113,13 @@ impl Evaluator {
         self.num_witness
     }
 
+    // XXX: We return the num_witnesses, but this is the max number of witnesses
+    // Some of these could have been removed due to optimisations. We need this number because the
+    // Standard format requires the number of witnesses. The max number is also fine.
+    // If we had a composer object, we would not need it
     pub fn evaluate(mut self, env: &mut Environment) -> (Circuit, usize, usize) {
         self.parse_types(env);
         const WIDTH: usize = 3;
-
 
         let optimiser = Optimiser::new(WIDTH);
 
@@ -130,13 +132,12 @@ impl Evaluator {
             .into_iter()
             .map(|gate| match gate {
                 Gate::Arithmetic(arith) => {
-                    
-                optimiser.optimise(arith, &mut intermediate_variables, num_witness)
-                
-                },
+                    let arith = optimiser.optimise(arith, &mut intermediate_variables, num_witness);
+                    Gate::Arithmetic(arith)
+                }
+                directive => directive,
             })
             .collect();
-     
 
         // The optimiser could have created intermediate variables/witnesses. We need to add these to the circuit
         for (witness, gate) in intermediate_variables {
@@ -144,7 +145,7 @@ impl Evaluator {
             self.num_witness += 1;
             self.witnesses.push(witness);
             // Add gate into the circuit
-            optimised_arith_gates.push(gate);
+            optimised_arith_gates.push(Gate::Arithmetic(gate));
 
             // XXX: We can additionally check that these arithmetic gates are done correctly via our optimiser -- It should have no effect if passed in twice
         }
@@ -158,7 +159,11 @@ impl Evaluator {
             dbg!(i, witness);
         }
 
-        (Circuit(optimised_arith_gates), self.witnesses.len(), self.num_public_inputs)
+        (
+            Circuit(optimised_arith_gates),
+            self.witnesses.len(),
+            self.num_public_inputs,
+        )
     }
 
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
@@ -227,7 +232,6 @@ impl Evaluator {
         let mut witnesses = Vec::new();
 
         for (param_name, param_type) in self.main_function.parameters.clone().into_iter() {
-
             match param_type {
                 Type::Public =>{
                     pub_inputs.push(param_name);
@@ -246,7 +250,6 @@ impl Evaluator {
             self.store_witness(param_name.0.clone());
             self.store_lone_variable(param_name.0.clone(), env);
         }
-
 
         // Now call the main function
         for statement in self.main_function.body.0.clone().iter() {
@@ -288,9 +291,7 @@ impl Evaluator {
     // Create a concept called delayed constraints
     fn evaluate_statement(&mut self, env: &mut Environment, statement: &Statement) -> Polynomial {
         match statement {
-            Statement::Private(x) => {
-               self.handle_private_statement(env, *x.clone())
-            }
+            Statement::Private(x) => self.handle_private_statement(env, *x.clone()),
             Statement::Constrain(constrain_stmt) => {
                 self.handle_constrain_statement(env, constrain_stmt)
             }
@@ -316,12 +317,11 @@ impl Evaluator {
     // XXX(med) : combine these two methods and or rename
     // XXX(bug): If you call store_witness after store_lone_variable, then the Polynomial will have the index of the previous witness
     // XXX: Maybe better to name it `create_witness`
-    fn store_witness(&mut self, variable_name: String) -> Witness{
+    fn store_witness(&mut self, variable_name: String) -> Witness {
         self.num_witness = self.num_witness + 1;
         let witness = Witness(variable_name, self.num_witness);
-        self.witnesses
-            .push(witness.clone());
-            witness
+        self.witnesses.push(witness.clone());
+        witness
     }
     fn store_lone_variable(&mut self, variable_name: String, env: &mut Environment) -> Polynomial {
         let value = Polynomial::from_witness(Witness(variable_name.clone(), self.num_witness));
@@ -329,33 +329,36 @@ impl Evaluator {
         value
     }
 
-
     // The LHS of a private statement is always a new witness
     // Cannot do `private x + k = z`
     // It is also a new variable, since private is used to derive variables
-    fn handle_private_statement(&mut self, env: &mut Environment, x: PrivateStatement) -> Polynomial{
+    fn handle_private_statement(
+        &mut self,
+        env: &mut Environment,
+        x: PrivateStatement,
+    ) -> Polynomial {
         let variable_name: String = x.identifier.clone().0;
-        let witness = self.store_witness(variable_name.clone()); 
+        let witness = self.store_witness(variable_name.clone());
 
         let rhs_poly = self.expression_to_polynomial(env, x.expression.clone());
-        
+
         match rhs_poly.arithmetic() {
             Some(arith) => {
-                
                 let witness_linear = Linear::from_witness(witness.clone());
 
                 let witness_poly = Polynomial::from_witness(witness);
 
                 // Store in environment, so we can get it by variable name
                 // XXX: Can add a method called LINK to wrap this
-                env.store(variable_name, witness_poly.clone()); 
+                env.store(variable_name, witness_poly.clone());
 
-                self.gates.push(Gate::Arithmetic(arith - &witness_linear.into()))
-            },
+                self.gates
+                    .push(Gate::Arithmetic(arith - &witness_linear.into()))
+            }
             None => {
                 env.store(variable_name.clone(), rhs_poly.clone());
-                assert!(rhs_poly.is_linear()); // XXX: Cannot do priv x = 5; x is a constant in this case 
-            },
+                assert!(rhs_poly.is_linear()); // XXX: Cannot do priv x = 5; x is a constant in this case
+            }
         };
 
         Polynomial::Null
@@ -364,34 +367,42 @@ impl Evaluator {
     // The LHS of a private statement is always a new witness
     // Cannot do `private x + k = z`
     // It is also a new variable, since private is used to derive variables
-    fn handle_constrain_statement(&mut self, env: &mut Environment, constrain_stmt: &ConstrainStatement) -> Polynomial{
-                let lhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.lhs.clone());
-                let rhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.rhs.clone());
-                
-                // Evaluate the constrain infix statement
-                let _ = self.evaluate_infix_expression(env, lhs_poly.clone(), rhs_poly.clone(), constrain_stmt.0.operator);
+    fn handle_constrain_statement(
+        &mut self,
+        env: &mut Environment,
+        constrain_stmt: &ConstrainStatement,
+    ) -> Polynomial {
+        let lhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.lhs.clone());
+        let rhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.rhs.clone());
 
-                // XXX: WE could probably move this into equal folder, as it is an optimisation that only applies to it
-                if constrain_stmt.0.operator == BinaryOp::Equal {
-                    // Check if we have any lone variables and then if the other side is a linear/constant
-                    let (witness, rhs ) = match (lhs_poly.is_unit_witness(),rhs_poly.is_unit_witness()) {
-                        (true, _) => (lhs_poly.witness(), rhs_poly),
-                        (_, true) => (rhs_poly.witness(), lhs_poly),
-                        (_, _) => (None, Polynomial::Null)
-                    };
+        // Evaluate the constrain infix statement
+        let _ = self.evaluate_infix_expression(
+            env,
+            lhs_poly.clone(),
+            rhs_poly.clone(),
+            constrain_stmt.0.operator,
+        );
 
-                    match witness {
-                        Some(wit) => {
-                            // Check if the RHS is linear or constant
-                            if rhs.is_linear() | rhs.is_constant() {
-                                env.store(wit.0, rhs)
-                            }
+        // XXX: WE could probably move this into equal folder, as it is an optimisation that only applies to it
+        if constrain_stmt.0.operator == BinaryOp::Equal {
+            // Check if we have any lone variables and then if the other side is a linear/constant
+            let (witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
+                (true, _) => (lhs_poly.witness(), rhs_poly),
+                (_, true) => (rhs_poly.witness(), lhs_poly),
+                (_, _) => (None, Polynomial::Null),
+            };
 
-                        },
-                        None => { }
-                    };
-                };
-                Polynomial::Null
+            match witness {
+                Some(wit) => {
+                    // Check if the RHS is linear or constant
+                    if rhs.is_linear() | rhs.is_constant() {
+                        env.store(wit.0, rhs)
+                    }
+                }
+                None => {}
+            };
+        };
+        Polynomial::Null
     }
 
     pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Polynomial {

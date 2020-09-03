@@ -11,4 +11,9 @@
         constrain w * (one - w) == 0;
     }
 
-    
+
+    // Framework -> Create smart contract verifier
+    // DSL -> Higher level PLOOKUP/ULTRAPLONK -> _WHAT_  width
+    // sha256(input) -> output Zac: internal impl needs plookup(custom directive) 
+    // range(witness) -> witness
+    // DSL -> Lower level Proving system/DSL _How_ 

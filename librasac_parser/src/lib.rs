@@ -14,10 +14,10 @@ pub struct Program {
     pub functions: Vec<FunctionDefinition>,
     pub directives: Vec<FunctionDefinition>,
     pub custom_directives: Vec<(String, FunctionDefinition)>,
-    pub main : Option<FunctionDefinition>,
+    pub main: Option<FunctionDefinition>,
 }
 
-const MAIN_FUNCTION : &str = "main";
+const MAIN_FUNCTION: &str = "main";
 
 impl Program {
     pub fn new() -> Self {
@@ -42,22 +42,27 @@ impl Program {
             self.functions.push(func);
         }
     }
-    pub fn push_directive_function(&mut self, name : Option<String>, func: FunctionDefinition) {
-            // If it has no name, it is a regular directive, which will be used to do field operations without constraints
-            // If it has a name, it is a custom directive, which will map to a custom gate
+    pub fn push_directive_function(&mut self, name: Option<String>, func: FunctionDefinition) {
+        // If it has no name, it is a regular directive, which will be used to do field operations without constraints
+        // If it has a name, it is a custom directive, which will map to a custom gate
         match name {
             Some(name) => self.custom_directives.push((name, func)),
-            None => self.directives.push(func)
+            None => self.directives.push(func),
         }
     }
     /// Returns the program abi which is only present for executables and not libraries
-    pub fn abi(&self) -> Option<Vec<String>>{
+    pub fn abi(&self) -> Option<Vec<String>> {
         match &self.main {
             Some(main_func) => {
-                let abi = main_func.func.parameters.iter().map(|(ident, _)| ident.0.clone()).collect();
+                let abi = main_func
+                    .func
+                    .parameters
+                    .iter()
+                    .map(|(ident, _)| ident.0.clone())
+                    .collect();
                 Some(abi)
-            },
-            None => None
+            }
+            None => None,
         }
     }
 }

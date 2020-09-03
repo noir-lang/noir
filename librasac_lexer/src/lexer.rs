@@ -1,4 +1,4 @@
-use crate::token::{Keyword, Token, Attribute};
+use crate::token::{Attribute, Keyword, Token};
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -134,14 +134,18 @@ impl<'a> Lexer<'a> {
     }
 
     /// Keeps consuming tokens as long as the predicate is satisfied
-    fn eat_while<F: Fn(char) -> bool>(&mut self, initial_char: Option<char>, predicate: F) -> String {
+    fn eat_while<F: Fn(char) -> bool>(
+        &mut self,
+        initial_char: Option<char>,
+        predicate: F,
+    ) -> String {
         // This function is only called when we want to continue consuming a character of the same type.
         // For example, we see a digit and we want to consume the whole integer
         // Therefore, the current character which triggered this function will need to be appended
         let mut word = String::new();
         match initial_char {
             Some(init_char) => word.push(init_char),
-            _=> {}
+            _ => {}
         };
 
         // Keep checking that we are not at the EOF
@@ -176,27 +180,30 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_attribute(&mut self) -> Token {
-
         if !self.peek_char_is('[') {
-            let err_msg = format!("Lexer expected a '[' character after the '#' character, instead got {}", self.next_char().unwrap());
+            let err_msg = format!(
+                "Lexer expected a '[' character after the '#' character, instead got {}",
+                self.next_char().unwrap()
+            );
             return Token::Error(err_msg.to_string());
         }
         self.next_char();
-        
+
         let word = self.eat_while(None, |ch| {
             (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_') && (ch != ']')
         });
-        
-        
+
         if !self.peek_char_is(']') {
-            let err_msg = format!("Lexer expected a trailing ']' character instead got {}", self.next_char().unwrap());
+            let err_msg = format!(
+                "Lexer expected a trailing ']' character instead got {}",
+                self.next_char().unwrap()
+            );
             return Token::Error(err_msg.to_string());
         }
         self.next_char();
 
         Attribute::lookup_attribute(&word)
     }
-
 
     //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
@@ -256,7 +263,6 @@ fn test_single_double_char() {
         Token::LessEqual,
         Token::Greater,
         Token::GreaterEqual,
-        Token::Pound,
         Token::Ampersand,
         Token::Minus,
         Token::Arrow,

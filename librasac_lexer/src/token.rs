@@ -165,7 +165,7 @@ impl Token {
 // The other type will be used for custom gates
 pub enum Attribute {
     Directive,
-    Str(String)
+    Str(String),
 }
 
 impl fmt::Display for Attribute {

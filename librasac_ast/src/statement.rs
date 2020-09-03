@@ -1,4 +1,4 @@
-use crate::{Expression,  InfixExpression, Type};
+use crate::{Expression, InfixExpression, Type};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Clone)]
 pub struct Ident(pub String);

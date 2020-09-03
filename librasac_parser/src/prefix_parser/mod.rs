@@ -23,7 +23,4 @@ use librasac_lexer::token::{Keyword, Token, TokenKind};
 
 use crate::{Parser, Precedence, PrefixParser};
 
-use librasac_ast::{
-     ConstStatement,
-    LetStatement, PrivateStatement, PublicStatement, Statement,
-};
+use librasac_ast::{ConstStatement, LetStatement, PrivateStatement, PublicStatement, Statement};

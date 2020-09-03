@@ -1,6 +1,5 @@
-
-    use ff::{Field, PrimeField, PrimeFieldRepr};
-    use pairing::bn256::Fr;
+use ff::{Field, PrimeField, PrimeFieldRepr};
+use pairing::bn256::Fr;
 
 // XXX: Switch out for a trait and proper implementations
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -13,25 +12,24 @@ impl std::hash::Hash for FieldElement {
 }
 
 impl From<i128> for FieldElement {
-    fn from(mut a : i128) -> FieldElement {
+    fn from(mut a: i128) -> FieldElement {
         let mut negative = false;
         if a < 0 {
             a = -a;
             negative = true;
         }
-        
 
-        let mut result = Fr::from_str(&a.to_string()).expect("Cannot convert i128 as a string to a field element");
-        
+        let mut result = Fr::from_str(&a.to_string())
+            .expect("Cannot convert i128 as a string to a field element");
+
         if negative {
             result.negate();
         }
-        return FieldElement(result)
+        return FieldElement(result);
     }
 }
 
 impl FieldElement {
-
     pub fn one() -> FieldElement {
         FieldElement(Fr::one())
     }
@@ -56,15 +54,14 @@ impl FieldElement {
     }
 
     // XXX: 100% sure there is a better way to do this. Check API for it.
-    pub fn to_bytes(&self) -> [u8;32] {
-        let mut buf = [0;32];
+    pub fn to_bytes(&self) -> [u8; 32] {
+        let mut buf = [0; 32];
         hex::decode_to_slice(self.to_hex(), &mut buf).unwrap();
         buf
     }
-
 }
 
-use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign, Div};
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 impl Neg for FieldElement {
     type Output = FieldElement;

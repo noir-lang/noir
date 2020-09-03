@@ -1,6 +1,6 @@
 use crate::circuit::Witness;
-use rasa_field::FieldElement;
 use crate::Linear;
+use rasa_field::FieldElement;
 use std::collections::HashMap;
 use std::ops::{Add, Mul, Neg, Sub};
 // In the addition polynomial
@@ -41,7 +41,6 @@ impl Default for Arithmetic {
 }
 
 impl Arithmetic {
-
     pub(crate) fn simplify_fan(&mut self) {
         let max_terms = std::cmp::max(self.fan_in.len(), self.fan_out.len());
         let mut hash_map: HashMap<Witness, FieldElement> = HashMap::with_capacity(max_terms);

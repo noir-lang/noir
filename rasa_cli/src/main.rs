@@ -7,13 +7,11 @@ fn main() {
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
         .subcommand(App::new("build").about("Builds the constraint system"))
         .subcommand(
-            App::new("new")
-                .about("Create a new binary project")
-                .arg(
-                    Arg::with_name("package_name")
-                        .help("Name of the package")
-                        .required(true),
-                ),
+            App::new("new").about("Create a new binary project").arg(
+                Arg::with_name("package_name")
+                    .help("Name of the package")
+                    .required(true),
+            ),
         )
         .subcommand(
             App::new("verify")
@@ -27,7 +25,11 @@ fn main() {
         .subcommand(
             App::new("prove")
                 .about("Create proof for this program")
-                .arg(Arg::with_name("proof_name").help("The name of the proof").required(true))
+                .arg(
+                    Arg::with_name("proof_name")
+                        .help("The name of the proof")
+                        .required(true),
+                )
                 .arg(
                     Arg::with_name("witness values")
                         .required(true)
@@ -42,7 +44,7 @@ fn main() {
         Some("build") => {
             let _ = build_main();
             println!("Constraint system successfully built!")
-        },
+        }
         Some("prove") => prove(matches),
         Some("verify") => verify(matches),
         None => println!("No subcommand was used"),
@@ -57,7 +59,7 @@ use librasac_parser::Parser;
 use rasa_evaluator::circuit::Witness;
 use rasa_evaluator::{Circuit, Environment, Evaluator};
 use rasa_field::FieldElement;
-use rasa_wg::ArithmeticSolver;
+use rasa_wg::Solver;
 use std::collections::BTreeMap;
 
 struct CompiledMain {
@@ -74,7 +76,11 @@ fn build_main() -> CompiledMain {
     let mut main_file = std::env::current_dir().unwrap();
     main_file.push(std::path::PathBuf::from("bin"));
     main_file.push(std::path::PathBuf::from("main.rasa"));
-    assert!(main_file.exists(), "Cannot find main file at located {}", main_file.display());
+    assert!(
+        main_file.exists(),
+        "Cannot find main file at located {}",
+        main_file.display()
+    );
 
     let file_as_string = std::fs::read_to_string(main_file).unwrap();
 
@@ -88,10 +94,10 @@ fn build_main() -> CompiledMain {
 
     let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate(&mut Environment::new());
 
-    let constraint_system = rasa_cli::synthesiser::synthesise_circuit(&circuit, num_witnesses, num_public_inputs);
+    let constraint_system =
+        rasa_serialiser::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
 
     hash_constraint_system(&constraint_system);
-
 
     CompiledMain {
         standard_format_cs: constraint_system,
@@ -100,9 +106,7 @@ fn build_main() -> CompiledMain {
     }
 }
 
-
-
-fn new_package(args : ArgMatches) {
+fn new_package(args: ArgMatches) {
     let package_name = args
         .subcommand_matches("new")
         .unwrap()
@@ -111,8 +115,8 @@ fn new_package(args : ArgMatches) {
     let mut package_dir = std::env::current_dir().unwrap();
     package_dir.push(Path::new(package_name));
 
-    const BINARY_DIR : &str= "bin";
-    const PROOFS_DIR : &str= "proofs";
+    const BINARY_DIR: &str = "bin";
+    const PROOFS_DIR: &str = "proofs";
 
     create_directory(&package_dir.join(Path::new(BINARY_DIR)));
     create_directory(&package_dir.join(Path::new(PROOFS_DIR)));
@@ -126,9 +130,8 @@ fn new_package(args : ArgMatches) {
     package_dir.push(Path::new(BINARY_DIR).join(Path::new("main.rasa")));
     let path = write_to_file(example.as_bytes(), &package_dir);
     println!("Project successfully created! Binary located at {}", path);
-
 }
-fn verify(args : ArgMatches) {
+fn verify(args: ArgMatches) {
     let proof_name = args
         .subcommand_matches("verify")
         .unwrap()
@@ -139,9 +142,8 @@ fn verify(args : ArgMatches) {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension("rasa");
 
+    let proof: Vec<_> = std::fs::read(proof_path).unwrap();
 
-    let proof : Vec<_> = std::fs::read(proof_path).unwrap();
-        
     let compiled_main = build_main();
 
     let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
@@ -154,21 +156,25 @@ fn verify(args : ArgMatches) {
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
-const WITNESS_OFFSET : usize = 1;
+const WITNESS_OFFSET: usize = 1;
 
 fn prove(args: ArgMatches) {
-
     let proof_name = args
-    .subcommand_matches("prove")
-    .unwrap()
-    .value_of("proof_name").unwrap();
-
+        .subcommand_matches("prove")
+        .unwrap()
+        .value_of("proof_name")
+        .unwrap();
 
     let witness_values: Vec<i128> = args
         .subcommand_matches("prove")
         .unwrap()
         .values_of("witness values")
-        .unwrap().map(|value| value.parse().expect("Expected witness values to be integers"))
+        .unwrap()
+        .map(|value| {
+            value
+                .parse()
+                .expect("Expected witness values to be integers")
+        })
         .collect();
 
     let compiled_main = build_main();
@@ -184,15 +190,23 @@ fn prove(args: ArgMatches) {
 
     let mut solved_witness = BTreeMap::new();
 
-    // Since the Public values are added first. Even if the first parameter is a Witness, it may not be 
+    // Since the Public values are added first. Even if the first parameter is a Witness, it may not be
     // The first in the witness Vector. We do however, still want people to enter the values as the ABI states, so we must
     // match the correct values to the correct indices
-    for (index, (param, value)) in compiled_main.abi.into_iter().zip(witness_values.into_iter()).enumerate() {
-        solved_witness.insert(Witness::new(param, index+WITNESS_OFFSET), FieldElement::from(value));
+    for (index, (param, value)) in compiled_main
+        .abi
+        .into_iter()
+        .zip(witness_values.into_iter())
+        .enumerate()
+    {
+        solved_witness.insert(
+            Witness::new(param, index + WITNESS_OFFSET),
+            FieldElement::from(value),
+        );
     }
 
     // Derive solution
-    ArithmeticSolver::solve(&mut solved_witness, compiled_main.circuit.clone());
+    Solver::solve(&mut solved_witness, compiled_main.circuit.clone());
 
     let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
 
@@ -212,14 +226,13 @@ fn prove(args: ArgMatches) {
 
     let path = write_to_file(&proof, &proof_path);
     println!("Proof successfully created and located at {}", path)
-
 }
 
+use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::fs::File;
 
-fn write_to_file(bytes : &[u8], path : &Path) -> String{
+fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
 
     let mut file = match File::create(&path) {
@@ -233,20 +246,18 @@ fn write_to_file(bytes : &[u8], path : &Path) -> String{
     }
 }
 
-
-fn create_directory(path : &std::path::Path) {
+fn create_directory(path: &std::path::Path) {
     if path.exists() {
         println!("This directory {} already exists", path.display());
-        return
+        return;
     }
     std::fs::create_dir_all(path).unwrap();
 }
 
-fn hash_constraint_system(cs : &ConstraintSystem) {
-    use sha2::{Sha256,  Digest};
+fn hash_constraint_system(cs: &ConstraintSystem) {
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(cs.to_bytes());
     let result = hasher.finalize();
-    println!("hash of constraint system : {:x?}",&result[..]);
-
+    println!("hash of constraint system : {:x?}", &result[..]);
 }

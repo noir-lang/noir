@@ -5,8 +5,8 @@ pub use arithmetic::Arithmetic;
 pub use linear::Linear;
 
 use super::circuit::Witness;
-use rasa_field::FieldElement;
 use crate::circuit::gate::Gate;
+use rasa_field::FieldElement;
 
 #[derive(Clone, Debug)]
 pub enum Polynomial {
@@ -44,7 +44,7 @@ impl Polynomial {
 
     pub fn witness(&self) -> Option<Witness> {
         if !self.is_unit_witness() {
-            return None
+            return None;
         };
         match self {
             Polynomial::Linear(linear) => {
@@ -52,15 +52,13 @@ impl Polynomial {
                 assert!(linear.add_scale == FieldElement::zero());
                 Some(linear.witness.clone())
             }
-            _=> None
+            _ => None,
         }
     }
     pub fn linear(&self) -> Option<Linear> {
         match self {
-            Polynomial::Linear(linear) => {
-                Some(linear.clone())
-            }
-            _=> None
+            Polynomial::Linear(linear) => Some(linear.clone()),
+            _ => None,
         }
     }
     // Returns true if the linear polynomial is a regular witness that has not been scaled

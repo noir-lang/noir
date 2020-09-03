@@ -1,6 +1,6 @@
 use librasac_ast::{BlockStatement, Ident, Type};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Function {
     pub parameters: Vec<(Ident, Type)>,
     pub body: BlockStatement,

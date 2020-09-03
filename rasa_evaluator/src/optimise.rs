@@ -24,7 +24,7 @@ impl Optimiser {
         &self,
         gate: Arithmetic,
         mut intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
-        num_witness : usize,
+        num_witness: usize,
     ) -> Arithmetic {
         // Remove all terms where the co-efficient is zero
         let gate = self.remove_zero_coefficients(gate);
@@ -43,20 +43,20 @@ impl Optimiser {
         // If a gate has more than one mul term . we may need an intermediate variable for each one. Since not every variable will need to link to
         // the mul term, we could possibly do it that way.
         // We wil call this a partial gate scan optimisation which will result in the gates being able to fit into the correct width
-        let gate = self.partial_gate_scan_optimisation(gate, &mut intermediate_variables, num_witness);
+        let gate =
+            self.partial_gate_scan_optimisation(gate, &mut intermediate_variables, num_witness);
 
         self.sort(gate)
     }
 
     /// Sorts gate in a deterministic order
     /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
-    fn sort(&self,
-        mut gate: Arithmetic) -> Arithmetic {
-            gate.mul_terms.sort();
-            gate.simplified_fan.sort();
+    fn sort(&self, mut gate: Arithmetic) -> Arithmetic {
+        gate.mul_terms.sort();
+        gate.simplified_fan.sort();
 
-            gate
-        }
+        gate
+    }
 
     // Remove all terms with zero as a coefficient
     fn remove_zero_coefficients(&self, mut gate: Arithmetic) -> Arithmetic {
@@ -96,7 +96,7 @@ impl Optimiser {
     // Simplifies all mul terms with the same bi-variate variables
     fn simplify_mul_terms(&self, mut gate: Arithmetic) -> Arithmetic {
         let mut hash_map: BTreeMap<(Witness, Witness), FieldElement> = BTreeMap::new();
-            
+
         // Canonicalise the ordering of the multiplication, lets just order by variable name
         for (scale, wL, wR) in gate.mul_terms.clone().into_iter() {
             let mut pair = vec![wL, wR];
@@ -143,7 +143,7 @@ impl Optimiser {
         &self,
         mut gate: Arithmetic,
         intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
-        num_witness : usize,
+        num_witness: usize,
     ) -> Arithmetic {
         // We pass around this intermediate variable BTreeMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
@@ -239,7 +239,8 @@ impl Optimiser {
                         "optim_inter_full_gate_",
                         intermediate_variables.len(),
                     );
-                    let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
+                    let inter_var =
+                        Witness(inter_var_name, intermediate_variables.len() + num_witness);
 
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
@@ -326,9 +327,9 @@ impl Optimiser {
                 "optim_inter_squash_mul_",
                 intermediate_variables.len(),
             );
-            let inter_var = Witness(inter_var_name,intermediate_variables.len() + num_witness);
+            let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
             let mut intermediate_gate = Arithmetic::default();
-   
+
             // Push mul term into the gate
             intermediate_gate.mul_terms.push(mul_term);
             // Constrain it to be equal to the intermediate variable
@@ -338,9 +339,9 @@ impl Optimiser {
 
             // Add intermediate gate and variable to map
             intermediate_variables.insert(inter_var.clone(), intermediate_gate);
-    
+
             // Add intermediate variable as a part of the fan-in for the original gate
-            gate.simplified_fan.push((FieldElement::one(),inter_var ));
+            gate.simplified_fan.push((FieldElement::one(), inter_var));
         }
 
         // Remove all of the mul terms as we have intermediate variables to represent them now
@@ -374,7 +375,7 @@ impl Optimiser {
                 "optim_inter_squash_fan_",
                 intermediate_variables.len(),
             );
-            let inter_var = Witness(inter_var_name,intermediate_variables.len() + num_witness); 
+            let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
 
             intermediate_gate
                 .simplified_fan

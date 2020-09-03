@@ -1,6 +1,6 @@
 use crate::circuit::Witness;
-use rasa_field::FieldElement;
 use crate::polynomial::arithmetic::Arithmetic;
+use rasa_field::FieldElement;
 
 use std::ops::{Add, Mul, Neg, Sub};
 
