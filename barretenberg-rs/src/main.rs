@@ -1,4 +1,4 @@
-use barretenberg_rs::composer::{Assignments, Constraint, ConstraintSystem, StandardComposer};
+use barretenberg_rs::composer::{Assignments, Constraint, RangeConstraint, ConstraintSystem, StandardComposer};
 
 fn main() {
     println!("Creating constraint system\n");
@@ -13,9 +13,12 @@ fn main() {
         qc: 0.into(),
     };
 
+    let range = RangeConstraint{a: 1, num_bits: 32};
+
     let constraint_system = ConstraintSystem {
         var_num: 3,
         pub_var_num: 0,
+        range_constraints: vec![range],
         constraints: vec![constraint],
     };
 

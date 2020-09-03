@@ -3,8 +3,8 @@ use super::fft::FFT;
 use super::pippenger::Pippenger;
 use super::prover::Prover;
 use super::Barretenberg;
-use wasmer_runtime::Value;
 use rasa_field::FieldElement as Scalar;
+use wasmer_runtime::Value;
 
 pub struct StandardComposer {
     barretenberg: Barretenberg,
@@ -97,10 +97,30 @@ impl Constraint {
 }
 
 #[derive(Clone, Hash, Debug)]
+pub struct RangeConstraint {
+    pub a: i32,
+    pub num_bits: i32,
+}
+
+impl RangeConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        // Serialiasing Wires
+        buffer.extend_from_slice(&self.a.to_be_bytes());
+        buffer.extend_from_slice(&self.num_bits.to_be_bytes());
+
+
+        buffer
+    }
+}
+
+
+#[derive(Clone, Hash, Debug)]
 pub struct ConstraintSystem {
     pub var_num: u32,
     pub pub_var_num: u32,
 
+    pub range_constraints: Vec<RangeConstraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -111,6 +131,13 @@ impl ConstraintSystem {
         // Push lengths onto the buffer
         buffer.extend_from_slice(&self.var_num.to_be_bytes());
         buffer.extend_from_slice(&self.pub_var_num.to_be_bytes());
+
+        let range_constraints_len = self.range_constraints.len() as u32;
+        buffer.extend_from_slice(&range_constraints_len.to_be_bytes());
+        // Serialise each arithmetic constraint
+        for constraint in self.range_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
 
         let constraints_len = self.constraints.len() as u32;
         buffer.extend_from_slice(&constraints_len.to_be_bytes());
@@ -269,6 +296,7 @@ mod test {
         let constraint_system = ConstraintSystem {
             var_num: 3,
             pub_var_num: 0,
+            range_constraints: vec![],
             constraints: vec![constraint.clone()],
         };
 
@@ -330,6 +358,7 @@ mod test {
         let constraint_system = ConstraintSystem {
             var_num: 3,
             pub_var_num: 2,
+            range_constraints: vec![],
             constraints: vec![constraint],
         };
 
@@ -376,6 +405,7 @@ mod test {
         let constraint_system = ConstraintSystem {
             var_num: 4,
             pub_var_num: 1,
+            range_constraints: vec![],
             constraints: vec![constraint, constraint2],
         };
 
