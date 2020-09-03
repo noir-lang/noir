@@ -10,7 +10,7 @@ const G2_END: usize = G2_START + 128 - 1;
 
 fn transcript_location() -> std::path::PathBuf {
     let mut transcript_dir = dirs::home_dir().unwrap();
-    transcript_dir.push(std::path::Path::new("rasa_cache"));
+    transcript_dir.push(std::path::Path::new("noir_cache"));
     transcript_dir.push(std::path::Path::new("ignition"));
     transcript_dir.push(std::path::Path::new("transcript00.dat"));
     transcript_dir

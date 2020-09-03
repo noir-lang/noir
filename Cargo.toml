@@ -1,13 +1,13 @@
 [workspace]
 
 members = [
-    # "rasa_field",
-    # "librasac_lexer",
-    # "librasac_parser",
-    # "librasac_analyser",
+    "noir_field",
+    "libnoirc_lexer",
+    "libnoirc_parser",
+    "libnoirc_analyser",
     "barretenberg-rs",
-    # "rasa_evaluator",
-    # "rasa_cli",
-    # "rasa_serialiser",
-    # "rasa_wg",
+    "noir_evaluator",
+    "noir_cli",
+    "noir_serialiser",
+    "noir_wg",
 ]

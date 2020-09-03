@@ -1,5 +1,5 @@
 [package]
-name = "barretenberg-rs"
+name = "noir_serialiser"
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
 edition = "2018"
@@ -7,9 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wasmer-runtime = "0.16.0"
-wasmer-wasi = "0.16.0"
 noir_field = {path = "../noir_field"}
-reqwest = {version = "0.10.8",features = ["blocking"]}
-error-chain = "0.12.4"
-dirs = "3.0"
+noir_evaluator = {path = "../noir_evaluator"}
+barretenberg-rs = {path = "../barretenberg-rs"}

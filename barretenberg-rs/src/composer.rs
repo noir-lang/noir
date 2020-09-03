@@ -3,7 +3,7 @@ use super::fft::FFT;
 use super::pippenger::Pippenger;
 use super::prover::Prover;
 use super::Barretenberg;
-use rasa_field::FieldElement as Scalar;
+use noir_field::FieldElement as Scalar;
 use wasmer_runtime::Value;
 
 pub struct StandardComposer {

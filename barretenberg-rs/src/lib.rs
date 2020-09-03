@@ -1,5 +1,5 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg-range.wasm");
+pub static WASM: &'static [u8] = include_bytes!("barretenberg-std.wasm");
 
 pub mod composer;
 mod crs;
@@ -108,7 +108,7 @@ fn load_module() -> Module {
 
 fn mod_cache_location() -> std::path::PathBuf {
     let mut mod_cache_dir = dirs::home_dir().unwrap();
-    mod_cache_dir.push(std::path::Path::new("rasa_cache"));
+    mod_cache_dir.push(std::path::Path::new("noir_cache"));
     mod_cache_dir.push(std::path::Path::new("mod_cache"));
     mod_cache_dir
 }

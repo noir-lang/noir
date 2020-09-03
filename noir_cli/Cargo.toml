@@ -1,0 +1,22 @@
+[package]
+name = "noir_cli"
+version = "0.1.0"
+authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+structopt = "0.3.13"
+libnoirc_lexer = {path = "../libnoirc_lexer"}
+libnoirc_ast = {path = "../libnoirc_ast"}
+libnoirc_analyser = {path = "../libnoirc_analyser"}
+libnoirc_parser = {path = "../libnoirc_parser"}
+noir_field = {path = "../noir_field"}
+noir_evaluator = {path = "../noir_evaluator"}
+noir_serialiser = {path = "../noir_serialiser"}
+barretenberg-rs = {path = "../barretenberg-rs"}
+noir_wg = {path = "../noir_wg"}
+
+sha2 = "0.9"
+clap = "2.0"

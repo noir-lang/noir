@@ -1,4 +1,4 @@
-use barretenberg_rs::composer::{Assignments, Constraint, RangeConstraint, ConstraintSystem, StandardComposer};
+use barretenberg_rs::composer::{Assignments, Constraint,  RangeConstraint, ConstraintSystem, StandardComposer};
 
 fn main() {
     println!("Creating constraint system\n");
