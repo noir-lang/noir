@@ -4,18 +4,59 @@
 
 The structured reference string contains monomials up to x^{2^20}. This SRS was generated locally and is for testing and development purposes only!
 
-### Getting started
+### Dependencies
+
+cmake version 3.16 or later
+clang 9 or gcc 9 or later
+
+### Installing Dependencies (Linux)
+
+(you may need to `sudo` to move clang into `/usr/local`. An alternative is to update PATH to point to a different directory)
+
+```
+apt-get update && apt-get install -y \
+  xz-utils \
+  build-essential \
+  curl \
+  && curl -SL http://releases.llvm.org/9.0.0/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz | tar -xJC . \
+  && mv clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04 /usr/local/clang_9.0.0
+
+export PATH="/usr/local/clang_9.0.0/bin:$PATH"
+export LD_LIBRARY_PATH="/usr/local/clang_9.0.0/lib:$LD_LIBRARY_PATH"
+```
+
+### Installing Dependencies (Mac)
+
+```
+brew install cmake
+brew install llvm
+```
+
+### Getting started (Linux)
+
+```
+git clone https://github.com/AztecProtocol/barretenberg
+cd barretenberg/srs_db
+./srs_db/download_ignition.sh 1
+cd ..
+mkdir build && cd build
+cmake -DLINUX_CLANG=ON ..
+make [optional target name]
+```
+
+### Getting started (Mac)
 
 ```
 git clone https://github.com/AztecProtocol/barretenberg
 cd barretenberg/barretenberg
+./srs_db/download_ignition.sh 1
+cd ..
 mkdir build && cd build
 cmake ..
 make [optional target name]
 ```
 
 ### Parallelise the build
-
 Add the number of jobs you want to your `make` command. e.g. `make -j16`.
 
 
