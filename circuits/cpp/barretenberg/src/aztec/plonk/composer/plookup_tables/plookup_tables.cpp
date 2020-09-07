@@ -56,8 +56,8 @@ PlookupReadData get_table_values(const PlookupMultiTableId id,
 
     PlookupReadData result;
 
-    const auto key_a_slices = numeric::slice_input(key_a, multi_table.slice_sizes);
-    const auto key_b_slices = numeric::slice_input(key_b, multi_table.slice_sizes);
+    const auto key_a_slices = numeric::slice_input_using_variable_bases(key_a, multi_table.slice_sizes);
+    const auto key_b_slices = numeric::slice_input_using_variable_bases(key_b, multi_table.slice_sizes);
 
     std::vector<fr> column_1_raw_values;
     std::vector<fr> column_2_raw_values;

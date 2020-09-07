@@ -174,8 +174,9 @@ TEST(stdlib_plookup, uint32_xor)
     const auto sequence =
         plonk::stdlib::plookup::read_sequence_from_table(waffle::PlookupMultiTableId::UINT32_XOR, left, right, true);
 
-    const auto left_slices = numeric::slice_input(left_value, 1 << 6);
-    const auto right_slices = numeric::slice_input(right_value, 1 << 6);
+    const auto left_slices = numeric::slice_input(left_value, 1 << 6, num_lookups);
+    const auto right_slices = numeric::slice_input(right_value, 1 << 6, num_lookups);
+
     std::vector<uint256_t> out_expected(num_lookups);
     std::vector<uint256_t> left_expected(num_lookups);
     std::vector<uint256_t> right_expected(num_lookups);
