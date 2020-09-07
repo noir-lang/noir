@@ -69,7 +69,6 @@ void assert_check_membership(Composer& composer,
                              byte_array<Composer> const& index)
 {
     auto exists = stdlib::merkle_tree::check_membership(composer, root, hashes, value, index);
-    // std::cout << "assert check membership " << exists << std::endl;
     composer.assert_equal_constant(exists.witness_index, fr::one());
 }
 
@@ -124,8 +123,7 @@ void update_subtree_membership(Composer& composer,
     }
 }
 
-template <typename Composer>
-bool_t<Composer> check_tree(field_t<Composer> const& root, std::vector<byte_array<Composer>> const& values)
+template <typename Composer> field_t<Composer> compute_tree_root(std::vector<byte_array<Composer>> const& values)
 {
     std::vector<field_t<Composer>> layer(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
@@ -140,7 +138,13 @@ bool_t<Composer> check_tree(field_t<Composer> const& root, std::vector<byte_arra
         layer = std::move(next_layer);
     }
 
-    return layer[0] == root;
+    return layer[0];
+}
+
+template <typename Composer>
+bool_t<Composer> check_tree(field_t<Composer> const& root, std::vector<byte_array<Composer>> const& values)
+{
+    return compute_tree_root(values) == root;
 }
 
 template <typename Composer>

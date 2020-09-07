@@ -1,6 +1,7 @@
 #pragma once
 #include "../../primitives/composers/composers_fwd.hpp"
 #include "../../primitives/field/field.hpp"
+#include "../../primitives/point/point.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
 namespace plonk {

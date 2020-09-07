@@ -5,10 +5,10 @@
 #include "../../primitives/witness/witness.hpp"
 #include "../../primitives/bit_array/bit_array.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
+#include "../../primitives/point/point.hpp"
 
 namespace plonk {
 namespace stdlib {
-
 namespace schnorr {
 
 template <typename C> struct signature_bits {

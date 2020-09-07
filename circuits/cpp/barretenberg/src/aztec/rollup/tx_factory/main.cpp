@@ -1,19 +1,19 @@
-#include "../client_proofs/join_split/join_split.hpp"
-#include "../client_proofs/join_split/join_split_tx.hpp"
-#include "../client_proofs/join_split/sign_notes.hpp"
-#include "../rollup_proofs/create_noop_join_split_proof.hpp"
-#include "../rollup_proofs/create_rollup.hpp"
-#include "../rollup_proofs/rollup_tx.hpp"
+#include "../proofs/join_split/join_split.hpp"
+#include "../proofs/join_split/join_split_tx.hpp"
+#include "../proofs/join_split/sign_notes.hpp"
+#include "../proofs/join_split/create_noop_join_split_proof.hpp"
+#include "../proofs/rollup/create_rollup.hpp"
+#include "../proofs/rollup/rollup_tx.hpp"
 #include <common/streams.hpp>
 #include <iostream>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
 #include <stdlib/merkle_tree/leveldb_tree.hpp>
 #include <stdlib/types/turbo.hpp>
 
-using namespace rollup::rollup_proofs;
-using namespace rollup::client_proofs::join_split;
-using namespace plonk::stdlib::types::turbo;
+using namespace rollup::proofs::join_split;
+using namespace rollup::proofs::rollup;
 using namespace plonk::stdlib::merkle_tree;
+using namespace plonk::stdlib::types::turbo;
 
 int main(int argc, char** argv)
 {

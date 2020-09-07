@@ -8,6 +8,7 @@
 #include <stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
+#include <stdlib/primitives/point/point.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/encryption/schnorr/schnorr.hpp>

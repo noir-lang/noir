@@ -1,17 +1,17 @@
-#include "../rollup_proofs/compute_account_circuit_data.hpp"
-#include "../rollup_proofs/compute_join_split_circuit_data.hpp"
-#include "../rollup_proofs/compute_rollup_circuit_data.hpp"
-#include "../rollup_proofs/rollup_tx.hpp"
-#include "../rollup_proofs/verify_rollup.hpp"
+#include "../proofs/account/compute_account_circuit_data.hpp"
+#include "../proofs/join_split/compute_join_split_circuit_data.hpp"
+#include "../proofs/rollup/compute_rollup_circuit_data.hpp"
+#include "../proofs/rollup/rollup_tx.hpp"
+#include "../proofs/rollup/verify_rollup.hpp"
 #include <common/timer.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <stdlib/types/turbo.hpp>
 
-using namespace rollup::client_proofs::join_split;
+using namespace rollup::proofs::join_split;
+using namespace rollup::proofs::rollup;
 using namespace plonk::stdlib::types::turbo;
-using namespace rollup::rollup_proofs;
 
 int main(int argc, char** argv)
 {

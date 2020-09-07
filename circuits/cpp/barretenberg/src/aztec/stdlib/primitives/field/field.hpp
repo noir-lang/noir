@@ -209,10 +209,5 @@ template <typename ComposerContext> inline std::ostream& operator<<(std::ostream
 
 EXTERN_STDLIB_TYPE(field_t);
 
-template <typename C> struct point {
-    field_t<C> x;
-    field_t<C> y;
-};
-
 } // namespace stdlib
 } // namespace plonk

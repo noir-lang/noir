@@ -5,6 +5,7 @@
 #include <stdlib/primitives/packed_byte_array/packed_byte_array.hpp>
 #include <stdlib/primitives/byte_array/byte_array.hpp>
 #include <stdlib/primitives/uint/uint.hpp>
+#include <stdlib/primitives/point/point.hpp>
 #include <stdlib/primitives/witness/witness.hpp>
 
 namespace plonk {
