@@ -1,5 +1,7 @@
 mod arithmetic;
+mod logic;
 pub use arithmetic::ArithmeticSolver;
+pub use logic::LogicSolver;
 
 use noir_evaluator::Gate;
 use noir_evaluator::{Circuit, Witness};
@@ -21,6 +23,23 @@ impl Solver {
             let unsolved = match &gate {
                 Gate::Arithmetic(arith) => {
                     ArithmeticSolver::solve(initial_witness, &arith).is_some()
+                }
+                Gate::Range(_, _) => {
+                    // We do not need to solve for this gate, we have passed responsibility to the underlying
+                    // proof system for intermediate witness generation
+                    false
+                }
+                Gate::And(and_gate) => {
+                    LogicSolver::solve_and_gate(initial_witness, and_gate);
+
+                    // We compute the result because the other gates may want to use the assignment to generate their assignments
+                    false
+                }
+                Gate::Xor(xor_gate) => {
+                    LogicSolver::solve_xor_gate(initial_witness, xor_gate);
+
+                    // We compute the result because the other gates may want to use the assignment to generate their assignments
+                    false
                 }
             };
             if unsolved {
