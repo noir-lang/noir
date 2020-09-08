@@ -1,4 +1,4 @@
-use crate::token::{Attribute, Keyword, Token};
+use crate::token::{Attribute, IntType, Keyword, Token};
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -60,6 +60,7 @@ impl<'a> Lexer<'a> {
             Some('/') => Token::Slash,
             Some('%') => Token::Percent,
             Some('&') => Token::Ampersand,
+            Some('^') => Token::Caret,
             Some('.') => Token::Dot,
             Some(';') => Token::Semicolon,
             Some(':') => self.glue(Token::Colon),
@@ -212,9 +213,13 @@ impl<'a> Lexer<'a> {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
 
-        // word can be either an identifier or a keyword
+        // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word.to_string()) {
             return keyword_token;
+        }
+        // Check if word an int type
+        if let Some(int_type_token) = IntType::lookup_int_type(&word.to_string()) {
+            return int_type_token;
         }
         return Token::Ident(word);
     }
@@ -290,6 +295,25 @@ fn test_custom_gate_syntax() {
     let expected = vec![
         Token::Attribute(Attribute::Str("sha256".to_string())),
         Token::Attribute(Attribute::Directive),
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let got = lexer.next_token();
+        assert_eq!(got, token);
+    }
+}
+#[test]
+fn test_int_type() {
+    let input = "u16 i16 i107 u104.5";
+
+    let expected = vec![
+        Token::IntType(IntType::Unsigned(16)),
+        Token::IntType(IntType::Signed(16)),
+        Token::IntType(IntType::Signed(107)),
+        Token::IntType(IntType::Unsigned(104)),
+        Token::Dot,
+        Token::Int(5),
     ];
 
     let mut lexer = Lexer::new(input);

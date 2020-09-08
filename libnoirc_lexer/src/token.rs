@@ -13,6 +13,7 @@ pub enum Token {
     Bool(bool),
     Str(String),
     Keyword(Keyword),
+    IntType(IntType),
     Attribute(Attribute),
     // <
     Less,
@@ -38,6 +39,8 @@ pub enum Token {
     Percent,
     // &
     Ampersand,
+    // ^
+    Caret,
     // .
     Dot,
     // (
@@ -82,7 +85,8 @@ impl fmt::Display for Token {
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
             Token::Keyword(k) => write!(f, "{}", k),
-            Token::Attribute(ref k) => write!(f, "{}", k),
+            Token::Attribute(ref a) => write!(f, "{}", a),
+            Token::IntType(ref i) => write!(f, "{}", i),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),
@@ -95,6 +99,7 @@ impl fmt::Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
+            Token::Caret => write!(f, "^"),
             Token::Dot => write!(f, "."),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
@@ -131,9 +136,11 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_) | Token::Bool(_) | Token::Str(_) | Token::Keyword(Keyword::Fn) => {
-                TokenKind::Literal
-            }
+            Token::Int(_)
+            | Token::Bool(_)
+            | Token::Str(_)
+            | Token::Keyword(Keyword::Fn)
+            | Token::IntType(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             ref tok => TokenKind::Token(tok.clone()),
         }
@@ -156,6 +163,59 @@ impl Token {
 
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
         return same_token_variant;
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum IntType {
+    Unsigned(u32), // u32 = Unsigned(32)
+    Signed(u32),   // i64 = Signed(64)
+}
+
+impl fmt::Display for IntType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            IntType::Unsigned(num) => write!(f, "u{}", num),
+            IntType::Signed(num) => write!(f, "i{}", num),
+        }
+    }
+}
+
+impl IntType {
+    pub(crate) fn lookup_int_type(word: &str) -> Option<Token> {
+        // Check if the first string is a 'u' or 'i'
+
+        let is_signed = if word.starts_with("i") {
+            true
+        } else if word.starts_with("u") {
+            false
+        } else {
+            return None;
+        };
+
+        // Word start with 'u' or 'i'. Check if the latter is an integer
+        let str_as_u32 = match word[1..].parse::<u32>() {
+            Ok(str_as_u32) => str_as_u32,
+            Err(_) => return None,
+        };
+
+        let max_bits = noir_field::FieldElement::max_num_bits();
+
+        if str_as_u32 > max_bits {
+            panic!(
+                "The maximum number of bits need to represent a field is {}, {} is too much ",
+                max_bits, str_as_u32
+            );
+        }
+        if (str_as_u32 % 2 == 1) && (str_as_u32 > 1) {
+            panic!("Barretenberg currently panics on odd integered bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
+        }
+
+        if is_signed {
+            return Some(Token::IntType(IntType::Signed(str_as_u32)));
+        } else {
+            return Some(Token::IntType(IntType::Unsigned(str_as_u32)));
+        }
     }
 }
 
