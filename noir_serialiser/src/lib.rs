@@ -1,4 +1,4 @@
-use barretenberg_rs::composer::{Constraint, ConstraintSystem};
+use barretenberg_rs::composer::{Constraint, ConstraintSystem, LogicConstraint, RangeConstraint};
 use noir_evaluator::{polynomial::Arithmetic, Circuit, Gate};
 use noir_field::FieldElement;
 
@@ -11,12 +11,39 @@ pub fn serialise_circuit(
 ) -> ConstraintSystem {
     // Create constraint system
     let mut constraints: Vec<Constraint> = Vec::new();
+    let mut range_constraints: Vec<RangeConstraint> = Vec::new();
+    let mut logic_constraints: Vec<LogicConstraint> = Vec::new();
 
     for gate in circuit.0.iter() {
         match gate {
             Gate::Arithmetic(arithmetic) => {
                 let constraint = serialise_arithmetic_gates(arithmetic);
                 constraints.push(constraint);
+            }
+            Gate::Range(witness, num_bits) => {
+                let range_constraint = RangeConstraint {
+                    a: witness.witness_index() as i32,
+                    num_bits: *num_bits as i32,
+                };
+                range_constraints.push(range_constraint);
+            }
+            Gate::And(and_gate) => {
+                let and = LogicConstraint::and(
+                    and_gate.a.witness_index() as i32,
+                    and_gate.b.witness_index() as i32,
+                    and_gate.result.witness_index() as i32,
+                    and_gate.num_bits as i32,
+                );
+                logic_constraints.push(and);
+            }
+            Gate::Xor(xor_gate) => {
+                let xor = LogicConstraint::xor(
+                    xor_gate.a.witness_index() as i32,
+                    xor_gate.b.witness_index() as i32,
+                    xor_gate.result.witness_index() as i32,
+                    xor_gate.num_bits as i32,
+                );
+                logic_constraints.push(xor);
             }
         }
     }
@@ -25,7 +52,8 @@ pub fn serialise_circuit(
     let constraint_system = ConstraintSystem {
         var_num: num_vars as u32,
         pub_var_num: num_pub_inputs as u32,
-        range_constraints : Vec::new(),
+        logic_constraints: logic_constraints,
+        range_constraints: range_constraints,
         constraints: constraints,
     };
 
