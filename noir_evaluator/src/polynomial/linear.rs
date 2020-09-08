@@ -130,7 +130,7 @@ impl Add<Linear> for Linear {
 impl Mul<Linear> for Linear {
     type Output = Arithmetic;
     fn mul(self, rhs: Linear) -> Self::Output {
-        &self + &rhs
+        &self * &rhs
     }
 }
 impl Add<&Linear> for Linear {
@@ -142,12 +142,18 @@ impl Add<&Linear> for Linear {
 impl Mul<&Linear> for Linear {
     type Output = Arithmetic;
     fn mul(self, rhs: &Linear) -> Self::Output {
-        &self + rhs
+        &self * rhs
     }
 }
 impl Sub<&Linear> for &Linear {
     type Output = Arithmetic;
     fn sub(self, rhs: &Linear) -> Self::Output {
         self + &-rhs
+    }
+}
+impl Sub<&FieldElement> for &Linear {
+    type Output = Linear;
+    fn sub(self, rhs: &FieldElement) -> Self::Output {
+        self + &-rhs.clone()
     }
 }
