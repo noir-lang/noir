@@ -1,15 +1,20 @@
+pub mod symbol_table;
 /// This module is for now just a placeholder
 /// We want the analyser to do quite a few things such as:
 /// - Be able to check for unused variables
 /// - Check if function parameters and arguments are lined up
 /// - Check if all variables are in scope
+/// - Check if any integer types are too big. We can have field element return the max field size
+/// - Should modify the AST for the lazy operations. priv k = a + 5 will insert (a+5) into all places where k is needed unless it is a mul by arith gate
+///  This means the compiler only needs to constrain private statements when they see them. I think it also means we can refactor env, it will only be used for scope management + symbol table
+/// - Fill in inferred types for witnesses priv k = x as u8, should modify k to be the u8 Type
+///
 ///
 /// Note: Given private x = arith
 /// Throw an error, if private x is never used.
 /// This allows us to constrain x straight away
 use libnoirc_ast::{Expression, Statement};
 use libnoirc_parser::Program;
-
 pub fn check(ast: &Program) {
     argument_size_check(ast);
 }
