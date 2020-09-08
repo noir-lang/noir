@@ -6,19 +6,30 @@ mod statement;
 pub use expression::*;
 pub use statement::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Type {
     FieldElement,
     Constant,
     Public,
     Witness,
-    I8,
-    U8,
-    I16,
-    U16,
-    I32,
-    U32,
+    Integer(Signedness, u32), // u32 = Integer(unsigned, 32)
     Bool,
-    Concrete(Ident, Vec<Type>),
     Error, // XXX: Currently have not implemented structs, so this type is a stub
+}
+
+use libnoirc_lexer::token::IntType;
+
+impl From<&IntType> for Type {
+    fn from(it: &IntType) -> Type {
+        match it {
+            IntType::Signed(num_bits) => Type::Integer(Signedness::Signed, *num_bits),
+            IntType::Unsigned(num_bits) => Type::Integer(Signedness::Unsigned, *num_bits),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Signedness {
+    Unsigned,
+    Signed,
 }

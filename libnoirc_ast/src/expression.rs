@@ -1,5 +1,5 @@
 use crate::{BlockStatement, Ident, Type};
-use libnoirc_lexer::token::Token;
+use libnoirc_lexer::token::{Keyword, Token};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -9,6 +9,7 @@ pub enum Expression {
     Prefix(Box<PrefixExpression>),
     Infix(Box<InfixExpression>),
     Call(Box<CallExpression>),
+    Cast(Box<CastExpression>),
 
     Predicate(Box<InfixExpression>),
 }
@@ -18,6 +19,15 @@ impl Expression {
         match self {
             Expression::Infix(infix) => Some(*infix),
             Expression::Predicate(infix) => Some(*infix),
+            _ => None,
+        }
+    }
+    pub fn r#type(self) -> Option<Type> {
+        match self {
+            Expression::Literal(literal) => match literal {
+                Literal::Type(typ) => return Some(typ),
+                _ => return None,
+            },
             _ => None,
         }
     }
@@ -37,6 +47,8 @@ pub enum BinaryOp {
     GreaterEqual,
     And,
     Or,
+    Xor,
+    As,
     // This is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
@@ -46,6 +58,7 @@ impl From<Token> for BinaryOp {
         match token {
             Token::Plus => BinaryOp::Add,
             Token::Ampersand => BinaryOp::And,
+            Token::Caret => BinaryOp::Xor,
             Token::Pipe => BinaryOp::Or,
             Token::Minus => BinaryOp::Subtract,
             Token::Star => BinaryOp::Multiply,
@@ -57,6 +70,7 @@ impl From<Token> for BinaryOp {
             Token::Greater => BinaryOp::Greater,
             Token::GreaterEqual => BinaryOp::GreaterEqual,
             Token::Assign => BinaryOp::Assign,
+            Token::Keyword(Keyword::As) => BinaryOp::As,
             _ => panic!(
                 "The token:  \" {} \"does not seem to be a binary operation ",
                 token
@@ -77,6 +91,7 @@ pub enum Literal {
     Integer(i128),
     Str(String),
     Func(FunctionLiteral),
+    Type(Type),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -97,6 +112,13 @@ pub struct InfixExpression {
     pub lhs: Expression,
     pub operator: BinaryOp,
     pub rhs: Expression,
+}
+
+// This is an infix expression with 'as' as the binary operator
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CastExpression {
+    pub lhs: Expression,
+    pub r#type: Type,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
