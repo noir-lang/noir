@@ -10,7 +10,7 @@ pub fn handle_neq_op(
     env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Polynomial {
-    let result = handle_sub_op(left, right);
+    let result = handle_sub_op(left, right, env, evaluator);
     // Add an inversion to ensure that the inverse exists
     let _ = invert(result, env, evaluator);
     Polynomial::Null

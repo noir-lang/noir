@@ -1,11 +1,17 @@
-use crate::{Arithmetic, FieldElement, Linear, Polynomial};
+use crate::{Arithmetic, Environment, Evaluator, FieldElement, Integer, Linear, Polynomial};
 
-pub fn handle_add_op(left: Polynomial, right: Polynomial) -> Polynomial {
+pub fn handle_add_op(
+    left: Polynomial,
+    right: Polynomial,
+    env: &mut Environment,
+    evaluator: &mut Evaluator,
+) -> Polynomial {
     match (left, right) {
         (Polynomial::Null, _) => handle_null_add(),
         (Polynomial::Arithmetic(arith), y) => handle_arithmetic_add(arith, y),
         (Polynomial::Constants(c), y) => handle_constant_add(c, y),
         (Polynomial::Linear(lin), y) => handle_linear_add(lin, y),
+        (Polynomial::Integer(x), y) => Polynomial::Integer(x.add(y, env, evaluator)),
     }
 }
 
@@ -20,6 +26,7 @@ fn handle_arithmetic_add(arith: Arithmetic, polynomial: Polynomial) -> Polynomia
             Polynomial::Arithmetic(&arith + &Linear::from(constant).into())
         }
         Polynomial::Null => handle_null_add(),
+        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
     }
 }
 fn handle_constant_add(constant: FieldElement, polynomial: Polynomial) -> Polynomial {
@@ -30,6 +37,7 @@ fn handle_constant_add(constant: FieldElement, polynomial: Polynomial) -> Polyno
         Polynomial::Linear(linear) => Polynomial::Linear(&linear + &constant),
         Polynomial::Constants(constant_rhs) => Polynomial::Constants(constant + constant_rhs),
         Polynomial::Null => handle_null_add(),
+        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
     }
 }
 fn handle_linear_add(linear: Linear, polynomial: Polynomial) -> Polynomial {
@@ -38,5 +46,6 @@ fn handle_linear_add(linear: Linear, polynomial: Polynomial) -> Polynomial {
         Polynomial::Linear(linear_rhs) => Polynomial::Arithmetic(&linear + &linear_rhs),
         Polynomial::Constants(constant) => Polynomial::Linear(&linear + &constant),
         Polynomial::Null => handle_null_add(),
+        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
     }
 }

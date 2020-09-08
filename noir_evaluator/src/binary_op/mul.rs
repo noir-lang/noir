@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Environment, Evaluator, FieldElement, Linear, Polynomial};
+use crate::{Arithmetic, Environment, Evaluator, FieldElement, Linear, Polynomial, Type};
 
 /// Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -15,6 +15,7 @@ pub fn handle_mul_op(
         (Polynomial::Arithmetic(arith), y) => handle_arithmetic_mul(arith, y, env, evaluator),
         (Polynomial::Constants(c), y) => handle_constant_mul(c, y),
         (Polynomial::Linear(lin), y) => handle_linear_mul(lin, y, env, evaluator),
+        (Polynomial::Integer(integer), y) => Polynomial::Integer(integer.mul(y, env, evaluator)),
     }
 }
 
@@ -35,7 +36,7 @@ fn handle_arithmetic_mul(
 
     // Arriving here means that we do not have one of the operands as a constant
     // Create an intermediate variable for the arithmetic gate
-    let intermediate_var = evaluator.create_intermediate_variable(env, arith);
+    let (intermediate_var, _) = evaluator.create_intermediate_variable(env, arith, Type::Witness);
     return handle_mul_op(intermediate_var, polynomial, env, evaluator);
 }
 fn handle_constant_mul(constant: FieldElement, polynomial: Polynomial) -> Polynomial {
@@ -44,6 +45,7 @@ fn handle_constant_mul(constant: FieldElement, polynomial: Polynomial) -> Polyno
         Polynomial::Linear(linear) => Polynomial::Linear(&linear * &constant),
         Polynomial::Constants(constant_rhs) => Polynomial::Constants(constant * constant_rhs),
         Polynomial::Null => handle_null_mul(),
+        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
     }
 }
 fn handle_linear_mul(
@@ -59,5 +61,6 @@ fn handle_linear_mul(
         Polynomial::Linear(linear_rhs) => Polynomial::Arithmetic(&linear * &linear_rhs),
         Polynomial::Constants(constant) => Polynomial::Linear(&linear * &constant),
         Polynomial::Null => handle_null_mul(),
+        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
     }
 }

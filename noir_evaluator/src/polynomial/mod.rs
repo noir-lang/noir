@@ -1,7 +1,9 @@
 mod arithmetic;
+mod integer;
 mod linear;
 
 pub use arithmetic::Arithmetic;
+pub use integer::Integer;
 pub use linear::Linear;
 
 use super::circuit::Witness;
@@ -9,8 +11,10 @@ use crate::circuit::gate::Gate;
 use noir_field::FieldElement;
 
 #[derive(Clone, Debug)]
+// XXX: Rename this to 'Object' it no longer stores just polynomials, add TypeInformation
 pub enum Polynomial {
     Null,
+    Integer(Integer),
     Arithmetic(Arithmetic),
     Constants(FieldElement), // These will mostly be the selectors
     Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate Eg `5x+6` does not apply a gate
@@ -31,7 +35,7 @@ impl Polynomial {
     }
     pub fn is_constant(&self) -> bool {
         match self {
-            Polynomial::Constants(x) => true,
+            Polynomial::Constants(_) => true,
             _ => false,
         }
     }
@@ -58,6 +62,13 @@ impl Polynomial {
     pub fn linear(&self) -> Option<Linear> {
         match self {
             Polynomial::Linear(linear) => Some(linear.clone()),
+            Polynomial::Integer(integer) => Some(Linear::from(integer.witness.clone())),
+            _ => None,
+        }
+    }
+    pub fn integer(&self) -> Option<Integer> {
+        match self {
+            Polynomial::Integer(integer) => Some(integer.clone()),
             _ => None,
         }
     }
@@ -73,6 +84,7 @@ impl Polynomial {
         match self {
             Polynomial::Linear(_) => true,
             Polynomial::Constants(_) => true,
+            Polynomial::Integer(_) => true,
             _ => false,
         }
     }
