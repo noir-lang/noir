@@ -23,12 +23,23 @@ impl InfixParser for BinaryParser {
         parser.advance_tokens();
 
         let rhs = parser.parse_expression(curr_precedence).unwrap();
-
-        let infix_expression = Box::new(InfixExpression { lhs, operator, rhs });
+        let infix_expression = Box::new(InfixExpression {
+            lhs: lhs.clone(),
+            operator,
+            rhs: rhs.clone(),
+        });
 
         if predicate_ops().contains(&operator) {
             return Expression::Predicate(infix_expression);
         }
-        return Expression::Infix(infix_expression);
+
+        if operator != BinaryOp::As {
+            return Expression::Infix(infix_expression);
+        }
+
+        match rhs.r#type() {
+            Some(typ) => Expression::Cast(Box::new(CastExpression { lhs, r#type: typ })),
+            None => panic!("The operator being used is as, however the RHS is not a Type"),
+        }
     }
 }
