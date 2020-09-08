@@ -1,7 +1,8 @@
-use ff::{Field, PrimeField, PrimeFieldRepr};
+use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
 use pairing::bn256::Fr;
 
 // XXX: Switch out for a trait and proper implementations
+// This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FieldElement(Fr);
 
@@ -33,6 +34,43 @@ impl FieldElement {
     pub fn one() -> FieldElement {
         FieldElement(Fr::one())
     }
+    /// Maximum number of bits needed to represent a field element
+    /// This is not the amount of bits being used to represent a field element
+    /// Example, you only need 254 bits to represent a field element in BN256
+    /// But the representation uses 256 bits, so the top two bits are always zero
+    /// This method would return 254
+    pub fn max_num_bits() -> u32 {
+        Fr::NUM_BITS
+    }
+    // This is the amount of bits that are always zero, since we have enough bits to represents every element in the field without them
+    fn wasted_bits() -> u32 {
+        let vec: Vec<_> = BitIterator::new(Fr::one().into_repr()).collect();
+
+        let num_bits_used = vec.len() as u32;
+        let num_bits_needed = Fr::NUM_BITS;
+        num_bits_used - num_bits_needed
+    }
+    /// This is the number of bits required to represent this specific field element
+    pub fn num_bits(&self) -> u32 {
+        let non_zero_index = BitIterator::new(self.0.into_repr()).position(|x| x != false);
+
+        match non_zero_index {
+            None => return 0,
+            Some(index) => {
+                // The most significant bit was found at index.
+                // The index tells us how many elements cme before the most significant bit
+
+                // We need to compute the offset as the representation may have wasted bits
+                let offset = FieldElement::wasted_bits();
+
+                // This is now the amount of significant elements that came before the most significant bit
+                let msb_index_offset = (index as u32) - offset;
+
+                return Fr::NUM_BITS - msb_index_offset;
+            }
+        }
+    }
+
     pub fn zero() -> FieldElement {
         FieldElement(Fr::zero())
     }
@@ -52,13 +90,90 @@ impl FieldElement {
     pub fn to_hex(&self) -> String {
         self.0.to_hex()
     }
+    pub fn from_hex(hex_str: &str) -> Option<FieldElement> {
+        match Fr::from_hex(hex_str) {
+            Ok(fr) => Some(FieldElement(fr)),
+            Err(_) => None,
+        }
+    }
 
-    // XXX: 100% sure there is a better way to do this. Check API for it.
+    // XXX: 100% sure there is a better way to do this and other operations without hex. Check API for it.
     pub fn to_bytes(&self) -> [u8; 32] {
         let mut buf = [0; 32];
         hex::decode_to_slice(self.to_hex(), &mut buf).unwrap();
         buf
     }
+    pub fn from_bytes(bytes: &[u8]) -> FieldElement {
+        let hex_str = hex::encode(bytes);
+        let fr = Fr::from_hex(&hex_str).unwrap();
+        FieldElement(fr)
+    }
+
+    pub fn truncate(&self, num_bits: u32) -> FieldElement {
+        let max_bits = Fr::NUM_BITS + FieldElement::wasted_bits();
+
+        let bit_iter: Vec<_> = BitIterator::new(self.0.into_repr())
+            .enumerate()
+            .map(|(i, bit)| {
+                if i < (max_bits - num_bits) as usize {
+                    return false;
+                } else {
+                    return bit;
+                }
+            })
+            .collect();
+
+        let byte_arr = pack_bits_into_bytes(bit_iter);
+        FieldElement::from_bytes(&byte_arr)
+    }
+
+    fn and_xor(&self, rhs: &FieldElement, num_bits: u32, is_xor: bool) -> FieldElement {
+        let lhs = self.truncate(num_bits);
+        let lhs_bit_iter = BitIterator::new(lhs.0.into_repr());
+        let rhs = rhs.truncate(num_bits);
+        let rhs_bit_iter = BitIterator::new(rhs.0.into_repr());
+
+        let and_iter: Vec<_> = lhs_bit_iter
+            .zip(rhs_bit_iter)
+            .map(
+                |(bit_a, bit_b)| {
+                    if is_xor {
+                        bit_a ^ bit_b
+                    } else {
+                        bit_a & bit_b
+                    }
+                },
+            )
+            .collect();
+
+        let byte_arr = pack_bits_into_bytes(and_iter);
+        FieldElement::from_bytes(&byte_arr)
+    }
+    pub fn and(&self, rhs: &FieldElement, num_bits: u32) -> FieldElement {
+        self.and_xor(rhs, num_bits, false)
+    }
+    pub fn xor(&self, rhs: &FieldElement, num_bits: u32) -> FieldElement {
+        self.and_xor(rhs, num_bits, true)
+    }
+}
+
+// Taken from matter-labs: https://github.com/matter-labs/zksync/blob/6bfe1c06f5c00519ce14adf9827086119a50fae2/core/models/src/primitives.rs#L243
+fn pack_bits_into_bytes(bits: Vec<bool>) -> Vec<u8> {
+    assert_eq!(bits.len() % 8, 0);
+    let mut message_bytes: Vec<u8> = vec![];
+
+    let byte_chunks = bits.chunks(8);
+    for byte_chunk in byte_chunks {
+        let mut byte = 0u8;
+        for (i, bit) in byte_chunk.iter().enumerate() {
+            if *bit {
+                byte |= 1 << i;
+            }
+        }
+        message_bytes.push(byte);
+    }
+
+    message_bytes
 }
 
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
