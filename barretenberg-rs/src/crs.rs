@@ -8,18 +8,16 @@ const G1_START: usize = 28;
 const G2_START: usize = 28 + (5_040_000 * 64);
 const G2_END: usize = G2_START + 128 - 1;
 
-fn transcript_location() -> std::path::PathBuf{
+fn transcript_location() -> std::path::PathBuf {
     let mut transcript_dir = dirs::home_dir().unwrap();
-    transcript_dir.push(std::path::Path::new("rasa_cache"));
+    transcript_dir.push(std::path::Path::new("noir_cache"));
     transcript_dir.push(std::path::Path::new("ignition"));
     transcript_dir.push(std::path::Path::new("transcript00.dat"));
     transcript_dir
 }
 
-
 impl CRS {
     pub fn new(num_points: usize) -> CRS {
-
         let g1_end = G1_START + (num_points * 64) - 1;
 
         // If the CRS does not exist, then download it from S3
@@ -28,7 +26,7 @@ impl CRS {
         }
 
         let crs = read_crs(transcript_location());
-        
+
         let g1_data = crs[G1_START..=g1_end].to_vec();
         let g2_data = crs[G2_START..=G2_END].to_vec();
 
@@ -40,14 +38,17 @@ impl CRS {
     }
 }
 
-fn read_crs(path : std::path::PathBuf) -> Vec<u8> {
+fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
     match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(e) => {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 panic!("please run again with appropriate permissions.");
             }
-            panic!("Could not find file transcript00.dat at location {}.\n Starting Download", path.display());
+            panic!(
+                "Could not find file transcript00.dat at location {}.\n Starting Download",
+                path.display()
+            );
         }
     }
 }
@@ -69,64 +70,68 @@ error_chain! {
 }
 
 struct PartialRangeIter {
-  start: u64,
-  end: u64,
-  buffer_size: u32,
+    start: u64,
+    end: u64,
+    buffer_size: u32,
 }
 
 impl PartialRangeIter {
-  pub fn new(start: u64, end: u64, buffer_size: u32) -> Result<Self> {
-    if buffer_size == 0 {
-      Err("invalid buffer_size, give a value greater than zero.")?;
+    pub fn new(start: u64, end: u64, buffer_size: u32) -> Result<Self> {
+        if buffer_size == 0 {
+            Err("invalid buffer_size, give a value greater than zero.")?;
+        }
+        Ok(PartialRangeIter {
+            start,
+            end,
+            buffer_size,
+        })
     }
-    Ok(PartialRangeIter {
-      start,
-      end,
-      buffer_size,
-    })
-  }
 }
 
 impl Iterator for PartialRangeIter {
-  type Item = HeaderValue;
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.start > self.end {
-      None
-    } else {
-      let prev_start = self.start;
-      self.start += std::cmp::min(self.buffer_size as u64, self.end - self.start + 1);
-      Some(HeaderValue::from_str(&format!("bytes={}-{}", prev_start, self.start - 1)).expect("string provided by format!"))
+    type Item = HeaderValue;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start > self.end {
+            None
+        } else {
+            let prev_start = self.start;
+            self.start += std::cmp::min(self.buffer_size as u64, self.end - self.start + 1);
+            Some(
+                HeaderValue::from_str(&format!("bytes={}-{}", prev_start, self.start - 1))
+                    .expect("string provided by format!"),
+            )
+        }
     }
-  }
 }
 
 // XXX: Clean up to handle Errors better
-pub fn download_crs(mut path : std::path::PathBuf) {
-
-     if path.exists() {
-         println!("File already exists");
-         return
-     }
+pub fn download_crs(mut path: std::path::PathBuf) {
+    if path.exists() {
+        println!("File already exists");
+        return;
+    }
 
     // If the path is the path to the 'transcript00.dat' file, pop it off and download the file into the Directory
     if path.ends_with(std::path::Path::new("transcript00.dat")) {
         path.pop();
-        
     }
 
+    let url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
+    const CHUNK_SIZE: u32 = 10240;
 
-  let url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
-  const CHUNK_SIZE: u32 = 10240;
-    
-  let client = reqwest::blocking::Client::new();
-  let response = client.head(url).send().expect("Expected a response");
-  let length = response
-    .headers()
-    .get(CONTENT_LENGTH)
-    .ok_or("response doesn't include the content length").expect("Expected the content length");
-    let length = u64::from_str(length.to_str().unwrap()).map_err(|_| "invalid Content-Length header").unwrap();
-    
-    std::fs::create_dir_all(&path).expect("Failed to create the directory named 'ignition'. Please check your permissions");
+    let client = reqwest::blocking::Client::new();
+    let response = client.head(url).send().expect("Expected a response");
+    let length = response
+        .headers()
+        .get(CONTENT_LENGTH)
+        .ok_or("response doesn't include the content length")
+        .expect("Expected the content length");
+    let length = u64::from_str(length.to_str().unwrap())
+        .map_err(|_| "invalid Content-Length header")
+        .unwrap();
+
+    std::fs::create_dir_all(&path)
+        .expect("Failed to create the directory named 'ignition'. Please check your permissions");
 
     let mut output_file = {
         let fname = "transcript00.dat";
@@ -134,34 +139,30 @@ pub fn download_crs(mut path : std::path::PathBuf) {
         println!("file to download: '{}'", fname);
         let fname = path.join(fname);
         println!("will be located under: '{:?}'", fname);
-        
+
         File::create(fname).unwrap()
     };
-    
-  println!("Downloading trancript00.dat file...");
-  for range in PartialRangeIter::new(0, length - 1, CHUNK_SIZE).unwrap() {
-    println!("Download CRS, progress {:?}", range);
-    let mut response = client.get(url).header(RANGE, range).send().unwrap();
-    
-    let status = response.status();
-    if !(status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT) {
-      panic!("Unexpected server response: {}", status);
+
+    println!("Downloading trancript00.dat file...");
+    for range in PartialRangeIter::new(0, length - 1, CHUNK_SIZE).unwrap() {
+        println!("Download CRS, progress {:?}", range);
+        let mut response = client.get(url).header(RANGE, range).send().unwrap();
+
+        let status = response.status();
+        if !(status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT) {
+            panic!("Unexpected server response: {}", status);
+        }
+        std::io::copy(&mut response, &mut output_file).unwrap();
     }
-    std::io::copy(&mut response, &mut output_file).unwrap();
-  }
-    
-  let content = response.text().unwrap();
-  std::io::copy(&mut content.as_bytes(), &mut output_file).unwrap();
 
-  println!("Finished with success!");
-  
+    let content = response.text().unwrap();
+    std::io::copy(&mut content.as_bytes(), &mut output_file).unwrap();
+
+    println!("Finished with success!");
 }
-
-
 
 #[test]
 fn does_not_panic() {
-
     use super::Barretenberg;
     use wasmer_runtime::Value;
 

@@ -3,8 +3,8 @@ use super::fft::FFT;
 use super::pippenger::Pippenger;
 use super::prover::Prover;
 use super::Barretenberg;
+use noir_field::FieldElement as Scalar;
 use wasmer_runtime::Value;
-use rasa_field::FieldElement as Scalar;
 
 pub struct StandardComposer {
     barretenberg: Barretenberg,
@@ -97,10 +97,71 @@ impl Constraint {
 }
 
 #[derive(Clone, Hash, Debug)]
+pub struct RangeConstraint {
+    pub a: i32,
+    pub num_bits: i32,
+}
+
+impl RangeConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        // Serialiasing Wires
+        buffer.extend_from_slice(&self.a.to_be_bytes());
+        buffer.extend_from_slice(&self.num_bits.to_be_bytes());
+
+        buffer
+    }
+}
+
+#[derive(Clone, Hash, Debug)]
+pub struct LogicConstraint {
+    a: i32,
+    b: i32,
+    result: i32,
+    num_bits: i32,
+    is_xor_gate: bool,
+}
+
+impl LogicConstraint {
+    pub fn and(a: i32, b: i32, result: i32, num_bits: i32) -> LogicConstraint {
+        LogicConstraint {
+            a,
+            b,
+            result,
+            num_bits,
+            is_xor_gate: false,
+        }
+    }
+    pub fn xor(a: i32, b: i32, result: i32, num_bits: i32) -> LogicConstraint {
+        LogicConstraint {
+            a,
+            b,
+            result,
+            num_bits,
+            is_xor_gate: true,
+        }
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        // Serialiasing Wires
+        buffer.extend_from_slice(&self.a.to_be_bytes());
+        buffer.extend_from_slice(&self.b.to_be_bytes());
+        buffer.extend_from_slice(&self.result.to_be_bytes());
+        buffer.extend_from_slice(&self.num_bits.to_be_bytes());
+        buffer.extend_from_slice(&i32::to_be_bytes(self.is_xor_gate as i32));
+
+        buffer
+    }
+}
+
+#[derive(Clone, Hash, Debug)]
 pub struct ConstraintSystem {
     pub var_num: u32,
     pub pub_var_num: u32,
 
+    pub logic_constraints: Vec<LogicConstraint>,
+    pub range_constraints: Vec<RangeConstraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -112,9 +173,23 @@ impl ConstraintSystem {
         buffer.extend_from_slice(&self.var_num.to_be_bytes());
         buffer.extend_from_slice(&self.pub_var_num.to_be_bytes());
 
+        // Serialise each Logic constraint
+        let logic_constraints_len = self.logic_constraints.len() as u32;
+        buffer.extend_from_slice(&logic_constraints_len.to_be_bytes());
+        for constraint in self.logic_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each Range constraint
+        let range_constraints_len = self.range_constraints.len() as u32;
+        buffer.extend_from_slice(&range_constraints_len.to_be_bytes());
+        for constraint in self.range_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each Arithmetic constraint
         let constraints_len = self.constraints.len() as u32;
         buffer.extend_from_slice(&constraints_len.to_be_bytes());
-        // Serialise each arithmetic constraint
         for constraint in self.constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
@@ -269,6 +344,8 @@ mod test {
         let constraint_system = ConstraintSystem {
             var_num: 3,
             pub_var_num: 0,
+            logic_constraints: vec![],
+            range_constraints: vec![],
             constraints: vec![constraint.clone()],
         };
 
@@ -330,6 +407,8 @@ mod test {
         let constraint_system = ConstraintSystem {
             var_num: 3,
             pub_var_num: 2,
+            logic_constraints: vec![],
+            range_constraints: vec![],
             constraints: vec![constraint],
         };
 
@@ -376,6 +455,8 @@ mod test {
         let constraint_system = ConstraintSystem {
             var_num: 4,
             pub_var_num: 1,
+            logic_constraints: vec![],
+            range_constraints: vec![],
             constraints: vec![constraint, constraint2],
         };
 

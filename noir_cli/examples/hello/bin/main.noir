@@ -1,0 +1,5 @@
+
+    fn main(x : Witness, z : Witness, t: Witness) {
+        priv k : u8 = (x as u1) + (z as u1);
+        constrain k == t
+    }

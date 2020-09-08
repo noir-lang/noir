@@ -1,0 +1,10 @@
+
+    fn main(x : Witness, y : Witness) {
+        constrain x != y;
+    }
+
+    #[directive]
+    fn hello(x : Field) {
+        
+    }
+    
