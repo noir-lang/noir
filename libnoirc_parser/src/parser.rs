@@ -1,7 +1,7 @@
 use crate::{Precedence, Program};
-use libnoirc_ast::{BlockStatement, Expression, ExpressionStatement, Statement};
+use libnoirc_ast::{BlockStatement, Expression, ExpressionStatement, Statement, Type};
 use libnoirc_lexer::lexer::Lexer;
-use libnoirc_lexer::token::{Attribute, Keyword, Token, TokenKind};
+use libnoirc_lexer::token::{Keyword, Token, TokenKind};
 use std::error::Error;
 
 type PrefixFn = fn(parser: &mut Parser) -> Expression;
@@ -163,12 +163,14 @@ impl<'a> Parser<'a> {
             | Token::Slash
             | Token::Pipe
             | Token::Ampersand
+            | Token::Caret
             | Token::Star
             | Token::Less
             | Token::LessEqual
             | Token::Greater
             | Token::GreaterEqual
             | Token::Equal
+            | Token::Keyword(Keyword::As)
             | Token::NotEqual => Some(BinaryParser::parse),
             Token::LeftParen => Some(CallParser::parse),
             _ => None,
@@ -514,6 +516,29 @@ mod test {
             )))]),
         };
         assert_eq!(func_lit, expected);
+    }
+    #[test]
+    fn test_parse_int_type() {
+        use crate::prefix_parser::DeclarationParser;
+        use libnoirc_ast::{PrivateStatement, Signedness};
+        let input = "priv x : i102 = a";
+        let mut parser = Parser::new(Lexer::new(input));
+        let stmt = DeclarationParser::parse_declaration_statement(
+            &mut parser,
+            &Token::Keyword(Keyword::Private),
+        );
+
+        let priv_stmt_expected = PrivateStatement {
+            identifier: Ident("x".into()),
+            r#type: Type::Integer(Signedness::Signed, 102),
+            expression: Expression::Ident("a".into()),
+        };
+        match stmt {
+            Statement::Private(priv_stmt) => {
+                assert_eq!(*priv_stmt, priv_stmt_expected);
+            }
+            _ => panic!("Expected a private statement"),
+        }
     }
 
     #[test]
