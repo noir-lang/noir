@@ -260,4 +260,5 @@ fn hash_constraint_system(cs: &ConstraintSystem) {
     hasher.update(cs.to_bytes());
     let result = hasher.finalize();
     println!("hash of constraint system : {:x?}", &result[..]);
+    println!("circuit size : {:?}", cs.size());
 }
