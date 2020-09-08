@@ -6,7 +6,7 @@ mod prefix_parser;
 pub use parser::Parser;
 
 use libnoirc_ast::{Expression, FunctionDefinition, Statement};
-use libnoirc_lexer::token::Token;
+use libnoirc_lexer::token::{Keyword, Token};
 
 #[derive(Clone)]
 pub struct Program {
@@ -75,12 +75,19 @@ pub enum Precedence {
 }
 impl Precedence {
     // Higher the number, the higher(more priority) the precedence
+    // XXX: Check the precedence is correct for operators
     fn token_precedence(tok: &Token) -> Precedence {
         match tok {
+            Token::Keyword(Keyword::As) => Precedence::Equals,
             Token::Equal => Precedence::Equals,
             Token::NotEqual => Precedence::Equals,
             Token::Less => Precedence::LessGreater,
+            Token::LessEqual => Precedence::LessGreater,
             Token::Greater => Precedence::LessGreater,
+            Token::GreaterEqual => Precedence::LessGreater,
+            Token::Ampersand => Precedence::Sum,
+            Token::Caret => Precedence::Sum,
+            Token::Pipe => Precedence::Sum,
             Token::Plus => Precedence::Sum,
             Token::Minus => Precedence::Sum,
             Token::Slash => Precedence::Product,
