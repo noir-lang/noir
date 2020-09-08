@@ -8,7 +8,10 @@ impl PrefixParser for GroupParser {
 
         let exp = parser.parse_expression(Precedence::Lowest);
         if !parser.peek_check_variant_advance(Token::RightParen) {
-            panic!("Expected a right parentheses to end the expression")
+            panic!(
+                "Expected a right parentheses to end the expression, got {}",
+                parser.peek_token
+            )
         }
 
         exp.unwrap()
