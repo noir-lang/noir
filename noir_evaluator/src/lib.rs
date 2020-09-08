@@ -11,18 +11,17 @@ pub use environment::Environment;
 use func::Function;
 use libnoirc_ast::*;
 use noir_field::FieldElement;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
-pub use circuit::gate::Gate;
+pub use circuit::gate::{AndGate, Gate, XorGate};
 use libnoirc_parser::Program;
 use optimise::Optimiser;
-pub use polynomial::{Arithmetic, Linear, Polynomial};
-use std::collections::HashMap;
+pub use polynomial::{Arithmetic, Integer, Linear, Polynomial};
 
 pub struct Evaluator {
-    num_witness: usize,   // XXX: Can possibly remove
-    num_selectors: usize, // XXX: Can possibly remove
-    pub(crate) witnesses: Vec<Witness>,
+    num_witness: usize,                           // XXX: Can possibly remove
+    num_selectors: usize,                         // XXX: Can possibly remove
+    pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table
     selectors: Vec<Selector>,
     statements: Vec<Statement>,
     num_public_inputs: usize,
@@ -57,7 +56,7 @@ impl Evaluator {
             num_witness: 0,
             num_selectors: 0,
             num_public_inputs: 0,
-            witnesses: Vec::new(),
+            witnesses: HashMap::new(),
             selectors: Vec::new(),
             statements,
             main_function,
@@ -133,7 +132,7 @@ impl Evaluator {
                     let arith = optimiser.optimise(arith, &mut intermediate_variables, num_witness);
                     Gate::Arithmetic(arith)
                 }
-                directive => directive,
+                other_gates => other_gates,
             })
             .collect();
 
@@ -141,7 +140,7 @@ impl Evaluator {
         for (witness, gate) in intermediate_variables {
             // Add intermediate variables as witnesses
             self.num_witness += 1;
-            self.witnesses.push(witness);
+            self.witnesses.insert(witness, Type::Witness);
             // Add gate into the circuit
             optimised_arith_gates.push(Gate::Arithmetic(gate));
 
@@ -171,12 +170,13 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         arithmetic_gate: Arithmetic,
-    ) -> Polynomial {
+        typ: Type,
+    ) -> (Polynomial, Witness) {
         // Create a new witness variable
         let inter_var_name = format!("{}_{}", "_inter", self.get_unique_value());
 
         // Add witness to the constraint system
-        self.store_witness(inter_var_name.clone());
+        let inter_var_witness = self.store_witness(inter_var_name.clone(), typ);
         let witness_poly = self.store_lone_variable(inter_var_name, env);
 
         // We know it is a Linear polynomial, so we match on that.
@@ -188,7 +188,7 @@ impl Evaluator {
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &linear_poly.into();
         self.gates.push(Gate::Arithmetic(constraint));
-        witness_poly
+        (witness_poly, inter_var_witness)
     }
 
     pub fn evaluate_infix_expression(
@@ -199,12 +199,18 @@ impl Evaluator {
         op: BinaryOp,
     ) -> Polynomial {
         match op {
-            BinaryOp::Add => binary_op::handle_add_op(lhs, rhs),
-            BinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs),
+            BinaryOp::Add => binary_op::handle_add_op(lhs, rhs, env, self),
+            BinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
             BinaryOp::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
             BinaryOp::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
             BinaryOp::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
             BinaryOp::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
+            BinaryOp::And => binary_op::handle_and_op(lhs, rhs, env, self),
+            BinaryOp::Xor => binary_op::handle_xor_op(lhs, rhs, env, self),
+            BinaryOp::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
+            BinaryOp::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
+            BinaryOp::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
+            BinaryOp::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
             _ => panic!("Currently the {:?} op is not supported", op),
         }
     }
@@ -244,8 +250,13 @@ impl Evaluator {
         self.num_public_inputs = pub_inputs.len();
 
         // Add all of the public inputs first, then the witnesses
-        for param_name in pub_inputs.into_iter().chain(witnesses.into_iter()) {
-            self.store_witness(param_name.0.clone());
+        for param_name in pub_inputs.into_iter() {
+            self.store_witness(param_name.0.clone(), Type::Public);
+            self.store_lone_variable(param_name.0.clone(), env);
+        }
+
+        for param_name in witnesses.into_iter() {
+            self.store_witness(param_name.0.clone(), Type::Witness);
             self.store_lone_variable(param_name.0.clone(), env);
         }
 
@@ -315,10 +326,10 @@ impl Evaluator {
     // XXX(med) : combine these two methods and or rename
     // XXX(bug): If you call store_witness after store_lone_variable, then the Polynomial will have the index of the previous witness
     // XXX: Maybe better to name it `create_witness`
-    fn store_witness(&mut self, variable_name: String) -> Witness {
+    fn store_witness(&mut self, variable_name: String, typ: Type) -> Witness {
         self.num_witness = self.num_witness + 1;
         let witness = Witness(variable_name, self.num_witness);
-        self.witnesses.push(witness.clone());
+        self.witnesses.insert(witness.clone(), typ);
         witness
     }
     fn store_lone_variable(&mut self, variable_name: String, env: &mut Environment) -> Polynomial {
@@ -336,28 +347,40 @@ impl Evaluator {
         x: PrivateStatement,
     ) -> Polynomial {
         let variable_name: String = x.identifier.clone().0;
-        let witness = self.store_witness(variable_name.clone());
+        let witness = self.store_witness(variable_name.clone(), x.r#type);
+        let witness_linear = Linear::from_witness(witness.clone());
 
         let rhs_poly = self.expression_to_polynomial(env, x.expression.clone());
 
         match rhs_poly.arithmetic() {
             Some(arith) => {
-                let witness_linear = Linear::from_witness(witness.clone());
-
-                let witness_poly = Polynomial::from_witness(witness);
-
-                // Store in environment, so we can get it by variable name
-                // XXX: Can add a method called LINK to wrap this
-                env.store(variable_name, witness_poly.clone());
-
                 self.gates
-                    .push(Gate::Arithmetic(arith - &witness_linear.into()))
+                    .push(Gate::Arithmetic(arith - &witness_linear.into()));
             }
             None => {
-                env.store(variable_name.clone(), rhs_poly.clone());
                 assert!(rhs_poly.is_linear()); // XXX: Cannot do priv x = 5; x is a constant in this case
+                                               // XXX: To simplify apply constraint, even if we know it is an linear poly.
+                                               // XXX: We can check this in the semantic analyser and modify the AST, so that we always apply a constraint here
+                                               // Because the SA will optimise away the linear constraints
+
+                let lhs = Arithmetic::from(witness_linear);
+                let rhs = Arithmetic::from(rhs_poly.linear().unwrap());
+                self.gates.push(Gate::Arithmetic(&lhs - &rhs));
             }
         };
+
+        // Check the type so we can see if we need to apply an extra constraint to the witness
+        let rhs_poly = match x.r#type {
+            //  Check if the type requires us to apply an extra constraint
+            Type::Integer(_, num_bits) => {
+                let integer = Integer::from_witness(witness, num_bits);
+                integer.constrain(self);
+                Polynomial::Integer(integer)
+            }
+            Type::Witness => Polynomial::from_witness(witness),
+            k => panic!("Oops, Expected an integer or Witness type, found {:?}", k),
+        };
+        env.store(variable_name.clone(), rhs_poly);
 
         Polynomial::Null
     }
@@ -458,6 +481,10 @@ impl Evaluator {
                 }
 
                 return_val
+            }
+            Expression::Cast(cast_expr) => {
+                let lhs = self.expression_to_polynomial(env, cast_expr.lhs);
+                binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
             }
             k => {
                 dbg!(k);
