@@ -1,14 +1,5 @@
 
-    fn main(x : Witness, z : Public, t: Public) {
-        bool(x);
-        bool2(z);
-        priv k = x + z; 
-        constrain x != z;
-    }
-    fn bool(w : Witness) {
-        constrain w * w - w == 0;
-    }
-    fn bool2(w : Witness) {
-        const one = 1;
-        constrain w * (one - w) == 0;
+    fn main(x : Witness, z : Witness, t: Witness) {
+        priv k : u8 = (x as u1) + (z as u1);
+        constrain k == t
     }
