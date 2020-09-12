@@ -39,4 +39,16 @@ template <size_t S> inline std::ostream& operator<<(std::ostream& os, std::array
     return os;
 }
 
+template <typename T, size_t S> inline std::ostream& operator<<(std::ostream& os, std::array<T, S> const& arr)
+{
+    std::ios_base::fmtflags f(os.flags());
+    os << "[" << std::hex << std::setfill('0');
+    for (auto element : arr) {
+        os << ' ' << element;
+    }
+    os << " ]";
+    os.flags(f);
+    return os;
+}
+
 } // namespace std

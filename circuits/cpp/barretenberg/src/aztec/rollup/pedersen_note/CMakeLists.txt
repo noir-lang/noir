@@ -1,1 +1,0 @@
-barretenberg_module(rollup_pedersen_note stdlib_pedersen stdlib_primitives)

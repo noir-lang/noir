@@ -62,8 +62,7 @@ if(WASM)
         $<TARGET_OBJECTS:stdlib_schnorr_objects>
         $<TARGET_OBJECTS:stdlib_pedersen_objects>
         $<TARGET_OBJECTS:stdlib_blake2s_objects>
-        $<TARGET_OBJECTS:rollup_pedersen_note_objects>
-        $<TARGET_OBJECTS:rollup_client_proofs_objects>
+        $<TARGET_OBJECTS:rollup_proofs_objects>
     )
 
     target_link_options(

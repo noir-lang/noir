@@ -1,1 +1,0 @@
-barretenberg_module(rollup_client_proofs rollup_pedersen_note stdlib_schnorr schnorr stdlib_primitives stdlib_merkle_tree)

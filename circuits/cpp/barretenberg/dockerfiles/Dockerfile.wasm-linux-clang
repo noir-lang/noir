@@ -6,8 +6,8 @@ RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-s
 RUN sed -e '213i#include "../../../../wasi/stdlib-hook.h"' -i ./wasi-sdk-8.0/share/wasi-sysroot/include/stdlib.h
 WORKDIR /usr/src/barretenberg
 COPY . .
-RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc) barretenberg.wasm rollup_client_proofs_tests
-RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/rollup/client_proofs/rollup_client_proofs_tests -- --gtest_filter=client_proofs_join_split.test_2_input_notes
+RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc) barretenberg.wasm rollup_proofs_tests
+RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/rollup/proofs/rollup_proofs_tests -- --gtest_filter=join_split_tests.*
 
 FROM alpine:latest
 COPY --from=builder /usr/src/barretenberg/build/src/aztec/barretenberg.wasm /usr/src/barretenberg/build/src/aztec/barretenberg.wasm
