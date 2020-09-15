@@ -1,6 +1,5 @@
 #include "join_split_circuit.hpp"
 #include "../notes/account_note.hpp"
-#include "note_pair.hpp"
 #include "verify_signature.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
@@ -11,7 +10,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace plonk;
-using namespace pedersen_note;
+using namespace notes;
 using namespace plonk::stdlib::merkle_tree;
 
 /**

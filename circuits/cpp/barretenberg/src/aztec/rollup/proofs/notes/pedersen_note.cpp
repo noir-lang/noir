@@ -4,7 +4,7 @@
 
 namespace rollup {
 namespace proofs {
-namespace pedersen_note {
+namespace notes {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
@@ -204,6 +204,6 @@ public_note encrypt_note(const private_note& plaintext)
 template note_triple fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(const field_ct& in, const size_t generator_index);
 template note_triple fixed_base_scalar_mul<250>(const field_ct& in, const size_t generator_index);
 
-} // namespace pedersen_note
+} // namespace notes
 } // namespace proofs
 } // namespace rollup

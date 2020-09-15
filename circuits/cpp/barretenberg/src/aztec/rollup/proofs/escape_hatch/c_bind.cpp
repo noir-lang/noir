@@ -1,6 +1,5 @@
 #include "c_bind.h"
 #include "escape_hatch.hpp"
-#include "../join_split/sign_notes.hpp"
 #include <common/streams.hpp>
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>

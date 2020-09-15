@@ -2,7 +2,6 @@
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include "escape_hatch_circuit.hpp"
-#include "../join_split/sign_notes.hpp"
 #include <plonk/proof_system/proving_key/serialize.hpp>
 #include <fstream>
 #include <sys/stat.h>

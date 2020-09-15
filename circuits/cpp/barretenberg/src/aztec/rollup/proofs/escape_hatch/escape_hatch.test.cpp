@@ -1,9 +1,9 @@
-#include "../pedersen_note/pedersen_note.hpp"
+#include "../notes/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "escape_hatch.hpp"
 #include "escape_hatch_circuit.hpp"
 #include "escape_hatch_tx.hpp"
-#include "../join_split/sign_notes.hpp"
+#include "../notes/sign_notes.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>

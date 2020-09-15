@@ -1,6 +1,5 @@
 #include "create_noop_join_split_proof.hpp"
 #include "join_split_circuit.hpp"
-#include "sign_notes.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
 #include <sys/stat.h>

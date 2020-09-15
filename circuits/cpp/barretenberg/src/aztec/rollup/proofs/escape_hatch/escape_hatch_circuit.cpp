@@ -1,6 +1,6 @@
 #include "escape_hatch.hpp"
 #include "../join_split/join_split_circuit.hpp"
-#include "../join_split/note_pair.hpp"
+#include "../notes/note_pair.hpp"
 #include "../rollup/rollup_circuit.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"

@@ -1,4 +1,4 @@
-#include "../pedersen_note/pedersen_note.hpp"
+#include "../notes/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "account.hpp"
 #include "../inner_proof_data.hpp"

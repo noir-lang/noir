@@ -1,4 +1,4 @@
-#include "../pedersen_note/pedersen_note.hpp"
+#include "../notes/pedersen_note.hpp"
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
 
@@ -6,7 +6,7 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
-using namespace pedersen_note;
+using namespace notes;
 
 bool verify_signature(std::array<public_note, 4> const& notes,
                       point_ct const& owner_pub_key,

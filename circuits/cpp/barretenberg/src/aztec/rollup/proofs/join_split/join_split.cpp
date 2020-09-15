@@ -7,7 +7,6 @@ namespace proofs {
 namespace join_split {
 
 using namespace plonk;
-using namespace pedersen_note;
 using namespace plonk::stdlib::merkle_tree;
 
 static std::shared_ptr<waffle::proving_key> proving_key;

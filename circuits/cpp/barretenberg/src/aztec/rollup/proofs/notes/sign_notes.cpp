@@ -4,7 +4,7 @@
 
 namespace rollup {
 namespace proofs {
-namespace join_split {
+namespace notes {
 
 using namespace crypto::schnorr;
 using namespace crypto::pedersen;

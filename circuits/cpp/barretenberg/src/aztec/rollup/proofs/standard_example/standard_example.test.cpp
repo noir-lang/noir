@@ -1,4 +1,4 @@
-#include "../pedersen_note/pedersen_note.hpp"
+#include "../notes/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "standard_example.hpp"
 #include <common/streams.hpp>

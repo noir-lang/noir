@@ -4,7 +4,7 @@
 
 namespace rollup {
 namespace proofs {
-namespace join_split {
+namespace notes {
 
 using namespace barretenberg;
 
@@ -48,6 +48,6 @@ inline void write(std::vector<uint8_t>& buf, tx_note const& note)
     write(buf, note.secret);
 }
 
-} // namespace join_split
+} // namespace notes
 } // namespace proofs
 } // namespace rollup

@@ -5,7 +5,7 @@
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
-using namespace rollup::proofs::pedersen_note;
+using namespace rollup::proofs::notes;
 
 TEST(rollup_pedersen_note, test_new_pedersen_note)
 {

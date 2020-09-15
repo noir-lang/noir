@@ -3,7 +3,7 @@
 
 namespace rollup {
 namespace proofs {
-namespace pedersen_note {
+namespace notes {
 
 using namespace plonk::stdlib::types::turbo;
 
@@ -21,14 +21,12 @@ struct private_note {
     field_ct secret;
 };
 
-typedef std::pair<private_note, public_note> note_pair;
-
 public_note encrypt_note(const private_note& plaintext);
 
 // template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in, const size_t generator_index);
 // extern template note_triple fixed_base_scalar_mul<32>(const field_ct& in, const size_t generator_index);
 // extern template note_triple fixed_base_scalar_mul<250>(const field_ct& in, const size_t generator_index);
 
-} // namespace pedersen_note
+} // namespace notes
 } // namespace proofs
 } // namespace rollup

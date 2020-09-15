@@ -1,6 +1,6 @@
 #pragma once
 #include "join_split_tx.hpp"
-#include "../pedersen_note/pedersen_note.hpp"
+#include "../notes/note_pair.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -8,7 +8,7 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
-using namespace proofs::pedersen_note;
+using namespace notes;
 using namespace plonk::stdlib::types::turbo;
 
 struct join_split_inputs {
