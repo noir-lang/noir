@@ -104,7 +104,6 @@ join_split_circuit_data compute_join_split_circuit_data(std::string const& srs_p
     join_split_circuit(composer, tx);
 
     std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
-
     auto proving_key = composer.compute_proving_key();
     auto verification_key = composer.compute_verification_key();
     auto prover = composer.create_unrolled_prover();
