@@ -1,6 +1,6 @@
 #include "compute_join_split_circuit_data.hpp"
 #include "join_split_circuit.hpp"
-#include "sign_notes.hpp"
+#include "../notes/sign_notes.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
 #include <fstream>

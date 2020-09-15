@@ -1,6 +1,5 @@
 #include "c_bind.h"
 #include "join_split.hpp"
-#include "sign_notes.hpp"
 #include <common/streams.hpp>
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -72,40 +71,6 @@ WASM_EXPORT uint32_t join_split__get_new_verification_key_data(uint8_t** output)
     memcpy(raw_buf, (void*)buffer.data(), buffer.size());
     *output = raw_buf;
     return static_cast<uint32_t>(buffer.size());
-}
-
-WASM_EXPORT void join_split__sign_4_notes(uint8_t const* note_buffer, uint8_t* pk_buffer, uint8_t* output)
-{
-    auto private_key = grumpkin::fr::serialize_from_buffer(pk_buffer);
-    grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
-    auto notes = from_buffer<std::array<tx_note, 4>>(note_buffer);
-    auto signature = sign_notes(notes, { private_key, public_key });
-    write(output, signature);
-}
-
-WASM_EXPORT void join_split__encrypt_note(uint8_t const* note_buffer, uint8_t* output)
-{
-    tx_note note = from_buffer<tx_note>(note_buffer);
-    auto encrypted = encrypt_note(note);
-    write(output, encrypted);
-}
-
-WASM_EXPORT bool join_split__decrypt_note(uint8_t const* encrypted_note_buf,
-                                          uint8_t const* private_key_buf,
-                                          uint8_t const* viewing_key_buf,
-                                          uint8_t* output)
-{
-    grumpkin::g1::affine_element encrypted_note;
-    read(encrypted_note_buf, encrypted_note.x);
-    read(encrypted_note_buf, encrypted_note.y);
-    grumpkin::fr private_key;
-    read(private_key_buf, private_key);
-    fr viewing_key;
-    read(viewing_key_buf, viewing_key);
-    uint256_t result;
-    bool success = decrypt_note(encrypted_note, private_key, viewing_key, result);
-    write(output, result);
-    return success;
 }
 
 WASM_EXPORT void* join_split__new_prover(uint8_t const* join_split_buf)

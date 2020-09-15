@@ -3,7 +3,6 @@
 #include "compute_escape_hatch_circuit_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "../rollup/rollup_circuit.hpp"
-#include "../pedersen_note/pedersen_note.hpp"
 #include "../notes/account_note.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>

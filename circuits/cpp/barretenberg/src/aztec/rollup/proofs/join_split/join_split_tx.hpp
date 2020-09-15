@@ -1,5 +1,5 @@
 #pragma once
-#include "tx_note.hpp"
+#include "../notes/tx_note.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
@@ -9,6 +9,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace plonk::stdlib::types::turbo;
+using namespace notes;
 
 struct join_split_tx {
     uint256_t public_input;

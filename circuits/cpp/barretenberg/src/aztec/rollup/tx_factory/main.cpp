@@ -1,6 +1,5 @@
 #include "../proofs/join_split/join_split.hpp"
 #include "../proofs/join_split/join_split_tx.hpp"
-#include "../proofs/join_split/sign_notes.hpp"
 #include "../proofs/join_split/create_noop_join_split_proof.hpp"
 #include "../proofs/rollup/create_rollup.hpp"
 #include "../proofs/rollup/rollup_tx.hpp"

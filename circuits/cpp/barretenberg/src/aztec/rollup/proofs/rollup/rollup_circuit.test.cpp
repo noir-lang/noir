@@ -6,7 +6,7 @@
 #include "../inner_proof_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
-#include "../join_split/sign_notes.hpp"
+#include "../notes/sign_notes.hpp"
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include "../inner_proof_data.hpp"

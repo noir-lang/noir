@@ -1,5 +1,4 @@
 #include "join_split_tx.hpp"
-#include "tx_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 
 namespace rollup {
