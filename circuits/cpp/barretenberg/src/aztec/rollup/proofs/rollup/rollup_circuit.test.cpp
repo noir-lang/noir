@@ -119,6 +119,7 @@ class rollup_tests : public ::testing::Test {
         tx.input_note = { input_note1, input_note2 };
         tx.output_note = { output_note1, output_note2 };
         tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
+                                  tx.output_owner,
                                   { user.signing_keys[0].private_key, user.signing_keys[0].public_key },
                                   rand_engine);
         tx.account_index = account_note_idx;

@@ -94,7 +94,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     std::array<public_note, 4> notes = {
         inputs.input_note1.second, inputs.input_note2.second, inputs.output_note1.second, inputs.output_note2.second
     };
-    verify_signature(notes, inputs.signing_pub_key, inputs.signature);
+    verify_signature(notes, inputs.output_owner, inputs.signing_pub_key, inputs.signature);
 
     // Verify each input note exists in the tree, and compute nullifiers.
     field_ct nullifier1 = process_input_note(composer,
@@ -140,6 +140,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
         witness_ct(&composer, tx.account_index),
         merkle_tree::create_witness_hash_path(composer, tx.account_path),
+        witness_ct(&composer, tx.output_owner),
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);

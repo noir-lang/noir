@@ -66,6 +66,7 @@ class escape_hatch_tests : public ::testing::Test {
     {
         tx.js_tx.signature = sign_notes(
             { tx.js_tx.input_note[0], tx.js_tx.input_note[1], tx.js_tx.output_note[0], tx.js_tx.output_note[1] },
+            tx.js_tx.output_owner,
             { signing_private_key, tx.js_tx.signing_pub_key });
         auto prover = new_escape_hatch_prover(tx);
         auto proof = prover.construct_proof();

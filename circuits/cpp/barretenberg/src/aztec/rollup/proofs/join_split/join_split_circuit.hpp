@@ -28,6 +28,7 @@ struct join_split_inputs {
     merkle_tree::hash_path input_path2;
     field_ct account_index;
     merkle_tree::hash_path account_path;
+    field_ct output_owner;
 };
 
 struct join_split_outputs {
