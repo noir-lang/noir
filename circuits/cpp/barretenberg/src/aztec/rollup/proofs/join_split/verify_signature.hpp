@@ -13,7 +13,7 @@ bool verify_signature(std::array<public_note, 4> const& notes,
                       point_ct const& owner_pub_key,
                       schnorr::signature_bits const& signature)
 {
-    std::array<field_ct, 8> to_compress;
+    std::array<field_ct, 9> to_compress;
     for (size_t i = 0; i < 4; ++i) {
         to_compress[i * 2] = notes[i].ciphertext.x;
         to_compress[i * 2 + 1] = notes[i].ciphertext.y;

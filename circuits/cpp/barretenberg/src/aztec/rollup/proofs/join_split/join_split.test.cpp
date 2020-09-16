@@ -218,6 +218,20 @@ TEST_F(join_split_tests, test_2_input_notes)
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
+TEST_F(join_split_tests, test_wrong_output_owner_sig_fail)
+{
+    join_split_tx tx = simple_setup();
+
+    auto fake_owner = fr::random_element();
+    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
+                              fake_owner,
+                              { user.signing_keys[0].private_key, tx.signing_pub_key });
+
+    Composer composer(get_proving_key(), nullptr);
+    join_split_circuit(composer, tx);
+    EXPECT_FALSE(!composer.failed);
+}
+
 HEAVY_TEST_F(join_split_tests, test_2_input_notes_full_proof)
 {
     join_split_tx tx = simple_setup();
