@@ -1254,10 +1254,8 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
 uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
     size_t total_limb_num = limb_num;
     if(last_limb_size>0){
-        // std::cout << "in last limb" << std::endl;
          val_slices.emplace_back(fr(val.slice(num_bits-last_limb_size,num_bits)));
 
-        // std::cout << "last limb val" << val_slices[val_slices.size()-1]<< std::endl;
         val_limbs.emplace_back(add_variable(val_slices[val_slices.size()-1]));
         create_new_range_constraint(val_limbs[val_limbs.size()-1],last_limb_range);
 total_limb_num++;
@@ -1281,7 +1279,6 @@ total_limb_num++;
        cur_shift*=second_shift;
        cur_second_shift*=second_shift; 
     }
-    // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[sums.size()-1]) << std::endl;
     assert_equal(sums[sums.size() - 1], variable_index);
 return sums;
 }
@@ -1563,7 +1560,6 @@ uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
     uint32_t last_limb(zero_idx);
     size_t total_limb_num = limb_num;
     if(last_limb_size>0){
-        std::cout << "in last limb" << std::endl;
          val_slices.emplace_back(fr(val.slice(num_bits-last_limb_size,num_bits)));
         val_limbs.emplace_back(add_variable(last_slice));
         create_new_range_constraint(last_limb,last_limb_range);
@@ -1571,7 +1567,6 @@ total_limb_num++;
     }
     // pad slices and limbs in case they are not 2 mod 3
     if(total_limb_num % 3 == 1){
-        std::cout << "in mod 3" << std::endl;
         val_limbs.emplace_back(zero_idx);//TODO: check this is zero
         val_slices.emplace_back(0);
         total_limb_num++;
@@ -1583,7 +1578,6 @@ total_limb_num++;
     fr cur_shift = (shift*second_shift);
     fr cur_second_shift = cur_shift*shift;
     for (size_t i = 3; i < total_limb_num; i = i + 2) {
-        std::cout << "in loop" << std::endl;
         sums.emplace_back(add_variable(get_variable(sums[sums.size()-1]) + cur_shift* val_slices[i] + cur_second_shift* val_slices[i + 1]));
         create_big_add_gate(
             { sums[sums.size() - 2], val_limbs[i], val_limbs[i + 1], sums[sums.size() - 1], 1, cur_shift, cur_second_shift, -1, 0 });

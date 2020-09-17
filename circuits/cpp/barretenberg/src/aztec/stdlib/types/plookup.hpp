@@ -11,6 +11,7 @@
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/encryption/schnorr/schnorr.hpp>
+#include <stdlib/primitives/curves/bn254.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -38,6 +39,7 @@ typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> group_ct;
 typedef stdlib::point<Composer> point_ct;
 typedef stdlib::pedersen<Composer> pedersen;
 
+typedef stdlib::bn254<Composer> bn254;
 namespace merkle_tree {
 using namespace stdlib::merkle_tree;
 typedef stdlib::merkle_tree::hash_path<Composer> hash_path;

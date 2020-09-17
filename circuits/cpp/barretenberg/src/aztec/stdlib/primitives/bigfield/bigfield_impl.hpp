@@ -44,7 +44,7 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     field_t<C> limb_3(context);
     if (low_bits.witness_index != IS_CONSTANT) {
         std::vector<uint32_t> low_accumulator;
-        if constexpr (context->type == waffle::PLOOKUP) {
+        if constexpr (C::type == waffle::PLOOKUP) {
             // If this doesn't hold we're using a default plookup range size that doesn't work well with the limb size
             // here
             ASSERT(low_accumulator.size() % 2 == 0);
@@ -84,8 +84,8 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     if (high_bits.witness_index != IS_CONSTANT) {
 
         std::vector<uint32_t> high_accumulator;
-        if constexpr (context->type == waffle::PLOOKUP) {
-            ASSERT(NUM_LIMB_BITS % 2 == 0); // required for on of the intermediate sums giving the third limb
+        if constexpr (C::type == waffle::PLOOKUP) {
+            ASSERT(NUM_LIMB_BITS % 2 == 0); // required for one of the intermediate sums giving the third limb
             high_accumulator = context->decompose_into_default_range(high_bits.witness_index, num_high_limb_bits);
             size_t mid_index = (NUM_LIMB_BITS / waffle::PlookupComposer::DEFAULT_PLOOKUP_RANGE_BITNUM) / 2 - 1;
             limb_2.witness_index = high_accumulator[mid_index];
@@ -717,7 +717,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     r1 = r1.normalize();
     r2 = r2.normalize();
     r3 = r3.normalize();
-    if constexpr (context->type == waffle::PLOOKUP) {
+    if constexpr (C::type == waffle::PLOOKUP) {
         context->decompose_into_default_range(r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
@@ -750,7 +750,6 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
                         witness_t(ctx, fr(quotient_512.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                         true);
     evaluate_multiply_add(diff, {one()}, {}, quotient, { zero() });
-    //verify_mod(diff, quotient,  zero() );
 }
 
 // construct a proof that points are different mod p, when they are different mod r
@@ -808,7 +807,7 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     // TODO: implicit assumption here - NUM_LIMB_BITS large enough for all the quotient
     uint32_t quotient_limb_index = context->add_variable(barretenberg::fr(quotient_value.lo));
     field_t<C> quotient_limb = field_t<C>::from_witness_index(context, quotient_limb_index);
-    if constexpr (context->type == waffle::PLOOKUP) {
+    if constexpr (C::type == waffle::PLOOKUP) {
         context->decompose_into_default_range(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
     } else {
         context->create_range_constraint(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
@@ -978,7 +977,7 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
     // std::cout <<"lowmsb:" << carry_lo_msb << " highmsb:" <<carry_hi_msb <<std::endl;
-    if constexpr (ctx->type == waffle::PLOOKUP) {
+    if constexpr (C::type == waffle::PLOOKUP) {
         carry_lo = carry_lo.normalize();
         // std::cout <<"carrylow:" << carry_lo << std::endl;
         // std::cout <<"carrylowmsb:" << ((uint256_t)ctx->get_variable(carry_lo.witness_index)).get_msb() << " bound:"
@@ -1236,7 +1235,7 @@ void bigfield<C, T>::evaluate_square_add(const bigfield& left,
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
-    if constexpr (ctx->type == waffle::PLOOKUP) {
+    if constexpr (C::type == waffle::PLOOKUP) {
         carry_lo = carry_lo.normalize();
         carry_hi = carry_hi.normalize();
         ctx->decompose_into_default_range(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
