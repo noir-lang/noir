@@ -23,7 +23,7 @@ class escape_hatch_tests : public ::testing::Test {
     {
         auto null_crs_factory = std::make_unique<waffle::ReferenceStringFactory>();
         init_proving_key(std::move(null_crs_factory));
-        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
+        auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db/ignition");
         init_verification_key(std::move(crs_factory));
     }
 

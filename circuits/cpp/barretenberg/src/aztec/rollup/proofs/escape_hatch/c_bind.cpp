@@ -41,7 +41,7 @@ WASM_EXPORT void* escape_hatch__new_prover(uint8_t const* escape_hatch_buf)
 {
     auto tx = from_buffer<escape_hatch_tx>(escape_hatch_buf);
     auto prover = new_escape_hatch_prover(tx);
-    auto heapProver = new UnrolledProver(std::move(prover));
+    auto heapProver = new Prover(std::move(prover));
     return heapProver;
 }
 

@@ -25,15 +25,8 @@ bool_t<Composer> check_subtree_membership(Composer& composer,
         bool_t is_left = (current == hashes[i].first) & !path_bit;
         bool_t is_right = (current == hashes[i].second) & path_bit;
         is_member &= is_left ^ is_right;
-        // if (!is_member.get_value()) {
-        //     std::cout << "failed at height " << i << std::endl;
-        //     std::cout << "is_left " << is_left.get_value() << std::endl;
-        //     std::cout << "is_right " << is_right.get_value() << std::endl;
-        // }
         current = pedersen<Composer>::compress(hashes[i].first, hashes[i].second);
     }
-
-    // std::cout << "current " << current << " root " << root << std::endl;
 
     is_member &= current == root;
     return is_member;
@@ -45,10 +38,11 @@ void assert_check_subtree_membership(Composer& composer,
                                      hash_path<Composer> const& hashes,
                                      field_t<Composer> const& value,
                                      byte_array<Composer> const& index,
-                                     size_t at_height)
+                                     size_t at_height,
+                                     std::string const& msg = "assert_check_subtree_membership")
 {
     auto exists = check_subtree_membership(composer, root, hashes, value, index, at_height);
-    composer.assert_equal_constant(exists.witness_index, fr::one());
+    composer.assert_equal_constant(exists.witness_index, fr::one(), msg);
 }
 
 template <typename Composer>
@@ -66,10 +60,11 @@ void assert_check_membership(Composer& composer,
                              field_t<Composer> const& root,
                              hash_path<Composer> const& hashes,
                              byte_array<Composer> const& value,
-                             byte_array<Composer> const& index)
+                             byte_array<Composer> const& index,
+                             std::string const& msg = "assert_check_membership")
 {
     auto exists = stdlib::merkle_tree::check_membership(composer, root, hashes, value, index);
-    composer.assert_equal_constant(exists.witness_index, fr::one());
+    composer.assert_equal_constant(exists.witness_index, fr::one(), msg);
 }
 
 template <typename Composer>
@@ -80,20 +75,22 @@ void update_membership(Composer& composer,
                        field_t<Composer> const& old_root,
                        hash_path<Composer> const& old_hashes,
                        byte_array<Composer> const& old_value,
-                       byte_array<Composer> const& index)
+                       byte_array<Composer> const& index,
+                       std::string const& msg = "update_membership")
 {
     // Check that the old_value, is in the tree given by old_root, at index.
-    assert_check_membership(composer, old_root, old_hashes, old_value, index);
+    assert_check_membership(composer, old_root, old_hashes, old_value, index, msg + "_old_value");
 
     // Check that the new_value, is in the tree given by new_root, at index.
-    assert_check_membership(composer, new_root, new_hashes, new_value, index);
+    assert_check_membership(composer, new_root, new_hashes, new_value, index, msg + "_new_value");
 
     // Check that the old and new values, are actually in the same tree.
     for (size_t i = 0; i < new_hashes.size(); ++i) {
         bool_t path_bit = index.get_bit(i);
         bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;
         bool_t share_right = (old_hashes[i].second == new_hashes[i].second) & !path_bit;
-        composer.assert_equal_constant((share_left ^ share_right).witness_index, barretenberg::fr::one());
+        composer.assert_equal_constant(
+            (share_left ^ share_right).witness_index, barretenberg::fr::one(), msg + "_same_tree");
     }
 }
 
@@ -106,20 +103,24 @@ void update_subtree_membership(Composer& composer,
                                hash_path<Composer> const& old_hashes,
                                field_t<Composer> const& old_subtree_root,
                                byte_array<Composer> const& index,
-                               size_t at_height)
+                               size_t at_height,
+                               std::string const& msg = "update_subtree_membership")
 {
-    // Check check that the old_subtree_root, is in the tree given by old_root, at index and at_height.
-    assert_check_subtree_membership(composer, old_root, old_hashes, old_subtree_root, index, at_height);
+    // Check that the old_subtree_root, is in the tree given by old_root, at index and at_height.
+    assert_check_subtree_membership(
+        composer, old_root, old_hashes, old_subtree_root, index, at_height, msg + "_old_subtree");
 
-    // Check check that the new_subtree_root, is in the tree given by new_root, at index and at_height.
-    assert_check_subtree_membership(composer, new_root, new_hashes, new_subtree_root, index, at_height);
+    // Check that the new_subtree_root, is in the tree given by new_root, at index and at_height.
+    assert_check_subtree_membership(
+        composer, new_root, new_hashes, new_subtree_root, index, at_height, msg + "_new_subtree");
 
     // Check that the old and new values, are actually in the same tree.
     for (size_t i = at_height; i < new_hashes.size(); ++i) {
         bool_t path_bit = index.get_bit(i);
         bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;
         bool_t share_right = (old_hashes[i].second == new_hashes[i].second) & !path_bit;
-        composer.assert_equal_constant((share_left ^ share_right).witness_index, barretenberg::fr::one());
+        composer.assert_equal_constant(
+            (share_left ^ share_right).witness_index, barretenberg::fr::one(), msg + "_same_tree");
     }
 }
 

@@ -8,7 +8,7 @@ namespace escape_hatch {
 
 using namespace plonk::stdlib::types::turbo;
 
-void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx, bool can_throw);
+void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx);
 
 } // namespace escape_hatch
 } // namespace proofs

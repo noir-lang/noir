@@ -19,7 +19,7 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,
                            waffle::verification_key_data&& vk_data);
 
-UnrolledProver new_escape_hatch_prover(escape_hatch_tx const& tx);
+Prover new_escape_hatch_prover(escape_hatch_tx const& tx);
 
 std::vector<uint8_t> create_escape_hatch_proof(escape_hatch_tx const& tx);
 

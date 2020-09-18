@@ -26,8 +26,7 @@ field_ct check_nullifiers_inserted(Composer& composer,
                                    std::vector<fr_hash_path> const& new_null_paths,
                                    uint32_ct const& num_txs,
                                    field_ct latest_null_root,
-                                   std::vector<field_ct> const& new_null_indicies,
-                                   bool can_throw)
+                                   std::vector<field_ct> const& new_null_indicies)
 {
 
     auto new_nullifier_value = byte_array_ct(&composer, 64);
@@ -54,10 +53,8 @@ field_ct check_nullifiers_inserted(Composer& composer,
                           latest_null_root,
                           old_null_path,
                           old_nullifier_value,
-                          byte_array_ct(last_real_null_index));
-        if (can_throw && composer.failed) {
-            throw_or_abort("Failed nullifier update: " + std::to_string(i));
-        }
+                          byte_array_ct(last_real_null_index),
+                          format(__FUNCTION__, "_", i));
 
         latest_null_root = new_null_root;
     }
@@ -71,8 +68,7 @@ void check_root_tree_updated(Composer& composer,
                              field_ct const& rollup_id,
                              field_ct const& new_data_root,
                              field_ct const& new_data_roots_root,
-                             field_ct const& old_data_roots_root,
-                             bool can_throw)
+                             field_ct const& old_data_roots_root)
 {
 
     auto empty_tree_value = byte_array_ct(&composer, 64);
@@ -86,10 +82,8 @@ void check_root_tree_updated(Composer& composer,
                       old_data_roots_root,
                       old_data_roots_path,
                       empty_tree_value,
-                      index);
-    if (can_throw && composer.failed) {
-        throw_or_abort("Failed root tree update.");
-    }
+                      index,
+                      __FUNCTION__);
 }
 
 void check_data_tree_updated(Composer& composer,
@@ -97,11 +91,9 @@ void check_data_tree_updated(Composer& composer,
                              merkle_tree::hash_path const& new_data_path,
                              merkle_tree::hash_path const& old_data_path,
                              std::vector<byte_array_ct> const& new_data_values,
-                             //  field_ct const& rollup_root,
                              field_ct const& old_data_root,
                              field_ct const& new_data_root,
-                             field_ct const& data_start_index,
-                             bool can_throw)
+                             field_ct const& data_start_index)
 {
     size_t height = numeric::get_msb(rollup_size) + 1;
     auto zero_subtree_root = field_ct(zero_hash_at_height(height));
@@ -116,18 +108,15 @@ void check_data_tree_updated(Composer& composer,
                               old_data_path,
                               zero_subtree_root,
                               byte_array_ct(data_start_index),
-                              height);
-    if (can_throw && composer.failed) {
-        throw_or_abort("Failed subtree update.");
-    }
+                              height,
+                              __FUNCTION__);
 }
 
 void check_accounts_not_nullified(Composer& composer,
                                   uint32_ct const& num_txs,
                                   field_ct const& null_root,
                                   std::vector<field_ct> const& account_null_indicies,
-                                  std::vector<fr_hash_path> const& account_null_paths,
-                                  bool can_throw)
+                                  std::vector<fr_hash_path> const& account_null_paths)
 {
 
     // Check that 0 exists at each of the account nullifier indicies.
@@ -139,18 +128,14 @@ void check_accounts_not_nullified(Composer& composer,
                                        byte_array_ct(&composer, 64),
                                        byte_array_ct(account_null_indicies[i]));
         auto good = exists || !is_real;
-        composer.assert_equal_constant(good.witness_index, 1);
-        if (can_throw && composer.failed) {
-            throw_or_abort("Failed account not nullified: " + std::to_string(i));
-        }
+        composer.assert_equal_constant(good.witness_index, 1, format(__FUNCTION__, "_", i));
     }
 }
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
                                        rollup_tx const& rollup,
                                        std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,
-                                       size_t rollup_size,
-                                       bool can_throw)
+                                       size_t rollup_size)
 {
     auto rollup_id = field_ct(witness_ct(&composer, rollup.rollup_id));
     auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
@@ -183,9 +168,6 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                                           recursive_manifest,
                                                                           waffle::plonk_proof{ rollup.txs[i] },
                                                                           recursion_output);
-        if (can_throw && composer.failed) {
-            throw_or_abort("Failed to verify proof: " + std::to_string(i));
-        }
 
         // Add the proofs data values to the list. If this is a noop proof (padding), then the data values are zeros.
         // TODO: i should be able to be a constant, but causes things to fail :/
@@ -207,10 +189,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                                          data_roots_path,
                                                                          byte_array_ct(data_root),
                                                                          byte_array_ct(data_root_index));
-        composer.assert_equal(is_real.witness_index, valid.witness_index);
-        if (can_throw && composer.failed) {
-            throw_or_abort("Data root incorrect for proof: " + std::to_string(i));
-        }
+        composer.assert_equal(is_real.witness_index, valid.witness_index, format("data_root_for_proof_", i));
 
         new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER1]);
         new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER2]);
@@ -227,8 +206,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                             rollup_id,
                             new_data_root,
                             new_data_roots_root,
-                            old_data_roots_root,
-                            can_throw);
+                            old_data_roots_root);
 
     // auto rollup_root = field_ct(witness_ct(&composer, rollup.rollup_root));
     auto new_data_path = create_witness_hash_path(composer, rollup.new_data_path);
@@ -240,8 +218,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                             new_data_values,
                             old_data_root,
                             new_data_root,
-                            data_start_index,
-                            can_throw);
+                            data_start_index);
 
     auto new_null_root = check_nullifiers_inserted(composer,
                                                    rollup.new_null_roots,
@@ -249,11 +226,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                    rollup.new_null_paths,
                                                    num_txs,
                                                    old_null_root,
-                                                   new_null_indicies,
-                                                   can_throw);
+                                                   new_null_indicies);
 
-    check_accounts_not_nullified(
-        composer, num_txs, old_null_root, account_null_indicies, rollup.account_null_paths, can_throw);
+    check_accounts_not_nullified(composer, num_txs, old_null_root, account_null_indicies, rollup.account_null_paths);
 
     // Publish public inputs.
     composer.set_public_input(rollup_id.witness_index);

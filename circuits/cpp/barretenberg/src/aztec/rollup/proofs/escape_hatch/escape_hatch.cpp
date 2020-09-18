@@ -27,7 +27,7 @@ void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_fact
 
     Composer composer(std::move(crs_factory), 512 * 1024);
 
-    escape_hatch_circuit(composer, tx, false);
+    escape_hatch_circuit(composer, tx);
 
     info("proving key num gates: ", composer.get_num_gates());
     proving_key = composer.compute_proving_key();
@@ -55,10 +55,10 @@ void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> c
     verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs);
 }
 
-UnrolledProver new_escape_hatch_prover(escape_hatch_tx const& tx)
+Prover new_escape_hatch_prover(escape_hatch_tx const& tx)
 {
     Composer composer(proving_key, nullptr);
-    escape_hatch_circuit(composer, tx, false);
+    escape_hatch_circuit(composer, tx);
 
     if (composer.failed) {
         error("composer logic failed: ", composer.err);
@@ -67,13 +67,13 @@ UnrolledProver new_escape_hatch_prover(escape_hatch_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    return composer.create_unrolled_prover();
+    return composer.create_prover();
 }
 
 std::vector<uint8_t> create_escape_hatch_proof(escape_hatch_tx const& tx)
 {
     Composer composer(proving_key, nullptr);
-    escape_hatch_circuit(composer, tx, false);
+    escape_hatch_circuit(composer, tx);
 
     if (composer.failed) {
         error("composer logic failed: ", composer.err);
@@ -82,7 +82,7 @@ std::vector<uint8_t> create_escape_hatch_proof(escape_hatch_tx const& tx)
     info("composer gates: ", composer.get_num_gates());
     info("public inputs: ", composer.public_inputs.size());
 
-    auto prover = composer.create_unrolled_prover();
+    auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
     auto proof_data = proof.proof_data;
     return proof_data;
@@ -90,8 +90,7 @@ std::vector<uint8_t> create_escape_hatch_proof(escape_hatch_tx const& tx)
 
 bool verify_proof(waffle::plonk_proof const& proof)
 {
-    UnrolledVerifier verifier(verification_key,
-                              Composer::create_unrolled_manifest(verification_key->num_public_inputs));
+    Verifier verifier(verification_key, Composer::create_manifest(verification_key->num_public_inputs));
     return verifier.verify_proof(proof);
 }
 

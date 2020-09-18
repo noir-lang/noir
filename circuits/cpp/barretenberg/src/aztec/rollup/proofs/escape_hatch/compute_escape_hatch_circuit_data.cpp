@@ -96,12 +96,12 @@ escape_hatch_circuit_data compute_escape_hatch_circuit_data(std::string const& s
 
     escape_hatch_tx tx(dummy_tx());
     Composer composer = Composer(srs_path);
-    escape_hatch_circuit(composer, tx, false);
+    escape_hatch_circuit(composer, tx);
+
+    std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
     auto proving_key = composer.compute_proving_key();
     auto verification_key = composer.compute_verification_key();
-
-    auto prover = composer.create_unrolled_prover();
-    auto proof = prover.construct_proof();
+    std::cerr << "Done." << std::endl;
 
     return { proving_key, verification_key, composer.get_num_gates() };
 }
