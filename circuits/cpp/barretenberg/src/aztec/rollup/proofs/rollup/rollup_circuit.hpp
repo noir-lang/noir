@@ -32,7 +32,6 @@ void check_data_tree_updated(Composer& composer,
                              merkle_tree::hash_path const& new_data_path,
                              merkle_tree::hash_path const& old_data_path,
                              std::vector<byte_array_ct> const& new_data_values,
-                             //  field_ct const& rollup_root,
                              field_ct const& old_data_root,
                              field_ct const& new_data_root,
                              field_ct const& data_start_index);
