@@ -223,7 +223,7 @@ class ComposerBase {
 
     uint32_t get_real_variable_index(uint32_t index) const
     {
-        ASSERT(index < variable_index_map.size());
+        ASSERT(variables.size() > index);
         if (variable_index_map[index] != REAL_VARIABLE) {
             return get_real_variable_index(variable_index_map[index]);
         }

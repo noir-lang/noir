@@ -11,7 +11,6 @@
 #include "./bigfield.hpp"
 
 #include <plonk/composer/turbo_composer.hpp>
-#include <plonk/composer/plookup_composer.hpp>
 #include <plonk/proof_system/prover/prover.hpp>
 #include <plonk/proof_system/verifier/verifier.hpp>
 
@@ -29,9 +28,7 @@ auto& engine = numeric::random::get_debug_engine();
 typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
 typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FqParams> bigfield;
-typedef stdlib::bigfield<waffle::PlookupComposer, barretenberg::Bn254FqParams> pbigfield;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
-typedef stdlib::witness_t<waffle::PlookupComposer> pwitness_t;
 typedef stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
 
 TEST(stdlib_bigfield, test_mul)
@@ -54,10 +51,10 @@ TEST(stdlib_bigfield, test_mul)
         if (i == num_repetitions - 1) {
             std::cout << "num gates per mul = " << after - before << std::endl;
         }
-        // // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
-        // //                    barretenberg::Bn254FqParams::modulus_1,
-        // //                    barretenberg::Bn254FqParams::modulus_2,
-        // //                    barretenberg::Bn254FqParams::modulus_3 };
+        // uint256_t modulus{ barretenberg::Bn254FqParams::modulus_0,
+        //                    barretenberg::Bn254FqParams::modulus_1,
+        //                    barretenberg::Bn254FqParams::modulus_2,
+        //                    barretenberg::Bn254FqParams::modulus_3 };
 
         fq expected = (inputs[0] * inputs[1]);
         expected = expected.from_montgomery_form();
@@ -632,46 +629,4 @@ TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
 }
-TEST(stdlib_bigfield, test_plookup)
-{
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
-    size_t num_repetitions = 1;
-    for (size_t i = 0; i < num_repetitions; ++i) {
-        fq inputs[3]{ fq::random_element(), fq::random_element(), fq::random_element() };
-        pbigfield a(pwitness_t(&composer, barretenberg::fr(uint256_t(inputs[0]).slice(0, pbigfield::NUM_LIMB_BITS * 2))),
-                   pwitness_t(&composer,
-                             barretenberg::fr(uint256_t(inputs[0]).slice(pbigfield::NUM_LIMB_BITS * 2,
-                                                                         pbigfield::NUM_LIMB_BITS * 4))));
-        pbigfield b(pwitness_t(&composer, barretenberg::fr(uint256_t(inputs[1]).slice(0, pbigfield::NUM_LIMB_BITS * 2))),
-                   pwitness_t(&composer,
-                             barretenberg::fr(uint256_t(inputs[1]).slice(pbigfield::NUM_LIMB_BITS * 2,
-                                                                         pbigfield::NUM_LIMB_BITS * 4))));
-        uint64_t before = composer.get_num_gates();
-        pbigfield c = a * b;
-        uint64_t after = composer.get_num_gates();
-        if (i == num_repetitions - 1) {
-            std::cout << "num gates per mul = " << after - before << std::endl;
-        }
-
-        fq expected = (inputs[0] * inputs[1]);
-        expected = expected.from_montgomery_form();
-        uint512_t result = c.get_value();
-
-        EXPECT_EQ(result.lo.data[0], expected.data[0]);
-        EXPECT_EQ(result.lo.data[1], expected.data[1]);
-        EXPECT_EQ(result.lo.data[2], expected.data[2]);
-        EXPECT_EQ(result.lo.data[3], expected.data[3]);
-        EXPECT_EQ(result.hi.data[0], 0ULL);
-        EXPECT_EQ(result.hi.data[1], 0ULL);
-        EXPECT_EQ(result.hi.data[2], 0ULL);
-        EXPECT_EQ(result.hi.data[3], 0ULL);
-    }
-        composer.process_range_lists();
-    waffle::PlookupProver prover = composer.create_prover();
-    waffle::PlookupVerifier verifier = composer.create_verifier();
-    waffle::plonk_proof proof = prover.construct_proof();
-    bool proof_result = verifier.verify_proof(proof);
-    EXPECT_EQ(proof_result, true);
-}
-
 } // namespace test_stdlib_bigfield

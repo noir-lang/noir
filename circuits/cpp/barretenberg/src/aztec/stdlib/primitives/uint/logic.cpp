@@ -363,10 +363,10 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
         std::array<std::vector<field_t<Composer>>, 3> sequence;
         if (op_type == XOR) {
             sequence = plookup::read_sequence_from_table(
-                waffle::PlookupMultiTableId::UINT32_XOR, field_t<Composer>(*this), field_t<Composer>(other), true);
+                waffle::PLookupMultiTableId::UINT32_XOR, field_t<Composer>(*this), field_t<Composer>(other), true);
         } else {
             sequence = plookup::read_sequence_from_table(
-                waffle::PlookupMultiTableId::UINT32_AND, field_t<Composer>(*this), field_t<Composer>(other), true);
+                waffle::PLookupMultiTableId::UINT32_AND, field_t<Composer>(*this), field_t<Composer>(other), true);
         }
         uint<Composer, Native> result(ctx);
         for (size_t i = 0; i < num_accumulators(); ++i) {
@@ -420,10 +420,10 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
     return result;
 }
 
-template class uint<waffle::PlookupComposer, uint8_t>;
-template class uint<waffle::PlookupComposer, uint16_t>;
-template class uint<waffle::PlookupComposer, uint32_t>;
-template class uint<waffle::PlookupComposer, uint64_t>;
+template class uint<waffle::PLookupComposer, uint8_t>;
+template class uint<waffle::PLookupComposer, uint16_t>;
+template class uint<waffle::PLookupComposer, uint32_t>;
+template class uint<waffle::PLookupComposer, uint64_t>;
 
 template class uint<waffle::TurboComposer, uint8_t>;
 template class uint<waffle::TurboComposer, uint16_t>;

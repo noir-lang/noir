@@ -3,7 +3,7 @@
 #include <plonk/composer/plookup_tables/plookup_tables.hpp>
 
 namespace waffle {
-class PlookupComposer;
+class PLookupComposer;
 } // namespace waffle
 
 namespace plonk {
@@ -13,7 +13,7 @@ using namespace barretenberg;
 
 template <typename Composer>
 std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> plookup_base<Composer>::read_sequence_from_table(
-    const waffle::PlookupMultiTableId id,
+    const waffle::PLookupMultiTableId id,
     const field_t<Composer>& key_a,
     const field_t<Composer>& key_b,
     const bool is_2_to_1_lookup)
@@ -44,7 +44,7 @@ std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> plookup_base<Compos
 
 template <typename Composer>
 std::pair<field_t<Composer>, field_t<Composer>> plookup_base<Composer>::read_pair_from_table(
-    const waffle::PlookupMultiTableId id, const field_t<Composer>& key)
+    const waffle::PLookupMultiTableId id, const field_t<Composer>& key)
 {
     const auto sequence_elements = read_sequence_from_table(id, key);
 
@@ -52,7 +52,7 @@ std::pair<field_t<Composer>, field_t<Composer>> plookup_base<Composer>::read_pai
 }
 
 template <typename Composer>
-field_t<Composer> plookup_base<Composer>::read_from_2_to_1_table(const waffle::PlookupMultiTableId id,
+field_t<Composer> plookup_base<Composer>::read_from_2_to_1_table(const waffle::PLookupMultiTableId id,
                                                                  const field_t<Composer>& key_a,
                                                                  const field_t<Composer>& key_b)
 {
@@ -62,7 +62,7 @@ field_t<Composer> plookup_base<Composer>::read_from_2_to_1_table(const waffle::P
 }
 
 template <typename Composer>
-field_t<Composer> plookup_base<Composer>::read_from_1_to_2_table(const waffle::PlookupMultiTableId id,
+field_t<Composer> plookup_base<Composer>::read_from_1_to_2_table(const waffle::PLookupMultiTableId id,
                                                                  const field_t<Composer>& key_a)
 {
     const auto sequence_elements = read_sequence_from_table(id, key_a);
@@ -70,6 +70,6 @@ field_t<Composer> plookup_base<Composer>::read_from_1_to_2_table(const waffle::P
     return sequence_elements[1][0];
 }
 
-template class plookup_base<waffle::PlookupComposer>;
+template class plookup_base<waffle::PLookupComposer>;
 } // namespace stdlib
 } // namespace plonk

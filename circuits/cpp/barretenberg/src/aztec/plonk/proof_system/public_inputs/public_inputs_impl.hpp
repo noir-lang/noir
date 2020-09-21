@@ -6,11 +6,13 @@ namespace waffle {
  * Public inputs!
  *
  * This is a linear-time method of evaluating public inputs, that doesn't
- *require modifications to any pre-processed selector polynomials.
+ *require modifications
+ * to any pre-processed selector polynomials.
  *
  * We validate public inputs by using a transition constraint to force every
- *public input's copy permutation to be unbalanced. We then directly compute the 'delta'
- * factor required
+ *public input's
+ * copy permutation to be unbalanced. We then directly compute the 'delta'
+ *factor required
  * to re-balance the permutation, and add it back into the grand product.
  *
  * Ok, let's wind back to the start. Let's say we have 'n' public inputs.

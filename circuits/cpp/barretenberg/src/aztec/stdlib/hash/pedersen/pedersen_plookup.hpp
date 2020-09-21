@@ -35,6 +35,6 @@ template <typename ComposerContext> class pedersen_plookup {
     static point compress_to_point(const field_t& left, const field_t& right);
 };
 
-extern template class pedersen_plookup<waffle::PlookupComposer>;
+extern template class pedersen_plookup<waffle::PLookupComposer>;
 } // namespace stdlib
 } // namespace plonk

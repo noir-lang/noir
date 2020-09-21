@@ -2,9 +2,9 @@
 #include "random_widget.hpp"
 
 namespace waffle {
-template <typename Field, typename Group, typename Transcript> class VerifierPlookupWidget {
+template <typename Field, typename Group, typename Transcript> class VerifierPLookupWidget {
   public:
-    VerifierPlookupWidget();
+    VerifierPLookupWidget();
 
     static Field compute_quotient_evaluation_contribution(typename Transcript::Key*,
                                                           const Field& alpha_base,
@@ -19,17 +19,17 @@ template <typename Field, typename Group, typename Transcript> class VerifierPlo
                                                      const bool use_linearisation);
 };
 
-extern template class VerifierPlookupWidget<barretenberg::fr,
+extern template class VerifierPLookupWidget<barretenberg::fr,
                                             barretenberg::g1::affine_element,
                                             transcript::StandardTranscript>;
 
-class ProverPlookupWidget : public ProverRandomWidget {
+class ProverPLookupWidget : public ProverRandomWidget {
   public:
-    inline ProverPlookupWidget(proving_key*, program_witness*);
-    inline ProverPlookupWidget(const ProverPlookupWidget& other);
-    inline ProverPlookupWidget(ProverPlookupWidget&& other);
-    inline ProverPlookupWidget& operator=(const ProverPlookupWidget& other);
-    inline ProverPlookupWidget& operator=(ProverPlookupWidget&& other);
+    inline ProverPLookupWidget(proving_key*, program_witness*);
+    inline ProverPLookupWidget(const ProverPLookupWidget& other);
+    inline ProverPLookupWidget(ProverPLookupWidget&& other);
+    inline ProverPLookupWidget& operator=(const ProverPLookupWidget& other);
+    inline ProverPLookupWidget& operator=(ProverPLookupWidget&& other);
 
     inline void compute_sorted_list_commitment(transcript::StandardTranscript& transcript);
 

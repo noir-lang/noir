@@ -92,28 +92,28 @@ static constexpr uint64_t witness_extension_normalization_table[16]{
     2,
 };
 
-inline PlookupBasicTable generate_witness_extension_normalization_table(PlookupBasicTableId id,
+inline PLookupBasicTable generate_witness_extension_normalization_table(PLookupBasicTableId id,
                                                                         const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, witness_extension_normalization_table>(
         id, table_index);
 }
 
-inline PlookupBasicTable generate_choose_normalization_table(PlookupBasicTableId id, const size_t table_index)
+inline PLookupBasicTable generate_choose_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<28, 2, choose_normalization_table>(id, table_index);
 }
 
-inline PlookupBasicTable generate_majority_normalization_table(PlookupBasicTableId id, const size_t table_index)
+inline PLookupBasicTable generate_majority_normalization_table(PLookupBasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, majority_normalization_table>(id, table_index);
 }
 
-inline PlookupMultiTable get_witness_extension_output_table(const PlookupMultiTableId id = SHA256_WITNESS_OUTPUT)
+inline PLookupMultiTable get_witness_extension_output_table(const PLookupMultiTableId id = SHA256_WITNESS_OUTPUT)
 {
     const size_t num_entries = 11;
 
-    PlookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
+    PLookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -125,11 +125,11 @@ inline PlookupMultiTable get_witness_extension_output_table(const PlookupMultiTa
     return table;
 }
 
-inline PlookupMultiTable get_choose_output_table(const PlookupMultiTableId id = SHA256_CH_OUTPUT)
+inline PLookupMultiTable get_choose_output_table(const PLookupMultiTableId id = SHA256_CH_OUTPUT)
 {
     const size_t num_entries = 16;
 
-    PlookupMultiTable table(numeric::pow64(28, 2), 1 << 2, 0, num_entries);
+    PLookupMultiTable table(numeric::pow64(28, 2), 1 << 2, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -141,11 +141,11 @@ inline PlookupMultiTable get_choose_output_table(const PlookupMultiTableId id = 
     return table;
 }
 
-inline PlookupMultiTable get_majority_output_table(const PlookupMultiTableId id = SHA256_MAJ_OUTPUT)
+inline PLookupMultiTable get_majority_output_table(const PLookupMultiTableId id = SHA256_MAJ_OUTPUT)
 {
     const size_t num_entries = 11;
 
-    PlookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
+    PLookupMultiTable table(numeric::pow64(16, 3), 1 << 3, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -233,12 +233,12 @@ inline std::array<barretenberg::fr, 3> get_choose_rotation_multipliers()
     return rotation_multipliers;
 }
 
-inline PlookupMultiTable get_witness_extension_input_table(const PlookupMultiTableId id = SHA256_WITNESS_INPUT)
+inline PLookupMultiTable get_witness_extension_input_table(const PLookupMultiTableId id = SHA256_WITNESS_INPUT)
 {
     std::vector<barretenberg::fr> column_1_coefficients{ 1, 1 << 3, 1 << 10, 1 << 18 };
     std::vector<barretenberg::fr> column_2_coefficients{ 0, 0, 0, 0 };
     std::vector<barretenberg::fr> column_3_coefficients{ 0, 0, 0, 0 };
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 3), (1 << 7), (1 << 8), (1 << 18) };
     table.lookup_ids = { SHA256_WITNESS_SLICE_3,
@@ -255,7 +255,7 @@ inline PlookupMultiTable get_witness_extension_input_table(const PlookupMultiTab
     return table;
 }
 
-inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = SHA256_CH_INPUT)
+inline PLookupMultiTable get_choose_input_table(const PLookupMultiTableId id = SHA256_CH_INPUT)
 {
     /**
      * When reading from our lookup tables, we can read from the differences between adjacent rows in program memory,
@@ -348,7 +348,7 @@ inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = S
     std::vector<barretenberg::fr> column_3_coefficients{ barretenberg::fr(1),
                                                          column_3_row_2_multiplier + barretenberg::fr(1),
                                                          barretenberg::fr(1) };
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
     table.lookup_ids = { SHA256_BASE28_ROTATE6, SHA256_BASE28, SHA256_BASE28_ROTATE3 };
@@ -356,7 +356,7 @@ inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = S
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 6>);
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 0>);
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 3>);
-    // table.get_table_values = std::vector<PlookupMultiTable::table_out (*)(PlookupMultiTable::table_in)>{
+    // table.get_table_values = std::vector<PLookupMultiTable::table_out (*)(PLookupMultiTable::table_in)>{
 
     //     &get_sha256_sparse_map_values<28, 0, 0>,
     //     &get_sha256_sparse_map_values<28, 3, 0>,
@@ -364,7 +364,7 @@ inline PlookupMultiTable get_choose_input_table(const PlookupMultiTableId id = S
     return table;
 }
 
-inline PlookupMultiTable get_majority_input_table(const PlookupMultiTableId id = SHA256_MAJ_INPUT)
+inline PLookupMultiTable get_majority_input_table(const PLookupMultiTableId id = SHA256_MAJ_INPUT)
 {
     /**
      * We want to tackle the SHA256 `maj` sub-algorithm
@@ -416,7 +416,7 @@ inline PlookupMultiTable get_majority_input_table(const PlookupMultiTableId id =
                                                          barretenberg::fr(1),
                                                          barretenberg::fr(1) + column_2_row_3_multiplier };
 
-    PlookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
+    PLookupMultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 11) };
     table.lookup_ids = { SHA256_BASE16_ROTATE2, SHA256_BASE16_ROTATE2, SHA256_BASE16 };

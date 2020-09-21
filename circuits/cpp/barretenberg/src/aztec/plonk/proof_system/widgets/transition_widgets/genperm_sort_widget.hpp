@@ -87,10 +87,10 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
                                          coefficient_array& linear_terms,
                                          const size_t i = 0)
     {
-        const Field& q_sort =
-            Getters::template get_polynomial<false, PolynomialIndex::Q_SORT_SELECTOR>(polynomials, i);
+        const Field& q_range =
+            Getters::template get_polynomial<false, PolynomialIndex::Q_RANGE_SELECTOR>(polynomials, i);
 
-        return linear_terms[0] * q_sort;
+        return linear_terms[0] * q_range;
     }
 
     inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
@@ -98,7 +98,7 @@ template <class Field, class Getters, typename PolyContainer> class GenPermSortK
                                                    const challenge_array& challenges)
     {
         const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
-        scalars["Q_SORT_SELECTOR"] += linear_terms[0] * linear_challenge;
+        scalars["Q_RANGE_SELECTOR"] += linear_terms[0] * linear_challenge;
     }
 };
 

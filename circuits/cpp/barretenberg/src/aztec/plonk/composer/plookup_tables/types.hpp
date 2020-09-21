@@ -6,7 +6,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace waffle {
-enum PlookupBasicTableId {
+enum PLookupBasicTableId {
     XOR,
     AND,
     PEDERSEN,
@@ -50,7 +50,7 @@ enum PlookupBasicTableId {
     UINT_AND_ROTATE0,
 };
 
-enum PlookupMultiTableId {
+enum PLookupMultiTableId {
     SHA256_CH_INPUT = 0,
     SHA256_CH_OUTPUT = 1,
     SHA256_MAJ_INPUT = 2,
@@ -67,12 +67,12 @@ enum PlookupMultiTableId {
     NUM_MULTI_TABLES = 13,
 };
 
-struct PlookupMultiTable {
+struct PLookupMultiTable {
     std::vector<barretenberg::fr> column_1_coefficients;
     std::vector<barretenberg::fr> column_2_coefficients;
     std::vector<barretenberg::fr> column_3_coefficients;
-    PlookupMultiTableId id;
-    std::vector<PlookupBasicTableId> lookup_ids;
+    PLookupMultiTableId id;
+    std::vector<PLookupBasicTableId> lookup_ids;
     std::vector<uint64_t> slice_sizes;
     std::vector<barretenberg::fr> column_1_step_sizes;
     std::vector<barretenberg::fr> column_2_step_sizes;
@@ -103,7 +103,7 @@ struct PlookupMultiTable {
     }
 
   public:
-    PlookupMultiTable(const barretenberg::fr& col_1_repeated_coeff,
+    PLookupMultiTable(const barretenberg::fr& col_1_repeated_coeff,
                       const barretenberg::fr& col_2_repeated_coeff,
                       const barretenberg::fr& col_3_repeated_coeff,
                       const size_t num_lookups)
@@ -119,7 +119,7 @@ struct PlookupMultiTable {
         }
         init_step_sizes();
     }
-    PlookupMultiTable(const std::vector<barretenberg::fr>& col_1_coeffs,
+    PLookupMultiTable(const std::vector<barretenberg::fr>& col_1_coeffs,
                       const std::vector<barretenberg::fr>& col_2_coeffs,
                       const std::vector<barretenberg::fr>& col_3_coeffs)
         : column_1_coefficients(col_1_coeffs)
@@ -129,15 +129,15 @@ struct PlookupMultiTable {
         init_step_sizes();
     }
 
-    PlookupMultiTable(){};
-    PlookupMultiTable(const PlookupMultiTable& other) = default;
-    PlookupMultiTable(PlookupMultiTable&& other) = default;
+    PLookupMultiTable(){};
+    PLookupMultiTable(const PLookupMultiTable& other) = default;
+    PLookupMultiTable(PLookupMultiTable&& other) = default;
 
-    PlookupMultiTable& operator=(const PlookupMultiTable& other) = default;
-    PlookupMultiTable& operator=(PlookupMultiTable&& other) = default;
+    PLookupMultiTable& operator=(const PLookupMultiTable& other) = default;
+    PLookupMultiTable& operator=(PLookupMultiTable&& other) = default;
 };
 
-// struct PlookupLargeKeyTable {
+// struct PLookupLargeKeyTable {
 //     struct KeyEntry {
 //         uint256_t key;
 //         std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
@@ -153,7 +153,7 @@ struct PlookupMultiTable {
 //         }
 //     };
 
-//     PlookupBasicTableId id;
+//     PLookupBasicTableId id;
 //     size_t table_index;
 //     size_t size;
 //     bool use_twin_keys;
@@ -169,7 +169,7 @@ struct PlookupMultiTable {
 //     std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 // };
 
-// struct PlookupFatKeyTable {
+// struct PLookupFatKeyTable {
 //     struct KeyEntry {
 //         barretenberg::fr key;
 //         std::array<barretenberg::fr, 2> values{ 0, 0 };
@@ -181,7 +181,7 @@ struct PlookupMultiTable {
 //         std::array<barretenberg::fr, 3> to_sorted_list_components() const { return { key, values[0], values[0] }; }
 //     }
 
-//     PlookupBasicTableId id;
+//     PLookupBasicTableId id;
 //     size_t table_index;
 //     size_t size;
 //     bool use_twin_keys;
@@ -198,7 +198,7 @@ struct PlookupMultiTable {
 
 // }
 
-struct PlookupBasicTable {
+struct PLookupBasicTable {
     struct KeyEntry {
         std::array<uint256_t, 2> key{ 0, 0 };
         std::array<barretenberg::fr, 2> value{ barretenberg::fr(0), barretenberg::fr(0) };
@@ -217,7 +217,7 @@ struct PlookupBasicTable {
         }
     };
 
-    PlookupBasicTableId id;
+    PLookupBasicTableId id;
     size_t table_index;
     size_t size;
     bool use_twin_keys;
@@ -233,8 +233,8 @@ struct PlookupBasicTable {
     std::array<barretenberg::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 };
 
-struct PlookupReadData {
-    std::vector<PlookupBasicTable::KeyEntry> key_entries;
+struct PLookupReadData {
+    std::vector<PLookupBasicTable::KeyEntry> key_entries;
 
     std::vector<barretenberg::fr> column_1_accumulator_values;
     std::vector<barretenberg::fr> column_2_accumulator_values;

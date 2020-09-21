@@ -12,7 +12,7 @@ using namespace barretenberg;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
-std::vector<uint32_t> add_variables(waffle::PlookupComposer& composer, std::vector<fr> variables)
+std::vector<uint32_t> add_variables(waffle::PLookupComposer& composer, std::vector<fr> variables)
 {
     std::vector<uint32_t> res;
     for (size_t i = 0; i < variables.size(); i++) {
@@ -23,16 +23,16 @@ std::vector<uint32_t> add_variables(waffle::PlookupComposer& composer, std::vect
 
 TEST(plookup_composer, read_sequence_from_multi_table)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
 
     barretenberg::fr input_value = engine.get_random_uint256() & 0xffffffffULL;
     const auto input_index = composer.add_variable(input_value);
 
     const auto sequence_data =
-        waffle::plookup::get_table_values(waffle::PlookupMultiTableId::PEDERSEN_LEFT, input_value);
+        waffle::plookup::get_table_values(waffle::PLookupMultiTableId::PEDERSEN_LEFT, input_value);
 
     const auto sequence_indices =
-        composer.read_sequence_from_multi_table(waffle::PlookupMultiTableId::PEDERSEN_LEFT, sequence_data, input_index);
+        composer.read_sequence_from_multi_table(waffle::PLookupMultiTableId::PEDERSEN_LEFT, sequence_data, input_index);
 
     std::vector<barretenberg::fr> expected_x;
     std::vector<barretenberg::fr> expected_y;
@@ -96,7 +96,7 @@ TEST(plookup_composer, read_sequence_from_multi_table)
 
 TEST(plookup_composer, test_no_lookup_proof)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
 
     for (size_t i = 0; i < 16; ++i) {
         for (size_t j = 0; j < 16; ++j) {
@@ -126,7 +126,7 @@ TEST(plookup_composer, test_elliptic_gate)
 {
     typedef grumpkin::g1::affine_element affine_element;
     typedef grumpkin::g1::element element;
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
 
     affine_element p1 = crypto::pedersen::get_generator(0);
     affine_element p2 = crypto::pedersen::get_generator(1);
@@ -172,7 +172,7 @@ TEST(plookup_composer, test_elliptic_gate)
 
 TEST(plookup_composer, non_trivial_tag_permutation)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::random_element();
     fr b = -a;
 
@@ -205,7 +205,7 @@ TEST(plookup_composer, non_trivial_tag_permutation)
 }
 TEST(plookup_composer, non_trivial_tag_permutation_and_cycles)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::random_element();
     fr c = -a;
 
@@ -248,7 +248,7 @@ TEST(plookup_composer, non_trivial_tag_permutation_and_cycles)
 
 TEST(plookup_composer, bad_tag_permutation)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::random_element();
     fr b = -a;
 
@@ -278,7 +278,7 @@ TEST(plookup_composer, bad_tag_permutation)
 // same as above but with turbocomposer to check reason of failue is really tag mismatch
 TEST(plookup_composer, bad_tag_turbo_permutation)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::random_element();
     fr b = -a;
 
@@ -304,7 +304,7 @@ TEST(plookup_composer, bad_tag_turbo_permutation)
 
 TEST(plookup_composer, sort_widget)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::one();
     fr b = fr(2);
     fr c = fr(3);
@@ -337,7 +337,7 @@ TEST(plookup_composer, sort_with_edges_gate)
     fr h = fr(8);
 
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto a_idx = composer.add_variable(a);
         auto b_idx = composer.add_variable(b);
         auto c_idx = composer.add_variable(c);
@@ -357,7 +357,7 @@ TEST(plookup_composer, sort_with_edges_gate)
     }
 
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto a_idx = composer.add_variable(a);
         auto b_idx = composer.add_variable(b);
         auto c_idx = composer.add_variable(c);
@@ -376,7 +376,7 @@ TEST(plookup_composer, sort_with_edges_gate)
         EXPECT_EQ(result, false);
     }
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto a_idx = composer.add_variable(a);
         auto b_idx = composer.add_variable(b);
         auto c_idx = composer.add_variable(c);
@@ -395,7 +395,7 @@ TEST(plookup_composer, sort_with_edges_gate)
         EXPECT_EQ(result, false);
     }
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto a_idx = composer.add_variable(a);
         // auto b_idx = composer.add_variable(b);
         auto c_idx = composer.add_variable(c);
@@ -415,7 +415,7 @@ TEST(plookup_composer, sort_with_edges_gate)
         EXPECT_EQ(result, false);
     }
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto idx = add_variables(composer, { 1,  2,  5,  6,  7,  10, 11, 13, 16, 17, 20, 22, 22, 25,
                                              26, 29, 29, 32, 32, 33, 35, 38, 39, 39, 42, 42, 43, 45 });
         composer.create_sort_constraint_with_edges(idx, 1, 45);
@@ -440,7 +440,7 @@ TEST(plookup_composer, sort_with_edges_gate)
 TEST(plookup_composer, range_constraint)
 {
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto indices = add_variables(composer, { 1, 2, 3, 4, 5, 6, 7, 8 });
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 8);
@@ -457,25 +457,8 @@ TEST(plookup_composer, range_constraint)
         EXPECT_EQ(result, true);
     }
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
-        auto indices = add_variables(composer, { 3});
-        for (size_t i = 0; i < indices.size(); i++) {
-            composer.create_new_range_constraint(indices[i], 3);
-        }
-        // auto ind = {a_idx,b_idx,c_idx,d_idx,e_idx,f_idx,g_idx,h_idx};
-        composer.create_dummy_constraints(indices);
-        composer.process_range_lists();
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-
-        waffle::plonk_proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
-        EXPECT_EQ(result, true);
-    }
-    {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
-        auto indices = add_variables(composer, { 1, 2, 3, 4, 5, 6, 8, 25 });
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
+        auto indices = add_variables(composer, { 1, 2, 3, 4, 5, 6, 25, 8 });
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 8);
         }
@@ -490,7 +473,7 @@ TEST(plookup_composer, range_constraint)
         EXPECT_EQ(result, false);
     }
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto indices =
             add_variables(composer, { 1, 2, 3, 4, 5, 6, 10, 8, 15, 11, 32, 21, 42, 79, 16, 10, 3, 26, 19, 51 });
         for (size_t i = 0; i < indices.size(); i++) {
@@ -507,13 +490,13 @@ TEST(plookup_composer, range_constraint)
         EXPECT_EQ(result, true);
     }
     {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         auto indices =
             add_variables(composer, { 1, 2, 3, 80, 5, 6, 29, 8, 15, 11, 32, 21, 42, 79, 16, 10, 3, 26, 13, 14 });
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 79);
         }
-        composer.create_dummy_constraints(indices);
+        composer.create_sort_constraint(indices);
         composer.process_range_lists();
         auto prover = composer.create_prover();
         auto verifier = composer.create_verifier();
@@ -527,7 +510,7 @@ TEST(plookup_composer, range_constraint)
 TEST(plookup_composer, range_with_gates)
 {
 
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     auto idx = add_variables(composer, { 1, 2, 3, 4, 5, 6, 7, 8 });
     for (size_t i = 0; i < idx.size(); i++) {
         composer.create_new_range_constraint(idx[i], 8);
@@ -550,7 +533,7 @@ TEST(plookup_composer, sort_widget_complex)
 {
     {
 
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         std::vector<fr> a = { 1, 3, 4, 7, 7, 8, 11, 14, 15, 15, 18, 19, 21, 21, 24, 25, 26, 27, 30, 32 };
         std::vector<uint32_t> ind;
         for (size_t i = 0; i < a.size(); i++)
@@ -566,7 +549,7 @@ TEST(plookup_composer, sort_widget_complex)
     }
     {
 
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
+        waffle::PLookupComposer composer = waffle::PLookupComposer();
         std::vector<fr> a = { 1, 3, 4, 7, 7, 8, 16, 14, 15, 15, 18, 19, 21, 21, 24, 25, 26, 27, 30, 32 };
         std::vector<uint32_t> ind;
         for (size_t i = 0; i < a.size(); i++)
@@ -583,7 +566,7 @@ TEST(plookup_composer, sort_widget_complex)
 }
 TEST(plookup_composer, sort_widget_neg)
 {
-    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    waffle::PLookupComposer composer = waffle::PLookupComposer();
     fr a = fr::one();
     fr b = fr(2);
     fr c = fr(3);
@@ -601,95 +584,4 @@ TEST(plookup_composer, sort_widget_neg)
 
     bool result = verifier.verify_proof(proof); // instance, prover.reference_string.SRS_T2);
     EXPECT_EQ(result, false);
-}
-TEST(plookup_composer, composed_range_constraint)
-{
-
-    // {
-    //     waffle::PlookupComposer composer = waffle::PlookupComposer();
-    //     uint256_t a = 1;
-    //     auto b = a << 52;
-
-    //     auto a_idx = composer.add_variable(fr(b));
-    //     composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
-    //     composer.decompose_into_default_range(a_idx, 68);
-
-    //     composer.process_range_lists();
-    //     auto prover = composer.create_prover();
-    //     auto verifier = composer.create_verifier();
-
-    //     waffle::plonk_proof proof = prover.construct_proof();
-
-    //     bool result = verifier.verify_proof(proof);
-    //     EXPECT_EQ(result, true);
-    // }
-    // {
-    //     waffle::PlookupComposer composer = waffle::PlookupComposer();
-    //     uint256_t a = 1;
-    //     auto b = a << 75;
-
-    //     auto a_idx = composer.add_variable(fr(b));
-    //     composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
-    //     composer.decompose_into_default_range(a_idx, 68);
-
-    //     composer.process_range_lists();
-    //     auto prover = composer.create_prover();
-    //     auto verifier = composer.create_verifier();
-
-    //     waffle::plonk_proof proof = prover.construct_proof();
-
-    //     bool result = verifier.verify_proof(proof);
-    //     EXPECT_EQ(result, false);
-    // }
-    // {
-    //     waffle::PlookupComposer composer = waffle::PlookupComposer();
-    //     uint256_t a = 1;
-    //     auto b = a << 35;
-
-    //     auto a_idx = composer.add_variable(fr(b));
-    //     composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
-    //     composer.decompose_into_default_range(a_idx, 51);
-
-    //     composer.process_range_lists();
-    //     auto prover = composer.create_prover();
-    //     auto verifier = composer.create_verifier();
-
-    //     waffle::plonk_proof proof = prover.construct_proof();
-
-    //     bool result = verifier.verify_proof(proof);
-    //     EXPECT_EQ(result, true);
-    // }
-    // {
-    //     waffle::PlookupComposer composer = waffle::PlookupComposer();
-    //     uint256_t a = 1;
-    //     uint256_t b = a << 53;
-    //     auto a_idx = composer.add_variable(fr(b));
-    //     composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(b) });
-    //     composer.decompose_into_default_range(a_idx, 51);
-    //     composer.process_range_lists();
-    //     auto prover = composer.create_prover();
-    //     auto verifier = composer.create_verifier();
-
-    //     waffle::plonk_proof proof = prover.construct_proof();
-
-    //     bool result = verifier.verify_proof(proof);
-    //     EXPECT_EQ(result, false);
-    // }
-    {
-        waffle::PlookupComposer composer = waffle::PlookupComposer();
-        auto c= fr::random_element();
-        auto d = uint256_t(c).slice(0, 133);
-        auto e= fr(d);//.slice(0,100))
-        auto a_idx = composer.add_variable(fr(e));
-        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(e) });
-        composer.decompose_into_default_range(a_idx, 134);
-        composer.process_range_lists();
-        auto prover = composer.create_prover();
-        auto verifier = composer.create_verifier();
-
-        waffle::plonk_proof proof = prover.construct_proof();
-
-        bool result = verifier.verify_proof(proof);
-        EXPECT_EQ(result, true);
-    }
 }

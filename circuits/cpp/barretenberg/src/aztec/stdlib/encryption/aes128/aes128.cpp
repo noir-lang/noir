@@ -16,26 +16,26 @@ namespace stdlib {
 namespace aes128 {
 
 constexpr uint32_t AES128_BASE = 9;
-typedef plonk::stdlib::field_t<waffle::PlookupComposer> field_t;
-typedef plonk::stdlib::witness_t<waffle::PlookupComposer> witness_t;
+typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_t;
+typedef plonk::stdlib::witness_t<waffle::PLookupComposer> witness_t;
 
 typedef std::pair<field_t, field_t> byte_pair;
 
-field_t normalize_sparse_form(waffle::PlookupComposer*, field_t& byte)
+field_t normalize_sparse_form(waffle::PLookupComposer*, field_t& byte)
 {
     byte = byte.normalize();
     auto result = plookup::read_from_1_to_2_table(waffle::AES_NORMALIZE, byte);
     return result;
 }
 
-byte_pair apply_aes_sbox_map(waffle::PlookupComposer*, field_t& input)
+byte_pair apply_aes_sbox_map(waffle::PLookupComposer*, field_t& input)
 {
     input = input.normalize();
 
     return plookup::read_pair_from_table(waffle::AES_SBOX, input);
 }
 
-std::array<field_t, 16> convert_into_sparse_bytes(waffle::PlookupComposer*, const field_t& block_data)
+std::array<field_t, 16> convert_into_sparse_bytes(waffle::PLookupComposer*, const field_t& block_data)
 {
     // `block_data` must be a 128 bit variable
     std::array<field_t, 16> sparse_bytes;
@@ -49,7 +49,7 @@ std::array<field_t, 16> convert_into_sparse_bytes(waffle::PlookupComposer*, cons
     return sparse_bytes;
 }
 
-field_t convert_from_sparse_bytes(waffle::PlookupComposer* ctx, field_t* sparse_bytes)
+field_t convert_from_sparse_bytes(waffle::PLookupComposer* ctx, field_t* sparse_bytes)
 {
     std::array<field_t, 16> bytes;
 
@@ -72,7 +72,7 @@ field_t convert_from_sparse_bytes(waffle::PlookupComposer* ctx, field_t* sparse_
     return result;
 }
 
-std::array<field_t, 176> expand_key(waffle::PlookupComposer* ctx, const field_t& key)
+std::array<field_t, 176> expand_key(waffle::PLookupComposer* ctx, const field_t& key)
 {
     constexpr uint8_t round_constants[11] = { 0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 };
     std::array<field_t, 11> sparse_round_constants{
@@ -213,7 +213,7 @@ void mix_columns_and_add_round_key(byte_pair* state_pairs, field_t* round_key, u
     mix_column_and_add_round_key(state_pairs + 12, round_key + 12, round);
 }
 
-void sub_bytes(waffle::PlookupComposer* ctx, byte_pair* state_pairs)
+void sub_bytes(waffle::PLookupComposer* ctx, byte_pair* state_pairs)
 {
     for (size_t i = 0; i < 16; ++i) {
         state_pairs[i] = apply_aes_sbox_map(ctx, state_pairs[i].first);
@@ -236,7 +236,7 @@ void xor_with_iv(byte_pair* state, field_t* iv)
     }
 }
 
-void aes128_cipher(waffle::PlookupComposer* ctx, byte_pair* state, field_t* sparse_round_key)
+void aes128_cipher(waffle::PLookupComposer* ctx, byte_pair* state, field_t* sparse_round_key)
 {
     add_round_key(state, sparse_round_key, 0);
     for (size_t i = 0; i < 16; ++i) {
@@ -259,7 +259,7 @@ void aes128_cipher(waffle::PlookupComposer* ctx, byte_pair* state, field_t* spar
 
 std::vector<field_t> encrypt_buffer_cbc(const std::vector<field_t>& input, const field_t& iv, const field_t& key)
 {
-    waffle::PlookupComposer* ctx = key.get_context();
+    waffle::PLookupComposer* ctx = key.get_context();
 
     auto round_key = expand_key(ctx, key);
 

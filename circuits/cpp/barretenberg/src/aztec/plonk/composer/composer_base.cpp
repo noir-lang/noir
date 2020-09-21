@@ -47,6 +47,7 @@ template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
         cycle_node left{ static_cast<uint32_t>(i + num_public_inputs), WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i + num_public_inputs), WireType::RIGHT };
         cycle_node out{ static_cast<uint32_t>(i + num_public_inputs), WireType::OUTPUT };
+
         wire_copy_cycles[static_cast<size_t>(w_1_index)].emplace_back(left);
         wire_copy_cycles[static_cast<size_t>(w_2_index)].emplace_back(right);
         wire_copy_cycles[static_cast<size_t>(w_3_index)].emplace_back(out);

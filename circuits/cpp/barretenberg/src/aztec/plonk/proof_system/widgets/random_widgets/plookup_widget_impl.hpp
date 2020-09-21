@@ -9,31 +9,31 @@
 
 namespace waffle {
 
-ProverPlookupWidget::ProverPlookupWidget(proving_key* input_key, program_witness* input_witness)
+ProverPLookupWidget::ProverPLookupWidget(proving_key* input_key, program_witness* input_witness)
     : ProverRandomWidget(input_key, input_witness)
 {}
 
-ProverPlookupWidget::ProverPlookupWidget(const ProverPlookupWidget& other)
+ProverPLookupWidget::ProverPLookupWidget(const ProverPLookupWidget& other)
     : ProverRandomWidget(other)
 {}
 
-ProverPlookupWidget::ProverPlookupWidget(ProverPlookupWidget&& other)
+ProverPLookupWidget::ProverPLookupWidget(ProverPLookupWidget&& other)
     : ProverRandomWidget(other)
 {}
 
-ProverPlookupWidget& ProverPlookupWidget::operator=(const ProverPlookupWidget& other)
+ProverPLookupWidget& ProverPLookupWidget::operator=(const ProverPLookupWidget& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-ProverPlookupWidget& ProverPlookupWidget::operator=(ProverPlookupWidget&& other)
+ProverPLookupWidget& ProverPLookupWidget::operator=(ProverPLookupWidget&& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-void ProverPlookupWidget::compute_sorted_list_commitment(transcript::StandardTranscript& transcript)
+void ProverPLookupWidget::compute_sorted_list_commitment(transcript::StandardTranscript& transcript)
 {
     auto& s_1 = witness->wires.at("s");
     fr* s_2 = &witness->wires.at("s_2")[0];
@@ -57,7 +57,7 @@ void ProverPlookupWidget::compute_sorted_list_commitment(transcript::StandardTra
     s_1.ifft(key->small_domain);
 }
 
-void ProverPlookupWidget::compute_grand_product_commitment(transcript::StandardTranscript& transcript)
+void ProverPLookupWidget::compute_grand_product_commitment(transcript::StandardTranscript& transcript)
 {
     const size_t n = key->n;
     polynomial& z = witness->wires.at("z_lookup");
@@ -199,7 +199,7 @@ void ProverPlookupWidget::compute_grand_product_commitment(transcript::StandardT
     z.ifft(key->small_domain);
 }
 
-void ProverPlookupWidget::compute_round_commitments(transcript::StandardTranscript& transcript,
+void ProverPLookupWidget::compute_round_commitments(transcript::StandardTranscript& transcript,
                                                     const size_t round_number,
                                                     work_queue& queue)
 {
@@ -245,7 +245,7 @@ void ProverPlookupWidget::compute_round_commitments(transcript::StandardTranscri
     }
 }
 
-barretenberg::fr ProverPlookupWidget::compute_quotient_contribution(const fr& alpha_base,
+barretenberg::fr ProverPLookupWidget::compute_quotient_contribution(const fr& alpha_base,
                                                                     const transcript::StandardTranscript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
@@ -391,7 +391,7 @@ barretenberg::fr ProverPlookupWidget::compute_quotient_contribution(const fr& al
     return alpha_base * alpha.sqr() * alpha;
 }
 
-barretenberg::fr ProverPlookupWidget::compute_linear_contribution(const fr& alpha_base,
+barretenberg::fr ProverPLookupWidget::compute_linear_contribution(const fr& alpha_base,
                                                                   const transcript::StandardTranscript& transcript,
                                                                   polynomial&)
 {
@@ -403,11 +403,11 @@ barretenberg::fr ProverPlookupWidget::compute_linear_contribution(const fr& alph
 // ###
 
 template <typename Field, typename Group, typename Transcript>
-VerifierPlookupWidget<Field, Group, Transcript>::VerifierPlookupWidget()
+VerifierPLookupWidget<Field, Group, Transcript>::VerifierPLookupWidget()
 {}
 
 template <typename Field, typename Group, typename Transcript>
-Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
+Field VerifierPLookupWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
     typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
 {
 
@@ -535,7 +535,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
 } // namespace waffle
 
 template <typename Field, typename Group, typename Transcript>
-Field VerifierPlookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+Field VerifierPLookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
     typename Transcript::Key*,
     const Field& alpha_base,
     const Transcript& transcript,
@@ -546,7 +546,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::append_scalar_multiplicat
     return alpha_base * alpha.sqr() * alpha;
 }
 
-template class VerifierPlookupWidget<barretenberg::fr,
+template class VerifierPLookupWidget<barretenberg::fr,
                                      barretenberg::g1::affine_element,
                                      transcript::StandardTranscript>;
 
