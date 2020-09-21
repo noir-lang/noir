@@ -11,8 +11,8 @@ using namespace plonk;
 
 TEST(stdlib_aes128, encrypt_64_bytes)
 {
-    typedef plonk::stdlib::field_t<waffle::PLookupComposer> field_pt;
-    typedef plonk::stdlib::witness_t<waffle::PLookupComposer> witness_pt;
+    typedef plonk::stdlib::field_t<waffle::PlookupComposer> field_pt;
+    typedef plonk::stdlib::witness_t<waffle::PlookupComposer> witness_pt;
 
     uint8_t key[16]{ 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c };
     uint8_t out[64]{ 0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46, 0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d,
@@ -34,7 +34,7 @@ TEST(stdlib_aes128, encrypt_64_bytes)
         return converted;
     };
 
-    waffle::PLookupComposer composer = waffle::PLookupComposer();
+    waffle::PlookupComposer composer = waffle::PlookupComposer();
 
     std::vector<field_pt> in_field{
         witness_pt(&composer, fr(convert_bytes(in))),
@@ -58,8 +58,8 @@ TEST(stdlib_aes128, encrypt_64_bytes)
 
     std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
 
-    waffle::PLookupProver prover = composer.create_prover();
-    waffle::PLookupVerifier verifier = composer.create_verifier();
+    waffle::PlookupProver prover = composer.create_prover();
+    waffle::PlookupVerifier verifier = composer.create_verifier();
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);

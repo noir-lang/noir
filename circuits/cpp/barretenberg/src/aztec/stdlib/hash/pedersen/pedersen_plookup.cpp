@@ -75,9 +75,9 @@ template <typename C> point<C> pedersen_plookup<C>::hash_single(const field_t& i
 
     std::array<std::vector<field_t>, 3> sequence;
     if (parity) {
-        sequence = plookup::read_sequence_from_table(waffle::PLookupMultiTableId::PEDERSEN_RIGHT, scalar);
+        sequence = plookup::read_sequence_from_table(waffle::PlookupMultiTableId::PEDERSEN_RIGHT, scalar);
     } else {
-        sequence = plookup::read_sequence_from_table(waffle::PLookupMultiTableId::PEDERSEN_LEFT, scalar);
+        sequence = plookup::read_sequence_from_table(waffle::PlookupMultiTableId::PEDERSEN_LEFT, scalar);
     }
 
     const size_t num_lookups = sequence[0].size();
@@ -151,7 +151,7 @@ template <typename C> field_t<C> pedersen_plookup<C>::compress(const std::vector
     return encrypt(inputs).x;
 }
 
-template class pedersen_plookup<waffle::PLookupComposer>;
+template class pedersen_plookup<waffle::PlookupComposer>;
 
 } // namespace stdlib
 } // namespace plonk

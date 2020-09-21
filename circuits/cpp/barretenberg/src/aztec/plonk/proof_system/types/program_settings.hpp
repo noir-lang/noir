@@ -210,7 +210,7 @@ class plookup_verifier_settings : public plookup_settings {
     typedef VerifierGenPermSortWidget<fr, g1::affine_element, Transcript, plookup_settings> GenPermSortWidget;
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, plookup_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
-    typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
+    typedef VerifierPlookupWidget<fr, g1::affine_element, Transcript> PlookupWidget;
     typedef VerifierEllipticWidget<fr, g1::affine_element, Transcript, plookup_settings> EllipticWidget;
 
     static constexpr size_t num_challenge_bytes = 32;
@@ -225,7 +225,7 @@ class plookup_verifier_settings : public plookup_settings {
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation, true);
-        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
+        updated_alpha = PlookupWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
@@ -249,7 +249,7 @@ class plookup_verifier_settings : public plookup_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation, true);
-        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
+        updated_alpha_base = PlookupWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
         updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
@@ -338,7 +338,7 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     typedef VerifierTurboRangeWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboRangeWidget;
     typedef VerifierTurboLogicWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> TurboLogicWidget;
     typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
-    typedef VerifierPLookupWidget<fr, g1::affine_element, Transcript> PLookupWidget;
+    typedef VerifierPlookupWidget<fr, g1::affine_element, Transcript> PlookupWidget;
     typedef VerifierEllipticWidget<fr, g1::affine_element, Transcript, unrolled_turbo_settings> EllipticWidget;
 
     static constexpr size_t num_challenge_bytes = 16;
@@ -353,7 +353,7 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     {
         auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
             key, alpha_base, transcript, scalars, use_linearisation);
-        updated_alpha = PLookupWidget::append_scalar_multiplication_inputs(
+        updated_alpha = PlookupWidget::append_scalar_multiplication_inputs(
             key, updated_alpha, transcript, scalars, use_linearisation);
 
         updated_alpha = TurboArithmeticWidget::append_scalar_multiplication_inputs(
@@ -377,7 +377,7 @@ class unrolled_plookup_verifier_settings : public unrolled_turbo_settings {
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
             key, alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = PLookupWidget::compute_quotient_evaluation_contribution(
+        updated_alpha_base = PlookupWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
 
         updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
