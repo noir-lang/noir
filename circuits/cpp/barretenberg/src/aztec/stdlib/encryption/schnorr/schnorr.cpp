@@ -125,31 +125,31 @@ bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
 
 template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(const point<waffle::TurboComposer>&,
                                                                                const bit_array<waffle::TurboComposer>&);
-template point<waffle::PLookupComposer> variable_base_mul<waffle::PLookupComposer>(
-    const point<waffle::PLookupComposer>&, const bit_array<waffle::PLookupComposer>&);
+template point<waffle::PlookupComposer> variable_base_mul<waffle::PlookupComposer>(
+    const point<waffle::PlookupComposer>&, const bit_array<waffle::PlookupComposer>&);
 
 template bool verify_signature<waffle::TurboComposer>(const bit_array<waffle::TurboComposer>&,
                                                       const point<waffle::TurboComposer>&,
                                                       const signature_bits<waffle::TurboComposer>&);
-template bool verify_signature<waffle::PLookupComposer>(const bit_array<waffle::PLookupComposer>&,
-                                                        const point<waffle::PLookupComposer>&,
-                                                        const signature_bits<waffle::PLookupComposer>&);
+template bool verify_signature<waffle::PlookupComposer>(const bit_array<waffle::PlookupComposer>&,
+                                                        const point<waffle::PlookupComposer>&,
+                                                        const signature_bits<waffle::PlookupComposer>&);
 
 template bool verify_signature<waffle::TurboComposer>(const byte_array<waffle::TurboComposer>&,
                                                       const point<waffle::TurboComposer>&,
                                                       const signature_bits<waffle::TurboComposer>&);
-template bool verify_signature<waffle::PLookupComposer>(const byte_array<waffle::PLookupComposer>&,
-                                                        const point<waffle::PLookupComposer>&,
-                                                        const signature_bits<waffle::PLookupComposer>&);
+template bool verify_signature<waffle::PlookupComposer>(const byte_array<waffle::PlookupComposer>&,
+                                                        const point<waffle::PlookupComposer>&,
+                                                        const signature_bits<waffle::PlookupComposer>&);
 
 template signature_bits<waffle::TurboComposer> convert_signature<waffle::TurboComposer>(
     waffle::TurboComposer*, const crypto::schnorr::signature&);
-template signature_bits<waffle::PLookupComposer> convert_signature<waffle::PLookupComposer>(
-    waffle::PLookupComposer*, const crypto::schnorr::signature&);
+template signature_bits<waffle::PlookupComposer> convert_signature<waffle::PlookupComposer>(
+    waffle::PlookupComposer*, const crypto::schnorr::signature&);
 
 template bit_array<waffle::TurboComposer> convert_message<waffle::TurboComposer>(waffle::TurboComposer*,
                                                                                  const std::string&);
-template bit_array<waffle::PLookupComposer> convert_message<waffle::PLookupComposer>(waffle::PLookupComposer*,
+template bit_array<waffle::PlookupComposer> convert_message<waffle::PlookupComposer>(waffle::PlookupComposer*,
                                                                                      const std::string&);
 } // namespace schnorr
 } // namespace stdlib

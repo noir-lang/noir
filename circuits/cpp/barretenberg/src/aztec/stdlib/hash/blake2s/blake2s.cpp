@@ -150,7 +150,7 @@ template <typename Composer> byte_array<Composer> blake2s(const byte_array<Compo
 }
 
 template byte_array<waffle::TurboComposer> blake2s(const byte_array<waffle::TurboComposer>& input);
-template byte_array<waffle::PLookupComposer> blake2s(const byte_array<waffle::PLookupComposer>& input);
+template byte_array<waffle::PlookupComposer> blake2s(const byte_array<waffle::PlookupComposer>& input);
 
 } // namespace stdlib
 } // namespace plonk

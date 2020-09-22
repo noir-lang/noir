@@ -102,11 +102,11 @@ extern template class ProverBase<plookup_settings>;
 
 typedef ProverBase<unrolled_standard_settings> UnrolledProver;
 typedef ProverBase<unrolled_turbo_settings> UnrolledTurboProver;
-typedef ProverBase<unrolled_plookup_settings> UnrolledPLookupProver;
+typedef ProverBase<unrolled_plookup_settings> UnrolledPlookupProver;
 typedef ProverBase<unrolled_turbo_settings> UnrolledGenPermProver;
 typedef ProverBase<standard_settings> Prover;
 typedef ProverBase<turbo_settings> TurboProver;
-typedef ProverBase<plookup_settings> PLookupProver;
+typedef ProverBase<plookup_settings> PlookupProver;
 typedef ProverBase<turbo_settings> GenPermProver;
 
 } // namespace waffle

@@ -13,10 +13,10 @@
 // }
 
 // namespace test_stdlib_uint32_plookups {
-// typedef stdlib::bool_t<waffle::PLookupComposer> bool_t;
-// typedef stdlib::uint8<waffle::PLookupComposer> uint8;
-// typedef stdlib::uint32<waffle::PLookupComposer> uint32;
-// typedef stdlib::witness_t<waffle::PLookupComposer> witness_t;
+// typedef stdlib::bool_t<waffle::PlookupComposer> bool_t;
+// typedef stdlib::uint8<waffle::PlookupComposer> uint8;
+// typedef stdlib::uint32<waffle::PlookupComposer> uint32;
+// typedef stdlib::witness_t<waffle::PlookupComposer> witness_t;
 
 // std::vector<uint32_t> get_random_ints(size_t num)
 // {
@@ -29,7 +29,7 @@
 
 // TEST(stdlib_uint32_plookups, test_create_from_wires)
 // {
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     uint8 a = uint8(&composer,
 //                     std::vector<bool_t>{
@@ -50,7 +50,7 @@
 
 // TEST(stdlib_uint32_plookups, test_add)
 // {
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 1U);
 //     witness_t second_input(&composer, 0U);
@@ -63,9 +63,9 @@
 //         a = c;
 //         c = a + b;
 //     }
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -88,7 +88,7 @@
 //         // expected[6] = expected[3] + expected[4];
 //         // expected[7] = expected[4] + expected[5];
 //     }
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 //     uint32 result[8];
 //     for (size_t i = 2; i < n; ++i) {
 //         result[0] = uint32(&composer, witnesses[3 * i]);
@@ -104,9 +104,9 @@
 //     // for (size_t i = 0; i < 8; ++i) {
 //     //     EXPECT_EQ(get_value(result[i]), expected[i]);
 //     // }
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -125,7 +125,7 @@
 //         c_expected = a_expected * b_expected;
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 1U);
 //     witness_t second_input(&composer, 2U);
@@ -141,9 +141,9 @@
 //     uint32_t c_result =
 //         static_cast<uint32_t>(composer.get_variable(c.get_witness_index()).from_montgomery_form().data[0]);
 //     EXPECT_EQ(c_result, c_expected);
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -163,7 +163,7 @@
 //         a_expected = c_expected ^ a_expected;
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 0xa3b10422);
 //     witness_t second_input(&composer, 0xeac21343);
@@ -180,9 +180,9 @@
 //     uint32_t a_result =
 //         static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
 //     EXPECT_EQ(a_result, a_expected);
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -192,7 +192,7 @@
 
 // TEST(stdlib_uint32_plookups, test_xor_constants)
 // {
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     uint32_t a_expected = 0xa3b10422;
 //     uint32_t b_expected = 0xeac21343;
@@ -217,7 +217,7 @@
 //         c_expected = (a_expected + b_expected) ^ (0xa3b10422 ^ 0xeac21343);
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 0xa3b10422);
 //     witness_t second_input(&composer, 0xeac21343);
@@ -235,9 +235,9 @@
 //     uint32_t c_witness_index = c.get_witness_index();
 //     uint32_t c_result = static_cast<uint32_t>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
 //     EXPECT_EQ(c_result, c_expected);
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -257,7 +257,7 @@
 //         // c_expected = (a_expected + b_expected) & (0xa3b10422 & 0xeac21343);
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 0xa3b10422);
 //     witness_t second_input(&composer, 0xeac21343);
@@ -275,9 +275,9 @@
 //     uint32_t c_witness_index = c.get_witness_index();
 //     uint32_t c_result = static_cast<uint32_t>(composer.get_variable(c_witness_index).from_montgomery_form().data[0]);
 //     EXPECT_EQ(c_result, c_expected);
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -297,7 +297,7 @@
 //         a_expected = c_expected & a_expected;
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 0xa3b10422);
 //     witness_t second_input(&composer, 0xeac21343);
@@ -315,9 +315,9 @@
 //         static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
 //     EXPECT_EQ(a_result, a_expected);
 
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -337,7 +337,7 @@
 //         a_expected = c_expected | a_expected;
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 0xa3b10422);
 //     witness_t second_input(&composer, 0xeac21343);
@@ -355,9 +355,9 @@
 //         static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
 //     EXPECT_EQ(a_result, a_expected);
 
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -382,7 +382,7 @@
 //         a_expected = rotate(c_expected, i % 31) + rotate(a_expected, (i + 1) % 31);
 //     }
 
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     witness_t first_input(&composer, 0xa3b10422);
 //     witness_t second_input(&composer, 0xeac21343);
@@ -400,9 +400,9 @@
 //         static_cast<uint32_t>(composer.get_variable(a.get_witness_index()).from_montgomery_form().data[0]);
 //     EXPECT_EQ(a_result, a_expected);
 
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 
@@ -463,7 +463,7 @@
 //         b_alt = a_alt;
 //         a_alt = temp1_alt + temp2_alt;
 //     }
-//     waffle::PLookupComposer composer = waffle::PLookupComposer();
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
 //     std::vector<uint32> w;
 //     std::vector<uint32> k;
@@ -527,9 +527,9 @@
 //     EXPECT_EQ(g_result, g_alt);
 //     EXPECT_EQ(h_result, h_alt);
 
-//     waffle::PLookupProver prover = composer.create_prover();
+//     waffle::PlookupProver prover = composer.create_prover();
 
-//     waffle::PLookupVerifier verifier = composer.create_verifier();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
 
 //     waffle::plonk_proof proof = prover.construct_proof();
 

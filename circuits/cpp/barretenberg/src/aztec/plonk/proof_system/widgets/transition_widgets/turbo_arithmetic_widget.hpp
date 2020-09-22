@@ -87,7 +87,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboArithme
          * of accumulating sums - each sum aggregates a base-4 value.
          *
          * We sometimes need to extract individual bits from our quads, the following
-         * term will extrat the high bit from two accumulators, and add it into the
+         * term will extract the high bit from two accumulators, and add it into the
          * arithmetic identity.
          *
          * This term is only active when q_arith is set to 2
