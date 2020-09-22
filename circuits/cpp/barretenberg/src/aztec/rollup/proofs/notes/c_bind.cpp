@@ -14,15 +14,16 @@ using namespace rollup::proofs::notes;
 
 extern "C" {
 
-WASM_EXPORT void notes__sign_4_notes(uint8_t const* note_buffer,
+WASM_EXPORT void notes__sign_4_notes(uint8_t* pk_buffer,
                                      uint8_t const* output_owner_buffer,
-                                     uint8_t* pk_buffer,
+                                     uint8_t const* note_buffer,
                                      uint8_t* output)
 {
     auto private_key = grumpkin::fr::serialize_from_buffer(pk_buffer);
+
+    auto output_owner = from_buffer<barretenberg::fr>(output_owner_buffer);
     grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
     auto notes = from_buffer<std::array<tx_note, 4>>(note_buffer);
-    auto output_owner = from_buffer<barretenberg::fr>(output_owner_buffer);
     auto signature = sign_notes(notes, output_owner, { private_key, public_key });
     write(output, signature);
 }
