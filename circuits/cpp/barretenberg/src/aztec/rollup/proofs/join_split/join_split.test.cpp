@@ -238,6 +238,23 @@ TEST_F(join_split_tests, test_wrong_output_owner_sig_fail)
     EXPECT_FALSE(verified);
 }
 
+TEST_F(join_split_tests, test_zero_output_owner)
+{
+    join_split_tx tx = simple_setup();
+
+    tx.output_owner = fr::zero();
+
+    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
+                              tx.output_owner,
+                              { user.signing_keys[0].private_key, tx.signing_pub_key });
+
+    Composer composer(get_proving_key(), nullptr);
+    join_split_circuit(composer, tx);
+
+    bool verified = !composer.failed;
+    EXPECT_TRUE(verified);
+}
+
 HEAVY_TEST_F(join_split_tests, test_2_input_notes_full_proof)
 {
     join_split_tx tx = simple_setup();

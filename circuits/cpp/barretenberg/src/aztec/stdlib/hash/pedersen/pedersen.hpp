@@ -25,7 +25,7 @@ template <typename ComposerContext> class pedersen {
                             const bool handle_edge_cases = false);
     static field_t compress(const std::vector<field_t>& inputs, const bool handle_edge_cases = false);
     template <size_t T>
-    static field_t compress(const std::array<field_t, T>& inputs, const bool handle_edge_cases = false)
+    static field_t compress(const std::array<field_t, T>& inputs, const bool handle_edge_cases = true)
     {
         std::vector<field_t> in(inputs.begin(), inputs.end());
         return compress(in, handle_edge_cases);
