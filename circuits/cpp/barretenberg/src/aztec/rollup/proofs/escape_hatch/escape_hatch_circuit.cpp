@@ -13,7 +13,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace join_split;
 
-void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx, bool can_throw)
+void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
 {
     join_split_inputs inputs = {
         witness_ct(&composer, tx.js_tx.public_input),
@@ -52,8 +52,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx, bool ca
                                                            tx.new_null_paths,
                                                            one,
                                                            old_null_root,
-                                                           { outputs.nullifier1, outputs.nullifier2 },
-                                                           can_throw);
+                                                           { outputs.nullifier1, outputs.nullifier2 });
 
     rollup::check_root_tree_updated(composer,
                                     create_witness_hash_path(composer, tx.new_data_roots_path),
@@ -61,8 +60,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx, bool ca
                                     rollup_id,
                                     new_data_root,
                                     new_data_roots_root,
-                                    old_data_roots_root,
-                                    can_throw);
+                                    old_data_roots_root);
 
     rollup::check_data_tree_updated(composer,
                                     1,
@@ -76,11 +74,10 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx, bool ca
                                           .write(inputs.output_note2.second.ciphertext.y) },
                                     old_data_root,
                                     new_data_root,
-                                    data_start_index,
-                                    can_throw);
+                                    data_start_index);
 
     rollup::check_accounts_not_nullified(
-        composer, one, old_null_root, { outputs.account_nullifier }, { tx.account_null_path }, can_throw);
+        composer, one, old_null_root, { outputs.account_nullifier }, { tx.account_null_path });
 
     // Public inputs mimick a 1 rollup, minus the pairing point at the end.
     composer.set_public_input(rollup_id.witness_index);
