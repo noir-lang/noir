@@ -118,10 +118,6 @@ class rollup_tests : public ::testing::Test {
         tx.input_path = { data_tree.get_hash_path(in_note_idx[0]), data_tree.get_hash_path(in_note_idx[1]) };
         tx.input_note = { input_note1, input_note2 };
         tx.output_note = { output_note1, output_note2 };
-        tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                  tx.output_owner,
-                                  { user.signing_keys[0].private_key, user.signing_keys[0].public_key },
-                                  rand_engine);
         tx.account_index = account_note_idx;
         tx.account_path = data_tree.get_hash_path(account_note_idx);
         tx.signing_pub_key = user.signing_keys[0].public_key;
@@ -131,6 +127,11 @@ class rollup_tests : public ::testing::Test {
                                     0x43, 0xe5, 0xa5, 0xb9, 0x57, 0x0f, 0x75, 0xc5, 0x96, 0x04 };
         tx.input_owner = from_buffer<fr>(owner_address);
         tx.output_owner = fr::random_element(rand_engine);
+
+        tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
+                                  tx.output_owner,
+                                  { user.signing_keys[0].private_key, user.signing_keys[0].public_key },
+                                  rand_engine);
 
         Composer composer =
             Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
