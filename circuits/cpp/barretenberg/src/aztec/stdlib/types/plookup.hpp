@@ -11,6 +11,7 @@
 #include <stdlib/hash/pedersen/pedersen.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/encryption/schnorr/schnorr.hpp>
+#include <stdlib/primitives/curves/bn254.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -19,9 +20,9 @@ namespace plookup {
 
 using namespace plonk;
 
-typedef waffle::PLookupComposer Composer;
-typedef waffle::PLookupProver Prover;
-typedef waffle::PLookupVerifier Verifier;
+typedef waffle::PlookupComposer Composer;
+typedef waffle::PlookupProver Prover;
+typedef waffle::PlookupVerifier Verifier;
 typedef stdlib::witness_t<Composer> witness_ct;
 typedef stdlib::public_witness_t<Composer> public_witness_ct;
 typedef stdlib::bool_t<Composer> bool_ct;
@@ -38,6 +39,7 @@ typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> group_ct;
 typedef stdlib::point<Composer> point_ct;
 typedef stdlib::pedersen<Composer> pedersen;
 
+typedef stdlib::bn254<Composer> bn254;
 namespace merkle_tree {
 using namespace stdlib::merkle_tree;
 typedef stdlib::merkle_tree::hash_path<Composer> hash_path;

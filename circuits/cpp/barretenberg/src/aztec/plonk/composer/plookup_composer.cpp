@@ -1,3 +1,4 @@
+
 #include "plookup_composer.hpp"
 
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
@@ -22,41 +23,42 @@ using namespace barretenberg;
 namespace waffle {
 
 #define PLOOKUP_SELECTOR_REFS                                                                                          \
-    auto& q_m = selectors[PLookupSelectors::QM];                                                                       \
-    auto& q_c = selectors[PLookupSelectors::QC];                                                                       \
-    auto& q_1 = selectors[PLookupSelectors::Q1];                                                                       \
-    auto& q_2 = selectors[PLookupSelectors::Q2];                                                                       \
-    auto& q_3 = selectors[PLookupSelectors::Q3];                                                                       \
-    auto& q_4 = selectors[PLookupSelectors::Q4];                                                                       \
-    auto& q_5 = selectors[PLookupSelectors::Q5];                                                                       \
-    auto& q_arith = selectors[PLookupSelectors::QARITH];                                                               \
-    auto& q_ecc_1 = selectors[PLookupSelectors::QECC_1];                                                               \
-    auto& q_range = selectors[PLookupSelectors::QRANGE];                                                               \
-    auto& q_logic = selectors[PLookupSelectors::QLOGIC];                                                               \
-    auto& q_elliptic = selectors[PLookupSelectors::QELLIPTIC];                                                         \
-    auto& q_lookup_index = selectors[PLookupSelectors::QLOOKUPINDEX];                                                  \
-    auto& q_lookup_type = selectors[PLookupSelectors::QLOOKUPTYPE];
-
+    auto& q_m = selectors[PlookupSelectors::QM];                                                                       \
+    auto& q_c = selectors[PlookupSelectors::QC];                                                                       \
+    auto& q_1 = selectors[PlookupSelectors::Q1];                                                                       \
+    auto& q_2 = selectors[PlookupSelectors::Q2];                                                                       \
+    auto& q_3 = selectors[PlookupSelectors::Q3];                                                                       \
+    auto& q_4 = selectors[PlookupSelectors::Q4];                                                                       \
+    auto& q_5 = selectors[PlookupSelectors::Q5];                                                                       \
+    auto& q_arith = selectors[PlookupSelectors::QARITH];                                                               \
+    auto& q_ecc_1 = selectors[PlookupSelectors::QECC_1];                                                               \
+    auto& q_range = selectors[PlookupSelectors::QRANGE];                                                               \
+    auto& q_sort = selectors[PlookupSelectors::QSORT];                                                                 \
+    auto& q_logic = selectors[PlookupSelectors::QLOGIC];                                                               \
+    auto& q_elliptic = selectors[PlookupSelectors::QELLIPTIC];                                                         \
+    auto& q_lookup_index = selectors[PlookupSelectors::QLOOKUPINDEX];                                                  \
+    auto& q_lookup_type = selectors[PlookupSelectors::QLOOKUPTYPE];
 std::vector<ComposerBase::SelectorProperties> plookup_sel_props()
 {
     std::vector<ComposerBase::SelectorProperties> result{
-        { "q_m", false, true },         { "q_c", false, true },        { "q_1", false, false },
-        { "q_2", false, true },         { "q_3", false, false },       { "q_4", false, false },
-        { "q_5", false, false },        { "q_arith", false, false },   { "q_ecc_1", false, false },
-        { "q_range", false, false },    { "q_logic", false, false },   { "q_elliptic", false, false },
-        { "table_index", false, true }, { "table_type", false, true },
+    { "q_m", false, true },         { "q_c", false, true },         { "q_1", false, false },
+    { "q_2", false, true },         { "q_3", false, false },        { "q_4", false, false },
+    { "q_5", false, false },        { "q_arith", false, false },    { "q_ecc_1", false, false },
+    { "q_range", false, false },    { "q_sort", false, false },     { "q_logic", false, false },
+    { "q_elliptic", false, false }, { "table_index", false, true }, { "table_type", false, true },
     };
     return result;
 }
 
-PLookupComposer::PLookupComposer()
-    : PLookupComposer("../srs_db", 0)
+
+PlookupComposer::PlookupComposer()
+    : PlookupComposer("../srs_db", 0)
 {}
 
-PLookupComposer::PLookupComposer(std::string const& crs_path, const size_t size_hint)
-    : PLookupComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
+PlookupComposer::PlookupComposer(std::string const& crs_path, const size_t size_hint)
+    : PlookupComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
-PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
+PlookupComposer::PlookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint)
     : ComposerBase(std::move(crs_factory), NUM_PLOOKUP_SELECTORS, size_hint, plookup_sel_props())
 {
     w_l.reserve(size_hint);
@@ -67,7 +69,7 @@ PLookupComposer::PLookupComposer(std::unique_ptr<ReferenceStringFactory>&& crs_f
     tau.insert({ DUMMY_TAG, DUMMY_TAG });
 }
 
-PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
+PlookupComposer::PlookupComposer(std::shared_ptr<proving_key> const& p_key,
                                  std::shared_ptr<verification_key> const& v_key,
                                  size_t size_hint)
     : ComposerBase(p_key, v_key, NUM_PLOOKUP_SELECTORS, size_hint, plookup_sel_props())
@@ -77,9 +79,10 @@ PLookupComposer::PLookupComposer(std::shared_ptr<proving_key> const& p_key,
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
     zero_idx = put_constant_variable(0);
+    tau.insert({ DUMMY_TAG, DUMMY_TAG });
 }
 
-void PLookupComposer::create_dummy_gate()
+void PlookupComposer::create_dummy_gate()
 {
 
     PLOOKUP_SELECTOR_REFS
@@ -98,6 +101,7 @@ void PLookupComposer::create_dummy_gate()
     q_3.emplace_back(0);
     q_c.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -105,7 +109,7 @@ void PLookupComposer::create_dummy_gate()
     ++n;
 }
 
-void PLookupComposer::create_add_gate(const add_triple& in)
+void PlookupComposer::create_add_gate(const add_triple& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -122,6 +126,7 @@ void PLookupComposer::create_add_gate(const add_triple& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -129,7 +134,7 @@ void PLookupComposer::create_add_gate(const add_triple& in)
     ++n;
 }
 
-void PLookupComposer::create_big_add_gate(const add_quad& in)
+void PlookupComposer::create_big_add_gate(const add_quad& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -146,6 +151,7 @@ void PLookupComposer::create_big_add_gate(const add_quad& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -153,7 +159,7 @@ void PLookupComposer::create_big_add_gate(const add_quad& in)
     ++n;
 }
 
-void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
+void PlookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -170,6 +176,7 @@ void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -177,7 +184,7 @@ void PLookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in
     ++n;
 }
 
-void PLookupComposer::create_big_mul_gate(const mul_quad& in)
+void PlookupComposer::create_big_mul_gate(const mul_quad& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -194,6 +201,7 @@ void PLookupComposer::create_big_mul_gate(const mul_quad& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -203,7 +211,7 @@ void PLookupComposer::create_big_mul_gate(const mul_quad& in)
 
 // Creates a width-4 addition gate, where the fourth witness must be a boolean.
 // Can be used to normalize a 32-bit addition
-void PLookupComposer::create_balanced_add_gate(const add_quad& in)
+void PlookupComposer::create_balanced_add_gate(const add_quad& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -220,6 +228,7 @@ void PLookupComposer::create_balanced_add_gate(const add_quad& in)
     q_5.emplace_back(1);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -227,7 +236,7 @@ void PLookupComposer::create_balanced_add_gate(const add_quad& in)
     ++n;
 }
 
-void PLookupComposer::create_mul_gate(const mul_triple& in)
+void PlookupComposer::create_mul_gate(const mul_triple& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -244,6 +253,7 @@ void PLookupComposer::create_mul_gate(const mul_triple& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -251,7 +261,7 @@ void PLookupComposer::create_mul_gate(const mul_triple& in)
     ++n;
 }
 
-void PLookupComposer::create_bool_gate(const uint32_t variable_index)
+void PlookupComposer::create_bool_gate(const uint32_t variable_index)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(variable_index);
@@ -263,6 +273,7 @@ void PLookupComposer::create_bool_gate(const uint32_t variable_index)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_m.emplace_back(1);
     q_1.emplace_back(0);
     q_2.emplace_back(0);
@@ -275,7 +286,7 @@ void PLookupComposer::create_bool_gate(const uint32_t variable_index)
     ++n;
 }
 
-void PLookupComposer::create_poly_gate(const poly_triple& in)
+void PlookupComposer::create_poly_gate(const poly_triple& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -288,6 +299,7 @@ void PLookupComposer::create_poly_gate(const poly_triple& in)
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
 
     q_arith.emplace_back(1);
@@ -301,7 +313,7 @@ void PLookupComposer::create_poly_gate(const poly_triple& in)
 }
 
 // adds a grumpkin point, from a 2-bit lookup table, into an accumulator point
-void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
+void PlookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
     PLOOKUP_SELECTOR_REFS
     w_l.emplace_back(in.a);
@@ -315,6 +327,7 @@ void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in
     q_m.emplace_back(0);
     q_c.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
 
     q_1.emplace_back(in.q_x_1);
@@ -328,7 +341,7 @@ void PLookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in
 }
 
 // adds a grumpkin point into an accumulator, while also initializing the accumulator
-void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
+void PlookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
                                                             const fixed_group_init_quad& init)
 {
     PLOOKUP_SELECTOR_REFS
@@ -343,6 +356,7 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     q_m.emplace_back(init.q_y_1);
     q_c.emplace_back(init.q_y_2);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
 
     q_1.emplace_back(in.q_x_1);
@@ -355,7 +369,7 @@ void PLookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     ++n;
 }
 
-void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
+void PlookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
 {
     /**
      * | 1  | 2  | 3  | 4  |
@@ -399,6 +413,7 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
         q_c.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
+        q_sort.emplace_back(0);
         q_logic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
@@ -420,6 +435,7 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -427,7 +443,7 @@ void PLookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
     ++n;
 }
 
-void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
+void PlookupComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     PLOOKUP_SELECTOR_REFS
 
@@ -445,6 +461,7 @@ void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_logic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -452,7 +469,7 @@ void PLookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     ++n;
 }
 
-std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
+std::vector<uint32_t> PlookupComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
 {
     PLOOKUP_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
@@ -570,6 +587,7 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
         q_range.emplace_back(1);
+        q_sort.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(0);
@@ -588,7 +606,7 @@ std::vector<uint32_t> PLookupComposer::create_range_constraint(const uint32_t wi
     return accumulators;
 }
 
-waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32_t a,
+waffle::accumulator_triple PlookupComposer::create_logic_constraint(const uint32_t a,
                                                                     const uint32_t b,
                                                                     const size_t num_bits,
                                                                     const bool is_xor_gate)
@@ -745,6 +763,7 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
+        q_sort.emplace_back(0);
         if (is_xor_gate) {
             q_c.emplace_back(fr::neg_one());
             q_logic.emplace_back(fr::neg_one());
@@ -769,21 +788,21 @@ waffle::accumulator_triple PLookupComposer::create_logic_constraint(const uint32
     return accumulators;
 }
 
-waffle::accumulator_triple PLookupComposer::create_and_constraint(const uint32_t a,
+waffle::accumulator_triple PlookupComposer::create_and_constraint(const uint32_t a,
                                                                   const uint32_t b,
                                                                   const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, false);
 }
 
-waffle::accumulator_triple PLookupComposer::create_xor_constraint(const uint32_t a,
+waffle::accumulator_triple PlookupComposer::create_xor_constraint(const uint32_t a,
                                                                   const uint32_t b,
                                                                   const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, true);
 }
 
-uint32_t PLookupComposer::put_constant_variable(const barretenberg::fr& variable)
+uint32_t PlookupComposer::put_constant_variable(const barretenberg::fr& variable)
 {
     if (constant_variables.count(variable) == 1) {
         return constant_variables.at(variable);
@@ -795,7 +814,7 @@ uint32_t PLookupComposer::put_constant_variable(const barretenberg::fr& variable
     }
 }
 
-void PLookupComposer::add_lookup_selector(polynomial& small, const std::string& tag)
+void PlookupComposer::add_lookup_selector(polynomial& small, const std::string& tag)
 {
     polynomial lagrange_base(small, circuit_proving_key->small_domain.size);
     small.ifft(circuit_proving_key->small_domain);
@@ -807,7 +826,7 @@ void PLookupComposer::add_lookup_selector(polynomial& small, const std::string& 
     circuit_proving_key->constraint_selector_ffts.insert({ tag + "_fft", std::move(large) });
 }
 
-std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
+std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
 {
     PLOOKUP_SELECTOR_REFS;
     if (circuit_proving_key) {
@@ -826,6 +845,7 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     ASSERT(n == q_ecc_1.size());
     ASSERT(n == q_elliptic.size());
     ASSERT(n == q_range.size());
+    ASSERT(n == q_sort.size());
     ASSERT(n == q_logic.size());
     ASSERT(n == q_lookup_index.size());
     ASSERT(n == q_lookup_type.size());
@@ -878,13 +898,13 @@ std::shared_ptr<proving_key> PLookupComposer::compute_proving_key()
     compute_sigma_permutations<4, true>(circuit_proving_key.get());
 
     std::copy(plookup_polynomial_manifest,
-              plookup_polynomial_manifest + 33,
+              plookup_polynomial_manifest + 34,
               std::back_inserter(circuit_proving_key->polynomial_manifest));
 
     return circuit_proving_key;
 }
 
-std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
+std::shared_ptr<verification_key> PlookupComposer::compute_verification_key()
 {
     if (circuit_verification_key) {
         return circuit_verification_key;
@@ -898,7 +918,7 @@ std::shared_ptr<verification_key> PLookupComposer::compute_verification_key()
     return circuit_verification_key;
 }
 
-std::shared_ptr<program_witness> PLookupComposer::compute_witness()
+std::shared_ptr<program_witness> PlookupComposer::compute_witness()
 {
     if (witness) {
         return witness;
@@ -1008,16 +1028,16 @@ std::shared_ptr<program_witness> PLookupComposer::compute_witness()
     return witness;
 }
 
-PLookupProver PLookupComposer::create_prover()
+PlookupProver PlookupComposer::create_prover()
 {
     compute_proving_key();
     compute_witness();
-    PLookupProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
+    PlookupProver output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverPLookupWidget> plookup_widget =
-        std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPlookupWidget> plookup_widget =
+        std::make_unique<ProverPlookupWidget>(circuit_proving_key.get(), witness.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<plookup_settings>> arithmetic_widget =
         std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
@@ -1042,17 +1062,17 @@ PLookupProver PLookupComposer::create_prover()
     return output_state;
 }
 
-UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
+UnrolledPlookupProver PlookupComposer::create_unrolled_prover()
 {
     compute_proving_key();
     compute_witness();
 
-    UnrolledPLookupProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
+    UnrolledPlookupProver output_state(circuit_proving_key, witness, create_unrolled_manifest(public_inputs.size()));
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverPLookupWidget> plookup_widget =
-        std::make_unique<ProverPLookupWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPlookupWidget> plookup_widget =
+        std::make_unique<ProverPlookupWidget>(circuit_proving_key.get(), witness.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
         std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),
@@ -1078,33 +1098,33 @@ UnrolledPLookupProver PLookupComposer::create_unrolled_prover()
     return output_state;
 }
 
-PLookupVerifier PLookupComposer::create_verifier()
+PlookupVerifier PlookupComposer::create_verifier()
 {
     compute_verification_key();
 
-    PLookupVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
+    PlookupVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
     return output_state;
 }
 
-UnrolledPLookupVerifier PLookupComposer::create_unrolled_verifier()
+UnrolledPlookupVerifier PlookupComposer::create_unrolled_verifier()
 {
     compute_verification_key();
 
-    UnrolledPLookupVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+    UnrolledPlookupVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
 
     return output_state;
 }
 
-void PLookupComposer::initialize_precomputed_table(
-    const PLookupBasicTableId id,
+void PlookupComposer::initialize_precomputed_table(
+    const PlookupBasicTableId id,
     bool (*generator)(std::vector<fr>&, std ::vector<fr>&, std::vector<fr>&),
     std::array<fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>))
 {
     for (auto table : lookup_tables) {
         ASSERT(table.id != id);
     }
-    PLookupBasicTable new_table;
+    PlookupBasicTable new_table;
     new_table.id = id;
     new_table.table_index = lookup_tables.size() + 1;
     new_table.use_twin_keys = generator(new_table.column_1, new_table.column_2, new_table.column_3);
@@ -1113,9 +1133,9 @@ void PLookupComposer::initialize_precomputed_table(
     lookup_tables.emplace_back(new_table);
 }
 
-PLookupBasicTable& PLookupComposer::get_table(const PLookupBasicTableId id)
+PlookupBasicTable& PlookupComposer::get_table(const PlookupBasicTableId id)
 {
-    for (PLookupBasicTable& table : lookup_tables) {
+    for (PlookupBasicTable& table : lookup_tables) {
         if (table.id == id) {
             return table;
         }
@@ -1125,8 +1145,8 @@ PLookupBasicTable& PLookupComposer::get_table(const PLookupBasicTableId id)
     return lookup_tables[lookup_tables.size() - 1];
 }
 
-std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_table(const PLookupMultiTableId& id,
-                                                                                     const PLookupReadData& read_values,
+std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_table(const PlookupMultiTableId& id,
+                                                                                     const PlookupReadData& read_values,
                                                                                      const uint32_t key_a_index,
                                                                                      const uint32_t key_b_index)
 
@@ -1166,6 +1186,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_range.emplace_back(0);
+        q_sort.emplace_back(0);
         q_logic.emplace_back(0);
         q_elliptic.emplace_back(0);
 
@@ -1178,7 +1199,7 @@ std::array<std::vector<uint32_t>, 3> PLookupComposer::read_sequence_from_multi_t
  * Generalized Permutation Methods
  **/
 
-PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t target_range)
+PlookupComposer::RangeList PlookupComposer::create_range_list(const uint64_t target_range)
 {
     RangeList result;
     const auto range_tag = get_new_tag(); // current_tag + 1;
@@ -1189,7 +1210,7 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
     result.range_tag = range_tag;
     result.tau_tag = tau_tag;
 
-    const uint64_t num_multiples_of_three = (target_range / 3);
+    uint64_t num_multiples_of_three = (target_range / 3);
 
     result.variable_indices.reserve((uint32_t)num_multiples_of_three);
     for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
@@ -1207,8 +1228,61 @@ PLookupComposer::RangeList PLookupComposer::create_range_list(const uint64_t tar
 
     return result;
 }
+// range constraint a value by decomposing it into limbs whose size should be the default range constraint size
+std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32_t variable_index, const size_t num_bits)
+{
+    std::vector<uint32_t> sums;
+    const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
+    const size_t last_limb_size = num_bits-(limb_num*DEFAULT_PLOOKUP_RANGE_BITNUM);
+    if(limb_num < 2){
+        std::cout<<"number of bits in range must be at least twice default range size" << std::endl;
+        return sums;
+    }
 
-void PLookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
+    const uint256_t val = (uint256_t)(get_variable(variable_index));
+    // check witness value is indeed in range (commented out cause interferes with negative tests)
+    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to
+    std::vector<uint32_t> val_limbs;
+    std::vector<fr> val_slices;
+    for (size_t i = 0; i < limb_num; i++) {
+        val_slices.emplace_back(
+            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1))));
+        val_limbs.emplace_back(add_variable(val_slices[i]));
+        create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
+    }
+
+uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
+    size_t total_limb_num = limb_num;
+    if(last_limb_size>0){
+         val_slices.emplace_back(fr(val.slice(num_bits-last_limb_size,num_bits)));
+
+        val_limbs.emplace_back(add_variable(val_slices[val_slices.size()-1]));
+        create_new_range_constraint(val_limbs[val_limbs.size()-1],last_limb_range);
+total_limb_num++;
+    }
+    // pad slices and limbs in case there are odd num of them 
+    if(total_limb_num % 2 == 1){
+        val_limbs.emplace_back(zero_idx);//TODO: check this is zero
+        val_slices.emplace_back(0);
+        total_limb_num++;
+    }
+    fr shift = fr(1 << DEFAULT_PLOOKUP_RANGE_BITNUM);
+    fr second_shift = shift*shift;
+    sums.emplace_back(add_variable(val_slices[0] + shift*val_slices[1])); 
+    create_add_gate({ val_limbs[0], val_limbs[1], sums[0], 1, shift,  -1, 0 });
+    fr cur_shift = (second_shift);
+    fr cur_second_shift = cur_shift*shift;
+    for (size_t i = 2; i < total_limb_num; i = i + 2) {
+        sums.emplace_back(add_variable(get_variable(sums[sums.size()-1]) + cur_shift* val_slices[i] + cur_second_shift* val_slices[i + 1]));
+        create_big_add_gate(
+            { sums[sums.size() - 2], val_limbs[i], val_limbs[i + 1], sums[sums.size() - 1], 1, cur_shift, cur_second_shift, -1, 0 });
+       cur_shift*=second_shift;
+       cur_second_shift*=second_shift; 
+    }
+    assert_equal(sums[sums.size() - 1], variable_index);
+return sums;
+}
+void PlookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
 {
     if (range_lists.count(target_range) == 0) {
         range_lists.insert({ target_range, create_range_list(target_range) });
@@ -1218,8 +1292,9 @@ void PLookupComposer::create_new_range_constraint(const uint32_t variable_index,
     assign_tag(variable_index, list.range_tag);
     list.variable_indices.emplace_back(variable_index);
 }
-void PLookupComposer::process_range_list(const RangeList& list)
+void PlookupComposer::process_range_list(const RangeList& list)
 {
+ASSERT(list.variable_indices.size()>0);
     // go over variables
     // for each variable, create mirror variable with same value - with tau tag
     // need to make sure that, in original list, increments of at most 3
@@ -1233,8 +1308,10 @@ void PLookupComposer::process_range_list(const RangeList& list)
     std::sort(sorted_list.begin(), sorted_list.end());
     std::vector<uint32_t> indices;
 
-    // list must be padded to a multipe of 4
-    const size_t padding = 4 - (list.variable_indices.size() % 4) % 4; // TODO: this 4 maybe tied to program_width
+    // list must be padded to a multipe of 4 and larger than 4
+    size_t padding = (4 - (list.variable_indices.size() % 4)) % 4; // TODO: this 4 maybe tied to program_width
+    if (list.variable_indices.size()==4) 
+        padding+=4;
     for (size_t i = 0; i < padding; ++i) {
         indices.emplace_back(zero_idx);
     }
@@ -1245,7 +1322,7 @@ void PLookupComposer::process_range_list(const RangeList& list)
     }
     create_sort_constraint_with_edges(indices, 0, list.target_range);
 }
-void PLookupComposer::process_range_lists()
+void PlookupComposer::process_range_lists()
 {
     for (const auto& i : range_lists)
         process_range_list(i.second);
@@ -1263,59 +1340,7 @@ void PLookupComposer::process_range_lists()
   * std::map<uint64_t, RangeList> range_lists;
 */
 // Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
-void PLookupComposer::create_sort_constraint(const std::vector<uint32_t>& variable_index)
-{
-    PLOOKUP_SELECTOR_REFS
-    ASSERT(variable_index.size() % 4 == 0);
-    for (size_t i = 0; i < variable_index.size(); i++) {
-        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
-    }
-
-    for (size_t i = 0; i < variable_index.size(); i += 4) {
-        w_l.emplace_back(variable_index[i]);
-        w_r.emplace_back(variable_index[i + 1]);
-        w_o.emplace_back(variable_index[i + 2]);
-        w_4.emplace_back(variable_index[i + 3]);
-        ++n;
-        q_m.emplace_back(0);
-        q_1.emplace_back(0);
-        q_2.emplace_back(0);
-        q_3.emplace_back(0);
-        q_c.emplace_back(0);
-        q_arith.emplace_back(0);
-        q_4.emplace_back(0);
-        q_5.emplace_back(0);
-        q_ecc_1.emplace_back(0);
-        q_logic.emplace_back(0);
-        q_range.emplace_back(1);
-        q_elliptic.emplace_back(0);
-        q_lookup_index.emplace_back(0);
-        q_lookup_type.emplace_back(0);
-    }
-    // dummy gate needed because of sort widget's check of next row
-    w_l.emplace_back(variable_index[variable_index.size() - 1]);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
-    ++n;
-    q_m.emplace_back(0);
-    q_1.emplace_back(0);
-    q_2.emplace_back(0);
-    q_3.emplace_back(0);
-    q_c.emplace_back(0);
-    q_arith.emplace_back(0);
-    q_4.emplace_back(0);
-    q_5.emplace_back(0);
-    q_ecc_1.emplace_back(0);
-    q_logic.emplace_back(0);
-    q_range.emplace_back(0);
-    q_elliptic.emplace_back(0);
-    q_lookup_index.emplace_back(0);
-    q_lookup_type.emplace_back(0);
-}
-// useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
-// multiples of three
-void PLookupComposer::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
+void PlookupComposer::create_sort_constraint(const std::vector<uint32_t>& variable_index)
 {
     PLOOKUP_SELECTOR_REFS
     ASSERT(variable_index.size() % 4 == 0);
@@ -1340,13 +1365,73 @@ void PLookupComposer::create_dummy_constraints(const std::vector<uint32_t>& vari
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
         q_range.emplace_back(0);
+        q_sort.emplace_back(1);
+        q_elliptic.emplace_back(0);
+        q_lookup_index.emplace_back(0);
+        q_lookup_type.emplace_back(0);
+    }
+    // dummy gate needed because of sort widget's check of next row
+    w_l.emplace_back(variable_index[variable_index.size() - 1]);
+    w_r.emplace_back(zero_idx);
+    w_o.emplace_back(zero_idx);
+    w_4.emplace_back(zero_idx);
+    ++n;
+    q_m.emplace_back(0);
+    q_1.emplace_back(0);
+    q_2.emplace_back(0);
+    q_3.emplace_back(0);
+    q_c.emplace_back(0);
+    q_arith.emplace_back(0);
+    q_4.emplace_back(0);
+    q_5.emplace_back(0);
+    q_ecc_1.emplace_back(0);
+    q_logic.emplace_back(0);
+    q_range.emplace_back(0);
+    q_sort.emplace_back(0);
+    q_elliptic.emplace_back(0);
+    q_lookup_index.emplace_back(0);
+    q_lookup_type.emplace_back(0);
+}
+// useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
+// multiples of three
+void PlookupComposer::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
+{
+    PLOOKUP_SELECTOR_REFS
+    // ASSERT(variable_index.size() % 4 == 0);
+    std::vector<uint32_t> padded_list = variable_index;
+    const uint64_t padding = (4 - (padded_list.size() % 4)) % 4;
+    for (uint64_t i = 0; i < padding; ++i) {
+        padded_list.emplace_back(zero_idx);
+    }
+    for (size_t i = 0; i < variable_index.size(); i++) {
+        assert(static_cast<uint32_t>(variables.size()) > variable_index[i]);
+    }
+
+    for (size_t i = 0; i < padded_list.size(); i += 4) {
+        w_l.emplace_back(padded_list[i]);
+        w_r.emplace_back(padded_list[i + 1]);
+        w_o.emplace_back(padded_list[i + 2]);
+        w_4.emplace_back(padded_list[i + 3]);
+        ++n;
+        q_m.emplace_back(0);
+        q_1.emplace_back(0);
+        q_2.emplace_back(0);
+        q_3.emplace_back(0);
+        q_c.emplace_back(0);
+        q_arith.emplace_back(0);
+        q_4.emplace_back(0);
+        q_5.emplace_back(0);
+        q_ecc_1.emplace_back(0);
+        q_logic.emplace_back(0);
+        q_range.emplace_back(0);
+        q_sort.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
     }
 }
-// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
-void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
+// Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checks)
+void PlookupComposer::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
                                                         const fr& start,
                                                         const fr& end)
 {
@@ -1372,12 +1457,14 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
-    q_range.emplace_back(1);
+    q_range.emplace_back(0);
+    q_sort.emplace_back(1);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
     // enforce range check for middle rows
     for (size_t i = 4; i < variable_index.size() - 4; i += 4) {
+
         w_l.emplace_back(variable_index[i]);
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
@@ -1393,7 +1480,8 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
         q_5.emplace_back(0);
         q_ecc_1.emplace_back(0);
         q_logic.emplace_back(0);
-        q_range.emplace_back(1);
+        q_range.emplace_back(0);
+        q_sort.emplace_back(1);
         q_elliptic.emplace_back(0);
         q_lookup_index.emplace_back(0);
         q_lookup_type.emplace_back(0);
@@ -1414,7 +1502,8 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_5.emplace_back(0);
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
-    q_range.emplace_back(1);
+    q_range.emplace_back(0);
+    q_sort.emplace_back(1);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
@@ -1435,9 +1524,69 @@ void PLookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     q_ecc_1.emplace_back(0);
     q_logic.emplace_back(0);
     q_range.emplace_back(0);
+    q_sort.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_lookup_index.emplace_back(0);
     q_lookup_type.emplace_back(0);
+}
+
+// range constraint a value by decomposing it into limbs whose size should be the default range constraint size
+std::vector<uint32_t> PlookupComposer::decompose_into_default_range_better_for_oddlimbnum(const uint32_t variable_index, const size_t num_bits)
+{
+    std::vector<uint32_t> sums;
+    const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
+    const size_t last_limb_size = num_bits-(limb_num*DEFAULT_PLOOKUP_RANGE_BITNUM);
+    if(limb_num < 3){
+        std::cout<<"number of bits in range must be an integer multipe of DEFAULT_PLOOKUP_RANGE_BITNUM of size at least 3" << std::endl;
+        return sums;
+    }
+
+    const uint256_t val = (uint256_t)(get_variable(variable_index));
+    // check witness value is indeed in range (commented out cause interferes with negative tests)
+    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to
+    // uint256
+    // ASSERT(limb_num % 3 == 0); // TODO: write version of method that doesn't need this
+    std::vector<uint32_t> val_limbs;
+    std::vector<fr> val_slices;
+    for (size_t i = 0; i < limb_num; i++) {
+        val_slices.emplace_back(
+            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1)-1)));
+        val_limbs.emplace_back(add_variable(val_slices[i]));
+        create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
+    }
+
+uint64_t last_limb_range= ((uint64_t)1 << last_limb_size)-1;
+    fr last_slice(0);
+    uint32_t last_limb(zero_idx);
+    size_t total_limb_num = limb_num;
+    if(last_limb_size>0){
+         val_slices.emplace_back(fr(val.slice(num_bits-last_limb_size,num_bits)));
+        val_limbs.emplace_back(add_variable(last_slice));
+        create_new_range_constraint(last_limb,last_limb_range);
+total_limb_num++;
+    }
+    // pad slices and limbs in case they are not 2 mod 3
+    if(total_limb_num % 3 == 1){
+        val_limbs.emplace_back(zero_idx);//TODO: check this is zero
+        val_slices.emplace_back(0);
+        total_limb_num++;
+    }
+    fr shift = fr(1 << DEFAULT_PLOOKUP_RANGE_BITNUM);
+    fr second_shift = shift*shift;
+    sums.emplace_back(add_variable(val_slices[0] + shift*val_slices[1] + second_shift*val_slices[2]));
+    create_big_add_gate({ val_limbs[0], val_limbs[1], val_limbs[2], sums[0], 1, shift, second_shift, -1, 0 });
+    fr cur_shift = (shift*second_shift);
+    fr cur_second_shift = cur_shift*shift;
+    for (size_t i = 3; i < total_limb_num; i = i + 2) {
+        sums.emplace_back(add_variable(get_variable(sums[sums.size()-1]) + cur_shift* val_slices[i] + cur_second_shift* val_slices[i + 1]));
+        create_big_add_gate(
+            { sums[sums.size() - 2], val_limbs[i], val_limbs[i + 1], sums[sums.size() - 1], 1, cur_shift, cur_second_shift, -1, 0 });
+       cur_shift*=second_shift;
+       cur_second_shift*=second_shift; 
+    }
+    // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[1]) << std::endl;
+    assert_equal(sums[sums.size() - 1], variable_index);
+return sums;
 }
 
 } // namespace waffle

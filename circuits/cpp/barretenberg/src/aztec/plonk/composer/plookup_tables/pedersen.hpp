@@ -19,9 +19,9 @@ inline std::array<barretenberg::fr, 2> get_sidon_pedersen_table_values(const std
 }
 
 template <size_t generator_index>
-inline PLookupBasicTable generate_sidon_pedersen_table(PLookupBasicTableId id, const size_t table_index)
+inline PlookupBasicTable generate_sidon_pedersen_table(PlookupBasicTableId id, const size_t table_index)
 {
-    PLookupBasicTable table;
+    PlookupBasicTable table;
     table.id = id;
     table.table_index = table_index;
     table.size = crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE;
@@ -44,11 +44,11 @@ inline PLookupBasicTable generate_sidon_pedersen_table(PLookupBasicTableId id, c
     return table;
 }
 
-inline PLookupMultiTable get_pedersen_left_table(const PLookupMultiTableId id = PEDERSEN_LEFT)
+inline PlookupMultiTable get_pedersen_left_table(const PlookupMultiTableId id = PEDERSEN_LEFT)
 {
     const size_t num_entries =
         (256 + crypto::pedersen::sidon::BITS_PER_TABLE - 1) / crypto::pedersen::sidon::BITS_PER_TABLE;
-    PLookupMultiTable table(crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
+    PlookupMultiTable table(crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
@@ -75,11 +75,11 @@ inline PLookupMultiTable get_pedersen_left_table(const PLookupMultiTableId id = 
     return table;
 }
 
-inline PLookupMultiTable get_pedersen_right_table(const PLookupMultiTableId id = PEDERSEN_RIGHT)
+inline PlookupMultiTable get_pedersen_right_table(const PlookupMultiTableId id = PEDERSEN_RIGHT)
 {
     const size_t num_entries =
         (256 + crypto::pedersen::sidon::BITS_PER_TABLE) / crypto::pedersen::sidon::BITS_PER_TABLE;
-    PLookupMultiTable table(crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
+    PlookupMultiTable table(crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE, 0, 0, num_entries);
 
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
