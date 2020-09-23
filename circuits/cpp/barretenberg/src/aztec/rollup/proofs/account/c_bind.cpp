@@ -83,14 +83,9 @@ WASM_EXPORT uint32_t account__get_new_verification_key_data(uint8_t** output)
     return static_cast<uint32_t>(buffer.size());
 }
 
-WASM_EXPORT void* account__new_prover(uint8_t const* account_buf, uint8_t* pk_buffer)
+WASM_EXPORT void* account__new_prover(uint8_t const* account_buf)
 {
     auto tx = from_buffer<account_tx>(account_buf);
-
-    auto private_key = from_buffer<grumpkin::fr>(pk_buffer);
-    grumpkin::g1::affine_element public_key = grumpkin::g1::one * private_key;
-    tx.sign({ private_key, public_key });
-
     auto prover = new_account_prover(tx);
     auto heapProver = new UnrolledProver(std::move(prover));
     return heapProver;
