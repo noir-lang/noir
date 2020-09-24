@@ -14,6 +14,7 @@ using namespace notes;
 struct join_split_tx {
     uint256_t public_input;
     uint256_t public_output;
+    uint32_t asset_id;
     uint32_t num_input_notes;
     std::array<uint32_t, 2> input_index;
     barretenberg::fr old_data_root;

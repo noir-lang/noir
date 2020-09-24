@@ -126,6 +126,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     join_split_inputs inputs = {
         witness_ct(&composer, tx.public_input),
         witness_ct(&composer, tx.public_output),
+        witness_ct(&composer, tx.asset_id),
         witness_ct(&composer, tx.num_input_notes),
         witness_ct(&composer, tx.input_index[0]),
         witness_ct(&composer, tx.input_index[1]),
@@ -149,6 +150,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     public_witness_ct(&composer, 0); // proof_id
     composer.set_public_input(inputs.public_input.get_witness_index());
     composer.set_public_input(inputs.public_output.get_witness_index());
+    composer.set_public_input(inputs.asset_id.get_witness_index());
     set_note_public(composer, inputs.output_note1.second);
     set_note_public(composer, inputs.output_note2.second);
     composer.set_public_input(outputs.nullifier1.witness_index);

@@ -38,6 +38,8 @@ class alignas(32) uint256_t {
         return uint256_t(static_cast<uint64_t>(a), static_cast<uint64_t>(a >> 64), 0, 0);
     }
 
+    constexpr explicit operator uint128_t() { return (uint128_t(data[1]) << 64) + data[0]; }
+
     constexpr uint256_t& operator=(const uint256_t& other) = default;
 
     explicit constexpr operator bool() const { return static_cast<bool>(data[0]); };

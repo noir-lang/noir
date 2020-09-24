@@ -52,7 +52,7 @@ class rollup_tests : public ::testing::Test {
 
     uint32_t append_note(uint32_t value)
     {
-        tx_note note = { user.owner.public_key, value, user.note_secret };
+        tx_note note = { user.owner.public_key, value, user.note_secret, 0 };
         auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
@@ -104,10 +104,10 @@ class rollup_tests : public ::testing::Test {
                                                  uint32_t public_output = 0,
                                                  uint32_t account_note_idx = 0)
     {
-        tx_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret };
-        tx_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret };
-        tx_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret };
-        tx_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret };
+        tx_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0 };
+        tx_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0 };
+        tx_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0 };
+        tx_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = public_input;
@@ -349,7 +349,7 @@ TEST_F(rollup_tests, test_reuse_spent_note_fails)
     update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
     inner_proof_data inner_proof_data(join_split_proof);
-    null_tree.update_element(inner_proof_data.nullifier1, { 64, 1 });
+    null_tree.update_element(uint128_t(inner_proof_data.nullifier1), { 64, 1 });
 
     auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 

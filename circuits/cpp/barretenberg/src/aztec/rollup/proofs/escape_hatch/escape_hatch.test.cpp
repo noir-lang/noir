@@ -38,8 +38,8 @@ class escape_hatch_tests : public ::testing::Test {
 
     void preload_value_notes()
     {
-        tx_note note1 = { user.owner.public_key, 100, user.note_secret };
-        tx_note note2 = { user.owner.public_key, 50, user.note_secret };
+        tx_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
+        tx_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
 
         auto enc_note1 = encrypt_note(note1);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
@@ -126,10 +126,10 @@ class escape_hatch_tests : public ::testing::Test {
 
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies, uint32_t account_index)
     {
-        tx_note input_note1 = { user.owner.public_key, 100, user.note_secret };
-        tx_note input_note2 = { user.owner.public_key, 50, user.note_secret };
-        tx_note output_note1 = { user.owner.public_key, 70, user.note_secret };
-        tx_note output_note2 = { user.owner.public_key, 80, user.note_secret };
+        tx_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0 };
+        tx_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0 };
+        tx_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0 };
+        tx_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = 0;

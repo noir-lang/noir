@@ -28,11 +28,10 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
         read(ptr, inner_proofs[i].proof_id);
         read(ptr, inner_proofs[i].public_input);
         read(ptr, inner_proofs[i].public_output);
+        read(ptr, inner_proofs[i].asset_id);
         read(ptr, inner_proofs[i].new_note1);
         read(ptr, inner_proofs[i].new_note2);
-        ptr += 16;
         read(ptr, inner_proofs[i].nullifier1);
-        ptr += 16;
         read(ptr, inner_proofs[i].nullifier2);
         read(ptr, inner_proofs[i].input_owner);
         read(ptr, inner_proofs[i].output_owner);

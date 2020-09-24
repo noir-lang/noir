@@ -55,20 +55,20 @@ class account_tests : public ::testing::Test {
                              create_account_leaf_data(user.owner.public_key, user.signing_keys[1].public_key));
     }
 
-    uint128_t compute_account_nullifier(grumpkin::g1::affine_element const& owner_key,
+    uint256_t compute_account_nullifier(grumpkin::g1::affine_element const& owner_key,
                                         grumpkin::g1::affine_element const& signing_key)
     {
         auto result = from_buffer<fr>(blake2::blake2s(create_account_leaf_data(owner_key, signing_key)));
-        return uint128_t(result);
+        return uint256_t(result);
     }
 
-    uint128_t compute_alias_nullifier(fr const& alias, bool register_alias)
+    uint256_t compute_alias_nullifier(fr const& alias, bool register_alias)
     {
         std::vector<uint8_t> buf;
         write(buf, (uint8_t)(register_alias ? notes::ALIAS : notes::GIBBERISH));
         write(buf, alias);
         auto result = from_buffer<fr>(blake2::blake2s(buf));
-        return uint128_t(result);
+        return uint256_t(result);
     }
 
     account_tx create_account_tx()

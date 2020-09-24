@@ -14,6 +14,7 @@ using namespace plonk::stdlib::types::turbo;
 struct join_split_inputs {
     field_ct public_input;
     field_ct public_output;
+    field_ct asset_id;
     uint32_ct num_input_notes;
     field_ct input_note1_index;
     field_ct input_note2_index;

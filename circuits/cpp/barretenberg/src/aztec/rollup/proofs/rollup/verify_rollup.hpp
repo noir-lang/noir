@@ -36,7 +36,7 @@ bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& cir
             rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
 
         if (composer.failed) {
-            throw_or_abort("Rollup circuit logic failure.");
+            throw_or_abort("Circuit logic failed: " + composer.err);
         }
 
         if (!pairing_check(recursion_output, circuit_data.verification_keys[0])) {
@@ -67,7 +67,7 @@ verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data 
         rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
 
         if (composer.failed) {
-            throw_or_abort("Circuit logic failed.");
+            throw_or_abort("Circuit logic failed: " + composer.err);
         }
 
         auto prover = composer.create_prover();
