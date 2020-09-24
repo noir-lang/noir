@@ -91,6 +91,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     public_witness_ct(&composer, 1);                          // proof_id
     composer.set_public_input(owner_pub_key.x.witness_index); // public_input but using for owner x.
     composer.set_public_input(owner_pub_key.y.witness_index); // public_output but using for owner y.
+    public_witness_ct(&composer, 0);                          // asset_id
     new_account_note_1.set_public();
     new_account_note_2.set_public();
     composer.set_public_input(alias_nullifier.witness_index);

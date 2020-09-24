@@ -18,6 +18,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     join_split_inputs inputs = {
         witness_ct(&composer, tx.js_tx.public_input),
         witness_ct(&composer, tx.js_tx.public_output),
+        witness_ct(&composer, tx.js_tx.asset_id),
         witness_ct(&composer, tx.js_tx.num_input_notes),
         witness_ct(&composer, tx.js_tx.input_index[0]),
         witness_ct(&composer, tx.js_tx.input_index[1]),
@@ -96,6 +97,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     public_witness_ct(&composer, 0); // proof_id.
     composer.set_public_input(inputs.public_input.witness_index);
     composer.set_public_input(inputs.public_output.witness_index);
+    composer.set_public_input(inputs.asset_id.witness_index);
     composer.set_public_input(inputs.output_note1.second.ciphertext.x.witness_index);
     composer.set_public_input(inputs.output_note1.second.ciphertext.y.witness_index);
     composer.set_public_input(inputs.output_note2.second.ciphertext.x.witness_index);

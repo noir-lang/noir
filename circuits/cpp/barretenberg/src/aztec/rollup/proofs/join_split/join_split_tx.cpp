@@ -12,6 +12,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     using serialize::write;
     write(buf, tx.public_input);
     write(buf, tx.public_output);
+    write(buf, tx.asset_id);
     write(buf, tx.num_input_notes);
     write(buf, tx.input_index);
     write(buf, tx.old_data_root);
@@ -31,6 +32,7 @@ void read(uint8_t const*& it, join_split_tx& tx)
     using serialize::read;
     read(it, tx.public_input);
     read(it, tx.public_output);
+    read(it, tx.asset_id);
     read(it, tx.num_input_notes);
     read(it, tx.input_index);
     read(it, tx.old_data_root);
@@ -50,6 +52,7 @@ bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
     // clang-format off
     return lhs.public_input == rhs.public_input
         && lhs.public_output == rhs.public_output
+        && lhs.asset_id == rhs.asset_id
         && lhs.num_input_notes == rhs.num_input_notes
         && lhs.input_index == rhs.input_index
         && lhs.old_data_root == rhs.old_data_root
@@ -69,6 +72,7 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
 {
     return os << "public_input: " << tx.public_input << "\n"
               << "public_output: " << tx.public_output << "\n"
+              << "asset_id: " << tx.asset_id << "\n"
               << "num_input_notes: " << tx.num_input_notes << "\n"
               << "in_index1: " << tx.input_index[0] << "\n"
               << "in_index2: " << tx.input_index[1] << "\n"

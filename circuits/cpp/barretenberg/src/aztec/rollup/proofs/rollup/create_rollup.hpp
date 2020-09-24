@@ -50,9 +50,9 @@ rollup_tx create_rollup(uint32_t rollup_id,
 
         data_roots_paths.push_back(root_tree.get_hash_path(data_roots_indicies[i]));
 
-        nullifier_indicies.push_back(struct_data.nullifier1);
-        nullifier_indicies.push_back(struct_data.nullifier2);
-        account_nullifier_indicies.push_back(struct_data.account_nullifier);
+        nullifier_indicies.push_back(uint128_t(struct_data.nullifier1));
+        nullifier_indicies.push_back(uint128_t(struct_data.nullifier2));
+        account_nullifier_indicies.push_back(uint128_t(struct_data.account_nullifier));
     }
 
     // Compute nullifier tree data.
