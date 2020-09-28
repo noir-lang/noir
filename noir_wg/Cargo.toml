@@ -12,6 +12,9 @@ libnoirc_ast = {path = "../libnoirc_ast"}
 libnoirc_analyser = {path = "../libnoirc_analyser"}
 libnoirc_parser = {path = "../libnoirc_parser"}
 noir_field = {path = "../noir_field"}
+low_level_std_lib = {path = "../low_level_std_lib"}
 noir_evaluator = {path = "../noir_evaluator"}
 noir_serialiser = {path = "../noir_serialiser"}
 barretenberg-rs = {path = "../barretenberg-rs"}
+
+sha2= "0.9"

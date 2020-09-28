@@ -1,6 +1,9 @@
 mod arithmetic;
+mod gadget_call;
 mod logic;
+
 pub use arithmetic::ArithmeticSolver;
+pub use gadget_call::GadgetCaller;
 pub use logic::LogicSolver;
 
 use noir_evaluator::Gate;
@@ -41,6 +44,15 @@ impl Solver {
                     // We compute the result because the other gates may want to use the assignment to generate their assignments
                     false
                 }
+                Gate::GadgetCall(gc) => {
+                    GadgetCaller::solve_gadget_call(initial_witness, gc);
+
+                    false
+                }
+                gate => panic!(
+                    "Solver does not know how to deal with this Gate: {:?}",
+                    gate
+                ),
             };
             if unsolved {
                 unsolved_gates.0.push(gate);
@@ -69,7 +81,8 @@ fn name() {
 
     let mut parser = Parser::new(Lexer::new(&input));
     let program = parser.parse_program();
-    let evaluator = Evaluator::new(program);
+    let symbol_table = libnoirc_analyser::build_symbol_table(&program);
+    let evaluator = Evaluator::new(program, symbol_table);
 
     let circuit = evaluator.evaluate(&mut Environment::new());
 }
@@ -97,8 +110,9 @@ fn test_simple_circuit() {
 
     let mut parser = Parser::new(Lexer::new(&input));
     let program = parser.parse_program();
-    libnoirc_analyser::check(&program);
-    let evaluator = Evaluator::new(program);
+    let symbol_table = libnoirc_analyser::build_symbol_table(&program);
+    let checked_program = libnoirc_analyser::check(program);
+    let evaluator = Evaluator::new(checked_program, symbol_table);
 
     let (circuit, _, num_pub_inputs) = evaluator.evaluate(&mut Environment::new());
 
