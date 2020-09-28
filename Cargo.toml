@@ -10,4 +10,5 @@ members = [
     "noir_cli",
     "noir_serialiser",
     "noir_wg",
+    "low_level_std_lib",
 ]
