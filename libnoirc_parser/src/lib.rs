@@ -5,11 +5,12 @@ mod prefix_parser;
 
 pub use parser::Parser;
 
-use libnoirc_ast::{Expression, FunctionDefinition, Statement};
+use libnoirc_ast::{Expression, FunctionDefinition, ImportStatement, Statement};
 use libnoirc_lexer::token::{Keyword, Token};
 
 #[derive(Clone)]
 pub struct Program {
+    pub imports: Vec<ImportStatement>,
     pub statements: Vec<Statement>,
     pub functions: Vec<FunctionDefinition>,
     pub main: Option<FunctionDefinition>,
@@ -23,6 +24,7 @@ impl Program {
     }
     pub fn with_capacity(cap: usize) -> Self {
         Program {
+            imports: Vec::with_capacity(cap),
             statements: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
             main: None,
@@ -31,12 +33,15 @@ impl Program {
     pub fn push_statement(&mut self, stmt: Statement) {
         self.statements.push(stmt)
     }
-    pub fn push_constraint_function(&mut self, func: FunctionDefinition) {
+    pub fn push_function(&mut self, func: FunctionDefinition) {
         if func.name == MAIN_FUNCTION.to_string().into() {
             self.main = Some(func)
         } else {
             self.functions.push(func);
         }
+    }
+    pub fn push_import(&mut self, import_stmt: ImportStatement) {
+        self.imports.push(import_stmt);
     }
     /// Returns the program abi which is only present for executables and not libraries
     pub fn abi(&self) -> Option<Vec<String>> {
@@ -94,6 +99,7 @@ impl Precedence {
             Token::Star => Precedence::Product,
             Token::LeftParen => Precedence::Call,
             Token::LeftBracket => Precedence::Index,
+            Token::DoubleColon => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
