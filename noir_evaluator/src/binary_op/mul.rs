@@ -16,6 +16,7 @@ pub fn handle_mul_op(
         (Polynomial::Constants(c), y) => handle_constant_mul(c, y),
         (Polynomial::Linear(lin), y) => handle_linear_mul(lin, y, env, evaluator),
         (Polynomial::Integer(integer), y) => Polynomial::Integer(integer.mul(y, env, evaluator)),
+        (x, y) => super::unsupported_error(vec![x, y]),
     }
 }
 
@@ -45,7 +46,8 @@ fn handle_constant_mul(constant: FieldElement, polynomial: Polynomial) -> Polyno
         Polynomial::Linear(linear) => Polynomial::Linear(&linear * &constant),
         Polynomial::Constants(constant_rhs) => Polynomial::Constants(constant * constant_rhs),
         Polynomial::Null => handle_null_mul(),
-        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        Polynomial::Integer(_) => panic!("Can only mul an integer to an integer"),
+        x => super::unsupported_error(vec![x]),
     }
 }
 fn handle_linear_mul(
@@ -61,6 +63,7 @@ fn handle_linear_mul(
         Polynomial::Linear(linear_rhs) => Polynomial::Arithmetic(&linear * &linear_rhs),
         Polynomial::Constants(constant) => Polynomial::Linear(&linear * &constant),
         Polynomial::Null => handle_null_mul(),
-        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        Polynomial::Integer(_) => panic!("Can only mul an integer to an integer"),
+        x => super::unsupported_error(vec![x]),
     }
 }

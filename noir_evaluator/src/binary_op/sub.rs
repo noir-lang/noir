@@ -22,6 +22,7 @@ pub fn handle_sub_op(
                 return Polynomial::Integer(left_int.unwrap().sub(right, env, evaluator));
             }
         }
+        x => super::unsupported_error(vec![x.clone()]),
     };
 
     handle_add_op(left, negated_right, env, evaluator)

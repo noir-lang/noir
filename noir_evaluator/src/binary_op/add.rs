@@ -12,6 +12,7 @@ pub fn handle_add_op(
         (Polynomial::Constants(c), y) => handle_constant_add(c, y),
         (Polynomial::Linear(lin), y) => handle_linear_add(lin, y),
         (Polynomial::Integer(x), y) => Polynomial::Integer(x.add(y, env, evaluator)),
+        (x, y) => panic!("{:?} and {:?} operations are unsupported"),
     }
 }
 
@@ -27,6 +28,7 @@ fn handle_arithmetic_add(arith: Arithmetic, polynomial: Polynomial) -> Polynomia
         }
         Polynomial::Null => handle_null_add(),
         Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        x => super::unsupported_error(vec![x]),
     }
 }
 fn handle_constant_add(constant: FieldElement, polynomial: Polynomial) -> Polynomial {
@@ -38,6 +40,7 @@ fn handle_constant_add(constant: FieldElement, polynomial: Polynomial) -> Polyno
         Polynomial::Constants(constant_rhs) => Polynomial::Constants(constant + constant_rhs),
         Polynomial::Null => handle_null_add(),
         Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        x => super::unsupported_error(vec![x]),
     }
 }
 fn handle_linear_add(linear: Linear, polynomial: Polynomial) -> Polynomial {
@@ -47,5 +50,6 @@ fn handle_linear_add(linear: Linear, polynomial: Polynomial) -> Polynomial {
         Polynomial::Constants(constant) => Polynomial::Linear(&linear + &constant),
         Polynomial::Null => handle_null_add(),
         Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        x => super::unsupported_error(vec![x]),
     }
 }

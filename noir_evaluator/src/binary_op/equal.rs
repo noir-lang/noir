@@ -26,6 +26,9 @@ pub fn handle_equal_op(
                 .gates
                 .push(Gate::Arithmetic(witness_linear.into()))
         }
+        x => {
+            super::unsupported_error(vec![x]);
+        }
     }
     Polynomial::Null
 }

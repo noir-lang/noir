@@ -43,7 +43,7 @@ pub fn handle_cast_op(
             };
             casted_integer
         }
-        Polynomial::Null => panic!("Cannot cast on type Null"),
+        x => panic!("Cannot cast type {:?} to an integer", x),
     };
     Polynomial::Integer(casted_integer)
 }

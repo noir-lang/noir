@@ -48,3 +48,10 @@ pub fn invert(x: Polynomial, env: &mut Environment, evaluator: &mut Evaluator) -
     // Return inverse
     x_inv
 }
+
+fn unsupported_error(polynomials: Vec<Polynomial>) -> Polynomial {
+    panic!(
+        "We currently do not support operations involving {:?}",
+        polynomials
+    )
+}
