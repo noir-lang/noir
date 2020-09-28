@@ -1,5 +1,7 @@
-use barretenberg_rs::composer::{Constraint, ConstraintSystem, LogicConstraint, RangeConstraint};
-use noir_evaluator::{polynomial::Arithmetic, Circuit, Gate};
+use barretenberg_rs::composer::{
+    Constraint, ConstraintSystem, LogicConstraint, RangeConstraint, Sha256Constraint,
+};
+use noir_evaluator::{polynomial::Arithmetic, Circuit, Gate, LowLevelStandardLibrary, HashLibrary};
 use noir_field::FieldElement;
 
 /// Converts a `Circuit` into the `StandardFormat` constraint system
@@ -13,6 +15,7 @@ pub fn serialise_circuit(
     let mut constraints: Vec<Constraint> = Vec::new();
     let mut range_constraints: Vec<RangeConstraint> = Vec::new();
     let mut logic_constraints: Vec<LogicConstraint> = Vec::new();
+    let mut sha256_constraints: Vec<Sha256Constraint> = Vec::new();
 
     for gate in circuit.0.iter() {
         match gate {
@@ -45,6 +48,34 @@ pub fn serialise_circuit(
                 );
                 logic_constraints.push(xor);
             }
+            Gate::GadgetCall(gadget_call) => {
+                match gadget_call.name {
+                    LowLevelStandardLibrary::Hash(HashLibrary::SHA256) => {
+                        let mut sha256_inputs: Vec<(i32, i32)> = Vec::new();
+                        for input in gadget_call.inputs.iter() {
+                            let witness_index = input.witness.witness_index() as i32;
+                            let num_bits = input.num_bits as i32;
+                            sha256_inputs.push((witness_index, num_bits));
+                        }
+
+                        assert_eq!(gadget_call.outputs.len(), 2);
+                        let result_low_128_witness_index =
+                            gadget_call.outputs[0].witness_index() as i32;
+                        let result_high_128_witness_index =
+                            gadget_call.outputs[1].witness_index() as i32;
+
+                        let sha256_constraint = Sha256Constraint {
+                            inputs: sha256_inputs,
+                            result_low_128: result_low_128_witness_index,
+                            result_high_128: result_high_128_witness_index,
+                        };
+
+                        sha256_constraints.push(sha256_constraint);
+                    },
+                    LowLevelStandardLibrary::Hash(HashLibrary::AES) => panic!("AES has not yet been implemented")
+                };
+            }
+            gate => panic!("Serialiser does not know how to serialise this gate"),
         }
     }
 
@@ -54,6 +85,7 @@ pub fn serialise_circuit(
         pub_var_num: num_pub_inputs as u32,
         logic_constraints: logic_constraints,
         range_constraints: range_constraints,
+        sha256_constraints: vec![],
         constraints: constraints,
     };
 
