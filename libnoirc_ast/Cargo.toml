@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 libnoirc_lexer = {path = "../libnoirc_lexer"}
+noir_field = {path = "../noir_field"}
