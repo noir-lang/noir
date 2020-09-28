@@ -2,19 +2,23 @@
 /// statement::Ident does not return a value, while Expression::Ident does.
 mod expression;
 mod statement;
+mod symbol_table;
 
 pub use expression::*;
 pub use statement::*;
+pub use symbol_table::*;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement,
     Constant,
     Public,
     Witness,
+    Array(u128, Box<Type>),   // [4]Witness = Array(4, Witness)
     Integer(Signedness, u32), // u32 = Integer(unsigned, 32)
     Bool,
     Error, // XXX: Currently have not implemented structs, so this type is a stub
+    Unknown,
 }
 
 use libnoirc_lexer::token::IntType;
