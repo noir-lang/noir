@@ -57,7 +57,7 @@ impl<'a> Lexer<'a> {
             Some('>') => self.glue(Token::Greater),
             Some('=') => self.glue(Token::Assign),
             Some('#') => self.eat_attribute(),
-            Some('/') => Token::Slash,
+            Some('/') => self.glue(Token::Slash),
             Some('%') => Token::Percent,
             Some('&') => Token::Ampersand,
             Some('^') => Token::Caret,
@@ -127,6 +127,13 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is(':') {
                     self.next_char();
                     return Token::DoubleColon;
+                }
+                prev_token
+            }
+            Token::Slash => {
+                if self.peek_char_is('/') {
+                    self.next_char();
+                    return self.parse_comment()
                 }
                 prev_token
             }
@@ -226,11 +233,16 @@ impl<'a> Lexer<'a> {
     fn eat_digit(&mut self, initial_char: char) -> Token {
         let integer_str = self.eat_while(Some(initial_char), |ch| ch.is_numeric());
         let integer: i128 = integer_str.parse().unwrap();
-        return Token::Int(integer);
+        return Token::Int(integer.into());
     }
     fn eat_string_literal(&mut self) -> Token {
-        let str_literal = self.eat_while(None, |ch| !(ch == '"'));
+        let str_literal = self.eat_while(None, |ch| ch != '"');
         return Token::Str(str_literal);
+    }
+    fn parse_comment(&mut self) -> Token {
+        let str_literal = self.eat_while(None, |ch| ch != '\n');
+        return Token::Comment(str_literal);
+        
     }
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self) {
@@ -305,15 +317,15 @@ fn test_custom_gate_syntax() {
 }
 #[test]
 fn test_int_type() {
-    let input = "u16 i16 i107 u104.5";
+    let input = "u16 i16 i108 u104.5";
 
     let expected = vec![
         Token::IntType(IntType::Unsigned(16)),
         Token::IntType(IntType::Signed(16)),
-        Token::IntType(IntType::Signed(107)),
+        Token::IntType(IntType::Signed(108)),
         Token::IntType(IntType::Unsigned(104)),
         Token::Dot,
-        Token::Int(5),
+        Token::Int(5.into()),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -321,6 +333,34 @@ fn test_int_type() {
         let got = lexer.next_token();
         assert_eq!(got, token);
     }
+}
+#[test]
+fn test_comment() {
+    let input = "// hello
+        let x = 5
+    ";
+    let input_same = "// hello\n
+        let x = 5
+    ";
+
+    let expected = vec![
+        Token::Comment(" hello".to_string()),
+        Token::Keyword(Keyword::Let),
+        Token::Ident("x".to_string()),
+        Token::Assign,
+        Token::Int(5),
+    ];
+
+    let mut lexer = Lexer::new(input);
+    let mut lexer_same_input = Lexer::new(input_same);
+    for token in expected.into_iter() {
+        let first_lexer_output = lexer.next_token();
+        let second_lexer_output = lexer_same_input.next_token();
+
+        assert_eq!(first_lexer_output, second_lexer_output);
+        assert_eq!(first_lexer_output, token);
+    }
+    
 }
 #[test]
 fn test_eat_string_literal() {
@@ -357,14 +397,14 @@ fn test_basic_language_syntax() {
         Token::Keyword(Keyword::Const),
         Token::Ident("five".to_string()),
         Token::Assign,
-        Token::Int(5),
+        Token::Int(5.into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Pub),
         Token::Ident("ten".to_string()),
         Token::Colon,
         Token::Keyword(Keyword::Witness),
         Token::Assign,
-        Token::Int(10),
+        Token::Int(10.into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Let),
         Token::Ident("mul".to_string()),

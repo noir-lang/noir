@@ -14,6 +14,7 @@ pub enum Token {
     Str(String),
     Keyword(Keyword),
     IntType(IntType),
+    Comment(String),
     Attribute(Attribute),
     // <
     Less,
@@ -84,6 +85,7 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{}", n),
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
+            Token::Comment(ref b) => write!(f, "{}", b),
             Token::Keyword(k) => write!(f, "{}", k),
             Token::Attribute(ref a) => write!(f, "{}", a),
             Token::IntType(ref i) => write!(f, "{}", i),
@@ -163,6 +165,12 @@ impl Token {
 
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
         return same_token_variant;
+    }
+    pub fn is_comment(&self) -> bool {
+        match self {
+            Token::Comment(_) => true,
+            _=> false
+        }
     }
 }
 
@@ -257,6 +265,7 @@ pub enum Keyword {
     Else,
     While,
     As,
+    Use,
     Constrain,
     // You can declare a variable using pub which will give it the Public type
     Pub,
@@ -284,6 +293,7 @@ impl fmt::Display for Keyword {
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Let => write!(f, "let"),
             Keyword::As => write!(f, "as"),
+            Keyword::Use => write!(f, "use"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::Public => write!(f, "Public"),
             Keyword::Private => write!(f, "priv"),
@@ -308,6 +318,7 @@ impl Keyword {
             "constrain" => Some(Token::Keyword(Keyword::Constrain)),
             "let" => Some(Token::Keyword(Keyword::Let)),
             "as" => Some(Token::Keyword(Keyword::As)),
+            "use" => Some(Token::Keyword(Keyword::Use)),
             "true" => Some(Token::Bool(true)),
             "false" => Some(Token::Bool(false)),
 
