@@ -1,5 +1,16 @@
+    fn main(x : Witness,y : Witness) {
+        let k : [2]Witness = [x, y];
+        
+        priv t = k[0] as u200;
+        priv p = k[1] as u200;
+        
+        priv j = add(t, p);
+        priv m = j * k[0] * k[1];
 
-    fn main(x : Witness, z : Witness, t: Witness) {
-        priv k : u8 = (x as u1) + (z as u1);
-        constrain k == t
+        constrain j <= 25;
+        constrain m <= 10;
+    }
+
+    fn add(x : Witness,y : Witness){
+        x + y
     }

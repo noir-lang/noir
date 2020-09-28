@@ -1,0 +1,8 @@
+
+    fn main(x : Witness, y : Witness) {
+        priv z = x * y;
+        priv z2 = x * y * z;
+        constrain z != z2;
+        constrain z == x;
+    }
+    
