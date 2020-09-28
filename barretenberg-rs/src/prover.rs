@@ -13,10 +13,10 @@ impl Prover {
         prover_ptr: &Value,
     ) -> Vec<u8> {
         let circuit_size = barretenberg
-            .call("prover_get_circuit_size", prover_ptr)
+            .call("unrolled_prover_get_circuit_size", prover_ptr)
             .value();
 
-        barretenberg.call("prover_execute_preamble_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_preamble_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -26,7 +26,7 @@ impl Prover {
             circuit_size.to_u128() as usize,
         );
 
-        barretenberg.call("prover_execute_first_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_first_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -36,7 +36,7 @@ impl Prover {
             circuit_size.to_u128() as usize,
         );
 
-        barretenberg.call("prover_execute_second_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_second_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -46,7 +46,7 @@ impl Prover {
             circuit_size.to_u128() as usize,
         );
 
-        barretenberg.call("prover_execute_third_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_third_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -56,7 +56,7 @@ impl Prover {
             circuit_size.to_u128() as usize,
         );
 
-        barretenberg.call("prover_execute_fourth_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_fourth_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -66,7 +66,7 @@ impl Prover {
             circuit_size.to_u128() as usize,
         );
 
-        barretenberg.call("prover_execute_fifth_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_fifth_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -75,7 +75,7 @@ impl Prover {
             prover_ptr,
             circuit_size.to_u128() as usize,
         );
-        barretenberg.call("prover_execute_sixth_round", prover_ptr);
+        barretenberg.call("unrolled_prover_execute_sixth_round", prover_ptr);
 
         self.process_prover_queue(
             barretenberg,
@@ -86,7 +86,7 @@ impl Prover {
         );
 
         let proof_size = barretenberg
-            .call_multiple("prover_export_proof", vec![&prover_ptr, &Value::I32(0)])
+            .call_multiple("unrolled_prover_export_proof", vec![&prover_ptr, &Value::I32(0)])
             .value();
         let proof_ptr = barretenberg.slice_memory(0, 4);
         let proof_ptr = u32::from_le_bytes(proof_ptr[0..4].try_into().unwrap());
@@ -106,7 +106,7 @@ impl Prover {
         circuit_size: usize,
     ) {
         barretenberg.call_multiple(
-            "prover_get_work_queue_item_info",
+            "unrolled_prover_get_work_queue_item_info",
             vec![prover_ptr, &Value::I32(0)],
         );
 
@@ -117,7 +117,7 @@ impl Prover {
         for i in 0..scalar_jobs {
             let scalars_ptr = barretenberg
                 .call_multiple(
-                    "prover_get_scalar_multiplication_data",
+                    "unrolled_prover_get_scalar_multiplication_data",
                     vec![prover_ptr, &Value::I32(i as i32)],
                 )
                 .value();
@@ -129,7 +129,7 @@ impl Prover {
 
             barretenberg.transfer_to_heap(&result, 0);
             barretenberg.call_multiple(
-                "prover_put_scalar_multiplication_data",
+                "unrolled_prover_put_scalar_multiplication_data",
                 vec![prover_ptr, &Value::I32(0), &Value::I32(i as i32)],
             );
         }
@@ -146,7 +146,7 @@ impl Prover {
         for i in 0..fft_jobs {
             let coeffs_ptr = barretenberg
                 .call_multiple(
-                    "prover_get_fft_data",
+                    "unrolled_prover_get_fft_data",
                     vec![prover_ptr, &Value::I32(0), &Value::I32(i as i32)],
                 )
                 .value();
@@ -167,7 +167,7 @@ impl Prover {
         for i in 0..ifft_jobs {
             let coeffs_ptr = &barretenberg
                 .call_multiple(
-                    "prover_get_ifft_data",
+                    "unrolled_prover_get_ifft_data",
                     vec![prover_ptr, &Value::I32(i as i32)],
                 )
                 .value();
@@ -218,7 +218,7 @@ impl Prover {
         let result_ptr = barretenberg.allocate(&result);
 
         barretenberg.call_multiple(
-            "prover_put_fft_data",
+            "unrolled_prover_put_fft_data",
             vec![prover_ptr, &result_ptr, &Value::I32(i as i32)],
         );
         barretenberg.free(result_ptr);
@@ -236,7 +236,7 @@ impl Prover {
         let result_ptr = barretenberg.allocate(&result);
 
         barretenberg.call_multiple(
-            "prover_put_ifft_data",
+            "unrolled_prover_put_ifft_data",
             vec![prover_ptr, &result_ptr, &Value::I32(i as i32)],
         );
         barretenberg.free(result_ptr);
