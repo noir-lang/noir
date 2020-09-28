@@ -11,5 +11,5 @@ libnoirc_lexer = {path = "../libnoirc_lexer"}
 libnoirc_ast = {path = "../libnoirc_ast"}
 libnoirc_parser = {path = "../libnoirc_parser"}
 noir_field = {path = "../noir_field"}
-noir_evaluator = {path = "../noir_evaluator"}
+low_level_std_lib = {path = "../low_level_std_lib"}
 barretenberg-rs = {path = "../barretenberg-rs"}
