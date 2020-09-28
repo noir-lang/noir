@@ -1,22 +1,24 @@
 pub mod binary_op;
 pub mod circuit;
 pub mod environment;
-pub mod func;
 mod infix_evaluator;
+pub mod low_level_std_lib_impl;
 pub mod optimise;
 pub mod polynomial;
 
 pub use circuit::{Circuit, Selector, Witness};
 pub use environment::Environment;
-use func::Function;
+use libnoirc_ast::FunctionLiteral as Function;
+use libnoirc_ast::SymbolTable;
 use libnoirc_ast::*;
+pub use low_level_std_lib::{LowLevelStandardLibrary, HashLibrary};
 use noir_field::FieldElement;
 use std::collections::{BTreeMap, HashMap};
 
-pub use circuit::gate::{AndGate, Gate, XorGate};
+pub use circuit::gate::{AndGate, GadgetCall, GadgetInput, Gate, XorGate};
 use libnoirc_parser::Program;
 use optimise::Optimiser;
-pub use polynomial::{Arithmetic, Integer, Linear, Polynomial};
+pub use polynomial::{Arithmetic, Array, Integer, Linear, Polynomial};
 
 pub struct Evaluator {
     num_witness: usize,                           // XXX: Can possibly remove
@@ -24,32 +26,30 @@ pub struct Evaluator {
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table
     selectors: Vec<Selector>,
     statements: Vec<Statement>,
+    symbol_table: SymbolTable,
     num_public_inputs: usize,
     main_function: Function,
-    gates: Vec<Gate>,                    // Identifier, Polynomial
-    functions: HashMap<Ident, Function>, // XXX: We probably want an environment of functions that are available when we introduce imports. Not every file should have access to every function
-    counter: usize,                      // This is so that we can get a unique number
+    gates: Vec<Gate>, // Identifier, Polynomial
+    counter: usize,   // This is so that we can get a unique number
 }
 
 impl Evaluator {
-    pub fn new(program: Program) -> Evaluator {
+    pub fn new(program: Program, symbol_table: SymbolTable) -> Evaluator {
         let Program {
             statements,
-            functions,
-            main,
+            imports: _,
+            functions: _,
+            main: _,
         } = program;
 
-        let functions = Evaluator::parse_function_declarations(functions);
-
         // Check that we have a main function
-        let main_function = match main {
+        let possible_main = symbol_table.look_up_main_func(&Ident("main".into()));
+        
+        let main_function = match possible_main {
             None => panic!(
                 "Could not find a main function, currently we do not support library projects"
             ),
-            Some(main_func_dec) => {
-                let (_, func) = Evaluator::parse_function_declaration(main_func_dec);
-                func
-            }
+            Some(main_func) => main_func,
         };
 
         Evaluator {
@@ -58,36 +58,12 @@ impl Evaluator {
             num_public_inputs: 0,
             witnesses: HashMap::new(),
             selectors: Vec::new(),
+            symbol_table,
             statements,
             main_function,
             gates: Vec::new(),
-            functions,
             counter: 0,
         }
-    }
-
-    /// Convert all of the function declarations in the Program
-    /// into Functions that the Evaluator can use
-    fn parse_function_declarations(func_decs: Vec<FunctionDefinition>) -> HashMap<Ident, Function> {
-        let mut functions = HashMap::new();
-
-        for func_dec in func_decs.into_iter() {
-            let (func_name, func) = Evaluator::parse_function_declaration(func_dec);
-
-            functions.insert(func_name, func);
-        }
-
-        functions
-    }
-
-    /// Convert a function declarations into a function object
-    fn parse_function_declaration(func_dec: FunctionDefinition) -> (Ident, Function) {
-        let func_name = func_dec.name;
-        let body = func_dec.func.body;
-        let parameters = func_dec.func.parameters;
-
-        // Store function in evaluator
-        (func_name, Function { body, parameters })
     }
 
     // Returns the current counter value and then increments the counter
@@ -96,6 +72,18 @@ impl Evaluator {
         self.counter += 1;
         self.counter
     }
+
+    fn create_fresh_witness(
+        &mut self,
+        name: String,
+        env: &mut Environment,
+    ) -> (Witness, Polynomial) {
+        let unique_name = format!("{}{}", name, self.get_unique_value(),);
+        let witness = self.store_witness(unique_name.clone(), Type::Witness);
+        let poly = self.store_lone_variable(unique_name, env);
+        (witness, poly)
+    }
+
     // XXX: Fix this later, with Debug trait. Only using it now for REPL
     pub fn debug(&self) {
         for wit in self.witnesses.iter() {
@@ -115,7 +103,13 @@ impl Evaluator {
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
     pub fn evaluate(mut self, env: &mut Environment) -> (Circuit, usize, usize) {
-        self.parse_types(env);
+
+        // First compile
+        self.compile(env);
+
+        // Then optimise for a width3 plonk program
+        // XXX: We can move all of this stuff into a plonk-backend program
+        // which takes the IR as input
         const WIDTH: usize = 3;
 
         let optimiser = Optimiser::new(WIDTH);
@@ -221,14 +215,12 @@ impl Evaluator {
     // Either it is 1 * x + 0 or it is ax+b
     fn evaluate_identifier(&mut self, ident: String, env: &mut Environment) -> Polynomial {
         let polynomial = env.get(ident.clone());
-        assert!(polynomial.is_linear());
         polynomial
     }
 
-    // Converts all `private` types to witnesses
-    // `const` types to constant
-    // XXX: Should we use Ident for readability?
-    pub fn parse_types(&mut self, env: &mut Environment) {
+
+    /// Compiles the AST into the intermediate format, which we call the gates
+    pub fn compile(&mut self, env: &mut Environment) {
         // Add the parameters from the main function into the evaluator as witness variables
         // XXX: We are only going to care about Public and Private witnesses for now
 
@@ -317,6 +309,12 @@ impl Evaluator {
             Statement::Expression(expr_stmt) => {
                 self.expression_to_polynomial(env, expr_stmt.0.clone())
             }
+            Statement::Let(let_stmt) => {
+                // let statements are used to declare a higher level object
+                self.handle_let_statement(env, let_stmt);
+
+                Polynomial::Null
+            }
             _ => {
                 panic!("This statement type has not been implemented");
             }
@@ -347,7 +345,7 @@ impl Evaluator {
         x: PrivateStatement,
     ) -> Polynomial {
         let variable_name: String = x.identifier.clone().0;
-        let witness = self.store_witness(variable_name.clone(), x.r#type);
+        let witness = self.store_witness(variable_name.clone(), x.r#type.clone());
         let witness_linear = Linear::from_witness(witness.clone());
 
         let rhs_poly = self.expression_to_polynomial(env, x.expression.clone());
@@ -370,10 +368,10 @@ impl Evaluator {
         };
 
         // Check the type so we can see if we need to apply an extra constraint to the witness
-        let rhs_poly = match x.r#type {
+        let rhs_poly = match &x.r#type {
             //  Check if the type requires us to apply an extra constraint
             Type::Integer(_, num_bits) => {
-                let integer = Integer::from_witness(witness, num_bits);
+                let integer = Integer::from_witness(witness, *num_bits);
                 integer.constrain(self);
                 Polynomial::Integer(integer)
             }
@@ -425,6 +423,32 @@ impl Evaluator {
         };
         Polynomial::Null
     }
+    // Let statements are used to declare higher level objects
+    fn handle_let_statement(
+        &mut self,
+        env: &mut Environment,
+        let_stmt: &LetStatement,
+    ) -> Polynomial {
+        // Convert the LHS into an identifier
+        let variable_name: String = let_stmt.identifier.clone().0;
+
+        // XXX: Currently we only support arrays using this, when other types are introduced
+        // we can extend into a separate (generic) module
+
+        // Extract the array
+        let rhs_poly = self.expression_to_polynomial(env, let_stmt.expression.clone());
+
+        match rhs_poly {
+            Polynomial::Array(arr) => {
+                env.store(variable_name.into(), Polynomial::Array(arr));
+            }
+            _ => panic!(
+                "logic for types that are not arrays in a let statement, not implemented yet!"
+            ),
+        };
+
+        Polynomial::Null
+    }
 
     pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Polynomial {
         let polynomial = self.expression_to_polynomial(env, expr);
@@ -445,19 +469,54 @@ impl Evaluator {
     ) -> Polynomial {
         match expr {
             Expression::Literal(Literal::Integer(x)) => Polynomial::Constants(x.into()),
+            Expression::Literal(Literal::Array(arr_lit)) => {
+                Polynomial::Array(Array::from(self, env, arr_lit))
+            }
             Expression::Ident(x) => self.evaluate_identifier(x.to_string(), env),
             Expression::Infix(infx) => {
                 let lhs = self.expression_to_polynomial(env, infx.lhs);
                 let rhs = self.expression_to_polynomial(env, infx.rhs);
                 self.evaluate_infix_expression(env, lhs, rhs, infx.operator)
             }
-            Expression::Call(call_expr) => {
-                // First fetch the function using it's name
-                let func = self.functions.get(&call_expr.func_name).unwrap().clone();
+            Expression::Cast(cast_expr) => {
+                let lhs = self.expression_to_polynomial(env, cast_expr.lhs);
+                binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
+            }
+            Expression::Index(indexed_expr) => {
+                // Currently these only happen for arrays
+                let arr = env.get_array(indexed_expr.collection_name.0.clone());
+                arr.get(indexed_expr.index.to_u128())
+            }
+            // This is currently specific to core library calls
+            Expression::Call(path, call_expr) => {
+                let func_name = call_expr.func_name.clone();
+                let func_def = self.symbol_table.look_up_func(path.clone(), &func_name);
+            
+                dbg!(func_def.clone());
+                
+                  
+                // XXX: Func def is either a low level func or an imported library function
+                // If low level, then we use it's func name to find out what function to call
+                // If not then we just call the library as usual with the function definition
+                match func_def {
+                    (Some(compiled_func), _) => self.call_function(env, &call_expr, compiled_func.clone()),
+                    ( _, Some(SymbolInformation::LowLevelFunction)) => low_level_std_lib_impl::call_low_level(self, env, &func_name, *call_expr),
+                    (None, _) => panic!("Could not find a function with the specified func name {:?}", &func_name),    
+                }
+                    
+            }
+            k => {
+                dbg!(k);
+                todo!()
+            }
+        }
+    }
 
-                // Create a new environment for this function
+    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: Function) -> Polynomial {
+              // Create a new environment for this function
                 // This is okay because functions are not stored in the environment
                 // We need to add the arguments into the environment though
+                // Note: The arguments are evaluated in the old environment
                 let mut new_env = Environment::new();
                 let arguments: Vec<Polynomial> = call_expr
                     .arguments
@@ -465,7 +524,8 @@ impl Evaluator {
                     .map(|expr| self.expression_to_polynomial(env, expr.clone()))
                     .collect();
 
-                // We also need to check that each argument matches with the correct type and correct number of parameters, this will be done in the type checker
+                // We also need to check that each argument matches with the correct type and correct number of parameters
+                // XXX: This will be done in the type checker - analysis
 
                 for ((param_name, param_type), argument) in
                     func.parameters.iter().zip(arguments.iter())
@@ -481,16 +541,6 @@ impl Evaluator {
                 }
 
                 return_val
-            }
-            Expression::Cast(cast_expr) => {
-                let lhs = self.expression_to_polynomial(env, cast_expr.lhs);
-                binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
-            }
-            k => {
-                dbg!(k);
-                todo!()
-            }
-        }
     }
 
     fn apply_func(&mut self, env: &mut Environment, func: Function) -> Polynomial {

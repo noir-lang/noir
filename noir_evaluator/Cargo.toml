@@ -10,4 +10,6 @@ edition = "2018"
 libnoirc_lexer = {path = "../libnoirc_lexer"}
 libnoirc_ast = {path = "../libnoirc_ast"}
 libnoirc_parser = {path = "../libnoirc_parser"}
+libnoirc_analyser = {path = "../libnoirc_analyser"}
+low_level_std_lib = {path = "../low_level_std_lib"}
 noir_field = {path = "../noir_field"}
