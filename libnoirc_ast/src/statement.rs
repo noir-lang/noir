@@ -13,6 +13,7 @@ impl From<String> for Ident {
 pub enum Statement {
     If(Box<IfStatement>),
     While(Box<WhileStatement>),
+    Import(Box<ImportStatement>),
     Let(Box<LetStatement>),
     Const(Box<ConstStatement>),
     Constrain(Box<ConstrainStatement>),
@@ -34,6 +35,12 @@ pub struct IfStatement {
 pub struct WhileStatement {
     condition: Expression,
     block: Statement,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ImportStatement {
+    pub path: Vec<String>,
+    pub alias: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
