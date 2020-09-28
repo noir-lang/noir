@@ -1,8 +1,10 @@
 mod arithmetic;
+mod array;
 mod integer;
 mod linear;
 
 pub use arithmetic::Arithmetic;
+pub use array::Array;
 pub use integer::Integer;
 pub use linear::Linear;
 
@@ -15,6 +17,7 @@ use noir_field::FieldElement;
 pub enum Polynomial {
     Null,
     Integer(Integer),
+    Array(Array),
     Arithmetic(Arithmetic),
     Constants(FieldElement), // These will mostly be the selectors
     Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate Eg `5x+6` does not apply a gate
