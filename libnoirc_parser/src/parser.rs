@@ -45,6 +45,17 @@ impl<'a> Parser<'a> {
         return false;
     }
     // peaks at the next token
+    // asserts that it should be an integer
+    pub(crate) fn peek_check_int(&mut self) -> bool {
+        let same_variant = self.peek_token.is_variant(&Token::Int(0));
+
+        if same_variant {
+            self.advance_tokens();
+            return true;
+        }
+        return false;
+    }
+    // peaks at the next token
     // asserts that it should be of a certain kind
     // If it is, the parser is advanced
     pub(crate) fn peek_check_kind_advance(&mut self, token_kind: TokenKind) -> bool {
@@ -57,7 +68,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_program(&mut self) -> Program {
-        use super::prefix_parser::FuncParser;
+        use super::prefix_parser::{FuncParser, UseParser};
 
         let mut program = Program::with_capacity(self.lexer.by_ref().approx_len());
 
@@ -68,9 +79,18 @@ impl<'a> Parser<'a> {
             // they will be self-contained within another function and they will start with a `let` token
             // Eg let add = fn(x,y) {x+y}
             match self.curr_token.clone() {
+                Token::Keyword(Keyword::Use) => {
+                    let import_stmt = UseParser::parse(self);
+                    program.push_import(import_stmt);
+                }
                 Token::Keyword(Keyword::Fn) => {
                     let func_def = FuncParser::parse_fn_decl(self);
-                    program.push_constraint_function(func_def);
+                    program.push_function(func_def);
+                }
+                Token::Comment(_) => {
+                    // Currently we do nothing with Comment tokens
+                    // It may be possible to store them in the AST, but this may not be helpful
+                    // XXX: Maybe we can follow Rust and say by default all public functions need documentation?
                 }
                 _ => {
                     // Parse regular statements
@@ -141,10 +161,13 @@ impl<'a> Parser<'a> {
         return Some(left_exp);
     }
     fn prefix_fn(&self) -> Option<PrefixFn> {
-        use crate::prefix_parser::{GroupParser, IfParser, LiteralParser, NameParser, UnaryParser};
+        use crate::prefix_parser::{
+            ArrayParser, GroupParser, IfParser, LiteralParser, NameParser, UnaryParser,
+        };
         use crate::PrefixParser;
 
         match &self.curr_token {
+            Token::LeftBracket => Some(ArrayParser::parse),
             Token::Keyword(Keyword::If) => Some(IfParser::parse),
             x if x.kind() == TokenKind::Ident => Some(NameParser::parse),
             x if x.kind() == TokenKind::Literal => Some(LiteralParser::parse),
@@ -154,7 +177,7 @@ impl<'a> Parser<'a> {
         }
     }
     fn infix_fn(&mut self) -> Option<InfixFn> {
-        use crate::infix_parser::{BinaryParser, CallParser};
+        use crate::infix_parser::{BinaryParser, CallParser, IndexParser, PathParser};
         use crate::InfixParser;
 
         match self.peek_token {
@@ -173,6 +196,8 @@ impl<'a> Parser<'a> {
             | Token::Keyword(Keyword::As)
             | Token::NotEqual => Some(BinaryParser::parse),
             Token::LeftParen => Some(CallParser::parse),
+            Token::LeftBracket => Some(IndexParser::parse),
+            Token::DoubleColon => Some(PathParser::parse),
             _ => None,
         }
     }
@@ -189,6 +214,34 @@ impl<'a> Parser<'a> {
 
         BlockStatement(statements)
     }
+
+    pub(crate) fn parse_comma_separated_argument_list(
+        &mut self,
+        delimeter: Token,
+    ) -> Vec<Expression> {
+        if self.peek_token == delimeter {
+            self.advance_tokens();
+            return Vec::new();
+        }
+        let mut arguments: Vec<Expression> = Vec::new();
+
+        self.advance_tokens();
+        arguments.push(self.parse_expression(Precedence::Lowest).unwrap());
+        while self.peek_token == Token::Comma {
+            self.advance_tokens();
+            self.advance_tokens();
+
+            arguments.push(self.parse_expression(Precedence::Lowest).unwrap());
+        }
+
+        if !self.peek_check_variant_advance(delimeter.clone()) {
+            panic!("Expected a {} to end the list of arguments", delimeter)
+        };
+
+        self.advance_tokens(); // Skip the delimeter
+
+        arguments
+    }
 }
 
 #[cfg(test)]
@@ -204,10 +257,10 @@ mod test {
         // XXX: Incomplete, as we do not check the expression
         let input = "
     
-    let x = 5;
-    let y = 15;
-    let z = 20;
-    ";
+            let x = 5;
+            let y = 15;
+            let z = 20;
+        ";
 
         let test_iden = vec!["x", "y", "z"];
 
@@ -602,7 +655,7 @@ mod test {
             };
             // Extract the function literal expression
             let call_expr = match expression {
-                Expression::Call(x) => x,
+                Expression::Call(_,x) => x,
                 _ => unreachable!(),
             };
 
