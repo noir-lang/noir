@@ -6,6 +6,7 @@ fn main() {
         .version("0.1")
         .author("Kevaundray Wedderburn <kevtheappdev@gmail.com>")
         .subcommand(App::new("build").about("Builds the constraint system"))
+        .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
         .subcommand(
             App::new("new").about("Create a new binary project").arg(
                 Arg::with_name("package_name")
@@ -45,6 +46,7 @@ fn main() {
             let _ = build_main();
             println!("Constraint system successfully built!")
         }
+        Some("contract") => create_smart_contract(),
         Some("prove") => prove(matches),
         Some("verify") => verify(matches),
         None => println!("No subcommand was used"),
@@ -86,11 +88,12 @@ fn build_main() -> CompiledMain {
 
     let mut parser = Parser::new(Lexer::new(&file_as_string));
     let program = parser.parse_program();
-    libnoirc_analyser::check(&program);
+    let symbol_table = libnoirc_analyser::build_symbol_table(&program);
+    let checked_program = libnoirc_analyser::check(program);
 
-    let abi = program.abi().unwrap();
+    let abi = checked_program.abi().unwrap();
 
-    let evaluator = Evaluator::new(program);
+    let evaluator = Evaluator::new(checked_program, symbol_table);
 
     let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate(&mut Environment::new());
 
@@ -106,20 +109,43 @@ fn build_main() -> CompiledMain {
     }
 }
 
+fn create_smart_contract() {
+
+    let compiled_main = build_main();
+
+    let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
+
+    let smart_contract_string = composer.smart_contract(&compiled_main.standard_format_cs);
+
+
+    let mut proof_path = std::path::PathBuf::new();
+    proof_path.push("contract");
+    proof_path.push("plonk_vk");
+    proof_path.set_extension("sol");
+
+    let path = write_to_file(&smart_contract_string.as_bytes(), &proof_path);
+    println!("Contract successfully created and located at {}", path)
+
+
+}
+
 fn new_package(args: ArgMatches) {
     let package_name = args
         .subcommand_matches("new")
         .unwrap()
         .value_of("package_name")
         .unwrap();
+
     let mut package_dir = std::env::current_dir().unwrap();
     package_dir.push(Path::new(package_name));
 
     const BINARY_DIR: &str = "bin";
     const PROOFS_DIR: &str = "proofs";
+    const CONTRACT_DIR: &str = "contract";
 
     create_directory(&package_dir.join(Path::new(BINARY_DIR)));
     create_directory(&package_dir.join(Path::new(PROOFS_DIR)));
+    create_directory(&package_dir.join(Path::new(CONTRACT_DIR)));
 
     let example = "
     fn main(x : Witness, y : Witness) {
@@ -165,15 +191,23 @@ fn prove(args: ArgMatches) {
         .value_of("proof_name")
         .unwrap();
 
-    let witness_values: Vec<i128> = args
+    let witness_values: Vec<FieldElement> = args
         .subcommand_matches("prove")
         .unwrap()
         .values_of("witness values")
         .unwrap()
         .map(|value| {
-            value
-                .parse()
-                .expect("Expected witness values to be integers")
+                if value.starts_with("0x") {
+                   let val =  FieldElement::from_hex(value).expect("Could not parse hex value");
+                    dbg!(val.clone());
+                   val
+                } else {
+                    let val : i128 = value
+                    .parse()
+                    .expect("Expected witness values to be integers");
+
+                    FieldElement::from(val)
+                }
         })
         .collect();
 
@@ -260,5 +294,5 @@ fn hash_constraint_system(cs: &ConstraintSystem) {
     hasher.update(cs.to_bytes());
     let result = hasher.finalize();
     println!("hash of constraint system : {:x?}", &result[..]);
-    println!("circuit size : {:?}", cs.size());
+    // println!("circuit size : {:?}", cs.size());
 }
