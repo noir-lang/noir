@@ -1,5 +1,5 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
+pub static WASM: &'static [u8] = include_bytes!("barretenberg-sc.wasm");
 
 pub mod composer;
 mod crs;
@@ -60,8 +60,6 @@ impl Barretenberg {
         self.call_multiple(name, vec![param])
     }
     pub fn call_multiple(&self, name: &str, params: Vec<&Value>) -> WASMValue {
-        // We take in a reference to values, since they do not implement Copy.
-        // We then clone them inside of this function, so that the API does not have a bunch of Clones everywhere
         // We take in a reference to values, since they do not implement Copy.
         // We then clone them inside of this function, so that the API does not have a bunch of Clones everywhere
 
@@ -127,7 +125,7 @@ impl Barretenberg {
             generate_import_object_for_version(wasi_version, vec![], vec![], vec![], vec![]);
 
         // env is the default namespace for extern functions
-        let descriptor = MemoryDescriptor::new(Pages(129), None, false).unwrap();
+        let descriptor = MemoryDescriptor::new(Pages(130), None, false).unwrap();
         let memory = Memory::new(descriptor).unwrap();
         let custom_imports = imports! {
             "env" => {
