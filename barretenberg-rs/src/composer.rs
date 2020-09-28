@@ -112,6 +112,30 @@ impl RangeConstraint {
         buffer
     }
 }
+#[derive(Clone, Hash, Debug)]
+pub struct Sha256Constraint {
+    pub inputs: Vec<(i32, i32)>,
+    pub result_low_128: i32,
+    pub result_high_128: i32,
+}
+
+impl Sha256Constraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let inputs_len = self.inputs.len() as u32;
+        buffer.extend_from_slice(&inputs_len.to_be_bytes());
+        for constraint in self.inputs.iter() {
+            buffer.extend_from_slice(&constraint.0.to_be_bytes());
+            buffer.extend_from_slice(&constraint.1.to_be_bytes());
+        }
+
+        buffer.extend_from_slice(&self.result_low_128.to_be_bytes());
+        buffer.extend_from_slice(&self.result_high_128.to_be_bytes());
+
+        buffer
+    }
+}
 
 #[derive(Clone, Hash, Debug)]
 pub struct LogicConstraint {
@@ -162,6 +186,7 @@ pub struct ConstraintSystem {
 
     pub logic_constraints: Vec<LogicConstraint>,
     pub range_constraints: Vec<RangeConstraint>,
+    pub sha256_constraints: Vec<Sha256Constraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -187,6 +212,13 @@ impl ConstraintSystem {
             buffer.extend(&constraint.to_bytes());
         }
 
+        // Serialise each Sha256 constraint
+        let sha256_constraints_len = self.sha256_constraints.len() as u32;
+        buffer.extend_from_slice(&sha256_constraints_len.to_be_bytes());
+        for constraint in self.sha256_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
         // Serialise each Arithmetic constraint
         let constraints_len = self.constraints.len() as u32;
         buffer.extend_from_slice(&constraints_len.to_be_bytes());
@@ -207,6 +239,35 @@ impl ConstraintSystem {
 }
 
 impl StandardComposer {
+
+    // XXX: This does not belong here. Ideally, the Rust code should generate the SC code
+    // Since it's already done in C++, we are just re-exporting for now
+    pub fn smart_contract(&mut self, constraint_system: &ConstraintSystem) -> String {
+        use std::convert::TryInto;
+        let cs_buf = constraint_system.to_bytes();
+        let cs_ptr = self.barretenberg.allocate(&cs_buf);
+
+        let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
+
+        let contract_size = self.barretenberg
+        .call_multiple("composer__smart_contract", vec![    
+                &self.pippenger.pointer(),&g2_ptr,&cs_ptr,&Value::I32(0)
+        ])
+        .value();
+        let contract_ptr = self.barretenberg.slice_memory(0, 4);
+        let contract_ptr = u32::from_le_bytes(contract_ptr[0..4].try_into().unwrap());
+
+        let sc_as_bytes = self.barretenberg.slice_memory(
+            contract_ptr as usize,
+            contract_ptr as usize + contract_size.to_u128() as usize,
+        );
+
+        // XXX: We truncate the first 40 bytes, due to it being mangled
+        // For some reason, the first line is partially mangled
+        // So in C+ the first line is duplicated and then truncated
+        sc_as_bytes[40..].iter().map(|b| *b as char).collect()
+    }
+
     pub fn get_circuit_size(&mut self, constraint_system: &ConstraintSystem) -> u128 {
         let cs_buf = constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
@@ -313,9 +374,9 @@ impl StandardComposer {
                 verified.clone()
             }
         };
-        self.barretenberg.free(cs_ptr);
+        // self.barretenberg.free(cs_ptr);
         self.barretenberg.free(proof_ptr);
-        self.barretenberg.free(g2_ptr);
+        // self.barretenberg.free(g2_ptr);
 
         match verified.to_u128() {
             0 => false,
@@ -346,6 +407,7 @@ mod test {
             pub_var_num: 0,
             logic_constraints: vec![],
             range_constraints: vec![],
+            sha256_constraints: vec![],
             constraints: vec![constraint.clone()],
         };
 
@@ -409,6 +471,7 @@ mod test {
             pub_var_num: 2,
             logic_constraints: vec![],
             range_constraints: vec![],
+            sha256_constraints: vec![],
             constraints: vec![constraint],
         };
 
@@ -457,6 +520,7 @@ mod test {
             pub_var_num: 1,
             logic_constraints: vec![],
             range_constraints: vec![],
+            sha256_constraints: vec![],
             constraints: vec![constraint, constraint2],
         };
 
