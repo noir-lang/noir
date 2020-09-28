@@ -109,7 +109,19 @@ impl FieldElement {
         FieldElement(fr)
     }
 
-    pub fn truncate(&self, num_bits: u32) -> FieldElement {
+    // mask_to methods will not remove any bytes from the field
+    // they are simply zeroed out
+    // Whereas truncate_to will remove those bits and make the byte array smaller
+    pub fn mask_to_field(&self, num_bits: u32) -> FieldElement {
+        let bit_iter = self.mask_to_bits(num_bits);
+        let byte_arr = pack_bits_into_bytes(bit_iter);
+        FieldElement::from_bytes(&byte_arr)
+    }
+    pub fn mask_to_bytes(&self, num_bits: u32) -> Vec<u8> {
+        let bit_iter = self.mask_to_bits(num_bits);
+        pack_bits_into_bytes(bit_iter)
+    }
+    fn mask_to_bits(&self, num_bits: u32) -> Vec<bool> {
         let max_bits = Fr::NUM_BITS + FieldElement::wasted_bits();
 
         let bit_iter: Vec<_> = BitIterator::new(self.0.into_repr())
@@ -123,14 +135,31 @@ impl FieldElement {
             })
             .collect();
 
-        let byte_arr = pack_bits_into_bytes(bit_iter);
-        FieldElement::from_bytes(&byte_arr)
+        bit_iter
+    }
+    fn truncate_to_bits(&self, num_bits: u32) -> Vec<bool> {
+        let max_bits = Fr::NUM_BITS + FieldElement::wasted_bits();
+
+        let bit_iter: Vec<_> = BitIterator::new(self.0.into_repr())
+            .enumerate()
+            .filter(|(i, _)| {
+                *i >= (max_bits - num_bits) as usize
+            }).map(|(_, bit)| {
+                bit
+            })
+            .collect();
+
+        bit_iter
+    }
+    pub fn truncate_to_bytes(&self, num_bits: u32) -> Vec<u8> {
+        let bit_iter = self.truncate_to_bits(num_bits);
+        pack_bits_into_bytes(bit_iter)
     }
 
     fn and_xor(&self, rhs: &FieldElement, num_bits: u32, is_xor: bool) -> FieldElement {
-        let lhs = self.truncate(num_bits);
+        let lhs = self.mask_to_field(num_bits);
         let lhs_bit_iter = BitIterator::new(lhs.0.into_repr());
-        let rhs = rhs.truncate(num_bits);
+        let rhs = rhs.mask_to_field(num_bits);
         let rhs_bit_iter = BitIterator::new(rhs.0.into_repr());
 
         let and_iter: Vec<_> = lhs_bit_iter
