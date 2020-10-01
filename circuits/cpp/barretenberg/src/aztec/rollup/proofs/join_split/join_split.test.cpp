@@ -99,7 +99,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_index = account_index;
         tx.account_path = tree->get_hash_path(account_index);
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.asset_id = 0;
+        tx.asset_id = 1; // asset_id can take any value if there are no public input/outpu values
         return tx;
     }
 
