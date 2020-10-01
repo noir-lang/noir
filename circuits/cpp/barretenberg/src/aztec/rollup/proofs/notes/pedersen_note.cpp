@@ -171,8 +171,8 @@ note_triple conditionally_hash_and_accumulate(Composer* context, const note_trip
     rhs.normalize();
     context->assert_equal(lhs.witness_index, rhs.witness_index);
 
-    // If k = 0 we want to return p_2.base, as g^{0} = 1
-    // If k != 0, we want to return p_1.base + p_2.base
+    // If scalar = 0 we want to return accumulator, as g^{0} = 1
+    // If scalar != 0, we want to return accumulator + p_1
     field_ct lambda = (accumulator.base.y - p_1.base.y) / (accumulator.base.x - p_1.base.x);
     field_ct x_2 = (lambda * lambda) - (accumulator.base.x + p_1.base.x);
     field_ct y_2 = lambda * (p_1.base.x - x_2) - p_1.base.y;
