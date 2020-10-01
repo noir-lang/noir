@@ -1,5 +1,6 @@
 #include "c_bind.h"
 #include "sign_notes.hpp"
+#include <common/serialize.hpp>
 #include <common/streams.hpp>
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -38,6 +39,7 @@ WASM_EXPORT void notes__encrypt_note(uint8_t const* note_buffer, uint8_t* output
 WASM_EXPORT bool notes__decrypt_note(uint8_t const* encrypted_note_buf,
                                      uint8_t const* private_key_buf,
                                      uint8_t const* viewing_key_buf,
+                                     uint8_t const* asset_id_buf,
                                      uint8_t* output)
 {
     grumpkin::g1::affine_element encrypted_note;
@@ -47,8 +49,10 @@ WASM_EXPORT bool notes__decrypt_note(uint8_t const* encrypted_note_buf,
     read(private_key_buf, private_key);
     fr viewing_key;
     read(viewing_key_buf, viewing_key);
+    uint32_t asset_id;
+    serialize::read(asset_id_buf, asset_id);
     uint256_t result;
-    bool success = decrypt_note(encrypted_note, private_key, viewing_key, result);
+    bool success = decrypt_note(encrypted_note, private_key, viewing_key, asset_id, result);
     write(output, result);
     return success;
 }

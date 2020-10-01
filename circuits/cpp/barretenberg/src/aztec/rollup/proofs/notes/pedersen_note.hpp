@@ -19,6 +19,8 @@ struct private_note {
     field_ct value;
     // this secret must be 250 bits or smaller - it cannot be taken from the entire field_ct range
     field_ct secret;
+    // this asset_id value must be 32 bits or smaller
+    field_ct asset_id;
 };
 
 public_note encrypt_note(const private_note& plaintext);

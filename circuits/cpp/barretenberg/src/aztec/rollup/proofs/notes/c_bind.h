@@ -14,5 +14,6 @@ WASM_EXPORT void notes__encrypt_note(uint8_t const* note_buffer, uint8_t* output
 WASM_EXPORT bool notes__decrypt_note(uint8_t const* encrypted_note_buf,
                                      uint8_t const* private_key_buf,
                                      uint8_t const* viewing_key_buf,
+                                     uint8_t const* asset_id_buf,
                                      uint8_t* output);
 }

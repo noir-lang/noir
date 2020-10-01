@@ -156,53 +156,65 @@ template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in,
     return result;
 }
 
-public_note encrypt_note(const private_note& plaintext)
+// compute a pedersen hash of `scalar` and add the resulting point into `accumulator`, iff scalar != 0
+template <size_t num_scalar_mul_bits>
+note_triple conditionally_hash_and_accumulate(Composer* context, const note_triple& accumulator, const field_ct& scalar, const size_t generator_index)
 {
-    Composer* context = plaintext.value.get_context();
+    note_triple p_1 = fixed_base_scalar_mul<num_scalar_mul_bits>(scalar, generator_index);
 
-    field_ct k = plaintext.value;
-
-    note_triple p_1 = fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(k, 0);
-    note_triple p_2 = fixed_base_scalar_mul<250>(plaintext.secret, 1);
-
-    context->assert_equal(p_2.scalar.witness_index, plaintext.secret.witness_index);
-
-    // if k = 0, then k * inv - 1 != 0
-    // k * inv - (1 - is_zero)
-    field_ct one(context, fr::one());
-    bool_ct is_zero = k.is_zero();
-
+    bool_ct is_zero = scalar.is_zero();
     // If k = 0, our scalar multiplier is going to be nonsense.
     // We need to conditionally validate that, if k != 0, the constructed scalar multiplier matches our input scalar.
-    field_ct lhs = p_1.scalar * (one - field_ct(is_zero));
-    field_ct rhs = k * (one - field_ct(is_zero));
+    field_ct lhs = p_1.scalar * (field_ct(1) - field_ct(is_zero));
+    field_ct rhs = scalar * (field_ct(1) - field_ct(is_zero));
     lhs.normalize();
     rhs.normalize();
     context->assert_equal(lhs.witness_index, rhs.witness_index);
 
     // If k = 0 we want to return p_2.base, as g^{0} = 1
     // If k != 0, we want to return p_1.base + p_2.base
-    field_ct lambda = (p_2.base.y - p_1.base.y) / (p_2.base.x - p_1.base.x);
-    field_ct x_3 = (lambda * lambda) - (p_2.base.x + p_1.base.x);
-    field_ct y_3 = lambda * (p_1.base.x - x_3) - p_1.base.y;
+    field_ct lambda = (accumulator.base.y - p_1.base.y) / (accumulator.base.x - p_1.base.x);
+    field_ct x_2 = (lambda * lambda) - (accumulator.base.x + p_1.base.x);
+    field_ct y_2 = lambda * (p_1.base.x - x_2) - p_1.base.y;
 
-    field_ct x_4 = (p_2.base.x - x_3) * field_ct(is_zero) + x_3;
-    field_ct y_4 = (p_2.base.y - y_3) * field_ct(is_zero) + y_3;
+    x_2 = (accumulator.base.x - x_2) * field_ct(is_zero) + x_2;
+    y_2 = (accumulator.base.y - y_2) * field_ct(is_zero) + y_2;
+    return { { x_2, y_2 }, scalar };
+}
 
-    point_ct p_3 = pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y);
+note_triple accumulate(const note_triple& accumulator, const point_ct& p_1)
+{
+    field_ct lambda = (p_1.y - accumulator.base.y) / (p_1.x - accumulator.base.x);
+    field_ct x_2 = (lambda * lambda) - (p_1.x + accumulator.base.x);
+    field_ct y_2 = lambda * (accumulator.base.x - x_2) - accumulator.base.y;
+    return {{ x_2, y_2 }, accumulator.scalar };
+}
 
-    field_ct lambda_out = (p_3.y - y_4) / (p_3.x - x_4);
-    field_ct x_out = (lambda_out * lambda_out) - (p_3.x + x_4);
-    field_ct y_out = lambda_out * (x_4 - x_out) - y_4;
-    x_out = x_out.normalize();
-    y_out = y_out.normalize();
+/**
+ * Compute a pedersen hash of the plaintext:
+ * [output] = plaintext.value * [g0] + plaintext.secret * [g1] + plaintext.asset_id * [g2] + plaintext.owner.x * [g3] + plaintext.owner.y * [g4]
+ **/ 
+public_note encrypt_note(const private_note& plaintext)
+{
+    Composer* context = plaintext.value.get_context();
 
-    public_note ciphertext{ { x_out, y_out } };
+    note_triple accumulator = fixed_base_scalar_mul<250>(plaintext.secret, 1);
+    context->assert_equal(accumulator.scalar.witness_index, plaintext.secret.witness_index);
+    accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(context, accumulator, plaintext.value, 0);
+    accumulator = conditionally_hash_and_accumulate<32>(context, accumulator, plaintext.asset_id, 2);
+    accumulator = accumulate(accumulator, pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y, 3));
+
+    public_note ciphertext{ accumulator.base };
     return ciphertext;
 }
 
+template note_triple fixed_base_scalar_mul<32>(const field_ct& in, const size_t generator_index);
 template note_triple fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(const field_ct& in, const size_t generator_index);
 template note_triple fixed_base_scalar_mul<250>(const field_ct& in, const size_t generator_index);
+
+template note_triple conditionally_hash_and_accumulate<32>(Composer* context, const note_triple& accumulator, const field_ct& scalar, const size_t generator_index);
+template note_triple conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(Composer* context, const note_triple& accumulator, const field_ct& scalar, const size_t generator_index);
+template note_triple conditionally_hash_and_accumulate<250>(Composer* context, const note_triple& accumulator, const field_ct& scalar, const size_t generator_index);
 
 } // namespace notes
 } // namespace proofs
