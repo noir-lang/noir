@@ -7,6 +7,7 @@ namespace waffle {
 
 void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
 {
+    ASSERT(a_variable_idx != IS_CONSTANT && b_variable_idx != IS_CONSTANT);
     bool values_equal = (get_variable(a_variable_idx) == get_variable(b_variable_idx));
     if (!values_equal && !failed) {
         failed = true;
@@ -28,7 +29,6 @@ void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_
 template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
 {
     const uint32_t num_public_inputs = static_cast<uint32_t>(public_inputs.size());
-
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         cycle_node left{ static_cast<uint32_t>(i), WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i), WireType::RIGHT };

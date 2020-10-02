@@ -26,15 +26,23 @@ namespace plonk {
 namespace stdlib {
 namespace bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
-//Q:why not use regular fr?
+// Q:why not use regular fr?
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, barretenberg::Bn254FrParams> fr;
 typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
+
+typedef typename plonk::stdlib::bigfield<typename waffle::PlookupComposer, typename barretenberg::Bn254FqParams> plfq;
+typedef typename plonk::stdlib::bigfield<waffle::PlookupComposer, barretenberg::Bn254FrParams> plfr;
+typedef typename plonk::stdlib::element<waffle::PlookupComposer, plfq, plfr, barretenberg::g1> plg1;
 
 } // namespace bn254
 namespace alt_bn254 {
 typedef typename plonk::stdlib::bigfield<typename waffle::TurboComposer, typename barretenberg::Bn254FqParams> fq;
 typedef typename plonk::stdlib::field_t<typename waffle::TurboComposer> fr;
 typedef typename plonk::stdlib::element<waffle::TurboComposer, fq, fr, barretenberg::g1> g1;
+
+typedef typename plonk::stdlib::bigfield<typename waffle::PlookupComposer, typename barretenberg::Bn254FqParams> plfq;
+typedef typename plonk::stdlib::field_t<typename waffle::PlookupComposer> plfr;
+typedef typename plonk::stdlib::element<waffle::PlookupComposer, plfq, plfr, barretenberg::g1> plg1;
 } // namespace alt_bn254
 namespace secp256r {
 typedef typename plonk::stdlib::bigfield<waffle::TurboComposer, secp256r1::Secp256r1FqParams> fq;
@@ -49,6 +57,11 @@ typedef stdlib::bool_t<waffle::TurboComposer> bool_t;
 typedef stdlib::field_t<waffle::TurboComposer> field_t;
 typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
+
+typedef stdlib::bool_t<waffle::PlookupComposer> boolpl_t;
+typedef stdlib::field_t<waffle::PlookupComposer> fieldpl_t;
+typedef stdlib::witness_t<waffle::PlookupComposer> witnesspl_t;
+typedef stdlib::public_witness_t<waffle::PlookupComposer> public_witnesspl_t;
 
 stdlib::bn254::g1 convert_inputs(waffle::TurboComposer* ctx, const barretenberg::g1::affine_element& input)
 {
@@ -65,6 +78,23 @@ stdlib::bn254::g1 convert_inputs(waffle::TurboComposer* ctx, const barretenberg:
                                                                 stdlib::bn254::fq::NUM_LIMB_BITS * 4))));
 
     return stdlib::bn254::g1(x, y);
+}
+
+stdlib::bn254::plg1 convert_inputs(waffle::PlookupComposer* ctx, const barretenberg::g1::affine_element& input)
+{
+    uint256_t x_u256(input.x);
+    uint256_t y_u256(input.y);
+
+    stdlib::bn254::plfq x(witnesspl_t(ctx, barretenberg::fr(x_u256.slice(0, stdlib::bn254::plfq::NUM_LIMB_BITS * 2))),
+                          witnesspl_t(ctx,
+                                      barretenberg::fr(x_u256.slice(stdlib::bn254::plfq::NUM_LIMB_BITS * 2,
+                                                                    stdlib::bn254::plfq::NUM_LIMB_BITS * 4))));
+    stdlib::bn254::plfq y(witnesspl_t(ctx, barretenberg::fr(y_u256.slice(0, stdlib::bn254::plfq::NUM_LIMB_BITS * 2))),
+                          witnesspl_t(ctx,
+                                      barretenberg::fr(y_u256.slice(stdlib::bn254::plfq::NUM_LIMB_BITS * 2,
+                                                                    stdlib::bn254::plfq::NUM_LIMB_BITS * 4))));
+
+    return stdlib::bn254::plg1(x, y);
 }
 
 stdlib::alt_bn254::g1 convert_inputs_alt_bn254(waffle::TurboComposer* ctx,
@@ -84,6 +114,25 @@ stdlib::alt_bn254::g1 convert_inputs_alt_bn254(waffle::TurboComposer* ctx,
 
     return stdlib::alt_bn254::g1(x, y);
 }
+stdlib::alt_bn254::plg1 convert_inputs_alt_bn254(waffle::PlookupComposer* ctx,
+                                                 const barretenberg::g1::affine_element& input)
+{
+    uint256_t x_u256(input.x);
+    uint256_t y_u256(input.y);
+
+    stdlib::alt_bn254::plfq x(
+        witnesspl_t(ctx, barretenberg::fr(x_u256.slice(0, stdlib::alt_bn254::plfq::NUM_LIMB_BITS * 2))),
+        witnesspl_t(ctx,
+                    barretenberg::fr(x_u256.slice(stdlib::alt_bn254::plfq::NUM_LIMB_BITS * 2,
+                                                  stdlib::alt_bn254::plfq::NUM_LIMB_BITS * 4))));
+    stdlib::alt_bn254::plfq y(
+        witnesspl_t(ctx, barretenberg::fr(y_u256.slice(0, stdlib::alt_bn254::plfq::NUM_LIMB_BITS * 2))),
+        witnesspl_t(ctx,
+                    barretenberg::fr(y_u256.slice(stdlib::alt_bn254::plfq::NUM_LIMB_BITS * 2,
+                                                  stdlib::alt_bn254::plfq::NUM_LIMB_BITS * 4))));
+
+    return stdlib::alt_bn254::plg1(x, y);
+}
 
 stdlib::bn254::fr convert_inputs(waffle::TurboComposer* ctx, const barretenberg::fr& scalar)
 {
@@ -93,6 +142,18 @@ stdlib::bn254::fr convert_inputs(waffle::TurboComposer* ctx, const barretenberg:
                         witness_t(ctx,
                                   barretenberg::fr(scalar_u256.slice(stdlib::bn254::fq::NUM_LIMB_BITS * 2,
                                                                      stdlib::bn254::fq::NUM_LIMB_BITS * 4))));
+
+    return x;
+}
+stdlib::bn254::plfr convert_inputs(waffle::PlookupComposer* ctx, const barretenberg::fr& scalar)
+{
+    uint256_t scalar_u256(scalar);
+
+    stdlib::bn254::plfr x(
+        witnesspl_t(ctx, barretenberg::fr(scalar_u256.slice(0, stdlib::bn254::plfq::NUM_LIMB_BITS * 2))),
+        witnesspl_t(ctx,
+                    barretenberg::fr(scalar_u256.slice(stdlib::bn254::plfq::NUM_LIMB_BITS * 2,
+                                                       stdlib::bn254::plfq::NUM_LIMB_BITS * 4))));
 
     return x;
 }
@@ -262,10 +323,12 @@ HEAVY_TEST(stdlib_biggroup, test_mul)
         if ((scalar.from_montgomery_form().get_bit(0) & 1) == 1) {
             scalar -= barretenberg::fr(1); // make sure to add skew
         }
-        stdlib::bn254::g1 P = convert_inputs(&composer, input);
-        stdlib::bn254::fr x = convert_inputs(&composer, scalar);
+        stdlib::alt_bn254::g1 P = convert_inputs_alt_bn254(&composer, input);
+        stdlib::alt_bn254::fr x = witness_t(&composer, scalar);
 
-        stdlib::bn254::g1 c = P * x;
+        std::cout << "gates before mul " << composer.get_num_gates() << std::endl;
+        stdlib::alt_bn254::g1 c = P * x;
+        std::cout << "composer aftr mul " << composer.get_num_gates() << std::endl;
         barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input) * scalar);
 
         barretenberg::fq c_x_result(c.x.get_value().lo);
@@ -673,6 +736,200 @@ HEAVY_TEST(stdlib_biggroup, test_mixed_batch_mul)
     waffle::TurboProver prover = composer.create_prover();
     std::cout << "creating verifier " << std::endl;
     waffle::TurboVerifier verifier = composer.create_verifier();
+    std::cout << "creating proof " << std::endl;
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+// Plookup Composer tests
+
+TEST(stdlib_biggroup_plookup, test_add)
+{
+    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    size_t num_repetitions = 10;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        barretenberg::g1::affine_element input_a(barretenberg::g1::element::random_element());
+        barretenberg::g1::affine_element input_b(barretenberg::g1::element::random_element());
+
+        stdlib::bn254::plg1 a = convert_inputs(&composer, input_a);
+        stdlib::bn254::plg1 b = convert_inputs(&composer, input_b);
+
+        stdlib::bn254::plg1 c = a + b;
+
+        barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input_a) +
+                                                    barretenberg::g1::element(input_b));
+
+        uint256_t c_x_u256 = c.x.get_value().lo;
+        uint256_t c_y_u256 = c.y.get_value().lo;
+
+        barretenberg::fq c_x_result(c_x_u256);
+        barretenberg::fq c_y_result(c_y_u256);
+
+        EXPECT_EQ(c_x_result, c_expected.x);
+        EXPECT_EQ(c_y_result, c_expected.y);
+    }
+    composer.process_range_lists();
+    waffle::PlookupProver prover = composer.create_prover();
+    waffle::PlookupVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+// TEST(stdlib_biggroup_plookup, test_sub)
+// {
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
+//     size_t num_repetitions = 10;
+//     for (size_t i = 0; i < num_repetitions; ++i) {
+//         barretenberg::g1::affine_element input_a(barretenberg::g1::element::random_element());
+//         barretenberg::g1::affine_element input_b(barretenberg::g1::element::random_element());
+
+//         stdlib::bn254::g1 a = convert_inputs(&composer, input_a);
+//         stdlib::bn254::g1 b = convert_inputs(&composer, input_b);
+
+//         stdlib::bn254::g1 c = a - b;
+
+//         barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input_a) -
+//                                                     barretenberg::g1::element(input_b));
+
+//         uint256_t c_x_u256 = c.x.get_value().lo;
+//         uint256_t c_y_u256 = c.y.get_value().lo;
+
+//         barretenberg::fq c_x_result(c_x_u256);
+//         barretenberg::fq c_y_result(c_y_u256);
+
+//         EXPECT_EQ(c_x_result, c_expected.x);
+//         EXPECT_EQ(c_y_result, c_expected.y);
+//     }
+//     waffle::PlookupProver prover = composer.create_prover();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
+//     waffle::plonk_proof proof = prover.construct_proof();
+//     bool proof_result = verifier.verify_proof(proof);
+//     EXPECT_EQ(proof_result, true);
+// }
+
+// TEST(stdlib_biggroup_plookup, test_dbl)
+// {
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
+//     size_t num_repetitions = 10;
+//     for (size_t i = 0; i < num_repetitions; ++i) {
+//         barretenberg::g1::affine_element input_a(barretenberg::g1::element::random_element());
+
+//         stdlib::bn254::g1 a = convert_inputs(&composer, input_a);
+
+//         stdlib::bn254::g1 c = a.dbl();
+
+//         barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input_a).dbl());
+
+//         uint256_t c_x_u256 = c.x.get_value().lo;
+//         uint256_t c_y_u256 = c.y.get_value().lo;
+
+//         barretenberg::fq c_x_result(c_x_u256);
+//         barretenberg::fq c_y_result(c_y_u256);
+
+//         EXPECT_EQ(c_x_result, c_expected.x);
+//         EXPECT_EQ(c_y_result, c_expected.y);
+//     }
+//     waffle::PlookupProver prover = composer.create_prover();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
+//     waffle::plonk_proof proof = prover.construct_proof();
+//     bool proof_result = verifier.verify_proof(proof);
+//     EXPECT_EQ(proof_result, true);
+// }
+
+// TEST(stdlib_biggroup_plookup, test_montgomery_ladder)
+// {
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
+//     size_t num_repetitions = 1;
+//     for (size_t i = 0; i < num_repetitions; ++i) {
+//         barretenberg::g1::affine_element input_a(barretenberg::g1::element::random_element());
+//         barretenberg::g1::affine_element input_b(barretenberg::g1::element::random_element());
+
+//         stdlib::bn254::g1 a = convert_inputs(&composer, input_a);
+//         stdlib::bn254::g1 b = convert_inputs(&composer, input_b);
+
+//         stdlib::bn254::g1 c = a.montgomery_ladder(b);
+
+//         barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input_a).dbl() +
+//                                                     barretenberg::g1::element(input_b));
+
+//         uint256_t c_x_u256 = c.x.get_value().lo;
+//         uint256_t c_y_u256 = c.y.get_value().lo;
+
+//         barretenberg::fq c_x_result(c_x_u256);
+//         barretenberg::fq c_y_result(c_y_u256);
+
+//         EXPECT_EQ(c_x_result, c_expected.x);
+//         EXPECT_EQ(c_y_result, c_expected.y);
+//     }
+//     waffle::PlookupProver prover = composer.create_prover();
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
+//     waffle::plonk_proof proof = prover.construct_proof();
+//     bool proof_result = verifier.verify_proof(proof);
+//     EXPECT_EQ(proof_result, true);
+// }
+
+// HEAVY_TEST(stdlib_biggroup_plookup, test_mul)
+// {
+//     waffle::PlookupComposer composer = waffle::PlookupComposer();
+//     size_t num_repetitions = 1;
+//     for (size_t i = 0; i < num_repetitions; ++i) {
+//         barretenberg::g1::affine_element input(barretenberg::g1::element::random_element());
+//         barretenberg::fr scalar(barretenberg::fr::random_element());
+//         if ((scalar.from_montgomery_form().get_bit(0) & 1) == 1) {
+//             scalar -= barretenberg::fr(1); // make sure to add skew
+//         }
+//         stdlib::bn254::g1 P = convert_inputs(&composer, input);
+//         stdlib::bn254::fr x = convert_inputs(&composer, scalar);
+
+//         stdlib::bn254::g1 c = P * x;
+//         barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input) * scalar);
+
+//         barretenberg::fq c_x_result(c.x.get_value().lo);
+//         barretenberg::fq c_y_result(c.y.get_value().lo);
+
+//         EXPECT_EQ(c_x_result, c_expected.x);
+//         EXPECT_EQ(c_y_result, c_expected.y);
+//     }
+//     std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+//     waffle::PlookupProver prover = composer.create_prover();
+//     std::cout << "creating verifier " << std::endl;
+//     waffle::PlookupVerifier verifier = composer.create_verifier();
+//     std::cout << "creating proof " << std::endl;
+//     waffle::plonk_proof proof = prover.construct_proof();
+//     bool proof_result = verifier.verify_proof(proof);
+//     EXPECT_EQ(proof_result, true);
+// }
+
+HEAVY_TEST(stdlib_biggroup_plookup, test_mul)
+{
+    waffle::PlookupComposer composer = waffle::PlookupComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        barretenberg::g1::affine_element input(barretenberg::g1::element::random_element());
+        barretenberg::fr scalar(barretenberg::fr::random_element());
+        if ((scalar.from_montgomery_form().get_bit(0) & 1) == 1) {
+            scalar -= barretenberg::fr(1); // make sure to add skew
+        }
+        stdlib::alt_bn254::plg1 P = convert_inputs_alt_bn254(&composer, input);
+        stdlib::alt_bn254::plfr x = witnesspl_t(&composer, scalar);
+
+        std::cout << "gates before mul " << composer.get_num_gates() << std::endl;
+        stdlib::alt_bn254::plg1 c = P * x;
+        std::cout << "composer aftr mul " << composer.get_num_gates() << std::endl;
+        barretenberg::g1::affine_element c_expected(barretenberg::g1::element(input) * scalar);
+
+        barretenberg::fq c_x_result(c.x.get_value().lo);
+        barretenberg::fq c_y_result(c.y.get_value().lo);
+
+        EXPECT_EQ(c_x_result, c_expected.x);
+        EXPECT_EQ(c_y_result, c_expected.y);
+    }
+    std::cout << "composer gates = " << composer.get_num_gates() << std::endl;
+    composer.process_range_lists();
+    waffle::PlookupProver prover = composer.create_prover();
+    std::cout << "creating verifier " << std::endl;
+    waffle::PlookupVerifier verifier = composer.create_verifier();
     std::cout << "creating proof " << std::endl;
     waffle::plonk_proof proof = prover.construct_proof();
     bool proof_result = verifier.verify_proof(proof);

@@ -182,7 +182,6 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     fr_ct alpha_base = alpha;
 
     alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval);
-
     t_eval = t_eval / lagrange_evals.vanishing_poly;
     transcript.add_field_element("t", t_eval);
 

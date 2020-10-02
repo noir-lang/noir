@@ -128,6 +128,7 @@ template <typename Composer> class Transcript {
     void apply_fiat_shamir(const std::string& challenge_name)
     {
         const size_t num_challenges = get_manifest().get_round_manifest(current_round).num_challenges;
+        transcript_base.apply_fiat_shamir(challenge_name);
 
         if (num_challenges == 0) {
             ++current_round;
@@ -168,9 +169,9 @@ template <typename Composer> class Transcript {
             field_pt sum = lo + (hi * shift);
             sum = sum.normalize();
 
-            if (element.witness_index != UINT32_MAX) {
+            if (element.witness_index != IS_CONSTANT) {
                 context->assert_equal(sum.witness_index, element.witness_index);
-            } else if (sum.witness_index != UINT32_MAX) {
+            } else if (sum.witness_index != IS_CONSTANT) {
                 context->assert_equal_constant(sum.witness_index, element.get_value());
             }
             current_byte_counter = (current_byte_counter + num_bytes) % bytes_per_element;
@@ -183,8 +184,6 @@ template <typename Composer> class Transcript {
             work_element = (lo * lo_shift);
             work_element = work_element.normalize();
         };
-
-        transcript_base.apply_fiat_shamir(challenge_name);
 
         std::vector<field_pt> compression_buffer;
         field_pt working_element(context);

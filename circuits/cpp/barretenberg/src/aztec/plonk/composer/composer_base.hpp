@@ -110,13 +110,14 @@ enum ComposerType {
 
 class ComposerBase {
   public:
+    static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
     struct SelectorProperties {
         std::string name;
         bool use_mid_for_selectorfft = false;           // use middomain instead of large for selectorfft
         bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
     };
 
-    static constexpr uint32_t REAL_VARIABLE = UINT32_MAX;
+    static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
     static constexpr size_t NUM_RESERVED_GATES = 1;
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
@@ -223,6 +224,8 @@ class ComposerBase {
 
     uint32_t get_real_variable_index(uint32_t index) const
     {
+        if (index >= variable_index_map.size())
+            std::cerr << "index:" << index << std::endl;
         ASSERT(index < variable_index_map.size());
         if (variable_index_map[index] != REAL_VARIABLE) {
             return get_real_variable_index(variable_index_map[index]);
@@ -267,9 +270,7 @@ class ComposerBase {
         }
     }
 
-    virtual void assert_equal(const uint32_t a_idx,
-                              const uint32_t b_idx,
-                              std::string const& msg = "assert_equal");
+    virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "assert_equal");
 
     template <size_t program_width> void compute_wire_copy_cycles();
     template <size_t program_width, bool with_tags = false> void compute_sigma_permutations(proving_key* key);

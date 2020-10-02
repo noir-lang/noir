@@ -97,7 +97,6 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     ASSERT(current_round <= manifest.get_num_rounds());
     ASSERT(challenge_name == manifest.get_round_manifest(current_round).challenge);
     const size_t num_challenges = manifest.get_round_manifest(current_round).num_challenges;
-
     if (num_challenges == 0) {
         ++current_round;
         return;

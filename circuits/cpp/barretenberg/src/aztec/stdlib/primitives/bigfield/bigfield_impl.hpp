@@ -48,21 +48,21 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
             // If this doesn't hold we're using a default plookup range size that doesn't work well with the limb size
             // here
             ASSERT(low_accumulator.size() % 2 == 0);
-        // Enforce that low_bits indeed only contains 2*NUM_LIMB_BITS bits
+            // Enforce that low_bits indeed only contains 2*NUM_LIMB_BITS bits
             low_accumulator =
                 context->decompose_into_default_range(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
             size_t mid_index = low_accumulator.size() / 2 - 1;
-            limb_0.witness_index = low_accumulator[mid_index];
+            limb_0.witness_index = low_accumulator[mid_index]; // Q:safer to just slice this from low_bits?
             limb_1 = (low_bits - limb_0) * shift_right_1;
         } else {
             size_t mid_index;
             low_accumulator =
                 context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
             mid_index = static_cast<size_t>((NUM_LIMB_BITS / 2) - 1);
-        // Turbo plonk range constraint returns an array of partial sums, midpoint will happen to hold the big limb
-        // value
+            // Turbo plonk range constraint returns an array of partial sums, midpoint will happen to hold the big limb
+            // value
             limb_1.witness_index = low_accumulator[mid_index];
-        // We can get the first half bits of low_bits from the variables we already created
+            // We can get the first half bits of low_bits from the variables we already created
             limb_0 = (low_bits - (limb_1 * shift_1));
         }
     } else {
@@ -106,7 +106,7 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     binary_basis_limbs[1] = Limb(limb_1, DEFAULT_MAXIMUM_LIMB);
     binary_basis_limbs[2] = Limb(limb_2, DEFAULT_MAXIMUM_LIMB);
     binary_basis_limbs[3] = Limb(limb_3, can_overflow ? DEFAULT_MAXIMUM_LIMB : DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB);
-    prime_basis_limb = low_bits + (high_bits * shift_2); 
+    prime_basis_limb = low_bits + (high_bits * shift_2);
 }
 
 template <typename C, typename T>
@@ -685,7 +685,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
 
     self_reduce(); // this method in particular enforces limb vals are <2^b - needed for logic described above
     uint256_t value = get_value().lo;
-    //TODO:make formal assert that modulus<=256 bits
+    // TODO:make formal assert that modulus<=256 bits
     constexpr uint256_t modulus_value = modulus_u512.lo;
 
     constexpr uint256_t modulus_0_value = modulus_value.slice(0, NUM_LIMB_BITS);
@@ -749,7 +749,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
     quotient = bigfield(witness_t(ctx, fr(quotient_512.slice(0, NUM_LIMB_BITS * 2).lo)),
                         witness_t(ctx, fr(quotient_512.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
                         true);
-    evaluate_multiply_add(diff, {one()}, {}, quotient, { zero() });
+    evaluate_multiply_add(diff, { one() }, {}, quotient, { zero() });
 }
 
 // construct a proof that points are different mod p, when they are different mod r
@@ -804,6 +804,9 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 
     uint512_t maximum_quotient_size = get_maximum_value() / target_basis.modulus;
     uint64_t maximum_quotient_bits = maximum_quotient_size.get_msb() + 1;
+    if ((maximum_quotient_bits & 1ULL) == 1ULL) {
+        ++maximum_quotient_bits;
+    }
     // TODO: implicit assumption here - NUM_LIMB_BITS large enough for all the quotient
     uint32_t quotient_limb_index = context->add_variable(barretenberg::fr(quotient_value.lo));
     field_t<C> quotient_limb = field_t<C>::from_witness_index(context, quotient_limb_index);
@@ -1040,15 +1043,24 @@ void bigfield<C, T>::verify_mod(const bigfield& left, const bigfield& quotient, 
         ++max_hi_bits;
     }
 
-    const field_t b0 = left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[0];
-    const field_t b1 = left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[1];
-    const field_t c0 = left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[1];
-    const field_t c1 = left.binary_basis_limbs[2].element + quotient.binary_basis_limbs[2].element * neg_modulus_limbs[0];
-    const field_t c2 = left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[2];
-    const field_t d0 = left.binary_basis_limbs[3].element + quotient.binary_basis_limbs[3].element * neg_modulus_limbs[0];
-    const field_t d1 = left.binary_basis_limbs[2].element + quotient.binary_basis_limbs[2].element * neg_modulus_limbs[1];
-    const field_t d2 = left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[2];
-    const field_t d3 = left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[3];
+    const field_t b0 =
+        left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[0];
+    const field_t b1 =
+        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[1];
+    const field_t c0 =
+        left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[1];
+    const field_t c1 =
+        left.binary_basis_limbs[2].element + quotient.binary_basis_limbs[2].element * neg_modulus_limbs[0];
+    const field_t c2 =
+        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[2];
+    const field_t d0 =
+        left.binary_basis_limbs[3].element + quotient.binary_basis_limbs[3].element * neg_modulus_limbs[0];
+    const field_t d1 =
+        left.binary_basis_limbs[2].element + quotient.binary_basis_limbs[2].element * neg_modulus_limbs[1];
+    const field_t d2 =
+        left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[2];
+    const field_t d3 =
+        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[3];
 
     // We wish to show that left - quotient*p - remainder = 0 mod 2^t, we do this by collecting the limb products
     // into two separate variables - carry_lo and carry_hi, which are still small enough not to wrap mod r
@@ -1057,9 +1069,10 @@ void bigfield<C, T>::verify_mod(const bigfield& left, const bigfield& quotient, 
     // to these variables those expressions divided by 2^{t/2}. Since we have bounds on their range that are smaller
     // than r, We can range check the divisions by the original range bounds divided by 2^{t/2}
 
-    const field_t r0 = left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[0];
+    const field_t r0 =
+        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[0];
 
-    field_t r1 = b0.add_two(b1, -remainder.binary_basis_limbs[1].element);//how do we know this doesn't wrap?
+    field_t r1 = b0.add_two(b1, -remainder.binary_basis_limbs[1].element); // how do we know this doesn't wrap?
     const field_t r2 = c0.add_two(c1, c2);
     const field_t r3 = d0 + d1.add_two(d2, d3);
 
@@ -1088,7 +1101,8 @@ void bigfield<C, T>::verify_mod(const bigfield& left, const bigfield& quotient, 
     // }
     // if (remainders.size() >= 2) {
     //     for (size_t i = 0; i < remainders.size(); i += 2) {
-    //         linear_terms = linear_terms.add_two(-remainders[i].prime_basis_limb, -remainders[i + 1].prime_basis_limb);
+    //         linear_terms = linear_terms.add_two(-remainders[i].prime_basis_limb, -remainders[i +
+    //         1].prime_basis_limb);
     //     }
     // }
     // if ((remainders.size() & 1UL) == 1UL) {
@@ -1096,8 +1110,8 @@ void bigfield<C, T>::verify_mod(const bigfield& left, const bigfield& quotient, 
     // }
 
     // This is where we show our identity is zero mod r (to use CRT we show it's zero mod r and mod 2^t)
-    field_t a = left.prime_basis_limb -quotient.prime_basis_limb*neg_prime-remainder.prime_basis_limb;
-a.assert_is_zero();
+    field_t a = left.prime_basis_limb - quotient.prime_basis_limb * neg_prime - remainder.prime_basis_limb;
+    a.assert_is_zero();
     const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
 

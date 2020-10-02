@@ -24,7 +24,7 @@ std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> plookup_base<Compos
         waffle::plookup::get_table_values(id, key_a.get_value(), key_b.get_value(), is_2_to_1_lookup);
 
     std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> sequence_values;
-    if (key_a.witness_index == UINT32_MAX && key_b.witness_index == UINT32_MAX) {
+    if (key_a.witness_index == IS_CONSTANT && key_b.witness_index == IS_CONSTANT) {
         for (size_t i = 0; i < sequence_data.column_1_accumulator_values.size(); ++i) {
             sequence_values[0].emplace_back(field_t<Composer>(ctx, sequence_data.column_1_accumulator_values[i]));
             sequence_values[1].emplace_back(field_t<Composer>(ctx, sequence_data.column_2_accumulator_values[i]));
