@@ -75,6 +75,11 @@ field_ct process_account_note(Composer& composer,
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
+    // Verify all notes have a consistent asset id
+    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index, inputs.input_note2.first.asset_id.witness_index, "input note asset ids don't match");
+    composer.assert_equal(inputs.output_note1.first.asset_id.witness_index, inputs.output_note2.first.asset_id.witness_index, "output note asset ids don't match");
+    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index, inputs.output_note1.first.asset_id.witness_index, "input/output note asset ids don't match");
+
     // Check we're not joining the same input note.
     bool_ct indicies_equal = inputs.input_note1_index == inputs.input_note2_index;
     composer.assert_equal_constant(indicies_equal.witness_index, 0, "joining same note");
@@ -83,6 +88,14 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     field_ct total_in_value = inputs.input_note1.first.value + inputs.input_note2.first.value + inputs.public_input;
     field_ct total_out_value = inputs.output_note1.first.value + inputs.output_note2.first.value + inputs.public_output;
     composer.assert_equal(total_in_value.witness_index, total_out_value.witness_index, "values don't balance");
+
+    // if there is a public input/output, we must validate the asset id matches those of the note asset ids
+    bool_ct total_in_value_is_zero = total_in_value.is_zero();
+    bool_ct total_out_value_is_zero = total_out_value.is_zero();
+    bool_ct contains_public_value = total_in_value_is_zero || total_out_value_is_zero;
+    field_ct conditional_note_asset_id = (inputs.input_note1.first.asset_id * field_ct(contains_public_value)).normalize();
+    field_ct conditional_public_asset_id = (inputs.asset_id * field_ct(contains_public_value)).normalize();
+    composer.assert_equal(conditional_note_asset_id.witness_index, conditional_public_asset_id.witness_index, "note asset ids not equal to tx asset id");
 
     // Verify input notes have the same owner.
     auto note1_owner = inputs.input_note1.first.owner;
@@ -95,7 +108,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
         inputs.input_note1.second, inputs.input_note2.second, inputs.output_note1.second, inputs.output_note2.second
     };
     verify_signature(notes, inputs.output_owner, inputs.signing_pub_key, inputs.signature);
-
     // Verify each input note exists in the tree, and compute nullifiers.
     field_ct nullifier1 = process_input_note(composer,
                                              inputs.merkle_root,

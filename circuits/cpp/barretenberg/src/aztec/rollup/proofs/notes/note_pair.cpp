@@ -16,10 +16,12 @@ note_pair create_note_pair(Composer& composer, tx_note const& note)
     field_ct note_owner_x = witness_ct(&composer, note.owner.x);
     field_ct note_owner_y = witness_ct(&composer, note.owner.y);
     field_ct witness_value = witness_ct(&composer, note.value);
+    field_ct asset_id = witness_ct(&composer, note.asset_id);
 
+    composer.create_range_constraint(asset_id.witness_index, 32);
     composer.create_range_constraint(witness_value.witness_index, NOTE_VALUE_BIT_LENGTH);
 
-    result.first = { { note_owner_x, note_owner_y }, witness_value, view_key };
+    result.first = { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id };
     result.second = encrypt_note(result.first);
     return result;
 }

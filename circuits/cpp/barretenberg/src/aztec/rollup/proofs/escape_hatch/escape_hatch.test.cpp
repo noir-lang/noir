@@ -144,8 +144,8 @@ class escape_hatch_tests : public ::testing::Test {
         tx.output_owner = fr::random_element();
         tx.account_index = account_index;
         tx.account_path = data_tree.get_hash_path(account_index);
-        tx.signing_pub_key = user.signing_keys[0].public_key;
-
+        tx.signing_pub_key = user.signing_keys[0].public_key;   
+        tx.asset_id = 0;
         return tx;
     }
 
