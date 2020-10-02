@@ -39,6 +39,18 @@ __extension__ using uint128_t = unsigned __int128;
 namespace serialize {
 // Basic integer read / write, to / from raw buffers.
 // Pointers to buffers are advanced by length of type.
+// inline void read(uint8_t const*& it, bool& value)
+// {
+//     value = *it;
+//     it += 1;
+// }
+
+// inline void write(uint8_t*& it, bool value)
+// {
+//     *it = value;
+//     it += 1;
+// }
+
 inline void read(uint8_t const*& it, uint8_t& value)
 {
     value = *it;

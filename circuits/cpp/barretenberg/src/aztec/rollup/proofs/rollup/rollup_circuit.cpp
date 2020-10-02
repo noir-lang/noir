@@ -247,12 +247,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     }
 
     // Publish pairing coords limbs as public inputs.
-    for (auto coord :
-         { &recursion_output.P0.x, &recursion_output.P0.y, &recursion_output.P1.x, &recursion_output.P1.y }) {
-        for (size_t i = 0; i < 4; ++i) {
-            composer.set_public_input(coord->binary_basis_limbs[i].element.witness_index);
-        }
-    }
+    recursion_output.add_proof_outputs_as_public_inputs();
 
     return recursion_output;
 }

@@ -29,6 +29,8 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
     , large_domain(4 * n, n > min_thread_block ? n : 4 * n)
     , reference_string(crs)
     , pippenger_runtime_state(n)
+    , contains_recursive_proof(data.contains_recursive_proof)
+    , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
 {
     init();
     // TODO: Currently only supporting TurboComposer in serialization!
@@ -116,6 +118,8 @@ proving_key::proving_key(const proving_key& other)
     , quotient_large(other.quotient_large)
     , pippenger_runtime_state(n)
     , polynomial_manifest(other.polynomial_manifest)
+    , contains_recursive_proof(other.contains_recursive_proof)
+    , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)
 {}
 
 proving_key::proving_key(proving_key&& other)
@@ -138,6 +142,8 @@ proving_key::proving_key(proving_key&& other)
     , linear_poly(std::move(other.linear_poly))
     , pippenger_runtime_state(std::move(other.pippenger_runtime_state))
     , polynomial_manifest(std::move(other.polynomial_manifest))
+    , contains_recursive_proof(other.contains_recursive_proof)
+    , recursive_proof_public_input_indices(std::move(other.recursive_proof_public_input_indices))
 {}
 
 proving_key& proving_key::operator=(proving_key&& other)
@@ -161,6 +167,9 @@ proving_key& proving_key::operator=(proving_key&& other)
     linear_poly = std::move(other.linear_poly);
     pippenger_runtime_state = std::move(other.pippenger_runtime_state);
     polynomial_manifest = std::move(other.polynomial_manifest);
+    contains_recursive_proof = other.contains_recursive_proof;
+    recursive_proof_public_input_indices = std::move(other.recursive_proof_public_input_indices);
+
     return *this;
 }
 } // namespace waffle

@@ -12,6 +12,8 @@ struct verification_key_data {
     uint32_t num_public_inputs;
     std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
     std::map<std::string, barretenberg::g1::affine_element> permutation_selectors;
+    bool contains_recursive_proof = false;
+    std::vector<uint32_t> recursive_proof_public_input_indices;
 };
 
 template <typename B> inline void read(B& buf, verification_key_data& key)
@@ -21,6 +23,8 @@ template <typename B> inline void read(B& buf, verification_key_data& key)
     read(buf, key.num_public_inputs);
     read(buf, key.constraint_selectors);
     read(buf, key.permutation_selectors);
+    read(buf, key.contains_recursive_proof);
+    read(buf, key.recursive_proof_public_input_indices);
 }
 
 template <typename B> inline void write(B& buf, verification_key_data const& key)
@@ -30,6 +34,8 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
     write(buf, key.num_public_inputs);
     write(buf, key.constraint_selectors);
     write(buf, key.permutation_selectors);
+    write(buf, key.contains_recursive_proof);
+    write(buf, key.recursive_proof_public_input_indices);
 }
 
 inline bool operator==(verification_key_data const& lhs, verification_key_data const& rhs)
@@ -65,6 +71,9 @@ struct verification_key {
     // this is a member variable because stdlib::field has no `pow` method, we
     // have to compute this differently for the normal and recursive settings respectively
     barretenberg::fr z_pow_n;
+
+    bool contains_recursive_proof = false;
+    std::vector<uint32_t> recursive_proof_public_input_indices;
     size_t program_width = 3;
 };
 
@@ -75,6 +84,8 @@ template <typename B> inline void write(B& buf, verification_key const& key)
     write(buf, static_cast<uint32_t>(key.num_public_inputs));
     write(buf, key.constraint_selectors);
     write(buf, key.permutation_selectors);
+    write(buf, key.contains_recursive_proof);
+    write(buf, key.recursive_proof_public_input_indices);
 }
 
 } // namespace waffle

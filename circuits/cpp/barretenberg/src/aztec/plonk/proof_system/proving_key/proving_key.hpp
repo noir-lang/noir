@@ -12,6 +12,8 @@ namespace waffle {
 struct proving_key_data {
     uint32_t n;
     uint32_t num_public_inputs;
+    bool contains_recursive_proof;
+    std::vector<uint32_t> recursive_proof_public_input_indices;
     std::map<std::string, barretenberg::polynomial> constraint_selectors;
     std::map<std::string, barretenberg::polynomial> constraint_selector_ffts;
     std::map<std::string, barretenberg::polynomial> permutation_selectors;
@@ -26,7 +28,9 @@ inline bool operator==(proving_key_data const& lhs, proving_key_data const& rhs)
            lhs.constraint_selector_ffts == rhs.constraint_selector_ffts &&
            lhs.permutation_selectors == rhs.permutation_selectors &&
            lhs.permutation_selectors_lagrange_base == rhs.permutation_selectors_lagrange_base &&
-           lhs.permutation_selector_ffts == rhs.permutation_selector_ffts;
+           lhs.permutation_selector_ffts == rhs.permutation_selector_ffts &&
+           lhs.contains_recursive_proof == rhs.contains_recursive_proof &&
+           lhs.recursive_proof_public_input_indices == rhs.recursive_proof_public_input_indices;
 }
 
 struct proving_key {
@@ -84,6 +88,8 @@ struct proving_key {
 
     std::vector<PolynomialDescriptor> polynomial_manifest;
 
+    bool contains_recursive_proof = false;
+    std::vector<uint32_t> recursive_proof_public_input_indices;
     static constexpr size_t min_thread_block = 4UL;
 };
 

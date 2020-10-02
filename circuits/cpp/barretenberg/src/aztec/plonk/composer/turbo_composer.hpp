@@ -54,6 +54,22 @@ class TurboComposer : public ComposerBase {
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
+    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+        if (contains_recursive_proof) {
+            failed = true;
+            err = "added recursive proof when one already exists";
+        }
+        contains_recursive_proof = true;
+
+      for (const auto& idx : proof_output_witness_indices) {
+            set_public_input(idx);
+            recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
+        }  
+    }
+    std::vector<uint32_t> recursive_proof_public_input_indices;
+    bool contains_recursive_proof = false;
+
     std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits);
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,

@@ -14,6 +14,8 @@ template <typename B> inline void read(B& buf, proving_key_data& key)
     read(buf, key.permutation_selectors);
     read(buf, key.permutation_selectors_lagrange_base);
     read(buf, key.permutation_selector_ffts);
+    read(buf, key.contains_recursive_proof);
+    read(buf, key.recursive_proof_public_input_indices);
 }
 
 template <typename B> inline void write(B& buf, proving_key_data const& key)
@@ -26,6 +28,8 @@ template <typename B> inline void write(B& buf, proving_key_data const& key)
     write(buf, key.permutation_selectors);
     write(buf, key.permutation_selectors_lagrange_base);
     write(buf, key.permutation_selector_ffts);
+    write(buf, key.contains_recursive_proof);
+    write(buf, key.recursive_proof_public_input_indices);
 }
 
 template <typename B> inline void write(B& buf, proving_key const& key)
@@ -38,6 +42,8 @@ template <typename B> inline void write(B& buf, proving_key const& key)
     write(buf, key.permutation_selectors);
     write(buf, key.permutation_selectors_lagrange_base);
     write(buf, key.permutation_selector_ffts);
+    write(buf, key.contains_recursive_proof);
+    write(buf, key.recursive_proof_public_input_indices);
 }
 
 template <typename B> inline void read_mmap(B& it, std::string const& path, proving_key_data& key)
@@ -60,6 +66,8 @@ template <typename B> inline void read_mmap(B& it, std::string const& path, prov
             map->emplace(name, barretenberg::polynomial(format(path, "/", file_num++, "_", name)));
         }
     }
+    read(it, key.contains_recursive_proof);
+    read(it, key.recursive_proof_public_input_indices);
 }
 
 template <typename B> inline void write_mmap(B& buf, std::string const& path, proving_key const& key)
@@ -84,6 +92,8 @@ template <typename B> inline void write_mmap(B& buf, std::string const& path, pr
             os.write((char*)&p[0], (std::streamsize)(size * sizeof(barretenberg::fr)));
         }
     }
+    write(buf, key.contains_recursive_proof);
+    write(buf, key.recursive_proof_public_input_indices);
 }
 
 } // namespace waffle

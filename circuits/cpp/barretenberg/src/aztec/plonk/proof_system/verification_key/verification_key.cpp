@@ -18,6 +18,8 @@ verification_key::verification_key(verification_key_data&& data, std::shared_ptr
     , reference_string(crs)
     , constraint_selectors(std::move(data.constraint_selectors))
     , permutation_selectors(std::move(data.permutation_selectors))
+    , contains_recursive_proof(data.contains_recursive_proof)
+    , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
 {
     // TODO: Currently only supporting TurboComposer in serialization!
     std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
@@ -31,6 +33,8 @@ verification_key::verification_key(const verification_key& other)
     , constraint_selectors(other.constraint_selectors)
     , permutation_selectors(other.permutation_selectors)
     , polynomial_manifest(other.polynomial_manifest)
+    , contains_recursive_proof(other.contains_recursive_proof)
+    , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)
 {}
 
 verification_key::verification_key(verification_key&& other)
@@ -41,6 +45,8 @@ verification_key::verification_key(verification_key&& other)
     , constraint_selectors(other.constraint_selectors)
     , permutation_selectors(other.permutation_selectors)
     , polynomial_manifest(other.polynomial_manifest)
+    , contains_recursive_proof(other.contains_recursive_proof)
+    , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)
 {}
 
 verification_key& verification_key::operator=(verification_key&& other)
@@ -52,6 +58,8 @@ verification_key& verification_key::operator=(verification_key&& other)
     permutation_selectors = std::move(other.permutation_selectors);
     polynomial_manifest = std::move(other.polynomial_manifest);
     domain = std::move(other.domain);
+    contains_recursive_proof = (other.contains_recursive_proof);
+    recursive_proof_public_input_indices = std::move(other.recursive_proof_public_input_indices);
     return *this;
 }
 } // namespace waffle

@@ -63,6 +63,24 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
     print_fr("permutation_non_residues[2]", 7);
 
     os <<
+      "    vk.contains_recursive_proof = " << (key->contains_recursive_proof ? "true" : "false") << ";\n" <<
+      "    vk.recursive_proof_indices[0] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[0] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[1] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[1] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[2] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[2] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[3] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[3] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[4] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[4] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[5] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[5] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[6] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[6] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[7] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[7] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[8] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[8] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[9] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[9] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[10] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[10] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[11] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[11] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[12] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[12] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[13] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[13] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[14] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[14] : 0) << ";\n" <<
+      "    vk.recursive_proof_indices[15] = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[15] : 0) << ";\n";
+    os <<
       "    vk.g2_x = PairingsBn254.new_g2([\n"
       "      " << key->reference_string->get_g2x().x.c1 << ",\n" <<
       "      " << key->reference_string->get_g2x().x.c0 << "\n"

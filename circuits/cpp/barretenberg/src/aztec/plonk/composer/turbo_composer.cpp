@@ -684,6 +684,9 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
               turbo_polynomial_manifest + 20,
               std::back_inserter(circuit_proving_key->polynomial_manifest));
 
+    circuit_proving_key->recursive_proof_public_input_indices =
+        std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
+    circuit_proving_key->contains_recursive_proof = contains_recursive_proof;
     return circuit_proving_key;
 }
 
@@ -698,6 +701,10 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
 
     circuit_verification_key =
         turbo_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
+
+    circuit_verification_key->recursive_proof_public_input_indices =
+        std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
+    circuit_verification_key->contains_recursive_proof = contains_recursive_proof;
 
     return circuit_verification_key;
 }

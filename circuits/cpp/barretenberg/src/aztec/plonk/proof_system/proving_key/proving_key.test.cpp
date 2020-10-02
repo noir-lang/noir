@@ -24,7 +24,7 @@ TEST(proving_key, buffer_serialization)
     key.constraint_selectors["test2"] = create_polynomial(3);
     key.constraint_selector_ffts["foo1"] = create_polynomial(2);
     key.constraint_selector_ffts["foo2"] = create_polynomial(7);
-
+    key.contains_recursive_proof = false;
     auto buf = to_buffer(key);
     auto result = from_buffer<proving_key_data>(buf);
 
@@ -40,6 +40,7 @@ TEST(proving_key, stream_serialization)
     key.constraint_selectors["test2"] = create_polynomial(3);
     key.constraint_selector_ffts["foo1"] = create_polynomial(2);
     key.constraint_selector_ffts["foo2"] = create_polynomial(7);
+    key.contains_recursive_proof = true;
 
     std::stringstream s;
     write(s, key);

@@ -58,19 +58,19 @@ TEST(plookup_composer, read_sequence_from_multi_table)
             const size_t index = i * 3;
 
             uint64_t slice_a = ((bits >> (index * 10)) & mask).data[0];
-            expected_x[index] = (table[slice_a].x);
-            expected_y[index] = (table[slice_a].y);
+            expected_x[index] = (table[(size_t)slice_a].x);
+            expected_y[index] = (table[(size_t)slice_a].y);
             expected_scalars[index] = slice_a;
 
             uint64_t slice_b = ((bits >> ((index + 1) * 10)) & mask).data[0];
-            expected_x[index + 1] = (table[slice_b].x);
-            expected_y[index + 1] = (table[slice_b].y);
+            expected_x[index + 1] = (table[(size_t)slice_b].x);
+            expected_y[index + 1] = (table[(size_t)slice_b].y);
             expected_scalars[index + 1] = slice_b;
 
             if (i < 8) {
                 uint64_t slice_c = ((bits >> ((index + 2) * 10)) & mask).data[0];
-                expected_x[index + 2] = (table[slice_c].x);
-                expected_y[index + 2] = (table[slice_c].y);
+                expected_x[index + 2] = (table[(size_t)slice_c].x);
+                expected_y[index + 2] = (table[(size_t)slice_c].y);
                 expected_scalars[index + 2] = slice_c;
             }
         }

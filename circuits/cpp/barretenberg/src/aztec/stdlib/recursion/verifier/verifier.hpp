@@ -28,7 +28,17 @@ template <typename Curve> struct recursion_output {
     typename Curve::g1_ct P1;
     // the public inputs of the inner ciruit are now private inputs of the outer circuit!
     std::vector<typename Curve::fr_ct> public_inputs;
+    std::vector<uint32_t> proof_witness_indices;
     bool has_data = false;
+
+    void add_proof_outputs_as_public_inputs()
+    {
+        ASSERT(proof_witness_indices.size() > 0);
+
+        auto* context = P0.get_context();
+
+        context->add_recursive_proof(proof_witness_indices);
+    }
 };
 
 template <typename Composer> struct lagrange_evaluations {
@@ -251,11 +261,11 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     opening_elements.emplace_back(double_opening_result);
     opening_scalars.emplace_back(u);
 
-    std::vector<g1_ct> lhs_elements;
-    std::vector<fr_ct> lhs_scalars;
+    std::vector<g1_ct> rhs_elements;
+    std::vector<fr_ct> rhs_scalars;
 
-    lhs_elements.push_back(PI_Z_OMEGA);
-    lhs_scalars.push_back(u);
+    rhs_elements.push_back(PI_Z_OMEGA);
+    rhs_scalars.push_back(u);
 
     if (previous_output.has_data) {
         fr_ct random_separator = transcript.get_challenge_field_element("separator", 1);
@@ -263,8 +273,8 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         opening_elements.push_back(previous_output.P0);
         opening_scalars.push_back(random_separator);
 
-        lhs_elements.push_back((-(previous_output.P1)).normalize());
-        lhs_scalars.push_back(random_separator);
+        rhs_elements.push_back((-(previous_output.P1)).normalize());
+        rhs_scalars.push_back(random_separator);
     }
     auto opening_result =
         g1_ct::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
@@ -274,13 +284,34 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     }
     opening_result = opening_result.normalize();
 
-    g1_ct lhs = g1_ct::batch_mul(lhs_elements, lhs_scalars, 128);
-    lhs = lhs + PI_Z;
-    lhs = (-lhs).normalize();
+    g1_ct rhs = g1_ct::batch_mul(rhs_elements, rhs_scalars, 128);
+    rhs = rhs + PI_Z;
+    rhs = (-rhs).normalize();
+    
+
+    std::vector<uint32_t> proof_witness_indices{
+        opening_result.x.binary_basis_limbs[0].element.witness_index,
+        opening_result.x.binary_basis_limbs[1].element.witness_index,
+        opening_result.x.binary_basis_limbs[2].element.witness_index,
+        opening_result.x.binary_basis_limbs[3].element.witness_index,
+        opening_result.y.binary_basis_limbs[0].element.witness_index,
+        opening_result.y.binary_basis_limbs[1].element.witness_index,
+        opening_result.y.binary_basis_limbs[2].element.witness_index,
+        opening_result.y.binary_basis_limbs[3].element.witness_index,
+        rhs.x.binary_basis_limbs[0].element.witness_index,
+        rhs.x.binary_basis_limbs[1].element.witness_index,
+        rhs.x.binary_basis_limbs[2].element.witness_index,
+        rhs.x.binary_basis_limbs[3].element.witness_index,
+        rhs.y.binary_basis_limbs[0].element.witness_index,
+        rhs.y.binary_basis_limbs[1].element.witness_index,
+        rhs.y.binary_basis_limbs[2].element.witness_index,
+        rhs.y.binary_basis_limbs[3].element.witness_index,    
+    };
     return recursion_output<Curve>{
         opening_result,
-        lhs,
+        rhs,
         transcript.get_field_element_vector("public_inputs"),
+        proof_witness_indices,
         true,
     };
 }

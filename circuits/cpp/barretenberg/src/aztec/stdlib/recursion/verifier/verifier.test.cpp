@@ -186,8 +186,9 @@ HEAVY_TEST(stdlib_verifier, test_recursive_proof_composition)
 
     EXPECT_EQ(inner_proof_result, barretenberg::fq12::one());
 
-    printf("composer gates = %zu\n", outer_composer.get_num_gates());
+    circuit_output.recursion_output.add_proof_outputs_as_public_inputs();
 
+    EXPECT_EQ(outer_composer.failed, false);
     std::cout << "creating prover" << std::endl;
     waffle::TurboProver prover = outer_composer.create_prover();
     std::cout << "created prover" << std::endl;

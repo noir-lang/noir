@@ -116,6 +116,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
+
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(&elements[0], &elements[0], num_elements);
@@ -125,6 +126,44 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     P[0] = barretenberg::scalar_multiplication::pippenger(&scalars[0], &elements[0], num_elements, state);
     P[1] = -(g1::element(PI_Z_OMEGA) * separator_challenge + PI_Z);
+
+    if (key->contains_recursive_proof) {
+        ASSERT(key->recursive_proof_public_input_indices.size() == 16);
+        const auto& inputs = transcript.get_field_element_vector("public_inputs");
+
+        const auto recover_fq_from_public_inputs =
+            [&inputs](const size_t idx0, const size_t idx1, const size_t idx2, const size_t idx3) {
+                const uint256_t l0 = inputs[idx0];
+                const uint256_t l1 = inputs[idx1];
+                const uint256_t l2 = inputs[idx2];
+                const uint256_t l3 = inputs[idx3];
+
+                const uint256_t limb = l0 + (l1 << 68) + (l2 << 136) + (l3 << 204);
+                return barretenberg::fq(limb);
+            };
+
+        const auto recursion_separator_challenge = transcript.get_challenge_field_element("separator").sqr();
+
+        const auto x0 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[0],
+                                                      key->recursive_proof_public_input_indices[1],
+                                                      key->recursive_proof_public_input_indices[2],
+                                                      key->recursive_proof_public_input_indices[3]);
+        const auto y0 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[4],
+                                                      key->recursive_proof_public_input_indices[5],
+                                                      key->recursive_proof_public_input_indices[6],
+                                                      key->recursive_proof_public_input_indices[7]);
+        const auto x1 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[8],
+                                                      key->recursive_proof_public_input_indices[9],
+                                                      key->recursive_proof_public_input_indices[10],
+                                                      key->recursive_proof_public_input_indices[11]);
+        const auto y1 = recover_fq_from_public_inputs(key->recursive_proof_public_input_indices[12],
+                                                      key->recursive_proof_public_input_indices[13],
+                                                      key->recursive_proof_public_input_indices[14],
+                                                      key->recursive_proof_public_input_indices[15]);
+        P[0] += g1::element(x0, y0, 1) * recursion_separator_challenge;
+        P[1] += g1::element(x1, y1, 1) * recursion_separator_challenge;
+    }
+
     g1::element::batch_normalize(P, 2);
 
     g1::affine_element P_affine[2]{
