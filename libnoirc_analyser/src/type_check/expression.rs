@@ -1,4 +1,4 @@
-use libnoirc_ast::{Expression, Statement, Type, PrivateStatement, BlockStatement, Ident, Literal, InfixExpression};
+use libnoirc_ast::{Expression, Type, Literal, InfixExpression};
 use super::TypeChecker;
 // We assume that the current symbol table contains the functions metadata
 // This is not always the root symbol table,if we do not look up the path from the root, if we introduce the closures
