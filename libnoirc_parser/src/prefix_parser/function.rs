@@ -47,6 +47,14 @@ impl FuncParser {
         };
         let parameters = FuncParser::parse_fn_parameters(parser);
 
+        // Parse the type after the parameters have been parsed
+        let mut return_type = Type::Void;
+        if parser.peek_token == Token::Arrow {
+            parser.advance_tokens(); // Advance past the `)`
+            parser.advance_tokens(); // Advance past the `->`
+            return_type = parser.parse_type()
+        }
+
         if !parser.peek_check_variant_advance(Token::LeftBrace) {
             panic!("Expected a Left Brace `{` after fn parameters")
         };
@@ -54,8 +62,9 @@ impl FuncParser {
         let body = parser.parse_block_statement();
 
         let func_lit = FunctionLiteral {
-            parameters: parameters,
-            body: body,
+            parameters,
+            body,
+            return_type,
         };
 
         // If a function name was supplied then this is a function definition
@@ -64,7 +73,7 @@ impl FuncParser {
             Some(f_name) => {
                 let func_dec = FunctionDefinition {
                     name: f_name.into(),
-                    func: func_lit,
+                    literal: func_lit,
                 };
                 (Some(func_dec), None)
             }
