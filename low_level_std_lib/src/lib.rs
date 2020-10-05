@@ -2,7 +2,7 @@
 pub(crate) mod macros;
 mod hash;
 
-use libnoirc_ast::{Ident, SymbolInformation, SymbolTable};
+use libnoirc_ast::{Ident, SymbolInformation, SymbolTable, NoirPath, Type};
 
 pub use hash::HashLibrary;
 
@@ -27,6 +27,10 @@ impl LowLevelStandardLibrary {
         };
 
         return None
+    }
+
+    pub fn return_types() -> Vec<(NoirPath, Ident, Type)> {
+        HashLibrary::return_types()
     }
 }
 
