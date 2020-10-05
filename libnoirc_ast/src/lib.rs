@@ -19,6 +19,7 @@ pub enum Type {
     Bool,
     Error, // XXX: Currently have not implemented structs, so this type is a stub
     Unspecified, // This is for when the user declares a variable without specifying it's type
+    Unknown, // This is mainly used for literals, where the parser cannot figure out the type for the literal
     Void,
 }
 
@@ -99,6 +100,7 @@ impl Type {
             // An error type on either side will always return an error
             (Type::Error, _) | (_,Type::Error) => return Type::Error,
             (Type::Unspecified, _) | (_,Type::Unspecified) => return Type::Unspecified,
+            (Type::Unknown, _) | (_,Type::Unknown) => return Type::Unknown,
             (Type::Void, _) | (_,Type::Void) => return Type::Void,
 
             (Type::FieldElement, _) | (_,Type::FieldElement) => return Type::FieldElement,
