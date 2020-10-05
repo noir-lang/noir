@@ -42,7 +42,7 @@ fn parse_generic_decl_statement(parser: &mut Parser) -> (Ident, Option<Type>, Ex
         parser.advance_tokens();
 
         // Parse the type
-        typ = Some(parse_decl_type(parser));
+        typ = Some(parser.parse_type());
     };
 
     // Expect an assign
@@ -66,7 +66,7 @@ pub(crate) fn parse_let_statement(parser: &mut Parser) -> Box<LetStatement> {
 
     let stmt = LetStatement {
         identifier: name,
-        r#type: typ.unwrap_or(Type::Error), //XXX: Haven't implemented this yet for general structs, we only parse arrays using this
+        r#type: typ.unwrap_or(Type::Unspecified), //XXX: Haven't implemented this yet for general structs, we only parse arrays using this
         expression: expr,
     };
     Box::new(stmt)
@@ -92,7 +92,7 @@ pub(crate) fn parse_private_statement(parser: &mut Parser) -> Box<PrivateStateme
 
     let stmt = PrivateStatement {
         identifier: name,
-        r#type: typ.unwrap_or(Type::Witness),
+        r#type: typ.unwrap_or(Type::Unspecified),
         expression: expr,
     };
     Box::new(stmt)
@@ -114,55 +114,4 @@ pub(crate) fn parse_public_statement(parser: &mut Parser) -> Box<PublicStatement
         expression: expr,
     };
     Box::new(stmt)
-}
-
-pub(crate) fn parse_decl_type(parser: &mut Parser) -> Type {
-    // Currently we only support the default types and integers.
-    // If we get into this function, then the user is specifying a type
-    match &parser.curr_token {
-        Token::Keyword(Keyword::Witness) => Type::Witness,
-        Token::Keyword(Keyword::Public) => Type::Public,
-        Token::IntType(int_type) => int_type.into(),
-        Token::LeftBracket => parse_array_type(parser),
-        k => unimplemented!("This type is currently not supported, {}", k),
-    }
-}
-
-fn parse_array_type(parser: &mut Parser) -> Type {
-    // Expression is of the form [3]Type
-
-    // Current token is '['
-    //
-    // Next token should be an Integer
-    if !parser.peek_check_int() {
-        panic!("Expected an Int")
-    };
-    let array_len = match parser.curr_token {
-        Token::Int(integer) => integer,
-        _ => panic!("User error: Expected an Integer for the array length"),
-    };
-
-    if array_len < 0 {
-        panic!("Cannot have a negative array size, [-k]Type is disallowed")
-    }
-    let array_len = array_len as u128;
-
-    if !parser.peek_check_variant_advance(Token::RightBracket) {
-        panic!(
-            "expected a right bracket after integer, got {}",
-            parser.peek_token
-        )
-    }
-
-    // Skip Right bracket
-    parser.advance_tokens();
-
-    // Disallow [4][3]Witness ie Matrices
-    if parser.peek_token == Token::LeftBracket {
-        panic!("Currently Multi-dimensional arrays are not supported")
-    }
-
-    let array_type = parse_decl_type(parser);
-
-    Type::Array(array_len, Box::new(array_type))
 }
