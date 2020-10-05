@@ -23,8 +23,6 @@ using namespace rollup::proofs::join_split;
 using namespace rollup::proofs::account;
 using namespace plonk::stdlib::merkle_tree;
 
-std::string CRS_PATH = "../srs_db";
-
 class rollup_tests : public ::testing::Test {
   protected:
     rollup_tests()
@@ -39,6 +37,7 @@ class rollup_tests : public ::testing::Test {
 
     static void SetUpTestCase()
     {
+        std::string CRS_PATH = "../srs_db";
         old = std::cerr.rdbuf();
         // std::cerr.rdbuf(swallow.rdbuf());
         account_cd = compute_account_circuit_data(CRS_PATH);
@@ -411,6 +410,8 @@ TEST_F(rollup_tests, test_1_proof_in_2_rollup)
     EXPECT_TRUE(verified);
 }
 
+/*
+Removed until figure out how not to leak info.
 TEST_F(rollup_tests, test_cannot_use_nullified_signing_key)
 {
     size_t rollup_size = 2;
@@ -427,6 +428,7 @@ TEST_F(rollup_tests, test_cannot_use_nullified_signing_key)
 
     EXPECT_FALSE(verified);
 }
+*/
 
 TEST_F(rollup_tests, test_2_proofs_in_2_rollup)
 {
@@ -501,134 +503,4 @@ TEST_F(rollup_tests, test_nullifier_hash_path_consistency)
     auto verified = verify_rollup_logic(rollup, rollup_2_keyless);
 
     EXPECT_FALSE(verified);
-}
-
-// Full proofs.
-HEAVY_TEST_F(rollup_tests, test_1_proof_in_1_rollup_full_proof)
-{
-    size_t rollup_size = 1;
-
-    append_account_notes();
-    append_notes({ 100, 50 });
-    update_root_tree_with_data_root(1);
-
-    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 50 }, 30, 60);
-    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
-
-    auto rollup_circuit_data =
-        compute_rollup_circuit_data(rollup_size, join_split_cd, account_cd, true, "../srs_db/ignition");
-    auto result = verify_rollup(rollup, rollup_circuit_data);
-
-    ASSERT_TRUE(result.verified);
-
-    auto rollup_data = rollup_proof_data(result.proof_data);
-    EXPECT_EQ(rollup_data.rollup_id, 1UL);
-    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
-    EXPECT_EQ(rollup_data.data_start_index, 4UL);
-    EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
-    EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
-    EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
-    EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
-    EXPECT_EQ(rollup_data.old_data_roots_root, rollup.old_data_roots_root);
-    EXPECT_EQ(rollup_data.new_data_roots_root, rollup.new_data_roots_root);
-    EXPECT_EQ(rollup_data.num_txs, 1U);
-    EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
-
-    auto tx_data = inner_proof_data(join_split_proof);
-    auto inner_data = rollup_data.inner_proofs[0];
-    EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-    EXPECT_EQ(inner_data.public_output, tx_data.public_output);
-    EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
-    EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
-    EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
-    EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-    EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-    EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
-}
-
-HEAVY_TEST_F(rollup_tests, test_1_proof_in_2_rollup_full_proof)
-{
-    size_t rollup_size = 2;
-
-    append_account_notes();
-    append_notes({ 100, 50 });
-    update_root_tree_with_data_root(1);
-    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
-    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
-
-    auto rollup_circuit_data =
-        compute_rollup_circuit_data(rollup_size, join_split_cd, account_cd, true, "../srs_db/ignition");
-    auto result = verify_rollup(rollup, rollup_circuit_data);
-
-    ASSERT_TRUE(result.verified);
-
-    auto rollup_data = rollup_proof_data(result.proof_data);
-    EXPECT_EQ(rollup_data.rollup_id, 1UL);
-    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
-    EXPECT_EQ(rollup_data.data_start_index, 4UL);
-    EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
-    EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
-    EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
-    EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
-    EXPECT_EQ(rollup_data.old_data_roots_root, rollup.old_data_roots_root);
-    EXPECT_EQ(rollup_data.new_data_roots_root, rollup.new_data_roots_root);
-    EXPECT_EQ(rollup_data.num_txs, 1U);
-    EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
-
-    auto tx_data = inner_proof_data(join_split_proof);
-    auto inner_data = rollup_data.inner_proofs[0];
-    EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-    EXPECT_EQ(inner_data.public_output, tx_data.public_output);
-    EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
-    EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
-    EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
-    EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-    EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-    EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
-}
-
-HEAVY_TEST_F(rollup_tests, test_2_proofs_in_2_rollup_full_proof)
-{
-    size_t rollup_size = 2;
-
-    append_account_notes();
-    append_notes({ 0, 0, 100, 50, 80, 60 });
-    update_root_tree_with_data_root(1);
-    auto join_split_proof1 = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 50 }, 30, 60);
-    auto join_split_proof2 = create_join_split_proof({ 6, 7 }, { 80, 60 }, { 70, 70 });
-    auto txs = std::vector{ join_split_proof1, join_split_proof2 };
-
-    auto rollup = create_rollup(1, txs, data_tree, null_tree, root_tree, rollup_size, padding_proof);
-
-    auto rollup_circuit_data =
-        compute_rollup_circuit_data(rollup_size, join_split_cd, account_cd, true, "../srs_db/ignition");
-    auto result = verify_rollup(rollup, rollup_circuit_data);
-
-    ASSERT_TRUE(result.verified);
-
-    auto rollup_data = rollup_proof_data(result.proof_data);
-    EXPECT_EQ(rollup_data.rollup_id, 1UL);
-    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
-    EXPECT_EQ(rollup_data.data_start_index, 8UL);
-    EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
-    EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
-    EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
-    EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
-    EXPECT_EQ(rollup_data.old_data_roots_root, rollup.old_data_roots_root);
-    EXPECT_EQ(rollup_data.new_data_roots_root, rollup.new_data_roots_root);
-    EXPECT_EQ(rollup_data.num_txs, txs.size());
-    EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
-
-    for (size_t i = 0; i < txs.size(); ++i) {
-        auto tx_data = inner_proof_data(txs[i]);
-        auto inner_data = rollup_data.inner_proofs[i];
-        EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-        EXPECT_EQ(inner_data.public_output, tx_data.public_output);
-        EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
-        EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
-        EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
-        EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-        EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-        EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
-    }
 }

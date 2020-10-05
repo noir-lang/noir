@@ -39,7 +39,9 @@ field_ct process_account_note(Composer& composer,
     // No input notes means we're not spending anything, in which case must_exist will be false.
     composer.assert_equal_constant(good.witness_index, 1, "account note not a member");
 
-    return hashed;
+    // Account not nullifier leaks info. Returning 0 for now.
+    // return hashed;
+    return field_ct(witness_ct(&composer, 0));
 }
 
 field_ct compute_alias_nullifier(Composer& composer, field_ct const& alias, bool register_alias_)
