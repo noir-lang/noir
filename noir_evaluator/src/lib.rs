@@ -1,7 +1,6 @@
 pub mod binary_op;
 pub mod circuit;
 pub mod environment;
-mod infix_evaluator;
 pub mod low_level_std_lib_impl;
 pub mod optimise;
 pub mod polynomial;
@@ -492,16 +491,16 @@ impl Evaluator {
                 let func_name = call_expr.func_name.clone();
                 let func_def = self.symbol_table.look_up_func(path.clone(), &func_name);
             
-                dbg!(func_def.clone());
-                
-                  
-                // XXX: Func def is either a low level func or an imported library function
+                let noir_func = match func_def {
+                    Some(noir_func) => noir_func,
+                    None => panic!("Tried to call {}, but function not found", &func_name.0)
+                };               
+                // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
                 // If not then we just call the library as usual with the function definition
-                match func_def {
-                    (Some(compiled_func), _) => self.call_function(env, &call_expr, compiled_func.clone()),
-                    ( _, Some(SymbolInformation::LowLevelFunction)) => low_level_std_lib_impl::call_low_level(self, env, &func_name, *call_expr),
-                    (None, _) => panic!("Could not find a function with the specified func name {:?}", &func_name),    
+                match noir_func {
+                    NoirFunction::Function(compiled_func) => self.call_function(env, &call_expr, compiled_func.clone()),
+                    NoirFunction::LowLevelFunction => low_level_std_lib_impl::call_low_level(self, env, &func_name, *call_expr),
                 }
                     
             }
