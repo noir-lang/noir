@@ -32,7 +32,13 @@ fn bound_check(
 
             let x = &Linear::from_witness(y.witness) - &offset;
 
-            let k = handle_sub_op(Polynomial::Linear(x), lower_bound, env, evaluator);
+            // Convert lower bound to arithmetic struct
+            // This is done because, if the lower bound is a integer, 
+            // the compiler will complain as we cannot subtract an integer from a linear polynomial
+            let lower_bound_as_arith = lower_bound.into_arithmetic();
+
+            let k = handle_sub_op(Polynomial::Linear(x), Polynomial::Arithmetic(lower_bound_as_arith), env, evaluator);
+
             Integer::from_polynomial(k, max_bound_bits, env, evaluator)
         }
         (lower_bound, Polynomial::Constants(y)) => {
@@ -47,7 +53,7 @@ fn bound_check(
             Integer::from_polynomial(k, max_bound_bits, env, evaluator)
         }
         (_, _) => {
-            panic!("You can only apply the < op, if the upper bound is an integer or an Constant")
+            panic!("You can only apply the < op, if the upper bound is an Integer or an Constant")
         }
     };
     integer.constrain(evaluator);
