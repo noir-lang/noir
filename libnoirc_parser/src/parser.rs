@@ -242,6 +242,58 @@ impl<'a> Parser<'a> {
 
         arguments
     }
+
+    // Parse Types
+    pub(crate) fn parse_type(&mut self) -> Type {
+        // Currently we only support the default types and integers.
+        // If we get into this function, then the user is specifying a type
+        match &self.curr_token {
+            Token::Keyword(Keyword::Witness) => Type::Witness,
+            Token::Keyword(Keyword::Public) => Type::Public,
+            Token::IntType(int_type) => int_type.into(),
+            Token::LeftBracket => self.parse_array_type(),
+            k => unimplemented!("This type is currently not supported, `{}`", k),
+        }
+    }
+    
+    fn parse_array_type(&mut self) -> Type {
+        // Expression is of the form [3]Type
+    
+        // Current token is '['
+        //
+        // Next token should be an Integer
+        if !self.peek_check_int() {
+            panic!("Expected an Int")
+        };
+        let array_len = match self.curr_token {
+            Token::Int(integer) => integer,
+            _ => panic!("User error: Expected an Integer for the array length"),
+        };
+    
+        if array_len < 0 {
+            panic!("Cannot have a negative array size, [-k]Type is disallowed")
+        }
+        let array_len = array_len as u128;
+    
+        if !self.peek_check_variant_advance(Token::RightBracket) {
+            panic!(
+                "expected a right bracket after integer, got {}",
+                self.peek_token
+            )
+        }
+    
+        // Skip Right bracket
+        self.advance_tokens();
+    
+        // Disallow [4][3]Witness ie Matrices
+        if self.peek_token == Token::LeftBracket {
+            panic!("Currently Multi-dimensional arrays are not supported")
+        }
+    
+        let array_type = self.parse_type();
+    
+        Type::Array(array_len, Box::new(array_type))
+    }
 }
 
 #[cfg(test)]
@@ -567,6 +619,7 @@ mod test {
             body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
                 Expression::Infix(Box::new(infix_expression)),
             )))]),
+            return_type : Type::Void,
         };
         assert_eq!(func_lit, expected);
     }
@@ -583,7 +636,7 @@ mod test {
 
         let priv_stmt_expected = PrivateStatement {
             identifier: Ident("x".into()),
-            r#type: Type::Integer(Signedness::Signed, 102),
+            r#type: Type::Integer(Signedness::Signed, 102).into(),
             expression: Expression::Ident("a".into()),
         };
         match stmt {
@@ -612,16 +665,17 @@ mod test {
             rhs: Expression::Ident("y".to_string()),
         };
 
-        let func = FunctionLiteral {
+        let literal = FunctionLiteral {
             parameters: parameters,
             body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
                 Expression::Infix(Box::new(infix_expression)),
             )))]),
+            return_type : Type::Void,
         };
 
         let expected = vec![FunctionDefinition {
             name: Ident("add".into()),
-            func,
+            literal,
         }];
 
         for (expected_def, got_def) in expected.into_iter().zip(program.functions.into_iter()) {
