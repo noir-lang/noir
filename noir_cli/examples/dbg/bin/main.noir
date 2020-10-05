@@ -1,16 +1,10 @@
-   // Test taken from barretenberg which I think is taken from 
-   // Nist? cargo run prove sha256_bd 0xbd 0x68325720aabd7c82f30f554b313d0570 0xc95accbb7dc4b5aae11204c08ffe732b
-   fn main(x : Witness,low : Witness, high: Witness) {
+ 
+   fn main(x : Witness,low : Witness,high : Witness) {
+      priv j : u16 = (low as u16) + (high as u16);
+      
+      constrain j < (x as u16)
+   }
 
-       let digest = [low, high];
-       digest[0];
-        add(low, high);
-    }
-
-    fn add2(x : Witness, y : Witness) {
-        x + y
-    }
-    fn add(x : Witness, y : Witness) {
-        x + y
-    }
-    
+   fn add(x : Witness, y : Witness) -> Witness {
+      x + y
+   }

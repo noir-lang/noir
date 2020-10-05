@@ -6,9 +6,4 @@
 
         constrain digest[0] == low;
         constrain digest[1] == high;
-    }
-
-    fn add(x : Witness, y : Witness) {
-        x + y
-    }
-    
+   }
