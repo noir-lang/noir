@@ -24,6 +24,17 @@ pub enum Polynomial {
 }
 
 impl Polynomial {
+    // Converts a polynomial into an arithmetic object
+    pub fn into_arithmetic(&self) -> Arithmetic {
+        match self {
+            Polynomial::Null => panic!("Cannot convert null into a polynomial"),
+            Polynomial::Integer(integer) => Linear::from_witness(integer.witness.clone()).into(),
+            Polynomial::Array(_) => panic!("Cannot convert an array into an arithmetic object"),
+            Polynomial::Arithmetic(arith) => arith.clone(),
+            Polynomial::Constants(constant) => constant.into(),
+            Polynomial::Linear(linear) => linear.into()
+        }
+    }
     pub fn is_gate(&self) -> bool {
         match self {
             Polynomial::Arithmetic(_) => true,
