@@ -131,9 +131,6 @@ impl Resolver {
                 Statement::If(_) => {
                     panic!("[Possible Deprecation] : If statements are not implemented yet, however they might be deprecated for if expressions");
                 },
-                Statement::Import(_) => {
-                    panic!("Unexpected import statement detected. Import statements are only allowed in the global scope")
-                },
                 Statement::Let(let_stmt) => {
                     self.resolve_let_stmt(let_stmt);
                 },

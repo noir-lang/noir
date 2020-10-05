@@ -113,10 +113,6 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Type {
                 last_return_type = Type::Void;
                 panic!("[Possible Deprecation] : If statements are not implemented yet, however they might be deprecated for if expressions");
             },
-            Statement::Import(_) => {
-                last_return_type = Type::Void;
-                panic!("Unexpected import statement detected. Import statements are only allowed in the global scope")
-            },
             Statement::Let(let_stmt) => {
                 self.type_check_let_stmt(let_stmt);
                 last_return_type = Type::Void;
