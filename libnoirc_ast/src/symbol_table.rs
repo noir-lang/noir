@@ -1,33 +1,27 @@
-// XXX: Lets reformat our modules, so that we have a front-end workspace and the symbol table will simply be in a  module and npot under ast workspace
-/*
 
-front-end - workspace
- - lexer (mod)
- - parser (mod)
- - ast (mod)
- - symbol_table (mod)
- - analyser (mod)
-*/
-use crate::{FunctionLiteral as Function, Ident, Type, NoirPath};
+use crate::{FunctionLiteral as Function, FunctionDefinition, Ident, Type, NoirPath};
 use std::collections::HashMap;
-// XXX: This will eventually replace the env.get() procedures in the evaluator
-#[derive(Copy, Clone, Debug)]
-pub struct Scope(usize);
 
-impl Scope {
-    pub fn global() -> Scope {
-        Scope(0)
-    }
-    pub fn function() -> Scope {
-        Scope(1)
+// A NoirFunction can be either a function literal (closure), a foreign low level function or a function definition 
+// A closure / function definition will be stored under a name, so we do not differentiate between their variants
+// The name for function literal will be the variable it is binded to, and the name for a function definition will 
+// be the function name itself.
+#[derive(Clone, Debug)]
+pub enum NoirFunction {
+    LowLevelFunction,
+    Function(Function)
+}
+
+impl Into<NoirFunction> for Function {
+    fn into(self) -> NoirFunction {
+        NoirFunction::Function(self)
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum SymbolInformation {
-    Variable(Type, Scope),
-    Function(Function),
-    LowLevelFunction,
+    Variable(Type), // Depth of symbol table, represents it's scope 
+    Function(NoirFunction),
     Alias(String, Vec<String>), // Example: use std::hash::sha256 as hash_function => Alias("hash_func", ["std", "hash", "sha256"])
     Table(SymbolTable),
 }
@@ -38,14 +32,68 @@ pub struct SymbolTable(HashMap<Ident, SymbolInformation>);
 
 impl SymbolTable {
     pub fn new() -> SymbolTable {
+
+        // XXX: Load low level std lib on every symbol table, once this is no longer in ast module
+
         SymbolTable(HashMap::new())
     }
     pub fn insert(&mut self, symbol: Ident, si: SymbolInformation) {
         self.0.insert(symbol, si);
     }
+    pub fn insert_func_def(&mut self, func_def: &FunctionDefinition) {
+        let (func_name, func) = parse_function_declaration(func_def);
+        let function_already_declared =  self.look_up(&func_name).is_some(); 
+        if function_already_declared {
+            panic!("Another symbol has been defined with the name {}", &func_name.0)
+        }
+        self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
+    }
+    pub fn update_func_def(&mut self, func_def: &FunctionDefinition) {
+        let (func_name, func) = parse_function_declaration(func_def);
+        let function_already_declared =  self.look_up(&func_name).is_some(); 
+        if !function_already_declared {
+            panic!("Cannot update func with name {} because it does not exist", &func_name.0)
+        }
+        self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
+    }
+    pub fn insert_foreign_func(&mut self, func_name: Ident) {
+        self.insert(Ident(func_name.0.clone()), SymbolInformation::Function(NoirFunction::LowLevelFunction));
+    }
     pub fn look_up(&self, symbol: &Ident) -> Option<&SymbolInformation> {
         self.0.get(symbol)
     }
+    pub fn look_up_array_type(&self, arr_name: &Ident) -> (u128, Type) {
+        let symbol = self.look_up(arr_name);
+
+        let valid_symbol = match symbol {
+            Some(valid_symbol) => valid_symbol,
+            None => panic!("Expected an array with the name {:?}", &arr_name.0)
+        };
+
+        let typ = match valid_symbol {
+            SymbolInformation::Variable(typ) => typ,
+            _=> panic!("Expected an array!")
+        };
+
+        match typ {
+            Type::Array(num_elements, typ) => (*num_elements, *typ.clone()),
+            _=> panic!("Expected an array with name {:?} ", &arr_name.0)
+        }
+    }
+    pub fn look_up_identifier_type(&self, identifier: &Ident) -> Type {
+        let symbol = self.look_up(identifier);
+        let valid_symbol = match symbol {
+            Some(valid_symbol) => valid_symbol,
+            None => {
+                panic!("Cannot find a symbol named {:?}", &identifier)
+            }
+        };
+        match valid_symbol {
+            SymbolInformation::Variable(typ) => typ.clone(),
+            _=> panic!("Cannot find variable declaration for following variable {:?} in this scope", &identifier)
+        }
+    }
+
     // XXX: Find a better way to do this path decent
     pub fn look_up_path(&self, mut path: NoirPath) -> Option<SymbolInformation> {
         // Traverse the path to find the symbol that we need
@@ -76,6 +124,7 @@ impl SymbolTable {
     }
 
     // This assumes the main function is in the currrent path 
+    // XXX: Get the function name from a constant and do not pass it in
     pub fn look_up_main_func(&self, func_name: &Ident) -> Option<Function> {
 
         let symbol = self.look_up(func_name);
@@ -84,14 +133,20 @@ impl SymbolTable {
             None => return None
         };
 
-        match symbol {
-            SymbolInformation::Function(func) => Some(func.clone()),
-            _=> None,
+        let noir_func : &NoirFunction = match symbol {
+            SymbolInformation::Function(noir_func) => noir_func,
+            _=> return None,
+        };
+
+        match noir_func {
+            NoirFunction::Function(main) => Some(main.clone()),
+            LowLevelFunction => return None
         }
+
     }
     // XXX: Unfortunately, this is hiding the fact that the RHS which is a symbol information, can only be a LowLevelFunction
     // XXX: Possible create a enum for function, so that function can either be LowLevel or Compiled 
-    pub fn look_up_func(&self, noir_path : NoirPath, func_name: &Ident) -> (Option<Function>, Option<SymbolInformation>) {
+    pub fn look_up_func(&self, noir_path : NoirPath, func_name: &Ident) -> Option<NoirFunction> {
 
         let noir_path_string = noir_path.to_string();
 
@@ -107,30 +162,36 @@ impl SymbolTable {
             _=> panic!("expected a symbol table for the specified path")
         };
 
-        let func_to_call = tbl.look_up(func_name);
+        let symbol_found = tbl.look_up(func_name);
 
-        let valid_func = match func_to_call {
-            Some(valid_func) => valid_func.clone(),
-            None => panic!("Cannot find a function called {} under the path {}", &func_name.0, noir_path_string)
+        let valid_symbol = match symbol_found {
+            Some(valid_symbol) => valid_symbol,
+            None => panic!("Cannot find an object called {} under the path {}", &func_name.0, noir_path_string)
         };
 
-        match valid_func {
-            SymbolInformation::Function(func) => (Some(func), None),
-            SymbolInformation::LowLevelFunction => (None, Some(SymbolInformation::LowLevelFunction)),
-            _=> (None,None)
+        match valid_symbol {
+            SymbolInformation::Function(noir_func) => Some(noir_func.clone()),
+            _=> panic!("Cannot find a function called {} under the path {}", &func_name.0, noir_path_string)
         }
+     
     }
 
+    // XXX: Here we could possibly make this cheaper, by storing a function symbol in the Variable enum
+    // It is a symbol for functions, so we can quickly check for their types and if they are valid
+    // In variable append "fn_" + func_name -> Key = fn_{func_name} Value = Variable(ReturnType)
     pub fn valid_func(&self, noir_path : NoirPath, func_name: &Ident) -> bool {
-        let (func_literal, low_level_func)  = self.look_up_func(noir_path, func_name);
-
-        if func_literal.is_some() || low_level_func.is_some() {
-            return true
-        }
-
-        return false
-
+        self.look_up_func(noir_path, func_name).is_some()
     }
+}
+
+/// Convert a function declarations into a function object
+fn parse_function_declaration(func_dec: &FunctionDefinition) -> (Ident, Function) {
+    let func_name = func_dec.name.clone();
+    let body = func_dec.literal.body.clone();
+    let return_type = func_dec.literal.return_type.clone();
+    let parameters = func_dec.literal.parameters.clone();
+
+    (func_name, Function { body, parameters, return_type })
 }
 
 // Note: We are implementing the symbol table so that later on, we can do imports properly
@@ -140,7 +201,7 @@ impl SymbolTable {
 #[test]
 fn test_k() {
     let mut std_hash_st = SymbolTable::new();
-    std_hash_st.insert(Ident("sha256".into()), SymbolInformation::LowLevelFunction);
+    std_hash_st.insert(Ident("sha256".into()), SymbolInformation::Function(NoirFunction::LowLevelFunction));
 
     let mut std_st = SymbolTable::new();
     std_st.insert(Ident("hash".into()), SymbolInformation::Table(std_hash_st));
