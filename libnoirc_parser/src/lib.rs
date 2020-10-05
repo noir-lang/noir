@@ -48,7 +48,7 @@ impl Program {
         match &self.main {
             Some(main_func) => {
                 let abi = main_func
-                    .func
+                    .literal
                     .parameters
                     .iter()
                     .map(|(ident, _)| ident.0.clone())
@@ -83,7 +83,6 @@ impl Precedence {
     // XXX: Check the precedence is correct for operators
     fn token_precedence(tok: &Token) -> Precedence {
         match tok {
-            Token::Keyword(Keyword::As) => Precedence::Equals,
             Token::Equal => Precedence::Equals,
             Token::NotEqual => Precedence::Equals,
             Token::Less => Precedence::LessGreater,
@@ -97,6 +96,7 @@ impl Precedence {
             Token::Minus => Precedence::Sum,
             Token::Slash => Precedence::Product,
             Token::Star => Precedence::Product,
+            Token::Keyword(Keyword::As) => Precedence::Prefix,
             Token::LeftParen => Precedence::Call,
             Token::LeftBracket => Precedence::Index,
             Token::DoubleColon => Precedence::Index,
