@@ -218,6 +218,17 @@ impl Sub<&Arithmetic> for &Arithmetic {
     }
 }
 
+impl From<&FieldElement> for Arithmetic {
+    fn from(constant : &FieldElement) -> Arithmetic {
+        Arithmetic {
+            q_C: constant.clone(),
+            fan_in: Vec::new(),
+            fan_out: Vec::new(),
+            simplified_fan: Vec::new(),
+            mul_terms: Vec::new(),
+        }
+    }
+}
 impl From<&Linear> for Arithmetic {
     fn from(lin: &Linear) -> Arithmetic {
         Arithmetic {

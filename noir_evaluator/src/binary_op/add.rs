@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Environment, Evaluator, FieldElement, Integer, Linear, Polynomial};
+use crate::{Arithmetic, Environment, Evaluator, FieldElement,  Linear, Polynomial};
 
 pub fn handle_add_op(
     left: Polynomial,
