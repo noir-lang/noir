@@ -88,8 +88,7 @@ fn build_main() -> CompiledMain {
 
     let mut parser = Parser::new(Lexer::new(&file_as_string));
     let program = parser.parse_program();
-    let symbol_table = libnoirc_analyser::build_symbol_table(&program);
-    let checked_program = libnoirc_analyser::check(program);
+    let (checked_program, symbol_table) = libnoirc_analyser::check(program);
 
     let abi = checked_program.abi().unwrap();
 
@@ -257,6 +256,8 @@ fn prove(args: ArgMatches) {
     proof_path.push("proofs");
     proof_path.push(proof_name);
     proof_path.set_extension("noir");
+
+    dbg!(hex::encode(proof.clone()));
 
     let path = write_to_file(&proof, &proof_path);
     println!("Proof successfully created and located at {}", path)
