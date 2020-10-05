@@ -81,8 +81,8 @@ fn name() {
 
     let mut parser = Parser::new(Lexer::new(&input));
     let program = parser.parse_program();
-    let symbol_table = libnoirc_analyser::build_symbol_table(&program);
-    let evaluator = Evaluator::new(program, symbol_table);
+    let (checked_program, symbol_table) = libnoirc_analyser::check(program);
+    let evaluator = Evaluator::new(checked_program, symbol_table);
 
     let circuit = evaluator.evaluate(&mut Environment::new());
 }
@@ -110,8 +110,7 @@ fn test_simple_circuit() {
 
     let mut parser = Parser::new(Lexer::new(&input));
     let program = parser.parse_program();
-    let symbol_table = libnoirc_analyser::build_symbol_table(&program);
-    let checked_program = libnoirc_analyser::check(program);
+    let (checked_program, symbol_table) = libnoirc_analyser::check(program);
     let evaluator = Evaluator::new(checked_program, symbol_table);
 
     let (circuit, _, num_pub_inputs) = evaluator.evaluate(&mut Environment::new());
