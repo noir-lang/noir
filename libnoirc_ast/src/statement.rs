@@ -12,8 +12,6 @@ impl From<String> for Ident {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     If(Box<IfStatement>),
-    While(Box<WhileStatement>),
-    Import(Box<ImportStatement>),
     Let(Box<LetStatement>),
     Const(Box<ConstStatement>),
     Constrain(Box<ConstrainStatement>),
@@ -21,7 +19,6 @@ pub enum Statement {
     Private(Box<PrivateStatement>),
     Block(Box<BlockStatement>),
     Expression(Box<ExpressionStatement>),
-    Error,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -29,12 +26,6 @@ pub struct IfStatement {
     condition: Expression,
     consequence: Statement,
     alternative: Option<Statement>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct WhileStatement {
-    condition: Expression,
-    block: Statement,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -80,7 +71,7 @@ pub struct PublicStatement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PrivateStatement {
     pub identifier: Ident,
-    pub r#type: Type, // This will always be a Witness
+    pub r#type: Type, 
     pub expression: Expression,
 }
 
