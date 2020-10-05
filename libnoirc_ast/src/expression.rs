@@ -69,6 +69,23 @@ pub enum BinaryOp {
     Assign,
 }
 
+impl BinaryOp {
+    /// Comparator operators return a 0 or 1
+    /// When seen in the middle of an infix operator,
+    /// they transform the infix expression into a predicate expression
+    pub fn is_comparator(&self) -> bool {
+        match self {
+            BinaryOp::Equal |
+            BinaryOp::NotEqual |
+            BinaryOp::LessEqual |
+            BinaryOp::Less |
+            BinaryOp::Greater |
+            BinaryOp::GreaterEqual => true, 
+            _=> false
+        }
+    }
+}
+
 impl From<Token> for BinaryOp {
     fn from(token: Token) -> BinaryOp {
         match token {
@@ -108,7 +125,7 @@ pub enum Literal {
     Integer(i128),
     Str(String),
     Func(FunctionLiteral),
-    Type(Type),
+    Type(Type), // XXX: Possibly replace this with a Type Expression
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -143,7 +160,7 @@ pub struct CastExpression {
 // fn add(x, y) {x+y}
 pub struct FunctionDefinition {
     pub name: Ident,
-    pub func: FunctionLiteral,
+    pub literal: FunctionLiteral,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 // Function definition literal
@@ -152,6 +169,7 @@ pub struct FunctionDefinition {
 pub struct FunctionLiteral {
     pub parameters: Vec<(Ident, Type)>,
     pub body: BlockStatement,
+    pub return_type : Type,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -172,7 +190,7 @@ pub struct IndexExpression {
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum NoirPath {
     Current,
     External(Vec<Ident>) // These are used for functions, and maybe constants in the future. Example: std::hash -> vec!["std", "hash"]
