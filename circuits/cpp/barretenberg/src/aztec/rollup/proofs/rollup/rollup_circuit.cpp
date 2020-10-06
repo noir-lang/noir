@@ -228,7 +228,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                    old_null_root,
                                                    new_null_indicies);
 
-    check_accounts_not_nullified(composer, num_txs, old_null_root, account_null_indicies, rollup.account_null_paths);
+    // Account note nullifier leaks info. Disabling key revokation checks for now.
+    // check_accounts_not_nullified(composer, num_txs, old_null_root, account_null_indicies, rollup.account_null_paths);
 
     // Publish public inputs.
     composer.set_public_input(rollup_id.witness_index);

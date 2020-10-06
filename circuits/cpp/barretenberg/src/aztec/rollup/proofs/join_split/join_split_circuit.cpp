@@ -70,15 +70,23 @@ field_ct process_account_note(Composer& composer,
     // No input notes means we're not spending anything, in which case must_exist will be false.
     composer.assert_equal_constant(good.witness_index, 1, "account note not a member");
 
-    return hashed;
+    // Account not nullifier leaks info. Returning 0 for now.
+    // return hashed;
+    return field_ct(witness_ct(&composer, 0));
 }
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
     // Verify all notes have a consistent asset id
-    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index, inputs.input_note2.first.asset_id.witness_index, "input note asset ids don't match");
-    composer.assert_equal(inputs.output_note1.first.asset_id.witness_index, inputs.output_note2.first.asset_id.witness_index, "output note asset ids don't match");
-    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index, inputs.output_note1.first.asset_id.witness_index, "input/output note asset ids don't match");
+    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index,
+                          inputs.input_note2.first.asset_id.witness_index,
+                          "input note asset ids don't match");
+    composer.assert_equal(inputs.output_note1.first.asset_id.witness_index,
+                          inputs.output_note2.first.asset_id.witness_index,
+                          "output note asset ids don't match");
+    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index,
+                          inputs.output_note1.first.asset_id.witness_index,
+                          "input/output note asset ids don't match");
 
     // Check we're not joining the same input note.
     bool_ct indicies_equal = inputs.input_note1_index == inputs.input_note2_index;
@@ -93,9 +101,12 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     bool_ct total_in_value_is_zero = total_in_value.is_zero();
     bool_ct total_out_value_is_zero = total_out_value.is_zero();
     bool_ct contains_public_value = total_in_value_is_zero || total_out_value_is_zero;
-    field_ct conditional_note_asset_id = (inputs.input_note1.first.asset_id * field_ct(contains_public_value)).normalize();
+    field_ct conditional_note_asset_id =
+        (inputs.input_note1.first.asset_id * field_ct(contains_public_value)).normalize();
     field_ct conditional_public_asset_id = (inputs.asset_id * field_ct(contains_public_value)).normalize();
-    composer.assert_equal(conditional_note_asset_id.witness_index, conditional_public_asset_id.witness_index, "note asset ids not equal to tx asset id");
+    composer.assert_equal(conditional_note_asset_id.witness_index,
+                          conditional_public_asset_id.witness_index,
+                          "note asset ids not equal to tx asset id");
 
     // Verify input notes have the same owner.
     auto note1_owner = inputs.input_note1.first.owner;

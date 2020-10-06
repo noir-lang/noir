@@ -12,8 +12,8 @@ namespace rollup {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-bool pairing_check(recursion_output<bn254> recursion_output,
-                   std::shared_ptr<waffle::verification_key> const& inner_verification_key)
+inline bool pairing_check(recursion_output<bn254> recursion_output,
+                          std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
     g1::affine_element P[2];
     P[0].x = barretenberg::fq(recursion_output.P0.x.get_value().lo);
@@ -25,7 +25,7 @@ bool pairing_check(recursion_output<bn254> recursion_output,
     return inner_proof_result == barretenberg::fq12::one();
 }
 
-bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
+inline bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
 {
 #ifndef __wasm__
     try {
@@ -57,7 +57,7 @@ struct verify_rollup_result {
     std::vector<uint8_t> proof_data;
 };
 
-verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
+inline verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
 {
 #ifndef __wasm__
     try {

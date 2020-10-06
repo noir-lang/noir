@@ -157,7 +157,7 @@ HEAVY_TEST_F(account_tests, test_correct_alias_nullifier)
     EXPECT_EQ(data.nullifier1, compute_alias_nullifier(tx.alias, true));
 }
 
-HEAVY_TEST_F(account_tests, test_correct_account_nullifier)
+HEAVY_TEST_F(account_tests, test_correct_revoke_nullifier)
 {
     auto tx = create_account_tx();
     auto prover = new_account_prover(tx);
@@ -165,3 +165,15 @@ HEAVY_TEST_F(account_tests, test_correct_account_nullifier)
     auto data = inner_proof_data(proof.proof_data);
     EXPECT_EQ(data.nullifier2, compute_account_nullifier(user.owner.public_key, user.owner.public_key));
 }
+
+/*
+Removed until figure out how to revoke without leaking.
+HEAVY_TEST_F(account_tests, test_correct_account_nullifier)
+{
+    auto tx = create_account_tx();
+    auto prover = new_account_prover(tx);
+    auto proof = prover.construct_proof();
+    auto data = inner_proof_data(proof.proof_data);
+    EXPECT_EQ(data.account_nullifier, compute_account_nullifier(user.owner.public_key, user.owner.public_key));
+}
+*/
