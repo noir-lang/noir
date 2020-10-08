@@ -85,7 +85,7 @@ pub fn serialise_circuit(
         pub_var_num: num_pub_inputs as u32,
         logic_constraints: logic_constraints,
         range_constraints: range_constraints,
-        sha256_constraints: vec![],
+        sha256_constraints: sha256_constraints,
         constraints: constraints,
     };
 
