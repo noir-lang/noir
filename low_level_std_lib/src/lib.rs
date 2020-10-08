@@ -2,7 +2,8 @@
 pub(crate) mod macros;
 mod hash;
 
-use libnoirc_ast::{Ident, SymbolInformation, SymbolTable, NoirPath, Type};
+use noirc_frontend::ast::{Ident, NoirPath, Type};
+use noirc_frontend::symbol_table::{SymbolInformation, SymbolTable};
 
 pub use hash::HashLibrary;
 

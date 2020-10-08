@@ -54,10 +54,11 @@ fn main() {
     }
 }
 
-use barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
+use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
+
 use clap::ArgMatches;
-use libnoirc_lexer::lexer::Lexer;
-use libnoirc_parser::Parser;
+use noirc_frontend::lexer::Lexer;
+use noirc_frontend::Parser;
 use noir_evaluator::circuit::Witness;
 use noir_evaluator::{Circuit, Environment, Evaluator};
 use noir_field::FieldElement;
@@ -88,7 +89,7 @@ fn build_main() -> CompiledMain {
 
     let mut parser = Parser::new(Lexer::new(&file_as_string));
     let program = parser.parse_program();
-    let (checked_program, symbol_table) = libnoirc_analyser::check(program);
+    let (checked_program, symbol_table) = noirc_analyser::check(program);
 
     let abi = checked_program.abi().unwrap();
 
@@ -97,7 +98,7 @@ fn build_main() -> CompiledMain {
     let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate(&mut Environment::new());
 
     let constraint_system =
-        noir_serialiser::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
+        aztec_backend::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
 
     hash_constraint_system(&constraint_system);
 
@@ -295,5 +296,4 @@ fn hash_constraint_system(cs: &ConstraintSystem) {
     hasher.update(cs.to_bytes());
     let result = hasher.finalize();
     println!("hash of constraint system : {:x?}", &result[..]);
-    // println!("circuit size : {:?}", cs.size());
 }

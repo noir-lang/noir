@@ -1,5 +1,6 @@
 use super::macros::*;
-use libnoirc_ast::{Ident, SymbolInformation,NoirFunction, SymbolTable, Type, NoirPath};
+use noirc_frontend::ast::{Ident,Type, NoirPath};
+use noirc_frontend::symbol_table::{ SymbolInformation,NoirFunction, SymbolTable};
 
 
 iterable_enum! {
