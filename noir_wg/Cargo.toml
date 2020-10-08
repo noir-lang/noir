@@ -7,14 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libnoirc_lexer = {path = "../libnoirc_lexer"}
-libnoirc_ast = {path = "../libnoirc_ast"}
-libnoirc_analyser = {path = "../libnoirc_analyser"}
-libnoirc_parser = {path = "../libnoirc_parser"}
+noirc_analyser = {path = "../noirc_analyser"}
+noirc_frontend = {path = "../noirc_frontend"}
 noir_field = {path = "../noir_field"}
 low_level_std_lib = {path = "../low_level_std_lib"}
 noir_evaluator = {path = "../noir_evaluator"}
-noir_serialiser = {path = "../noir_serialiser"}
-barretenberg-rs = {path = "../barretenberg-rs"}
+aztec_backend = {path = "../aztec_backend"}
 
 sha2= "0.9"

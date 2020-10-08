@@ -63,54 +63,30 @@ impl Solver {
 }
 
 #[test]
-fn name() {
-    use noir_evaluator::circuit::Witness;
-
-    use libnoirc_lexer::lexer::Lexer;
-    use libnoirc_parser::Parser;
-    use noir_evaluator::{Environment, Evaluator};
-    let input = "
-  
-    fn main(x : Witness, z : Witness, t : Witness) {
-        priv y = x * z;
-        const a = 2;
-        constrain y == x + 2;
-        constrain z == y * x; 
-    }
-    ";
-
-    let mut parser = Parser::new(Lexer::new(&input));
-    let program = parser.parse_program();
-    let (checked_program, symbol_table) = libnoirc_analyser::check(program);
-    let evaluator = Evaluator::new(checked_program, symbol_table);
-
-    let circuit = evaluator.evaluate(&mut Environment::new());
-}
-
-#[test]
 fn test_simple_circuit() {
     use noir_field::FieldElement;
     use std::collections::BTreeMap;
 
     use noir_evaluator::circuit::Witness;
 
-    use libnoirc_lexer::lexer::Lexer;
-    use libnoirc_parser::Parser;
+    use noirc_frontend::lexer::Lexer;
+    use noirc_frontend::Parser;
     use noir_evaluator::{Environment, Evaluator};
 
     let input = "
-    fn hello(y : Witness,e : Witness) {
+    fn hello(y : Witness,e : Witness) -> Witness {
         (y+e) * e
     }
     fn main(x : Witness, z : Witness, t : Witness) {
         priv y = x * z;
         constrain y == hello(y,x);
+        constrain t == x;
     }
     ";
 
     let mut parser = Parser::new(Lexer::new(&input));
     let program = parser.parse_program();
-    let (checked_program, symbol_table) = libnoirc_analyser::check(program);
+    let (checked_program, symbol_table) = noirc_analyser::check(program);
     let evaluator = Evaluator::new(checked_program, symbol_table);
 
     let (circuit, _, num_pub_inputs) = evaluator.evaluate(&mut Environment::new());
@@ -130,6 +106,6 @@ fn test_simple_circuit() {
     Solver::solve(&mut solved_witness, circuit.clone());
 
     // Create constraint system
-    let constraint_system =
-        noir_serialiser::serialise_circuit(&circuit, solved_witness.len(), num_pub_inputs);
+    let _ =
+        aztec_backend::serialise_circuit(&circuit, solved_witness.len(), num_pub_inputs);
 }
