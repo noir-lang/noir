@@ -1,6 +1,6 @@
-use libnoirc_ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
-use libnoirc_ast::{NoirPath, FunctionDefinition};
-use libnoirc_parser::Program;
+use noirc_frontend::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
+use noirc_frontend::ast::{NoirPath, FunctionDefinition};
+use noirc_frontend::parser::Program;
 use std::collections::HashMap;
 
 mod expression;

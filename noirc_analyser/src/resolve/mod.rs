@@ -1,6 +1,6 @@
-use libnoirc_ast::{Expression, Statement, NoirPath, FunctionDefinition};
-use libnoirc_ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
-use libnoirc_parser::Program;
+use noirc_frontend::ast::{Expression, Statement, NoirPath, FunctionDefinition};
+use noirc_frontend::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
+use noirc_frontend::parser::Program;
 
 
 /// Checks that each variable was declared before it's use

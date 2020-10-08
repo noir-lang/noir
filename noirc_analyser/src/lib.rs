@@ -4,7 +4,7 @@ mod type_check;
 use type_check::TypeChecker;
 
 use resolve::Resolver;
-use libnoirc_ast::FunctionDefinition;
+use noirc_frontend::ast::FunctionDefinition;
 /// This module is for now just a placeholder
 /// We want the analyser to do quite a few things such as:
 /// - Be able to check for unused variables (Resolver)
@@ -16,10 +16,9 @@ use libnoirc_ast::FunctionDefinition;
 /// - Fill in inferred types for witnesses priv k = x as u8, should modify k to be the u8 Type
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
 ///
-///
-use libnoirc_ast::{Statement, ImportStatement};
-use libnoirc_ast::{SymbolTable, NoirFunction};
-use libnoirc_parser::Program;
+use noirc_frontend::ast::{Statement, ImportStatement};
+use noirc_frontend::symbol_table::{SymbolTable, NoirFunction};
+use noirc_frontend::parser::Program;
 
 use std::collections::HashMap;
 
