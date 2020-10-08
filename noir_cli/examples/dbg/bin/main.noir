@@ -1,10 +1,8 @@
  
-   fn main(x : Witness,low : Witness,high : Witness) {
-      priv j : u16 = (low as u16) + (high as u16);
-      
-      constrain j < (x as u16)
-   }
+   fn main(x : Witness,low : Witness, high: Witness) {
 
-   fn add(x : Witness, y : Witness) -> Witness {
-      x + y
+        let digest = std::hash::sha256(x as u8);
+
+        constrain digest[0] == low;
+        constrain digest[1] == high;
    }
