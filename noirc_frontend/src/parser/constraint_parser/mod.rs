@@ -1,6 +1,6 @@
 use super::*;
-use libnoirc_ast::BinaryOp;
-use libnoirc_ast::ConstrainStatement;
+use crate::ast::BinaryOp;
+use crate::ast::ConstrainStatement;
 
 /// The constrain parser is used to parse keywords which directly and only apply constraints
 /// XXX(med) : The 'as' keyword would fall under this category, but it would probably be implemented as an infix operator

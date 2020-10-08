@@ -1,7 +1,7 @@
-use crate::{Precedence, Program};
-use libnoirc_ast::{BlockStatement, Expression, ExpressionStatement, Statement, Type};
-use libnoirc_lexer::lexer::Lexer;
-use libnoirc_lexer::token::{Keyword, Token, TokenKind};
+use super::{Precedence, Program};
+use crate::ast::{BlockStatement, Expression, ExpressionStatement, Statement, Type};
+use crate::lexer::Lexer;
+use crate::token::{Keyword, Token, TokenKind};
 use std::error::Error;
 
 type PrefixFn = fn(parser: &mut Parser) -> Expression;
@@ -104,8 +104,8 @@ impl<'a> Parser<'a> {
         program
     }
     pub fn parse_statement(&mut self) -> Statement {
-        use crate::constraint_parser::ConstraintParser;
-        use crate::prefix_parser::DeclarationParser;
+        use crate::parser::constraint_parser::ConstraintParser;
+        use crate::parser::prefix_parser::DeclarationParser;
 
         // The first type of statement we could have is a variable declaration statement
         if self.curr_token.can_start_declaration() {
@@ -161,10 +161,10 @@ impl<'a> Parser<'a> {
         return Some(left_exp);
     }
     fn prefix_fn(&self) -> Option<PrefixFn> {
-        use crate::prefix_parser::{
+        use crate::parser::prefix_parser::{
             ArrayParser, GroupParser, IfParser, LiteralParser, NameParser, UnaryParser,
         };
-        use crate::PrefixParser;
+        use crate::parser::PrefixParser;
 
         match &self.curr_token {
             Token::LeftBracket => Some(ArrayParser::parse),
@@ -177,8 +177,8 @@ impl<'a> Parser<'a> {
         }
     }
     fn infix_fn(&mut self) -> Option<InfixFn> {
-        use crate::infix_parser::{BinaryParser, CallParser, IndexParser, PathParser};
-        use crate::InfixParser;
+        use crate::parser::infix_parser::{BinaryParser, CallParser, IndexParser, PathParser};
+        use crate::parser::InfixParser;
 
         match self.peek_token {
             Token::Plus
@@ -299,7 +299,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use libnoirc_ast::{
+    use crate::ast::{
         BlockStatement, CallExpression, Expression, ExpressionStatement, FunctionDefinition,
         FunctionLiteral, Ident, IfExpression, InfixExpression, Literal, PrefixExpression,
         Statement, Type,
@@ -390,7 +390,7 @@ mod test {
     }
     #[test]
     fn test_parse_prefix() {
-        use libnoirc_ast::*;
+        use crate::ast::*;
         let input = "!99;-100;!true";
         let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse_program();
@@ -473,7 +473,7 @@ mod test {
     }
     #[test]
     fn test_parse_grouped() {
-        use libnoirc_ast::UnaryOp;
+        use crate::ast::UnaryOp;
 
         let input = "-(5+10);-5+10";
         let mut parser = Parser::new(Lexer::new(input));
@@ -594,7 +594,7 @@ mod test {
     // XXX: Lets move this test into the func lit parser module
     #[test]
     fn test_parse_function_literal() {
-        use crate::prefix_parser::FuncParser;
+        use crate::parser::prefix_parser::FuncParser;
         let input = "fn(x : Witness,y : Witness){x+y;}";
         let mut parser = Parser::new(Lexer::new(input));
         let (func_dec, func_lit) = FuncParser::parse_fn(&mut parser);
@@ -625,8 +625,8 @@ mod test {
     }
     #[test]
     fn test_parse_int_type() {
-        use crate::prefix_parser::DeclarationParser;
-        use libnoirc_ast::{PrivateStatement, Signedness};
+        use crate::parser::prefix_parser::DeclarationParser;
+        use crate::ast::{PrivateStatement, Signedness};
         let input = "priv x : i102 = a";
         let mut parser = Parser::new(Lexer::new(input));
         let stmt = DeclarationParser::parse_declaration_statement(

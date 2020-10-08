@@ -19,14 +19,14 @@ pub use r#use::UseParser;
 pub use unary::UnaryParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
-use libnoirc_ast::{
+use crate::ast::{
     ArrayLiteral, BlockStatement, Expression, FunctionDefinition, FunctionLiteral, Ident,
     IfExpression, Literal, PrefixExpression, Type,
 };
-use libnoirc_lexer::token::{Keyword, Token, TokenKind};
+use crate::token::{Keyword, Token, TokenKind};
 
-use crate::{Parser, Precedence, PrefixParser};
+use super::{Parser, Precedence, PrefixParser};
 
-use libnoirc_ast::{
+use crate::ast::{
     ConstStatement, ImportStatement, LetStatement, PrivateStatement, PublicStatement, Statement,
 };

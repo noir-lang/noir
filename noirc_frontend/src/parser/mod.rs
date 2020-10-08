@@ -5,8 +5,8 @@ mod prefix_parser;
 
 pub use parser::Parser;
 
-use libnoirc_ast::{Expression, FunctionDefinition, ImportStatement, Statement};
-use libnoirc_lexer::token::{Keyword, Token};
+use crate::ast::{Expression, FunctionDefinition, ImportStatement, Statement};
+use crate::token::{Keyword, Token};
 
 #[derive(Clone)]
 pub struct Program {

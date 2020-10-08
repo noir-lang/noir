@@ -2,11 +2,9 @@
 /// statement::Ident does not return a value, while Expression::Ident does.
 mod expression;
 mod statement;
-mod symbol_table;
 
 pub use expression::*;
 pub use statement::*;
-pub use symbol_table::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -115,7 +113,7 @@ impl Type {
     }
 }
 
-use libnoirc_lexer::token::IntType;
+use crate::token::IntType;
 
 impl From<&IntType> for Type {
     fn from(it: &IntType) -> Type {

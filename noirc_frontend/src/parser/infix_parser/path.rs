@@ -1,7 +1,7 @@
 use super::*;
-use crate::prefix_parser::NameParser;
-use crate::PrefixParser;
-use libnoirc_ast::Ident;
+use crate::parser::prefix_parser::NameParser;
+use crate::parser::PrefixParser;
+use crate::ast::Ident;
 
 pub struct PathParser;
 

@@ -1,5 +1,5 @@
 use crate::{BlockStatement, Ident, Type};
-use libnoirc_lexer::token::{Keyword, Token};
+use crate::token::{Keyword, Token};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {

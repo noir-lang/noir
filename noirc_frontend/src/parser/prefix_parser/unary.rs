@@ -1,5 +1,5 @@
 use super::*;
-use libnoirc_ast::UnaryOp;
+use crate::ast::UnaryOp;
 
 pub struct UnaryParser;
 

@@ -1,5 +1,5 @@
 [package]
-name = "libnoirc_lexer"
+name = "noirc_frontend"
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
 edition = "2018"
