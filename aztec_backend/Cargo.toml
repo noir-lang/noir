@@ -1,5 +1,5 @@
 [package]
-name = "noir_serialiser"
+name = "aztec_backend"
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
 edition = "2018"
@@ -9,4 +9,9 @@ edition = "2018"
 [dependencies]
 noir_field = {path = "../noir_field"}
 noir_evaluator = {path = "../noir_evaluator"}
-barretenberg-rs = {path = "../barretenberg-rs"}
+
+wasmer-runtime = "0.16.0"
+wasmer-wasi = "0.16.0"
+reqwest = {version = "0.10.8",features = ["blocking"]}
+error-chain = "0.12.4"
+dirs = "3.0"

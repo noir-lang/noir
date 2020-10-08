@@ -2,7 +2,8 @@ use barretenberg_rs::composer::{
     Assignments, Constraint, ConstraintSystem, LogicConstraint, RangeConstraint, StandardComposer,
 };
 
-fn main() {
+#[test]
+fn integration_test_does_not_panic() {
     println!("Creating constraint system\n");
     let constraint = Constraint {
         a: 1,
