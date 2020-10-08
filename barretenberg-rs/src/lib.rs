@@ -1,11 +1,9 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg-sc.wasm");
+pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
 
 pub mod composer;
 mod crs;
-mod fft;
 mod pippenger;
-mod prover;
 
 use std::str;
 use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
@@ -64,6 +62,7 @@ impl Barretenberg {
         // We then clone them inside of this function, so that the API does not have a bunch of Clones everywhere
 
         let params: Vec<_> = params.into_iter().map(|p| p.clone()).collect();
+        dbg!(name.clone());
         let option_value = self.instance.call(name, &params).unwrap().first().cloned();
 
         WASMValue(option_value)

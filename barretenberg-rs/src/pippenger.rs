@@ -23,26 +23,4 @@ impl Pippenger {
     pub fn pointer(&self) -> Value {
         self.pippenger_ptr.clone()
     }
-
-    pub fn pippenger_unsafe(
-        &mut self,
-        barretenberg: &mut Barretenberg,
-        scalars: &[u8],
-        from: usize,
-        range: usize,
-    ) -> Vec<u8> {
-        let mem = barretenberg.allocate(scalars);
-        barretenberg.call_multiple(
-            "pippenger_unsafe",
-            vec![
-                &self.pippenger_ptr,
-                &mem,
-                &Value::I32(from as i32),
-                &Value::I32(range as i32),
-                &Value::I32(0),
-            ],
-        );
-        barretenberg.free(mem);
-        barretenberg.slice_memory(0, 96)
-    }
 }

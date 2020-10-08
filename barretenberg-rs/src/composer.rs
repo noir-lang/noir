@@ -1,7 +1,5 @@
 use super::crs::CRS;
-use super::fft::FFT;
 use super::pippenger::Pippenger;
-use super::prover::Prover;
 use super::Barretenberg;
 use noir_field::FieldElement as Scalar;
 use wasmer_runtime::Value;
@@ -9,9 +7,7 @@ use wasmer_runtime::Value;
 pub struct StandardComposer {
     barretenberg: Barretenberg,
     pippenger: Pippenger,
-    fft: FFT,
     crs: CRS,
-    prover: Prover,
 }
 
 impl StandardComposer {
@@ -22,16 +18,10 @@ impl StandardComposer {
 
         let pippenger = Pippenger::new(&crs.g1_data, &mut barretenberg);
 
-        let fft = FFT::new(&mut barretenberg, circuit_size);
-
-        let prover = Prover {};
-
         StandardComposer {
-            fft,
             crs,
             barretenberg,
             pippenger,
-            prover,
         }
     }
 }
@@ -286,7 +276,10 @@ impl StandardComposer {
         &mut self,
         constraint_system: &ConstraintSystem,
         witness: WitnessAssignments,
-    ) -> Vec<u8> {
+    ) -> Vec<u8> {    
+        use core::convert::TryInto;
+
+
         let cs_buf = constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
@@ -295,29 +288,23 @@ impl StandardComposer {
 
         let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
 
-        let prover_ptr = self
+        let proof_size = self
             .barretenberg
             .call_multiple(
-                "composer__new_prover",
-                vec![&self.pippenger.pointer(), &g2_ptr, &cs_ptr, &witness_ptr],
+                "composer__new_proof",
+                vec![&self.pippenger.pointer(), &g2_ptr, &cs_ptr, &witness_ptr, &Value::I32(0)],
             )
             .value();
 
-        self.barretenberg.free(cs_ptr);
-        self.barretenberg.free(witness_ptr);
-        self.barretenberg.free(g2_ptr);
+        let proof_ptr = self.barretenberg.slice_memory(0, 4);
+        let proof_ptr = u32::from_le_bytes(proof_ptr[0..4].try_into().unwrap());
 
-        let proof = self.prover.create_proof(
-            &mut self.barretenberg,
-            &mut self.pippenger,
-            &mut self.fft,
-            &prover_ptr,
+        let proof =  self.barretenberg.slice_memory(
+            proof_ptr as usize,
+            proof_ptr as usize + proof_size.to_u128() as usize,
         );
 
-        self.barretenberg
-            .call("composer__delete_prover", &prover_ptr);
-
-        return proof;
+        return proof
     }
 
     pub fn verify(
