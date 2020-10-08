@@ -2,13 +2,12 @@
 
 members = [
     "noir_field",
-    "libnoirc_lexer",
-    "libnoirc_parser",
-    "libnoirc_analyser",
-    "barretenberg-rs",
     "noir_evaluator",
+    "noirc_analyser",
     "noir_cli",
-    "noir_serialiser",
     "noir_wg",
+    "aztec_backend",
     "low_level_std_lib",
+    "noirc_frontend",
+    "acir"
 ]
