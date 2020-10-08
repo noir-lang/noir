@@ -1,6 +1,6 @@
 use crate::polynomial::Polynomial;
 use crate::{Environment, Evaluator};
-use libnoirc_ast::ArrayLiteral;
+use noirc_frontend::ast::ArrayLiteral;
 
 #[derive(Clone, Debug)]
 pub struct Array {

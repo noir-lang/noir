@@ -7,15 +7,15 @@ pub mod polynomial;
 
 pub use circuit::{Circuit, Selector, Witness};
 pub use environment::Environment;
-use libnoirc_ast::FunctionLiteral as Function;
-use libnoirc_ast::SymbolTable;
-use libnoirc_ast::*;
+use noirc_frontend::ast::FunctionLiteral as Function;
+use noirc_frontend::symbol_table::{SymbolTable, NoirFunction};
+use noirc_frontend::ast::*;
 pub use low_level_std_lib::{LowLevelStandardLibrary, HashLibrary};
 use noir_field::FieldElement;
 use std::collections::{BTreeMap, HashMap};
 
 pub use circuit::gate::{AndGate, GadgetCall, GadgetInput, Gate, XorGate};
-use libnoirc_parser::Program;
+use noirc_frontend::parser::Program;
 use optimise::Optimiser;
 pub use polynomial::{Arithmetic, Array, Integer, Linear, Polynomial};
 
