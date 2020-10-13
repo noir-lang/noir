@@ -5,9 +5,7 @@ members = [
     "noir_evaluator",
     "noirc_analyser",
     "noir_cli",
-    "noir_wg",
     "aztec_backend",
-    "low_level_std_lib",
     "noirc_frontend",
     "acir"
 ]
