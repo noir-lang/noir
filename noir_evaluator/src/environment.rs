@@ -1,16 +1,16 @@
-use super::polynomial::{Polynomial, Array};
+use super::object::{Object, Array};
 use std::collections::HashMap;
 
-pub struct Environment(pub HashMap<String, Polynomial>);
+pub struct Environment(pub HashMap<String, Object>);
 
 impl Environment {
     pub fn new() -> Environment {
         Environment(HashMap::new())
     }
-    pub fn store(&mut self, name: String, poly: Polynomial) {
-        self.0.insert(name, poly);
+    pub fn store(&mut self, name: String, object: Object) {
+        self.0.insert(name, object);
     }
-    pub fn get(&mut self, name: String) -> Polynomial {
+    pub fn get(&mut self, name: String) -> Object {
         dbg!(name.clone());
         self.0.get(&name).unwrap().clone() // XXX: Fix unwrap
     }
@@ -22,7 +22,7 @@ impl Environment {
         };
 
         match poly {
-            Polynomial::Array(arr) => arr,
+            Object::Array(arr) => arr,
             _=> panic!("Cannot find an array with that name")
         }
     }

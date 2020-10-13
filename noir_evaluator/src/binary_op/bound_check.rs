@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Environment, Evaluator, FieldElement, Integer, Linear, Polynomial};
+use crate::{Environment, Evaluator, FieldElement, Integer, Linear, Object};
 
 // There are three cases:
 // a < b
@@ -14,12 +14,12 @@ use crate::{Environment, Evaluator, FieldElement, Integer, Linear, Polynomial};
 // a < b => b - a - 1  is always positive
 
 fn bound_check(
-    lower_bound: Polynomial,
-    upper_bound: Polynomial,
+    lower_bound: Object,
+    upper_bound: Object,
     upper_bound_included: bool,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     let offset = if upper_bound_included {
         FieldElement::zero()
     } else {
@@ -27,7 +27,7 @@ fn bound_check(
     };
 
     let integer = match (lower_bound, upper_bound) {
-        (lower_bound, Polynomial::Integer(y)) => {
+        (lower_bound, Object::Integer(y)) => {
             let max_bound_bits = y.num_bits;
 
             let x = &Linear::from_witness(y.witness) - &offset;
@@ -37,58 +37,58 @@ fn bound_check(
             // the compiler will complain as we cannot subtract an integer from a linear polynomial
             let lower_bound_as_arith = lower_bound.into_arithmetic();
 
-            let k = handle_sub_op(Polynomial::Linear(x), Polynomial::Arithmetic(lower_bound_as_arith), env, evaluator);
+            let k = handle_sub_op(Object::Linear(x), Object::Arithmetic(lower_bound_as_arith), env, evaluator);
 
-            Integer::from_polynomial(k, max_bound_bits, env, evaluator)
+            Integer::from_object(k, max_bound_bits, env, evaluator)
         }
-        (lower_bound, Polynomial::Constants(y)) => {
+        (lower_bound, Object::Constants(y)) => {
             let max_bound_bits = y.num_bits();
 
             let k = handle_sub_op(
-                Polynomial::Constants(y - offset),
+                Object::Constants(y - offset),
                 lower_bound,
                 env,
                 evaluator,
             );
-            Integer::from_polynomial(k, max_bound_bits, env, evaluator)
+            Integer::from_object(k, max_bound_bits, env, evaluator)
         }
         (_, _) => {
             panic!("You can only apply the < op, if the upper bound is an Integer or an Constant")
         }
     };
     integer.constrain(evaluator);
-    Polynomial::Null
+    Object::Null
 }
 
 pub fn handle_less_than_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     bound_check(left, right, false, env, evaluator)
 }
 pub fn handle_less_than_equal_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     bound_check(left, right, true, env, evaluator)
 }
 pub fn handle_greater_than_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     bound_check(right, left, false, env, evaluator)
 }
 pub fn handle_greater_than_equal_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     bound_check(right, left, true, env, evaluator)
 }

@@ -1,25 +1,25 @@
 use super::add::handle_add_op;
-use crate::{Environment, Evaluator, Polynomial};
+use crate::{Environment, Evaluator, Object};
 
 /// This calls the add op under the hood
 /// We negate the RHS and send it to the add op
 pub fn handle_sub_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     let negated_right = match &right {
-        Polynomial::Null => panic!("Cannot do an operation with the Null Polynomial"),
-        Polynomial::Arithmetic(arith) => Polynomial::Arithmetic(-arith),
-        Polynomial::Constants(c) => Polynomial::Constants(-c.clone()),
-        Polynomial::Linear(linear) => Polynomial::Linear(-linear),
-        Polynomial::Integer(_) => {
+        Object::Null => panic!("Cannot do an operation with the Null Object"),
+        Object::Arithmetic(arith) => Object::Arithmetic(-arith),
+        Object::Constants(c) => Object::Constants(-c.clone()),
+        Object::Linear(linear) => Object::Linear(-linear),
+        Object::Integer(_) => {
             let left_int = left.integer();
             if left_int.is_none() {
                 panic!("RHS is an integer, however the LHS is not ");
             } else {
-                return Polynomial::Integer(left_int.unwrap().sub(right, env, evaluator));
+                return Object::Integer(left_int.unwrap().sub(right, env, evaluator));
             }
         }
         x => super::unsupported_error(vec![x.clone()]),

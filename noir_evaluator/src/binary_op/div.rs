@@ -1,14 +1,14 @@
 use super::{invert, mul::handle_mul_op};
-use crate::{Environment, Evaluator, Polynomial};
+use crate::{Environment, Evaluator, Object};
 
 /// For a / b . First compute the 1/b and constraint it to be the inverse of b
 /// Then multiply this inverse by a
 pub fn handle_div_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     let right_inv = invert(right, env, evaluator);
     handle_mul_op(left, right_inv, env, evaluator)
 }

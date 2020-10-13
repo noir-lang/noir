@@ -1,14 +1,14 @@
-use crate::{Environment, Evaluator, Polynomial};
+use crate::{Environment, Evaluator, Object};
 
 pub fn handle_xor_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     match (left, right) {
-        (Polynomial::Integer(x), Polynomial::Integer(y)) => {
-            Polynomial::Integer(x.xor(y, env, evaluator))
+        (Object::Integer(x), Object::Integer(y)) => {
+            Object::Integer(x.xor(y, env, evaluator))
         }
         (_, _) => panic!("Currently we only support bitwise operations on ranged operations"),
     }

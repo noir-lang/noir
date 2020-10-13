@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Environment, Evaluator, Gate, Linear, Polynomial};
+use crate::{Environment, Evaluator, Gate, Linear, Object};
 
 /// XXX(med) : So at the moment, Equals is the same as SUB
 /// Most likely we will need to check if it is a predicate equal or infix equal
@@ -7,19 +7,19 @@ use crate::{Environment, Evaluator, Gate, Linear, Polynomial};
 /// This calls the sub op under the hood
 /// We negate the RHS and send it to the add op
 pub fn handle_equal_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     let result = handle_sub_op(left, right, env, evaluator);
 
     match result {
-        Polynomial::Null => panic!("Constrain statement cannot output a null polynomial"),
-        Polynomial::Constants(_) => panic!("Cannot constrain two constants"),
-        Polynomial::Linear(linear) => evaluator.gates.push(Gate::Arithmetic(linear.into())),
-        Polynomial::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith)),
-        Polynomial::Integer(integer) => {
+        Object::Null => panic!("Constrain statement cannot output a null polynomial"),
+        Object::Constants(_) => panic!("Cannot constrain two constants"),
+        Object::Linear(linear) => evaluator.gates.push(Gate::Arithmetic(linear.into())),
+        Object::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith)),
+        Object::Integer(integer) => {
             let witness_linear = Linear::from_witness(integer.witness);
 
             evaluator
@@ -30,5 +30,5 @@ pub fn handle_equal_op(
             super::unsupported_error(vec![x]);
         }
     }
-    Polynomial::Null
+    Object::Null
 }

@@ -1,55 +1,55 @@
-use crate::{Arithmetic, Environment, Evaluator, FieldElement,  Linear, Polynomial};
+use crate::{Arithmetic, Environment, Evaluator, FieldElement,  Linear, Object};
 
 pub fn handle_add_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     match (left, right) {
-        (Polynomial::Null, _) => handle_null_add(),
-        (Polynomial::Arithmetic(arith), y) => handle_arithmetic_add(arith, y),
-        (Polynomial::Constants(c), y) => handle_constant_add(c, y),
-        (Polynomial::Linear(lin), y) => handle_linear_add(lin, y),
-        (Polynomial::Integer(x), y) => Polynomial::Integer(x.add(y, env, evaluator)),
+        (Object::Null, _) => handle_null_add(),
+        (Object::Arithmetic(arith), y) => handle_arithmetic_add(arith, y),
+        (Object::Constants(c), y) => handle_constant_add(c, y),
+        (Object::Linear(lin), y) => handle_linear_add(lin, y),
+        (Object::Integer(x), y) => Object::Integer(x.add(y, env, evaluator)),
         (x, y) => panic!("{:?} and {:?} operations are unsupported"),
     }
 }
 
-fn handle_null_add() -> Polynomial {
-    panic!("Cannot do an operation with the Null Polynomial")
+fn handle_null_add() -> Object {
+    panic!("Cannot do an operation with the Null Object")
 }
-fn handle_arithmetic_add(arith: Arithmetic, polynomial: Polynomial) -> Polynomial {
+fn handle_arithmetic_add(arith: Arithmetic, polynomial: Object) -> Object {
     match polynomial {
-        Polynomial::Arithmetic(arith_rhs) => Polynomial::Arithmetic(&arith + &arith_rhs),
-        Polynomial::Linear(linear) => Polynomial::Arithmetic(&arith + &linear.into()),
-        Polynomial::Constants(constant) => {
-            Polynomial::Arithmetic(&arith + &Linear::from(constant).into())
+        Object::Arithmetic(arith_rhs) => Object::Arithmetic(&arith + &arith_rhs),
+        Object::Linear(linear) => Object::Arithmetic(&arith + &linear.into()),
+        Object::Constants(constant) => {
+            Object::Arithmetic(&arith + &Linear::from(constant).into())
         }
-        Polynomial::Null => handle_null_add(),
-        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        Object::Null => handle_null_add(),
+        Object::Integer(_) => panic!("Can only add an integer to an integer"),
         x => super::unsupported_error(vec![x]),
     }
 }
-fn handle_constant_add(constant: FieldElement, polynomial: Polynomial) -> Polynomial {
+fn handle_constant_add(constant: FieldElement, polynomial: Object) -> Object {
     match polynomial {
-        Polynomial::Arithmetic(arith) => {
-            Polynomial::Arithmetic(&Linear::from(constant).into() + &arith)
+        Object::Arithmetic(arith) => {
+            Object::Arithmetic(&Linear::from(constant).into() + &arith)
         }
-        Polynomial::Linear(linear) => Polynomial::Linear(&linear + &constant),
-        Polynomial::Constants(constant_rhs) => Polynomial::Constants(constant + constant_rhs),
-        Polynomial::Null => handle_null_add(),
-        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        Object::Linear(linear) => Object::Linear(&linear + &constant),
+        Object::Constants(constant_rhs) => Object::Constants(constant + constant_rhs),
+        Object::Null => handle_null_add(),
+        Object::Integer(_) => panic!("Can only add an integer to an integer"),
         x => super::unsupported_error(vec![x]),
     }
 }
-fn handle_linear_add(linear: Linear, polynomial: Polynomial) -> Polynomial {
+fn handle_linear_add(linear: Linear, polynomial: Object) -> Object {
     match polynomial {
-        Polynomial::Arithmetic(arith) => Polynomial::Arithmetic(&arith + &linear.into()),
-        Polynomial::Linear(linear_rhs) => Polynomial::Arithmetic(&linear + &linear_rhs),
-        Polynomial::Constants(constant) => Polynomial::Linear(&linear + &constant),
-        Polynomial::Null => handle_null_add(),
-        Polynomial::Integer(_) => panic!("Can only add an integer to an integer"),
+        Object::Arithmetic(arith) => Object::Arithmetic(&arith + &linear.into()),
+        Object::Linear(linear_rhs) => Object::Arithmetic(&linear + &linear_rhs),
+        Object::Constants(constant) => Object::Linear(&linear + &constant),
+        Object::Null => handle_null_add(),
+        Object::Integer(_) => panic!("Can only add an integer to an integer"),
         x => super::unsupported_error(vec![x]),
     }
 }

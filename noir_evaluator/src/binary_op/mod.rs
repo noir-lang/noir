@@ -24,10 +24,10 @@ pub use neq::handle_neq_op;
 pub use sub::handle_sub_op;
 pub use xor::handle_xor_op;
 
-use crate::{Environment, Evaluator, FieldElement, Polynomial, Type};
+use crate::{Environment, Evaluator, FieldElement, Object, Type};
 
 /// Creates a new witness and constrains it to be the inverse of the polynomial passed in
-pub fn invert(x: Polynomial, env: &mut Environment, evaluator: &mut Evaluator) -> Polynomial {
+pub fn invert(x: Object, env: &mut Environment, evaluator: &mut Evaluator) -> Object {
     // Create a fresh witness
     // XXX: We need to create a better function for fresh variables
     let inter_var_name = format!("{}{}", "inverse_", evaluator.get_unique_value(),);
@@ -40,7 +40,7 @@ pub fn invert(x: Polynomial, env: &mut Environment, evaluator: &mut Evaluator) -
     // Constrain x * x_inv = 1
     let _ = handle_equal_op(
         should_be_one,
-        Polynomial::Constants(FieldElement::one()),
+        Object::Constants(FieldElement::one()),
         env,
         evaluator,
     );
@@ -49,7 +49,7 @@ pub fn invert(x: Polynomial, env: &mut Environment, evaluator: &mut Evaluator) -
     x_inv
 }
 
-fn unsupported_error(polynomials: Vec<Polynomial>) -> Polynomial {
+fn unsupported_error(polynomials: Vec<Object>) -> Object {
     panic!(
         "We currently do not support operations involving {:?}",
         polynomials

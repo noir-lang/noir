@@ -1,37 +1,37 @@
-use crate::{Arithmetic, Environment, Evaluator, FieldElement, Linear, Polynomial, Type};
+use crate::{Arithmetic, Environment, Evaluator, FieldElement, Linear, Object, Type};
 
 /// Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
 /// - We can safely multiply two linear polynomials
 
 pub fn handle_mul_op(
-    left: Polynomial,
-    right: Polynomial,
+    left: Object,
+    right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     match (left, right) {
-        (Polynomial::Null, _) => handle_null_mul(),
-        (Polynomial::Arithmetic(arith), y) => handle_arithmetic_mul(arith, y, env, evaluator),
-        (Polynomial::Constants(c), y) => handle_constant_mul(c, y),
-        (Polynomial::Linear(lin), y) => handle_linear_mul(lin, y, env, evaluator),
-        (Polynomial::Integer(integer), y) => Polynomial::Integer(integer.mul(y, env, evaluator)),
+        (Object::Null, _) => handle_null_mul(),
+        (Object::Arithmetic(arith), y) => handle_arithmetic_mul(arith, y, env, evaluator),
+        (Object::Constants(c), y) => handle_constant_mul(c, y),
+        (Object::Linear(lin), y) => handle_linear_mul(lin, y, env, evaluator),
+        (Object::Integer(integer), y) => Object::Integer(integer.mul(y, env, evaluator)),
         (x, y) => super::unsupported_error(vec![x, y]),
     }
 }
 
-fn handle_null_mul() -> Polynomial {
-    panic!("Cannot do an operation with the Null Polynomial")
+fn handle_null_mul() -> Object {
+    panic!("Cannot do an operation with the Null Object")
 }
 
 fn handle_arithmetic_mul(
     arith: Arithmetic,
-    polynomial: Polynomial,
+    polynomial: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     match polynomial.constant() {
-        Some(constant) => return Polynomial::Arithmetic(&arith * &constant),
+        Some(constant) => return Object::Arithmetic(&arith * &constant),
         None => {}
     };
 
@@ -40,30 +40,30 @@ fn handle_arithmetic_mul(
     let (intermediate_var, _) = evaluator.create_intermediate_variable(env, arith, Type::Witness);
     return handle_mul_op(intermediate_var, polynomial, env, evaluator);
 }
-fn handle_constant_mul(constant: FieldElement, polynomial: Polynomial) -> Polynomial {
+fn handle_constant_mul(constant: FieldElement, polynomial: Object) -> Object {
     match polynomial {
-        Polynomial::Arithmetic(arith) => Polynomial::Arithmetic(&arith * &constant),
-        Polynomial::Linear(linear) => Polynomial::Linear(&linear * &constant),
-        Polynomial::Constants(constant_rhs) => Polynomial::Constants(constant * constant_rhs),
-        Polynomial::Null => handle_null_mul(),
-        Polynomial::Integer(_) => panic!("Can only mul an integer to an integer"),
+        Object::Arithmetic(arith) => Object::Arithmetic(&arith * &constant),
+        Object::Linear(linear) => Object::Linear(&linear * &constant),
+        Object::Constants(constant_rhs) => Object::Constants(constant * constant_rhs),
+        Object::Null => handle_null_mul(),
+        Object::Integer(_) => panic!("Can only mul an integer to an integer"),
         x => super::unsupported_error(vec![x]),
     }
 }
 fn handle_linear_mul(
     linear: Linear,
-    polynomial: Polynomial,
+    polynomial: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Polynomial {
+) -> Object {
     match polynomial {
-        Polynomial::Arithmetic(arith) => {
-            return handle_arithmetic_mul(arith, Polynomial::Linear(linear), env, evaluator);
+        Object::Arithmetic(arith) => {
+            return handle_arithmetic_mul(arith, Object::Linear(linear), env, evaluator);
         }
-        Polynomial::Linear(linear_rhs) => Polynomial::Arithmetic(&linear * &linear_rhs),
-        Polynomial::Constants(constant) => Polynomial::Linear(&linear * &constant),
-        Polynomial::Null => handle_null_mul(),
-        Polynomial::Integer(_) => panic!("Can only mul an integer to an integer"),
+        Object::Linear(linear_rhs) => Object::Arithmetic(&linear * &linear_rhs),
+        Object::Constants(constant) => Object::Linear(&linear * &constant),
+        Object::Null => handle_null_mul(),
+        Object::Integer(_) => panic!("Can only mul an integer to an integer"),
         x => super::unsupported_error(vec![x]),
     }
 }
