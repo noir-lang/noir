@@ -20,10 +20,11 @@ impl InfixParser for PathParser {
             parsed_path.push(name);
             parser.advance_tokens();
         }
-
-        // Current token will be a `::` at this point. Lets advance the parser and parse the method
+        // Current token will either be an identifier or an `::` at this point. Lets conditionally advance the parser and parse the method
         // XXX: We parse a general expression, and have the analyser restrict it to be a method. In the future, we will accept global constants along with methods.
-        parser.advance_tokens();
+        if parser.curr_token == Token::DoubleColon {
+            parser.advance_tokens()
+        };
         let method = parser.parse_expression(Precedence::Lowest).unwrap();
 
         // Convert path into strings
@@ -40,7 +41,7 @@ impl InfixParser for PathParser {
         // We extract the Call expression and set the path correctly here
         let call_expr = match method {
             Expression::Call(_, call_expr) => call_expr,
-            _ => unimplemented!("Currently you can only access external functions"),
+            k => unimplemented!("Currently you can only access external functions {:?}", k),
         };
         Expression::Call(path_idents.into(), call_expr)
     }
