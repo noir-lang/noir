@@ -5,13 +5,12 @@ pub struct FuncParser;
 impl FuncParser {
     pub(crate) fn parse_fn_decl(parser: &mut Parser) -> FunctionDefinition {
         let (f_dec, f_lit) = FuncParser::parse_fn(parser);
-
         let f_dec = match (f_dec, f_lit) {
             (_, Some(_)) => panic!("Unexpected function literal"),
             (None, _) => panic!("Expected function declaration"),
             (Some(f_dec), _) => f_dec,
         };
-
+        
         f_dec
     }
 
@@ -48,7 +47,7 @@ impl FuncParser {
         let parameters = FuncParser::parse_fn_parameters(parser);
 
         // Parse the type after the parameters have been parsed
-        let mut return_type = Type::Void;
+        let mut return_type = Type::Unit;
         if parser.peek_token == Token::Arrow {
             parser.advance_tokens(); // Advance past the `)`
             parser.advance_tokens(); // Advance past the `->`
@@ -60,7 +59,6 @@ impl FuncParser {
         };
 
         let body = parser.parse_block_statement();
-
         let func_lit = FunctionLiteral {
             parameters,
             body,
@@ -73,6 +71,7 @@ impl FuncParser {
             Some(f_name) => {
                 let func_dec = FunctionDefinition {
                     name: f_name.into(),
+                    attribute : None,
                     literal: func_lit,
                 };
                 (Some(func_dec), None)
@@ -122,16 +121,6 @@ impl FuncParser {
         parser.advance_tokens();
 
         // We should now be on the Token which represents the Type
-        // XXX: Currently we only Accept the basic types
-        match &parser.curr_token {
-            Token::Keyword(Keyword::Constant) => Type::Constant,
-            Token::Keyword(Keyword::Witness) => Type::Witness,
-            Token::Keyword(Keyword::Public) => Type::Public,
-            Token::Keyword(Keyword::Field) => Type::FieldElement,
-            k => panic!(
-                "Currently, we only accept types that are Constant, Witness or Public. Got {}",
-                k.clone()
-            ),
-        }
+        parser.parse_type()
     }
 }
