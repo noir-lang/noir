@@ -1,5 +1,5 @@
 use super::{Precedence, Program};
-use crate::ast::{BlockStatement, Expression, ExpressionStatement, Statement, Type};
+use crate::ast::{BlockStatement, Expression, ExpressionStatement, Statement, Type, ArraySize};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, Token, TokenKind};
 use std::error::Error;
@@ -27,6 +27,9 @@ impl<'a> Parser<'a> {
             peek_token,
             errors: Vec::new(),
         }
+    }
+    pub fn with_input(input : &'a str) -> Self {
+        Parser::new(Lexer::new(input))
     }
     pub(crate) fn advance_tokens(&mut self) {
         self.curr_token = self.peek_token.clone();
@@ -67,18 +70,32 @@ impl<'a> Parser<'a> {
         return false;
     }
 
+    // A program can contain many modules which themselves are programs
     pub fn parse_program(&mut self) -> Program {
-        use super::prefix_parser::{FuncParser, UseParser};
+        self.parse_unit(Token::EOF)
+    }
+    fn parse_unit(&mut self, delimeter : Token) -> Program {
+        use super::prefix_parser::{FuncParser, UseParser, ModuleParser};
 
         let mut program = Program::with_capacity(self.lexer.by_ref().approx_len());
 
-        while self.curr_token != Token::EOF {
+        while self.curr_token != delimeter {
             // First check if we have a function definition.
             // Function definitions are not added to the AST
             // Although we can have function literals starting with the function keyword
             // they will be self-contained within another function and they will start with a `let` token
             // Eg let add = fn(x,y) {x+y}
             match self.curr_token.clone() {
+                Token::Attribute(attr) => {
+                    self.advance_tokens(); // Skip the attribute
+                    let mut func_def = FuncParser::parse_fn_decl(self);
+                    func_def.attribute = Some(attr);
+                    program.push_function(func_def);
+                },
+                Token::Keyword(Keyword::Mod) => {
+                   let (module_identifier, module) = ModuleParser::parse_module_definition(self);
+                   program.push_module(module_identifier, module);
+                }
                 Token::Keyword(Keyword::Use) => {
                     let import_stmt = UseParser::parse(self);
                     program.push_import(import_stmt);
@@ -102,6 +119,9 @@ impl<'a> Parser<'a> {
         }
 
         program
+    }
+    pub fn parse_module(&mut self) -> Program{
+        self.parse_unit(Token::RightBrace)
     }
     pub fn parse_statement(&mut self) -> Statement {
         use crate::parser::constraint_parser::ConstraintParser;
@@ -204,7 +224,8 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_block_statement(&mut self) -> BlockStatement {
         let mut statements: Vec<Statement> = Vec::new();
-
+        
+        // Advance past the left brace which was used to start the block statement
         self.advance_tokens();
 
         while (self.curr_token != Token::RightBrace) && (self.curr_token != Token::EOF) {
@@ -238,8 +259,6 @@ impl<'a> Parser<'a> {
             panic!("Expected a {} to end the list of arguments", delimeter)
         };
 
-        self.advance_tokens(); // Skip the delimeter
-
         arguments
     }
 
@@ -250,6 +269,8 @@ impl<'a> Parser<'a> {
         match &self.curr_token {
             Token::Keyword(Keyword::Witness) => Type::Witness,
             Token::Keyword(Keyword::Public) => Type::Public,
+            Token::Keyword(Keyword::Constant) => Type::Constant,
+            Token::Keyword(Keyword::Field) => Type::FieldElement,
             Token::IntType(int_type) => int_type.into(),
             Token::LeftBracket => self.parse_array_type(),
             k => unimplemented!("This type is currently not supported, `{}`", k),
@@ -261,23 +282,22 @@ impl<'a> Parser<'a> {
     
         // Current token is '['
         //
-        // Next token should be an Integer
-        if !self.peek_check_int() {
-            panic!("Expected an Int")
+        // Next token should be an Integer or right brace
+        let array_len = match self.peek_token {
+            Token::Int(integer) => {
+                if integer < 0 {
+                    panic!("Cannot have a negative array size, [-k]Type is disallowed")
+                }
+                self.advance_tokens();
+                ArraySize::Fixed(integer as u128)
+            },
+            Token::RightBracket => ArraySize::Variable,
+            _ => panic!("The array size is defined as [k] for fixed size or [] for variable length"),
         };
-        let array_len = match self.curr_token {
-            Token::Int(integer) => integer,
-            _ => panic!("User error: Expected an Integer for the array length"),
-        };
-    
-        if array_len < 0 {
-            panic!("Cannot have a negative array size, [-k]Type is disallowed")
-        }
-        let array_len = array_len as u128;
-    
+
         if !self.peek_check_variant_advance(Token::RightBracket) {
             panic!(
-                "expected a right bracket after integer, got {}",
+                "expected a `]` after integer, got {}",
                 self.peek_token
             )
         }
@@ -619,7 +639,7 @@ mod test {
             body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
                 Expression::Infix(Box::new(infix_expression)),
             )))]),
-            return_type : Type::Void,
+            return_type : Type::Unit,
         };
         assert_eq!(func_lit, expected);
     }
@@ -670,11 +690,12 @@ mod test {
             body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
                 Expression::Infix(Box::new(infix_expression)),
             )))]),
-            return_type : Type::Void,
+            return_type : Type::Unit,
         };
 
         let expected = vec![FunctionDefinition {
             name: Ident("add".into()),
+            attribute : None,
             literal,
         }];
 

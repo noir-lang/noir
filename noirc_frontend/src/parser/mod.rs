@@ -7,13 +7,15 @@ pub use parser::Parser;
 
 use crate::ast::{Expression, FunctionDefinition, ImportStatement, Statement};
 use crate::token::{Keyword, Token};
+use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Program {
     pub imports: Vec<ImportStatement>,
     pub statements: Vec<Statement>,
     pub functions: Vec<FunctionDefinition>,
     pub main: Option<FunctionDefinition>,
+    pub modules : HashMap<String, Program>,
 }
 
 const MAIN_FUNCTION: &str = "main";
@@ -28,6 +30,7 @@ impl Program {
             statements: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
             main: None,
+            modules : HashMap::new(),
         }
     }
     pub fn push_statement(&mut self, stmt: Statement) {
@@ -42,6 +45,9 @@ impl Program {
     }
     pub fn push_import(&mut self, import_stmt: ImportStatement) {
         self.imports.push(import_stmt);
+    }
+    pub fn push_module(&mut self, mod_name: String, module : Program) {
+        self.modules.insert(mod_name, module);
     }
     /// Returns the program abi which is only present for executables and not libraries
     pub fn abi(&self) -> Option<Vec<String>> {
