@@ -7,3 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+noir_field = {path = "../noir_field"}
+
+# Dependencies for gadget calls
+sha2 = "0.9"

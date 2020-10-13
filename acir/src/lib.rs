@@ -1,9 +1,13 @@
 // Arbitrary Circuit Intermediate Representation
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+// XXX: Final version will have acir stdlib which uses arithmetic gates
+
+pub mod circuit;
+pub mod native_types;
+pub mod optimiser;
+
+pub mod partial_witness_generator;
+
+pub mod opcode;
+
+pub use opcode::OPCODE;
