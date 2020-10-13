@@ -229,18 +229,16 @@ impl IntType {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 // Attributes are special language markers in the target language
-// An example of one is `#[directive]` . This is a directive attribute
-// The other type will be used for custom gates
+// An example of one is `#[sha256]` . Currently only Foreign attributes are supported
+// Calls to functions which have the foreign attribute are executed in the host language
 pub enum Attribute {
-    Directive,
-    Str(String),
+    Foreign(String),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Attribute::Directive => write!(f, "#[directive]"),
-            Attribute::Str(ref k) => write!(f, "#[{}]", k),
+            Attribute::Foreign(ref k) => write!(f, "#[{}]", k),
         }
     }
 }
@@ -250,8 +248,21 @@ impl Attribute {
     /// return the custom attribute
     pub(crate) fn lookup_attribute(word: &str) -> Token {
         match word {
-            "directive" => Token::Attribute(Attribute::Directive),
-            word => Token::Attribute(Attribute::Str(word.to_string())),
+            word => Token::Attribute(Attribute::Foreign(word.to_string())),
+        }
+    }
+    pub fn is_foreign(&self) -> bool{
+        match self 
+        {
+            Attribute::Foreign(_) => true
+        }
+    }
+}
+
+impl<'a> Into<&'a str> for &'a Attribute {
+    fn into(self) -> &'a str {
+        match self {
+            Attribute::Foreign(string) => &string
         }
     }
 }
@@ -262,6 +273,7 @@ pub enum Keyword {
     Fn,
     Struct,
     If,
+    Mod,
     Else,
     While,
     As,
@@ -288,6 +300,7 @@ impl fmt::Display for Keyword {
             Keyword::Fn => write!(f, "fn"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::If => write!(f, "if"),
+            Keyword::Mod => write!(f, "mod"),
             Keyword::Else => write!(f, "else"),
             Keyword::While => write!(f, "while"),
             Keyword::Constrain => write!(f, "constrain"),
@@ -313,6 +326,7 @@ impl Keyword {
             "fn" => Some(Token::Keyword(Keyword::Fn)),
             "struct" => Some(Token::Keyword(Keyword::Struct)),
             "if" => Some(Token::Keyword(Keyword::If)),
+            "mod" => Some(Token::Keyword(Keyword::Mod)),
             "else" => Some(Token::Keyword(Keyword::Else)),
             "while" => Some(Token::Keyword(Keyword::While)),
             "constrain" => Some(Token::Keyword(Keyword::Constrain)),

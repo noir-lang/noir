@@ -77,7 +77,7 @@ impl<'a> Lexer<'a> {
             Some('[') => Token::LeftBracket,
             Some(']') => Token::RightBracket,
             Some('"') => self.eat_string_literal(),
-            Some(ch) if ch.is_ascii_alphanumeric() => self.eat_alpha_numeric(ch),
+            Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => Token::Error(format!("cannot parse character \"{}\" ", ch)),
             None => Token::EOF,
         }
@@ -174,7 +174,7 @@ impl<'a> Lexer<'a> {
 
     fn eat_alpha_numeric(&mut self, initial_char: char) -> Token {
         match initial_char {
-            'A'..='Z' | 'a'..='z' => {
+            'A'..='Z' | 'a'..='z' | '_' => {
                 return self.eat_word(initial_char);
             }
             '0'..='9' => {
@@ -302,11 +302,11 @@ fn test_single_double_char() {
 
 #[test]
 fn test_custom_gate_syntax() {
-    let input = "#[sha256]#[directive]";
+    let input = "#[sha256]#[blake2s]";
 
     let expected = vec![
-        Token::Attribute(Attribute::Str("sha256".to_string())),
-        Token::Attribute(Attribute::Directive),
+        Token::Attribute(Attribute::Foreign("sha256".to_string())),
+        Token::Attribute(Attribute::Foreign("blake2s".to_string())),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -364,11 +364,11 @@ fn test_comment() {
 }
 #[test]
 fn test_eat_string_literal() {
-    let input = "let word = \"hello\"";
+    let input = "let _word = \"hello\"";
 
     let expected = vec![
         Token::Keyword(Keyword::Let),
-        Token::Ident("word".to_string()),
+        Token::Ident("_word".to_string()),
         Token::Assign,
         Token::Str("hello".to_string()),
     ];
