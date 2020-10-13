@@ -1,0 +1,7 @@
+
+// This is the standard library so far.
+// Function like the one below may require another attribute named "dyn circuit"
+mod hash {
+    #[sha256]
+    fn sha256(input : []Witness) -> [2]Witness {}
+}
