@@ -1,5 +1,6 @@
 
-use crate::{FunctionLiteral as Function, FunctionDefinition, Ident, Type, NoirPath};
+use crate::{FunctionLiteral as Function, FunctionDefinition, Ident, Type, NoirPath, ArraySize};
+use crate::lexer::token::Attribute;
 use std::collections::HashMap;
 
 // A NoirFunction can be either a function literal (closure), a foreign low level function or a function definition 
@@ -8,8 +9,17 @@ use std::collections::HashMap;
 // be the function name itself.
 #[derive(Clone, Debug)]
 pub enum NoirFunction {
-    LowLevelFunction,
+    LowLevelFunction(Function),
     Function(Function)
+}
+
+impl NoirFunction {
+    pub fn return_type(&self) -> Type {
+        match self {
+            NoirFunction::Function(func_def) => func_def.return_type.clone(),
+            NoirFunction::LowLevelFunction(func_def) => func_def.return_type.clone(),
+        }
+    }
 }
 
 impl Into<NoirFunction> for Function {
@@ -46,7 +56,17 @@ impl SymbolTable {
         if function_already_declared {
             panic!("Another symbol has been defined with the name {}", &func_name.0)
         }
-        self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
+        let attribute = match &func_def.attribute{
+            Some(attr) => attr,
+            None => {
+                self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
+                return
+            }
+        };
+
+        match attribute{
+            Attribute::Foreign(_) => self.insert(func_name.clone(), SymbolInformation::Function(NoirFunction::LowLevelFunction(func.clone().into()))),
+        };
     }
     pub fn update_func_def(&mut self, func_def: &FunctionDefinition) {
         let (func_name, func) = parse_function_declaration(func_def);
@@ -56,42 +76,9 @@ impl SymbolTable {
         }
         self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
     }
-    pub fn insert_foreign_func(&mut self, func_name: Ident) {
-        self.insert(Ident(func_name.0.clone()), SymbolInformation::Function(NoirFunction::LowLevelFunction));
-    }
+
     pub fn look_up(&self, symbol: &Ident) -> Option<&SymbolInformation> {
         self.0.get(symbol)
-    }
-    pub fn look_up_array_type(&self, arr_name: &Ident) -> (u128, Type) {
-        let symbol = self.look_up(arr_name);
-
-        let valid_symbol = match symbol {
-            Some(valid_symbol) => valid_symbol,
-            None => panic!("Expected an array with the name {:?}", &arr_name.0)
-        };
-
-        let typ = match valid_symbol {
-            SymbolInformation::Variable(typ) => typ,
-            _=> panic!("Expected an array!")
-        };
-
-        match typ {
-            Type::Array(num_elements, typ) => (*num_elements, *typ.clone()),
-            _=> panic!("Expected an array with name {:?} ", &arr_name.0)
-        }
-    }
-    pub fn look_up_identifier_type(&self, identifier: &Ident) -> Type {
-        let symbol = self.look_up(identifier);
-        let valid_symbol = match symbol {
-            Some(valid_symbol) => valid_symbol,
-            None => {
-                panic!("Cannot find a symbol named {:?}", &identifier)
-            }
-        };
-        match valid_symbol {
-            SymbolInformation::Variable(typ) => typ.clone(),
-            _=> panic!("Cannot find variable declaration for following variable {:?} in this scope", &identifier)
-        }
     }
 
     // XXX: Find a better way to do this path decent
@@ -140,7 +127,7 @@ impl SymbolTable {
 
         match noir_func {
             NoirFunction::Function(main) => Some(main.clone()),
-            LowLevelFunction => return None
+            _ => return None
         }
 
     }
@@ -201,7 +188,7 @@ fn parse_function_declaration(func_dec: &FunctionDefinition) -> (Ident, Function
 #[test]
 fn test_k() {
     let mut std_hash_st = SymbolTable::new();
-    std_hash_st.insert(Ident("sha256".into()), SymbolInformation::Function(NoirFunction::LowLevelFunction));
+    std_hash_st.insert(Ident("sha256".into()), SymbolInformation::Variable(Type::Bool));
 
     let mut std_st = SymbolTable::new();
     std_st.insert(Ident("hash".into()), SymbolInformation::Table(std_hash_st));
@@ -216,5 +203,4 @@ fn test_k() {
     ];
 
     let result = root_table.look_up_path(path.into());
-    dbg!(result);
 }
