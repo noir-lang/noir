@@ -1,9 +1,13 @@
+
+mod attribute_check;
+use attribute_check::AttributeChecker;
+
 mod resolve;
+use resolve::Resolver;
 
 mod type_check;
 use type_check::TypeChecker;
 
-use resolve::Resolver;
 use noirc_frontend::ast::FunctionDefinition;
 /// This module is for now just a placeholder
 /// We want the analyser to do quite a few things such as:
@@ -17,7 +21,7 @@ use noirc_frontend::ast::FunctionDefinition;
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
 ///
 use noirc_frontend::ast::{Statement, ImportStatement};
-use noirc_frontend::symbol_table::{SymbolTable, NoirFunction};
+use noirc_frontend::symbol_table::{SymbolTable, NoirFunction, SymbolInformation};
 use noirc_frontend::parser::Program;
 
 use std::collections::HashMap;
@@ -30,30 +34,47 @@ pub struct CheckedProgram{
 }
 
 pub fn check(ast: Program) -> (Program, SymbolTable) {
+    check_program(ast, false)
+}
+
+// We need to bootstrap the standard library. This code will be removed once we stop interpreting the AST
+// Or we move the stdlib symbol table to be on symbol table by default. (For this it would need to also be recompiled however)
+fn check_program(ast : Program, is_std_lib : bool) -> (Program, SymbolTable) {
+
+    // Attribute checker
+    AttributeChecker::check(&ast);
 
     // Resolver
-    let ast = Resolver::resolve(ast);
+    let symbol_table = build_symbol_table(&ast, is_std_lib);
+    let ast = Resolver::resolve(ast, &symbol_table);
     
     // Type checker
-    let ast = TypeChecker::check(ast);
+    let ast = TypeChecker::check(ast, &symbol_table);
 
-    let symbol_table = build_symbol_table(&ast);
+    // XXX: This is inefficient and is only done because the AST might have changed 
+    // as we are doing type inferrence. We would be able to remove this if we updated
+    // the symbol table on the fly too
+    let symbol_table = build_symbol_table(&ast, is_std_lib);
 
     (ast, symbol_table)
 }
 
-fn build_symbol_table(ast: &Program) -> SymbolTable {
+fn build_symbol_table(ast: &Program, is_std_lib : bool) -> SymbolTable {
     let mut root_table = SymbolTable::new();
 
     // Add the low level standard library symbol table
     // XXX: We will also compile and add the high level library here, but we do not have any high level std library constructs yet
     // Once modules are implemented, this(stdlib) will then move upto the module layer
-    load_low_level_libraries_into_symbol_table(&mut root_table);
+    if !is_std_lib {
+        load_low_level_libraries_into_symbol_table(&mut root_table);
+    }
 
     load_local_functions_into_symbol_table(ast, &mut root_table);
 
     root_table
 }
+
+
 
 fn load_local_functions_into_symbol_table(ast: &Program, table: &mut SymbolTable) {
     for func_def in ast.functions.iter() {
@@ -66,8 +87,29 @@ fn load_local_functions_into_symbol_table(ast: &Program, table: &mut SymbolTable
         Some(main_func) => table.insert_func_def(main_func),
         None => {}
     };
+
+    for (module_key, module) in ast.modules.iter() {
+        let mut module_symbol_table = SymbolTable::new();
+        load_local_functions_into_symbol_table(module, &mut module_symbol_table);
+        table.insert(module_key.clone().into(), SymbolInformation::Table(module_symbol_table))
+    }
 }
 
 fn load_low_level_libraries_into_symbol_table(table: &mut SymbolTable) {
-    low_level_std_lib::populate_symbol_table(table);
+
+    let std_lib = "
+        mod hash {
+            #[sha256]
+            fn sha256(_input : []Witness) -> [2]Witness {}
+        }
+    ";
+
+
+    // Parse and add low level functions into a symbol table
+    // We could define the AST for this in the host language
+    let program = noirc_frontend::Parser::with_input(std_lib).parse_program();
+    let (checked_program, std_table) = check_program(program, true);
+    // We do nothing with the checked program for two reasons: Every module should have a copy of std_lib
+
+    table.insert("std".to_string().into(), SymbolInformation::Table(std_table));
 }
