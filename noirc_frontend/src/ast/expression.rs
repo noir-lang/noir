@@ -1,5 +1,5 @@
 use crate::{BlockStatement, Ident, Type};
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, Attribute};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -160,6 +160,7 @@ pub struct CastExpression {
 // fn add(x, y) {x+y}
 pub struct FunctionDefinition {
     pub name: Ident,
+    pub attribute : Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub literal: FunctionLiteral,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -7,18 +7,65 @@ pub use expression::*;
 pub use statement::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ArraySize {
+    Variable, 
+    Fixed(u128)
+}
+
+impl ArraySize {
+    pub fn is_fixed(&self) -> bool {
+        match self {
+            ArraySize::Fixed(_) => true, 
+            _ => false
+        }
+    }
+}
+
+impl std::fmt::Display for ArraySize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArraySize::Variable => write!(f, "[]"),
+            ArraySize::Fixed(size) => write!(f, "[{}]", size)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     FieldElement, // This type was introduced for directives.  
     Constant,
     Public,
     Witness,
-    Array(u128, Box<Type>),   // [4]Witness = Array(4, Witness)
+    Array(ArraySize, Box<Type>),   // [4]Witness = Array(4, Witness)
     Integer(Signedness, u32), // u32 = Integer(unsigned, 32)
     Bool,
     Error, // XXX: Currently have not implemented structs, so this type is a stub
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for literals, where the parser cannot figure out the type for the literal
-    Void,
+    Unit,
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::FieldElement => write!(f, "Field"),
+            Type::Constant => write!(f, "Constant"),
+            Type::Public => write!(f, "Public"),
+            Type::Witness => write!(f, "Witness"),
+            Type::Array(size, typ) => write!(f, "{}{}", size, typ),
+            Type::Integer(sign, num_bits) => {
+                match sign{
+                    Signedness::Signed => write!(f, "i{}", num_bits),                     
+                    Signedness::Unsigned => write!(f, "u{}", num_bits),                     
+                }
+            },
+            Type::Bool => write!(f, "bool"),
+            Type::Error => write!(f, "Error"),
+            Type::Unspecified => write!(f, "unspecified"),
+            Type::Unknown => write!(f, "unknown"),
+            Type::Unit => write!(f, "()"),
+        }
+    }
 }
 
 impl Type {
@@ -30,12 +77,33 @@ impl Type {
             _=> false
         }
     }
+
+
+    pub fn is_fixed_sized_array(&self) -> bool {
+        let (sized, _ ) = match self.array() {
+            None => return false,
+            Some(arr) => arr
+        };
+        sized.is_fixed()
+    }
+    pub fn is_variable_sized_array(&self) -> bool {
+        let (sized, _ ) = match self.array() {
+            None => return false,
+            Some(arr) => arr
+        };
+        !sized.is_fixed()
+    }
+
+    fn array(&self) -> Option<(&ArraySize, &Type)> {
+        match self {
+            Type::Array(sized, typ) => Some((sized, typ)),
+            _=> None
+        }
+    }
+
     // Returns true if the Type can be used in a Let statement
     pub fn can_be_used_in_let(&self) -> bool {    
-        match self {
-            Type::Array(_, _) => true,
-            _=> false
-        }
+        self.is_fixed_sized_array()
     }
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {    
@@ -99,7 +167,7 @@ impl Type {
             (Type::Error, _) | (_,Type::Error) => return Type::Error,
             (Type::Unspecified, _) | (_,Type::Unspecified) => return Type::Unspecified,
             (Type::Unknown, _) | (_,Type::Unknown) => return Type::Unknown,
-            (Type::Void, _) | (_,Type::Void) => return Type::Void,
+            (Type::Unit, _) | (_,Type::Unit) => return Type::Unit,
 
             (Type::FieldElement, _) | (_,Type::FieldElement) => return Type::FieldElement,
             
