@@ -1,4 +1,5 @@
 use noirc_frontend::ast::{Expression, Statement, NoirPath, FunctionDefinition};
+use noirc_frontend::{SymbolTable, NoirFunction};
 use noirc_frontend::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
 use noirc_frontend::parser::Program;
 
@@ -8,33 +9,18 @@ use noirc_frontend::parser::Program;
 
 mod expression;
 
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap};
 
-pub struct Resolver{
-    global_function_declarations : HashSet<(NoirPath, Ident)>,
+pub struct Resolver<'a>{
+    table : &'a SymbolTable,
     local_declarations : HashMap<Ident, usize>
 }
 
 
-impl Resolver {
+impl<'a> Resolver<'a> {
 
-    fn from_functions(ast : &Program) -> Resolver {
-
-        // XXX: This will be expanded to deal with external dependencies
-        // XXX: Add globals from previous symbol table to this one
-
-        // First add the function names from the low level standard library
-        let mut map : HashSet<_> = low_level_std_lib::LowLevelStandardLibrary::return_types().into_iter().map(|(path, func_name, _)| {
-            (path, func_name)
-        }).collect();
-
-        // Add declaration information for local functions
-        for func in ast.functions.iter() {
-            map.insert((NoirPath::Current,func.name.clone()));
-        }
-
-
-        Resolver {global_function_declarations : map, local_declarations : HashMap::new()}
+    fn from_symbol_table(table : &'a SymbolTable) -> Resolver<'a> {
+        Resolver {table, local_declarations : HashMap::new()}
     }
 
     fn add_variable_decl(&mut self, name : Ident) {
@@ -56,8 +42,8 @@ impl Resolver {
             None => return false
         }
     }
-    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> bool {     
-        self.global_function_declarations.get(&(path.clone(), func_name.clone())).is_some()
+    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<NoirFunction> {   
+        self.table.look_up_func(path.clone(), &func_name)
     }
 
     fn clear(&mut self) {
@@ -67,11 +53,10 @@ impl Resolver {
     // Checks if all variables have been correctly scoped
     // XXX: Can check here that main() has no return type
     // We can probably check for duplicate var and func names in here
-    pub fn resolve(mut ast : Program) -> Program {
-
+    pub fn resolve(mut ast : Program, table : &SymbolTable) -> Program {
 
         // Add functions into this, so that call expressions can be resolved
-        let mut resolver = Resolver::from_functions(&ast);
+        let mut resolver = Resolver::from_symbol_table(table);
 
         ast.main = match ast.main.clone() {
             Some(main_func) =>    {    
@@ -80,12 +65,23 @@ impl Resolver {
             None => None
         };
 
-        ast.functions = ast.functions.into_iter().map(|func| {
-            resolver.resolve_func_def(func)
+        ast = resolver.resolve_ast(ast);
+
+        ast.modules = ast.modules.into_iter().map(|(module_id, module)| {
+            (module_id, resolver.resolve_ast(module))
         }).collect();
-        
+
         ast
     }
+
+    fn resolve_ast(&mut self, mut ast : Program) -> Program {
+        ast.functions = ast.functions.into_iter().map(|func| {
+            self.resolve_func_def(func)
+        }).collect();
+
+        ast
+    }
+
     fn resolve_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition{
         // Add function parameters so they can be seen as declared
         for param in func.literal.parameters.iter() {
@@ -96,7 +92,8 @@ impl Resolver {
 
         let mut unused_variables = Vec::new();
         for (variable_name, value) in self.local_declarations.iter(){
-            if *value == 0 {
+            let has_underscore_prefix = variable_name.0.starts_with("_");
+            if *value == 0 && !has_underscore_prefix{
                 unused_variables.push(variable_name)
             }
         }

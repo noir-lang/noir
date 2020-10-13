@@ -1,15 +1,36 @@
-use noirc_frontend::ast::{Expression, Type, Literal, InfixExpression};
-use super::TypeChecker;
+use noirc_frontend::ast::{Expression, Type, Literal, InfixExpression, ArraySize};
+use super::*;
 // We assume that the current symbol table contains the functions metadata
 // This is not always the root symbol table,if we do not look up the path from the root, if we introduce the closures
 // In that case, it would be the functions symbol table
 
-impl TypeChecker {
+impl<'a> TypeChecker<'a> {
     pub fn type_check_expr(&mut self,expr :  &mut Expression) -> Type {
         match expr {
             Expression::Cast(cast) => cast.r#type.clone() ,
             Expression::Call(path, call_expr) => {
-               self.lookup_function_type(path, &call_expr.func_name)
+
+                // Find function
+                let func = self.find_function(path, &call_expr.func_name);
+                let func = match func {
+                    None => panic!("Could not find a function named {} , under the path {:?}", &call_expr.func_name.0, path),
+                    Some(func) => func,
+                };
+
+                let (parameters, return_type) = match func {
+                    NoirFunction::LowLevelFunction(literal) => (literal.parameters, literal.return_type),
+                    NoirFunction::Function(literal) => (literal.parameters, literal.return_type),
+                };
+
+                let argument_types : Vec<Type> = call_expr.arguments.iter().map(|arg| self.type_check_expr(&mut arg.clone())).collect();
+
+                assert_eq!(parameters.len(), argument_types.len()); // This should have been caught in the resolver
+
+                for (parameter, argument_type) in parameters.iter().zip(argument_types.iter()) {
+                    TypeChecker::type_check_param_argument(parameter, argument_type)
+                }
+
+               return_type
             },
             Expression::Ident(iden) => {
                 self.lookup_local_identifier(&iden.to_string().into())
@@ -41,15 +62,20 @@ impl TypeChecker {
                 //
                 // First collect each elements type
                 let arr_types : Vec<_> = arr_lit.contents.iter_mut().map(|element| self.type_check_expr(element)).collect();
-                if arr_types.len() == 0{
-                    arr_lit.r#type = Type::Void;
-                    return Type::Void;
-                }
-                if arr_types.len() == 1{
-                    panic!("Array has one element of type {:?}. This is the same as defining the type itself.", &arr_types[0])
+                if arr_types.len() == 0 {
+                    arr_lit.r#type = Type::Unit;
+                    return Type::Unit;
                 }
 
+                // Specify the type of the Array
+                arr_lit.r#type = Type::Array(ArraySize::Fixed(arr_types.len() as u128), Box::new(arr_types[0].clone()));
+                
                 // Check if the array is homogenous
+                
+                if arr_types.len() == 1{
+                    return arr_lit.r#type.clone()
+                }
+
                 for (i,type_pair) in arr_types.windows(2).enumerate() {
                     let left_type = &type_pair[0]; 
                     let right_type = &type_pair[1]; 
@@ -58,9 +84,7 @@ impl TypeChecker {
                         panic!("Array is not homogenous at indices ({}, {}), found an element of type {:?} and an element of type {:?}", i,i+1, left_type, right_type)
                     }
                 }
-                // Specify the type of the Array
-                arr_lit.r#type = Type::Array(arr_types.len() as u128, Box::new(arr_types[0].clone()));
-
+                
                 return arr_lit.r#type.clone()
             }, 
             Literal::Bool(_) => {
@@ -87,5 +111,27 @@ impl TypeChecker {
     
         lhs_type.infix_operand_type_rules(&infx.operator, &rhs_type)
     }
+
+    fn type_check_param_argument(param: &(Ident, Type), arg_type : &Type) {
+
+        let param_name = &param.0;
+        let param_type = &param.1;
+
+        if arg_type.is_variable_sized_array() {
+            panic!("arg_type type cannot be a variable sized array")
+        }
+        
+        // Variable sized arrays (vectors) can be linked to fixed size arrays
+        if param_type.is_variable_sized_array() && arg_type.is_fixed_sized_array() {
+            return
+        }
+        
+        if param_type != arg_type {
+            panic!("Expected {} for parameter {} but got {} ", param_type, param_name.0, arg_type)
+        }
+        
+    }
+
+
 }
 

@@ -1,34 +1,20 @@
 use noirc_frontend::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
 use noirc_frontend::ast::{NoirPath, FunctionDefinition};
 use noirc_frontend::parser::Program;
+use noirc_frontend::{SymbolTable, NoirFunction};
 use std::collections::HashMap;
 
 mod expression;
 
-pub struct TypeChecker {
-    global_function_types : HashMap<(NoirPath, Ident), Type>,
+pub struct TypeChecker<'a> {
+    table : &'a SymbolTable,
     local_types : HashMap<Ident, Type>
 }
 
-impl TypeChecker {
+impl<'a> TypeChecker<'a> {
 
-    fn from_function_types(ast : &Program) -> TypeChecker {
-
-        // XXX: This will be expanded to deal with external dependencies
-        // XXX: Add globals from previous symbol table to this one
-
-        // First add the types from the low level standard library
-        let mut map : HashMap<_,_> = low_level_std_lib::LowLevelStandardLibrary::return_types().into_iter().map(|(path, func_name, typ)| {
-            ((path, func_name), typ)
-        }).collect();
-
-        // Add return type information for local functions
-        for func in ast.functions.iter() {
-            map.insert((NoirPath::Current, func.name.clone()),func.literal.return_type.clone());
-        }
-
-
-        TypeChecker {global_function_types : map, local_types : HashMap::new()}
+    fn from_symbol_table(table : &SymbolTable) -> TypeChecker {
+        TypeChecker {table, local_types : HashMap::new()}
     }
 
     pub fn clear(&mut self) {
@@ -43,16 +29,16 @@ impl TypeChecker {
         }
     }
 
-    pub fn lookup_function_type(&self,path : &NoirPath, name : &Ident) -> Type {
-        self.global_function_types.get(&(path.clone(), name.clone())).unwrap().clone() // Unwrap here because this can only go wrong if the resolution phase is incorrect
+    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<NoirFunction> {   
+        self.table.look_up_func(path.clone(), &func_name)
     }
     pub fn lookup_local_identifier(&self, name : &Ident) -> Type {
         self.local_types.get(&(name.clone())).unwrap().clone()
     }
 
-    pub fn check(mut ast : Program) -> Program {
+    pub fn check(mut ast : Program, table : &SymbolTable) -> Program {
 
-        let mut type_checker = TypeChecker::from_function_types(&ast);
+        let mut type_checker = TypeChecker::from_symbol_table(table);
 
         ast.main = match ast.main.clone() {
             Some(main_func) =>    {    
@@ -61,8 +47,19 @@ impl TypeChecker {
             None => None
         };
 
+        ast = type_checker.type_check_ast(ast);
+
+        ast.modules = ast.modules.into_iter().map(|(module_id, module)| {
+            (module_id, type_checker.type_check_ast(module))
+        }).collect();
+
+        ast
+    }
+
+    fn type_check_ast(&mut self, mut ast : Program) -> Program {
+
         ast.functions = ast.functions.into_iter().map(|func| {
-            type_checker.type_check_func_def(func)
+            self.type_check_func_def(func)
         }).collect();
 
         ast
@@ -80,24 +77,30 @@ fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefi
 
     let declared_return_type = &func.literal.return_type;
 
-    if &last_return_type != declared_return_type {
-        panic!("mismatched types: Expected the function named `{}` to return the type `{:?}`, but got `{:?}`", &func.name.0, declared_return_type, last_return_type);
+    let is_foreign = match &func.attribute{
+        None => false,
+        Some(attr) => attr.is_foreign()
+    };
+
+    if (&last_return_type != declared_return_type) & !is_foreign {
+        panic!("mismatched types: Expected the function named `{}` to return the type `{}`, but got `{}`", &func.name.0, declared_return_type, last_return_type);
     }
 
     self.clear(); 
+
     func
 }
 
 // Check that all assignments have the correct types
 fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Type {
 
-    let mut last_return_type = Type::Void;
+    let mut last_return_type = Type::Unit;
 
     for stmt in block.0.iter_mut() {
         match stmt {
             Statement::Private(ref mut priv_stmt) => {
                 self.type_check_private_stmt(priv_stmt);
-                last_return_type = Type::Void;
+                last_return_type = Type::Unit;
             },
             Statement::Expression(expr) => {
                 last_return_type = self.type_check_expr(&mut expr.0);
@@ -107,22 +110,22 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Type {
             },
             Statement::Const(const_stmt) => {
                 self.type_check_const_stmt(const_stmt);
-                last_return_type = Type::Void;
+                last_return_type = Type::Unit;
             },
             Statement::If(_) => {
-                last_return_type = Type::Void;
+                last_return_type = Type::Unit;
                 panic!("[Possible Deprecation] : If statements are not implemented yet, however they might be deprecated for if expressions");
             },
             Statement::Let(let_stmt) => {
                 self.type_check_let_stmt(let_stmt);
-                last_return_type = Type::Void;
+                last_return_type = Type::Unit;
             },
             Statement::Constrain(constr_stmt) =>{
                 self.type_check_constrain_stmt(constr_stmt);
-                last_return_type = Type::Void;
+                last_return_type = Type::Unit;
             },
             Statement::Public(_) => {
-                last_return_type = Type::Void;
+                last_return_type = Type::Unit;
                 // XXX: Initially, we were going to give the ability to declare public variables inside of functions.
                 // Now it seems more plausible to only have Public variables be declared as function types,
                 // So that we can keep track of linear transformations between public variables which may leak a witness

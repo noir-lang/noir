@@ -3,7 +3,7 @@ use super::*;
 use noirc_frontend::ast::{Expression, Ident, Literal, InfixExpression};
 
 
-impl Resolver {
+impl<'a> Resolver<'a> {
     pub(crate) fn resolve_expr(&mut self, expr : &Expression) -> bool{
         match expr{
             Expression::Ident(identifier) => self.find_variable(&Ident(identifier.into())),
@@ -12,9 +12,24 @@ impl Resolver {
             },
             Expression::Call(path,call_expr) => {
 
-                self.find_function(path, &call_expr.func_name);
+                let func = self.find_function(path, &call_expr.func_name);
+                let func = match func {
+                    None => panic!("Could not find a function named {} , under the path {:?}", &call_expr.func_name.0, path),
+                    Some(func) => func,
+                };
+
+                let param_len = match func{
+                    NoirFunction::Function(literal) => literal.parameters.len(),
+                    NoirFunction::LowLevelFunction(literal) => literal.parameters.len(),
+                };
+                let argument_len = call_expr.arguments.len();
+
+                if param_len != argument_len {
+                    panic!("Function {} expected {} number of arguments, but got {}", call_expr.func_name.0, param_len, argument_len)
+                }
 
                 self.resolve_list_of_expressions(&call_expr.arguments, "argument", "argument list");
+
                 true
             },
             Expression::Index(index_expr) => {
