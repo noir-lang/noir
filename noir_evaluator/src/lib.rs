@@ -1,23 +1,24 @@
 pub mod binary_op;
-pub mod circuit;
 pub mod environment;
 pub mod low_level_std_lib_impl;
-pub mod optimise;
-pub mod polynomial;
+pub mod object;
 
-pub use circuit::{Circuit, Selector, Witness};
+use std::collections::{BTreeMap, HashMap};
+
+pub use object::{Array, Integer, Object, Selector};
 pub use environment::Environment;
+use acir::optimiser::CSatOptimiser;
+
+use acir::native_types::{Witness, Arithmetic, Linear};
+use acir::circuit::gate::{AndGate, Gate, XorGate};
+use acir::circuit::Circuit;
+
 use noirc_frontend::ast::FunctionLiteral as Function;
 use noirc_frontend::symbol_table::{SymbolTable, NoirFunction};
 use noirc_frontend::ast::*;
-pub use low_level_std_lib::{LowLevelStandardLibrary, HashLibrary};
-use noir_field::FieldElement;
-use std::collections::{BTreeMap, HashMap};
-
-pub use circuit::gate::{AndGate, GadgetCall, GadgetInput, Gate, XorGate};
 use noirc_frontend::parser::Program;
-use optimise::Optimiser;
-pub use polynomial::{Arithmetic, Array, Integer, Linear, Polynomial};
+
+use noir_field::FieldElement;
 
 pub struct Evaluator {
     num_witness: usize,                           // XXX: Can possibly remove
@@ -28,7 +29,7 @@ pub struct Evaluator {
     symbol_table: SymbolTable,
     num_public_inputs: usize,
     main_function: Function,
-    gates: Vec<Gate>, // Identifier, Polynomial
+    gates: Vec<Gate>, // Identifier, Object
     counter: usize,   // This is so that we can get a unique number
 }
 
@@ -39,6 +40,7 @@ impl Evaluator {
             imports: _,
             functions: _,
             main: _,
+            modules : _,
         } = program;
 
         // Check that we have a main function
@@ -76,7 +78,7 @@ impl Evaluator {
         &mut self,
         name: String,
         env: &mut Environment,
-    ) -> (Witness, Polynomial) {
+    ) -> (Witness, Object) {
         let unique_name = format!("{}{}", name, self.get_unique_value(),);
         let witness = self.store_witness(unique_name.clone(), Type::Witness);
         let poly = self.store_lone_variable(unique_name, env);
@@ -111,7 +113,7 @@ impl Evaluator {
         // which takes the IR as input
         const WIDTH: usize = 3;
 
-        let optimiser = Optimiser::new(WIDTH);
+        let optimiser = CSatOptimiser::new(WIDTH);
 
         let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
 
@@ -164,7 +166,7 @@ impl Evaluator {
         env: &mut Environment,
         arithmetic_gate: Arithmetic,
         typ: Type,
-    ) -> (Polynomial, Witness) {
+    ) -> (Object, Witness) {
         // Create a new witness variable
         let inter_var_name = format!("{}_{}", "_inter", self.get_unique_value());
 
@@ -174,7 +176,7 @@ impl Evaluator {
 
         // We know it is a Linear polynomial, so we match on that.
         let linear_poly = match witness_poly.clone() {
-            Polynomial::Linear(x) => x,
+            Object::Linear(x) => x,
             _ => unimplemented!("Expected the intermediate variable to be a linear polynomial"),
         };
 
@@ -187,10 +189,10 @@ impl Evaluator {
     pub fn evaluate_infix_expression(
         &mut self,
         env: &mut Environment,
-        lhs: Polynomial,
-        rhs: Polynomial,
+        lhs: Object,
+        rhs: Object,
         op: BinaryOp,
-    ) -> Polynomial {
+    ) -> Object {
         match op {
             BinaryOp::Add => binary_op::handle_add_op(lhs, rhs, env, self),
             BinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
@@ -212,7 +214,7 @@ impl Evaluator {
     // This is because, we currently do not have support for optimisations with polynomials of higher degree or higher fan-ins
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
-    fn evaluate_identifier(&mut self, ident: String, env: &mut Environment) -> Polynomial {
+    fn evaluate_identifier(&mut self, ident: String, env: &mut Environment) -> Object {
         let polynomial = env.get(ident.clone());
         polynomial
     }
@@ -289,7 +291,7 @@ impl Evaluator {
     }
     */
     // Create a concept called delayed constraints
-    fn evaluate_statement(&mut self, env: &mut Environment, statement: &Statement) -> Polynomial {
+    fn evaluate_statement(&mut self, env: &mut Environment, statement: &Statement) -> Object {
         match statement {
             Statement::Private(x) => self.handle_private_statement(env, *x.clone()),
             Statement::Constrain(constrain_stmt) => {
@@ -303,16 +305,16 @@ impl Evaluator {
                 self.selectors
                     .push(Selector(variable_name.clone(), value.clone()));
                 env.store(variable_name, value);
-                Polynomial::Null
+                Object::Null
             }
             Statement::Expression(expr_stmt) => {
-                self.expression_to_polynomial(env, expr_stmt.0.clone())
+                self.expression_to_object(env, expr_stmt.0.clone())
             }
             Statement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_let_statement(env, let_stmt);
 
-                Polynomial::Null
+                Object::Null
             }
             _ => {
                 panic!("This statement type has not been implemented");
@@ -321,7 +323,7 @@ impl Evaluator {
     }
 
     // XXX(med) : combine these two methods and or rename
-    // XXX(bug): If you call store_witness after store_lone_variable, then the Polynomial will have the index of the previous witness
+    // XXX(bug): If you call store_witness after store_lone_variable, then the Object will have the index of the previous witness
     // XXX: Maybe better to name it `create_witness`
     fn store_witness(&mut self, variable_name: String, typ: Type) -> Witness {
         self.num_witness = self.num_witness + 1;
@@ -329,8 +331,8 @@ impl Evaluator {
         self.witnesses.insert(witness.clone(), typ);
         witness
     }
-    fn store_lone_variable(&mut self, variable_name: String, env: &mut Environment) -> Polynomial {
-        let value = Polynomial::from_witness(Witness(variable_name.clone(), self.num_witness));
+    fn store_lone_variable(&mut self, variable_name: String, env: &mut Environment) -> Object {
+        let value = Object::from_witness(Witness(variable_name.clone(), self.num_witness));
         env.store(variable_name, value.clone());
         value
     }
@@ -342,12 +344,12 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         x: PrivateStatement,
-    ) -> Polynomial {
+    ) -> Object {
         let variable_name: String = x.identifier.clone().0;
         let witness = self.store_witness(variable_name.clone(), x.r#type.clone());
         let witness_linear = Linear::from_witness(witness.clone());
 
-        let rhs_poly = self.expression_to_polynomial(env, x.expression.clone());
+        let rhs_poly = self.expression_to_object(env, x.expression.clone());
 
         match rhs_poly.arithmetic() {
             Some(arith) => {
@@ -372,14 +374,14 @@ impl Evaluator {
             Type::Integer(_, num_bits) => {
                 let integer = Integer::from_witness(witness, *num_bits);
                 integer.constrain(self);
-                Polynomial::Integer(integer)
+                Object::Integer(integer)
             }
-            Type::Witness => Polynomial::from_witness(witness),
+            Type::Witness => Object::from_witness(witness),
             k => panic!("Oops, Expected an integer or Witness type, found {:?}", k),
         };
         env.store(variable_name.clone(), rhs_poly);
 
-        Polynomial::Null
+        Object::Null
     }
 
     // The LHS of a private statement is always a new witness
@@ -389,9 +391,9 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         constrain_stmt: &ConstrainStatement,
-    ) -> Polynomial {
-        let lhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.lhs.clone());
-        let rhs_poly = self.expression_to_polynomial(env, constrain_stmt.0.rhs.clone());
+    ) -> Object {
+        let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs.clone());
+        let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs.clone());
 
         // Evaluate the constrain infix statement
         let _ = self.evaluate_infix_expression(
@@ -407,7 +409,7 @@ impl Evaluator {
             let (witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
                 (true, _) => (lhs_poly.witness(), rhs_poly),
                 (_, true) => (rhs_poly.witness(), lhs_poly),
-                (_, _) => (None, Polynomial::Null),
+                (_, _) => (None, Object::Null),
             };
 
             match witness {
@@ -420,14 +422,14 @@ impl Evaluator {
                 None => {}
             };
         };
-        Polynomial::Null
+        Object::Null
     }
     // Let statements are used to declare higher level objects
     fn handle_let_statement(
         &mut self,
         env: &mut Environment,
         let_stmt: &LetStatement,
-    ) -> Polynomial {
+    ) -> Object {
         // Convert the LHS into an identifier
         let variable_name: String = let_stmt.identifier.clone().0;
 
@@ -435,50 +437,50 @@ impl Evaluator {
         // we can extend into a separate (generic) module
 
         // Extract the array
-        let rhs_poly = self.expression_to_polynomial(env, let_stmt.expression.clone());
+        let rhs_poly = self.expression_to_object(env, let_stmt.expression.clone());
 
         match rhs_poly {
-            Polynomial::Array(arr) => {
-                env.store(variable_name.into(), Polynomial::Array(arr));
+            Object::Array(arr) => {
+                env.store(variable_name.into(), Object::Array(arr));
             }
             _ => panic!(
                 "logic for types that are not arrays in a let statement, not implemented yet!"
             ),
         };
 
-        Polynomial::Null
+        Object::Null
     }
 
-    pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Polynomial {
-        let polynomial = self.expression_to_polynomial(env, expr);
+    pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Object {
+        let polynomial = self.expression_to_object(env, expr);
 
         // Check that it is a constant, currently we only have integer constants
-        // XXX: We could possibly add the public inputs logic aswell Polynomial::Public
+        // XXX: We could possibly add the public inputs logic aswell Object::Public
         // XXX: Think about this some more, as public inputs are ultimately private
         match polynomial {
-            Polynomial::Constants(_) => return polynomial,
+            Object::Constants(_) => return polynomial,
             _ => panic!("Expected a constant. Only Constants can be integers"),
         }
     }
 
-    pub fn expression_to_polynomial(
+    pub fn expression_to_object(
         &mut self,
         env: &mut Environment,
         expr: Expression,
-    ) -> Polynomial {
+    ) -> Object {
         match expr {
-            Expression::Literal(Literal::Integer(x)) => Polynomial::Constants(x.into()),
+            Expression::Literal(Literal::Integer(x)) => Object::Constants(x.into()),
             Expression::Literal(Literal::Array(arr_lit)) => {
-                Polynomial::Array(Array::from(self, env, arr_lit))
+                Object::Array(Array::from(self, env, arr_lit))
             }
             Expression::Ident(x) => self.evaluate_identifier(x.to_string(), env),
             Expression::Infix(infx) => {
-                let lhs = self.expression_to_polynomial(env, infx.lhs);
-                let rhs = self.expression_to_polynomial(env, infx.rhs);
+                let lhs = self.expression_to_object(env, infx.lhs);
+                let rhs = self.expression_to_object(env, infx.rhs);
                 self.evaluate_infix_expression(env, lhs, rhs, infx.operator)
             }
             Expression::Cast(cast_expr) => {
-                let lhs = self.expression_to_polynomial(env, cast_expr.lhs);
+                let lhs = self.expression_to_object(env, cast_expr.lhs);
                 binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
             }
             Expression::Index(indexed_expr) => {
@@ -500,7 +502,7 @@ impl Evaluator {
                 // If not then we just call the library as usual with the function definition
                 match noir_func {
                     NoirFunction::Function(compiled_func) => self.call_function(env, &call_expr, compiled_func.clone()),
-                    NoirFunction::LowLevelFunction => low_level_std_lib_impl::call_low_level(self, env, &func_name, *call_expr),
+                    NoirFunction::LowLevelFunction(_) => low_level_std_lib_impl::call_low_level(self, env, &func_name, *call_expr),
                 }
                     
             }
@@ -511,16 +513,16 @@ impl Evaluator {
         }
     }
 
-    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: Function) -> Polynomial {
+    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: Function) -> Object {
               // Create a new environment for this function
                 // This is okay because functions are not stored in the environment
                 // We need to add the arguments into the environment though
                 // Note: The arguments are evaluated in the old environment
                 let mut new_env = Environment::new();
-                let arguments: Vec<Polynomial> = call_expr
+                let arguments: Vec<Object> = call_expr
                     .arguments
                     .iter()
-                    .map(|expr| self.expression_to_polynomial(env, expr.clone()))
+                    .map(|expr| self.expression_to_object(env, expr.clone()))
                     .collect();
 
                 // We also need to check that each argument matches with the correct type and correct number of parameters
@@ -542,13 +544,12 @@ impl Evaluator {
                 return_val
     }
 
-    fn apply_func(&mut self, env: &mut Environment, func: Function) -> Polynomial {
+    fn apply_func(&mut self, env: &mut Environment, func: Function) -> Object {
         self.eval_block(env, func.body)
     }
 
-    // XXX: FixME, eval_block should return a Polynomial which means that eval_stmt should also
-    fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Polynomial {
-        let mut result = Polynomial::Null;
+    fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Object {
+        let mut result = Object::Null;
         for stmt in block.0.iter() {
             result = self.evaluate_statement(env, stmt);
         }
