@@ -62,7 +62,6 @@ impl Barretenberg {
         // We then clone them inside of this function, so that the API does not have a bunch of Clones everywhere
 
         let params: Vec<_> = params.into_iter().map(|p| p.clone()).collect();
-        dbg!(name.clone());
         let option_value = self.instance.call(name, &params).unwrap().first().cloned();
 
         WASMValue(option_value)

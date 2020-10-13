@@ -255,7 +255,9 @@ impl StandardComposer {
         // XXX: We truncate the first 40 bytes, due to it being mangled
         // For some reason, the first line is partially mangled
         // So in C+ the first line is duplicated and then truncated
-        sc_as_bytes[40..].iter().map(|b| *b as char).collect()
+        let verification_method : String = sc_as_bytes[40..].iter().map(|b| *b as char).collect();
+        crate::contract::turbo_verifier::create(&verification_method)
+
     }
 
     pub fn get_circuit_size(&mut self, constraint_system: &ConstraintSystem) -> u128 {

@@ -4,11 +4,12 @@
 use crate::barretenberg_rs::composer::{
     Constraint, ConstraintSystem, LogicConstraint, RangeConstraint, Sha256Constraint,
 };
-use noir_evaluator::{polynomial::Arithmetic, Circuit, Gate, LowLevelStandardLibrary, HashLibrary};
+use noir_evaluator::object::Arithmetic;
+use acir::circuit::{Circuit, Gate};
+use acir::OPCODE;
 use noir_field::FieldElement;
 
-/// Converts a `Circuit` into the `StandardFormat` constraint system
-/// XXX: This is only required for Barretenberg-rs
+/// Converts an `IR` into the `StandardFormat` constraint system
 pub fn serialise_circuit(
     circuit: &Circuit,
     num_vars: usize,
@@ -53,7 +54,7 @@ pub fn serialise_circuit(
             }
             Gate::GadgetCall(gadget_call) => {
                 match gadget_call.name {
-                    LowLevelStandardLibrary::Hash(HashLibrary::SHA256) => {
+                    OPCODE::SHA256 => {
                         let mut sha256_inputs: Vec<(i32, i32)> = Vec::new();
                         for input in gadget_call.inputs.iter() {
                             let witness_index = input.witness.witness_index() as i32;
@@ -62,10 +63,9 @@ pub fn serialise_circuit(
                         }
 
                         assert_eq!(gadget_call.outputs.len(), 2);
-                        let result_low_128_witness_index =
-                            gadget_call.outputs[0].witness_index() as i32;
-                        let result_high_128_witness_index =
-                            gadget_call.outputs[1].witness_index() as i32;
+
+                        let result_low_128_witness_index = gadget_call.outputs[0].witness_index() as i32;
+                        let result_high_128_witness_index = gadget_call.outputs[1].witness_index() as i32;
 
                         let sha256_constraint = Sha256Constraint {
                             inputs: sha256_inputs,
@@ -75,7 +75,7 @@ pub fn serialise_circuit(
 
                         sha256_constraints.push(sha256_constraint);
                     },
-                    LowLevelStandardLibrary::Hash(HashLibrary::AES) => panic!("AES has not yet been implemented")
+                    OPCODE::AES => panic!("AES has not yet been implemented")
                 };
             }
             gate => panic!("Serialiser does not know how to serialise this gate"),
