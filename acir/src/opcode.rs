@@ -53,7 +53,7 @@ pub enum InputSize {
 }
 
 // Output size Cannot currently vary, so we use a separate struct
-// XXX: In the future, we may be able to allow the output to vary based on the input size, however this implies support for dynamic supports
+// XXX: In the future, we may be able to allow the output to vary based on the input size, however this implies support for dynamic circuits
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub struct OutputSize(pub u128);
 
