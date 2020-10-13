@@ -13,8 +13,7 @@ noirc_analyser = {path = "../noirc_analyser"}
 noir_field = {path = "../noir_field"}
 noir_evaluator = {path = "../noir_evaluator"}
 aztec_backend = {path = "../aztec_backend"}
-noir_wg = {path = "../noir_wg"}
-
+acir = {path = "../acir"}
 sha2 = "0.9"
 clap = "2.0"
 hex = "0.4.2"

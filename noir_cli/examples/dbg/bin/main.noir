@@ -1,8 +1,13 @@
  
-   fn main(x : Witness,low : Witness, high: Witness) {
+   fn main(_x : Witness,_low : Witness, _high: Witness) {
+          let dig = std::hash::sha256([_x]);
+          hello::wee(dig)
+          constrain _low == _high;
+   }   
 
-        let digest = std::hash::sha256(x as u8);
+   mod hello {
 
-        constrain digest[0] == low;
-        constrain digest[1] == high;
+     fn wee(_x : []Witness) -> Witness {
+            _x[0]
+     } 
    }

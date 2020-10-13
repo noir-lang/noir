@@ -59,10 +59,11 @@ use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, St
 use clap::ArgMatches;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::Parser;
-use noir_evaluator::circuit::Witness;
-use noir_evaluator::{Circuit, Environment, Evaluator};
+use acir::native_types::Witness;
+use acir::circuit::Circuit;
+use noir_evaluator::{Environment, Evaluator};
 use noir_field::FieldElement;
-use noir_wg::Solver;
+use acir::partial_witness_generator::Solver;
 use std::collections::BTreeMap;
 
 struct CompiledMain {
@@ -89,6 +90,7 @@ fn build_main() -> CompiledMain {
 
     let mut parser = Parser::new(Lexer::new(&file_as_string));
     let program = parser.parse_program();
+    dbg!(program.clone());
     let (checked_program, symbol_table) = noirc_analyser::check(program);
 
     let abi = checked_program.abi().unwrap();
