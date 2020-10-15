@@ -50,13 +50,13 @@ impl Program {
         self.modules.insert(mod_name, module);
     }
     /// Returns the program abi which is only present for executables and not libraries
-    pub fn abi(&self) -> Option<Vec<String>> {
+    pub fn abi(&self) -> Option<Vec<(String, crate::ast::Type)>> {
         match &self.main {
             Some(main_func) => {
                 let abi = main_func
                     .parameters
                     .iter()
-                    .map(|(ident, _)| ident.0.clone())
+                    .map(|(ident, typ)| (ident.0.clone(), typ.clone()))
                     .collect();
                 Some(abi)
             }
