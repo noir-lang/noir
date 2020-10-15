@@ -97,17 +97,14 @@ fn load_local_functions_into_symbol_table(ast: &Program, table: &mut SymbolTable
 
 fn load_low_level_libraries_into_symbol_table(table: &mut SymbolTable) {
 
-    let std_lib = "
-        mod hash {
-            #[sha256]
-            fn sha256(_input : []Witness) -> [2]Witness {}
-        }
-    ";
-
+    // Import std here
+    // XXX: Should be a better way to fetch the absolute path here. 
+    // May have to wait until proper module dependency graph is added
+    let std_lib = std::fs::read_to_string("../../../std/lib.noir").unwrap();
 
     // Parse and add low level functions into a symbol table
     // We could define the AST for this in the host language
-    let program = noirc_frontend::Parser::with_input(std_lib).parse_program();
+    let program = noirc_frontend::Parser::with_input(&std_lib).parse_program();
     let (checked_program, std_table) = check_program(program, true);
     // We do nothing with the checked program for two reasons: Every module should have a copy of std_lib
 

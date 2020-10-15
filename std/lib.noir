@@ -3,5 +3,5 @@
 // Function like the one below may require another attribute named "dyn circuit"
 mod hash {
     #[sha256]
-    fn sha256(input : []Witness) -> [2]Witness {}
+    fn sha256(_input : []Witness) -> [2]Witness {}
 }
