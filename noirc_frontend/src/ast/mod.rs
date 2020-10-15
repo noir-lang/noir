@@ -109,6 +109,7 @@ impl Type {
     pub fn can_be_used_in_constrain(&self) -> bool {    
         match self {
             Type::Witness => true,
+            Type::Public => true,
             Type::Integer(_,_) => true,
             Type::Constant => true,
             _=> false
