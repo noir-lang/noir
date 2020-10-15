@@ -1,6 +1,6 @@
 use super::Resolver;
 use super::*;
-use noirc_frontend::ast::{Expression, Ident, Literal, InfixExpression};
+use crate::ast::{Expression, Ident, Literal, InfixExpression};
 
 
 impl<'a> Resolver<'a> {

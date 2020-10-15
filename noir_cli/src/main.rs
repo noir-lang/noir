@@ -59,6 +59,7 @@ use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, St
 use clap::ArgMatches;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::Parser;
+use noirc_frontend::analyser;
 use acir::native_types::Witness;
 use acir::circuit::Circuit;
 use noir_evaluator::Evaluator;
@@ -91,7 +92,7 @@ fn build_main() -> CompiledMain {
     let mut parser = Parser::new(Lexer::new(&file_as_string));
     let program = parser.parse_program();
     dbg!(program.clone());
-    let (checked_program, symbol_table) = noirc_analyser::check(program);
+    let (checked_program, symbol_table) = analyser::check(program);
 
     let abi = checked_program.abi().unwrap();
 

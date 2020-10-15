@@ -1,5 +1,6 @@
 pub mod lexer;
 pub mod parser;
+pub mod analyser;
 pub mod ast;
 pub mod symbol_table;
 

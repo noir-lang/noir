@@ -3,7 +3,6 @@
 members = [
     "noir_field",
     "noir_evaluator",
-    "noirc_analyser",
     "noir_cli",
     "aztec_backend",
     "noirc_frontend",

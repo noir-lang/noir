@@ -1,7 +1,7 @@
-use noirc_frontend::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
-use noirc_frontend::ast::{NoirPath, FunctionDefinition};
-use noirc_frontend::parser::Program;
-use noirc_frontend::{SymbolTable, NoirFunction};
+use crate::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
+use crate::ast::{NoirPath, FunctionDefinition};
+use crate::parser::Program;
+use crate::{SymbolTable, NoirFunction};
 use std::collections::HashMap;
 
 mod expression;

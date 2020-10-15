@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 structopt = "0.3.13"
 noirc_frontend = {path = "../noirc_frontend"}
-noirc_analyser = {path = "../noirc_analyser"}
 noir_field = {path = "../noir_field"}
 noir_evaluator = {path = "../noir_evaluator"}
 aztec_backend = {path = "../aztec_backend"}

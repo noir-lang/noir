@@ -1,7 +1,7 @@
-use noirc_frontend::ast::{Expression, Statement, NoirPath, FunctionDefinition};
-use noirc_frontend::{SymbolTable, NoirFunction};
-use noirc_frontend::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
-use noirc_frontend::parser::Program;
+use crate::ast::{Expression, Statement, NoirPath, FunctionDefinition};
+use crate::{SymbolTable, NoirFunction};
+use crate::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
+use crate::parser::Program;
 
 
 /// Checks that each variable was declared before it's use

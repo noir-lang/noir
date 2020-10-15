@@ -8,7 +8,7 @@ use resolve::Resolver;
 mod type_check;
 use type_check::TypeChecker;
 
-use noirc_frontend::ast::FunctionDefinition;
+use crate::ast::FunctionDefinition;
 /// This module is for now just a placeholder
 /// We want the analyser to do quite a few things such as:
 /// - Be able to check for unused variables (Resolver)
@@ -20,9 +20,9 @@ use noirc_frontend::ast::FunctionDefinition;
 /// - Fill in inferred types for witnesses priv k = x as u8, should modify k to be the u8 Type
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
 ///
-use noirc_frontend::ast::{Statement, ImportStatement};
-use noirc_frontend::symbol_table::{SymbolTable, NoirFunction, SymbolInformation};
-use noirc_frontend::parser::Program;
+use crate::ast::{Statement, ImportStatement};
+use crate::symbol_table::{SymbolTable, NoirFunction, SymbolInformation};
+use crate::parser::Program;
 
 use std::collections::HashMap;
 
@@ -104,7 +104,7 @@ fn load_low_level_libraries_into_symbol_table(table: &mut SymbolTable) {
 
     // Parse and add low level functions into a symbol table
     // We could define the AST for this in the host language
-    let program = noirc_frontend::Parser::with_input(&std_lib).parse_program();
+    let program = crate::Parser::with_input(&std_lib).parse_program();
     let (checked_program, std_table) = check_program(program, true);
     // We do nothing with the checked program for two reasons: Every module should have a copy of std_lib
 

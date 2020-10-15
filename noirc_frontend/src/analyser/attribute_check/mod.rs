@@ -5,10 +5,10 @@
 // There is currently no need to have anything written in it
 
 // We also need to check that the return type matches the return type for the opcode defined in ACIR 
-use noirc_frontend::ast::{Type, ArraySize};
+use crate::ast::{Type, ArraySize};
 use acir::opcode::OutputSize;
-use noirc_frontend::ast::FunctionDefinition;
-use noirc_frontend::parser::Program;
+use crate::ast::FunctionDefinition;
+use crate::parser::Program;
 
 pub struct AttributeChecker;
 
