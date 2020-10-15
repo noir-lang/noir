@@ -105,6 +105,7 @@ impl<'a> Parser<'a> {
                     program.push_function(func_def);
                 }
                 Token::Comment(_) => {
+                    // This is a comment outside of a function.
                     // Currently we do nothing with Comment tokens
                     // It may be possible to store them in the AST, but this may not be helpful
                     // XXX: Maybe we can follow Rust and say by default all public functions need documentation?
@@ -132,7 +133,12 @@ impl<'a> Parser<'a> {
             return DeclarationParser::parse_declaration_statement(self, &self.curr_token.clone());
         };
 
-        let stmt = match self.curr_token {
+        let stmt = match &self.curr_token {
+            tk if tk.is_comment() => {
+                // Comments here are within a function
+                self.advance_tokens();
+                return self.parse_statement()
+            }
             Token::Keyword(Keyword::Constrain) => {
                 Statement::Constrain(ConstraintParser::parse_constrain_statement(self))
             }
