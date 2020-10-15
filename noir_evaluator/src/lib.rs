@@ -1,21 +1,22 @@
-pub mod binary_op;
-pub mod environment;
-pub mod low_level_std_lib_impl;
-pub mod object;
+mod binary_op;
+mod environment;
+mod low_level_function_impl;
+mod object;
 
 use std::collections::{BTreeMap, HashMap};
 
-pub use object::{Array, Integer, Object, Selector};
-pub use environment::Environment;
+use object::{Array, Integer, Object, Selector};
+use environment::Environment;
 use acir::optimiser::CSatOptimiser;
 
 use acir::native_types::{Witness, Arithmetic, Linear};
 use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
-use noirc_frontend::ast::FunctionLiteral as Function;
+use noirc_frontend::ast::FunctionDefinition as Function;
 use noirc_frontend::symbol_table::{SymbolTable, NoirFunction};
 use noirc_frontend::ast::*;
+use noirc_frontend::lexer::token::Attribute;
 use noirc_frontend::parser::Program;
 
 use noir_field::FieldElement;
@@ -103,10 +104,13 @@ impl Evaluator {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn evaluate(mut self, env: &mut Environment) -> (Circuit, usize, usize) {
+    pub fn evaluate(mut self) -> (Circuit, usize, usize) {
+
+        // create a new environment
+        let mut env = Environment::new();
 
         // First compile
-        self.compile(env);
+        self.compile(&mut env);
 
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
@@ -502,7 +506,13 @@ impl Evaluator {
                 // If not then we just call the library as usual with the function definition
                 match noir_func {
                     NoirFunction::Function(compiled_func) => self.call_function(env, &call_expr, compiled_func.clone()),
-                    NoirFunction::LowLevelFunction(_) => low_level_std_lib_impl::call_low_level(self, env, &func_name, *call_expr),
+                    NoirFunction::LowLevelFunction(func) => {
+                        let attribute = func.attribute.expect("All low level functions must contain an attribute which contains the opcode which it links to");
+                        let opcode_name = match attribute {
+                            Attribute::Foreign(opcode_name) => opcode_name,
+                        };
+                        low_level_function_impl::call_low_level(self, env, &opcode_name, *call_expr)
+                    },
                 }
                     
             }

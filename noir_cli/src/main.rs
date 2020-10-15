@@ -61,7 +61,7 @@ use noirc_frontend::lexer::Lexer;
 use noirc_frontend::Parser;
 use acir::native_types::Witness;
 use acir::circuit::Circuit;
-use noir_evaluator::{Environment, Evaluator};
+use noir_evaluator::Evaluator;
 use noir_field::FieldElement;
 use acir::partial_witness_generator::Solver;
 use std::collections::BTreeMap;
@@ -97,7 +97,7 @@ fn build_main() -> CompiledMain {
 
     let evaluator = Evaluator::new(checked_program, symbol_table);
 
-    let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate(&mut Environment::new());
+    let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate();
 
     let constraint_system =
         aztec_backend::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
