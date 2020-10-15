@@ -4,7 +4,7 @@
 use crate::barretenberg_rs::composer::{
     Constraint, ConstraintSystem, LogicConstraint, RangeConstraint, Sha256Constraint,
 };
-use noir_evaluator::object::Arithmetic;
+use acir::native_types::Arithmetic;
 use acir::circuit::{Circuit, Gate};
 use acir::OPCODE;
 use noir_field::FieldElement;
