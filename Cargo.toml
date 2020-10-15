@@ -6,5 +6,5 @@ members = [
     "noir_cli",
     "aztec_backend",
     "noirc_frontend",
-    "acir"
+    "acir",
 ]

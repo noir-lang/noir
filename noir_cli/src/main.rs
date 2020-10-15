@@ -196,7 +196,7 @@ fn new_package(args: ArgMatches) {
 
     let bin_dir = package_dir.join(Path::new(BINARY_DIR));
 
-    let _ = write_to_file(input.as_bytes(), &bin_dir.join(Path::new("input.noir")));
+    let _ = write_to_file(input.as_bytes(), &bin_dir.join(Path::new("input.toml")));
     let path = write_to_file(example.as_bytes(), &&bin_dir.join(Path::new("main.noir")));
     println!("Project successfully created! Binary located at {}", path);
 }
@@ -234,7 +234,7 @@ fn prove(args: ArgMatches) {
         .value_of("proof_name")
         .unwrap();
 
-    // Parse the input.noir file
+    // Parse the input.toml file
     let witness_map = parse_input();
 
     // Compile main
@@ -255,7 +255,7 @@ fn prove(args: ArgMatches) {
     let param_names = sorted_abi.parameter_names();
     for (index, param) in param_names.into_iter().enumerate() {
         
-        let value = witness_map.get(param).expect(&format!("ABI expects the parameter `{}`, but this was not found in input.noir", param));
+        let value = witness_map.get(param).expect(&format!("ABI expects the parameter `{}`, but this was not found in input.toml", param));
         
         solved_witness.insert(
             Witness::new(param.clone(), index + WITNESS_OFFSET),
@@ -293,7 +293,7 @@ fn parse_input() -> BTreeMap<String, FieldElement> {
     // Get the path to the input file
     let mut input_file = std::env::current_dir().unwrap();
     input_file.push(std::path::PathBuf::from("bin"));
-    input_file.push(std::path::PathBuf::from("input.noir"));
+    input_file.push(std::path::PathBuf::from("input.toml"));
     assert!(
         input_file.exists(),
         "Cannot find input file at located {}",
@@ -313,11 +313,11 @@ fn parse_input() -> BTreeMap<String, FieldElement> {
          }
     };
 
-    // Get input.noir file as a string
+    // Get input.toml file as a string
     let input_as_string = std::fs::read_to_string(input_file).unwrap();
 
-    // Parse input.noir into a BTreeMap, converting the argument to field elements 
-    let data : BTreeMap<String, String> = toml::from_str(&input_as_string).expect("input.noir file is badly formed, could not parse");
+    // Parse input.toml into a BTreeMap, converting the argument to field elements 
+    let data : BTreeMap<String, String> = toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
     data.into_iter().map(|(parameter, argument)| (parameter, parse(&argument))).collect()
 }
 
