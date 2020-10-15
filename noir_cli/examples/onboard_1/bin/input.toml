@@ -1,0 +1,9 @@
+
+# These are the witness values
+# The variables x and y are the parameters in the main function
+# which resides in main.noir
+#
+# Creating a proof will assign x to be 5 and y to be 0x10 
+        x = "5"
+        y = "0x10"
+    

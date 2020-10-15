@@ -1,0 +1,15 @@
+   
+   // Here is an example of using sha256
+   // Because the scalar field of sha256 is 254 bits, 
+   // We split the output into 2 128 bit field elements
+
+    // To create a smart contract for this Noir program, type `cargo run contract` 
+   fn main(x : Witness,low : Public, high: Public) {
+
+       // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Witness
+       // The padding is taken care of by the program
+        let digest = std::hash::sha256([x as u8]);
+
+        constrain digest[0] == low;
+        constrain digest[1] == high;
+   }
