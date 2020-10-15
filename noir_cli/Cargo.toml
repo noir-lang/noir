@@ -16,3 +16,4 @@ acir = {path = "../acir"}
 sha2 = "0.9"
 clap = "2.0"
 hex = "0.4.2"
+toml = "0.5"

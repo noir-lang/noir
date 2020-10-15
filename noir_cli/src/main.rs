@@ -31,12 +31,6 @@ fn main() {
                         .help("The name of the proof")
                         .required(true),
                 )
-                .arg(
-                    Arg::with_name("witness values")
-                        .required(true)
-                        .min_values(1)
-                        .help("The values of the witness"),
-                ),
         )
         .get_matches();
 
@@ -60,6 +54,7 @@ use clap::ArgMatches;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::Parser;
 use noirc_frontend::analyser;
+use noirc_frontend::ast::Type;
 use acir::native_types::Witness;
 use acir::circuit::Circuit;
 use noir_evaluator::Evaluator;
@@ -67,10 +62,48 @@ use noir_field::FieldElement;
 use acir::partial_witness_generator::Solver;
 use std::collections::BTreeMap;
 
+struct Abi {
+    parameters: Vec<(String,Type)>,
+}
+
+impl Abi {
+    // In barretenberg, we need to add public inputs first
+    // currently there does not seem to be a way to add a witness and then a public input
+    // So we have this special function to sort for barretenberg. 
+    // It will need to be abstracted away or hidden behind the aztec_backend
+    fn sort_by_public_input(mut self) -> Self {
+        let comparator = |a: &(String,Type),b: &(String,Type)| {
+            let typ_a = &a.1;
+            let typ_b = &b.1;
+
+            if typ_a == &Type::Public {
+                std::cmp::Ordering::Less
+            } else if typ_b == &Type::Public {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+            
+        };
+
+        self.parameters.sort_by(comparator);
+        self
+
+    }
+
+    fn parameter_names(&self) -> Vec<&String> {
+        self.parameters.iter().map(|x|&x.0).collect()
+    }
+
+    fn len(&self) -> usize {
+        self.parameters.len()
+    }
+}
+
 struct CompiledMain {
     standard_format_cs: ConstraintSystem,
     circuit: Circuit,
-    abi: Vec<String>,
+    abi: Abi,
 }
 
 /// Looks for main.noir in the current directory
@@ -108,7 +141,7 @@ fn build_main() -> CompiledMain {
     CompiledMain {
         standard_format_cs: constraint_system,
         circuit,
-        abi,
+        abi : Abi{parameters: abi},
     }
 }
 
@@ -119,7 +152,6 @@ fn create_smart_contract() {
     let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
 
     let smart_contract_string = composer.smart_contract(&compiled_main.standard_format_cs);
-
 
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push("contract");
@@ -156,8 +188,16 @@ fn new_package(args: ArgMatches) {
     }
     ";
 
-    package_dir.push(Path::new(BINARY_DIR).join(Path::new("main.noir")));
-    let path = write_to_file(example.as_bytes(), &package_dir);
+    let input = 
+    r#"
+        x = "5"
+        y = "10"
+    "#;
+
+    let bin_dir = package_dir.join(Path::new(BINARY_DIR));
+
+    let _ = write_to_file(input.as_bytes(), &bin_dir.join(Path::new("input.noir")));
+    let path = write_to_file(example.as_bytes(), &&bin_dir.join(Path::new("main.noir")));
     println!("Project successfully created! Binary located at {}", path);
 }
 fn verify(args: ArgMatches) {
@@ -194,51 +234,32 @@ fn prove(args: ArgMatches) {
         .value_of("proof_name")
         .unwrap();
 
-    let witness_values: Vec<FieldElement> = args
-        .subcommand_matches("prove")
-        .unwrap()
-        .values_of("witness values")
-        .unwrap()
-        .map(|value| {
-                if value.starts_with("0x") {
-                   let val =  FieldElement::from_hex(value).expect("Could not parse hex value");
-                    dbg!(val.clone());
-                   val
-                } else {
-                    let val : i128 = value
-                    .parse()
-                    .expect("Expected witness values to be integers");
+    // Parse the input.noir file
+    let witness_map = parse_input();
 
-                    FieldElement::from(val)
-                }
-        })
-        .collect();
-
+    // Compile main
     let compiled_main = build_main();
 
     // Check that enough witness values were supplied
-    if compiled_main.abi.len() != witness_values.len() {
+    if compiled_main.abi.len() != witness_map.len() {
         panic!(
             "Expected {} number of values, but got {} number of values",
             compiled_main.abi.len(),
-            witness_values.len()
+            witness_map.len()
         )
     }
 
     let mut solved_witness = BTreeMap::new();
 
-    // Since the Public values are added first. Even if the first parameter is a Witness, it may not be
-    // The first in the witness Vector. We do however, still want people to enter the values as the ABI states, so we must
-    // match the correct values to the correct indices
-    for (index, (param, value)) in compiled_main
-        .abi
-        .into_iter()
-        .zip(witness_values.into_iter())
-        .enumerate()
-    {
+    let sorted_abi = compiled_main.abi.sort_by_public_input();
+    let param_names = sorted_abi.parameter_names();
+    for (index, param) in param_names.into_iter().enumerate() {
+        
+        let value = witness_map.get(param).expect(&format!("ABI expects the parameter `{}`, but this was not found in input.noir", param));
+        
         solved_witness.insert(
-            Witness::new(param, index + WITNESS_OFFSET),
-            FieldElement::from(value),
+            Witness::new(param.clone(), index + WITNESS_OFFSET),
+            value.clone(),
         );
     }
 
@@ -265,6 +286,39 @@ fn prove(args: ArgMatches) {
 
     let path = write_to_file(&proof, &proof_path);
     println!("Proof successfully created and located at {}", path)
+}
+
+fn parse_input() -> BTreeMap<String, FieldElement> {
+
+    // Get the path to the input file
+    let mut input_file = std::env::current_dir().unwrap();
+    input_file.push(std::path::PathBuf::from("bin"));
+    input_file.push(std::path::PathBuf::from("input.noir"));
+    assert!(
+        input_file.exists(),
+        "Cannot find input file at located {}",
+        input_file.display()
+    );
+
+    // Closure to parse a string to a field element
+    let parse = |value : &str| -> FieldElement {
+        if value.starts_with("0x") {
+            FieldElement::from_hex(value).expect("Could not parse hex value")                   
+         } else {
+             let val : i128 = value
+             .parse()
+             .expect("Expected witness values to be integers");
+
+             FieldElement::from(val)
+         }
+    };
+
+    // Get input.noir file as a string
+    let input_as_string = std::fs::read_to_string(input_file).unwrap();
+
+    // Parse input.noir into a BTreeMap, converting the argument to field elements 
+    let data : BTreeMap<String, String> = toml::from_str(&input_as_string).expect("input.noir file is badly formed, could not parse");
+    data.into_iter().map(|(parameter, argument)| (parameter, parse(&argument))).collect()
 }
 
 use std::fs::File;
