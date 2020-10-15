@@ -1,10 +1,8 @@
 // Functions that are in the low level standard library
 // Low level std library methods are gadgets which are assumed to be present in the underlying proof system
 // This means that the underlying PLONK library must have some way to deal with these methods.
-// Note that standard library refers to higher level methods that are exposed by the underlying plonk api
-// Currently, we do not have a way to import rasa modules, but in the future, the std library will be
-// a mixture of useful gadgets from the plonk library and also rasa functions
-use crate::{CallExpression, Environment, Evaluator, Object, Ident};
+// The standard library on the other hand, is a mixture of foreign and compiled functions.
+use crate::{CallExpression, Environment, Evaluator, Object};
 mod sha256;
 
 pub use sha256::Sha256Gadget;
@@ -22,12 +20,12 @@ pub trait GadgetCaller {
 pub fn call_low_level(        
     evaluator: &mut Evaluator,
     env: &mut Environment,
-    func_name: &Ident,
+    opcode_name: &str,
     call_expr: CallExpression) -> Object 
 {
    
-    let func = match OPCODE::lookup(&func_name.0) {
-        None => panic!("cannot find a low level function with that name in the low level standard library"),
+    let func = match OPCODE::lookup(opcode_name) {
+        None => panic!("cannot find a low level opcode with the name {} in the IR", opcode_name),
         Some(func) => func
     };
 
