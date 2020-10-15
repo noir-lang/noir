@@ -90,9 +90,6 @@ impl<'a> TypeChecker<'a> {
             Literal::Bool(_) => {
                 unimplemented!("[Coming Soon] : Currently native boolean types have not been implemented")
             }, 
-            Literal::Func(_) => {
-                unimplemented!("[Coming Soon] : Currently function literal have not been fully implemented")
-            },
             Literal::Integer(_) => {
                 // Literal integers will always be a constant, since the lexer was able to parse the integer
                 return Type::Constant;

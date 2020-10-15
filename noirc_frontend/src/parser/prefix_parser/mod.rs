@@ -22,7 +22,7 @@ pub use module::ModuleParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
-    ArrayLiteral, BlockStatement, Expression, FunctionDefinition, FunctionLiteral, Ident,
+    ArrayLiteral, BlockStatement, Expression, FunctionDefinition, Ident,
     IfExpression, Literal, PrefixExpression, Type,
 };
 use crate::token::{Keyword, Token, TokenKind};

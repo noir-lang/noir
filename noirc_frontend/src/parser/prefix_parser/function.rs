@@ -3,44 +3,20 @@ use super::*;
 pub struct FuncParser;
 
 impl FuncParser {
-    pub(crate) fn parse_fn_decl(parser: &mut Parser) -> FunctionDefinition {
-        let (f_dec, f_lit) = FuncParser::parse_fn(parser);
-        let f_dec = match (f_dec, f_lit) {
-            (_, Some(_)) => panic!("Unexpected function literal"),
-            (None, _) => panic!("Expected function declaration"),
-            (Some(f_dec), _) => f_dec,
-        };
-        
-        f_dec
-    }
-
-    pub(crate) fn parse_fn_literal(parser: &mut Parser) -> Expression {
-        let (f_dec, f_lit) = FuncParser::parse_fn(parser);
-
-        let f_lit = match (f_dec, f_lit) {
-            (Some(_), _) => panic!("Unexpected function declaration"),
-            (_, None) => panic!("Expected a function literal"),
-            (_, Some(f_lit)) => f_lit,
-        };
-
-        Expression::Literal(Literal::Func(f_lit))
-    }
-
-    /// It is either a function definition or a function literal.
-    /// a function literal will not have a name attached to it, it is essentially always used as a closure
-    pub(crate) fn parse_fn(
+    /// All functions are function definitions. Functions are not first class.
+    pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
-    ) -> (Option<FunctionDefinition>, Option<FunctionLiteral>) {
-        // Check if we have an identifier.
-        let func_name = if parser.peek_check_kind_advance(TokenKind::Ident) {
-            Some(parser.curr_token.to_string())
-        } else {
-            None
-        };
+    ) -> FunctionDefinition {
 
+        // Check if we have an identifier.
+        if !parser.peek_check_kind_advance(TokenKind::Ident) {
+            panic!("Expected the function name after the Function keyword")
+        }
+        let func_name = parser.curr_token.to_string();
+        
         if !parser.peek_check_variant_advance(Token::LeftParen) {
             panic!(
-                "Expected a Left parenthesis after fn keyword or after identifier, found {}",
+                "Expected a Left parenthesis after the function name, found {}",
                 parser.curr_token
             )
         };
@@ -55,28 +31,17 @@ impl FuncParser {
         }
 
         if !parser.peek_check_variant_advance(Token::LeftBrace) {
-            panic!("Expected a Left Brace `{` after fn parameters")
+            panic!("Expected a Left Brace `{` to start the function block")
         };
 
         let body = parser.parse_block_statement();
-        let func_lit = FunctionLiteral {
+
+        FunctionDefinition {
+            name: func_name.into(),
+            attribute : None,
             parameters,
             body,
             return_type,
-        };
-
-        // If a function name was supplied then this is a function definition
-        // If not, then it is a function literal
-        match func_name {
-            Some(f_name) => {
-                let func_dec = FunctionDefinition {
-                    name: f_name.into(),
-                    attribute : None,
-                    literal: func_lit,
-                };
-                (Some(func_dec), None)
-            }
-            None => (None, Some(func_lit)),
         }
     }
 

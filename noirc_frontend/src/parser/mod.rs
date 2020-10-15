@@ -54,7 +54,6 @@ impl Program {
         match &self.main {
             Some(main_func) => {
                 let abi = main_func
-                    .literal
                     .parameters
                     .iter()
                     .map(|(ident, _)| ident.0.clone())

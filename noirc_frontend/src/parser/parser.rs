@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
             match self.curr_token.clone() {
                 Token::Attribute(attr) => {
                     self.advance_tokens(); // Skip the attribute
-                    let mut func_def = FuncParser::parse_fn_decl(self);
+                    let mut func_def = FuncParser::parse_fn_definition(self);
                     func_def.attribute = Some(attr);
                     program.push_function(func_def);
                 },
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
                     program.push_import(import_stmt);
                 }
                 Token::Keyword(Keyword::Fn) => {
-                    let func_def = FuncParser::parse_fn_decl(self);
+                    let func_def = FuncParser::parse_fn_definition(self);
                     program.push_function(func_def);
                 }
                 Token::Comment(_) => {
@@ -321,7 +321,7 @@ mod test {
     use super::*;
     use crate::ast::{
         BlockStatement, CallExpression, Expression, ExpressionStatement, FunctionDefinition,
-        FunctionLiteral, Ident, IfExpression, InfixExpression, Literal, PrefixExpression,
+         Ident, IfExpression, InfixExpression, Literal, PrefixExpression,
         Statement, Type,
     };
     #[test]
@@ -611,38 +611,6 @@ mod test {
         assert_eq!(*if_expr, expected_if)
     }
 
-    // XXX: Lets move this test into the func lit parser module
-    #[test]
-    fn test_parse_function_literal() {
-        use crate::parser::prefix_parser::FuncParser;
-        let input = "fn(x : Witness,y : Witness){x+y;}";
-        let mut parser = Parser::new(Lexer::new(input));
-        let (func_dec, func_lit) = FuncParser::parse_fn(&mut parser);
-
-        assert!(func_dec.is_none());
-        assert!(func_lit.is_some());
-        let func_lit = func_lit.unwrap();
-
-        let parameters = vec![
-            (Ident("x".into()), Type::Witness),
-            (Ident("y".into()), Type::Witness),
-        ];
-
-        let infix_expression = InfixExpression {
-            lhs: Expression::Ident("x".to_string()),
-            operator: Token::Plus.into(),
-            rhs: Expression::Ident("y".to_string()),
-        };
-
-        let expected = FunctionLiteral {
-            parameters: parameters,
-            body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
-                Expression::Infix(Box::new(infix_expression)),
-            )))]),
-            return_type : Type::Unit,
-        };
-        assert_eq!(func_lit, expected);
-    }
     #[test]
     fn test_parse_int_type() {
         use crate::parser::prefix_parser::DeclarationParser;
@@ -685,19 +653,14 @@ mod test {
             rhs: Expression::Ident("y".to_string()),
         };
 
-        let literal = FunctionLiteral {
+        let expected = vec![FunctionDefinition {
+            name: Ident("add".into()),
+            attribute : None,
             parameters: parameters,
             body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
                 Expression::Infix(Box::new(infix_expression)),
             )))]),
-            return_type : Type::Unit,
-        };
-
-        let expected = vec![FunctionDefinition {
-            name: Ident("add".into()),
-            attribute : None,
-            literal,
-        }];
+            return_type : Type::Unit,        }];
 
         for (expected_def, got_def) in expected.into_iter().zip(program.functions.into_iter()) {
             assert_eq!(expected_def, got_def);

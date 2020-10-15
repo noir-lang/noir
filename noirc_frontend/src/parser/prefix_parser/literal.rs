@@ -12,7 +12,6 @@ impl PrefixParser for LiteralParser {
             Token::Str(x) => Expression::Literal(Literal::Str(x)),
             Token::Bool(x) => Expression::Literal(Literal::Bool(x)),
             Token::IntType(x) => Expression::Literal(Literal::Type(Type::from(&x))),
-            Token::Keyword(Keyword::Fn) => FuncParser::parse_fn_literal(parser),
             x => panic!("expected a literal token, but found {}", x.to_string()),
         }
     }

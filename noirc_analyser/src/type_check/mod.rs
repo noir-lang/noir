@@ -69,13 +69,13 @@ impl<'a> TypeChecker<'a> {
 fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition {
 
     // Add function parameters to local types in the type checker
-    for param in func.literal.parameters.iter() {
+    for param in func.parameters.iter() {
         self.add_variable_declaration(param.0.clone(), param.1.clone());
     }
 
-    let last_return_type = self.type_check_block_stmt(&mut func.literal.body);
+    let last_return_type = self.type_check_block_stmt(&mut func.body);
 
-    let declared_return_type = &func.literal.return_type;
+    let declared_return_type = &func.return_type;
 
     let is_foreign = match &func.attribute{
         None => false,

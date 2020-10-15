@@ -84,9 +84,6 @@ impl<'a> Resolver<'a> {
             Literal::Bool(_) => {
                 unimplemented!("[Coming Soon] : Currently native boolean types have not been implemented")
             }, 
-            Literal::Func(_) => {
-                unimplemented!("[Coming Soon] : Currently function literal have not been fully implemented")
-            },
             Literal::Integer(_) => true,
             Literal::Str(_) => {
                 unimplemented!("[Coming Soon] : Currently string literal types have not been implemented")

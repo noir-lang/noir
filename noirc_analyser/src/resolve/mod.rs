@@ -84,11 +84,11 @@ impl<'a> Resolver<'a> {
 
     fn resolve_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition{
         // Add function parameters so they can be seen as declared
-        for param in func.literal.parameters.iter() {
+        for param in func.parameters.iter() {
             self.add_variable_decl(param.0.clone());
         }
 
-        self.resolve_block_stmt(&mut func.literal.body);
+        self.resolve_block_stmt(&mut func.body);
 
         let mut unused_variables = Vec::new();
         for (variable_name, value) in self.local_declarations.iter(){

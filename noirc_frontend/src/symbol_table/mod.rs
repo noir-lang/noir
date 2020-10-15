@@ -1,5 +1,5 @@
 
-use crate::{FunctionLiteral as Function, FunctionDefinition, Ident, Type, NoirPath, ArraySize};
+use crate::{FunctionDefinition, Ident, Type, NoirPath, ArraySize};
 use crate::lexer::token::Attribute;
 use std::collections::HashMap;
 
@@ -9,8 +9,8 @@ use std::collections::HashMap;
 // be the function name itself.
 #[derive(Clone, Debug)]
 pub enum NoirFunction {
-    LowLevelFunction(Function),
-    Function(Function)
+    LowLevelFunction(FunctionDefinition),
+    Function(FunctionDefinition)
 }
 
 impl NoirFunction {
@@ -22,7 +22,7 @@ impl NoirFunction {
     }
 }
 
-impl Into<NoirFunction> for Function {
+impl Into<NoirFunction> for FunctionDefinition {
     fn into(self) -> NoirFunction {
         NoirFunction::Function(self)
     }
@@ -51,7 +51,8 @@ impl SymbolTable {
         self.0.insert(symbol, si);
     }
     pub fn insert_func_def(&mut self, func_def: &FunctionDefinition) {
-        let (func_name, func) = parse_function_declaration(func_def);
+        let func_name = &func_def.name;
+
         let function_already_declared =  self.look_up(&func_name).is_some(); 
         if function_already_declared {
             panic!("Another symbol has been defined with the name {}", &func_name.0)
@@ -59,22 +60,23 @@ impl SymbolTable {
         let attribute = match &func_def.attribute{
             Some(attr) => attr,
             None => {
-                self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
+                self.insert(func_name.clone(), SymbolInformation::Function(func_def.clone().into()));
                 return
             }
         };
 
         match attribute{
-            Attribute::Foreign(_) => self.insert(func_name.clone(), SymbolInformation::Function(NoirFunction::LowLevelFunction(func.clone().into()))),
+            Attribute::Foreign(_) => self.insert(func_name.clone(), SymbolInformation::Function(NoirFunction::LowLevelFunction(func_def.clone().into()))),
         };
     }
     pub fn update_func_def(&mut self, func_def: &FunctionDefinition) {
-        let (func_name, func) = parse_function_declaration(func_def);
+        let func_name = &func_def.name;
+
         let function_already_declared =  self.look_up(&func_name).is_some(); 
         if !function_already_declared {
             panic!("Cannot update func with name {} because it does not exist", &func_name.0)
         }
-        self.insert(func_name.clone(), SymbolInformation::Function(func.clone().into()));
+        self.insert(func_name.clone(), SymbolInformation::Function(func_def.clone().into()));
     }
 
     pub fn look_up(&self, symbol: &Ident) -> Option<&SymbolInformation> {
@@ -112,7 +114,7 @@ impl SymbolTable {
 
     // This assumes the main function is in the currrent path 
     // XXX: Get the function name from a constant and do not pass it in
-    pub fn look_up_main_func(&self, func_name: &Ident) -> Option<Function> {
+    pub fn look_up_main_func(&self, func_name: &Ident) -> Option<FunctionDefinition> {
 
         let symbol = self.look_up(func_name);
         let symbol = match symbol {
@@ -169,16 +171,6 @@ impl SymbolTable {
     pub fn valid_func(&self, noir_path : NoirPath, func_name: &Ident) -> bool {
         self.look_up_func(noir_path, func_name).is_some()
     }
-}
-
-/// Convert a function declarations into a function object
-fn parse_function_declaration(func_dec: &FunctionDefinition) -> (Ident, Function) {
-    let func_name = func_dec.name.clone();
-    let body = func_dec.literal.body.clone();
-    let return_type = func_dec.literal.return_type.clone();
-    let parameters = func_dec.literal.parameters.clone();
-
-    (func_name, Function { body, parameters, return_type })
 }
 
 // Note: We are implementing the symbol table so that later on, we can do imports properly

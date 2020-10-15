@@ -49,7 +49,7 @@ impl AttributeChecker {
 
         // If attribute is present, the function should not have a body
         // This is because we do not support this feature, and would be confusing to the user as to whether the body was being called
-        if func.literal.body.0.len() > 0 {
+        if func.body.0.len() > 0 {
             panic!("Functions marked with an attribute should have an empty body")
         }
 
@@ -64,7 +64,7 @@ impl AttributeChecker {
 
 
         // First check the return type
-        let declared_return_type = &func.literal.return_type;
+        let declared_return_type = &func.return_type;
         
         // Slight problem, the input is arbitrary which the array syntax does not account for
         let (num_output_elements, typ) = match declared_return_type {

@@ -124,7 +124,6 @@ pub enum Literal {
     Bool(bool),
     Integer(i128),
     Str(String),
-    Func(FunctionLiteral),
     Type(Type), // XXX: Possibly replace this with a Type Expression
 }
 
@@ -161,13 +160,6 @@ pub struct CastExpression {
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute : Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-    pub literal: FunctionLiteral,
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-// Function definition literal
-// let add = fn(x, y) {x+y}
-// XXX: This will be implemented later because it requires the Evaluators object system to accommodate for FunctionLiterals ontop of Polynomials
-pub struct FunctionLiteral {
     pub parameters: Vec<(Ident, Type)>,
     pub body: BlockStatement,
     pub return_type : Type,
