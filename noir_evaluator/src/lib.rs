@@ -262,39 +262,7 @@ impl Evaluator {
             self.evaluate_statement(env, statement);
         }
     }
-    // private x = (y == z) + ( k != p);
-    // Is this problem only applicable to private statements?
-    // constrain x == (x + p) + (z == d)
-    //What if we add a flag called predicate, which analyses the AST and checks for statements of the above form
-    // then we convert the statement to a predicate statement, which is also a part of the AST
 
-    /*
-
-    struct Predicate {
-        op : BinaryOp,
-        lhs : Expression
-        rhs : Expression
-    }
-
-    When the evaluator see a PredicateExpression, it computes the predicate for that BinaryOP
-
-    if op is == , then use the rangeproof predicate in dusk Docs
-    if the op is !=, then we can use the inverse function
-    if the op is <= then we can use the rangeproof gadget from before wit maybe equal
-
-
-    so // constrain x == (x + p) + (z == d)
-
-    would convert to constrain x == (x + p) + Predicate(z==d)
-
-    */
-
-    /*
-    struct constraint  {
-        op
-    }
-    */
-    // Create a concept called delayed constraints
     fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Object {
         match statement {
             Statement::Private(x) => self.handle_private_statement(env, *x.clone()),
