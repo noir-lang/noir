@@ -36,6 +36,7 @@ impl<'a> TypeChecker<'a> {
                 self.lookup_local_identifier(&iden.to_string().into())
             },
             Expression::If(_) => unimplemented!("[Coming soon] : Currently if expressions have not been implemented"),
+            Expression::Assign(_) => unreachable!(),
             Expression::Literal(ref mut lit) => self.type_check_literal(lit),
             Expression::Infix(ref mut infx) => self.type_check_infix(infx),
             Expression::Predicate(ref mut infx) => self.type_check_infix(infx),

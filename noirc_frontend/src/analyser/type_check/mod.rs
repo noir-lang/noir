@@ -116,6 +116,22 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Type {
                 last_return_type = Type::Unit;
                 panic!("[Possible Deprecation] : If statements are not implemented yet, however they might be deprecated for if expressions");
             },
+            Statement::Assign(assign_stmt) => {
+                last_return_type = Type::Unit;
+
+                let lhs = &assign_stmt.0.identifier;
+                let rhs = &mut assign_stmt.0.rhs;
+
+                let lhs_type = self.lookup_local_identifier(lhs);
+                let rhs_type = self.type_check_expr(rhs);
+
+                if lhs_type == Type::Constant || rhs_type == Type::Constant {
+                    panic!("Constants cannot be used in an assignment statement. Please check the variable {} ", &lhs.0)
+                }
+                if lhs_type != rhs_type {
+                    panic!("Type mismatch in assignment statement. The LHS has type {} , while the RHS has type {}", &lhs_type, rhs_type)
+                }
+            }
             Statement::Let(let_stmt) => {
                 self.type_check_let_stmt(let_stmt);
                 last_return_type = Type::Unit;

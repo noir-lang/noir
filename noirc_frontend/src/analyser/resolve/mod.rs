@@ -119,6 +119,19 @@ impl<'a> Resolver<'a> {
                         panic!("Could not resolve the expression private statement {:?}", expr.0);
                     };
                 },
+                Statement::Assign(assign_stmt) => {
+                    let ident = &assign_stmt.0.identifier;
+                    let rhs = &assign_stmt.0.rhs;
+
+                    if !self.find_variable(ident) {
+                        panic!("The variable {} is being used in an assignment statement, but has not been declared", ident.0)
+                    }
+
+                    if !self.resolve_expr(rhs) {
+                        panic!("Could not resolve the rhs in the assign statement {:?}", rhs);
+                    }
+
+                }
                 Statement::Block(_) => {
                     panic!("Currently we do not support block statements inside of block statements")
                 },

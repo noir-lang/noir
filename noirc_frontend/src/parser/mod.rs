@@ -88,6 +88,7 @@ impl Precedence {
     // XXX: Check the precedence is correct for operators
     fn token_precedence(tok: &Token) -> Precedence {
         match tok {
+            Token::Assign => Precedence::Equals,
             Token::Equal => Precedence::Equals,
             Token::NotEqual => Precedence::Equals,
             Token::Less => Precedence::LessGreater,

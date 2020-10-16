@@ -56,6 +56,7 @@ impl<'a> Resolver<'a> {
                 self.resolve_literal(&literal)
             },
             Expression::If(_) => unimplemented!("[Coming soon] : Currently if expressions have not been implemented"),
+            Expression::Assign(_) => unreachable!(),
             Expression::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back"),
         }
     }

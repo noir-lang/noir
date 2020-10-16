@@ -144,7 +144,9 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 let expr_stmt = self.parse_expression_statement();
-                Statement::Expression(Box::new(expr_stmt))
+                // All Assign expressions are converted into assign statements
+                // Parsing through the binary parser reduces complexity, but adds a bit of redundancy
+                Statement::Expression(Box::new(expr_stmt)).maybe_assign() 
             }
         };
         // Check if the next token is a semi-colon(optional)
@@ -219,6 +221,7 @@ impl<'a> Parser<'a> {
             | Token::Greater
             | Token::GreaterEqual
             | Token::Equal
+            | Token::Assign
             | Token::Keyword(Keyword::As)
             | Token::NotEqual => Some(BinaryParser::parse),
             Token::LeftParen => Some(CallParser::parse),

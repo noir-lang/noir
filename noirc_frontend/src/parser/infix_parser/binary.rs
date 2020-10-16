@@ -11,10 +11,20 @@ impl InfixParser for BinaryParser {
 
         let rhs = parser.parse_expression(curr_precedence).unwrap();
         let infix_expression = Box::new(InfixExpression {
-            lhs: lhs.clone(),
+            lhs: lhs,
             operator,
             rhs: rhs.clone(),
         });
+        
+        if operator == BinaryOp::Assign {
+            let identifier = infix_expression.lhs.identifier().expect("Expected the LHs of an assign operation to be an identifier");
+            
+            let assign_expr = AssignExpression{
+                identifier,
+                rhs
+            };
+            return Expression::Assign(Box::new(assign_expr))
+        }
 
         if operator.is_comparator() {
             return Expression::Predicate(infix_expression);
@@ -24,8 +34,9 @@ impl InfixParser for BinaryParser {
             return Expression::Infix(infix_expression);
         }
 
+
         match rhs.r#type() {
-            Some(typ) => Expression::Cast(Box::new(CastExpression { lhs, r#type: typ })),
+            Some(typ) => Expression::Cast(Box::new(CastExpression { lhs: infix_expression.lhs, r#type: typ })),
             None => panic!("The operator being used is as, however the RHS is not a Type"),
         }
     }
