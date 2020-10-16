@@ -62,6 +62,7 @@ use noir_field::FieldElement;
 use acir::partial_witness_generator::Solver;
 use std::collections::BTreeMap;
 
+#[derive(Clone, Debug)]
 struct Abi {
     parameters: Vec<(String,Type)>,
 }
@@ -76,12 +77,12 @@ impl Abi {
             let typ_a = &a.1;
             let typ_b = &b.1;
 
-            if typ_a == &Type::Public {
-                std::cmp::Ordering::Less
-            } else if typ_b == &Type::Public {
-                std::cmp::Ordering::Greater
-            } else {
+            if typ_a == &Type::Public && typ_b == &Type::Public {
                 std::cmp::Ordering::Equal
+            } else if typ_a == &Type::Public {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
             }
             
         };
