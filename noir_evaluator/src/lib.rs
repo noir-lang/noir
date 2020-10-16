@@ -258,7 +258,7 @@ impl Evaluator {
         }
 
         // Now call the main function
-        for statement in self.main_function.body.0.clone().iter() {
+        for statement in self.main_function.body.0.clone().into_iter() {
             self.evaluate_statement(env, statement);
         }
     }
@@ -295,12 +295,10 @@ impl Evaluator {
     }
     */
     // Create a concept called delayed constraints
-    fn evaluate_statement(&mut self, env: &mut Environment, statement: &Statement) -> Object {
+    fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Object {
         match statement {
             Statement::Private(x) => self.handle_private_statement(env, *x.clone()),
-            Statement::Constrain(constrain_stmt) => {
-                self.handle_constrain_statement(env, constrain_stmt)
-            }
+            Statement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, *constrain_stmt),
             // constant statements do not create constraints
             Statement::Const(x) => {
                 self.num_selectors = self.num_selectors + 1;
@@ -311,14 +309,22 @@ impl Evaluator {
                 env.store(variable_name, value);
                 Object::Null
             }
-            Statement::Expression(expr_stmt) => {
-                self.expression_to_object(env, expr_stmt.0.clone())
-            }
+            Statement::Expression(expr_stmt) => self.expression_to_object(env, expr_stmt.0),
             Statement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, let_stmt);
+                self.handle_let_statement(env, *let_stmt);
 
                 Object::Null
+            }
+            Statement::Assign(assign_stmt) => {
+
+                // Handle assign here!
+                let rhs_object = self.expression_to_object(env, assign_stmt.0.rhs);
+
+                env.store(assign_stmt.0.identifier.0, rhs_object);
+
+                Object::Null
+
             }
             _ => {
                 panic!("This statement type has not been implemented");
@@ -394,10 +400,10 @@ impl Evaluator {
     fn handle_constrain_statement(
         &mut self,
         env: &mut Environment,
-        constrain_stmt: &ConstrainStatement,
+        constrain_stmt: ConstrainStatement,
     ) -> Object {
-        let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs.clone());
-        let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs.clone());
+        let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs);
+        let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs);
 
         // Evaluate the constrain infix statement
         let _ = self.evaluate_infix_expression(
@@ -432,16 +438,16 @@ impl Evaluator {
     fn handle_let_statement(
         &mut self,
         env: &mut Environment,
-        let_stmt: &LetStatement,
+        let_stmt: LetStatement,
     ) -> Object {
         // Convert the LHS into an identifier
-        let variable_name: String = let_stmt.identifier.clone().0;
+        let variable_name: String = let_stmt.identifier.0;
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
 
         // Extract the array
-        let rhs_poly = self.expression_to_object(env, let_stmt.expression.clone());
+        let rhs_poly = self.expression_to_object(env, let_stmt.expression);
 
         match rhs_poly {
             Object::Array(arr) => {
@@ -560,7 +566,7 @@ impl Evaluator {
 
     fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Object {
         let mut result = Object::Null;
-        for stmt in block.0.iter() {
+        for stmt in block.0.into_iter() {
             result = self.evaluate_statement(env, stmt);
         }
         result
