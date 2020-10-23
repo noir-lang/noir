@@ -17,7 +17,7 @@ impl InfixParser for IndexParser {
         let index = parser.parse_expression(curr_precedence).unwrap();
 
         // Skip the ']'
-        if !parser.peek_check_variant_advance(Token::RightBracket) {
+        if !parser.peek_check_variant_advance(&Token::RightBracket) {
             panic!("Expected a Right bracket to end the index operator")
         }
 

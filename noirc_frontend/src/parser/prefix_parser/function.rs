@@ -12,12 +12,12 @@ impl FuncParser {
         if !parser.peek_check_kind_advance(TokenKind::Ident) {
             panic!("Expected the function name after the Function keyword")
         }
-        let func_name = parser.curr_token.to_string();
+        let func_name = parser.curr_token.token().to_string();
         
-        if !parser.peek_check_variant_advance(Token::LeftParen) {
+        if !parser.peek_check_variant_advance(&Token::LeftParen) {
             panic!(
                 "Expected a Left parenthesis after the function name, found {}",
-                parser.curr_token
+                parser.curr_token.token()
             )
         };
         let parameters = FuncParser::parse_fn_parameters(parser);
@@ -30,7 +30,7 @@ impl FuncParser {
             return_type = parser.parse_type()
         }
 
-        if !parser.peek_check_variant_advance(Token::LeftBrace) {
+        if !parser.peek_check_variant_advance(&Token::LeftBrace) {
             panic!("Expected a Left Brace `{` to start the function block")
         };
 
@@ -56,7 +56,7 @@ impl FuncParser {
         let mut parameters: Vec<(Ident, Type)> = Vec::new();
 
         // next token should be identifier
-        let name: Ident = parser.curr_token.to_string().into();
+        let name: Ident = parser.curr_token.token().to_string().into();
         parameters.push((name, FuncParser::parse_fn_type(parser)));
 
         while parser.peek_token == Token::Comma {
@@ -64,12 +64,12 @@ impl FuncParser {
             parser.advance_tokens(); // curr_token == identifier
 
             parameters.push((
-                parser.curr_token.to_string().into(),
+                parser.curr_token.token().to_string().into(),
                 FuncParser::parse_fn_type(parser),
             ));
         }
 
-        if !parser.peek_check_variant_advance(Token::RightParen) {
+        if !parser.peek_check_variant_advance(&Token::RightParen) {
             panic!("Expected a Right Parenthesis `)` after comma")
         };
 
@@ -78,7 +78,7 @@ impl FuncParser {
 
     fn parse_fn_type(parser: &mut Parser) -> Type {
         // We should have a colon in the next Token
-        if !parser.peek_check_variant_advance(Token::Colon) {
+        if !parser.peek_check_variant_advance(&Token::Colon) {
             panic!("Expected a Colon `:` after the parameter name")
         };
 

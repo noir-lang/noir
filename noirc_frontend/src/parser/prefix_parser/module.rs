@@ -8,12 +8,12 @@ impl ModuleParser {
             panic!("Expected an Identifier after the Mod keyword")
         }
 
-        let module_identifier = match &parser.curr_token {
+        let module_identifier = match parser.curr_token.token() {
             Token::Ident(x) => x.to_string(),
             _=> unreachable!()
         };
 
-        if !parser.peek_check_variant_advance(Token::LeftBrace) {            
+        if !parser.peek_check_variant_advance(&Token::LeftBrace) {            
             panic!("Expected a Left curly brace after the module identifier")
         }
         // Advance past the Left brace

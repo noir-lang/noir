@@ -18,8 +18,10 @@ impl InfixParser for PathParser {
         while parser.peek_token == Token::DoubleColon {
             let name = NameParser::parse(parser);
             parsed_path.push(name);
-            parser.advance_tokens();
+            parser.advance_tokens(); // Advanced past the Identifier which is the current tokens
+            parser.advance_tokens(); // Advanced past the :: which we peeked and know is there
         }
+
         // Current token will either be an identifier or an `::` at this point. Lets conditionally advance the parser and parse the method
         // XXX: We parse a general expression, and have the analyser restrict it to be a method. In the future, we will accept global constants along with methods.
         if parser.curr_token == Token::DoubleColon {
@@ -36,6 +38,9 @@ impl InfixParser for PathParser {
             };
             path_idents.push(path_ident);
         }
+
+
+
 
         // By default CallParser with set the path as Current
         // We extract the Call expression and set the path correctly here

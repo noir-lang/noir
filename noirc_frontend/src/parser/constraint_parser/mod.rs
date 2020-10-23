@@ -25,7 +25,7 @@ fn disallowed_operators() -> Vec<BinaryOp> {
 impl ConstraintParser {
     // Since == is an infix operator
     // The pratt parser will do most of the job, we just need to check that everything was correct
-    pub(crate) fn parse_constrain_statement(parser: &mut Parser) -> Box<ConstrainStatement> {
+    pub(crate) fn parse_constrain_statement(parser: &mut Parser) -> ConstrainStatement {
         parser.advance_tokens();
 
         let expr = parser.parse_expression(Precedence::Lowest).unwrap();
@@ -44,8 +44,7 @@ impl ConstraintParser {
                 &infix.operator
             )
         }
-
-        let stmt = ConstrainStatement(infix);
-        Box::new(stmt)
+        ConstrainStatement(infix)
+        
     }
 }

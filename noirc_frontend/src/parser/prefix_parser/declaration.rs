@@ -33,12 +33,12 @@ fn parse_generic_decl_statement(parser: &mut Parser) -> (Ident, Option<Type>, Ex
     if !parser.peek_check_kind_advance(TokenKind::Ident) {
         panic!("expected an identifier");
     };
-    let name = parser.curr_token.to_string();
+    let name = parser.curr_token.token().to_string();
 
     let mut typ = None;
 
     // Check for colon
-    if parser.peek_check_variant_advance(Token::Colon) {
+    if parser.peek_check_variant_advance(&Token::Colon) {
         parser.advance_tokens();
 
         // Parse the type
@@ -46,7 +46,7 @@ fn parse_generic_decl_statement(parser: &mut Parser) -> (Ident, Option<Type>, Ex
     };
 
     // Expect an assign
-    if !parser.peek_check_variant_advance(Token::Assign) {
+    if !parser.peek_check_variant_advance(&Token::Assign) {
         panic!("expected an assign token")
     };
 
@@ -61,7 +61,7 @@ fn parse_generic_decl_statement(parser: &mut Parser) -> (Ident, Option<Type>, Ex
     (name.into(), typ, expr)
 }
 
-pub(crate) fn parse_let_statement(parser: &mut Parser) -> Box<LetStatement> {
+pub(crate) fn parse_let_statement(parser: &mut Parser) -> LetStatement {
     let (name, typ, expr) = parse_generic_decl_statement(parser);
 
     let stmt = LetStatement {
@@ -69,25 +69,25 @@ pub(crate) fn parse_let_statement(parser: &mut Parser) -> Box<LetStatement> {
         r#type: typ.unwrap_or(Type::Unspecified), //XXX: Haven't implemented this yet for general structs, we only parse arrays using this
         expression: expr,
     };
-    Box::new(stmt)
+    stmt
 }
-pub(crate) fn parse_const_statement(parser: &mut Parser) -> Box<ConstStatement> {
+pub(crate) fn parse_const_statement(parser: &mut Parser) -> ConstStatement {
     let (name, typ, expr) = parse_generic_decl_statement(parser);
 
-    // Note: If a Type is supplied for some reason in a const statement, it can only be a Field element
+    // Note: If a Type is supplied for some reason in a const statement, it can only be a Field element/Constant
     match typ {
-        Some(declared_typ) => assert_eq!(declared_typ , Type::FieldElement, "Const statements can only have field elements type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Field ",declared_typ),
+        Some(declared_typ) => assert_eq!(declared_typ , Type::Constant, "Const statements can only have constant type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Constant ",declared_typ),
         None => {}
     };
 
     let stmt = ConstStatement {
         identifier: name,
-        r#type: Type::FieldElement,
+        r#type: Type::Constant,
         expression: expr,
     };
-    Box::new(stmt)
+    stmt
 }
-pub(crate) fn parse_private_statement(parser: &mut Parser) -> Box<PrivateStatement> {
+pub(crate) fn parse_private_statement(parser: &mut Parser) -> PrivateStatement {
     let (name, typ, expr) = parse_generic_decl_statement(parser);
 
     let stmt = PrivateStatement {
@@ -95,10 +95,10 @@ pub(crate) fn parse_private_statement(parser: &mut Parser) -> Box<PrivateStateme
         r#type: typ.unwrap_or(Type::Unspecified),
         expression: expr,
     };
-    Box::new(stmt)
+    stmt
 }
 // XXX: We most likely will deprecate a Public statement, as users will not be able to
-pub(crate) fn parse_public_statement(parser: &mut Parser) -> Box<PublicStatement> {
+pub(crate) fn parse_public_statement(parser: &mut Parser) -> PublicStatement {
     let (name, typ, expr) = parse_generic_decl_statement(parser);
 
     // Note: If a Type is supplied for some reason in a const statement, it can only be Public for now.
@@ -113,5 +113,5 @@ pub(crate) fn parse_public_statement(parser: &mut Parser) -> Box<PublicStatement
         r#type: Type::Public,
         expression: expr,
     };
-    Box::new(stmt)
+    stmt
 }

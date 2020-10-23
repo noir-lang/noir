@@ -4,7 +4,7 @@ pub struct BinaryParser;
 
 impl InfixParser for BinaryParser {
     fn parse(parser: &mut Parser, lhs: Expression) -> Expression {
-        let operator: BinaryOp = parser.curr_token.clone().into();
+        let operator: BinaryOp = parser.curr_token.token().into();
 
         let curr_precedence = Precedence::from(&parser.curr_token);
         parser.advance_tokens();

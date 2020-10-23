@@ -7,7 +7,7 @@ pub struct LiteralParser;
 impl PrefixParser for LiteralParser {
     /// Parses a Literal token
     fn parse(parser: &mut Parser) -> Expression {
-        match parser.curr_token.clone() {
+        match parser.curr_token.clone().into() {
             Token::Int(x) => Expression::Literal(Literal::Integer(x)),
             Token::Str(x) => Expression::Literal(Literal::Str(x)),
             Token::Bool(x) => Expression::Literal(Literal::Bool(x)),
