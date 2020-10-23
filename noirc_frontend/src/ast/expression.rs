@@ -1,10 +1,12 @@
 use crate::{BlockStatement, Ident, Type};
 use crate::token::{Keyword, Token, Attribute};
+use noirc_errors::{Spanned, Span};
+
+pub struct SpannedExpression(Spanned<Expression>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
     Ident(String), // an identifer can also produce a value. e.g. let x = y; y is an expression in this case
-    If(Box<IfExpression>),
     Literal(Literal),
     Prefix(Box<PrefixExpression>),
     Infix(Box<InfixExpression>),
@@ -13,6 +15,22 @@ pub enum Expression {
     Call(NoirPath, Box<CallExpression>), // Make Path Optional and so we only have one call expression
     Cast(Box<CastExpression>),
     Predicate(Box<InfixExpression>),
+    For(Box<ForExpression>)
+}
+
+
+impl Expression {
+    pub fn into_span(self, span : Span) -> SpannedExpression {
+        SpannedExpression(Spanned::from(span.start, span.end, self))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ForExpression{
+    pub identifier: Ident,
+    pub start_range: Expression,
+    pub end_range: Expression,
+    pub block: BlockStatement,
 }
 
 impl Expression {
@@ -35,24 +53,42 @@ impl Expression {
     /// Converts an Expression to a u128
     /// The Expression must be a literal integer
     pub fn to_u128(&self) -> u128 {
-        let literal = match self {
-            Expression::Literal(literal) => literal,
-            _ => panic!("Expression is not a Literal, cannot convert to an integer"),
-        };
-
-        let integer = match literal {
-            Literal::Integer(integer) => integer,
-            _ => panic!("Literal is not an integer"),
-        };
-
-        *integer as u128
+        let integer = self.integer().expect("Expression is not an integer");
+        integer as u128
     }
 
-    pub fn identifier(self) -> Option<Ident> {
-        match self {
-            Expression::Ident(x) => Some(Ident(x)),
+    fn integer(&self) -> Option<i128> {
+        let literal = match self {
+            Expression::Literal(literal) => literal,
+            _ => return None,
+        };
+
+        match literal {
+            Literal::Integer(integer) => Some(*integer),
             _=> None
         }
+    }
+
+    /// Returns true if the expression is a literal integer
+    pub fn is_integer(&self) -> bool {
+        self.integer().is_some()
+    }
+    
+    pub fn identifier(&self) -> Option<Ident> {
+        match self {
+            Expression::Ident(x) => Some(Ident(x.clone())),
+            _=> None
+        }
+    }
+    /// Returns true if the expression is an identifier
+    pub fn is_identifier(&self) -> bool {
+        self.identifier().is_some()
+    }
+
+    /// Returns true if the expression can be used in a range expression
+    /// Currently we only support Identifiers and constants literals
+    pub fn can_be_used_range(&self) -> bool {
+        self.is_identifier() || self.is_integer()
     }
 }
 
@@ -93,8 +129,8 @@ impl BinaryOp {
     }
 }
 
-impl From<Token> for BinaryOp {
-    fn from(token: Token) -> BinaryOp {
+impl From<&Token> for BinaryOp {
+    fn from(token: &Token) -> BinaryOp {
         match token {
             Token::Plus => BinaryOp::Add,
             Token::Ampersand => BinaryOp::And,
@@ -119,12 +155,33 @@ impl From<Token> for BinaryOp {
     }
 }
 
+impl From<Token> for BinaryOp {
+    fn from(token : Token) -> BinaryOp {
+        BinaryOp::from(&token)
+    }
+}
+
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
 pub enum UnaryOp {
     Minus,
     Not,
 }
 
+impl UnaryOp {
+    /// Converts a token to a unary operator
+    /// If you want the parser to recognise another Token as being a prefix operator, it is defined here
+    pub fn from(token: &Token) -> UnaryOp {
+        match token {
+            Token::Minus => UnaryOp::Minus,
+            Token::Bang => UnaryOp::Not,
+            _ => panic!(
+                "The token {} has not been linked to a unary operator",
+                token
+            ),
+        }
+    }
+
+}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
@@ -132,13 +189,6 @@ pub enum Literal {
     Integer(i128),
     Str(String),
     Type(Type), // XXX: Possibly replace this with a Type Expression
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IfExpression {
-    pub condition: Expression,
-    pub consequence: BlockStatement,
-    pub alternative: Option<BlockStatement>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
