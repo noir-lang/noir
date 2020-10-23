@@ -1,4 +1,47 @@
 use std::fmt;
+use noirc_errors::{Position, Spanned, Span};
+
+
+impl PartialEq<SpannedToken> for Token {
+    fn eq(&self, other: &SpannedToken) -> bool {
+        self == &other.0.contents
+    }
+}
+impl PartialEq<Token> for SpannedToken {
+    fn eq(&self, other: &Token) -> bool {
+        &self.0.contents == other
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpannedToken(Spanned<Token>);
+
+impl Into<Token> for SpannedToken {
+    fn into(self) -> Token {
+        self.0.contents
+    }
+}
+
+impl SpannedToken {
+    pub fn into_span(&self) -> Span{
+        self.0.span()
+    }
+    pub fn token(&self) -> &Token{
+        &self.0.contents
+    }
+    pub fn kind(&self) -> TokenKind {
+        self.token().kind()
+    }
+    pub fn is_variant(&self, tok: &Token) -> bool {
+       self.token().is_variant(tok)
+    }
+    pub fn is_comment(&self) -> bool {
+        self.token().is_comment()
+    }
+    pub fn can_start_declaration(&self) -> bool {
+        self.token().can_start_declaration()
+    }
+}
 
 // XXX(low): Need to Add functionality to parse all types of numbers including hex. This would be in the lexer
 // XXX(low): Add positional information
@@ -44,6 +87,8 @@ pub enum Token {
     Caret,
     // .
     Dot,
+    // ..
+    DoubleDot,
     // (
     LeftParen,
     // )
@@ -72,6 +117,8 @@ pub enum Token {
     Semicolon,
     // !
     Bang,
+    // _
+    Underscore,
     // =
     Assign,
     Error(String),
@@ -103,6 +150,7 @@ impl fmt::Display for Token {
             Token::Ampersand => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::Dot => write!(f, "."),
+            Token::DoubleDot => write!(f, ".."),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
             Token::LeftBrace => write!(f, "{{"),
@@ -118,6 +166,7 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
+            Token::Underscore => write!(f, "_"),
             Token::Error(ref err) => write!(f, "Error: {}", err),
             Token::EOF => write!(f, ""),
         }
@@ -135,6 +184,11 @@ pub enum TokenKind {
 }
 
 impl Token {
+
+    pub fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
@@ -148,6 +202,7 @@ impl Token {
         }
     }
     // Does not work for Keyword or whatever is inside of variant
+    // XXX: Review the special case of Keyword
     pub fn is_variant(&self, tok: &Token) -> bool {
         let got_variant = core::mem::discriminant(self);
         let expected_variant = core::mem::discriminant(tok);
@@ -172,6 +227,14 @@ impl Token {
             _=> false
         }
     }
+
+    pub(super) fn into_single_span(self,position: Position) -> SpannedToken {
+      self.into_span(position, position)
+    }
+    pub(super) fn into_span(self,start: Position,end: Position) -> SpannedToken {
+        SpannedToken(Spanned::from(start, end, self))
+    }
+
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -233,12 +296,14 @@ impl IntType {
 // Calls to functions which have the foreign attribute are executed in the host language
 pub enum Attribute {
     Foreign(String),
+    Builtin(String),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Attribute::Foreign(ref k) => write!(f, "#[{}]", k),
+            Attribute::Foreign(ref k) => write!(f, "#[foreign({})]", k),
+            Attribute::Builtin(ref k) => write!(f, "#[builtin({})]", k),
         }
     }
 }
@@ -247,14 +312,46 @@ impl Attribute {
     /// If the string is a fixed attribute return that, else
     /// return the custom attribute
     pub(crate) fn lookup_attribute(word: &str) -> Token {
-        match word {
-            word => Token::Attribute(Attribute::Foreign(word.to_string())),
+
+        let word_segments : Vec<&str> = word
+        .split(|c| c == '(' || c == ')')
+        .filter(|string_segment| !string_segment.is_empty())
+        .collect();
+
+        if word_segments.len() != 2 {
+            panic!("Malformed function attribute. An example of an attribute is #[foreign(sha256)]")
+        }
+
+        let attribute_type = word_segments[0];
+        let attribute_name = word_segments[1];
+
+
+        match attribute_type {
+            "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
+            "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
+            _=> panic!("unknown attribute type")
         }
     }
     pub fn is_foreign(&self) -> bool{
         match self 
         {
-            Attribute::Foreign(_) => true
+            Attribute::Foreign(_) => true,
+            _ => false
+        }
+    }
+    pub fn is_low_level(&self) -> bool{
+        match self 
+        {
+            Attribute::Foreign(_) => true,
+            Attribute::Builtin(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn declares_a_low_level_func(&self) -> bool {
+        match self {
+            Attribute::Builtin(_) => true,
+            Attribute::Foreign(_) => true,
         }
     }
 }
@@ -262,7 +359,8 @@ impl Attribute {
 impl<'a> Into<&'a str> for &'a Attribute {
     fn into(self) -> &'a str {
         match self {
-            Attribute::Foreign(string) => &string
+            Attribute::Foreign(string) => &string,
+            Attribute::Builtin(string) => &string
         }
     }
 }
@@ -277,6 +375,8 @@ pub enum Keyword {
     Else,
     While,
     As,
+    For,
+    In,
     Use,
     Constrain,
     // You can declare a variable using pub which will give it the Public type
@@ -301,6 +401,8 @@ impl fmt::Display for Keyword {
             Keyword::Struct => write!(f, "struct"),
             Keyword::If => write!(f, "if"),
             Keyword::Mod => write!(f, "mod"),
+            Keyword::For => write!(f, "for"),
+            Keyword::In => write!(f, "in"),
             Keyword::Else => write!(f, "else"),
             Keyword::While => write!(f, "while"),
             Keyword::Constrain => write!(f, "constrain"),
@@ -327,6 +429,8 @@ impl Keyword {
             "struct" => Some(Token::Keyword(Keyword::Struct)),
             "if" => Some(Token::Keyword(Keyword::If)),
             "mod" => Some(Token::Keyword(Keyword::Mod)),
+            "for" => Some(Token::Keyword(Keyword::For)),
+            "in" => Some(Token::Keyword(Keyword::In)),
             "else" => Some(Token::Keyword(Keyword::Else)),
             "while" => Some(Token::Keyword(Keyword::While)),
             "constrain" => Some(Token::Keyword(Keyword::Constrain)),
@@ -344,6 +448,8 @@ impl Keyword {
             "Public" => Some(Token::Keyword(Keyword::Public)),
             "Constant" => Some(Token::Keyword(Keyword::Constant)),
             "Field" => Some(Token::Keyword(Keyword::Field)),
+
+            "_" => Some(Token::Underscore),
             _ => None,
         }
     }
