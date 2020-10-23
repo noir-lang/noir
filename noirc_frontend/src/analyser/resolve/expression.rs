@@ -55,7 +55,33 @@ impl<'a> Resolver<'a> {
             Expression::Literal(literal) => {
                 self.resolve_literal(&literal)
             },
-            Expression::If(_) => unimplemented!("[Coming soon] : Currently if expressions have not been implemented"),
+            Expression::For(for_expr) => {
+                let start_range = &for_expr.start_range;
+                let end_range = &for_expr.end_range;
+
+                let resolved_lhs = self.resolve_expr(start_range);
+                let resolved_rhs = self.resolve_expr(end_range);
+                
+                if !resolved_lhs {
+                    panic!("Could not resolve the start range of the for loop")
+                }
+                if !resolved_rhs {
+                    panic!("Could not resolve the end range of the for loop")
+                }
+
+                self.local_declarations.start_for_loop();
+                
+                // Add loop identifier
+                self.add_variable_decl(for_expr.identifier.clone());
+                // Resolve for body
+                self.resolve_block_stmt(&for_expr.block);
+                
+                // Check for unused variables
+                let for_scope = self.local_declarations.end_for_loop();
+                Resolver::check_for_unused_variables_in_local_scope(&for_scope);
+
+                true
+            },
             Expression::Assign(_) => unreachable!(),
             Expression::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back"),
         }
