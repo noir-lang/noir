@@ -2,8 +2,8 @@ use super::*;
 
 pub struct IndexParser;
 
-impl InfixParser for IndexParser {
-    fn parse(parser: &mut Parser, collection_name: Expression) -> Expression {
+impl IndexParser {
+   pub fn parse(parser: &mut Parser, collection_name: Expression) -> ParserExprResult {
         let collection_name_string = match collection_name {
             Expression::Ident(x) => x,
             _ => unimplemented!("collection name expression should only be an identifier"),
@@ -26,6 +26,6 @@ impl InfixParser for IndexParser {
             index: index,
         };
 
-        Expression::Index(Box::new(index_expr))
+        Ok(Expression::Index(Box::new(index_expr)))
     }
 }

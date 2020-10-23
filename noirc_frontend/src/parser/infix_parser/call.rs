@@ -2,8 +2,8 @@ use super::*;
 
 pub struct CallParser;
 
-impl InfixParser for CallParser {
-    fn parse(parser: &mut Parser, func_name: Expression) -> Expression {
+impl CallParser {
+    pub fn parse(parser: &mut Parser, func_name: Expression) -> ParserExprResult {
         let arguments = parser.parse_comma_separated_argument_list(Token::RightParen);
 
         let func_name_string = match func_name {
@@ -16,6 +16,6 @@ impl InfixParser for CallParser {
             arguments,
         };
 
-        Expression::Call(NoirPath::Current, Box::new(call_expr))
+       Ok( Expression::Call(NoirPath::Current, Box::new(call_expr)))
     }
 }

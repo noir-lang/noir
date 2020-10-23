@@ -1,15 +1,14 @@
 use super::*;
 use crate::parser::prefix_parser::NameParser;
-use crate::parser::PrefixParser;
 use crate::ast::Ident;
 
 pub struct PathParser;
 
-impl InfixParser for PathParser {
+impl PathParser {
     // XXX: Currently we only support importing for functions
     // We will introduce importing for constants later.
     // Ultimately, paths will be used to call static methods on a struct, external funcs and external global constants
-    fn parse(parser: &mut Parser, root_module: Expression) -> Expression {
+    pub fn parse(parser: &mut Parser, root_module: Expression) -> ParserExprResult {
         // Current token is now the `::`. We need to advance and peek to see if there is another `::`
         parser.advance_tokens();
 
@@ -17,7 +16,7 @@ impl InfixParser for PathParser {
         let mut parsed_path = vec![root_module];
         while parser.peek_token == Token::DoubleColon {
             let name = NameParser::parse(parser);
-            parsed_path.push(name);
+            parsed_path.push(name?);
             parser.advance_tokens(); // Advanced past the Identifier which is the current tokens
             parser.advance_tokens(); // Advanced past the :: which we peeked and know is there
         }
@@ -48,6 +47,6 @@ impl InfixParser for PathParser {
             Expression::Call(_, call_expr) => call_expr,
             k => unimplemented!("Currently you can only access external functions {:?}", k),
         };
-        Expression::Call(path_idents.into(), call_expr)
+       Ok( Expression::Call(path_idents.into(), call_expr))
     }
 }
