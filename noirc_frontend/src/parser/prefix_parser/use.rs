@@ -28,7 +28,7 @@ impl UseParser {
         // Check and convert all of the path variables to be identifiers
         let mut path_as_strings = Vec::new();
         for path_expr in path.into_iter() {
-            let ident = match path_expr {
+            let ident = match path_expr.into() {
                 Token::Ident(ident) => ident,
                 _ => panic!("names in path must be identifiers"),
             };
