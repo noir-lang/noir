@@ -36,6 +36,8 @@ use crate::ast::{
     ConstStatement, ImportStatement, LetStatement, PrivateStatement, PublicStatement, Statement,
 };
 
+/// Strictly speaking, this is not needed as we could import choose_prefix_parser
+/// and choose based on the token. This is a bit more modularised and cleaner to read however
 pub enum PrefixParser {
     For,
     Group,

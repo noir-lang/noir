@@ -3,10 +3,10 @@ mod call;
 mod index;
 mod path;
 
-pub use binary::BinaryParser;
-pub use call::CallParser;
-pub use index::IndexParser;
-pub use path::PathParser;
+use binary::BinaryParser;
+use call::CallParser;
+use index::IndexParser;
+use path::PathParser;
 
 use super::Precedence;
 use crate::ast::BinaryOp;
@@ -16,7 +16,8 @@ use crate::token::Token;
 use super::Parser;
 use super::parser::ParserExprResult;
 
-
+/// Strictly speaking, this is not needed as we could import choose_prefix_parser
+/// and choose based on the token. This is a bit more modularised and cleaner to read however
 pub enum InfixParser{
     Binary, 
     Call,
