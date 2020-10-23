@@ -10,7 +10,6 @@ pub enum Expression {
     Literal(Literal),
     Prefix(Box<PrefixExpression>),
     Infix(Box<InfixExpression>),
-    Assign(Box<AssignExpression>),
     Index(Box<IndexExpression>),
     Call(NoirPath, Box<CallExpression>), // Make Path Optional and so we only have one call expression
     Cast(Box<CastExpression>),
@@ -201,12 +200,6 @@ pub struct PrefixExpression {
 pub struct InfixExpression {
     pub lhs: Expression,
     pub operator: BinaryOp,
-    pub rhs: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AssignExpression {
-    pub identifier: Ident,
     pub rhs: Expression,
 }
 

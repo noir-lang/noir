@@ -285,13 +285,6 @@ impl Evaluator {
 
                 Object::Null
             }
-            Statement::Assign(assign_stmt) => {
-                    // Handle assign here!
-                    let rhs_object = self.expression_to_object(env, assign_stmt.0.rhs);
-                    env.update(assign_stmt.0.identifier.0, rhs_object);
-    
-                    Object::Null
-            }
             _ => {
                 panic!("This statement type has not been implemented");
             }

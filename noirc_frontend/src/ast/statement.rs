@@ -1,4 +1,4 @@
-use crate::{Expression, InfixExpression, Type, AssignExpression};
+use crate::{Expression, InfixExpression, Type};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Clone)]
 pub struct Ident(pub String);
@@ -12,7 +12,6 @@ impl From<String> for Ident {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     If(Box<IfStatement>),
-    Assign(AssignStatement),
     Let(LetStatement),
     Const(ConstStatement),
     Constrain(ConstrainStatement),
@@ -30,29 +29,6 @@ impl Into<Statement> for Expression {
     }
 }
 
-
-impl Statement {
-    // If the Expression is a binary expression with an equals operator 
-    // Convert it to an Assign assignment, else return the original statement
-    pub(crate) fn maybe_assign(self) -> Self {
-   
-        let cloned = self.clone();
-
-        let expr_stmt = match self {
-            Statement::Expression(expr_stmt) => expr_stmt,
-            _=> return cloned,
-        };
-
-        match expr_stmt.0 {
-            Expression::Assign(assign_expr) => {
-                let assign_stmt = AssignStatement(*assign_expr);
-                return Statement::Assign(assign_stmt)
-            },
-            _=> return cloned
-        };
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IfStatement {
     pub condition: Expression,
@@ -60,8 +36,6 @@ pub struct IfStatement {
     pub alternative: Option<BlockStatement>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AssignStatement(pub AssignExpression);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {

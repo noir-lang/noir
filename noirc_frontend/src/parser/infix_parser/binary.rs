@@ -16,16 +16,6 @@ impl InfixParser for BinaryParser {
             rhs: rhs.clone(),
         });
         
-        if operator == BinaryOp::Assign {
-            let identifier = infix_expression.lhs.identifier().expect("Expected the LHs of an assign operation to be an identifier");
-            
-            let assign_expr = AssignExpression{
-                identifier,
-                rhs
-            };
-            return Expression::Assign(Box::new(assign_expr))
-        }
-
         if operator.is_comparator() {
             return Expression::Predicate(infix_expression);
         }

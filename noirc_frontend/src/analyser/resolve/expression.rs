@@ -82,7 +82,6 @@ impl<'a> Resolver<'a> {
 
                 true
             },
-            Expression::Assign(_) => unreachable!(),
             Expression::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back"),
         }
     }
