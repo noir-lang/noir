@@ -103,7 +103,7 @@ impl Type {
 
     // Returns true if the Type can be used in a Let statement
     pub fn can_be_used_in_let(&self) -> bool {    
-        self.is_fixed_sized_array()
+        self.is_fixed_sized_array() || self.is_variable_sized_array()
     }
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {    
