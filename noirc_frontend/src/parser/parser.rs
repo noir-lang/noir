@@ -1,26 +1,30 @@
 use super::{Precedence, Program};
-use crate::ast::{BlockStatement, Expression, ExpressionStatement, Statement, Type, ArraySize};
+use crate::ast::{BlockStatement, Expression, Statement, Type, ArraySize};
 use crate::lexer::Lexer;
-use crate::token::{Keyword, Token, TokenKind};
-use std::error::Error;
+use crate::token::{Keyword, Token, TokenKind, SpannedToken};
+use super::errors::ParserError;
 
-type PrefixFn = fn(parser: &mut Parser) -> Expression;
-type InfixFn = fn(parser: &mut Parser, left: Expression) -> Expression;
+use super::prefix_parser::PrefixParser;
+use super::infix_parser::InfixParser;
+
+pub type ParserResult<T> = Result<T, ParserError>;
+pub type ParserExprResult = ParserResult<Expression>;
+type ParserStmtResult = ParserResult<Statement>;
 
 // XXX: We can probably abstract the lexer away, as we really only need an Iterator of Tokens/ TokenStream
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
 pub struct Parser<'a> {
     pub(crate) lexer: Lexer<'a>,
-    pub(crate) curr_token: Token,
-    pub(crate) peek_token: Token,
-    pub(crate) errors: Vec<Box<Error>>,
+    pub(crate) curr_token: SpannedToken,
+    pub(crate) peek_token: SpannedToken,
+    pub(crate) errors: Vec<ParserError>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(mut lexer: Lexer<'a>) -> Self {
-        let curr_token = lexer.next_token();
-        let peek_token = lexer.next_token();
+        let curr_token = lexer.next_token().unwrap();
+        let peek_token = lexer.next_token().unwrap();
         Parser {
             lexer,
             curr_token,
@@ -28,29 +32,38 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
         }
     }
+
     pub fn with_input(input : &'a str) -> Self {
         Parser::new(Lexer::new(input))
     }
+
+    /// Note that this function does not alert the user of an EOF
+    /// calling this function repeatedly will repeatedly give you 
+    /// an EOF token. EOF tokens are not errors
     pub(crate) fn advance_tokens(&mut self) {
         self.curr_token = self.peek_token.clone();
-        self.peek_token = self.lexer.next_token();
+
+        loop {
+            match self.lexer.next_token() {
+                Ok(spanned_token) => {
+                    self.peek_token = spanned_token;
+                    break;
+                },
+                Err(lex_err) => {
+                    self.errors.push(ParserError::LexerError(lex_err))
+                }        
+            }
+        }
+
+        // At this point, we could check for lexer errors
+        // and abort, however, if we do not we may be able to 
+        // recover if the next token is the correct one
     }
     // peaks at the next token
     // asserts that it should be of a certain variant
     // If it is, the parser is advanced
-    pub(crate) fn peek_check_variant_advance(&mut self, token: Token) -> bool {
-        let same_variant = self.peek_token.is_variant(&token);
-
-        if same_variant {
-            self.advance_tokens();
-            return true;
-        }
-        return false;
-    }
-    // peaks at the next token
-    // asserts that it should be an integer
-    pub(crate) fn peek_check_int(&mut self) -> bool {
-        let same_variant = self.peek_token.is_variant(&Token::Int(0));
+    pub(crate) fn peek_check_variant_advance(&mut self, token: &Token) -> bool {
+        let same_variant = self.peek_token.is_variant(token);
 
         if same_variant {
             self.advance_tokens();
@@ -85,13 +98,16 @@ impl<'a> Parser<'a> {
             // Although we can have function literals starting with the function keyword
             // they will be self-contained within another function and they will start with a `let` token
             // Eg let add = fn(x,y) {x+y}
-            match self.curr_token.clone() {
+            match self.curr_token.clone().into() {
                 Token::Attribute(attr) => {
                     self.advance_tokens(); // Skip the attribute
-                    let mut func_def = FuncParser::parse_fn_definition(self);
-                    func_def.attribute = Some(attr);
-                    program.push_function(func_def);
+                    let func_def = FuncParser::parse_fn_definition(self, Some(attr));
+                    self.on_value(func_def, |value|program.push_function(value));
                 },
+                Token::Keyword(Keyword::Fn) => {
+                    let func_def = FuncParser::parse_fn_definition(self, None);
+                    self.on_value(func_def, |value|program.push_function(value))
+                }
                 Token::Keyword(Keyword::Mod) => {
                    let (module_identifier, module) = ModuleParser::parse_module_definition(self);
                    program.push_module(module_identifier, module);
@@ -99,10 +115,6 @@ impl<'a> Parser<'a> {
                 Token::Keyword(Keyword::Use) => {
                     let import_stmt = UseParser::parse(self);
                     program.push_import(import_stmt);
-                }
-                Token::Keyword(Keyword::Fn) => {
-                    let func_def = FuncParser::parse_fn_definition(self);
-                    program.push_function(func_def);
                 }
                 Token::Comment(_) => {
                     // This is a comment outside of a function.
@@ -113,27 +125,41 @@ impl<'a> Parser<'a> {
                 _ => {
                     // Parse regular statements
                     let statement = self.parse_statement();
-                    program.push_statement(statement);
+                    match statement {
+                        Ok(stmt) => program.push_statement(stmt),
+                        Err(err) => self.errors.push(err) 
+                    };
                 }
             }
+            // The current token will be the ending token for whichever branch was just picked
+            // so we advance from that
             self.advance_tokens();
         }
 
         program
     }
+
+    fn on_value<T, F>(&mut self, parser_res : ParserResult<T>, mut func : F) 
+            where F: FnMut(T) 
+    {
+        match parser_res {
+            Ok(value) => func(value),
+            Err(err) => self.errors.push(err)
+        }
+    }
     pub fn parse_module(&mut self) -> Program{
         self.parse_unit(Token::RightBrace)
     }
-    pub fn parse_statement(&mut self) -> Statement {
+    pub fn parse_statement(&mut self) -> ParserStmtResult {
         use crate::parser::constraint_parser::ConstraintParser;
-        use crate::parser::prefix_parser::DeclarationParser;
+        use crate::parser::prefix_parser::{DeclarationParser, IfParser};
 
         // The first type of statement we could have is a variable declaration statement
         if self.curr_token.can_start_declaration() {
-            return DeclarationParser::parse_declaration_statement(self, &self.curr_token.clone());
+            return Ok(DeclarationParser::parse_declaration_statement(self, &self.curr_token.clone().into()));
         };
 
-        let stmt = match &self.curr_token {
+        let stmt = match self.curr_token.token() {
             tk if tk.is_comment() => {
                 // Comments here are within a function
                 self.advance_tokens();
@@ -142,73 +168,66 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::Constrain) => {
                 Statement::Constrain(ConstraintParser::parse_constrain_statement(self))
             }
+            Token::Keyword(Keyword::If) => {
+                Statement::If(IfParser::parse_if_statement(self)?)
+            }
             _ => {
-                let expr_stmt = self.parse_expression_statement();
-                // All Assign expressions are converted into assign statements
-                // Parsing through the binary parser reduces complexity, but adds a bit of redundancy
-                Statement::Expression(Box::new(expr_stmt)).maybe_assign() 
+                let expr = self.parse_expression_statement()?;
+                Statement::Expression(expr)
             }
         };
         // Check if the next token is a semi-colon(optional)
         if self.peek_token == Token::Semicolon {
             self.advance_tokens();
         };
-        return stmt;
+        return Ok(stmt);
     }
 
-    fn parse_expression_statement(&mut self) -> ExpressionStatement {
-        let expr = self.parse_expression(Precedence::Lowest);
-        ExpressionStatement(expr.unwrap())
+    fn parse_expression_statement(&mut self) -> ParserExprResult {
+        self.parse_expression(Precedence::Lowest)
     }
 
-    pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
+    pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParserExprResult {
         // Calling this method means that we are at the beginning of a local expression
         // We may be in the middle of a global expression, but this does not matter
-        let mut left_exp = match self.prefix_fn() {
-            Some(prefix) => prefix(self),
+        let mut left_exp = match self.choose_prefix_parser() {
+            Some(prefix_parser) => prefix_parser.parse(self)?,
             None => {
-                println!("ERROR: No prefix function found for {}", &self.curr_token);
-                return None;
+                return Err(ParserError::NoPrefixFunction{span : self.curr_token.into_span(), lexeme: self.curr_token.token().to_string()})
             }
         };
+
         while (self.peek_token != Token::Semicolon)
-            && (precedence < Precedence::from(&self.peek_token))
+            && (precedence < Precedence::from(self.peek_token.token()))
         {
-            match self.infix_fn() {
+            match self.choose_infix_parser() {
                 None => {
-                    println!("No infix function found for {}", &self.curr_token); // XXX: This is a user error, so that's why we don't panic. Unless I forgot to implement an infix for a operator
-                    return Some(left_exp.clone());
+                    dbg!("No infix function found for {}", self.curr_token.token());
+                    return Ok(left_exp.clone());
                 }
-                Some(infix_fn) => {
+                Some(infix_parser) => {
                     self.advance_tokens();
-                    left_exp = infix_fn(self, left_exp);
+                    left_exp = infix_parser.parse(self, left_exp)?;
                 }
             }
         }
 
-        return Some(left_exp);
+        return Ok(left_exp);
     }
-    fn prefix_fn(&self) -> Option<PrefixFn> {
-        use crate::parser::prefix_parser::{
-            ArrayParser, GroupParser, IfParser, LiteralParser, NameParser, UnaryParser,
-        };
-        use crate::parser::PrefixParser;
-
-        match &self.curr_token {
-            Token::LeftBracket => Some(ArrayParser::parse),
-            Token::Keyword(Keyword::If) => Some(IfParser::parse),
-            x if x.kind() == TokenKind::Ident => Some(NameParser::parse),
-            x if x.kind() == TokenKind::Literal => Some(LiteralParser::parse),
-            Token::Bang | Token::Minus => Some(UnaryParser::parse),
-            Token::LeftParen => Some(GroupParser::parse),
+    fn choose_prefix_parser(&self) -> Option<PrefixParser> {
+  
+        match self.curr_token.token() {
+            Token::Keyword(Keyword::For) => Some(PrefixParser::For),
+            Token::LeftBracket => Some(PrefixParser::Array),
+            x if x.kind() == TokenKind::Ident => Some(PrefixParser::Name),
+            x if x.kind() == TokenKind::Literal => Some(PrefixParser::Literal),
+            Token::Bang | Token::Minus => Some(PrefixParser::Unary),
+            Token::LeftParen => Some(PrefixParser::Group),
             _ => None,
         }
     }
-    fn infix_fn(&mut self) -> Option<InfixFn> {
-        use crate::parser::infix_parser::{BinaryParser, CallParser, IndexParser, PathParser};
-        use crate::parser::InfixParser;
-
-        match self.peek_token {
+    fn choose_infix_parser(&mut self) -> Option<InfixParser> {
+        match self.peek_token.token() {
             Token::Plus
             | Token::Minus
             | Token::Slash
@@ -223,26 +242,31 @@ impl<'a> Parser<'a> {
             | Token::Equal
             | Token::Assign
             | Token::Keyword(Keyword::As)
-            | Token::NotEqual => Some(BinaryParser::parse),
-            Token::LeftParen => Some(CallParser::parse),
-            Token::LeftBracket => Some(IndexParser::parse),
-            Token::DoubleColon => Some(PathParser::parse),
+            | Token::NotEqual => Some(InfixParser::Binary),
+            Token::LeftParen => Some(InfixParser::Call),
+            Token::LeftBracket => Some(InfixParser::Index),
+            Token::DoubleColon => Some(InfixParser::Path),
             _ => None,
         }
     }
 
-    pub(crate) fn parse_block_statement(&mut self) -> BlockStatement {
+    pub(crate) fn parse_block_statement(&mut self) -> Result<BlockStatement, ParserError> {
         let mut statements: Vec<Statement> = Vec::new();
         
-        // Advance past the left brace which was used to start the block statement
+        // Advance past the current token which is the left brace which was used to start the block statement
+        // XXX: Check consistency with for parser, if parser and func parser
         self.advance_tokens();
 
         while (self.curr_token != Token::RightBrace) && (self.curr_token != Token::EOF) {
-            statements.push(self.parse_statement());
+            statements.push(self.parse_statement()?);
             self.advance_tokens();
         }
 
-        BlockStatement(statements)
+        if self.curr_token != Token::RightBrace {
+            panic!("Expected a } to end the block statement")
+        }
+
+        Ok(BlockStatement(statements))
     }
 
     pub(crate) fn parse_comma_separated_argument_list(
@@ -264,7 +288,7 @@ impl<'a> Parser<'a> {
             arguments.push(self.parse_expression(Precedence::Lowest).unwrap());
         }
 
-        if !self.peek_check_variant_advance(delimeter.clone()) {
+        if !self.peek_check_variant_advance(&delimeter) {
             panic!("Expected a {} to end the list of arguments", delimeter)
         };
 
@@ -275,7 +299,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_type(&mut self) -> Type {
         // Currently we only support the default types and integers.
         // If we get into this function, then the user is specifying a type
-        match &self.curr_token {
+        match self.curr_token.token() {
             Token::Keyword(Keyword::Witness) => Type::Witness,
             Token::Keyword(Keyword::Public) => Type::Public,
             Token::Keyword(Keyword::Constant) => Type::Constant,
@@ -292,7 +316,7 @@ impl<'a> Parser<'a> {
         // Current token is '['
         //
         // Next token should be an Integer or right brace
-        let array_len = match self.peek_token {
+        let array_len = match self.peek_token.clone().into() {
             Token::Int(integer) => {
                 if integer < 0 {
                     panic!("Cannot have a negative array size, [-k]Type is disallowed")
@@ -304,10 +328,10 @@ impl<'a> Parser<'a> {
             _ => panic!("The array size is defined as [k] for fixed size or [] for variable length"),
         };
 
-        if !self.peek_check_variant_advance(Token::RightBracket) {
+        if !self.peek_check_variant_advance(&Token::RightBracket) {
             panic!(
                 "expected a `]` after integer, got {}",
-                self.peek_token
+                self.peek_token.token()
             )
         }
     
@@ -329,15 +353,14 @@ impl<'a> Parser<'a> {
 mod test {
     use super::*;
     use crate::ast::{
-        BlockStatement, CallExpression, Expression, ExpressionStatement, FunctionDefinition,
-         Ident, IfExpression, InfixExpression, Literal, PrefixExpression,
+        BlockStatement, CallExpression, Expression, FunctionDefinition,
+         Ident, IfStatement, InfixExpression, Literal, PrefixExpression,
         Statement, Type,
     };
     #[test]
     fn test_basic_let() {
         // XXX: Incomplete, as we do not check the expression
         let input = "
-    
             let x = 5;
             let y = 15;
             let z = 20;
@@ -377,7 +400,7 @@ mod test {
         for (stmt, iden) in program.statements.into_iter().zip(test_iden.iter()) {
             // Cast to an expression
             let expression = match stmt {
-                Statement::Expression(x) => x.0,
+                Statement::Expression(x) => x,
                 _ => unreachable!(),
             };
             // Extract the identifier
@@ -405,7 +428,7 @@ mod test {
         for (stmt, expected_lit) in program.statements.into_iter().zip(test_iden.iter()) {
             // Cast to an expression
             let expression = match stmt {
-                Statement::Expression(x) => x.0,
+                Statement::Expression(x) => x,
                 _ => unreachable!(),
             };
             // Extract the literal
@@ -442,7 +465,7 @@ mod test {
         for (stmt, expected_lit) in program.statements.into_iter().zip(test_iden.iter()) {
             // Cast to an expression
             let expression = match stmt {
-                Statement::Expression(x) => x.0,
+                Statement::Expression(x) => x,
                 _ => unreachable!(),
             };
             // Extract the prefix expression
@@ -487,7 +510,7 @@ mod test {
         for (stmt, expected_lit) in program.statements.into_iter().zip(test_iden.iter()) {
             // Cast to an expression
             let expression = match stmt {
-                Statement::Expression(x) => x.0,
+                Statement::Expression(x) => x,
                 _ => unreachable!(),
             };
             // Extract the infix expression
@@ -522,7 +545,7 @@ mod test {
         let expected_lit = grouped_expression;
         // Cast to an expression
         let expression = match stmt {
-            Statement::Expression(x) => x.0,
+            Statement::Expression(x) => x,
             _ => unreachable!(),
         };
         // Extract the prefix expression
@@ -546,7 +569,7 @@ mod test {
         let expected_lit = ungrouped_expression;
         // Cast to an expression
         let expression = match stmt {
-            Statement::Expression(x) => x.0,
+            Statement::Expression(x) => x,
             _ => unreachable!(),
         };
         // Extract the prefix expression
@@ -563,29 +586,24 @@ mod test {
         let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse_program();
 
-        let expected_if = IfExpression {
+        let expected_if = IfStatement {
             condition: Expression::Predicate(Box::new(InfixExpression {
                 lhs: Expression::Ident("x".to_string()),
                 operator: Token::Less.into(),
                 rhs: Expression::Ident("y".to_string()),
             })),
-            consequence: BlockStatement(vec![Statement::Expression(Box::new(
-                ExpressionStatement(Expression::Ident("x".to_string())),
-            ))]),
+            consequence: BlockStatement(vec![Statement::Expression(
+                Expression::Ident("x".to_string())
+            )]),
             alternative: None,
         };
 
         let stmt = program.statements[0].clone();
-        let expression = match stmt {
-            Statement::Expression(x) => x.0,
+        let if_stmt = match stmt {
+            Statement::If(x) => x,
             _ => unreachable!(),
         };
-        // Extract the if expression
-        let if_expr = match expression {
-            Expression::If(x) => x,
-            _ => unreachable!(),
-        };
-        assert_eq!(*if_expr, expected_if)
+        assert_eq!(*if_stmt, expected_if)
     }
     #[test]
     fn test_parse_if_else_expression() {
@@ -593,31 +611,27 @@ mod test {
         let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse_program();
 
-        let expected_if = IfExpression {
+        let expected_if = IfStatement {
             condition: Expression::Predicate(Box::new(InfixExpression {
                 lhs: Expression::Ident("foo".to_string()),
                 operator: Token::Less.into(),
                 rhs: Expression::Ident("bar".to_string()),
             })),
-            consequence: BlockStatement(vec![Statement::Expression(Box::new(
-                ExpressionStatement(Expression::Ident("cat".to_string())),
-            ))]),
-            alternative: Some(BlockStatement(vec![Statement::Expression(Box::new(
-                ExpressionStatement(Expression::Ident("dog".to_string())),
-            ))])),
+            consequence: BlockStatement(vec![Statement::Expression(
+                Expression::Ident("cat".to_string()),
+            )]),
+            alternative: Some(BlockStatement(vec![Statement::Expression(
+                Expression::Ident("dog".to_string()),
+            )])),
         };
 
         let stmt = program.statements[0].clone();
-        let expression = match stmt {
-            Statement::Expression(x) => x.0,
+        let if_stmt = match stmt {
+            Statement::If(x) => x,
             _ => unreachable!(),
         };
-        // Extract the if expression
-        let if_expr = match expression {
-            Expression::If(x) => x,
-            _ => unreachable!(),
-        };
-        assert_eq!(*if_expr, expected_if)
+
+        assert_eq!(*if_stmt, expected_if)
     }
 
     #[test]
@@ -638,7 +652,7 @@ mod test {
         };
         match stmt {
             Statement::Private(priv_stmt) => {
-                assert_eq!(*priv_stmt, priv_stmt_expected);
+                assert_eq!(priv_stmt, priv_stmt_expected);
             }
             _ => panic!("Expected a private statement"),
         }
@@ -666,9 +680,9 @@ mod test {
             name: Ident("add".into()),
             attribute : None,
             parameters: parameters,
-            body: BlockStatement(vec![Statement::Expression(Box::new(ExpressionStatement(
+            body: BlockStatement(vec![Statement::Expression(
                 Expression::Infix(Box::new(infix_expression)),
-            )))]),
+            )]),
             return_type : Type::Unit,        }];
 
         for (expected_def, got_def) in expected.into_iter().zip(program.functions.into_iter()) {
@@ -697,7 +711,7 @@ mod test {
         for (stmt, expected_lit) in program.statements.into_iter().zip(test_iden.iter()) {
             // Cast to an expression
             let expression = match stmt {
-                Statement::Expression(x) => x.0,
+                Statement::Expression(x) => x,
                 _ => unreachable!(),
             };
             // Extract the function literal expression
