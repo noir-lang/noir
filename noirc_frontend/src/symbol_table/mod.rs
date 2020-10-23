@@ -65,9 +65,9 @@ impl SymbolTable {
             }
         };
 
-        match attribute{
-            Attribute::Foreign(_) => self.insert(func_name.clone(), SymbolInformation::Function(NoirFunction::LowLevelFunction(func_def.clone().into()))),
-        };
+        if attribute.declares_a_low_level_func() {
+            self.insert(func_name.clone(), SymbolInformation::Function(NoirFunction::LowLevelFunction(func_def.clone().into())))
+        }
     }
     pub fn update_func_def(&mut self, func_def: &FunctionDefinition) {
         let func_name = &func_def.name;
@@ -138,6 +138,7 @@ impl SymbolTable {
     pub fn look_up_func(&self, noir_path : NoirPath, func_name: &Ident) -> Option<NoirFunction> {
 
         let noir_path_string = noir_path.to_string();
+
 
         let symbol_info = self.look_up_path(noir_path);
 
