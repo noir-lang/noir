@@ -5,7 +5,7 @@ use crate::object::{Array, Object};
 use crate::{CallExpression, Environment, Evaluator};
 
 
-pub struct Sha256Gadget {}
+pub struct Sha256Gadget;
 
 impl GadgetCaller for Sha256Gadget {
 
@@ -47,20 +47,16 @@ impl Sha256Gadget {
     fn prepare_inputs(
         evaluator: &mut Evaluator,
         env: &mut Environment,
-        call_expr: CallExpression,
+        mut call_expr: CallExpression,
     ) -> Vec<GadgetInput> {
 
         // For sha256, we expect a single input which should be an array
-        
-        let mut objects : Vec<_>=  call_expr.arguments.into_iter().map(|expr|evaluator.expression_to_object(env, expr)).collect();
-        let obj = {
-            assert_eq!(objects.len(), 1);
-            objects.pop().unwrap()
-        };
-        
-        let arr = match obj{
-            Object::Array(arr) => arr,
-            _=> panic!("Sha256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase")
+        assert_eq!(call_expr.arguments.len(),1);
+
+        let arr_expr = call_expr.arguments.pop().unwrap();
+        let arr = match Array::from_expression(evaluator, env, arr_expr) {
+            Some(arr) => arr,
+            None => panic!("Sha256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase")
         };
 
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(0);

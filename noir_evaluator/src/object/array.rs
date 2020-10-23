@@ -1,5 +1,5 @@
 use crate::object::Object;
-use crate::{Environment, Evaluator};
+use crate::{Environment, Evaluator, Expression};
 use noirc_frontend::ast::ArrayLiteral;
 
 #[derive(Clone, Debug)]
@@ -32,5 +32,13 @@ impl Array {
         };
 
         self.contents[index as usize].clone()
+    }
+
+    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr : Expression) -> Option<Array> {
+        let object = evaluator.expression_to_object(env, expr);
+        match object {
+            Object::Array(arr) => Some(arr),
+            _=> None
+        }
     }
 }
