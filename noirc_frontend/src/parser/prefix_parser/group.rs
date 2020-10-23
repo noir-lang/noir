@@ -2,8 +2,8 @@ use super::*;
 
 pub struct GroupParser;
 
-impl PrefixParser for GroupParser {
-    fn parse(parser: &mut Parser) -> Expression {
+impl GroupParser {
+  pub fn parse(parser: &mut Parser) -> ParserExprResult {
         parser.advance_tokens();
 
         let exp = parser.parse_expression(Precedence::Lowest);
@@ -14,6 +14,6 @@ impl PrefixParser for GroupParser {
             )
         }
 
-        exp.unwrap()
+        exp
     }
 }

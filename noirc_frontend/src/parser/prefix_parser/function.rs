@@ -6,7 +6,8 @@ impl FuncParser {
     /// All functions are function definitions. Functions are not first class.
     pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
-    ) -> FunctionDefinition {
+        attribute : Option<Attribute>,
+    ) -> Result<FunctionDefinition, ParserError> {
 
         // Check if we have an identifier.
         if !parser.peek_check_kind_advance(TokenKind::Ident) {
@@ -34,15 +35,16 @@ impl FuncParser {
             panic!("Expected a Left Brace `{` to start the function block")
         };
 
-        let body = parser.parse_block_statement();
+        let body = parser.parse_block_statement()?;
 
-        FunctionDefinition {
+        let func_def = FunctionDefinition {
             name: func_name.into(),
-            attribute : None,
+            attribute : attribute,
             parameters,
             body,
             return_type,
-        }
+        };
+        Ok(func_def)
     }
 
     fn parse_fn_parameters(parser: &mut Parser) -> Vec<(Ident, Type)> {

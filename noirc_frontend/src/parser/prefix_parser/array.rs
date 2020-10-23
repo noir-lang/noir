@@ -2,9 +2,9 @@ use super::*;
 
 pub struct ArrayParser;
 
-impl PrefixParser for ArrayParser {
+impl ArrayParser {
     // Arrays are of the form [a, b, c,d]
-    fn parse(parser: &mut Parser) -> Expression {
+    pub fn parse(parser: &mut Parser) -> ParserExprResult {
         // Current token is '['
         //
         // parse the contents of the array
@@ -12,10 +12,12 @@ impl PrefixParser for ArrayParser {
 
         let array_len = elements.len() as u128;
 
-        Expression::Literal(Literal::Array(ArrayLiteral {
+        let expr = Expression::Literal(Literal::Array(ArrayLiteral {
             contents: elements,
             length: array_len,
             r#type: Type::Unknown, // XXX: Can't figure it out at the moment, but analyser should be able to and also it should be able to check contents to make sure they are all same type
-        }))
+        }));
+
+        Ok(expr)
     }
 }

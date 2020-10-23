@@ -2,8 +2,8 @@ use super::*;
 
 pub struct ForParser;
 
-impl PrefixParser for ForParser{
-    fn parse(parser: &mut Parser) -> Expression { 
+impl ForParser {
+    pub fn parse(parser: &mut Parser) -> ParserExprResult { 
         if !parser.peek_check_kind_advance(TokenKind::Ident) {
             panic!("Expected an identifier after the For keyword")
         }   
@@ -28,7 +28,7 @@ impl PrefixParser for ForParser{
         };
 
         // Parse body
-        let block = parser.parse_block_statement();
+        let block = parser.parse_block_statement()?;
 
         let for_expr = ForExpression {
             identifier: identifier.into(),
@@ -37,7 +37,7 @@ impl PrefixParser for ForParser{
             block,
         };
 
-        Expression::For(Box::new(for_expr))
+        Ok(Expression::For(Box::new(for_expr)))
 
     }
 }
