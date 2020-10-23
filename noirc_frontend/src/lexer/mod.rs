@@ -1,4 +1,5 @@
 pub mod lexer;
 pub mod token;
+pub use lexer::{Lexer, SpannedTokenResult};
 
-pub use lexer::Lexer;
+pub mod errors;
