@@ -1,30 +1,36 @@
-use crate::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
+use crate::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement, ArraySize};
 use crate::ast::{NoirPath, FunctionDefinition};
 use crate::parser::Program;
 use crate::{SymbolTable, NoirFunction};
 use std::collections::HashMap;
 
+use super::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest};
+
+type Scope = GenericScope<Ident, Type>;
+type ScopeTree = GenericScopeTree<Ident, Type>;
+type ScopeForest = GenericScopeForest<Ident, Type>;
+
+
 mod expression;
 
 pub struct TypeChecker<'a> {
     table : &'a SymbolTable,
-    local_types : HashMap<Ident, Type>
+    local_types : ScopeForest
 }
 
 impl<'a> TypeChecker<'a> {
 
     fn from_symbol_table(table : &SymbolTable) -> TypeChecker {
-        TypeChecker {table, local_types : HashMap::new()}
-    }
-
-    pub fn clear(&mut self) {
-        self.local_types.clear();
+        TypeChecker {table, local_types : ScopeForest::new()}
     }
 
     pub fn add_variable_declaration(&mut self, name : Ident, typ : Type) {
-        let is_duplicate = self.local_types.insert(name, typ).is_some();
+        
+        let scope = self.local_types.get_mut_scope();
+        let is_new_entry = scope.add_key_value(name.clone(),typ);
 
-        if is_duplicate {
+        // XXX: This should be caught by the resolver, we could remove it from here so that there is single responsibility
+        if !is_new_entry {
             panic!("Two parameters in a function cannot have the same name")
         }
     }
@@ -32,8 +38,9 @@ impl<'a> TypeChecker<'a> {
     fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<NoirFunction> {   
         self.table.look_up_func(path.clone(), &func_name)
     }
-    pub fn lookup_local_identifier(&self, name : &Ident) -> Type {
-        self.local_types.get(&(name.clone())).unwrap().clone()
+    pub fn lookup_local_identifier(&mut self, name : &Ident) -> Type {
+        let scope_tree = self.local_types.current_scope_tree();
+        scope_tree.find_key(name).expect("Compiler Error: Cannot find type for specified name. This should be caught by the Resolver pass").clone()
     }
 
     pub fn check(mut ast : Program, table : &SymbolTable) -> Program {
@@ -67,6 +74,8 @@ impl<'a> TypeChecker<'a> {
 
     // Check that all assignments have the correct types
 fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition {
+    
+    self.local_types.start_function();
 
     // Add function parameters to local types in the type checker
     for param in func.parameters.iter() {
@@ -77,16 +86,16 @@ fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefi
 
     let declared_return_type = &func.return_type;
 
-    let is_foreign = match &func.attribute{
+    let is_low_level = match &func.attribute{
         None => false,
-        Some(attr) => attr.is_foreign()
+        Some(attr) => attr.is_low_level()
     };
 
-    if (&last_return_type != declared_return_type) & !is_foreign {
+    if (&last_return_type != declared_return_type) & !is_low_level {
         panic!("mismatched types: Expected the function named `{}` to return the type `{}`, but got `{}`", &func.name.0, declared_return_type, last_return_type);
     }
 
-    self.clear(); 
+    self.local_types.end_function();
 
     func
 }
@@ -125,8 +134,8 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Type {
                 let lhs_type = self.lookup_local_identifier(lhs);
                 let rhs_type = self.type_check_expr(rhs);
 
-                if lhs_type == Type::Constant || rhs_type == Type::Constant {
-                    panic!("Constants cannot be used in an assignment statement. Please check the variable {} ", &lhs.0)
+                if lhs_type != Type::Constant || rhs_type != Type::Constant {
+                    panic!("Only constants cannot be used in an assignment statement. Please check the variable re-assignment for {} {} = {} ", &lhs.0, lhs_type, rhs_type)
                 }
                 if lhs_type != rhs_type {
                     panic!("Type mismatch in assignment statement. The LHS has type {} , while the RHS has type {}", &lhs_type, rhs_type)
@@ -219,7 +228,7 @@ fn type_check_let_stmt(&mut self,stmt : &mut LetStatement) {
 fn type_check_const_stmt(&mut self,stmt : &mut ConstStatement) {
     let lhs_type = &stmt.r#type;
     if !(lhs_type == &Type::Constant || lhs_type == &Type::Unspecified) {
-        panic!("Constant statements can only contain constant types")
+        panic!("Constant statements can only contain constant types, found type {}", lhs_type)
     }
     let expr_type = self.type_check_expr(&mut stmt.expression);
 

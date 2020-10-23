@@ -35,7 +35,6 @@ impl<'a> TypeChecker<'a> {
             Expression::Ident(iden) => {
                 self.lookup_local_identifier(&iden.to_string().into())
             },
-            Expression::If(_) => unimplemented!("[Coming soon] : Currently if expressions have not been implemented"),
             Expression::Assign(_) => unreachable!(),
             Expression::Literal(ref mut lit) => self.type_check_literal(lit),
             Expression::Infix(ref mut infx) => self.type_check_infix(infx),
@@ -51,6 +50,33 @@ impl<'a> TypeChecker<'a> {
                     _=> panic!("Cannot index on non array types")
                 };
                 *base_type
+            },
+            Expression::For(for_expr) => {
+                let start_range = &mut for_expr.start_range;
+                let end_range = &mut for_expr.end_range;
+
+                
+                let start_type = self.type_check_expr(start_range);
+                let end_type = self.type_check_expr(end_range);
+                
+                assert_eq!(start_type, Type::Constant);
+                assert_eq!(end_type, Type::Constant);
+                
+                self.local_types.start_for_loop();
+                
+                self.add_variable_declaration(for_expr.identifier.clone(), Type::Constant);
+                
+                // Note, we ignore return type in a block statement for a for-loop
+                let base_typ = self.type_check_block_stmt(&mut for_expr.block);
+                self.local_types.end_for_loop();
+
+                // Try to figure out the number of iterations
+                let num_iterations = TypeChecker::count_num_of_iterations(&start_range, end_range);
+                let array_size = match num_iterations {
+                    Some(integer) => ArraySize::Fixed(integer),
+                    None => ArraySize::Variable,
+                };
+                Type::Array(array_size, Box::new(base_typ))
             },
             Expression::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back")
         }
@@ -82,7 +108,7 @@ impl<'a> TypeChecker<'a> {
                     let right_type = &type_pair[1]; 
 
                     if left_type != right_type {
-                        panic!("Array is not homogenous at indices ({}, {}), found an element of type {:?} and an element of type {:?}", i,i+1, left_type, right_type)
+                        panic!("Array is not homogenous at indices ({}, {}), found an element of type {} and an element of type {}", i,i+1, left_type, right_type)
                     }
                 }
                 
@@ -130,6 +156,32 @@ impl<'a> TypeChecker<'a> {
         
     }
 
+    fn extract_constant(expr : &Expression) -> Option<noir_field::FieldElement> {
+        let literal = match expr {
+            Expression::Literal(literal) => literal,
+            _ => return None
+        };
+
+        let integer = match literal {
+            Literal::Integer(integer) => integer,
+            _ => return None
+        };
+
+        Some((*integer).into())
+    }
+
+    // This is a very naive way to get the amount of loop iterations and 
+    // it only works if constant literals are used.
+    // Since the Type checker does not have the value of identifiers only their types
+    fn count_num_of_iterations(start : &Expression, end : &Expression) -> Option<u128> {
+        
+        let start_constant = TypeChecker::extract_constant(start)?;
+        let end_constant = TypeChecker::extract_constant(end)?;
+
+        let num_iterations = end_constant - start_constant;
+        
+        Some(num_iterations.to_u128())
+    }
 
 }
 
