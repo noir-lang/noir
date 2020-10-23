@@ -278,7 +278,7 @@ impl Evaluator {
                 env.store(variable_name, value);
                 Object::Null
             }
-            Statement::Expression(expr_stmt) => self.expression_to_object(env, expr_stmt.0),
+            Statement::Expression(expr) => self.expression_to_object(env, expr),
             Statement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_let_statement(env, let_stmt);
@@ -292,7 +292,7 @@ impl Evaluator {
     }
 
     // XXX(med) : combine these two methods and or rename
-    // XXX(bug): If you call store_witness after store_lone_variable, then the Object will have the index of the previous witness
+    // XXX(bug) : If you call store_witness after store_lone_variable, then the Object will have the index of the previous witness
     // XXX: Maybe better to name it `create_witness`
     fn store_witness(&mut self, variable_name: String, typ: Type) -> Witness {
         self.num_witness = self.num_witness + 1;
