@@ -1,11 +1,12 @@
 mod binary_op;
 mod environment;
 mod low_level_function_impl;
+mod builtin;
 mod object;
 
 use std::collections::{BTreeMap, HashMap};
 
-use object::{Array, Integer, Object, Selector};
+use object::{Array, Integer, Object, Selector, RangedObject};
 use environment::Environment;
 use acir::optimiser::CSatOptimiser;
 
@@ -24,8 +25,8 @@ use noir_field::FieldElement;
 pub struct Evaluator {
     num_witness: usize,                           // XXX: Can possibly remove
     num_selectors: usize,                         // XXX: Can possibly remove
-    pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table
-    selectors: Vec<Selector>,
+    pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
+    selectors: Vec<Selector>, // XXX: Possibly move into environment
     statements: Vec<Statement>,
     symbol_table: SymbolTable,
     num_public_inputs: usize,
@@ -122,7 +123,7 @@ impl Evaluator {
         let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
 
         // Optimise the arithmetic gates by reducing them into the correct width and creating intermediate variables when necessary
-        let num_witness = self.num_witnesses();
+        let num_witness = self.num_witnesses() + 1;
         let mut optimised_arith_gates: Vec<_> = self
             .gates
             .into_iter()
@@ -265,13 +266,13 @@ impl Evaluator {
 
     fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Object {
         match statement {
-            Statement::Private(x) => self.handle_private_statement(env, *x.clone()),
-            Statement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, *constrain_stmt),
+            Statement::Private(x) => self.handle_private_statement(env, x.clone()),
+            Statement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, constrain_stmt),
             // constant statements do not create constraints
             Statement::Const(x) => {
                 self.num_selectors = self.num_selectors + 1;
-                let variable_name: String = x.identifier.clone().0;
-                let value = self.evaluate_integer(env, x.expression.clone()); // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
+                let variable_name: String = x.identifier.0;
+                let value = self.evaluate_integer(env, x.expression); // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
                 self.selectors
                     .push(Selector(variable_name.clone(), value.clone()));
                 env.store(variable_name, value);
@@ -280,19 +281,16 @@ impl Evaluator {
             Statement::Expression(expr_stmt) => self.expression_to_object(env, expr_stmt.0),
             Statement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, *let_stmt);
+                self.handle_let_statement(env, let_stmt);
 
                 Object::Null
             }
             Statement::Assign(assign_stmt) => {
-
-                // Handle assign here!
-                let rhs_object = self.expression_to_object(env, assign_stmt.0.rhs);
-
-                env.store(assign_stmt.0.identifier.0, rhs_object);
-
-                Object::Null
-
+                    // Handle assign here!
+                    let rhs_object = self.expression_to_object(env, assign_stmt.0.rhs);
+                    env.update(assign_stmt.0.identifier.0, rhs_object);
+    
+                    Object::Null
             }
             _ => {
                 panic!("This statement type has not been implemented");
@@ -428,6 +426,37 @@ impl Evaluator {
 
         Object::Null
     }
+    fn handle_for_expr(
+        &mut self,
+        env: &mut Environment,
+        for_expr: ForExpression,
+    ) -> Object {
+        
+        // First create an iterator over all of the for loop identifiers
+        // XXX: We preferably need to introduce public integers and private integers, so that we can 
+        // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest 
+        let start = self.expression_to_object(env, for_expr.start_range).constant().unwrap();
+        let end = self.expression_to_object(env, for_expr.end_range).constant().unwrap();
+        let ranged_object = RangedObject::new(start, end);
+        
+        let mut contents : Vec<Object> = Vec::new();
+
+        for indice in ranged_object {
+            env.start_for_loop();
+
+            // Add indice to environment
+            let variable_name: String = for_expr.identifier.0.clone();
+            env.store(variable_name, Object::Constants(indice));
+
+            let return_typ = self.eval_block(env, for_expr.block.clone());
+            contents.push(return_typ);
+
+            env.end_for_loop();
+        }
+        let length = contents.len() as u128;
+
+        Object::Array(Array{contents, length})
+    }
 
     pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Object {
         let polynomial = self.expression_to_object(env, expr);
@@ -482,13 +511,17 @@ impl Evaluator {
                     NoirFunction::Function(compiled_func) => self.call_function(env, &call_expr, compiled_func.clone()),
                     NoirFunction::LowLevelFunction(func) => {
                         let attribute = func.attribute.expect("All low level functions must contain an attribute which contains the opcode which it links to");
-                        let opcode_name = match attribute {
-                            Attribute::Foreign(opcode_name) => opcode_name,
-                        };
-                        low_level_function_impl::call_low_level(self, env, &opcode_name, *call_expr)
+                        match attribute {
+                            Attribute::Foreign(opcode_name) => low_level_function_impl::call_low_level(self, env, &opcode_name, *call_expr),
+                            Attribute::Builtin(builtin_name) => builtin::call_builtin(self, env, &builtin_name, *call_expr)
+                        }
+                        
                     },
                 }
                     
+            }
+            Expression::For(for_expr) => {
+                self.handle_for_expr(env,*for_expr)
             }
             k => {
                 dbg!(k);
@@ -521,9 +554,10 @@ impl Evaluator {
                 let return_val = self.apply_func(&mut new_env, func);
 
                 // Take all of the arithmetic gates from the functions environment and add it to the global environment
-                for (ident, polynomial) in new_env.0.into_iter() {
-                    env.store(ident, polynomial);
-                }
+                // XXX: Check this
+                // for (ident, polynomial) in new_env.into_iter() {
+                //     env.store(ident, polynomial);
+                // }
 
                 return_val
     }
