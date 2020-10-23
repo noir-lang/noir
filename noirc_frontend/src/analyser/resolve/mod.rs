@@ -138,8 +138,8 @@ impl<'a> Resolver<'a> {
                     self.resolve_private_stmt(priv_stmt);
                 },
                 Statement::Expression(expr) => {
-                    if !self.resolve_expr(&expr.0) {
-                        panic!("Could not resolve the expression private statement {:?}", expr.0);
+                    if !self.resolve_expr(&expr) {
+                        panic!("Could not resolve the expression private statement {:?}", expr);
                     };
                 },
                 Statement::Block(_) => {

@@ -18,14 +18,13 @@ pub enum Statement {
     Public(PublicStatement),
     Private(PrivateStatement),
     Block(Box<BlockStatement>),
-    Expression(ExpressionStatement),
+    Expression(Expression),
 }
 
 
 impl Into<Statement> for Expression {
     fn into(self) -> Statement {
-        let expr_stmt = ExpressionStatement(self);
-        Statement::Expression(expr_stmt)
+        Statement::Expression(self)
     }
 }
 
@@ -51,9 +50,6 @@ impl BlockStatement {
         self.0.pop()
     }
 }
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ExpressionStatement(pub Expression);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 // This will be used for structs and maybe closures(if we decide to have them)
