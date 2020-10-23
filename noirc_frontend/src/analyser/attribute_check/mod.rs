@@ -53,10 +53,17 @@ impl AttributeChecker {
             panic!("Functions marked with an attribute should have an empty body")
         }
 
+
+        // Checks below this point are for foreign functions 
+        // Return as builtin functions are checked at runtime, if they are available
+        if !attribute.is_foreign() {
+            return
+        }
+
         // Check that the attribute matches an ACIR opcode
         let opcode = match acir::OPCODE::lookup(attribute.into()) {
             Some(opcode) => opcode,
-            None => panic!("Currently function attributes are only used as an interface to specialised opcodes. {} is not a specialised opcode", attribute) 
+            None => panic!("This function has been tagged as a foreign function therefore it is used as an interface to specialised opcodes. {} is not a specialised opcode", attribute) 
         };
 
         // Check that the function signature, matches the opcode definition
@@ -76,7 +83,6 @@ impl AttributeChecker {
         // Check output consistency
         let num_output_elements = array_size_to_output_size(&num_output_elements);
         assert_eq!(opcode_definition.output_size, num_output_elements);
-
     }
 
 }

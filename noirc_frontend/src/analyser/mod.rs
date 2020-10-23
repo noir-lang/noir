@@ -1,3 +1,4 @@
+pub mod scope;
 
 mod attribute_check;
 use attribute_check::AttributeChecker;
