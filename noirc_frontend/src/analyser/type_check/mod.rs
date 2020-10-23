@@ -111,8 +111,8 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Type {
                 self.type_check_private_stmt(priv_stmt);
                 last_return_type = Type::Unit;
             },
-            Statement::Expression(expr) => {
-                last_return_type = self.type_check_expr(&mut expr);
+            Statement::Expression(ref mut expr) => {
+                last_return_type = self.type_check_expr(expr);
             },
             Statement::Block(_) => {
                 panic!("Currently we do not support block statements inside of block statements")
