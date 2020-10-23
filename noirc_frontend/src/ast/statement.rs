@@ -1,4 +1,4 @@
-use crate::{Expression, InfixExpression, Type, BinaryOp, AssignExpression};
+use crate::{Expression, InfixExpression, Type, AssignExpression};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Clone)]
 pub struct Ident(pub String);
@@ -12,15 +12,24 @@ impl From<String> for Ident {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     If(Box<IfStatement>),
-    Assign(Box<AssignStatement>),
-    Let(Box<LetStatement>),
-    Const(Box<ConstStatement>),
-    Constrain(Box<ConstrainStatement>),
-    Public(Box<PublicStatement>),
-    Private(Box<PrivateStatement>),
+    Assign(AssignStatement),
+    Let(LetStatement),
+    Const(ConstStatement),
+    Constrain(ConstrainStatement),
+    Public(PublicStatement),
+    Private(PrivateStatement),
     Block(Box<BlockStatement>),
-    Expression(Box<ExpressionStatement>),
+    Expression(ExpressionStatement),
 }
+
+
+impl Into<Statement> for Expression {
+    fn into(self) -> Statement {
+        let expr_stmt = ExpressionStatement(self);
+        Statement::Expression(expr_stmt)
+    }
+}
+
 
 impl Statement {
     // If the Expression is a binary expression with an equals operator 
@@ -37,7 +46,7 @@ impl Statement {
         match expr_stmt.0 {
             Expression::Assign(assign_expr) => {
                 let assign_stmt = AssignStatement(*assign_expr);
-                return Statement::Assign(Box::new(assign_stmt))
+                return Statement::Assign(assign_stmt)
             },
             _=> return cloned
         };
@@ -46,9 +55,9 @@ impl Statement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IfStatement {
-    condition: Expression,
-    consequence: Statement,
-    alternative: Option<Statement>,
+    pub condition: Expression,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
