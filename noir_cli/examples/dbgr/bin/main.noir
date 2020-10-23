@@ -1,0 +1,6 @@
+
+    fn main(x : Witness, y : Witness) {
+        x = y + y;
+        constrain x == y;
+    }
+    

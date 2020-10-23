@@ -1,13 +1,5 @@
  
-   fn main(_x : Witness,_low : Witness, _high: Witness) {
-          let dig = std::hash::sha256([_x]);
-          hello::wee(dig)
-          constrain _low == _high;
-   }   
-
-   mod hello {
-
-     fn wee(_x : []Witness) -> Witness {
-            _x[0]
-     } 
+   fn main(x : Witness, y : Witness,result : Public) {
+          priv j = std::util::array_sum([x,y]);
+          constrain j == result;
    }
