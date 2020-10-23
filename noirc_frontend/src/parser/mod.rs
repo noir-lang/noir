@@ -3,10 +3,14 @@ mod infix_parser;
 mod parser;
 mod prefix_parser;
 
-pub use parser::Parser;
+mod errors;
+
+pub use errors::ParserError;
+
+pub use parser::{Parser, ParserExprResult};
 
 use crate::ast::{Expression, FunctionDefinition, ImportStatement, Statement};
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, SpannedToken};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -65,13 +69,6 @@ impl Program {
     }
 }
 
-trait PrefixParser {
-    fn parse(parser: &mut Parser) -> Expression;
-}
-trait InfixParser {
-    fn parse(parser: &mut Parser, lhs: Expression) -> Expression;
-}
-
 #[derive(PartialEq, PartialOrd)]
 pub enum Precedence {
     Lowest,
@@ -113,5 +110,10 @@ impl Precedence {
 impl From<&Token> for Precedence {
     fn from(t: &Token) -> Precedence {
         Precedence::token_precedence(t)
+    }
+}
+impl From<&SpannedToken> for Precedence {
+    fn from(t: &SpannedToken) -> Precedence {
+        Precedence::token_precedence(t.token())
     }
 }
