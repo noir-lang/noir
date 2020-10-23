@@ -80,6 +80,13 @@ impl FieldElement {
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
+
+    pub fn to_u128(&self) -> u128 {
+        use std::convert::TryInto;
+
+        let bytes = self.to_bytes();
+        u128::from_be_bytes(bytes[16..32].try_into().unwrap())
+    }
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behaviour is necessary
     pub fn inverse(&self) -> FieldElement {
