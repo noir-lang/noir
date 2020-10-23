@@ -123,3 +123,47 @@ impl Default for Selector {
         )
     }
 }
+
+pub struct RangedObject{
+    pub(crate) start : FieldElement,
+    pub(crate) end : FieldElement,
+}
+
+impl RangedObject {
+    pub fn new(start : FieldElement, end: FieldElement) -> Self {
+        // We will move these checks into the analyser once
+        // we have Private and Public integers, so they are only checked once
+        
+        // For now, we allow start and end ranges to be in the range u252
+        // 252 is arbitrary and holds no weight, I simply chose it to be close to bn254
+        let start_bits = start.num_bits();
+        if  start_bits > 252 {
+            panic!("Currently, we only allow integers to be represented by a u252, start range needs {} bits to be represented", start_bits)
+        };
+        
+        let end_bits = end.num_bits();
+        if end_bits > 252 {
+            panic!("Currently, we only allow integers to be represented by a u252, end range needs {} bits to be represented", end_bits)
+        };
+        
+        // We only allow ascending ranges
+        if (end-start).num_bits() > 252 {
+            panic!("We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not")
+        };
+
+        RangedObject{start, end}
+    }
+}
+
+impl Iterator for RangedObject {
+    type Item = FieldElement;
+
+    #[inline]
+    fn next(&mut self) -> Option<FieldElement> {
+        if self.start != self.end {
+            let return_val = self.start;
+            self.start = self.start + FieldElement::one();
+            Some(return_val)
+        } else { None }
+    }
+}
