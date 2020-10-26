@@ -4,6 +4,7 @@
 #include <math.h>
 #include <memory.h>
 #include <numeric/bitop/get_msb.hpp>
+#include <common/max_threads.hpp>
 
 #ifndef NO_MULTITHREADING
 #include "omp.h"
@@ -14,16 +15,18 @@ using namespace barretenberg;
 namespace {
 constexpr size_t MIN_GROUP_PER_THREAD = 4;
 
+
 size_t compute_num_threads(const size_t size)
 {
 #ifndef NO_MULTITHREADING
-    size_t num_threads = static_cast<size_t>(omp_get_max_threads());
+    size_t num_threads = max_threads::compute_num_threads();
 #else
     size_t num_threads = 1;
 #endif
     if (size <= (num_threads * MIN_GROUP_PER_THREAD)) {
         num_threads = 1;
     }
+    
     return num_threads;
 }
 

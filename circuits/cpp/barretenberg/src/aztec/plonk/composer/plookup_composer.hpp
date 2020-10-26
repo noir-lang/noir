@@ -9,7 +9,7 @@ class PlookupComposer : public ComposerBase {
   public:
     static constexpr ComposerType type = ComposerType::PLOOKUP;
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 15;
-    static constexpr size_t NUM_RESERVED_GATES = 2;
+    static constexpr size_t NUM_RESERVED_GATES = 4; // this must be >= num_roots_cut_out_of_vanishing_polynomial
     static constexpr size_t UINT_LOG2_BASE = 6;
     //the plookup range proof requires work linear in range size, thus cannot be used directly for
     //large ranges such as 2^64. For such ranges the element will be decomposed into smaller 
@@ -158,6 +158,12 @@ std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(const u
      * Member Variables
      **/
     uint32_t zero_idx = 0;
+
+    // This variable controls the amount with which the lookup table and witness values need to be shifted
+    // above to make room for adding randomness into the permutation and witness polynomials in plookup widget.
+    // This must be (num_roots_cut_out_of_the_vanishing_polynomial - 1), since the variable num_roots_cut_out_of_
+    // vanishing_polynomial cannot be trivially fetched here, I am directly setting this to 4 - 1 = 3.
+    static constexpr size_t s_randomness = 3;
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;

@@ -12,40 +12,40 @@
 
 namespace waffle {
 
-template <size_t program_width, bool idpolys>
-ProverPermutationWidget<program_width, idpolys>::ProverPermutationWidget(proving_key* input_key,
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::ProverPermutationWidget(proving_key* input_key,
                                                                          program_witness* input_witness)
     : ProverRandomWidget(input_key, input_witness)
 {}
 
-template <size_t program_width, bool idpolys>
-ProverPermutationWidget<program_width, idpolys>::ProverPermutationWidget(const ProverPermutationWidget& other)
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::ProverPermutationWidget(const ProverPermutationWidget& other)
     : ProverRandomWidget(other)
 {}
 
-template <size_t program_width, bool idpolys>
-ProverPermutationWidget<program_width, idpolys>::ProverPermutationWidget(ProverPermutationWidget&& other)
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::ProverPermutationWidget(ProverPermutationWidget&& other)
     : ProverRandomWidget(other)
 {}
 
-template <size_t program_width, bool idpolys>
-ProverPermutationWidget<program_width, idpolys>& ProverPermutationWidget<program_width, idpolys>::operator=(
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>& ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::operator=(
     const ProverPermutationWidget& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-template <size_t program_width, bool idpolys>
-ProverPermutationWidget<program_width, idpolys>& ProverPermutationWidget<program_width, idpolys>::operator=(
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>& ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::operator=(
     ProverPermutationWidget&& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-template <size_t program_width, bool idpolys>
-void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+void ProverPermutationWidget<program_width, idpolys,  num_roots_cut_out_of_vanishing_polynomial>::compute_round_commitments(
     transcript::StandardTranscript& transcript, const size_t round_number, work_queue& queue)
 {
     if (round_number != 3) {
@@ -60,26 +60,26 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
     accumulators[1] = &z_fft[0];
     accumulators[2] = &z_fft[n];
 
-    if constexpr (program_width * 2 > 2) {
+    if constexpr (program_width * 2 > 2) {      // program_width >= 2
         accumulators[3] = &z_fft[n + n];
     }
-    if constexpr (program_width > 2) {
+    if constexpr (program_width > 2) {          // program_width >= 3
         accumulators[4] = &z_fft[n + n + n];
         accumulators[5] = &key->opening_poly[0];
     }
-    if constexpr (program_width > 3) {
+    if constexpr (program_width > 3) {          // program_width >= 4
         accumulators[6] = &key->shifted_opening_poly[0];
         accumulators[7] = &key->quotient_large[0];
     }
-    if constexpr (program_width > 4) {
+    if constexpr (program_width > 4) {          // program_width >= 5
         accumulators[8] = &key->linear_poly[0];
         accumulators[9] = &key->quotient_large[n];
     }
-    if constexpr (program_width > 5) {
+    if constexpr (program_width > 5) {          // program_width >= 6
         accumulators[10] = &key->quotient_large[n + n];
         accumulators[11] = &key->quotient_large[n + n + n];
     }
-    for (size_t k = 7; k < program_width; ++k) {
+    for (size_t k = 7; k < program_width; ++k) {// program_width >= 7
         // we're out of temporary memory!
         accumulators[(k - 1) * 2] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
         accumulators[(k - 1) * 2 + 1] = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * n));
@@ -95,6 +95,9 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
     for (size_t i = 0; i < program_width; ++i) {
         lagrange_base_wires[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
         lagrange_base_sigmas[i] = &key->permutation_selectors_lagrange_base.at("sigma_" + std::to_string(i + 1))[0];
+
+        // if idpolys = true, it implies that we do NOT use the identity permutation 
+        // S_ID1(X) = X, S_ID2(X) = k_1X, ...
         if constexpr (idpolys)
             lagrange_base_ids[i] = &key->permutation_selectors_lagrange_base.at("id_" + std::to_string(i + 1))[0];
     }
@@ -103,6 +106,36 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
 #pragma omp parallel
 #endif
     {
+        // step 1: compute the individual terms in the permutation poylnomial.
+        // 
+        // Consider the case in which we use identity permutation polynomials and let program width = 3.
+        // (extending it to the case when the permutation polynomials is not identity is trivial).
+        //
+        // coefficient of L_1: 1
+        // coefficient of L_2:
+        //                (w_1 + \gamma + \beta.w^{0}) . (w_{n+1} + \gamma + \beta.k_1.w^{0}) . (w_{2n+1} + \gamma + \beta.k_2.w^{0})
+        //  coeff_of_L1 * --------------------------------------------------------------------------------------------------------------------
+        //                (w_1 + \gamma + \beta.\sigma(1)) . (w_{n+1} + \gamma + \beta.\sigma(n+1)) . (w_{2n+1} + \gamma + \beta.\sigma(2n+1))
+        // coefficient of L_3:
+        //                (w_2 + \gamma + \beta.w^{1}) . (w_{n+2} + \gamma + \beta.k_1.w^{1}) . (w_{2n+2} + \gamma + \beta.k_2.w^{1})
+        //  coeff_of_L2 * --------------------------------------------------------------------------------------------------------------------
+        //                (w_2 + \gamma + \beta.\sigma(2)) . (w_{n+2} + \gamma + \beta.\sigma(n+2)) . (w_{2n+2} + \gamma + \beta.\sigma(2n+2))
+        // and so on...
+        //
+        // accumulator data structure
+        // numerators in accumulator[0: program_width-1], denominators in accumulator[program_width:]
+        //      0                                         1                                               (n-1)
+        // 0 -> (w_1 + \gamma + \beta.w^{0}),             (w_2 + \gamma + \beta.w^{1}),             ...., (w_n + \gamma + \beta.w^{n-1})
+        // 1 -> (w_{n+1} + \gamma + \beta.k_1.w^{0}),     (w_{n+1} + \gamma + \beta.k_1.w^{2}),     ...., (w_{n+1} + \gamma + \beta.k_1.w^{n-1})
+        // 2 -> (w_{2n+1} + \gamma + \beta.k_2.w^{0}),    (w_{2n+1} + \gamma + \beta.k_2.w^{0}),    ...., (w_{2n+1} + \gamma + \beta.k_2.w^{n-1})
+        //
+        // 3 -> (w_1 + \gamma + \beta.\sigma(1)),         (w_2 + \gamma + \beta.\sigma(2)),         ...., (w_n + \gamma + \beta.\sigma(n))
+        // 4 -> (w_{n+1} + \gamma + \beta.\sigma(n+1)),   (w_{n+1} + \gamma + \beta.\sigma{n+2}),   ...., (w_{n+1} + \gamma + \beta.\sigma{n+n})
+        // 5 -> (w_{2n+1} + \gamma + \beta.\sigma(2n+1)), (w_{2n+1} + \gamma + \beta.\sigma(2n+2)), ...., (w_{2n+1} + \gamma + \beta.\sigma(2n+n))
+        //
+        // Thus, to obtain coefficient_of_L2, we need to use accumulators[:][0].
+        // To obtain coefficient_of_L3, we need to use accumulator[:][0] and accumulator[:][1]
+        // and so on upto coefficient_of_Ln.
 #ifndef NO_MULTITHREADING
 #pragma omp for
 #endif
@@ -146,17 +179,37 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
 
         // step 2: compute the constituent components of Z(X). This is a small multithreading bottleneck, as we have
         // program_width * 2 non-parallelizable processes
+        //
+        // update the accumulator matrix a[:][:] to:
+        //      0          1                    2                         3
+        // 0 -> (a[0][0]), (a[0][1] * a[0][0]), (a[0][2] * a[0][1]), ..., (a[0][n-1] * a[0][n-2])
+        // 1 -> (a[1][0]), (a[1][1] * a[1][0]), (a[1][2] * a[1][1]), ..., (a[1][n-1] * a[1][n-2])
+        //
+        // and so on...
 #ifndef NO_MULTITHREADING
 #pragma omp for
 #endif
         for (size_t i = 0; i < program_width * 2; ++i) {
-            fr* coeffs = &accumulators[i][0];
+            fr* coeffs = &accumulators[i][0];                           // start from the beginning of a row
             for (size_t j = 0; j < key->small_domain.size - 1; ++j) {
-                coeffs[j + 1] *= coeffs[j];
+                coeffs[j + 1] *= coeffs[j];                             // iteratively update elements in subsequent columns
             }
         }
 
         // step 3: concatenate together the accumulator elements into Z(X)
+        //
+        // update the accumulator rows a[0] and a[program_width] to:
+        //       0                                     1                                           (n-1)
+        // 0 ->  (a[0][0] * a[1][0] * a[2][0]),        (a[0][1] * a[1][1] * a[2][1]),        ...., (a[0][n-1] * a[1][n-1] * a[2][n-1])
+        // pw -> (a[pw][0] * a[pw+1][0] * a[pw+2][0]), (a[pw][1] * a[pw+1][1] * a[pw+2][1]), ...., (a[pw][n-1] * a[pw+1][n-1] * a[pw+2][n-1])
+        //
+        // note that pw = program_width
+        // Hereafter, we can compute
+        // coefficient_Lj = a[0][j]/a[pw][j]
+        // 
+        // Naive way of computing these coefficients would result in n inversions, which is pretty expensive.
+        // Instead we use Montgomery's trick for batch inversion.
+        // Montgomery's trick documentation: ./src/aztec/ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp/L286
 #ifndef NO_MULTITHREADING
 #pragma omp for
 #endif
@@ -186,8 +239,59 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
             }
         }
     }
+
+    // coefficient_L1 = 1
     z[0] = fr::one();
+
+    /*
+    Adding zero knowledge to the permutation polynomial.
+    */
+    // To ensure that PLONK is honest-verifier zero-knowledge, we need to ensure that the witness polynomials
+    // and the permutation polynomial look uniformly random to an adversary. To make the witness polynomials
+    // a(X), b(X) and c(X) uniformly random, we need to add 2 random blinding factors into each of them.
+    // i.e. a'(X) = a(X) + (r_1X + r_2)
+    // where r_1 and r_2 are uniformly random scalar field elements. A natural question is:
+    // Why do we need 2 random scalars in witness polynomials? The reason is: our witness polynomials are
+    // evaluated at only 1 point (\scripted{z}), so adding a random degree-1 polynomial suffices.
+    //
+    // NOTE: In TurboPlonk and UltraPlonk, the witness polynomials are evaluated at 2 points and thus 
+    // we need to add 3 random scalars in them. 
+    //
+    // On the other hand, permutation polynomial z(X) is evaluated at two points, namely \scripted{z} and 
+    // \scripted{z}.\omega. Hence, we need to add a random polynomial of degree 2 to ensure that the permutation
+    // polynomials looks uniformly random.
+    // z'(X) = z(X) + (r_3X^2 + r_4X + r_5)
+    // where r_3, r_4, r_5 are uniformly random scalar field elements.
+    //
+    // Furthermore, instead of adding random polynomials, we could directly add random scalars in the lagrange-
+    // basis forms of the witness and permutation polynomials. This is because we are using a modified vanishing
+    // polynomial of the form
+    //                           (X^n - 1)
+    // Z*_H(X) = ------------------------------------------
+    //           (X - w^{n-1}).(X - w^{n-2})...(X - w^{k})
+    // where w = n-th root of unity, k = num_roots_cut_out_of_vanishing_polynomials.
+    // Thus, the last k places in the lagrange basis form of z(X) are empty. We can therefore utilise them and 
+    // add random scalars as coefficients of L_{n-1}, L_{n-2},... and so on.
+    //
+    // Note: The number of coefficients in the permutation polynomial z(X) are (n - k + 1)
+    // (refer to Round 2 in the PLONK paper). Hence, if we cut 3 roots out of the vanishing polynomial,
+    // we are left with only 2 places in the z array to add randomness. For having last 3 places available
+    // for adding random scalars, we need to cut atleast 4 roots out of the vanishing polynomial.
+    //  
+    // Since we have valid z coefficients in positions from 0 to (n - k), we can start adding random scalars
+    // from position (n - k + 1) upto (n - k + 3).
+    //
+    // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, this method 
+    // will not change. This must be changed only if the number of evaluations of permutation polynomial
+    // changes.
+    const size_t z_randomness = 3;
+    ASSERT(z_randomness < num_roots_cut_out_of_vanishing_polynomial);
+    for (size_t k = 0; k < z_randomness; ++k) {
+        z[(n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k] = fr::random_element();
+    }
+
     z.ifft(key->small_domain);
+
     for (size_t k = 7; k < program_width; ++k) {
         aligned_free(accumulators[(k - 1) * 2]);
         aligned_free(accumulators[(k - 1) * 2 + 1]);
@@ -209,8 +313,8 @@ void ProverPermutationWidget<program_width, idpolys>::compute_round_commitments(
     });
 }
 
-template <size_t program_width, bool idpolys>
-barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotient_contribution(
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_contribution(
     const fr& alpha_base, const transcript::StandardTranscript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_fft");
@@ -242,13 +346,21 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
     [[maybe_unused]] std::array<fr*, program_width> id_ffts;
 
     for (size_t i = 0; i < program_width; ++i) {
+        
+        // wire_fft[0] contains the fft of the wire polynomial w_1
+        // sigma_fft[0] contains the fft of the permutation selector polynomial \sigma_1 
         wire_ffts[i] = &key->wire_ffts.at("w_" + std::to_string(i + 1) + "_fft")[0];
         sigma_ffts[i] = &key->permutation_selector_ffts.at("sigma_" + std::to_string(i + 1) + "_fft")[0];
+
+        // idpolys is FALSE iff the "identity permutation" is used as a monomial
+        // as a part of the permutation polynomial
+        // <=> idpolys = FALSE
         if constexpr (idpolys)
             id_ffts[i] = &key->permutation_selector_ffts.at("id_" + std::to_string(i + 1) + "_fft")[0];
     }
 
-    const polynomial& l_1 = key->lagrange_1;
+    // we start with lagrange polynomial L_1(X)
+    const polynomial& l_start = key->lagrange_1;
 
     // compute our public input component
     std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
@@ -268,6 +380,11 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
         const size_t start = j * key->large_domain.thread_size;
         const size_t end = (j + 1) * key->large_domain.thread_size;
 
+        // leverage multi-threading by computing quotient polynomial at points
+        // (w^{j * num_threads}, w^{j * num_threads + 1}, ..., w^{j * num_threads + num_threads})
+        // 
+        // curr_root = w^{j * num_threads} * g_{small} * beta
+        // curr_root will be used in denominator
         barretenberg::fr cur_root_times_beta =
             key->large_domain.root.pow(static_cast<uint64_t>(j * key->large_domain.thread_size));
         cur_root_times_beta *= key->small_domain.generator;
@@ -282,17 +399,21 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
 
             // Numerator computation
             if constexpr (!idpolys)
+                // identity polynomial used as a monomial: S_{id1} = x, S_{id2} = k_1.x, S_{id3} = k_2.x
+                // start with (w_l(X) + \beta.X + \gamma)
                 numerator = cur_root_times_beta + wire_plus_gamma;
             else
                 numerator = id_ffts[0][i] * beta + wire_plus_gamma;
 
             // Denominator computation
+            // start with (w_l(X) + \beta.\sigma1(X) + \gamma)
             denominator = sigma_ffts[0][i] * beta;
             denominator += wire_plus_gamma;
 
             for (size_t k = 1; k < program_width; ++k) {
                 wire_plus_gamma = gamma + wire_ffts[k][i];
                 if constexpr (!idpolys)
+                    // (w_r(X) + \beta.(k_{k}.X) + \gamma)
                     T0 = fr::coset_generator(k - 1) * cur_root_times_beta;
                 if constexpr (idpolys)
                     T0 = id_ffts[k][i] * beta;
@@ -300,6 +421,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
                 T0 += wire_plus_gamma;
                 numerator *= T0;
 
+                // (w_r(X) + \beta.\sigma_{k}(X) + \gamma)
                 T0 = sigma_ffts[k][i] * beta;
                 T0 += wire_plus_gamma;
                 denominator *= T0;
@@ -310,7 +432,14 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
 
             /**
              * Permutation bounds check
-             * (Z(X.w) - 1).(\alpha^3).L{n-1}(X) = T(X)Z_H(X)
+             * (Z(X.w) - 1).(\alpha^3).L_{end}(X) = T(X)Z*_H(X)
+             * 
+             * where Z*_H(X) = (X^n - 1)/[(X - w^{n-1})...(X - w^{n - num_roots_cut_out_of_vanishing_polynomial})]
+             * i.e. we remove some roots from the true vanishing polynomial to ensure that the overall degree
+             * of the permutation polynomial is <= n. 
+             * Read more on this here: https://hackmd.io/1DaroFVfQwySwZPHMoMdBg
+             * 
+             * Therefore, L_{end} = L_{n - num_roots_cut_out_of_vanishing_polynomial}
              **/
             // The \alpha^3 term is so that we can subsume this polynomial into the quotient polynomial,
             // whilst ensuring the term is linearly independent form the other terms in the quotient polynomial
@@ -335,11 +464,21 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
             // this
 
             // z_fft already contains evaluations of Z(X).(\alpha^2)
-            // at the (2n)'th roots of unity
-            // => to get Z(X.w) instead of Z(X), index element (i+2) instead of i
+            // at the (4n)'th roots of unity
+            // => to get Z(X.w) instead of Z(X), index element (i+4) instead of i
             T0 = z_fft[(i + 4) & block_mask] - public_input_delta; // T0 = (Z(X.w) - (delta)).(\alpha^2)
             T0 *= alpha_base;                                      // T0 = (Z(X.w) - (delta)).(\alpha^3)
-            T0 *= l_1[(i + 8) & block_mask];                       // T0 = (Z(X.w)-delta).(\alpha^3).L{n-1}
+
+            // T0 = (Z(X.w) - delta).(\alpha^3).L_{end}
+            // where L_{end} = L{n - num_roots_cut_out_of_vanishing_polynomial}.
+            //
+            // Note that L_j(X) = L_1(X . w^{-j}) = L_1(X . w^{n-j})
+            // => L_{end}= L_1(X . w^{num_roots_cut_out_of_vanishing_polynomial + 1})
+            // => fetch the value at index (i + (num_roots_cut_out_of_vanishing_polynomial + 1) * 4) in l_1
+            // the factor of 4 is because l_1 is a 4n-size fft.
+            //
+            // Recall, we use l_start for l_1 for consistency in notation.
+            T0 *= l_start[(i + 4 + 4 * num_roots_cut_out_of_vanishing_polynomial) & block_mask];
             numerator += T0;
 
             // Step 2: Compute (Z(X) - 1).(\alpha^4).L1(X)
@@ -348,7 +487,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
             // The `alpha^4` term is so that we can add this as a linearly independent term in our quotient polynomial
             T0 = z_fft[i] - fr(1); // T0 = (Z(X) - 1).(\alpha^2)
             T0 *= alpha_squared;   // T0 = (Z(X) - 1).(\alpha^4)
-            T0 *= l_1[i];          // T0 = (Z(X) - 1).(\alpha^2).L1(X)
+            T0 *= l_start[i];          // T0 = (Z(X) - 1).(\alpha^2).L1(X)
             numerator += T0;
 
             // Combine into quotient polynomial
@@ -362,8 +501,8 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_quotie
     return alpha_base.sqr().sqr();
 }
 
-template <size_t program_width, bool idpolys>
-barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_linear_contribution(
+template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_vanishing_polynomial>
+barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::compute_linear_contribution(
     const fr& alpha, const transcript::StandardTranscript& transcript, polynomial& r)
 {
     polynomial& z = witness->wires.at("z");
@@ -407,7 +546,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_linear
     }
 
     barretenberg::fr z_1_multiplicand = z_contribution * alpha;
-    T0 = lagrange_evals.l_1 * alpha_cubed;
+    T0 = lagrange_evals.l_start * alpha_cubed;
     z_1_multiplicand += T0;
 
     barretenberg::fr sigma_contribution = fr(1);
@@ -433,12 +572,12 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys>::compute_linear
 
 // ###
 
-template <typename Field, typename Group, typename Transcript>
-VerifierPermutationWidget<Field, Group, Transcript>::VerifierPermutationWidget()
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
+VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::VerifierPermutationWidget()
 {}
 
-template <typename Field, typename Group, typename Transcript>
-Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
+Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_evaluation_contribution(
     typename Transcript::Key* key,
     const Field& alpha,
     const Transcript& transcript,
@@ -470,8 +609,14 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
     Field numerator = key->z_pow_n - Field(1);
 
     numerator *= key->domain.domain_inverse;
-    Field l_1 = numerator / (z - Field(1));
-    Field l_n_minus_1 = numerator / ((z * key->domain.root.sqr()) - Field(1));
+    Field l_start = numerator / (z - Field(1));
+
+    // compute w^{num_roots_cut_out_of_vanishing_polynomial + 1}
+    Field l_end_root = (num_roots_cut_out_of_vanishing_polynomial & 1) ? key->domain.root.sqr() : key->domain.root;
+    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial / 2; ++i) {
+        l_end_root *= key->domain.root.sqr();
+    }
+    Field l_end = numerator / ((z * l_end_root) - Field(1));
 
     Field z_1_shifted_eval = transcript.get_field_element("z_omega");
 
@@ -485,7 +630,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
         z_contribution *= T0;
     }
     Field z_1_multiplicand = z_contribution * alpha;
-    T0 = l_1 * alpha_cubed;
+    T0 = l_start * alpha_cubed;
     z_1_multiplicand += T0;
 
     Field sigma_contribution = Field(1);
@@ -527,10 +672,10 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
     sigma_contribution *= alpha_pow[0];
 
     T1 = z_1_shifted_eval - public_input_delta;
-    T1 *= l_n_minus_1;
+    T1 *= l_end;
     T1 *= alpha_pow[1];
 
-    T2 = l_1 * alpha_pow[2];
+    T2 = l_start * alpha_pow[2];
     T1 -= T2;
     T1 -= sigma_contribution;
 
@@ -566,8 +711,8 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::compute_quotient_eval
     return alpha.sqr().sqr();
 }
 
-template <typename Field, typename Group, typename Transcript>
-Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
+Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::append_scalar_multiplication_inputs(
     typename Transcript::Key* key,
     const Field& alpha_base,
     const Transcript& transcript,
@@ -588,7 +733,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
     Field numerator = z_pow - Field(1);
 
     numerator *= key->domain.domain_inverse;
-    Field l_1 = numerator / (z - Field(1));
+    Field l_start = numerator / (z - Field(1));
 
     Field beta = transcript.get_challenge_field_element("beta", 0);
     Field gamma = transcript.get_challenge_field_element("beta", 1);
@@ -622,7 +767,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript>::append_scalar_multipl
             }
         }
         Field z_1_multiplicand = z_contribution * alpha_base;
-        T0 = l_1 * alpha_cubed;
+        T0 = l_start * alpha_cubed;
         z_1_multiplicand += T0;
         z_1_multiplicand *= linear_nu;
         scalars["Z"] += (z_1_multiplicand);

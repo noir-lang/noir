@@ -2,7 +2,8 @@
 #include "random_widget.hpp"
 
 namespace waffle {
-template <typename Field, typename Group, typename Transcript> class VerifierPermutationWidget {
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial = 4> 
+class VerifierPermutationWidget {
   public:
     VerifierPermutationWidget();
 
@@ -25,7 +26,8 @@ extern template class VerifierPermutationWidget<barretenberg::fr,
                                                 barretenberg::g1::affine_element,
                                                 transcript::StandardTranscript>;
 
-template <size_t program_width, bool idpolys = false> class ProverPermutationWidget : public ProverRandomWidget {
+template <size_t program_width, bool idpolys = false, const size_t num_roots_cut_out_of_vanishing_polynomial = 4> 
+class ProverPermutationWidget : public ProverRandomWidget {
   public:
     ProverPermutationWidget(proving_key*, program_witness*);
     ProverPermutationWidget(const ProverPermutationWidget& other);

@@ -44,7 +44,7 @@ TEST(stdlib_bool, test_basic_operations)
     EXPECT_EQ(prover.witness->wires.at("w_2")[6], fr(1));
     EXPECT_EQ(prover.witness->wires.at("w_3")[6], fr(1));
 
-    EXPECT_EQ(prover.n, 8UL);
+    EXPECT_EQ(prover.n, 16UL);
 }
 
 TEST(stdlib_bool, xor)

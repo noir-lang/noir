@@ -211,13 +211,34 @@ class work_queue {
             switch (item.work_type) {
             // most expensive op
             case WorkType::SCALAR_MULTIPLICATION: {
-                barretenberg::g1::affine_element result(
-                    barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
-                                                                          key->reference_string->get_monomials(),
-                                                                          key->small_domain.size,
-                                                                          key->pippenger_runtime_state));
 
-                transcript->add_element(item.tag, result.to_buffer());
+                // If we are using standard plonk, we need a multi-scalar multiplication of size (n + 1)
+                // to compute the commitment to the polynomial t_{high}(X). The reason for this is explained in
+                // the comment at location:
+                // ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
+                // 
+                // To implement this, we use the variable work_item::constant. We set it to `1` if using standard
+                // plonk and `0` otherwise. Note that we need to change the size of pippenger_runtime_state along
+                // with the size of the multi-scalar multiplication.
+                // 
+                if (item.constant == barretenberg::fr(1)) {
+                    auto runtime_state =
+                        barretenberg::scalar_multiplication::pippenger_runtime_state(key->small_domain.size + 1);
+                    barretenberg::g1::affine_element result(barretenberg::scalar_multiplication::pippenger_unsafe(
+                        item.mul_scalars, key->reference_string->get_monomials(), key->small_domain.size + 1,
+                        runtime_state));
+
+                    transcript->add_element(item.tag, result.to_buffer());
+                } else {
+                    barretenberg::g1::affine_element result(
+                        barretenberg::scalar_multiplication::pippenger_unsafe(item.mul_scalars,
+                                                                              key->reference_string->get_monomials(),
+                                                                              key->small_domain.size,
+                                                                              key->pippenger_runtime_state));
+
+                    transcript->add_element(item.tag, result.to_buffer());
+                }
+
                 break;
             }
             // About 20% of the cost of a scalar multiplication. For WASM, might be a bit more expensive

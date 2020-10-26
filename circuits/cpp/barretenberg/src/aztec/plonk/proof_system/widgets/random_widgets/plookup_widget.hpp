@@ -2,7 +2,8 @@
 #include "random_widget.hpp"
 
 namespace waffle {
-template <typename Field, typename Group, typename Transcript> class VerifierPlookupWidget {
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial = 4> 
+class VerifierPlookupWidget {
   public:
     VerifierPlookupWidget();
 
@@ -23,6 +24,7 @@ extern template class VerifierPlookupWidget<barretenberg::fr,
                                             barretenberg::g1::affine_element,
                                             transcript::StandardTranscript>;
 
+template <const size_t num_roots_cut_out_of_vanishing_polynomial = 4>
 class ProverPlookupWidget : public ProverRandomWidget {
   public:
     inline ProverPlookupWidget(proving_key*, program_witness*);

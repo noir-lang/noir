@@ -157,7 +157,7 @@ TEST(stdlib_field, test_equality)
     fr x = composer.get_variable(r.witness_index);
     EXPECT_EQ(x, fr(1));
 
-    EXPECT_EQ(prover.n, 8UL);
+    EXPECT_EQ(prover.n, 16UL);
     waffle::Verifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
@@ -181,7 +181,7 @@ TEST(stdlib_field, test_equality_false)
     fr x = composer.get_variable(r.witness_index);
     EXPECT_EQ(x, fr(0));
 
-    EXPECT_EQ(prover.n, 8UL);
+    EXPECT_EQ(prover.n, 16UL);
     waffle::Verifier verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();

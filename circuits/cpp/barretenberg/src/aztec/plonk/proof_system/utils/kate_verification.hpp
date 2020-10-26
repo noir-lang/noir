@@ -65,9 +65,6 @@ void populate_kate_element_map(verification_key* key,
         switch (item.source) {
         case PolynomialSource::WITNESS: {
             const auto element = transcript.get_group_element(label);
-            // ASSERT(element.on_curve());
-            // if(!element.on_curve())
-            //     std::cout << "label:" << label << "infty:" << element.is_point_at_infinity() << std::endl;
             kate_g1_elements.insert({ label, element });
             break;
         }

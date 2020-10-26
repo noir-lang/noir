@@ -7,7 +7,7 @@ namespace widget {
 
 template <class Field, class Getters, typename PolyContainer> class ArithmeticKernel {
   public:
-    static constexpr bool use_quotient_mid = true;
+    static constexpr bool use_quotient_mid = false;
     static constexpr size_t num_independent_relations = 1;
 
   private:
@@ -19,10 +19,10 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
                                             const challenge_array&,
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
-    {
-        const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, 2 * i);
-        const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, 2 * i);
-        const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, 2 * i);
+    {        
+        const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
+        const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
+        const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
 
         linear_terms[0] = w_1 * w_2;
         linear_terms[1] = w_1;

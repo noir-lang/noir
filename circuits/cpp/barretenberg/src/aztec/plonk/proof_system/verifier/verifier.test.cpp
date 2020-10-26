@@ -106,11 +106,10 @@ waffle::Prover generate_test_data(const size_t n)
     // state.random_widgets.emplace_back(std::make_unique<waffle::ProverArithmeticWidget>(n));
 
     // create some constraints that satisfy our arithmetic circuit relation
-    fr T0;
 
     // even indices = mul gates, odd incides = add gates
 
-    auto crs = std::make_shared<waffle::FileReferenceString>(n, "../srs_db");
+    auto crs = std::make_shared<waffle::FileReferenceString>(n + 1, "../srs_db");
     std::shared_ptr<proving_key> key = std::make_shared<proving_key>(n, 0, crs);
     std::shared_ptr<program_witness> witness = std::make_shared<program_witness>();
 
@@ -131,7 +130,7 @@ waffle::Prover generate_test_data(const size_t n)
     q_o.resize(n);
     q_m.resize(n);
     q_c.resize(n);
-
+    fr T0;
     for (size_t i = 0; i < n / 4; ++i) {
         w_l.at(2 * i) = fr::random_element();
         w_r.at(2 * i) = fr::random_element();
@@ -184,12 +183,17 @@ waffle::Prover generate_test_data(const size_t n)
         sigma_3_mapping[i] = (uint32_t)(i + shift) + (1U << 31U);
     }
     // make last permutation the same as identity permutation
-    sigma_1_mapping[shift - 1] = (uint32_t)shift - 1;
-    sigma_2_mapping[shift - 1] = (uint32_t)shift - 1 + (1U << 30U);
-    sigma_3_mapping[shift - 1] = (uint32_t)shift - 1 + (1U << 31U);
-    sigma_1_mapping[n - 1] = (uint32_t)n - 1;
-    sigma_2_mapping[n - 1] = (uint32_t)n - 1 + (1U << 30U);
-    sigma_3_mapping[n - 1] = (uint32_t)n - 1 + (1U << 31U);
+    // we are setting the permutation in the last 4 gates as identity permutation since 
+    // we are cutting out 4 roots as of now.
+    size_t num_roots_cut_out_of_the_vanishing_polynomial = 4;
+    for (uint32_t j = 0; j < num_roots_cut_out_of_the_vanishing_polynomial; ++j) {
+        sigma_1_mapping[shift - 1 - j] = (uint32_t)shift - 1 - j;
+        sigma_2_mapping[shift - 1 - j] = (uint32_t)shift - 1 - j + (1U << 30U);
+        sigma_3_mapping[shift - 1 - j] = (uint32_t)shift - 1 - j + (1U << 31U);
+        sigma_1_mapping[n - 1 - j] = (uint32_t)n - 1 - j;
+        sigma_2_mapping[n - 1 - j] = (uint32_t)n - 1 - j + (1U << 30U);
+        sigma_3_mapping[n - 1 - j] = (uint32_t)n - 1 - j + (1U << 31U);
+    }
 
     polynomial sigma_1(key->n);
     polynomial sigma_2(key->n);
@@ -227,20 +231,6 @@ waffle::Prover generate_test_data(const size_t n)
     key->permutation_selector_ffts.insert({ "sigma_2_fft", std::move(sigma_2_fft) });
     key->permutation_selector_ffts.insert({ "sigma_3_fft", std::move(sigma_3_fft) });
 
-    w_l.at(n - 1) = fr::zero();
-    w_r.at(n - 1) = fr::zero();
-    w_o.at(n - 1) = fr::zero();
-    q_c.at(n - 1) = fr::zero();
-    q_l.at(n - 1) = fr::zero();
-    q_r.at(n - 1) = fr::zero();
-    q_o.at(n - 1) = fr::zero();
-    q_m.at(n - 1) = fr::zero();
-
-    w_l.at(shift - 1) = fr::zero();
-    w_r.at(shift - 1) = fr::zero();
-    w_o.at(shift - 1) = fr::zero();
-    q_c.at(shift - 1) = fr::zero();
-
     witness->wires.insert({ "w_1", std::move(w_l) });
     witness->wires.insert({ "w_2", std::move(w_r) });
     witness->wires.insert({ "w_3", std::move(w_o) });
@@ -251,17 +241,17 @@ waffle::Prover generate_test_data(const size_t n)
     q_m.ifft(key->small_domain);
     q_c.ifft(key->small_domain);
 
-    polynomial q_1_fft(q_l, n * 2);
-    polynomial q_2_fft(q_r, n * 2);
-    polynomial q_3_fft(q_o, n * 2);
-    polynomial q_m_fft(q_m, n * 2);
-    polynomial q_c_fft(q_c, n * 2);
+    polynomial q_1_fft(q_l, n * 4);
+    polynomial q_2_fft(q_r, n * 4);
+    polynomial q_3_fft(q_o, n * 4);
+    polynomial q_m_fft(q_m, n * 4);
+    polynomial q_c_fft(q_c, n * 4);
 
-    q_1_fft.coset_fft(key->mid_domain);
-    q_2_fft.coset_fft(key->mid_domain);
-    q_3_fft.coset_fft(key->mid_domain);
-    q_m_fft.coset_fft(key->mid_domain);
-    q_c_fft.coset_fft(key->mid_domain);
+    q_1_fft.coset_fft(key->large_domain);
+    q_2_fft.coset_fft(key->large_domain);
+    q_3_fft.coset_fft(key->large_domain);
+    q_m_fft.coset_fft(key->large_domain);
+    q_c_fft.coset_fft(key->large_domain);
 
     key->constraint_selectors.insert({ "q_1", std::move(q_l) });
     key->constraint_selectors.insert({ "q_2", std::move(q_r) });
@@ -293,7 +283,7 @@ waffle::Prover generate_test_data(const size_t n)
 
 TEST(verifier, verify_arithmetic_proof_small)
 {
-    size_t n = 4;
+    size_t n = 8;
 
     waffle::Prover state = verifier_helpers::generate_test_data(n);
 

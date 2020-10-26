@@ -9,8 +9,8 @@ namespace barretenberg {
 namespace polynomial_arithmetic {
 struct lagrange_evaluations {
     fr vanishing_poly;
-    fr l_1;
-    fr l_n_minus_1;
+    fr l_start;
+    fr l_end;
 };
 
 fr evaluate(const fr* coeffs, const fr& z, const size_t n);
@@ -39,6 +39,7 @@ void ifft_with_constant(fr* coeffs, const evaluation_domain& domain, const fr& v
 void coset_ifft(fr* coeffs, const evaluation_domain& domain);
 
 void add(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain);
+void sub(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain);
 
 void mul(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain);
 
@@ -54,15 +55,16 @@ void compute_lagrange_polynomial_fft(fr* l_1_coefficients,
 
 void divide_by_pseudo_vanishing_polynomial(fr* coeffs,
                                            const evaluation_domain& src_domain,
-                                           const evaluation_domain& target_domain);
+                                           const evaluation_domain& target_domain,
+                                           const size_t num_roots_cut_out_of_vanishing_polynomial = 4);
 
 // void populate_with_vanishing_polynomial(fr* coeffs, const size_t num_non_zero_entries, const evaluation_domain&
 // src_domain, const evaluation_domain& target_domain);
 
 fr compute_kate_opening_coefficients(const fr* src, fr* dest, const fr& z, const size_t n);
 
-// compute Z_H*(z), l_1(z), l_{n-1}(z)
-lagrange_evaluations get_lagrange_evaluations(const fr& z, const evaluation_domain& domain);
+// compute Z_H*(z), l_start(z), l_{end}(z) (= l_{n-4}(z))
+lagrange_evaluations get_lagrange_evaluations(const fr& z, const evaluation_domain& domain, const size_t num_roots_cut_out_of_vanishing_polynomial = 4);
 fr compute_barycentric_evaluation(fr* coeffs, const size_t num_coeffs, const fr& z, const evaluation_domain& domain);
 // Convert an fft with `current_size` point evaluations, to one with `current_size >> compress_factor` point evaluations
 void compress_fft(const fr* src, fr* dest, const size_t current_size, const size_t compress_factor);

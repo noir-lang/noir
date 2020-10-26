@@ -2,6 +2,16 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 
 namespace waffle {
+
+// In all the constructors below, the pippenger_runtime_state takes (n + 1) as the input
+// as the degree of t_{high}(X) is (n + 1) for standard plonk. Refer to 
+// ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
+// for more details on this.
+//
+// NOTE: If the number of roots cut out of the vanishing polynomial is increased beyond 4,
+// the degree of t_{mid}, etc could also increase. Thus, the size of pippenger multi-scalar
+// multiplications must be changed accordingly!
+//
 proving_key::proving_key(const size_t num_gates,
                          const size_t num_inputs,
                          std::shared_ptr<ProverReferenceString> const& crs)
@@ -11,7 +21,7 @@ proving_key::proving_key(const size_t num_gates,
     , mid_domain(2 * n, n > min_thread_block ? n : 2 * n)
     , large_domain(4 * n, n > min_thread_block ? n : 4 * n)
     , reference_string(crs)
-    , pippenger_runtime_state(n)
+    , pippenger_runtime_state(n + 1)
 {
     init();
 }
@@ -28,7 +38,7 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
     , mid_domain(2 * n, n > min_thread_block ? n : 2 * n)
     , large_domain(4 * n, n > min_thread_block ? n : 4 * n)
     , reference_string(crs)
-    , pippenger_runtime_state(n)
+    , pippenger_runtime_state(n + 1)
     , contains_recursive_proof(data.contains_recursive_proof)
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
 {
@@ -59,6 +69,16 @@ void proving_key::init()
     lagrange_1.add_lagrange_base_coefficient(lagrange_1[6]);
     lagrange_1.add_lagrange_base_coefficient(lagrange_1[7]);
 
+    // The opening polynomial W_{\script{z}}(X) in round 5 of prover's algorithm has degree n. However,
+    // as explained in (./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment),
+    // for standard plonk (program_width = 3) and number of roots cut out of the vanishing polynomial is 4,
+    // the degree of the quotient polynomial t(X) is 3n. Thus, the number of coefficients in t_{high} is (n + 1).
+    // But our prover algorithm assumes that each of t_{low}, t_{mid}, t_{high} is of degree (n - 1) (i.e. n coefficients in each).
+    // Note that:
+    // deg(W_{\script{z}}) = max{ deg(t_{low}), deg(t_{mid}), deg(t_{high}), deg(a), deg(b), ... }
+    // => deg(W_{\script{z}}) = n + 1 when program_width is 3!
+    // Therefore, when program_width is 3, we need to allow the degree of the opening polynomial to be (n + 1) and NOT n.
+    //
     opening_poly = barretenberg::polynomial(n, n);
     shifted_opening_poly = barretenberg::polynomial(n, n);
     linear_poly = barretenberg::polynomial(n, n);
@@ -76,6 +96,8 @@ void proving_key::init()
 void proving_key::reset()
 {
     wire_ffts.clear();
+
+    opening_poly = barretenberg::polynomial(n, n);
 
     barretenberg::polynomial w_1_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
     barretenberg::polynomial w_2_fft = barretenberg::polynomial(4 * n + 4, 4 * n + 4);
@@ -116,7 +138,7 @@ proving_key::proving_key(const proving_key& other)
     , linear_poly(other.linear_poly)
     , quotient_mid(other.quotient_mid)
     , quotient_large(other.quotient_large)
-    , pippenger_runtime_state(n)
+    , pippenger_runtime_state(n + 1)
     , polynomial_manifest(other.polynomial_manifest)
     , contains_recursive_proof(other.contains_recursive_proof)
     , recursive_proof_public_input_indices(other.recursive_proof_public_input_indices)

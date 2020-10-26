@@ -31,6 +31,7 @@ class standard_verifier_settings : public standard_settings {
     static constexpr bool use_linearisation = true;
     static constexpr bool idpolys = false;
 
+
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
                                                   const Transcript& transcript,

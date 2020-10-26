@@ -155,124 +155,17 @@ void MiMCComposer::create_dummy_gates()
 
 std::shared_ptr<proving_key> MiMCComposer::compute_proving_key()
 {
-    STANDARD_SELECTOR_REFS
-    MIMC_SELECTOR_REFS
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    ASSERT(wire_copy_cycles.size() == variables.size());
-    ASSERT(n == q_m.size());
-    ASSERT(n == q_1.size());
-    ASSERT(n == q_2.size());
-    ASSERT(n == q_3.size());
-    ASSERT(n == q_mimc_coefficient.size());
-    ASSERT(n == q_mimc_selector.size());
-
-    size_t offset = 0;
-    if (current_output_wire != static_cast<uint32_t>(-1)) {
-        q_m.emplace_back(fr::zero());
-        q_1.emplace_back(fr::zero());
-        q_2.emplace_back(fr::zero());
-        q_3.emplace_back(fr::zero());
-        q_c.emplace_back(fr::zero());
-        q_mimc_coefficient.emplace_back(fr::zero());
-        q_mimc_selector.emplace_back(fr::zero());
-        ++offset;
-    }
-
-    const size_t total_num_gates = n + offset + public_inputs.size();
-    size_t log2_n = static_cast<size_t>(numeric::get_msb(total_num_gates + 1));
-    if ((1UL << log2_n) != (total_num_gates + 1)) {
-        ++log2_n;
-    }
-    size_t new_n = 1UL << log2_n;
-    for (size_t i = total_num_gates; i < new_n; ++i) {
-        q_m.emplace_back(fr::zero());
-        q_1.emplace_back(fr::zero());
-        q_2.emplace_back(fr::zero());
-        q_3.emplace_back(fr::zero());
-        q_c.emplace_back(fr::zero());
-        q_mimc_coefficient.emplace_back(fr::zero());
-        q_mimc_selector.emplace_back(fr::zero());
-    }
-
-    auto crs = crs_factory_->get_prover_crs(new_n);
-    circuit_proving_key = std::make_shared<proving_key>(new_n, public_inputs.size(), crs);
-
-    polynomial poly_q_m(new_n);
-    polynomial poly_q_c(new_n);
-    polynomial poly_q_1(new_n);
-    polynomial poly_q_2(new_n);
-    polynomial poly_q_3(new_n);
-    polynomial poly_q_mimc_coefficient(new_n);
-    polynomial poly_q_mimc_selector(new_n);
-
-    for (size_t i = 0; i < public_inputs.size(); ++i) {
-        poly_q_m[i] = fr::zero();
-        poly_q_1[i] = fr::zero();
-        poly_q_2[i] = fr::zero();
-        poly_q_3[i] = fr::zero();
-        poly_q_c[i] = fr::zero();
-        poly_q_mimc_coefficient[i] = fr::zero();
-        poly_q_mimc_selector[i] = fr::zero();
-    }
-    for (size_t i = public_inputs.size(); i < new_n; ++i) {
-        poly_q_m[i] = q_m[i - public_inputs.size()];
-        poly_q_1[i] = q_1[i - public_inputs.size()];
-        poly_q_2[i] = q_2[i - public_inputs.size()];
-        poly_q_3[i] = q_3[i - public_inputs.size()];
-        poly_q_c[i] = q_c[i - public_inputs.size()];
-        poly_q_mimc_coefficient[i] = q_mimc_coefficient[i - public_inputs.size()];
-        poly_q_mimc_selector[i] = q_mimc_selector[i - public_inputs.size()];
-    }
-
-    poly_q_1.ifft(circuit_proving_key->small_domain);
-    poly_q_2.ifft(circuit_proving_key->small_domain);
-    poly_q_3.ifft(circuit_proving_key->small_domain);
-    poly_q_m.ifft(circuit_proving_key->small_domain);
-    poly_q_c.ifft(circuit_proving_key->small_domain);
-    poly_q_mimc_coefficient.ifft(circuit_proving_key->small_domain);
-    poly_q_mimc_selector.ifft(circuit_proving_key->small_domain);
-
-    polynomial poly_q_1_fft(poly_q_1, new_n * 2);
-    polynomial poly_q_2_fft(poly_q_2, new_n * 2);
-    polynomial poly_q_3_fft(poly_q_3, new_n * 2);
-    polynomial poly_q_mimc_coefficient_fft(poly_q_mimc_coefficient, new_n * 4);
-    polynomial poly_q_mimc_selector_fft(poly_q_mimc_selector, new_n * 4);
-    polynomial poly_q_m_fft(poly_q_m, new_n * 2);
-    polynomial poly_q_c_fft(poly_q_c, new_n * 2);
-
-    poly_q_1_fft.coset_fft(circuit_proving_key->mid_domain);
-    poly_q_2_fft.coset_fft(circuit_proving_key->mid_domain);
-    poly_q_3_fft.coset_fft(circuit_proving_key->mid_domain);
-    poly_q_m_fft.coset_fft(circuit_proving_key->mid_domain);
-    poly_q_c_fft.coset_fft(circuit_proving_key->mid_domain);
-    poly_q_mimc_coefficient_fft.coset_fft(circuit_proving_key->large_domain);
-    poly_q_mimc_selector_fft.coset_fft(circuit_proving_key->large_domain);
-
-    circuit_proving_key->constraint_selectors.insert({ "q_m", std::move(poly_q_m) });
-    circuit_proving_key->constraint_selectors.insert({ "q_c", std::move(poly_q_c) });
-    circuit_proving_key->constraint_selectors.insert({ "q_mimc_coefficient", std::move(poly_q_mimc_coefficient) });
-    circuit_proving_key->constraint_selectors.insert({ "q_mimc_selector", std::move(poly_q_mimc_selector) });
-    circuit_proving_key->constraint_selectors.insert({ "q_1", std::move(poly_q_1) });
-    circuit_proving_key->constraint_selectors.insert({ "q_2", std::move(poly_q_2) });
-    circuit_proving_key->constraint_selectors.insert({ "q_3", std::move(poly_q_3) });
-
-    circuit_proving_key->constraint_selector_ffts.insert({ "q_m_fft", std::move(poly_q_m_fft) });
-    circuit_proving_key->constraint_selector_ffts.insert({ "q_c_fft", std::move(poly_q_c_fft) });
-    circuit_proving_key->constraint_selector_ffts.insert(
-        { "q_mimc_selector_fft", std::move(poly_q_mimc_selector_fft) });
-    circuit_proving_key->constraint_selector_ffts.insert(
-        { "q_mimc_coefficient_fft", std::move(poly_q_mimc_coefficient_fft) });
-    circuit_proving_key->constraint_selector_ffts.insert({ "q_1_fft", std::move(poly_q_1_fft) });
-    circuit_proving_key->constraint_selector_ffts.insert({ "q_2_fft", std::move(poly_q_2_fft) });
-    circuit_proving_key->constraint_selector_ffts.insert({ "q_3_fft", std::move(poly_q_3_fft) });
+    ComposerBase::compute_proving_key_base();
 
     compute_sigma_permutations<3, false>(circuit_proving_key.get());
 
     std::copy(mimc_polynomial_manifest,
               mimc_polynomial_manifest + 14,
               std::back_inserter(circuit_proving_key->polynomial_manifest));
+
 
     return circuit_proving_key;
 }

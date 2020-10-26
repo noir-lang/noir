@@ -5,6 +5,7 @@
 #include <math.h>
 #include <memory.h>
 #include <numeric/bitop/get_msb.hpp>
+#include <common/max_threads.hpp>
 
 namespace barretenberg {
 namespace polynomial_arithmetic {
@@ -489,6 +490,13 @@ void add(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_
     ITERATE_OVER_DOMAIN_END;
 }
 
+void sub(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain)
+{
+    ITERATE_OVER_DOMAIN_START(domain);
+    r_coeffs[i] = a_coeffs[i] - b_coeffs[i];
+    ITERATE_OVER_DOMAIN_END;
+}
+
 void mul(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_domain& domain)
 {
     ITERATE_OVER_DOMAIN_START(domain);
@@ -499,7 +507,7 @@ void mul(const fr* a_coeffs, const fr* b_coeffs, fr* r_coeffs, const evaluation_
 fr evaluate(const fr* coeffs, const fr& z, const size_t n)
 {
 #ifndef NO_MULTITHREADING
-    size_t num_threads = (size_t)omp_get_max_threads();
+    size_t num_threads = max_threads::compute_num_threads();
 #else
     size_t num_threads = 1;
 #endif
@@ -617,16 +625,36 @@ void compute_lagrange_polynomial_fft(fr* l_1_coefficients,
     delete[] subgroup_roots;
 }
 
-void divide_by_pseudo_vanishing_polynomial(fr* coeffs,
+void divide_by_pseudo_vanishing_polynomial(fr* fft_point_evaluations,
                                            const evaluation_domain& src_domain,
-                                           const evaluation_domain& target_domain)
+                                           const evaluation_domain& target_domain,
+                                           const size_t num_roots_cut_out_of_vanishing_polynomial)
 {
+    // Older version:
     // the PLONK divisor polynomial is equal to the vanishing polynomial divided by the vanishing polynomial for the
     // last subgroup element Z_H(X) = \prod_{i=1}^{n-1}(X - w^i) = (X^n - 1) / (X - w^{n-1}) i.e. we divide by vanishing
     // polynomial, then multiply by degree-1 polynomial (X - w^{n-1})
 
-    // `coeffs` should be in point-evaluation form, evaluated at the 4n'th roots of unity
-    // P(X) = X^n - 1 will form a subgroup of order 4 when evaluated at these points
+    // Updated version:
+    // We wish to implement this function such that it supports a modified vanishing polynomial, in which
+    // k (= num_roots_cut_out_of_vanishing_polynomial) roots are cut out. i.e.
+    //                           (X^n - 1)
+    // Z*_H(X) = ------------------------------------------
+    //           (X - w^{n-1}).(X - w^{n-2})...(X - w^{k})
+    //
+    // We set the default value of k as 4 so as to ensure that the evaluation domain is 4n. The reason for cutting out
+    // some roots is described here: https://hackmd.io/@zacwilliamson/r1dm8Rj7D#The-problem-with-this-approach.
+    // Briefly, the reason we need to cut roots is because on adding randomness to permutation polynomial z(X),
+    // its degree becomes (n + 2), so for fft evaluation, we will need an evaluation domain of size >= 4(n + 2) = 8n
+    // since size of evalutation domain needs to be a power of two. To avoid this, we need to bring down the degree
+    // of the permutation polynomial (after adding randomness) to <= n.
+    //
+    //
+    // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
+    //
+
+    // `fft_point_evaluations` should be in point-evaluation form, evaluated at the 4n'th roots of unity mulitplied by
+    // `target_domain`'s coset generator P(X) = X^n - 1 will form a subgroup of order 4 when evaluated at these points
     // If X = w^i, P(X) = 1
     // If X = w^{i + j/4}, P(X) = w^{n/4} = w^{n/2}^{n/2} = sqrt(-1)
     // If X = w^{i + j/2}, P(X) = -1
@@ -647,11 +675,16 @@ void divide_by_pseudo_vanishing_polynomial(fr* coeffs,
     // Step 4: invert array entries to compute denominator term of 1/Z_H*(X)
     fr::batch_invert(&subgroup_roots[0], subgroup_size);
 
-    // The numerator term of Z_H*(X) is the polynomial (X - w^{n-1})
-    // => (g.w_i - w^{n-1})
+    // The numerator term of Z_H*(X) is the polynomial (X - w^{n-1})(X - w^{n-2})...(X - w^{n-k})
+    // => (g.w_i - w^{n-1})(g.w_i - w^{n-2})...(g.w_i - w^{n-k})
     // Compute w^{n-1}
-    fr numerator_constant = -src_domain.root_inverse;
-
+    std::vector<fr> numerator_constants(num_roots_cut_out_of_vanishing_polynomial);
+    if (num_roots_cut_out_of_vanishing_polynomial > 0) {
+        numerator_constants[0] = -src_domain.root_inverse;
+        for (size_t i = 1; i < num_roots_cut_out_of_vanishing_polynomial; ++i) {
+            numerator_constants[i] = numerator_constants[i - 1] * src_domain.root_inverse;
+        }
+    }
     // Compute first value of g.w_i
 
     // Step 5: iterate over point evaluations, scaling each one by the inverse of the vanishing polynomial
@@ -659,9 +692,11 @@ void divide_by_pseudo_vanishing_polynomial(fr* coeffs,
         fr work_root = src_domain.generator;
         for (size_t i = 0; i < target_domain.size; i += subgroup_size) {
             for (size_t j = 0; j < subgroup_size; ++j) {
-                coeffs[i + j] *= subgroup_roots[j];
-                fr T0 = work_root + numerator_constant;
-                coeffs[i + j] *= T0;
+                fft_point_evaluations[i + j] *= subgroup_roots[j];
+
+                for (size_t k = 0; k < num_roots_cut_out_of_vanishing_polynomial; ++k) {
+                    fft_point_evaluations[i + j] *= work_root + numerator_constants[k];
+                }
                 work_root *= target_domain.root;
             }
         }
@@ -675,9 +710,12 @@ void divide_by_pseudo_vanishing_polynomial(fr* coeffs,
             fr work_root = src_domain.generator * root_shift;
             for (size_t i = offset; i < offset + target_domain.thread_size; i += subgroup_size) {
                 for (size_t j = 0; j < subgroup_size; ++j) {
-                    coeffs[i + j] *= subgroup_roots[j];
-                    fr T0 = work_root + numerator_constant;
-                    coeffs[i + j] *= T0;
+                    fft_point_evaluations[i + j] *= subgroup_roots[j];
+
+                    for (size_t k = 0; k < num_roots_cut_out_of_vanishing_polynomial; ++k) {
+                        fft_point_evaluations[i + j] *= work_root + numerator_constants[k];
+                    }
+
                     work_root *= target_domain.root;
                 }
             }
@@ -694,8 +732,8 @@ fr compute_kate_opening_coefficients(const fr* src, fr* dest, const fr& z, const
 
     // We assume that the commitment is well-formed and that there is no remainder term.
     // Under these conditions we can perform this polynomial division in linear time with good constants
-
     fr f = evaluate(src, z, n);
+
     // compute (1 / -z)
     fr divisor = -z.invert();
 
@@ -711,10 +749,18 @@ fr compute_kate_opening_coefficients(const fr* src, fr* dest, const fr& z, const
     return f;
 }
 
-// compute Z_H*(z), l_1(z), l_{n-1}(z)
 barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluations(const fr& z,
-                                                                                   const evaluation_domain& domain)
+                                                                                   const evaluation_domain& domain,
+                                                                                   const size_t num_roots_cut_out_of_vanishing_polynomial)
 {
+    // compute Z_H*(z), l_start(z), l_{end}(z)
+    // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that 
+    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k = num_roots_cut_out_of_vanishing_polynomial.
+    // For notational simplicity, we call l_1 as l_start and l_{n-k} as l_end.
+    //
+    // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
+    //
+
     fr z_pow = z;
     for (size_t i = 0; i < domain.log2_size; ++i) {
         z_pow.self_sqr();
@@ -723,16 +769,41 @@ barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluatio
     fr numerator = z_pow - fr::one();
 
     fr denominators[3];
-    denominators[0] = z - domain.root_inverse;
+
+    // compute denominator of Z_H*(z) 
+    // (z - w^{n-1})(z - w^{n-2})...(z - w^{n - num_roots_cut_out_of_vanishing_poly})
+    fr work_root = domain.root_inverse;
+    denominators[0] = fr::one();
+    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial; ++i) {
+        denominators[0] *= (z - work_root);
+        work_root *= domain.root_inverse;
+    }
+
+    // The expressions of the lagrange polynomials are:
+    //           (X^n - 1)
+    // L_1(X) = -----------
+    //             X - 1
+    // 
+    // L_{i}(X) = L_1(X.w^{-i})
+    //                                                      (X^n - 1)
+    // => L_{n-k}(X) = L_1(X.w^{k-n}) = L_1(X.w^{k + 1}) = ----------------
+    //                                                      (X.w^{k+1} - 1)
+    //
     denominators[1] = z - fr::one();
-    denominators[2] = (z * domain.root.sqr()) - fr::one();
+
+    // compute w^{num_roots_cut_out_of_vanishing_polynomial + 1}
+    fr l_end_root = (num_roots_cut_out_of_vanishing_polynomial & 1) ? domain.root.sqr() : domain.root;
+    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial / 2; ++i) {
+        l_end_root *= domain.root.sqr();
+    }
+    denominators[2] = (z * l_end_root) - fr::one();
     fr::batch_invert(denominators, 3);
 
     barretenberg::polynomial_arithmetic::lagrange_evaluations result;
     result.vanishing_poly = numerator * denominators[0];
     numerator = numerator * domain.domain_inverse;
-    result.l_1 = numerator * denominators[1];
-    result.l_n_minus_1 = numerator * denominators[2];
+    result.l_start = numerator * denominators[1];
+    result.l_end = numerator * denominators[2];
 
     return result;
 }

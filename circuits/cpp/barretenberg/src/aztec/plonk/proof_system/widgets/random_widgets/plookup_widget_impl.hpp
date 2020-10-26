@@ -9,31 +9,37 @@
 
 namespace waffle {
 
-ProverPlookupWidget::ProverPlookupWidget(proving_key* input_key, program_witness* input_witness)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(proving_key* input_key, program_witness* input_witness)
     : ProverRandomWidget(input_key, input_witness)
 {}
 
-ProverPlookupWidget::ProverPlookupWidget(const ProverPlookupWidget& other)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(const ProverPlookupWidget& other)
     : ProverRandomWidget(other)
 {}
 
-ProverPlookupWidget::ProverPlookupWidget(ProverPlookupWidget&& other)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::ProverPlookupWidget(ProverPlookupWidget&& other)
     : ProverRandomWidget(other)
 {}
 
-ProverPlookupWidget& ProverPlookupWidget::operator=(const ProverPlookupWidget& other)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>& ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::operator=(const ProverPlookupWidget& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-ProverPlookupWidget& ProverPlookupWidget::operator=(ProverPlookupWidget&& other)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>& ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::operator=(ProverPlookupWidget&& other)
 {
     ProverRandomWidget::operator=(other);
     return *this;
 }
 
-void ProverPlookupWidget::compute_sorted_list_commitment(transcript::StandardTranscript& transcript)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_sorted_list_commitment(transcript::StandardTranscript& transcript)
 {
     auto& s_1 = witness->wires.at("s");
     fr* s_2 = &witness->wires.at("s_2")[0];
@@ -52,12 +58,31 @@ void ProverPlookupWidget::compute_sorted_list_commitment(transcript::StandardTra
     s_1[i] += T0;
     ITERATE_OVER_DOMAIN_END;
 
+    // To make the plookup honest-verifier zero-knowledge, we need to ensure that the witness polynomials
+    // look uniformly random. Since the `s` polynomial needs evaluation at 2 points in UltraPLONK, we need
+    // to add a degree-2 random polynomial to `s`. Alternatively, we can add 3 random scalars in the lagrange basis
+    // of `s`. Concretely, we wish to do this:
+    // s'(X) = s(X) + (r0 + r1.X + r2.X^2)
+    // In lagrange basis, suppose the coefficients of `s` are (s1, s2, s3, ..., s{n-k}) where `k` is the number
+    // of roots cut out of the vanishing polynomial Z_H(X) = X^n - 1.
+    // Thus, writing `s` into the usual coefficient form, we will have
+    // s(X) = s1.L_1(X) + s2.L_2(X) + ... + s{n-k}.L_{n-k}(X)
+    // Now, the coefficients of lagrange bases (L_{n-k+1}, ..., L_{n}) are empty. We can use them to add randomness 
+    // into `s`. Since we wish to add 3 random scalars, we need k >= 3. In our case, we have set k = 4.
+    // Thus, we can add 3 random scalars as (s{n-k+1}, s{n-k+2}, s{n-k+3}).
+    const size_t s_randomness = 3;
+    ASSERT(s_randomness < num_roots_cut_out_of_vanishing_polynomial);
+    for (size_t k = 0; k < s_randomness; ++k) {
+        s_1[((key->n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
+    }
+
     polynomial s_lagrange_base(s_1, key->small_domain.size);
     witness->wires.insert({ "s_lagrange_base", s_lagrange_base });
     s_1.ifft(key->small_domain);
 }
 
-void ProverPlookupWidget::compute_grand_product_commitment(transcript::StandardTranscript& transcript)
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_grand_product_commitment(transcript::StandardTranscript& transcript)
 {
     const size_t n = key->n;
     polynomial& z = witness->wires.at("z_lookup");
@@ -196,10 +221,21 @@ void ProverPlookupWidget::compute_grand_product_commitment(transcript::StandardT
     }
     z[0] = fr::one();
 
+    // Since `z_plookup` needs to be evaluated at 2 points in UltraPLONK, we need to add a degree-2 random
+    // polynomial to `z_lookup` to make it "look" uniformly random. Alternatively, we can just add 3 
+    // random scalars into the lagrange form of `z_lookup`, rationale for which similar to that explained
+    // for `s` polynomial.
+    const size_t z_randomness = 3;
+    ASSERT(z_randomness < num_roots_cut_out_of_vanishing_polynomial);
+    for (size_t k = 0; k < z_randomness; ++k) {
+        z[((n - num_roots_cut_out_of_vanishing_polynomial) + 1 + k)] = fr::random_element();
+    }
+
     z.ifft(key->small_domain);
 }
 
-void ProverPlookupWidget::compute_round_commitments(transcript::StandardTranscript& transcript,
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+void ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_round_commitments(transcript::StandardTranscript& transcript,
                                                     const size_t round_number,
                                                     work_queue& queue)
 {
@@ -245,7 +281,8 @@ void ProverPlookupWidget::compute_round_commitments(transcript::StandardTranscri
     }
 }
 
-barretenberg::fr ProverPlookupWidget::compute_quotient_contribution(const fr& alpha_base,
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_contribution(const fr& alpha_base,
                                                                     const transcript::StandardTranscript& transcript)
 {
     polynomial& z_fft = key->wire_ffts.at("z_lookup_fft");
@@ -299,7 +336,7 @@ barretenberg::fr ProverPlookupWidget::compute_quotient_contribution(const fr& al
     const fr gamma_beta_constant = gamma * (fr(1) + beta);
 
     const polynomial& l_1 = key->lagrange_1;
-    const fr delta_factor = gamma_beta_constant.pow(key->small_domain.size - 1);
+    const fr delta_factor = gamma_beta_constant.pow(key->small_domain.size - num_roots_cut_out_of_vanishing_polynomial);
     const fr alpha_sqr = alpha.sqr();
 
     const fr beta_constant = beta + fr(1);
@@ -373,7 +410,7 @@ barretenberg::fr ProverPlookupWidget::compute_quotient_contribution(const fr& al
             denominator += gamma_beta_constant;
 
             T0 = l_1[i] * alpha;
-            T1 = l_1[i + 8] * alpha_sqr;
+            T1 = l_1[(i + 4 + 4 * num_roots_cut_out_of_vanishing_polynomial) & block_mask] * alpha_sqr;
 
             numerator += T0;
             numerator *= z_fft[i];
@@ -391,7 +428,8 @@ barretenberg::fr ProverPlookupWidget::compute_quotient_contribution(const fr& al
     return alpha_base * alpha.sqr() * alpha;
 }
 
-barretenberg::fr ProverPlookupWidget::compute_linear_contribution(const fr& alpha_base,
+template <const size_t num_roots_cut_out_of_vanishing_polynomial>
+barretenberg::fr ProverPlookupWidget<num_roots_cut_out_of_vanishing_polynomial>::compute_linear_contribution(const fr& alpha_base,
                                                                   const transcript::StandardTranscript& transcript,
                                                                   polynomial&)
 {
@@ -402,12 +440,12 @@ barretenberg::fr ProverPlookupWidget::compute_linear_contribution(const fr& alph
 
 // ###
 
-template <typename Field, typename Group, typename Transcript>
-VerifierPlookupWidget<Field, Group, Transcript>::VerifierPlookupWidget()
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
+VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::VerifierPlookupWidget()
 {}
 
-template <typename Field, typename Group, typename Transcript>
-Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluation_contribution(
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
+Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::compute_quotient_evaluation_contribution(
     typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
 {
 
@@ -457,12 +495,18 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
 
     l_numerator *= key->domain.domain_inverse;
     Field l_1 = l_numerator / (z - Field(1));
-    Field l_n_minus_1 = l_numerator / ((z * key->domain.root.sqr()) - Field(1));
+
+    // compute w^{num_roots_cut_out_of_vanishing_polynomial + 1}
+    Field l_end_root = (num_roots_cut_out_of_vanishing_polynomial & 1) ? key->domain.root.sqr() : key->domain.root;
+    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial / 2; ++i) {
+        l_end_root *= key->domain.root.sqr();
+    }
+    Field l_end = l_numerator / ((z * l_end_root) - Field(1));
 
     const Field one(1);
     const Field gamma_beta_constant = gamma * (one + beta);
 
-    const Field delta_factor = gamma_beta_constant.pow(key->domain.size - 1);
+    const Field delta_factor = gamma_beta_constant.pow(key->domain.size - num_roots_cut_out_of_vanishing_polynomial);
     const Field alpha_sqr = alpha.sqr();
 
     const Field beta_constant = beta + one;
@@ -517,7 +561,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     denominator += gamma_beta_constant;
 
     T0 = l_1 * alpha;
-    T1 = l_n_minus_1 * alpha_sqr;
+    T1 = l_end * alpha_sqr;
 
     numerator += T0;
     numerator *= z_eval;
@@ -530,12 +574,11 @@ Field VerifierPlookupWidget<Field, Group, Transcript>::compute_quotient_evaluati
     // Combine into quotient polynomial
     T0 = numerator - denominator;
     t_eval += T0 * alpha_base;
-
     return alpha_base * alpha.sqr() * alpha;
 } // namespace waffle
 
-template <typename Field, typename Group, typename Transcript>
-Field VerifierPlookupWidget<Field, Group, Transcript>::append_scalar_multiplication_inputs(
+template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
+Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::append_scalar_multiplication_inputs(
     typename Transcript::Key*,
     const Field& alpha_base,
     const Transcript& transcript,

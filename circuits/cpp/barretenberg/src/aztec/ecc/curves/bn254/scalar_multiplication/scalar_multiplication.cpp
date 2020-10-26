@@ -8,6 +8,7 @@
 #include "./runtime_states.hpp"
 
 #include <common/mem.hpp>
+#include <common/max_threads.hpp>
 #include <numeric/bitop/get_msb.hpp>
 
 #include <array>
@@ -196,7 +197,7 @@ void compute_wnaf_states(uint64_t* point_schedule,
     const size_t bits_per_bucket = get_optimal_bucket_width(num_initial_points);
     const size_t wnaf_bits = bits_per_bucket + 1;
 #ifndef NO_MULTITHREADING
-    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
+    const size_t num_threads = max_threads::compute_num_threads();
 #else
     const size_t num_threads = 1;
 #endif
@@ -715,7 +716,7 @@ g1::element evaluate_pippenger_rounds(pippenger_runtime_state& state,
 {
     const size_t num_rounds = get_num_rounds(num_points);
 #ifndef NO_MULTITHREADING
-    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
+    const size_t num_threads = max_threads::compute_num_threads();
 #else
     const size_t num_threads = 1;
 #endif
@@ -851,7 +852,7 @@ g1::element pippenger(fr* scalars,
     // If we fall below this theshold, fall back to the traditional scalar multiplication algorithm.
     // For 8 threads, this neatly coincides with the threshold where Strauss scalar multiplication outperforms Pippenger
 #ifndef NO_MULTITHREADING
-    const size_t threshold = std::max(static_cast<size_t>(omp_get_max_threads() * 8), 8UL);
+    const size_t threshold = std::max(max_threads::compute_num_threads() * 8, 8UL);
 #else
     const size_t threshold = 8UL;
 #endif

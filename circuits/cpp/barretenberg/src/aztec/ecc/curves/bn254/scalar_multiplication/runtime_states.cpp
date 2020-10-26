@@ -1,6 +1,7 @@
 #include "runtime_states.hpp"
 
 #include <common/mem.hpp>
+#include <common/max_threads.hpp>
 #include <numeric/bitop/get_msb.hpp>
 
 #ifndef NO_MULTITHREADING
@@ -18,7 +19,7 @@ pippenger_runtime_state::pippenger_runtime_state(const size_t num_initial_points
     const size_t num_buckets = static_cast<size_t>(
         1U << barretenberg::scalar_multiplication::get_optimal_bucket_width(static_cast<size_t>(num_initial_points)));
 #ifndef NO_MULTITHREADING
-    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
+    const size_t num_threads = max_threads::compute_num_threads();
 #else
     const size_t num_threads = 1;
 #endif

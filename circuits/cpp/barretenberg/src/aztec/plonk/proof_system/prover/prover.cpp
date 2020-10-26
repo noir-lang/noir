@@ -84,7 +84,45 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
 
 template <typename settings> void ProverBase<settings>::compute_quotient_pre_commitment()
 {
-    for (size_t i = 0; i < settings::program_width; ++i) {
+    // In this method, we compute the commitments to polynomials t_{low}(X), t_{mid}(X) and t_{high}(X).
+    // Recall, the quotient polynomial t(X) = t_{low}(X) + t_{mid}(X).X^n + t_{high}(X).X^{2n}
+    //
+    // The reason we split t(X) into three degree-n polynomials is because:
+    //  (i) We want the opening proof polynomials bounded by degree n as the opening algorithm of the 
+    //      polynomial commitment scheme results in O(n) prover computation.
+    // (ii) The size of the srs restricts us to compute commitments to polynomials of degree n 
+    //      (and disallows for degree 2n and 3n for large n).
+    //
+    // The degree of t(X) is determined by the term:
+    // ((a(X) + βX + γ) (b(X) + βk_1X + γ) (c(X) + βk_2X + γ)z(X)) / Z*_H(X).
+    //
+    // Let k = num_roots_cut_out_of_vanishing_polynomial, we have 
+    // deg(t) = (n - 1) * (program_width + 1) - (n - k)
+    //        = n * program_width - program_width - 1 + k
+    //
+    // Since we must cut atleast 4 roots from the vanishing polynomial 
+    // (refer to ./src/aztec/plonk/proof_system/widgets/random_widgets/permutation_widget_impl.hpp/L247),
+    // k = 4 => deg(t) = n * program_width - program_width + 3
+    //
+    // For standard plonk, program_width = 3 and thus, deg(t) = 3n. This implies that there would be 
+    // (3n + 1) coefficients of t(X). Now, splitting them into t_{low}(X), t_{mid}(X) and t_{high}(X),
+    // t_{high} will have (n+1) coefficients while t_{low} and t_{mid} will have n coefficients.
+    // This means that to commit t_{high}, we need a multi-scalar multiplication of size (n+1).
+    // Thus, we first compute the commitments to t_{low}(X), t_{mid}(X) using n multi-scalar multiplications
+    // each and separately compute commitment to t_{high} which is of size (n + 1).
+    // Note that this must be done only when program_width = 3.
+    //
+    //
+    // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, the degree of
+    // the quotient polynomial t(X) will increase, so the degrees of t_{high}, t_{mid}, t_{low} could also
+    // increase according to the type of the composer type we are using. Currently, for TurboPLONK and Ultra-
+    // PLONK, the degree of t(X) is (4n - 1) and hence each t_{low}, t_{mid}, t_{high}, t_{higher} each is of 
+    // degree (n - 1) (and thus contains n coefficients). Therefore, we are on the brink!
+    // If we need to cut out more zeros off the vanishing polynomial, sizes of coefficients of individual 
+    // t_{i} would change and so we will have to ensure the correct size of multi-scalar multiplication in 
+    // computing the commitments to these polynomials.
+    //
+    for (size_t i = 0; i < settings::program_width - 1; ++i) {
         const size_t offset = n * i;
         queue.add_to_queue({
             work_queue::WorkType::SCALAR_MULTIPLICATION,
@@ -94,6 +132,14 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
             0,
         });
     }
+
+    queue.add_to_queue({
+        work_queue::WorkType::SCALAR_MULTIPLICATION,
+        &key->quotient_large.get_coefficients()[(settings::program_width - 1) * n],
+        "T_" + std::to_string(settings::program_width),
+        settings::program_width == 3? barretenberg::fr(1) : barretenberg::fr(0),
+        0,
+    });    
 }
 
 template <typename settings> void ProverBase<settings>::execute_preamble_round()
@@ -112,8 +158,38 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
     transcript.apply_fiat_shamir("init");
 
     for (size_t i = 0; i < settings::program_width; ++i) {
+        // fetch witness wire w_i
         std::string wire_tag = "w_" + std::to_string(i + 1);
         barretenberg::polynomial& wire = witness->wires.at(wire_tag);
+
+        /*
+        Adding zero knowledge to the witness polynomials.
+        */
+        // To ensure that PLONK is honest-verifier zero-knowledge, we need to ensure that the witness polynomials
+        // and the permutation polynomial look uniformly random to an adversary. To make the witness polynomials
+        // a(X), b(X) and c(X) uniformly random, we need to add 2 random blinding factors into each of them.
+        // i.e. a'(X) = a(X) + (r_1X + r_2)
+        // where r_1 and r_2 are uniformly random scalar field elements. A natural question is:
+        // Why do we need 2 random scalars in witness polynomials? The reason is: our witness polynomials are
+        // evaluated at only 1 point (\scripted{z}), so adding a random degree-1 polynomial suffices.
+        //
+        // NOTE: In TurboPlonk and UltraPlonk, the witness polynomials are evaluated at 2 points and thus 
+        // we need to add 3 random scalars in them.
+        //
+        // We start adding random scalars in `wire` polynomials from index (n - k) upto (n - k + 2).
+        // For simplicity, we add 3 random scalars even for standard plonk (recall, just 2 of them are required)
+        // since an additional random scalar would not affect things.
+        //
+        // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, this method 
+        // will not change. This must be changed only if the number of evaluations of witness polynomials
+        // change.
+        //
+        const size_t w_randomness = 3;
+        ASSERT(w_randomness < settings::num_roots_cut_out_of_vanishing_polynomial);
+        for (size_t k = 0; k < w_randomness; ++k) {
+            wire.at(n - settings::num_roots_cut_out_of_vanishing_polynomial + k) = fr::random_element();
+        }
+
         barretenberg::polynomial& wire_fft = key->wire_ffts.at(wire_tag + "_fft");
         barretenberg::polynomial_arithmetic::copy_polynomial(&wire[0], &wire_fft[0], n, n);
         queue.add_to_queue({
@@ -407,10 +483,21 @@ template <typename settings> void ProverBase<settings>::compute_batch_opening_po
 
     const auto zeta = transcript.get_challenge_field_element("z");
 
+    polynomial& opening_poly = key->opening_poly;
+    polynomial& shifted_opening_poly = key->shifted_opening_poly;
+
     for (size_t i = 1; i < settings::program_width; ++i) {
         const size_t offset = i * key->small_domain.size;
         const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
         opened_polynomials_at_zeta.push_back({ &key->quotient_large[offset], scalar });
+
+        if (i == settings::program_width - 1 && settings::program_width == 3)
+        {
+            // We need to add the (3n + 1)-th coefficient of the quotient polynomial t(X)
+            // to the opening proof polynomial in the case of standard plonk.
+            // i.e. opening_poly += \zeta^{2 * n} . t[3 * n]
+            opening_poly.add_lagrange_base_coefficient(key->quotient_large[3 * n] * scalar);
+        }
     }
 
     if constexpr (settings::use_linearisation) {
@@ -418,8 +505,6 @@ template <typename settings> void ProverBase<settings>::compute_batch_opening_po
         opened_polynomials_at_zeta.push_back({ &key->linear_poly[0], linear_challenge });
     }
 
-    polynomial& opening_poly = key->opening_poly;
-    polynomial& shifted_opening_poly = key->shifted_opening_poly;
 
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     opening_poly[i] = key->quotient_large[i];

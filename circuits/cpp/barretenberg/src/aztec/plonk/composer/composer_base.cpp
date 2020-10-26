@@ -155,7 +155,15 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     const size_t total_num_gates = std::max(minimum_circuit_size, n + public_inputs.size());
     const size_t subgroup_size = get_circuit_subgroup_size(total_num_gates + num_reserved_gates);
 
-    auto crs = crs_factory_->get_prover_crs(subgroup_size);
+    // In case of standard plonk, if 4 roots are cut out of the vanishing polynomial,
+    // then the degree of the quotient polynomial t(X) is 3n. This implies that the degree
+    // of the constituent t_{high} of t(X) must be n (as against (n - 1) for other composer types).
+    // Thus, to commit to t_{high}, we need the crs size to be (n + 1) for standard plonk.
+    //
+    // For more explanation about the degree of t(X), see 
+    // ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
+    //
+    auto crs = crs_factory_->get_prover_crs(subgroup_size + 1);
     circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
     for (size_t i = 0; i < selector_num; ++i) {

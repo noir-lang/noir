@@ -10,13 +10,17 @@ namespace waffle {
 inline std::vector<ComposerBase::SelectorProperties> mimc_sel_props()
 {
     std::vector<ComposerBase::SelectorProperties> result{
+
+        // We set the use_quotient_mid variable to false in composer settings so as to 
+        // disallow fft computations of size 2n as the degrees of polynomials slightly change
+        // on introducing the new vanishing polynomial with some roots cut out.
         { "q_m", false, false },
         { "q_c", false, false },
         { "q_1", false, false },
         { "q_2", false, false },
         { "q_3", false, false },
-        { "q_mimc_coefficient", true, false },
-        { "q_mimc_selector", true, false },
+        { "q_mimc_coefficient", false, false },
+        { "q_mimc_selector", false, false },
     };
     return result;
 }

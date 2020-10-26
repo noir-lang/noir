@@ -1,6 +1,7 @@
 #include "polynomial_arithmetic.hpp"
 #include <common/mem.hpp>
 #include <gtest/gtest.h>
+#include "polynomial.hpp"
 
 using namespace barretenberg;
 
@@ -276,7 +277,7 @@ TEST(polynomials, divide_by_pseudo_vanishing_polynomial)
         result[i] += c[i];
     }
 
-    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&result[0], small_domain, mid_domain);
+    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&result[0], small_domain, mid_domain, 1);
 
     polynomial_arithmetic::coset_ifft(result, mid_domain);
 
@@ -343,7 +344,7 @@ TEST(polynomials, get_lagrange_evaluations)
     domain.compute_lookup_table();
     fr z = fr::random_element();
 
-    polynomial_arithmetic::lagrange_evaluations evals = polynomial_arithmetic::get_lagrange_evaluations(z, domain);
+    polynomial_arithmetic::lagrange_evaluations evals = polynomial_arithmetic::get_lagrange_evaluations(z, domain, 1);
 
     fr vanishing_poly[2 * n];
     fr l_1_poly[n];
@@ -371,8 +372,8 @@ TEST(polynomials, get_lagrange_evaluations)
     l_1_expected = polynomial_arithmetic::evaluate(l_1_poly, z, n);
     l_n_minus_1_expected = polynomial_arithmetic::evaluate(l_n_minus_1_poly, z, n);
     vanishing_poly_expected = polynomial_arithmetic::evaluate(vanishing_poly, z, n);
-    EXPECT_EQ((evals.l_1 == l_1_expected), true);
-    EXPECT_EQ((evals.l_n_minus_1 == l_n_minus_1_expected), true);
+    EXPECT_EQ((evals.l_start == l_1_expected), true);
+    EXPECT_EQ((evals.l_end == l_n_minus_1_expected), true);
     EXPECT_EQ((evals.vanishing_poly == vanishing_poly_expected), true);
 }
 
@@ -406,3 +407,77 @@ TEST(polynomials, barycentric_weight_evaluations)
 
     EXPECT_EQ((result == expected), true);
 }
+
+
+TEST(polynomials, divide_by_vanishing_polynomial)		
+{		
+    // generate mock polys A(X), B(X), C(X)		
+    // A(X)B(X) - C(X) = 0 mod Z_H'(X)		
+    // A(X)B(X) - C(X) = 0 mod Z_H(X)		
+
+    constexpr size_t n = 16;		
+
+    polynomial A(n, 2 * n);		
+    polynomial B(n, 2 * n);		
+    polynomial C(n, 2 * n);		
+
+    for (size_t i = 0; i < 13; ++i) {		
+        A[i] = fr::random_element();		
+        B[i] = fr::random_element();		
+        C[i] = A[i] * B[i];		
+    }		
+    for (size_t i = 13; i < 16; ++i) {		
+        A[i] = 1;		
+        B[i] = 2;		
+        C[i] = 3;		
+    }		
+
+    evaluation_domain small_domain(n);		
+    evaluation_domain large_domain(2 * n);		
+
+    small_domain.compute_lookup_table();		
+    large_domain.compute_lookup_table();		
+
+    A.ifft(small_domain);		
+    B.ifft(small_domain);		
+    C.ifft(small_domain);		
+
+    fr z = fr::random_element();		
+    fr a_eval = A.evaluate(z, n);		
+    fr b_eval = B.evaluate(z, n);		
+    fr c_eval = C.evaluate(z, n);		
+
+    A.coset_fft(large_domain);		
+    B.coset_fft(large_domain);		
+    C.coset_fft(large_domain);		
+
+    // compute A(X) * B(X) - C(X)		
+    polynomial R(2 * n, 2 * n);		
+
+    polynomial_arithmetic::mul(&A[0], &B[0], &R[0], large_domain);		
+    polynomial_arithmetic::sub(&R[0], &C[0], &R[0], large_domain);		
+
+    polynomial R_copy(2 * n, 2 * n);		
+    R_copy = R;		
+    // polynomial R_copy(R);		
+
+    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&R[0], small_domain, large_domain, 3);		
+    R.coset_ifft(large_domain);		
+
+    fr r_eval = R.evaluate(z, 2 * n);		
+
+    fr Z_H_eval = (z.pow(16) - 1) / ((z - small_domain.root_inverse) * (z - small_domain.root_inverse.sqr()) *		
+                                    (z - small_domain.root_inverse * small_domain.root_inverse.sqr()));		
+
+    fr lhs = a_eval * b_eval - c_eval;		
+    fr rhs = r_eval * Z_H_eval;		
+    EXPECT_EQ(lhs, rhs);		
+
+    polynomial_arithmetic::divide_by_pseudo_vanishing_polynomial(&R_copy[0], small_domain, large_domain, 0);		
+    R_copy.coset_ifft(large_domain);		
+
+    r_eval = R_copy.evaluate(z, 2 * n);		
+    fr Z_H_vanishing_eval = (z.pow(16) - 1);		
+    rhs = r_eval * Z_H_vanishing_eval;		
+    EXPECT_EQ((lhs == rhs), false);		
+} 

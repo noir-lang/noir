@@ -238,6 +238,7 @@ TEST(plookup_composer, non_trivial_tag_permutation_and_cycles)
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     auto prover = composer.create_prover();
+    
     auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();

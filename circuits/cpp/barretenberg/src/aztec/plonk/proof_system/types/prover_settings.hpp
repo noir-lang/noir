@@ -18,10 +18,11 @@ class standard_settings : public settings_base {
     static constexpr size_t program_width = 3;
     static constexpr size_t num_shifted_wire_evaluations = 1;
     static constexpr uint64_t wire_shift_settings = 0b0100;
-    static constexpr bool uses_quotient_mid = true;
+    static constexpr bool uses_quotient_mid = false;
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = true;
+    static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
 };
 
 class unrolled_standard_settings : public settings_base {
@@ -31,10 +32,11 @@ class unrolled_standard_settings : public settings_base {
     static constexpr size_t program_width = 3;
     static constexpr size_t num_shifted_wire_evaluations = 1;
     static constexpr uint64_t wire_shift_settings = 0b0100;
-    static constexpr bool uses_quotient_mid = true;
+    static constexpr bool uses_quotient_mid = false;
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = false;
+    static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
 };
 
 class turbo_settings : public settings_base {
@@ -48,6 +50,7 @@ class turbo_settings : public settings_base {
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = true;
+    static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
 };
 
 class plookup_settings : public settings_base {
@@ -61,6 +64,7 @@ class plookup_settings : public settings_base {
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = true;
+    static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
 };
 
 class unrolled_plookup_settings : public settings_base {
@@ -74,6 +78,7 @@ class unrolled_plookup_settings : public settings_base {
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = false;
+    static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
 };
 
 class unrolled_turbo_settings : public settings_base {
@@ -87,5 +92,6 @@ class unrolled_turbo_settings : public settings_base {
     static constexpr uint32_t permutation_shift = 30;
     static constexpr uint32_t permutation_mask = 0xC0000000;
     static constexpr bool use_linearisation = false;
+    static constexpr size_t num_roots_cut_out_of_vanishing_polynomial = 4;
 };
 } // namespace waffle

@@ -89,7 +89,7 @@ polynomial& polynomial::operator=(const polynomial& other)
     representation = other.representation;
     page_size = other.page_size;
     size = other.size;
-    free();
+    allocated_pages = (max_size / page_size);
     if (other.max_size > max_size) {
         bump_memory(other.max_size);
     }

@@ -875,7 +875,7 @@ std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
     polynomial poly_q_table_2(subgroup_size);
     polynomial poly_q_table_3(subgroup_size);
     polynomial poly_q_table_4(subgroup_size);
-    size_t offset = subgroup_size - tables_size;
+    size_t offset = subgroup_size - tables_size - s_randomness;
 
     for (size_t i = 0; i < offset; ++i) {
         poly_q_table_1[i] = 0;
@@ -895,6 +895,18 @@ std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
             ++offset;
         }
     }
+
+    // Initialise the last `s_randomness` positions in table polynomials with 0. 
+    // These will be the positions where we will be adding random scalars to add zero knowledge
+    // to plookup.
+    for (size_t i = 0; i < s_randomness; ++i) {
+        poly_q_table_1[offset] = 0;
+        poly_q_table_2[offset] = 0;
+        poly_q_table_3[offset] = 0;
+        poly_q_table_4[offset] = 0;
+        ++offset;
+    }
+
     add_lookup_selector(poly_q_table_1, "table_value_1");
     add_lookup_selector(poly_q_table_2, "table_value_2");
     add_lookup_selector(poly_q_table_3, "table_value_3");
@@ -975,7 +987,10 @@ std::shared_ptr<program_witness> PlookupComposer::compute_witness()
         poly_w_4[i] = variables[w_4[i - public_inputs.size()]];
     }
 
-    size_t count = subgroup_size - tables_size - lookups_size;
+    // Save space for adding random scalars in s polynomial later
+    // We need to make space for adding randomness into witness polynomials and 
+    // lookup polynomials.
+    size_t count = subgroup_size - tables_size - lookups_size - s_randomness;
     for (size_t i = 0; i < count; ++i) {
         s_1[i] = 0;
         s_2[i] = 0;
@@ -1024,6 +1039,17 @@ std::shared_ptr<program_witness> PlookupComposer::compute_witness()
         }
     }
 
+    // Initialise the last `s_randomness` positions in s polynomials with 0. 
+    // These will be the positions where we will be adding random scalars to add zero knowledge
+    // to plookup.
+    for (size_t i = 0; i < s_randomness; ++i) {
+        s_1[count] = 0;
+        s_2[count] = 0;
+        s_3[count] = 0;
+        s_4[count] = 0;
+        ++count;
+    }
+
     witness = std::make_shared<program_witness>();
     witness->wires.insert({ "w_1", std::move(poly_w_1) });
     witness->wires.insert({ "w_2", std::move(poly_w_2) });
@@ -1046,8 +1072,8 @@ PlookupProver PlookupComposer::create_prover()
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverPlookupWidget> plookup_widget =
-        std::make_unique<ProverPlookupWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
+        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get(), witness.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<plookup_settings>> arithmetic_widget =
         std::make_unique<ProverTurboArithmeticWidget<plookup_settings>>(circuit_proving_key.get(), witness.get());
@@ -1081,8 +1107,8 @@ UnrolledPlookupProver PlookupComposer::create_unrolled_prover()
 
     std::unique_ptr<ProverPermutationWidget<4, true>> permutation_widget =
         std::make_unique<ProverPermutationWidget<4, true>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverPlookupWidget> plookup_widget =
-        std::make_unique<ProverPlookupWidget>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
+        std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get(), witness.get());
 
     std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
         std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),

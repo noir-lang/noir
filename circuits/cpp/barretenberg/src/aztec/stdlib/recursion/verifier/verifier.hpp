@@ -42,8 +42,8 @@ template <typename Curve> struct recursion_output {
 };
 
 template <typename Composer> struct lagrange_evaluations {
-    field_t<Composer> l_1;
-    field_t<Composer> l_n_minus_1;
+    field_t<Composer> l_start;
+    field_t<Composer> l_end;
     field_t<Composer> vanishing_poly;
 };
 
@@ -128,19 +128,58 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
 
 template <typename Curve>
 lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
-    const typename Curve::fr_ct& z, const evaluation_domain<typename Curve::Composer>& domain)
+    const typename Curve::fr_ct& z, const evaluation_domain<typename Curve::Composer>& domain,
+    const size_t num_roots_cut_out_of_vanishing_polynomial = 4)
 {
+    // compute Z_H*(z), l_start(z), l_{end}(z)
+    // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that 
+    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k = num_roots_cut_out_of_vanishing_polynomial.
+    // For notational simplicity, we call l_1 as l_start and l_{n-k} as l_end.
+    //
+    // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
+    //
+
     typedef typename Curve::fr_ct fr_ct;
     typedef typename Curve::Composer Composer;
 
     fr_ct z_pow = pow<Composer>(z, domain.size);
     fr_ct numerator = z_pow - fr_ct(1);
 
+    // compute modified vanishing polynomial Z_H*(z)
+    //                       (z^{n} - 1)
+    // Z_H*(z) = --------------------------------------------
+    //           (z - w^{n-1})(z - w^{n-2})...(z - w^{n - k}) 
+    //
+    fr_ct denominators_vanishing_poly = fr_ct(1);
     lagrange_evaluations<Composer> result;
-    result.vanishing_poly = numerator / (z - domain.root_inverse);
+
+    fr_ct work_root = domain.root_inverse;
+    for(size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial; ++i) {
+        denominators_vanishing_poly *= (z - work_root);
+        work_root *= domain.root_inverse;
+    }
+    result.vanishing_poly = numerator / denominators_vanishing_poly;
+
+    // The expressions of the lagrange polynomials are:
+    //           (X^n - 1)
+    // L_1(X) = -----------
+    //             X - 1
+    // 
+    // L_{i}(X) = L_1(X.w^{-i})
+    //                                                      (X^n - 1)
+    // => L_{n-k}(X) = L_1(X.w^{k-n}) = L_1(X.w^{k + 1}) = ----------------
+    //                                                      (X.w^{k+1} - 1)
+    //
     numerator *= domain.domain_inverse;
-    result.l_1 = numerator / (z - fr_ct(1));
-    result.l_n_minus_1 = numerator / ((z * domain.root.sqr()) - fr_ct(1));
+
+    result.l_start = numerator / (z - fr_ct(1));
+
+    // compute w^{num_roots_cut_out_of_vanishing_polynomial + 1}
+    fr_ct l_end_root = (num_roots_cut_out_of_vanishing_polynomial & 1) ? domain.root.sqr() : domain.root;
+    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial / 2; ++i) {
+        l_end_root *= domain.root.sqr();
+    }
+    result.l_end = numerator / ((z * l_end_root) - fr_ct(1));
 
     return result;
 }

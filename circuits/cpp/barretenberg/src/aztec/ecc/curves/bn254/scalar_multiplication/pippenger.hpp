@@ -1,6 +1,7 @@
 #pragma once
 #include "./scalar_multiplication.hpp"
 #include <common/mem.hpp>
+#include <common/max_threads.hpp>
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -12,7 +13,7 @@ namespace scalar_multiplication {
 inline size_t point_table_size(size_t num_points)
 {
 #ifndef NO_MULTITHREADING
-    const size_t num_threads = static_cast<size_t>(omp_get_max_threads());
+    const size_t num_threads = max_threads::compute_num_threads();
 #else
     const size_t num_threads = 1;
 #endif
