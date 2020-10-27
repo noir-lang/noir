@@ -7,7 +7,7 @@ mod errors;
 
 pub use errors::ParserError;
 
-pub use parser::{Parser, ParserExprResult};
+pub use parser::{Parser, ParserExprResult,ParserExprKindResult};
 
 use crate::ast::{Expression, FunctionDefinition, ImportStatement, Statement};
 use crate::token::{Keyword, Token, SpannedToken};
@@ -41,7 +41,7 @@ impl Program {
         self.statements.push(stmt)
     }
     pub fn push_function(&mut self, func: FunctionDefinition) {
-        if func.name == MAIN_FUNCTION.to_string().into() {
+        if &func.name.0.contents == MAIN_FUNCTION {
             self.main = Some(func)
         } else {
             self.functions.push(func);
@@ -60,7 +60,7 @@ impl Program {
                 let abi = main_func
                     .parameters
                     .iter()
-                    .map(|(ident, typ)| (ident.0.clone(), typ.clone()))
+                    .map(|(ident, typ)| (ident.0.contents.clone(), typ.clone()))
                     .collect();
                 Some(abi)
             }

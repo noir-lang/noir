@@ -1,5 +1,5 @@
 use super::{Precedence, Program};
-use crate::ast::{BlockStatement, Expression, Statement, Type, ArraySize};
+use crate::ast::{BlockStatement, Expression, Statement, Type, ArraySize, ExpressionKind};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, Token, TokenKind, SpannedToken};
 use super::errors::ParserError;
@@ -8,6 +8,7 @@ use super::prefix_parser::PrefixParser;
 use super::infix_parser::InfixParser;
 
 pub type ParserResult<T> = Result<T, ParserError>;
+pub type ParserExprKindResult = ParserResult<ExpressionKind>;
 pub type ParserExprResult = ParserResult<Expression>;
 type ParserStmtResult = ParserResult<Statement>;
 
@@ -34,7 +35,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn with_input(input : &'a str) -> Self {
-        Parser::new(Lexer::new(input))
+        Parser::new(Lexer::new(0,input))
     }
 
     /// Note that this function does not alert the user of an EOF
@@ -62,30 +63,41 @@ impl<'a> Parser<'a> {
     // peaks at the next token
     // asserts that it should be of a certain variant
     // If it is, the parser is advanced
-    pub(crate) fn peek_check_variant_advance(&mut self, token: &Token) -> bool {
+    pub(crate) fn peek_check_variant_advance(&mut self, token: &Token) -> Result<(), ParserError> {
         let same_variant = self.peek_token.is_variant(token);
 
-        if same_variant {
-            self.advance_tokens();
-            return true;
+        if !same_variant {
+            let peeked_span = self.peek_token.into_span();
+            let peeked_token = self.peek_token.token().clone();
+            self.advance_tokens(); // We advance the token regardless, so the parser does not choke on a prefix function
+            return Err(ParserError::UnexpectedToken{span : peeked_span, expected : token.clone(),found : peeked_token });
         }
-        return false;
+        self.advance_tokens();
+        return Ok(());
     }
     // peaks at the next token
     // asserts that it should be of a certain kind
     // If it is, the parser is advanced
-    pub(crate) fn peek_check_kind_advance(&mut self, token_kind: TokenKind) -> bool {
-        let same_kind = self.peek_token.kind() == token_kind;
-        if same_kind {
+    pub(crate) fn peek_check_kind_advance(&mut self, token_kind: TokenKind) -> Result<(), ParserError> {
+        let peeked_kind = self.peek_token.kind();
+        let same_kind = peeked_kind == token_kind;
+        if !same_kind {
+            let peeked_span = self.peek_token.into_span();
             self.advance_tokens();
-            return true;
+            return Err(ParserError::UnexpectedTokenKind{span : peeked_span, expected : token_kind,found : peeked_kind })
         }
-        return false;
+        self.advance_tokens();
+        return Ok(());
     }
 
     // A program can contain many modules which themselves are programs
-    pub fn parse_program(&mut self) -> Program {
-        self.parse_unit(Token::EOF)
+    pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserError>> {
+        let program = self.parse_unit(Token::EOF);
+        if self.errors.len() > 0 {
+            return Err(&self.errors)
+        } else {
+            return Ok(program)
+        }
     }
     fn parse_unit(&mut self, delimeter : Token) -> Program {
         use super::prefix_parser::{FuncParser, UseParser, ModuleParser};
@@ -106,15 +118,15 @@ impl<'a> Parser<'a> {
                 },
                 Token::Keyword(Keyword::Fn) => {
                     let func_def = FuncParser::parse_fn_definition(self, None);
-                    self.on_value(func_def, |value|program.push_function(value))
+                    self.on_value(func_def, |value|program.push_function(value));
                 }
                 Token::Keyword(Keyword::Mod) => {
-                   let (module_identifier, module) = ModuleParser::parse_module_definition(self);
-                   program.push_module(module_identifier, module);
+                    let parsed_mod = ModuleParser::parse_module_definition(self);
+                    self.on_value(parsed_mod, |(module_identifier, module)|program.push_module(module_identifier, module));
                 }
                 Token::Keyword(Keyword::Use) => {
                     let import_stmt = UseParser::parse(self);
-                    program.push_import(import_stmt);
+                    self.on_value(import_stmt, |value|program.push_import(value));
                 }
                 Token::Comment(_) => {
                     // This is a comment outside of a function.
@@ -125,10 +137,7 @@ impl<'a> Parser<'a> {
                 _ => {
                     // Parse regular statements
                     let statement = self.parse_statement();
-                    match statement {
-                        Ok(stmt) => program.push_statement(stmt),
-                        Err(err) => self.errors.push(err) 
-                    };
+                    self.on_value(statement, |value|program.push_statement(value));
                 }
             }
             // The current token will be the ending token for whichever branch was just picked
@@ -144,9 +153,49 @@ impl<'a> Parser<'a> {
     {
         match parser_res {
             Ok(value) => func(value),
-            Err(err) => self.errors.push(err)
+            Err(err) => {
+                self.errors.push(err);
+                self.synchronise();
+            }
         }
     }
+
+    // For now the synchonisation strategy is basic
+    fn synchronise(&mut self) {
+
+        
+
+        loop {
+            
+            if self.peek_token ==  Token::EOF
+            {
+                break
+            } 
+
+            if self.choose_prefix_parser().is_some() {
+                self.advance_tokens();
+                break
+            }
+
+            if self.peek_token ==  Token::Keyword(Keyword::Private) || 
+            self.peek_token ==  Token::Keyword(Keyword::Let) || 
+            self.peek_token ==  Token::Keyword(Keyword::Fn) {
+                self.advance_tokens();
+                break
+            }
+            if self.peek_token ==  Token::RightBrace ||
+            self.peek_token ==  Token::Semicolon
+            
+            {
+                self.advance_tokens();
+                self.advance_tokens();
+                break
+            } 
+            
+            self.advance_tokens()    
+        }
+    }
+
     pub fn parse_module(&mut self) -> Program{
         self.parse_unit(Token::RightBrace)
     }
@@ -156,7 +205,7 @@ impl<'a> Parser<'a> {
 
         // The first type of statement we could have is a variable declaration statement
         if self.curr_token.can_start_declaration() {
-            return Ok(DeclarationParser::parse_declaration_statement(self, &self.curr_token.clone().into()));
+            return DeclarationParser::parse_declaration_statement(self);
         };
 
         let stmt = match self.curr_token.token() {
@@ -166,7 +215,7 @@ impl<'a> Parser<'a> {
                 return self.parse_statement()
             }
             Token::Keyword(Keyword::Constrain) => {
-                Statement::Constrain(ConstraintParser::parse_constrain_statement(self))
+                Statement::Constrain(ConstraintParser::parse_constrain_statement(self)?)
             }
             Token::Keyword(Keyword::If) => {
                 Statement::If(IfParser::parse_if_statement(self)?)
@@ -188,6 +237,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParserExprResult {
+
         // Calling this method means that we are at the beginning of a local expression
         // We may be in the middle of a global expression, but this does not matter
         let mut left_exp = match self.choose_prefix_parser() {
@@ -211,7 +261,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-
+        
         return Ok(left_exp);
     }
     fn choose_prefix_parser(&self) -> Option<PrefixParser> {
@@ -226,7 +276,7 @@ impl<'a> Parser<'a> {
             _ => None,
         }
     }
-    fn choose_infix_parser(&mut self) -> Option<InfixParser> {
+    fn choose_infix_parser(&self) -> Option<InfixParser> {
         match self.peek_token.token() {
             Token::Plus
             | Token::Minus
@@ -263,7 +313,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.curr_token != Token::RightBrace {
-            panic!("Expected a } to end the block statement")
+            return Err(ParserError::UnstructuredError{message : format!("Expected a }} to end the block statement"), span : self.curr_token.into_span()});
         }
 
         Ok(BlockStatement(statements))
@@ -272,45 +322,46 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_comma_separated_argument_list(
         &mut self,
         delimeter: Token,
-    ) -> Vec<Expression> {
+    ) -> Result<Vec<Expression>, ParserError> {
         if self.peek_token == delimeter {
             self.advance_tokens();
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let mut arguments: Vec<Expression> = Vec::new();
 
         self.advance_tokens();
-        arguments.push(self.parse_expression(Precedence::Lowest).unwrap());
+        arguments.push(self.parse_expression(Precedence::Lowest)?);
         while self.peek_token == Token::Comma {
             self.advance_tokens();
             self.advance_tokens();
 
-            arguments.push(self.parse_expression(Precedence::Lowest).unwrap());
+            arguments.push(self.parse_expression(Precedence::Lowest)?);
         }
 
-        if !self.peek_check_variant_advance(&delimeter) {
-            panic!("Expected a {} to end the list of arguments", delimeter)
-        };
+        self.peek_check_variant_advance(&delimeter)?;
 
-        arguments
+        Ok(arguments)
     }
 
     // Parse Types
-    pub(crate) fn parse_type(&mut self) -> Type {
+    pub(crate) fn parse_type(&mut self) -> Result<Type, ParserError> {
         // Currently we only support the default types and integers.
         // If we get into this function, then the user is specifying a type
         match self.curr_token.token() {
-            Token::Keyword(Keyword::Witness) => Type::Witness,
-            Token::Keyword(Keyword::Public) => Type::Public,
-            Token::Keyword(Keyword::Constant) => Type::Constant,
-            Token::Keyword(Keyword::Field) => Type::FieldElement,
-            Token::IntType(int_type) => int_type.into(),
+            Token::Keyword(Keyword::Witness) => Ok(Type::Witness),
+            Token::Keyword(Keyword::Public) => Ok(Type::Public),
+            Token::Keyword(Keyword::Constant) => Ok(Type::Constant),
+            Token::Keyword(Keyword::Field) => Ok(Type::FieldElement),
+            Token::IntType(int_type) => Ok(int_type.into()),
             Token::LeftBracket => self.parse_array_type(),
-            k => unimplemented!("This type is currently not supported, `{}`", k),
+            k => {
+                let message = format!("Expected a type, found {}", k);
+                return Err(ParserError::UnstructuredError{message, span : self.curr_token.into_span()});
+            },
         }
     }
     
-    fn parse_array_type(&mut self) -> Type {
+    fn parse_array_type(&mut self) -> Result<Type, ParserError> {
         // Expression is of the form [3]Type
     
         // Current token is '['
@@ -319,33 +370,33 @@ impl<'a> Parser<'a> {
         let array_len = match self.peek_token.clone().into() {
             Token::Int(integer) => {
                 if integer < 0 {
-                    panic!("Cannot have a negative array size, [-k]Type is disallowed")
+                    let message = format!("Cannot have a negative array size, [-k]Type is disallowed");
+                    return Err(ParserError::UnstructuredError{message, span: self.peek_token.into_span()});
+
                 }
                 self.advance_tokens();
                 ArraySize::Fixed(integer as u128)
             },
             Token::RightBracket => ArraySize::Variable,
-            _ => panic!("The array size is defined as [k] for fixed size or [] for variable length"),
+            _ => {
+                let message = format!("The array size is defined as [k] for fixed size or [] for variable length");
+                return Err(ParserError::UnstructuredError{message, span: self.peek_token.into_span()});
+            },
         };
 
-        if !self.peek_check_variant_advance(&Token::RightBracket) {
-            panic!(
-                "expected a `]` after integer, got {}",
-                self.peek_token.token()
-            )
-        }
+        self.peek_check_variant_advance(&Token::RightBracket)?;
     
         // Skip Right bracket
         self.advance_tokens();
     
         // Disallow [4][3]Witness ie Matrices
         if self.peek_token == Token::LeftBracket {
-            panic!("Currently Multi-dimensional arrays are not supported")
+           return Err(ParserError::UnstructuredError{message  : format!("Currently Multi-dimensional arrays are not supported"), span : self.peek_token.into_span()})
         }
     
-        let array_type = self.parse_type();
+        let array_type = self.parse_type()?;
     
-        Type::Array(array_len, Box::new(array_type))
+        Ok(Type::Array(array_len, Box::new(array_type)))
     }
 }
 
@@ -368,9 +419,9 @@ mod test {
 
         let test_iden = vec!["x", "y", "z"];
 
-        let mut parser = Parser::new(Lexer::new(input));
+        let mut parser = Parser::new(Lexer::new(0,input));
 
-        let program = parser.parse_program();
+        let program = parser.parse_program().unwrap();
         for (stmt, iden) in program.statements.iter().zip(test_iden.iter()) {
             helper_test_let(stmt, iden);
         }
@@ -386,14 +437,14 @@ mod test {
         };
 
         // Now assert the correct identifier is in the let statement
-        assert_eq!(let_stmt.identifier.0, iden);
+        assert_eq!(let_stmt.identifier.0.contents, iden);
     }
 
     #[test]
     fn test_parse_identifier() {
         let input = "hello;world;This_is_a_word";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
 
         let test_iden = vec!["hello", "world", "This_is_a_word"];
 
@@ -404,8 +455,8 @@ mod test {
                 _ => unreachable!(),
             };
             // Extract the identifier
-            let name = match expression {
-                Expression::Ident(x) => x,
+            let name = match expression.kind {
+                ExpressionKind::Ident(x) => x,
                 _ => unreachable!(),
             };
 
@@ -416,8 +467,8 @@ mod test {
     #[test]
     fn test_parse_literals() {
         let input = "10;true;\"string_literal\"";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
 
         let test_iden = vec![
             Literal::Integer(10),
@@ -432,8 +483,8 @@ mod test {
                 _ => unreachable!(),
             };
             // Extract the literal
-            let literal = match expression {
-                Expression::Literal(x) => x,
+            let literal = match expression.kind {
+                ExpressionKind::Literal(x) => x,
                 _ => unreachable!(),
             };
 
@@ -444,33 +495,33 @@ mod test {
     fn test_parse_prefix() {
         use crate::ast::*;
         let input = "!99;-100;!true";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
 
         let test_iden = vec![
             PrefixExpression {
                 operator: UnaryOp::Not,
-                rhs: Expression::Literal(Literal::Integer(99)),
+                rhs: ExpressionKind::Literal(Literal::Integer(99)).into_span(Default::default()),
             },
             PrefixExpression {
                 operator: UnaryOp::Minus,
-                rhs: Expression::Literal(Literal::Integer(100)),
+                rhs: ExpressionKind::Literal(Literal::Integer(100)).into_span(Default::default()),
             },
             PrefixExpression {
                 operator: UnaryOp::Not,
-                rhs: Expression::Literal(Literal::Bool(true)),
+                rhs: ExpressionKind::Literal(Literal::Bool(true)).into_span(Default::default()),
             },
         ];
 
         for (stmt, expected_lit) in program.statements.into_iter().zip(test_iden.iter()) {
             // Cast to an expression
-            let expression = match stmt {
+            let spanned_expression = match stmt {
                 Statement::Expression(x) => x,
                 _ => unreachable!(),
             };
             // Extract the prefix expression
-            let literal = match expression {
-                Expression::Prefix(x) => x,
+            let literal = match spanned_expression.kind {
+                ExpressionKind::Prefix(x) => x,
                 _ => unreachable!(),
             };
 
@@ -481,29 +532,29 @@ mod test {
     #[test]
     fn test_parse_infix() {
         let input = "5+5;10*5;true == false; false != false";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
 
         let test_iden = vec![
             InfixExpression {
-                lhs: Expression::Literal(Literal::Integer(5)),
+                lhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
                 operator: Token::Plus.into(),
-                rhs: Expression::Literal(Literal::Integer(5)),
+                rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
             },
             InfixExpression {
-                lhs: Expression::Literal(Literal::Integer(10)),
+                lhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
                 operator: Token::Star.into(),
-                rhs: Expression::Literal(Literal::Integer(5)),
+                rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
             },
             InfixExpression {
-                lhs: Expression::Literal(Literal::Bool(true)),
+                lhs: ExpressionKind::Literal(Literal::Bool(true)).into_span(Default::default()),
                 operator: Token::Equal.into(),
-                rhs: Expression::Literal(Literal::Bool(false)),
+                rhs: ExpressionKind::Literal(Literal::Bool(false)).into_span(Default::default()),
             },
             InfixExpression {
-                lhs: Expression::Literal(Literal::Bool(false)),
+                lhs: ExpressionKind::Literal(Literal::Bool(false)).into_span(Default::default()),
                 operator: Token::NotEqual.into(),
-                rhs: Expression::Literal(Literal::Bool(false)),
+                rhs: ExpressionKind::Literal(Literal::Bool(false)).into_span(Default::default()),
             },
         ];
 
@@ -514,9 +565,9 @@ mod test {
                 _ => unreachable!(),
             };
             // Extract the infix expression
-            let literal = match expression {
-                Expression::Predicate(x) => x,
-                Expression::Infix(x) => x,
+            let literal = match expression.kind {
+                ExpressionKind::Predicate(x) => x,
+                ExpressionKind::Infix(x) => x,
                 _ => unreachable!(),
             };
 
@@ -528,17 +579,17 @@ mod test {
         use crate::ast::UnaryOp;
 
         let input = "-(5+10);-5+10";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
 
         // Test the first expression : -(5+10)
         let grouped_expression = PrefixExpression {
             operator: UnaryOp::Minus,
-            rhs: Expression::Infix(Box::new(InfixExpression {
-                lhs: Expression::Literal(Literal::Integer(5)),
+            rhs: ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
                 operator: Token::Plus.into(),
-                rhs: Expression::Literal(Literal::Integer(10)),
-            })),
+                rhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
+            })).into_span(Default::default()),
         };
 
         let stmt = program.statements[0].clone();
@@ -549,20 +600,20 @@ mod test {
             _ => unreachable!(),
         };
         // Extract the prefix expression
-        let prefix = match expression {
-            Expression::Prefix(x) => x,
+        let prefix = match expression.kind {
+            ExpressionKind::Prefix(x) => x,
             _ => unreachable!(),
         };
         assert_eq!(*prefix, expected_lit);
 
         // Test the second expression : -5+10
         let ungrouped_expression = InfixExpression {
-            lhs: Expression::Prefix(Box::new(PrefixExpression {
+            lhs: ExpressionKind::Prefix(Box::new(PrefixExpression {
                 operator: UnaryOp::Minus,
-                rhs: Expression::Literal(Literal::Integer(5)),
-            })),
+                rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
+            })).into_span(Default::default()),
             operator: Token::Plus.into(),
-            rhs: Expression::Literal(Literal::Integer(10)),
+            rhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
         };
 
         let stmt = program.statements[1].clone();
@@ -573,8 +624,8 @@ mod test {
             _ => unreachable!(),
         };
         // Extract the prefix expression
-        let prefix = match expression {
-            Expression::Infix(x) => x,
+        let prefix = match expression.kind {
+            ExpressionKind::Infix(x) => x,
             _ => unreachable!(),
         };
         assert_eq!(*prefix, expected_lit);
@@ -583,17 +634,20 @@ mod test {
     #[test]
     fn test_parse_if_expression() {
         let input = "if (x < y) { x };";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
+
+        let x_ident : Ident = String::from("x").into();
+        let y_ident : Ident = String::from("y").into();
 
         let expected_if = IfStatement {
-            condition: Expression::Predicate(Box::new(InfixExpression {
-                lhs: Expression::Ident("x".to_string()),
+            condition: ExpressionKind::Predicate(Box::new(InfixExpression {
+                lhs: x_ident.clone().into(),
                 operator: Token::Less.into(),
-                rhs: Expression::Ident("y".to_string()),
-            })),
+                rhs: y_ident.into(),
+            })).into_span(Default::default()),
             consequence: BlockStatement(vec![Statement::Expression(
-                Expression::Ident("x".to_string())
+                x_ident.into()
             )]),
             alternative: None,
         };
@@ -608,20 +662,25 @@ mod test {
     #[test]
     fn test_parse_if_else_expression() {
         let input = "if (foo < bar) { cat } else {dog};";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
+
+        let foo_ident : Ident = String::from("foo").into();
+        let bar_ident : Ident = String::from("bar").into();
+        let cat_ident : Ident = String::from("cat").into();
+        let dog_ident : Ident = String::from("dog").into();
 
         let expected_if = IfStatement {
-            condition: Expression::Predicate(Box::new(InfixExpression {
-                lhs: Expression::Ident("foo".to_string()),
+            condition: ExpressionKind::Predicate(Box::new(InfixExpression {
+                lhs: foo_ident.into(),
                 operator: Token::Less.into(),
-                rhs: Expression::Ident("bar".to_string()),
-            })),
+                rhs: bar_ident.into(),
+            })).into_span(Default::default()),
             consequence: BlockStatement(vec![Statement::Expression(
-                Expression::Ident("cat".to_string()),
+                cat_ident.into(),
             )]),
             alternative: Some(BlockStatement(vec![Statement::Expression(
-                Expression::Ident("dog".to_string()),
+                dog_ident.into(),
             )])),
         };
 
@@ -639,16 +698,16 @@ mod test {
         use crate::parser::prefix_parser::DeclarationParser;
         use crate::ast::{PrivateStatement, Signedness};
         let input = "priv x : i102 = a";
-        let mut parser = Parser::new(Lexer::new(input));
-        let stmt = DeclarationParser::parse_declaration_statement(
-            &mut parser,
-            &Token::Keyword(Keyword::Private),
-        );
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let stmt = DeclarationParser::parse_declaration_statement(&mut parser).unwrap();
+
+        let x_ident : Ident = String::from("x").into();
+        let a_ident : Ident = String::from("a").into();
 
         let priv_stmt_expected = PrivateStatement {
-            identifier: Ident("x".into()),
+            identifier: x_ident,
             r#type: Type::Integer(Signedness::Signed, 102).into(),
-            expression: Expression::Ident("a".into()),
+            expression: a_ident.into(),
         };
         match stmt {
             Statement::Private(priv_stmt) => {
@@ -662,28 +721,34 @@ mod test {
     // XXX: This just duplicates most of test_funct_literal. Refactor to avoid duplicate code
     fn test_parse_function_def_literal() {
         let input = "fn add(x : Public,y : Constant){x+y}";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
+
+        let x_ident : Ident = String::from("x").into();
+        let y_ident : Ident = String::from("y").into();
 
         let parameters = vec![
-            (Ident("x".into()), Type::Public),
-            (Ident("y".into()), Type::Constant),
+            (x_ident.clone(), Type::Public),
+            (y_ident.clone(), Type::Constant),
         ];
 
         let infix_expression = InfixExpression {
-            lhs: Expression::Ident("x".to_string()),
+            lhs: x_ident.into(),
             operator: Token::Plus.into(),
-            rhs: Expression::Ident("y".to_string()),
+            rhs: y_ident.into(),
         };
 
+        let add_ident : Ident = String::from("add").into();
+
         let expected = vec![FunctionDefinition {
-            name: Ident("add".into()),
+            name: add_ident,
             attribute : None,
             parameters: parameters,
             body: BlockStatement(vec![Statement::Expression(
-                Expression::Infix(Box::new(infix_expression)),
+                ExpressionKind::Infix(Box::new(infix_expression)).into_span(Default::default()),
             )]),
-            return_type : Type::Unit,        }];
+            return_type : Type::Unit,       
+         }];
 
         for (expected_def, got_def) in expected.into_iter().zip(program.functions.into_iter()) {
             assert_eq!(expected_def, got_def);
@@ -693,18 +758,20 @@ mod test {
     #[test]
     fn test_parse_call_expression() {
         let input = "add(1,2+3)";
-        let mut parser = Parser::new(Lexer::new(input));
-        let program = parser.parse_program();
+        let mut parser = Parser::new(Lexer::new(0,input));
+        let program = parser.parse_program().unwrap();
+
+        let add_ident : Ident = String::from("add").into();
 
         let test_iden = vec![CallExpression {
-            func_name: Ident("add".to_string()),
+            func_name: add_ident,
             arguments: vec![
-                Expression::Literal(Literal::Integer(1)),
-                Expression::Infix(Box::new(InfixExpression {
-                    lhs: Expression::Literal(Literal::Integer(2)),
+                ExpressionKind::Literal(Literal::Integer(1)).into_span(Default::default()),
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: ExpressionKind::Literal(Literal::Integer(2)).into_span(Default::default()),
                     operator: Token::Plus.into(),
-                    rhs: Expression::Literal(Literal::Integer(3)),
-                })),
+                    rhs: ExpressionKind::Literal(Literal::Integer(3)).into_span(Default::default()),
+                })).into_span(Default::default()),
             ],
         }];
 
@@ -715,8 +782,8 @@ mod test {
                 _ => unreachable!(),
             };
             // Extract the function literal expression
-            let call_expr = match expression {
-                Expression::Call(_,x) => x,
+            let call_expr = match expression.kind {
+                ExpressionKind::Call(_,x) => x,
                 _ => unreachable!(),
             };
 
