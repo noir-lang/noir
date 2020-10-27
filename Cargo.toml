@@ -7,5 +7,6 @@ members = [
     "aztec_backend",
     "noirc_frontend",
     "noirc_errors",
+    "noirc_driver",
     "acir",
 ]
