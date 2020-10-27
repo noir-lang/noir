@@ -1,4 +1,16 @@
 use clap::{App, Arg};
+use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
+use clap::ArgMatches;
+use noirc_frontend::ast::Type;
+use acir::native_types::Witness;
+use acir::circuit::Circuit;
+use noir_field::FieldElement;
+use acir::partial_witness_generator::Solver;
+use std::collections::BTreeMap;
+use noirc_driver::Driver;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
 fn main() {
     let matches = App::new("noir")
@@ -48,19 +60,7 @@ fn main() {
     }
 }
 
-use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
 
-use clap::ArgMatches;
-use noirc_frontend::lexer::Lexer;
-use noirc_frontend::Parser;
-use noirc_frontend::analyser;
-use noirc_frontend::ast::Type;
-use acir::native_types::Witness;
-use acir::circuit::Circuit;
-use noir_evaluator::Evaluator;
-use noir_field::FieldElement;
-use acir::partial_witness_generator::Solver;
-use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
 struct Abi {
@@ -121,28 +121,18 @@ fn build_main() -> CompiledMain {
         main_file.display()
     );
 
+    let mut driver = Driver::new();
     let file_as_string = std::fs::read_to_string(main_file).unwrap();
-
-    let mut parser = Parser::new(Lexer::new(&file_as_string));
-    let program = parser.parse_program();
-    dbg!(program.clone());
-    let (checked_program, symbol_table) = analyser::check(program);
-
-    let abi = checked_program.abi().unwrap();
-
-    let evaluator = Evaluator::new(checked_program, symbol_table);
-
-    let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate();
-
+    let compiled_program = driver.compile_file("main.noir".to_owned(), file_as_string.clone());
     let constraint_system =
-        aztec_backend::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
+        aztec_backend::serialise_circuit(&compiled_program.circuit, compiled_program.num_witnesses, compiled_program.num_public_inputs);
 
     hash_constraint_system(&constraint_system);
 
     CompiledMain {
         standard_format_cs: constraint_system,
-        circuit,
-        abi : Abi{parameters: abi},
+        circuit : compiled_program.circuit,
+        abi : Abi{parameters: compiled_program.abi.unwrap()},
     }
 }
 
@@ -321,10 +311,6 @@ fn parse_input() -> BTreeMap<String, FieldElement> {
     let data : BTreeMap<String, String> = toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
     data.into_iter().map(|(parameter, argument)| (parameter, parse(&argument))).collect()
 }
-
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
     let display = path.display();
