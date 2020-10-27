@@ -25,12 +25,13 @@ pub use module::ModuleParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
-    ArrayLiteral, BlockStatement, Expression, FunctionDefinition, Ident,
+    ArrayLiteral, BlockStatement, Expression, ExpressionKind,FunctionDefinition, Ident,
     IfStatement, ForExpression, Literal, PrefixExpression, Type,
 };
 use crate::token::{Keyword, Token, TokenKind, Attribute};
+use noirc_errors::{Spanned, Span};
 
-use super::{Parser, Precedence,  Program, ParserError,ParserExprResult};
+use super::{Parser, Precedence,  Program, ParserError,ParserExprKindResult,ParserExprResult};
 
 use crate::ast::{
     ConstStatement, ImportStatement, LetStatement, PrivateStatement, PublicStatement, Statement,
@@ -50,12 +51,24 @@ pub enum PrefixParser {
 impl PrefixParser {
     pub fn parse(&self,parser: &mut Parser) -> ParserExprResult {
         match self {
-            PrefixParser::For => ForParser::parse(parser),
-            PrefixParser::Array => ArrayParser::parse(parser),
-            PrefixParser::Name => NameParser::parse(parser),
-            PrefixParser::Literal => LiteralParser::parse(parser),
-            PrefixParser::Unary => UnaryParser::parse(parser),
-            PrefixParser::Group => GroupParser::parse(parser),
+            PrefixParser::For => span_parser(parser,ForParser::parse),
+            PrefixParser::Array => span_parser(parser,ArrayParser::parse),
+            PrefixParser::Name => span_parser(parser,NameParser::parse),
+            PrefixParser::Literal => span_parser(parser,LiteralParser::parse),
+            PrefixParser::Unary => span_parser(parser,UnaryParser::parse),
+            PrefixParser::Group => span_parser(parser,GroupParser::parse),
         }
     }
+
+}
+
+fn span_parser(parser : &mut Parser, f : fn(parser: &mut Parser) -> ParserExprKindResult) -> ParserExprResult{
+    let start = parser.curr_token.into_span();
+    let kind = f(parser)?;
+    let end = parser.curr_token.into_span();
+
+    Ok(Expression {
+        kind,
+        span : start.merge(end)
+    })
 }
