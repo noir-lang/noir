@@ -7,7 +7,7 @@ use std::collections::HashMap;
 // A closure / function definition will be stored under a name, so we do not differentiate between their variants
 // The name for function literal will be the variable it is binded to, and the name for a function definition will 
 // be the function name itself.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NoirFunction {
     LowLevelFunction(FunctionDefinition),
     Function(FunctionDefinition)
@@ -28,7 +28,7 @@ impl Into<NoirFunction> for FunctionDefinition {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SymbolInformation {
     Variable(Type), // Depth of symbol table, represents it's scope 
     Function(NoirFunction),
@@ -37,8 +37,8 @@ pub enum SymbolInformation {
 }
 
 /// Stores all information about all of this modules symbols
-#[derive(Clone, Debug)]
-pub struct SymbolTable(HashMap<Ident, SymbolInformation>);
+#[derive(Clone, Debug, PartialEq)]
+pub struct SymbolTable(HashMap<String, SymbolInformation>);
 
 impl SymbolTable {
     pub fn new() -> SymbolTable {
@@ -47,15 +47,15 @@ impl SymbolTable {
 
         SymbolTable(HashMap::new())
     }
-    pub fn insert(&mut self, symbol: Ident, si: SymbolInformation) {
+    pub fn insert(&mut self, symbol: String, si: SymbolInformation) {
         self.0.insert(symbol, si);
     }
     pub fn insert_func_def(&mut self, func_def: &FunctionDefinition) {
-        let func_name = &func_def.name;
+        let func_name = &func_def.name.0.contents;
 
         let function_already_declared =  self.look_up(&func_name).is_some(); 
         if function_already_declared {
-            panic!("Another symbol has been defined with the name {}", &func_name.0)
+            panic!("Another symbol has been defined with the name {}", &func_name)
         }
         let attribute = match &func_def.attribute{
             Some(attr) => attr,
@@ -70,16 +70,16 @@ impl SymbolTable {
         }
     }
     pub fn update_func_def(&mut self, func_def: &FunctionDefinition) {
-        let func_name = &func_def.name;
+        let func_name = &func_def.name.0.contents;
 
         let function_already_declared =  self.look_up(&func_name).is_some(); 
         if !function_already_declared {
-            panic!("Cannot update func with name {} because it does not exist", &func_name.0)
+            panic!("Cannot update func with name {} because it does not exist", &func_name)
         }
         self.insert(func_name.clone(), SymbolInformation::Function(func_def.clone().into()));
     }
 
-    pub fn look_up(&self, symbol: &Ident) -> Option<&SymbolInformation> {
+    pub fn look_up(&self, symbol: &String) -> Option<&SymbolInformation> {
         self.0.get(symbol)
     }
 
@@ -97,7 +97,7 @@ impl SymbolTable {
         while path.len() > 0 {
             let (first, rest) = path.split_first().unwrap();
             let new_symbol = match found_symbol.clone() {
-                SymbolInformation::Table(tbl) => tbl.clone().look_up(first).cloned(),
+                SymbolInformation::Table(tbl) => tbl.clone().look_up(&first.0.contents).cloned(),
                 _ => panic!("unexpected item, expected a lookup table"),
             };
 
@@ -112,11 +112,10 @@ impl SymbolTable {
         Some(found_symbol)
     }
 
-    // This assumes the main function is in the currrent path 
-    // XXX: Get the function name from a constant and do not pass it in
-    pub fn look_up_main_func(&self, func_name: &Ident) -> Option<FunctionDefinition> {
+    // This assumes the main function is in the current path 
+    pub fn look_up_main_func(&self) -> Option<FunctionDefinition> {
 
-        let symbol = self.look_up(func_name);
+        let symbol = self.look_up(&String::from("main").into());
         let symbol = match symbol {
             Some(symbol) => symbol,
             None => return None
@@ -139,7 +138,6 @@ impl SymbolTable {
 
         let noir_path_string = noir_path.to_string();
 
-
         let symbol_info = self.look_up_path(noir_path);
 
         let valid_symbol = match symbol_info {
@@ -152,16 +150,16 @@ impl SymbolTable {
             _=> panic!("expected a symbol table for the specified path")
         };
 
-        let symbol_found = tbl.look_up(func_name);
+        let symbol_found = tbl.look_up(&func_name.0.contents);
 
         let valid_symbol = match symbol_found {
             Some(valid_symbol) => valid_symbol,
-            None => panic!("Cannot find an object called {} under the path {}", &func_name.0, noir_path_string)
+            None => panic!("Cannot find an object called {} under the path {}", &func_name.0.contents, noir_path_string)
         };
 
         match valid_symbol {
             SymbolInformation::Function(noir_func) => Some(noir_func.clone()),
-            _=> panic!("Cannot find a function called {} under the path {}", &func_name.0, noir_path_string)
+            _=> panic!("Cannot find a function called {} under the path {}", &func_name.0.contents, noir_path_string)
         }
      
     }
@@ -181,19 +179,21 @@ impl SymbolTable {
 #[test]
 fn test_k() {
     let mut std_hash_st = SymbolTable::new();
-    std_hash_st.insert(Ident("sha256".into()), SymbolInformation::Variable(Type::Bool));
+
+    std_hash_st.insert(String::from("sha256"), SymbolInformation::Variable(Type::Bool));
 
     let mut std_st = SymbolTable::new();
-    std_st.insert(Ident("hash".into()), SymbolInformation::Table(std_hash_st));
+    std_st.insert(String::from("hash").into(), SymbolInformation::Table(std_hash_st));
 
     let mut root_table = SymbolTable::new();
-    root_table.insert(Ident("std".into()), SymbolInformation::Table(std_st));
+    root_table.insert(String::from("std").into(), SymbolInformation::Table(std_st));
 
     let path = vec![
-        Ident("std".into()),
-        Ident("hash".into()),
-        Ident("sha256".into()),
+        String::from("std").into(),
+        String::from("hash").into(),
+        String::from("sha256").into(),
     ];
 
     let result = root_table.look_up_path(path.into());
+    assert_eq!(result.unwrap(),SymbolInformation::Variable(Type::Bool));
 }
