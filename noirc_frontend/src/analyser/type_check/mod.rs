@@ -92,7 +92,7 @@ fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefi
     };
 
     if (&last_return_type != declared_return_type) & !is_low_level {
-        panic!("mismatched types: Expected the function named `{}` to return the type `{}`, but got `{}`", &func.name.0, declared_return_type, last_return_type);
+        panic!("mismatched types: Expected the function named `{}` to return the type `{}`, but got `{}`", &func.name.0.contents, declared_return_type, last_return_type);
     }
 
     self.local_types.end_function();

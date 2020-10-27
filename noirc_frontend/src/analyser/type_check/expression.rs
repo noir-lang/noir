@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Type, Literal, InfixExpression, ArraySize};
+use crate::ast::{Expression, ExpressionKind, Type, Literal, InfixExpression, ArraySize};
 use super::*;
 // We assume that the current symbol table contains the functions metadata
 // This is not always the root symbol table,if we do not look up the path from the root, if we introduce the closures
@@ -6,14 +6,14 @@ use super::*;
 
 impl<'a> TypeChecker<'a> {
     pub fn type_check_expr(&mut self,expr :  &mut Expression) -> Type {
-        match expr {
-            Expression::Cast(cast) => cast.r#type.clone() ,
-            Expression::Call(path, call_expr) => {
+        match &mut expr.kind {
+            ExpressionKind::Cast(cast) => cast.r#type.clone() ,
+            ExpressionKind::Call(path, call_expr) => {
 
                 // Find function
-                let func = self.find_function(path, &call_expr.func_name);
+                let func = self.find_function(&path, &call_expr.func_name);
                 let func = match func {
-                    None => panic!("Could not find a function named {} , under the path {:?}", &call_expr.func_name.0, path),
+                    None => panic!("Could not find a function named {} , under the path {:?}", &call_expr.func_name.0.contents, path),
                     Some(func) => func,
                 };
 
@@ -32,13 +32,13 @@ impl<'a> TypeChecker<'a> {
 
                return_type
             },
-            Expression::Ident(iden) => {
+            ExpressionKind::Ident(iden) => {
                 self.lookup_local_identifier(&iden.to_string().into())
             },
-            Expression::Literal(ref mut lit) => self.type_check_literal(lit),
-            Expression::Infix(ref mut infx) => self.type_check_infix(infx),
-            Expression::Predicate(ref mut infx) => self.type_check_infix(infx),
-            Expression::Index(indx) => {
+            ExpressionKind::Literal(ref mut lit) => self.type_check_literal(lit),
+            ExpressionKind::Infix(ref mut infx) => self.type_check_infix(infx),
+            ExpressionKind::Predicate(ref mut infx) => self.type_check_infix(infx),
+            ExpressionKind::Index(indx) => {
                 // Currently we only index in Arrays and arrays need to have homogenous types
                 
                 // Find the type for the identifier
@@ -50,7 +50,7 @@ impl<'a> TypeChecker<'a> {
                 };
                 *base_type
             },
-            Expression::For(for_expr) => {
+            ExpressionKind::For(for_expr) => {
                 let start_range = &mut for_expr.start_range;
                 let end_range = &mut for_expr.end_range;
 
@@ -77,7 +77,7 @@ impl<'a> TypeChecker<'a> {
                 };
                 Type::Array(array_size, Box::new(base_typ))
             },
-            Expression::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back")
+            ExpressionKind::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back")
         }
     }
     
@@ -150,14 +150,14 @@ impl<'a> TypeChecker<'a> {
         }
         
         if param_type != arg_type {
-            panic!("Expected {} for parameter {} but got {} ", param_type, param_name.0, arg_type)
+            panic!("Expected {} for parameter {} but got {} ", param_type, param_name.0.contents, arg_type)
         }
         
     }
 
     fn extract_constant(expr : &Expression) -> Option<noir_field::FieldElement> {
-        let literal = match expr {
-            Expression::Literal(literal) => literal,
+        let literal = match &expr.kind {
+            ExpressionKind::Literal(literal) => literal,
             _ => return None
         };
 
