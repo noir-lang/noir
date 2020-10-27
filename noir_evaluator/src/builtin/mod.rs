@@ -44,6 +44,6 @@ pub fn call_builtin(
     match func {
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, call_expr),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, call_expr),
-        k => panic!("The builtin function `{}(..)` exists, however, currently the compiler does not have a concrete implementation for it", &call_expr.func_name.0),
+        k => panic!("The builtin function `{}(..)` exists, however, currently the compiler does not have a concrete implementation for it", &call_expr.func_name.0.contents),
     }
 }

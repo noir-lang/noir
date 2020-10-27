@@ -46,7 +46,7 @@ impl Evaluator {
         } = program;
 
         // Check that we have a main function
-        let possible_main = symbol_table.look_up_main_func(&Ident("main".into()));
+        let possible_main = symbol_table.look_up_main_func();
         
         let main_function = match possible_main {
             None => panic!(
@@ -249,13 +249,13 @@ impl Evaluator {
 
         // Add all of the public inputs first, then the witnesses
         for param_name in pub_inputs.into_iter() {
-            self.store_witness(param_name.0.clone(), Type::Public);
-            self.store_lone_variable(param_name.0.clone(), env);
+            self.store_witness(param_name.0.clone().contents, Type::Public);
+            self.store_lone_variable(param_name.0.clone().contents, env);
         }
 
         for param_name in witnesses.into_iter() {
-            self.store_witness(param_name.0.clone(), Type::Witness);
-            self.store_lone_variable(param_name.0.clone(), env);
+            self.store_witness(param_name.0.clone().contents, Type::Witness);
+            self.store_lone_variable(param_name.0.clone().contents, env);
         }
 
         // Now call the main function
@@ -271,7 +271,7 @@ impl Evaluator {
             // constant statements do not create constraints
             Statement::Const(x) => {
                 self.num_selectors = self.num_selectors + 1;
-                let variable_name: String = x.identifier.0;
+                let variable_name: String = x.identifier.0.contents;
                 let value = self.evaluate_integer(env, x.expression); // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
                 self.selectors
                     .push(Selector(variable_name.clone(), value.clone()));
@@ -314,7 +314,7 @@ impl Evaluator {
         env: &mut Environment,
         x: PrivateStatement,
     ) -> Object {
-        let variable_name: String = x.identifier.clone().0;
+        let variable_name: String = x.identifier.clone().0.contents;
         let witness = self.store_witness(variable_name.clone(), x.r#type.clone());
         let witness_linear = Linear::from_witness(witness.clone());
 
@@ -400,7 +400,7 @@ impl Evaluator {
         let_stmt: LetStatement,
     ) -> Object {
         // Convert the LHS into an identifier
-        let variable_name: String = let_stmt.identifier.0;
+        let variable_name: String = let_stmt.identifier.0.contents;
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
@@ -438,7 +438,7 @@ impl Evaluator {
             env.start_for_loop();
 
             // Add indice to environment
-            let variable_name: String = for_expr.identifier.0.clone();
+            let variable_name: String = for_expr.identifier.0.clone().contents;
             env.store(variable_name, Object::Constants(indice));
 
             let return_typ = self.eval_block(env, for_expr.block.clone());
@@ -468,34 +468,34 @@ impl Evaluator {
         env: &mut Environment,
         expr: Expression,
     ) -> Object {
-        match expr {
-            Expression::Literal(Literal::Integer(x)) => Object::Constants(x.into()),
-            Expression::Literal(Literal::Array(arr_lit)) => {
+        match expr.kind {
+            ExpressionKind::Literal(Literal::Integer(x)) => Object::Constants(x.into()),
+            ExpressionKind::Literal(Literal::Array(arr_lit)) => {
                 Object::Array(Array::from(self, env, arr_lit))
             }
-            Expression::Ident(x) => self.evaluate_identifier(x.to_string(), env),
-            Expression::Infix(infx) => {
+            ExpressionKind::Ident(x) => self.evaluate_identifier(x.to_string(), env),
+            ExpressionKind::Infix(infx) => {
                 let lhs = self.expression_to_object(env, infx.lhs);
                 let rhs = self.expression_to_object(env, infx.rhs);
                 self.evaluate_infix_expression(env, lhs, rhs, infx.operator)
             }
-            Expression::Cast(cast_expr) => {
+            ExpressionKind::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, cast_expr.lhs);
                 binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
             }
-            Expression::Index(indexed_expr) => {
+            ExpressionKind::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr = env.get_array(indexed_expr.collection_name.0.clone());
-                arr.get(indexed_expr.index.to_u128())
+                let arr = env.get_array(indexed_expr.collection_name.0.clone().contents);
+                arr.get(indexed_expr.index.kind.to_u128())
             }
             // This is currently specific to core library calls
-            Expression::Call(path, call_expr) => {
+            ExpressionKind::Call(path, call_expr) => {
                 let func_name = call_expr.func_name.clone();
                 let func_def = self.symbol_table.look_up_func(path.clone(), &func_name);
             
                 let noir_func = match func_def {
                     Some(noir_func) => noir_func,
-                    None => panic!("Tried to call {}, but function not found", &func_name.0)
+                    None => panic!("Tried to call {}, but function not found", &func_name.0.contents)
                 };               
                 // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
@@ -513,7 +513,7 @@ impl Evaluator {
                 }
                     
             }
-            Expression::For(for_expr) => {
+            ExpressionKind::For(for_expr) => {
                 self.handle_for_expr(env,*for_expr)
             }
             k => {
@@ -541,7 +541,7 @@ impl Evaluator {
                 for ((param_name, param_type), argument) in
                     func.parameters.iter().zip(arguments.iter())
                 {
-                    new_env.store(param_name.0.clone(), argument.clone());
+                    new_env.store(param_name.0.clone().contents, argument.clone());
                 }
 
                 let return_val = self.apply_func(&mut new_env, func);
