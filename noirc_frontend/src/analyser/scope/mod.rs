@@ -37,7 +37,7 @@ use std::collections::hash_map;
 type Predicate<K,V> = fn(&(&K, &V)) -> bool;
 type PredicateResult<'r,K,V> = Filter<hash_map::Iter<'r,K, V>, Predicate<K,V>>;
 
-impl<K : std::hash::Hash + Eq,V> Scope<K,V> {
+impl<K : std::hash::Hash + Eq + Clone,V> Scope<K,V> {
     
     pub fn new() -> Self {
         Scope(HashMap::with_capacity(100))
@@ -45,6 +45,12 @@ impl<K : std::hash::Hash + Eq,V> Scope<K,V> {
 
     pub fn find(&mut self, key : &K) -> Option<&mut V> {
         self.0.get_mut(key)
+    }
+    pub fn occupied_key(&mut self, key : &K) -> Option<&K> {
+        match self.0.get_key_value(key){
+            Some((k, _)) => Some(k),
+            None => None
+        }
     }
 
     pub fn add_key_value(&mut self, key : K, value : V) -> bool {
@@ -61,7 +67,7 @@ impl<K : std::hash::Hash + Eq,V> Scope<K,V> {
 /// part of the scope
 pub struct ScopeTree<K , V>(pub Vec<Scope<K,V>>);
 
-impl<K : std::hash::Hash + Eq, V> ScopeTree<K, V> {
+impl<K : std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
     pub fn new()-> Self {
         let mut vec : Vec<Scope<K,V>> = Vec::with_capacity(10);
         vec.push(Scope::new());
@@ -95,7 +101,7 @@ impl<K : std::hash::Hash + Eq, V> ScopeTree<K, V> {
 
 pub struct ScopeForest<K , V>(pub Vec<ScopeTree<K,V>>);
 
-impl<K : std::hash::Hash + Eq,V> ScopeForest<K, V> {
+impl<K : std::hash::Hash + Eq + Clone,V> ScopeForest<K, V> {
     
     pub fn new() -> ScopeForest<K, V> {
         ScopeForest(vec![ScopeTree::new()])
