@@ -1,11 +1,53 @@
-use crate::{Expression, InfixExpression, Type};
+use crate::{ExpressionKind, InfixExpression, Type, Expression};
+use crate::lexer::token::SpannedToken;
+use noirc_errors::{Spanned};
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Clone)]
-pub struct Ident(pub String);
+#[derive(PartialOrd, Eq, Ord,  Debug, Clone)]
+pub struct Ident(pub Spanned<String>);
+
+impl PartialEq<Ident> for Ident {
+    fn eq(&self,other : &Ident) -> bool {
+        &self.0.contents == &other.0.contents
+    }
+}
+
+impl std::hash::Hash for Ident {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.contents.hash(state);
+    }
+}
+
+impl From<Spanned<String>> for Ident {
+    fn from(a: Spanned<String>) -> Ident {
+        Ident(a)
+    }
+}
 
 impl From<String> for Ident {
     fn from(a: String) -> Ident {
-        Ident(a)
+        Spanned::from_position(Default::default(), Default::default(), a).into()
+    }
+}
+
+impl From<SpannedToken> for Ident {
+    fn from(st : SpannedToken) -> Ident {
+        let spanned_str = Spanned::from(st.into_span(), st.token().to_string());
+        Ident(spanned_str)
+    }
+}
+
+impl From<Ident> for Expression {
+    fn from(i : Ident) -> Expression {
+        Expression{
+            span : i.0.span(),
+            kind : ExpressionKind::Ident(i.0.contents)
+        }
+    }
+}
+
+impl From<Ident> for ExpressionKind {
+    fn from(i : Ident) -> ExpressionKind {
+        ExpressionKind::Ident(i.0.contents)
     }
 }
 
