@@ -1,3 +1,7 @@
+
+mod errors;
+use errors::AnalyserError;
+
 pub mod scope;
 
 mod attribute_check;
@@ -20,7 +24,6 @@ use crate::ast::FunctionDefinition;
 ///  This means the compiler only needs to constrain private statements when they see them. I think it also means we can refactor env, it will only be used for scope management + symbol table
 /// - Fill in inferred types for witnesses priv k = x as u8, should modify k to be the u8 Type
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
-///
 use crate::ast::{Statement, ImportStatement};
 use crate::symbol_table::{SymbolTable, NoirFunction, SymbolInformation};
 use crate::parser::Program;
@@ -34,20 +37,20 @@ pub struct CheckedProgram{
     pub main: Option<FunctionDefinition>,
 }
 
-pub fn check(ast: Program) -> (Program, SymbolTable) {
+pub fn check(ast: Program) -> Result<(Program, SymbolTable), Vec<AnalyserError>> {
     check_program(ast, false)
 }
 
 // We need to bootstrap the standard library. This code will be removed once we stop interpreting the AST
 // Or we move the stdlib symbol table to be on symbol table by default. (For this it would need to also be recompiled however)
-fn check_program(ast : Program, is_std_lib : bool) -> (Program, SymbolTable) {
+fn check_program(ast : Program, is_std_lib : bool) -> Result<(Program, SymbolTable), Vec<AnalyserError>> {
 
     // Attribute checker
     AttributeChecker::check(&ast);
 
     // Resolver
     let symbol_table = build_symbol_table(&ast, is_std_lib);
-    let ast = Resolver::resolve(ast, &symbol_table);
+    let ast = Resolver::resolve(ast, &symbol_table)?;
     
     // Type checker
     let ast = TypeChecker::check(ast, &symbol_table);
@@ -57,7 +60,7 @@ fn check_program(ast : Program, is_std_lib : bool) -> (Program, SymbolTable) {
     // the symbol table on the fly too
     let symbol_table = build_symbol_table(&ast, is_std_lib);
 
-    (ast, symbol_table)
+    Ok((ast, symbol_table))
 }
 
 fn build_symbol_table(ast: &Program, is_std_lib : bool) -> SymbolTable {
@@ -105,8 +108,10 @@ fn load_low_level_libraries_into_symbol_table(table: &mut SymbolTable) {
 
     // Parse and add low level functions into a symbol table
     // We could define the AST for this in the host language
-    let program = crate::Parser::with_input(&std_lib).parse_program();
-    let (checked_program, std_table) = check_program(program, true);
+    
+    let mut parser = crate::Parser::with_input(&std_lib);
+    let (program) = parser.parse_program().unwrap();
+    let (checked_program, std_table) = check_program(program, true).unwrap();
     // We do nothing with the checked program for two reasons: Every module should have a copy of std_lib
 
     table.insert("std".to_string().into(), SymbolInformation::Table(std_table));
