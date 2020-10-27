@@ -1,20 +1,26 @@
 use super::Resolver;
 use super::*;
-use crate::ast::{Expression, Ident, Literal, InfixExpression};
+use crate::ast::{Expression,ExpressionKind, Literal, InfixExpression};
 
 
 impl<'a> Resolver<'a> {
     pub(crate) fn resolve_expr(&mut self, expr : &Expression) -> bool{
-        match expr{
-            Expression::Ident(identifier) => self.find_variable(&Ident(identifier.into())),
-            Expression::Cast(cast_expr) => {
+        match &expr.kind{
+            ExpressionKind::Ident(identifier) => self.find_variable(&identifier.clone().into()),
+            ExpressionKind::Cast(cast_expr) => {
                 self.resolve_expr(&cast_expr.lhs)
             },
-            Expression::Call(path,call_expr) => {
+            ExpressionKind::Call(path,call_expr) => {
 
-                let func = self.find_function(path, &call_expr.func_name);
+                let func = self.find_function(&path, &call_expr.func_name);
+                let span = call_expr.func_name.0.span();
                 let func = match func {
-                    None => panic!("Could not find a function named {} , under the path {:?}", &call_expr.func_name.0, path),
+                    None => {
+                        let name = call_expr.func_name.0.contents.clone();
+                        let err = ResolverError::Unresolved{span, symbol_type : "function".to_owned(), symbol : name};
+                        self.push_err(err);
+                        return false
+                    },
                     Some(func) => func,
                 };
 
@@ -25,48 +31,59 @@ impl<'a> Resolver<'a> {
                 let argument_len = call_expr.arguments.len();
 
                 if param_len != argument_len {
-                    panic!("Function {} expected {} number of arguments, but got {}", call_expr.func_name.0, param_len, argument_len)
+                    let message = format!("Function {} expected {} number of arguments, but got {}", call_expr.func_name.0.contents, param_len, argument_len);
+                    let err = ResolverError::from_ident(message, &call_expr.func_name);
+                    self.push_err(err);
                 }
-
+                
                 self.resolve_list_of_expressions(&call_expr.arguments, "argument", "argument list");
-
+                
                 true
             },
-            Expression::Index(index_expr) => {
-
-            let resolved_collection_name = self.find_variable(&index_expr.collection_name);
-            let resolved_index = self.resolve_expr(&index_expr.index);
-
-            if !resolved_collection_name {
-                panic!("Cannot find a declaration for the array {}", &index_expr.collection_name.0);
-            }
-            if !resolved_index {
-                panic!("Cannot find variable `{:?}` which is being used to index the array {}", &index_expr.index, &index_expr.collection_name.0);
-            }
-            resolved_collection_name & resolved_index
-
+            ExpressionKind::Index(index_expr) => {
+                
+                let resolved_collection_name = self.find_variable(&index_expr.collection_name);
+                let resolved_index = self.resolve_expr(&index_expr.index);
+                
+                if !resolved_collection_name {
+                    let message = format!("Cannot find a declaration for the array {}", &index_expr.collection_name.0.contents);
+                    let err = ResolverError::from_ident(message, &index_expr.collection_name);
+                    self.push_err(err);
+                }
+                if !resolved_index {
+                    let message = format!("Cannot find variable `{:?}` which is being used to index the array {}", &index_expr.index, &index_expr.collection_name.0.contents);
+                    let err = ResolverError::from_ident(message, &index_expr.collection_name);
+                    self.push_err(err);
+                    
+                }
+                resolved_collection_name & resolved_index
+                
             },
-            Expression::Infix(infix_expr) => {
-                self.resolve_infix_expr(&infix_expr, "infix expression")
+            ExpressionKind::Infix(infix_expr) => {
+                self.resolve_infix_expr(&infix_expr)
             },
-            Expression::Predicate(pred_expr) => {
-                self.resolve_infix_expr(&pred_expr, "predicate expression")
+            ExpressionKind::Predicate(pred_expr) => {
+                self.resolve_infix_expr(&pred_expr)
             },
-            Expression::Literal(literal) => {
+            ExpressionKind::Literal(literal) => {
                 self.resolve_literal(&literal)
             },
-            Expression::For(for_expr) => {
+            ExpressionKind::For(for_expr) => {
                 let start_range = &for_expr.start_range;
                 let end_range = &for_expr.end_range;
-
+                
                 let resolved_lhs = self.resolve_expr(start_range);
                 let resolved_rhs = self.resolve_expr(end_range);
                 
                 if !resolved_lhs {
-                    panic!("Could not resolve the start range of the for loop")
+                    let message = format!("Could not resolve the start range of the for loop");
+                    let err = ResolverError::from_expression(message, &start_range);
+                    self.push_err(err)
                 }
                 if !resolved_rhs {
-                    panic!("Could not resolve the end range of the for loop")
+                    let message = format!("Could not resolve the end range of the for loop");
+                    let err = ResolverError::from_expression(message, &end_range);
+                    self.push_err(err)
                 }
 
                 self.local_declarations.start_for_loop();
@@ -78,28 +95,33 @@ impl<'a> Resolver<'a> {
                 
                 // Check for unused variables
                 let for_scope = self.local_declarations.end_for_loop();
-                Resolver::check_for_unused_variables_in_local_scope(&for_scope);
+                self.check_for_unused_variables_in_local_scope(&for_scope);
 
                 true
             },
-            Expression::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back"),
+            ExpressionKind::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back"),
         }
     }
 
-    pub(super) fn resolve_infix_expr(&mut self, infix: &InfixExpression, typ: &str ) -> bool {
+    pub(super) fn resolve_infix_expr(&mut self, infix: &InfixExpression) -> bool {
         
         let lhs_resolved = self.resolve_expr(&infix.lhs);
         if !lhs_resolved {
-            panic!("Could not resolve the lhs of the {} {:?}", typ, infix.lhs);
+            let message = format!("Could not resolve expression");
+            let err = ResolverError::from_expression(message, &infix.lhs);
+            self.push_err(err)
         }
         
         let rhs_resolved = self.resolve_expr(&infix.rhs);
         if !rhs_resolved {
-            panic!("Could not resolve the rhs of the {} {:?}", typ, infix.rhs);
+            let message = format!("Could not resolve expression");
+            let err = ResolverError::from_expression(message, &infix.rhs);
+            self.push_err(err)
         }
 
         lhs_resolved & rhs_resolved
     }
+
     fn resolve_literal(&mut self, lit: &Literal) -> bool {
         match lit {
             Literal::Array(arr_lit) => {
@@ -125,7 +147,9 @@ impl<'a> Resolver<'a> {
         for (i, element) in list.iter().enumerate() {
             let resolved_element = self.resolve_expr(&element);
             if !resolved_element {
-                panic!("Cannot resolve the {} at index {} in the {} {:?}", type_of_element, i, data_type, list);
+                let message = format!("Cannot resolve the {} at index {} in the {} {:?}", type_of_element, i, data_type, list);
+                let err = ResolverError::from_expression(message, element);
+                self.push_err(err);
             }
         }
     }

@@ -12,16 +12,18 @@ type ScopeTree = GenericScopeTree<Ident, usize>;
 type ScopeForest = GenericScopeForest<Ident, usize>;
 
 mod expression;
+use super::errors::{AnalyserError, ResolverError};
 
 pub struct Resolver<'a>{
     table : &'a SymbolTable,
-    local_declarations : ScopeForest
+    local_declarations : ScopeForest,
+    errors : Vec<AnalyserError>
 }
 
 impl<'a> Resolver<'a> {
 
     fn from_symbol_table(table : &'a SymbolTable) -> Resolver<'a> {
-        Resolver {table, local_declarations : ScopeForest::new()}
+        Resolver {table, local_declarations : ScopeForest::new(), errors: Vec::new()}
     }
 
     fn add_variable_decl(&mut self, name : Ident) {
@@ -30,9 +32,15 @@ impl<'a> Resolver<'a> {
         let is_new_entry = scope.add_key_value(name.clone(),0);
 
         if !is_new_entry {
-            panic!("\nMultiple variables cannot have the same name, duplicate declarations of {:?}\n", &name.0)
+            let first_decl = scope.occupied_key(&name).unwrap();
+            let err = ResolverError::DuplicateDefinition{first_span: first_decl.0.span(), second_span : name.0.span(), ident: name.0.contents};
+            self.push_err(err);
         }
         
+    }
+
+    fn push_err(&mut self, err : impl Into<AnalyserError>) {
+        self.errors.push(err.into())
     }
    
     // Checks for a variable and increments a counter
@@ -56,7 +64,7 @@ impl<'a> Resolver<'a> {
     // Checks if all variables have been correctly scoped
     // XXX: Can check here that main() has no return type
     // We can probably check for duplicate var and func names in here
-    pub fn resolve(mut ast : Program, table : &SymbolTable) -> Program {
+    pub fn resolve(mut ast : Program, table : &SymbolTable) -> Result<Program, Vec<AnalyserError>> {
 
         // Add functions into this, so that call expressions can be resolved
         let mut resolver = Resolver::from_symbol_table(table);
@@ -73,8 +81,11 @@ impl<'a> Resolver<'a> {
         ast.modules = ast.modules.into_iter().map(|(module_id, module)| {
             (module_id, resolver.resolve_ast(module))
         }).collect();
-
-        ast
+        if resolver.errors.len() > 0 {
+            Err(resolver.errors)
+        } else {
+            Ok(ast)
+        }
     }
 
     fn resolve_ast(&mut self, mut ast : Program) -> Program {
@@ -85,19 +96,19 @@ impl<'a> Resolver<'a> {
         ast
     }
 
-    fn check_for_unused_variables_in_scope_tree(scope_decls : &ScopeTree) {
+    fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls : &ScopeTree) {
         for scope in scope_decls.0.iter(){
-            Resolver::check_for_unused_variables_in_local_scope(scope)
+            self.check_for_unused_variables_in_local_scope(scope)
         }
     }
 
-    fn check_for_unused_variables_in_local_scope(decl_map : &Scope) {
+    fn check_for_unused_variables_in_local_scope(&mut self, decl_map : &Scope) {
         let unused_variables = decl_map.predicate(|kv :&(&Ident, &usize)| -> bool {
             
             let variable_name = kv.0;
             let num_times_fetched = kv.1;
             
-            let has_underscore_prefix = variable_name.0.starts_with("_");
+            let has_underscore_prefix = variable_name.0.contents.starts_with("_");
 
             if *num_times_fetched == 0 && !has_underscore_prefix {
                 return true
@@ -106,10 +117,12 @@ impl<'a> Resolver<'a> {
         });
 
         let variables_names : Vec<_>= unused_variables.map(|(var_name, _)|var_name ).collect();
-
-        if variables_names.len() > 0 {
-            panic!("Unused variables detected. The following variables are unused : {:?}", variables_names)
-        } 
+        for unused_var in variables_names.into_iter() {
+            let span = unused_var.0.span();
+            let ident = unused_var.0.contents.clone();
+            let err = ResolverError::UnusedVariables{span, ident};
+            self.push_err(err);
+        }
     }
 
     fn resolve_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition{
@@ -125,7 +138,7 @@ impl<'a> Resolver<'a> {
         self.resolve_block_stmt(&mut func.body);
         
         let function_scope_tree = self.local_declarations.end_function();
-        Resolver::check_for_unused_variables_in_scope_tree(&function_scope_tree);
+        self.check_for_unused_variables_in_scope_tree(&function_scope_tree);
         
         func
     }
@@ -139,7 +152,9 @@ impl<'a> Resolver<'a> {
                 },
                 Statement::Expression(expr) => {
                     if !self.resolve_expr(&expr) {
-                        panic!("Could not resolve the expression private statement {:?}", expr);
+                        let message = format!("Could not resolve the expression");
+                        let err = ResolverError::from_expression(message, expr);
+                        self.push_err(err);
                     };
                 },
                 Statement::Block(_) => {
@@ -176,7 +191,9 @@ impl<'a> Resolver<'a> {
 
         // Check that the expression on the RHS is using variables which have already been declared
         if !self.resolve_expr(expr) {
-            panic!("Could not resolve the expression in the {} statement {:?}", stmt_type,expr);
+            let message = format!("Could not resolve the expression in the {} statement", stmt_type); 
+            let err = ResolverError::from_expression(message, expr);
+            self.push_err(err);
         };
     }
     fn resolve_private_stmt(&mut self, private_stmt : &PrivateStatement) {
@@ -189,7 +206,7 @@ impl<'a> Resolver<'a> {
         self.resolve_declaration_stmt(&let_stmt.identifier, &let_stmt.expression, "let");
     }
     fn resolve_constrain_stmt(&mut self, constrain_stmt : &ConstrainStatement) {
-        self.resolve_infix_expr(&constrain_stmt.0, "constrain statement");
+        self.resolve_infix_expr(&constrain_stmt.0);
     }
 
 }
