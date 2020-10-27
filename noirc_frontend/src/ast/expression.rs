@@ -2,10 +2,8 @@ use crate::{BlockStatement, Ident, Type};
 use crate::token::{Keyword, Token, Attribute};
 use noirc_errors::{Spanned, Span};
 
-pub struct SpannedExpression(Spanned<Expression>);
-
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Expression {
+pub enum ExpressionKind {
     Ident(String), // an identifer can also produce a value. e.g. let x = y; y is an expression in this case
     Literal(Literal),
     Prefix(Box<PrefixExpression>),
@@ -17,12 +15,33 @@ pub enum Expression {
     For(Box<ForExpression>)
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Expression {
+    pub kind : ExpressionKind,
+    pub span : Span,
+}
 
 impl Expression {
-    pub fn into_span(self, span : Span) -> SpannedExpression {
-        SpannedExpression(Spanned::from(span.start, span.end, self))
+    pub fn into_ident(self) -> Option<Ident> {
+        let identifier = match self.kind {
+            ExpressionKind::Ident(x) => x,
+            _=>return None
+        };
+
+        let ident = Ident(Spanned::from(self.span, identifier));
+        return Some(ident)
     }
 }
+
+impl ExpressionKind {
+    pub fn into_span(self, span : Span) -> Expression {
+        Expression {
+            span, 
+            kind : self
+        }
+    }
+}
+
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ForExpression{
@@ -32,17 +51,17 @@ pub struct ForExpression{
     pub block: BlockStatement,
 }
 
-impl Expression {
+impl ExpressionKind {
     pub fn infix(self) -> Option<InfixExpression> {
         match self {
-            Expression::Infix(infix) => Some(*infix),
-            Expression::Predicate(infix) => Some(*infix),
+            ExpressionKind::Infix(infix) => Some(*infix),
+            ExpressionKind::Predicate(infix) => Some(*infix),
             _ => None,
         }
     }
     pub fn r#type(self) -> Option<Type> {
         match self {
-            Expression::Literal(literal) => match literal {
+            ExpressionKind::Literal(literal) => match literal {
                 Literal::Type(typ) => return Some(typ),
                 _ => return None,
             },
@@ -58,7 +77,7 @@ impl Expression {
 
     fn integer(&self) -> Option<i128> {
         let literal = match self {
-            Expression::Literal(literal) => literal,
+            ExpressionKind::Literal(literal) => literal,
             _ => return None,
         };
 
@@ -73,9 +92,9 @@ impl Expression {
         self.integer().is_some()
     }
     
-    pub fn identifier(&self) -> Option<Ident> {
+    pub fn identifier(&self) -> Option<String> {
         match self {
-            Expression::Ident(x) => Some(Ident(x.clone())),
+            ExpressionKind::Ident(x) => Some(x.clone()),
             _=> None
         }
     }
@@ -272,7 +291,7 @@ impl NoirPath {
             NoirPath::Current => return string,
             NoirPath::External(path) => {
                 for ns in path.iter() {
-                    string.push_str(&ns.0);
+                    string.push_str(&ns.0.contents);
                     string.push_str("::");
                 }
                 // Remove last `::`
