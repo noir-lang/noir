@@ -1,0 +1,13 @@
+[package]
+name = "noirc_driver"
+version = "0.1.0"
+authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+noirc_errors = {path = "../noirc_errors"}
+noirc_frontend = {path = "../noirc_frontend"}
+noir_evaluator = {path = "../noir_evaluator"}
+acir = {path = "../acir"}
