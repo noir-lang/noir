@@ -183,6 +183,18 @@ pub enum TokenKind {
     Attribute,
 }
 
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TokenKind::Token(ref tok) =>write!(f, "{}", tok),
+            TokenKind::Ident => write!(f, "identifier"),
+            TokenKind::Literal => write!(f, "literal"),
+            TokenKind::Keyword => write!(f, "keyword"),
+            TokenKind::Attribute => write!(f, "attribute"),
+        }
+    }
+}
+
 impl Token {
 
     pub fn to_string(&self) -> String {
@@ -232,7 +244,7 @@ impl Token {
       self.into_span(position, position)
     }
     pub(super) fn into_span(self,start: Position,end: Position) -> SpannedToken {
-        SpannedToken(Spanned::from(start, end, self))
+        SpannedToken(Spanned::from_position(start, end, self))
     }
 
 }

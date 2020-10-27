@@ -17,15 +17,15 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(file_id : usize, source: &'a str) -> Self {
         Lexer {
             char_iter: source.chars().peekable(),
-            position : Position::default(),
+            position : Position::default_from(file_id),
         }
     }
-    pub fn from_file(source: File<'a>) -> Self {
+    pub fn from_file(file_id : usize, source: File<'a>) -> Self {
         let source_file = source.get_source();
-        Lexer::new(source_file)
+        Lexer::new(file_id, source_file)
     }
 
     // This method uses size_hint and therefore should not be trusted 100%
@@ -107,11 +107,15 @@ impl<'a> Lexer<'a> {
     }
 
     fn single_double_peek_token(&mut self, character : char, single : Token, double : Token) -> SpannedTokenResult {
-        if !self.peek_char_is(character) {
-            return Ok(single.into_single_span(self.position.mark()));
+        let start = self.position.mark();
+
+        match self.peek_char_is(character) {
+            false => return Ok(single.into_single_span(start)), 
+            true => {
+                self.next_char();
+                return Ok(double.into_span(start, start.forward()))
+            }
         }
-        self.next_char();
-        return Ok(double.into_span(self.position.mark(), self.position.mark().forward()))
     }
 
     /// Given that some tokens can contain two characters, such as <= , !=, >=
@@ -322,7 +326,7 @@ fn test_single_double_char() {
         Token::EOF,
     ];
 
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -340,7 +344,7 @@ fn test_custom_gate_syntax() {
         Token::Attribute(Attribute::Builtin("sum".to_string())),
     ];
 
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
@@ -360,7 +364,7 @@ fn test_int_type() {
         Token::Int(5.into()),
     ];
 
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
@@ -380,7 +384,7 @@ fn test_comment() {
         Token::Int(5),
     ];
 
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
     for token in expected.into_iter() {
         let first_lexer_output = lexer.next_token().unwrap();
         assert_eq!(first_lexer_output, token);
@@ -398,7 +402,7 @@ fn test_eat_string_literal() {
         Token::Assign,
         Token::Str("hello".to_string()),
     ];
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -441,10 +445,11 @@ fn test_span() {
         assign_token,
         int_token,
     ];
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
 
     for spanned_token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
+        assert_eq!(got.into_span(),spanned_token.into_span());
         assert_eq!(got,spanned_token);
     }
 }
@@ -503,7 +508,7 @@ fn test_basic_language_syntax() {
         Token::Semicolon,
         Token::EOF,
     ];
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new(0,input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
