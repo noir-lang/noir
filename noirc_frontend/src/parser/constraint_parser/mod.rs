@@ -25,26 +25,30 @@ fn disallowed_operators() -> Vec<BinaryOp> {
 impl ConstraintParser {
     // Since == is an infix operator
     // The pratt parser will do most of the job, we just need to check that everything was correct
-    pub(crate) fn parse_constrain_statement(parser: &mut Parser) -> ConstrainStatement {
+    pub(crate) fn parse_constrain_statement(parser: &mut Parser) -> Result<ConstrainStatement, ParserError> {
         parser.advance_tokens();
-
-        let expr = parser.parse_expression(Precedence::Lowest).unwrap();
+        
+        let expr = parser.parse_expression(Precedence::Lowest)?;
         // XXX: We do this so that the first == sign in the constraint statement is not seen as a predicate
-        let infix = match expr.infix() {
+        let infix = match expr.kind.infix() {
             Some(infix) => infix,
-            None => panic!("Expected an infix expression since this is a constrain statement. You cannot assign values"),
+            None => {
+                let message = format!("Expected an infix expression since this is a constrain statement. You cannot assign values");
+                return Err(ParserError::UnstructuredError{message, span: expr.span})
+            },
         };
         if infix.operator == BinaryOp::Assign {
-            panic!("Cannot use '=' with a constrain statement")
+            // XXX: We need to add span to BinaryOps, currently we use the span of the expression
+            let message = format!("Cannot use '=' with a constrain statement");
+            return Err(ParserError::UnstructuredError{message, span: expr.span})
         }
-
+        
         if disallowed_operators().contains(&infix.operator) {
-            panic!(
-                "Cannot use the {:?} operator in a constraint statement.",
-                &infix.operator
-            )
+            let message = format!("Cannot use the {:?} operator in a constraint statement.",&infix.operator);
+            return Err(ParserError::UnstructuredError{message, span: expr.span})
         }
-        ConstrainStatement(infix)
+        
+        Ok(ConstrainStatement(infix))
         
     }
 }
