@@ -3,41 +3,32 @@ use super::*;
 pub struct ForParser;
 
 impl ForParser {
-    pub fn parse(parser: &mut Parser) -> ParserExprResult { 
-        if !parser.peek_check_kind_advance(TokenKind::Ident) {
-            panic!("Expected an identifier after the For keyword")
-        }   
+    pub fn parse(parser: &mut Parser) -> ParserExprKindResult { 
+        parser.peek_check_kind_advance(TokenKind::Ident)?; 
+        let spanned_identifier : Ident = parser.curr_token.clone().into();
 
-        let identifier = parser.curr_token.token().to_string();
-
-        if !parser.peek_check_variant_advance(&Token::Keyword(Keyword::In)) {
-            panic!("Expected the keyword `In` after the Identifier {}", &identifier)
-        }
+        parser.peek_check_variant_advance(&Token::Keyword(Keyword::In))?;
         parser.advance_tokens(); // in
-        
+
         // Parse range
-        let start_range = parser.parse_expression(Precedence::Lowest).unwrap();
-        if !parser.peek_check_variant_advance(&Token::DoubleDot) {
-            panic!("Expected a `..` after the start range in for loop ")
-        }
+        let start_range = parser.parse_expression(Precedence::Lowest)?;
+        parser.peek_check_variant_advance(&Token::DoubleDot)?;
         parser.advance_tokens(); // ..
-        let end_range = parser.parse_expression(Precedence::Lowest).unwrap();
+        let end_range = parser.parse_expression(Precedence::Lowest)?;
         
-        if !parser.peek_check_variant_advance(&Token::LeftBrace) {
-            panic!("Expected a Left Brace after the range statement")
-        };
+        parser.peek_check_variant_advance(&Token::LeftBrace)?;
 
         // Parse body
         let block = parser.parse_block_statement()?;
 
         let for_expr = ForExpression {
-            identifier: identifier.into(),
+            identifier: spanned_identifier,
             start_range,
             end_range,
             block,
         };
 
-        Ok(Expression::For(Box::new(for_expr)))
+        Ok(ExpressionKind::For(Box::new(for_expr)))
 
     }
 }

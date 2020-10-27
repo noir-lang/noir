@@ -4,114 +4,129 @@ use super::*;
 // lets us know that we are declaring a variable 'let', 'priv','const', 'pub'
 // They follow the same structure
 
+struct GenericDeclStructure {
+    identifier : Ident,
+    typ: Option<Type>,
+    rhs : Expression,
+}
+
+
 pub struct DeclarationParser;
 
 impl DeclarationParser {
     /// Parses a declaration statement. The token parameter determines what type of statement will be parsed
-    pub fn parse_declaration_statement(parser: &mut Parser, token: &Token) -> Statement {
-        match token.to_declaration_keyword() {
+    /// XXX: We can make this better,  by separating the keyword variants from the declaration variants(embedded)
+    pub fn parse_declaration_statement(parser: &mut Parser) -> Result<Statement, ParserError> {
+        match parser.curr_token.token().to_declaration_keyword() {
             Keyword::Let=> {
-                Statement::Let(parse_let_statement(parser))
+                Ok(Statement::Let(parse_let_statement(parser)?))
             },
              Keyword::Const =>{
-                 Statement::Const(parse_const_statement(parser))
+                 Ok(Statement::Const(parse_const_statement(parser)?))
              },
             Keyword::Pub=>{
-                  Statement::Public(parse_public_statement(parser))
+                  Ok(Statement::Public(parse_public_statement(parser)?))
             }, 
             Keyword::Private => {
-                  Statement::Private(parse_private_statement(parser))
+                  Ok(Statement::Private(parse_private_statement(parser)?))
             }
-            kw=> panic!("Bug : All declaration keywords should have a method to parse their structure, the keyword {} does not", kw)
+            kw => {
+                let message = format!("All declaration keywords should have a method to parser their structure, the keyword {} does not have this", kw);
+                return Err(ParserError::InternalError{message, span : parser.curr_token.into_span() });
+            }
         }
     }
 }
 
-fn parse_generic_decl_statement(parser: &mut Parser) -> (Ident, Option<Type>, Expression) {
+fn parse_generic_decl_statement(parser: &mut Parser) -> Result<GenericDeclStructure, ParserError> {
     // Expect an identifier
-    assert!(parser.peek_token.kind() == TokenKind::Ident);
-    if !parser.peek_check_kind_advance(TokenKind::Ident) {
-        panic!("expected an identifier");
-    };
-    let name = parser.curr_token.token().to_string();
-
+    parser.peek_check_kind_advance(TokenKind::Ident)?;
+    let spanned_name : Ident = parser.curr_token.clone().into();
+    
     let mut typ = None;
-
+    
     // Check for colon
-    if parser.peek_check_variant_advance(&Token::Colon) {
+    if parser.peek_token == Token::Colon {
         parser.advance_tokens();
-
+        parser.advance_tokens();
+        
         // Parse the type
-        typ = Some(parser.parse_type());
+        typ = Some(parser.parse_type()?);
     };
-
+    
     // Expect an assign
-    if !parser.peek_check_variant_advance(&Token::Assign) {
-        panic!("expected an assign token")
-    };
+    parser.peek_check_variant_advance(&Token::Assign)?;
 
     parser.advance_tokens(); // Skip the assign
 
-    let expr = parser.parse_expression(Precedence::Lowest).unwrap();
+    let expr = parser.parse_expression(Precedence::Lowest)?;
 
     if parser.peek_token == Token::Semicolon {
         parser.advance_tokens();
     }
 
-    (name.into(), typ, expr)
+    Ok(GenericDeclStructure {
+        identifier : spanned_name,
+        typ,
+        rhs : expr
+    })
 }
 
-pub(crate) fn parse_let_statement(parser: &mut Parser) -> LetStatement {
-    let (name, typ, expr) = parse_generic_decl_statement(parser);
+pub(crate) fn parse_let_statement(parser: &mut Parser) -> Result<LetStatement, ParserError> {
+    let generic_stmt = parse_generic_decl_statement(parser)?;
 
     let stmt = LetStatement {
-        identifier: name,
-        r#type: typ.unwrap_or(Type::Unspecified), //XXX: Haven't implemented this yet for general structs, we only parse arrays using this
-        expression: expr,
+        identifier: generic_stmt.identifier,
+        r#type: generic_stmt.typ.unwrap_or(Type::Unspecified), //XXX: Haven't implemented this yet for general structs, we only parse arrays using this
+        expression: generic_stmt.rhs,
     };
-    stmt
+    Ok(stmt)
 }
-pub(crate) fn parse_const_statement(parser: &mut Parser) -> ConstStatement {
-    let (name, typ, expr) = parse_generic_decl_statement(parser);
+pub(crate) fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserError> {
+    let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a const statement, it can only be a Field element/Constant
-    match typ {
-        Some(declared_typ) => assert_eq!(declared_typ , Type::Constant, "Const statements can only have constant type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Constant ",declared_typ),
-        None => {}
-    };
-
+    if let Some(declared_type) = generic_stmt.typ {
+        if declared_type != Type::Constant {
+            let message = format!("Const statements can only have constant type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Constant ",declared_type);
+            return Err(ParserError::UnstructuredError{message, span : Span::default()}) // XXX: We don't have spanning for types yet
+        }
+    }
+    
     let stmt = ConstStatement {
-        identifier: name,
+        identifier: generic_stmt.identifier,
         r#type: Type::Constant,
-        expression: expr,
+        expression: generic_stmt.rhs,
     };
-    stmt
+    Ok(stmt)
 }
-pub(crate) fn parse_private_statement(parser: &mut Parser) -> PrivateStatement {
-    let (name, typ, expr) = parse_generic_decl_statement(parser);
+pub(crate) fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, ParserError> {
+    let generic_stmt = parse_generic_decl_statement(parser)?;
 
     let stmt = PrivateStatement {
-        identifier: name,
-        r#type: typ.unwrap_or(Type::Unspecified),
-        expression: expr,
+        identifier: generic_stmt.identifier,
+        r#type: generic_stmt.typ.unwrap_or(Type::Unspecified),
+        expression: generic_stmt.rhs,
     };
-    stmt
+    Ok(stmt)
 }
 // XXX: We most likely will deprecate a Public statement, as users will not be able to
-pub(crate) fn parse_public_statement(parser: &mut Parser) -> PublicStatement {
-    let (name, typ, expr) = parse_generic_decl_statement(parser);
+pub(crate) fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatement, ParserError> {
+    let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a const statement, it can only be Public for now.
     //XXX: Still TBD, if we will remove public statements, and only allow public inputs to be supplied via main
-    match typ {
-            Some(declared_typ) => assert_eq!(declared_typ , Type::Public, "Public statements can only have public type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Public ",declared_typ),
-            None => {}
-        };
+        if let Some(declared_type) = generic_stmt.typ {
+            if declared_type != Type::Public {
+                let message = format!("Public statements can only have public type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Public ",declared_type);
+                return Err(ParserError::UnstructuredError{message, span : Span::default()}) // XXX: We don't have spanning for types yet
+            }
+        }
 
     let stmt = PublicStatement {
-        identifier: name,
+        identifier: generic_stmt.identifier,
         r#type: Type::Public,
-        expression: expr,
+        expression: generic_stmt.rhs,
     };
-    stmt
+    Ok(stmt)
 }

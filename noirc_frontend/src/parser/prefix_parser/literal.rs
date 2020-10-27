@@ -6,13 +6,15 @@ pub struct LiteralParser;
 
 impl LiteralParser {
     /// Parses a Literal token
-    pub fn parse(parser: &mut Parser) -> ParserExprResult {
+    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
        let expr =  match parser.curr_token.clone().into() {
-            Token::Int(x) => Expression::Literal(Literal::Integer(x)),
-            Token::Str(x) => Expression::Literal(Literal::Str(x)),
-            Token::Bool(x) => Expression::Literal(Literal::Bool(x)),
-            Token::IntType(x) => Expression::Literal(Literal::Type(Type::from(&x))),
-            x => panic!("expected a literal token, but found {}", x.to_string()),
+            Token::Int(x) => ExpressionKind::Literal(Literal::Integer(x)),
+            Token::Str(x) => ExpressionKind::Literal(Literal::Str(x)),
+            Token::Bool(x) => ExpressionKind::Literal(Literal::Bool(x)),
+            Token::IntType(x) => ExpressionKind::Literal(Literal::Type(Type::from(&x))),
+            x => {
+                return Err(ParserError::UnexpectedTokenKind{span : parser.curr_token.into_span(), expected : TokenKind::Literal,found : x.kind() })
+            },
         };
         Ok(expr)
     }

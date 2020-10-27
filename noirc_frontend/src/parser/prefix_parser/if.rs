@@ -4,28 +4,20 @@ pub struct IfParser;
 
 impl IfParser {
     pub fn parse_if_statement(parser: &mut Parser) -> Result<Box<IfStatement>, ParserError> {
-        if !parser.peek_check_variant_advance(&Token::LeftParen) {
-            panic!("Expected a Left parenthesis")
-        };
+        parser.peek_check_variant_advance(&Token::LeftParen)?;
         parser.advance_tokens();
-        let condition = parser.parse_expression(Precedence::Lowest).unwrap();
+        let condition = parser.parse_expression(Precedence::Lowest)?;
 
-        if !parser.peek_check_variant_advance(&Token::RightParen) {
-            panic!("Expected a Right parenthesis")
-        };
+        parser.peek_check_variant_advance(&Token::RightParen)?;
 
-        if !parser.peek_check_variant_advance(&Token::LeftBrace) {
-            panic!("Expected a Left Brace")
-        };
+        parser.peek_check_variant_advance(&Token::LeftBrace)?;
         let consequence = parser.parse_block_statement()?;
 
         let mut alternative: Option<BlockStatement> = None;
         if parser.peek_token == Token::Keyword(Keyword::Else) {
             parser.advance_tokens();
 
-            if !parser.peek_check_variant_advance(&Token::LeftBrace) {
-                panic!("Expected a Left Brace")
-            };
+            parser.peek_check_variant_advance(&Token::LeftBrace)?;
 
             alternative = Some(parser.parse_block_statement()?);
         }
