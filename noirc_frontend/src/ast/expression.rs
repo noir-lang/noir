@@ -15,10 +15,18 @@ pub enum ExpressionKind {
     For(Box<ForExpression>)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind : ExpressionKind,
     pub span : Span,
+}
+
+// This is important for tests. Two expressions are the same, iff their Kind is the same
+// We are ignoring Span
+impl PartialEq<Expression> for Expression {
+    fn eq(&self, rhs: &Expression) -> bool {
+        self.kind == rhs.kind
+    }
 }
 
 impl Expression {
