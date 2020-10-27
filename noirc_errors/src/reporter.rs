@@ -9,7 +9,8 @@ use codespan::{Span as ByteSpan};
 
 pub struct FileMap(SimpleFiles<String, String>);
 
-pub struct FileID(usize);
+#[derive(Copy, Clone)]
+pub struct FileID(pub usize);
 
 pub struct File<'input>(&'input SimpleFile<String, String>);
 
@@ -45,12 +46,29 @@ pub struct CustomDiagnostic {
     pub span : Span,
 }
 
-pub struct Reporter<'input> {
-    file_map : &'input FileMap,
-    diagnostics : Vec<CustomDiagnostic>
-}
+pub struct Reporter;
 
-#[test]
-fn test_reporting() {
-    // unimplemented!();
+impl Reporter {
+    pub fn with_diagnostics(file_id : FileID, files : &FileMap, diagnostics : &Vec<CustomDiagnostic>) {       
+        // Convert each Custom Diagnostic into a diagnostic
+        let diagnostics : Vec<_> = diagnostics.into_iter().map(|cd| {
+
+            let start_span = cd.span.start.to_byte_index().to_usize();
+            let end_span = cd.span.end.to_byte_index().to_usize() + 1;
+            
+            Diagnostic::error()
+                // .with_code("E01")
+                .with_labels(vec![
+        Label::secondary(file_id.0, start_span..end_span).with_message(&cd.message),
+        ])
+        
+        }).collect();
+
+        let writer = StandardStream::stderr(ColorChoice::Always);
+        let config = codespan_reporting::term::Config::default();
+
+        for diagnostic in diagnostics {
+            term::emit(&mut writer.lock(), &config, &files.0, &diagnostic).unwrap();
+        }
+}
 }
