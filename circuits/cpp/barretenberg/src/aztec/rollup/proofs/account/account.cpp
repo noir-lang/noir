@@ -1,5 +1,6 @@
 #include "account.hpp"
 #include "../notes/account_note.hpp"
+#include "../notes/note_generator_indices.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
@@ -47,11 +48,13 @@ field_ct process_account_note(Composer& composer,
 field_ct compute_alias_nullifier(Composer& composer, field_ct const& alias, bool register_alias_)
 {
     const bool_ct register_alias = bool_ct(witness_ct(&composer, register_alias_));
-    const uint8_ct prefix = (field_ct(witness_ct(&composer, (uint8_t)notes::ALIAS)) * register_alias) +
+    const field_ct prefix = (field_ct(witness_ct(&composer, (uint8_t)notes::ALIAS)) * register_alias) +
                             (field_ct(witness_ct(&composer, (uint8_t)notes::GIBBERISH)) * !register_alias);
-    const byte_array_ct alias_preimage = byte_array_ct(&composer).write(byte_array_ct(prefix)).write(alias);
-    const auto alias_nullifier = field_ct(stdlib::blake2s(alias_preimage));
-    return alias_nullifier;
+    const std::vector<field_ct> hash_elements{
+        prefix,
+        alias,  
+    };
+    return pedersen::compress(hash_elements, true, notes::ALIAS_NULLIFIER_INDEX);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)

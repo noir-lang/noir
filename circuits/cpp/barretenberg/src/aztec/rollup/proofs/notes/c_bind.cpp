@@ -6,6 +6,7 @@
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <plonk/reference_string/pippenger_reference_string.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
+#include <crypto/pedersen/pedersen.hpp>
 #include <sstream>
 
 using namespace barretenberg;
@@ -32,7 +33,7 @@ WASM_EXPORT void notes__sign_4_notes(uint8_t* pk_buffer,
 WASM_EXPORT void notes__encrypt_note(uint8_t const* note_buffer, uint8_t* output)
 {
     tx_note note = from_buffer<tx_note>(note_buffer);
-    auto encrypted = encrypt_note(note);
+    auto encrypted = note.encrypt_note();
     write(output, encrypted);
 }
 
@@ -56,4 +57,5 @@ WASM_EXPORT bool notes__decrypt_note(uint8_t const* encrypted_note_buf,
     write(output, result);
     return success;
 }
+
 }

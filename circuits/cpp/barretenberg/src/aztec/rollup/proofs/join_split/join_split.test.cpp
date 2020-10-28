@@ -71,10 +71,10 @@ class join_split_tests : public ::testing::Test {
         tx_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
         tx_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
 
-        auto enc_note1 = encrypt_note(note1);
+        auto enc_note1 = note1.encrypt_note();
         tree->update_element(tree->size(), create_leaf_data(enc_note1));
 
-        auto enc_note2 = encrypt_note(note2);
+        auto enc_note2 = note2.encrypt_note();
         tree->update_element(tree->size(), create_leaf_data(enc_note2));
     }
 
@@ -161,7 +161,6 @@ class join_split_tests : public ::testing::Test {
 
         Composer composer(get_proving_key(), nullptr);
         join_split_circuit(composer, tx);
-
         return !composer.failed;
     }
 

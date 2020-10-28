@@ -4,6 +4,7 @@
 #include "escape_hatch_circuit.hpp"
 #include "escape_hatch_tx.hpp"
 #include "../notes/sign_notes.hpp"
+#include "../notes/note_generator_indices.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -41,10 +42,10 @@ class escape_hatch_tests : public ::testing::Test {
         tx_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
         tx_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
 
-        auto enc_note1 = encrypt_note(note1);
+        auto enc_note1 = note1.encrypt_note();
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
 
-        auto enc_note2 = encrypt_note(note2);
+        auto enc_note2 = note2.encrypt_note();
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
     }
 
@@ -90,38 +91,12 @@ class escape_hatch_tests : public ::testing::Test {
         return buf;
     }
 
-    uint128_t create_nullifier(tx_note note, uint32_t index)
-    {
-        grumpkin::g1::affine_element enc_note = encrypt_note(note);
-        std::vector<uint8_t> buf;
-        write(buf, enc_note.x);
-        write(buf, index);
-        auto vk_buf = to_buffer(note.secret);
-
-        std::array<uint8_t, 28> vk_slice;
-        std::copy(vk_buf.begin() + 4, vk_buf.end(), vk_slice.begin());
-        write(buf, vk_slice);
-        buf[63] |= 1;
-
-        auto result = from_buffer<fr>(blake2::blake2s(buf));
-        auto nullifier = uint128_t(result);
-        return nullifier;
-    }
-
     escape_hatch_tx simple_setup()
     {
         preload_account_notes();
         preload_value_notes();
         update_root_tree_with_data_root(1);
         return create_escape_hatch_tx({ 2, 3 }, 0);
-    }
-
-    uint128_t create_account_nullifier(grumpkin::g1::affine_element const& owner_key,
-                                       grumpkin::g1::affine_element const& signing_key)
-    {
-        auto data = create_account_leaf_data(owner_key, signing_key);
-        auto nullifier = merkle_tree::hash_value_native(data);
-        return uint128_t(nullifier);
     }
 
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies, uint32_t account_index)
@@ -157,8 +132,8 @@ class escape_hatch_tests : public ::testing::Test {
         tx.rollup_id = static_cast<uint32_t>(data_tree.size() / 2 - 1);
         tx.data_start_index = static_cast<uint32_t>(data_tree.size());
         tx.old_data_path = data_tree.get_hash_path(tx.data_start_index);
-        auto enc_note1 = encrypt_note(tx.js_tx.output_note[0]);
-        auto enc_note2 = encrypt_note(tx.js_tx.output_note[1]);
+        auto enc_note1 = tx.js_tx.output_note[0].encrypt_note();
+        auto enc_note2 = tx.js_tx.output_note[1].encrypt_note();
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
         tx.new_data_root = data_tree.root();
@@ -172,13 +147,16 @@ class escape_hatch_tests : public ::testing::Test {
         tx.new_data_roots_root = root_tree.root();
         tx.new_data_roots_path = root_tree.get_hash_path(root_tree_index);
 
-        uint128_t nullifier1 = create_nullifier(tx.js_tx.input_note[0], uint32_t(tx.js_tx.input_index[0]));
-        uint128_t nullifier2 = create_nullifier(tx.js_tx.input_note[1], uint32_t(tx.js_tx.input_index[1]));
+        uint128_t nullifier1 = tx.js_tx.input_note[0].compute_nullifier(uint32_t(tx.js_tx.input_index[0]), true);
+        uint128_t nullifier2 = tx.js_tx.input_note[1].compute_nullifier(uint32_t(tx.js_tx.input_index[1]), true);
 
         auto nullifier_value = std::vector<uint8_t>(64, 0);
         nullifier_value[63] = 1;
 
-        uint128_t account_nullifier = create_account_nullifier(user.owner.public_key, user.signing_keys[0].public_key);
+        uint128_t account_nullifier = tx_account_note({
+            user.owner.public_key,
+            user.signing_keys[0].public_key,
+        }).compute_nullifier();
         tx.account_null_path = null_tree.get_hash_path(account_nullifier);
 
         tx.old_null_root = null_tree.root();

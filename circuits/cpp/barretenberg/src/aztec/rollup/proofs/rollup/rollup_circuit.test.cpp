@@ -7,6 +7,7 @@
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
 #include "../notes/sign_notes.hpp"
+#include "../notes/note_generator_indices.hpp"
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include "../inner_proof_data.hpp"
@@ -52,7 +53,7 @@ class rollup_tests : public ::testing::Test {
     uint32_t append_note(uint32_t value)
     {
         tx_note note = { user.owner.public_key, value, user.note_secret, 0 };
-        auto enc_note = encrypt_note(note);
+        auto enc_note = note.encrypt_note();
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
         data_tree.update_element(index, leaf_data);
@@ -85,8 +86,12 @@ class rollup_tests : public ::testing::Test {
 
     void nullify_account(grumpkin::g1::affine_element const& owner_key, grumpkin::g1::affine_element const& signing_key)
     {
-        auto data = create_account_leaf_data(owner_key, signing_key);
-        auto nullifier = merkle_tree::hash_value_native(data);
+        std::vector<fr> hash_elements{
+            owner_key.x,
+            signing_key.x,
+        };
+        auto nullifier = crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_NULLIFIER_INDEX);
+
         null_tree.update_element(uint128_t(nullifier), { 1 });
     }
 

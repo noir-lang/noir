@@ -23,7 +23,7 @@ template <typename ComposerContext> class pedersen {
                             const field_t& right,
                             const size_t hash_index = 0,
                             const bool handle_edge_cases = false);
-    static field_t compress(const std::vector<field_t>& inputs, const bool handle_edge_cases = false);
+    static field_t compress(const std::vector<field_t>& inputs, const bool handle_edge_cases = false, const size_t hash_index = 0);
     template <size_t T>
     static field_t compress(const std::array<field_t, T>& inputs, const bool handle_edge_cases = true)
     {
@@ -31,6 +31,7 @@ template <typename ComposerContext> class pedersen {
         return compress(in, handle_edge_cases);
     }
     static byte_array compress(const byte_array& inputs);
+
     static point compress_to_point(const field_t& left, const field_t& right, const size_t hash_index = 0);
 
     static point encrypt(const std::vector<field_t>& inputs,

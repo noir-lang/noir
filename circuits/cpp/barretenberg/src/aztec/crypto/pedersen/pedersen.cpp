@@ -237,12 +237,12 @@ grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inp
     return r.is_point_at_infinity() ? grumpkin::g1::affine_element(0, 0) : grumpkin::g1::affine_element(r);
 }
 
-grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
 {
-    return encrypt_native(inputs).x;
+    return encrypt_native(inputs, hash_index).x;
 }
 
-std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)
+grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)
 {
     const size_t num_bytes = input.size();
     const size_t bytes_per_element = 31;
@@ -270,8 +270,24 @@ std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)
     }
 
     grumpkin::fq result_fq = compress_native(elements);
-    uint256_t result_u256(result_fq);
+    return result_fq;
+}
 
+std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)
+{
+    const auto result_fq = compress_native_buffer_to_field(input);
+    uint256_t result_u256(result_fq);
+    const size_t num_bytes = input.size();
+
+    bool is_zero = true;
+    for (const auto byte : input)
+    {
+        is_zero = is_zero && (byte == static_cast<uint8_t>(0));
+    }
+    if (is_zero)
+    {
+        result_u256 = num_bytes;
+    }
     std::vector<uint8_t> result_buffer;
     result_buffer.reserve(32);
     for (size_t i = 0; i < 32; ++i) {

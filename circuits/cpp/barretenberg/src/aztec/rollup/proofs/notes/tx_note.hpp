@@ -1,6 +1,9 @@
 #pragma once
 #include <common/serialize.hpp>
+#include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "./note_types.hpp"
+#include "./note_generator_indices.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -13,9 +16,24 @@ struct tx_note {
     uint256_t value;
     barretenberg::fr secret;
     uint32_t asset_id;
+    grumpkin::g1::affine_element encrypt_note() const;
+    uint128_t compute_nullifier(const uint32_t tree_index, const bool is_real_note) const;
 };
 
-grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext);
+struct tx_account_note {
+    grumpkin::g1::affine_element owner_key;
+    grumpkin::g1::affine_element signing_key;
+
+    uint128_t compute_nullifier() {
+        std::vector<barretenberg::fr> hash_elements {
+            owner_key.x,
+            signing_key.x,
+        };
+        const auto result = crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_NULLIFIER_INDEX);
+        return uint128_t(uint256_t(result));
+    }
+};
+
 bool decrypt_note(grumpkin::g1::affine_element const& encrypted_note,
                   grumpkin::fr const& private_key,
                   fr const& viewing_key,

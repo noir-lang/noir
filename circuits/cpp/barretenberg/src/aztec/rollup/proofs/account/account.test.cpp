@@ -3,6 +3,7 @@
 #include "account.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/note_types.hpp"
+#include "../notes/note_generator_indices.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -58,16 +59,21 @@ class account_tests : public ::testing::Test {
     uint256_t compute_account_nullifier(grumpkin::g1::affine_element const& owner_key,
                                         grumpkin::g1::affine_element const& signing_key)
     {
-        auto result = from_buffer<fr>(blake2::blake2s(create_account_leaf_data(owner_key, signing_key)));
+        std::vector<fr> hash_elements{
+            owner_key.x,
+            signing_key.x,
+        };
+        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_NULLIFIER_INDEX);
         return uint256_t(result);
     }
 
     uint256_t compute_alias_nullifier(fr const& alias, bool register_alias)
     {
-        std::vector<uint8_t> buf;
-        write(buf, (uint8_t)(register_alias ? notes::ALIAS : notes::GIBBERISH));
-        write(buf, alias);
-        auto result = from_buffer<fr>(blake2::blake2s(buf));
+        std::vector<fr> hash_elements{
+            register_alias ? fr(notes::ALIAS) : fr(notes::GIBBERISH),
+            alias,
+        };
+        auto result = crypto::pedersen::compress_native(hash_elements, notes::ALIAS_NULLIFIER_INDEX);
         return uint256_t(result);
     }
 

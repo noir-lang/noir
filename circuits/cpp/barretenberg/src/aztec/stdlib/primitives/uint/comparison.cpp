@@ -11,62 +11,26 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
 {
     Composer* ctx = (context == nullptr) ? other.context : context;
 
-    // we need to gaurantee that these values are 32 bits
-    if (!is_constant() && witness_status != WitnessStatus::OK) {
-        normalize();
+    field_t<Composer> a(*this);
+    field_t<Composer> b(other);
+    bool result_witness = uint256_t(a.get_value()) > uint256_t(b.get_value());
+
+    if (is_constant() && other.is_constant())
+    {
+        return bool_t<Composer>(ctx, result_witness);
     }
-    if (!other.is_constant() && other.witness_status != WitnessStatus::OK) {
-        other.normalize();
-    }
+
+    const bool_t<Composer> result = witness_t<Composer>(ctx, result_witness);
 
     /**
      * if (a > b), then (a - b - 1) will be in the range [0, 2**{width}]
      * if !(a > b), then (b - a) will be in the range [0, 2**{width}]
-     * if (a > b) = c and (a - b) = d, then this means that the following identity should always hold:
-     *
-     *          (d - 1).c - d.(1 - c) = 0
-     *
+     * i.e. (a - b - 1)result + (b - a)(1 - result) should be positive
      **/
-    const uint256_t lhs = get_value();
-    const uint256_t rhs = other.get_value();
+    const auto diff = a - b;
+    const auto comparison_check = diff.madd(field_t<Composer>(result) * 2 - field_t<Composer>(1), -field_t<Composer>(result));
 
-    if (is_constant() && other.is_constant()) {
-        return bool_t<Composer>(ctx, lhs > rhs);
-    }
-
-    const fr a = lhs;
-    const fr b = rhs;
-    const fr diff = a - b;
-
-    const uint32_t lhs_idx = is_constant() ? ctx->zero_idx : witness_index;
-    const uint32_t rhs_idx = other.is_constant() ? ctx->zero_idx : other.witness_index;
-    const uint32_t diff_idx = ctx->add_variable(diff);
-
-    const waffle::add_triple gate_a{ lhs_idx,
-                                     rhs_idx,
-                                     diff_idx,
-                                     fr::one(),
-                                     fr::neg_one(),
-                                     fr::neg_one(),
-                                     (additive_constant - other.additive_constant) };
-
-    ctx->create_add_gate(gate_a);
-
-    const uint256_t delta = lhs > rhs ? lhs - rhs - 1 : rhs - lhs;
-
-    const bool_t<Composer> result = witness_t(ctx, lhs > rhs);
-
-    const waffle::mul_quad gate_b{ diff_idx,
-                                   result.witness_index,
-                                   ctx->add_variable(delta),
-                                   ctx->zero_idx,
-                                   -fr(2),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::one(),
-                                   fr::zero(),
-                                   fr::zero() };
-    ctx->create_big_mul_gate(gate_b);
+    ctx->create_range_constraint(comparison_check.witness_index, width);
 
     return result;
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
+#include <stdlib/hash/pedersen/pedersen.hpp>
 #include "note_types.hpp"
+#include "note_generator_indices.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -39,7 +41,12 @@ struct account_note {
         if (!nullifier_.get_value().is_zero()) {
             return nullifier_;
         }
-        return nullifier_ = field_ct(stdlib::blake2s(leaf_data()));
+        std::vector<field_ct> leaf_elements{
+            owner_pub_key_.x,
+            signing_pub_key_.x,
+        };
+        nullifier_ = pedersen::compress(leaf_elements, true, ACCOUNT_NULLIFIER_INDEX);
+        return nullifier_;
     }
 
     void set_public() const

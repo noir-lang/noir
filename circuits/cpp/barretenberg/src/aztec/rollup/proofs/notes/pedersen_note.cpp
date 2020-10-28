@@ -1,6 +1,7 @@
 #include "pedersen_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
+#include "./note_generator_indices.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -169,7 +170,7 @@ note_triple conditionally_hash_and_accumulate(Composer* context, const note_trip
     field_ct rhs = scalar * (field_ct(1) - field_ct(is_zero));
     lhs.normalize();
     rhs.normalize();
-    context->assert_equal(lhs.witness_index, rhs.witness_index);
+    context->assert_equal(lhs.witness_index, rhs.witness_index, "conditional hash and accumulate assert equal failure");
 
     // If scalar = 0 we want to return accumulator, as g^{0} = 1
     // If scalar != 0, we want to return accumulator + p_1
@@ -198,14 +199,30 @@ public_note encrypt_note(const private_note& plaintext)
 {
     Composer* context = plaintext.value.get_context();
 
-    note_triple accumulator = fixed_base_scalar_mul<250>(plaintext.secret, 1);
-    context->assert_equal(accumulator.scalar.witness_index, plaintext.secret.witness_index);
-    accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(context, accumulator, plaintext.value, 0);
-    accumulator = conditionally_hash_and_accumulate<32>(context, accumulator, plaintext.asset_id, 2);
-    accumulator = accumulate(accumulator, pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y, 3));
+    note_triple accumulator = fixed_base_scalar_mul<250>(plaintext.secret, TX_NOTE_HASH_INDEX + 1);
+    context->assert_equal(accumulator.scalar.witness_index, plaintext.secret.witness_index, "pedersen_note::encrypt_note assert equal fail");
+    accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(context, accumulator, plaintext.value, TX_NOTE_HASH_INDEX);
+    accumulator = conditionally_hash_and_accumulate<32>(context, accumulator, plaintext.asset_id, TX_NOTE_HASH_INDEX + 2);
+    accumulator = accumulate(accumulator, pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y, TX_NOTE_HASH_INDEX + 3));
 
     public_note ciphertext{ accumulator.base };
     return ciphertext;
+}
+
+field_ct compute_nullifier(const private_note& plaintext, const public_note& ciphertext, const field_ct& tree_index, const bool_ct& is_real_note)
+{
+    // modified_index = tree_index plus a modifier to indicate whether the note is a real note or a virtual note (i.e. value 0 and not a member of the tree)
+    // For virtual notes, we set the 65'th bit of modified_index to be true (this cannot overlap with tree index, which we range constrain to be 32 bits)
+    barretenberg::fr shift = uint256_t(1) << 64;
+    field_ct modified_index = (tree_index + (static_cast<field_ct>(is_real_note) * shift)).normalize();
+    std::vector<field_ct> hash_inputs{
+        ciphertext.ciphertext.x,
+        plaintext.secret,
+        modified_index,
+    };
+
+    const auto result = pedersen::compress(hash_inputs, true, TX_NOTE_NULLIFIER_INDEX);
+    return result;
 }
 
 template note_triple fixed_base_scalar_mul<32>(const field_ct& in, const size_t generator_index);

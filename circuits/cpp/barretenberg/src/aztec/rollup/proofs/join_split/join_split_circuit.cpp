@@ -26,7 +26,6 @@ field_ct process_input_note(Composer& composer,
 {
     byte_array_ct leaf(&composer);
     leaf.write(note.second.ciphertext.x).write(note.second.ciphertext.y);
-
     bool_ct good =
         merkle_tree::check_membership(composer, merkle_root, hash_path, leaf, byte_array_ct(index)) || !is_real;
     composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
@@ -37,15 +36,10 @@ field_ct process_input_note(Composer& composer,
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
     // tree to ensure notes will always have unique entries. The is_real flag protects against nullifing a real
     // note when the number of input notes < 2.
-    // [256 bits of encrypted note x coord][32 least sig bits of index][223 bits of note secret][1 bit is_real]
-    byte_array_ct note_hash_data = byte_array_ct(&composer);
-    note_hash_data.write(note.second.ciphertext.x)
-        .write(byte_array_ct(index).slice(28, 4))
-        .write(byte_array_ct(note.first.secret).slice(4, 28));
-    note_hash_data.set_bit(511, is_real);
-
-    // We have to convert the byte_array_ct into a field_ct to get the montgomery form. Can we avoid this?
-    field_ct nullifier_index = stdlib::merkle_tree::hash_value(note_hash_data);
+    // [256 bits of encrypted note x coord][index as field element + (is_real << 64)][223 bits of note secret][1 bit is_real]
+    // We merge `is_real` into the `index` field element to reduce the cost of the pedersen hash.
+    // As `index` is a 32-bit integer the `is_real` component will not overlap
+    field_ct nullifier_index = notes::compute_nullifier(note.first, note.second, index, is_real);
 
     return nullifier_index;
 }

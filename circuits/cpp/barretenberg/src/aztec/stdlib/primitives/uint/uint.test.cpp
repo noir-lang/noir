@@ -364,6 +364,88 @@ TEST(stdlib_uint32, test_or)
     EXPECT_EQ(result, true);
 }
 
+
+TEST(stdlib_uint32, test_gt)
+{
+    const auto run_test = [](bool lhs_constant, bool rhs_constant, int type = 0) {
+        uint32_t a_expected = 0xa3b10422;
+        uint32_t b_expected;
+        switch (type)
+        {
+            case 0: {
+                b_expected = 0xbac21343; // a < b
+                break;
+            }
+            case 1: {
+                b_expected = 0x000affe2; // a > b
+                break;
+            }
+            case 2: {
+                b_expected = 0xa3b10422; // a = b
+                break;
+            }
+            default: {
+                b_expected = 0xbac21343; // a < b
+            }
+        }
+        bool c_expected = a_expected > b_expected;
+
+        waffle::TurboComposer composer = waffle::TurboComposer();
+
+        uint32 a;
+        uint32 b;
+        if (lhs_constant)
+        {
+            a = uint32(nullptr, a_expected);
+        }
+        else
+        {
+            a = witness_t(&composer, a_expected);
+        }
+        if (rhs_constant)
+        {
+            b = uint32(nullptr, b_expected);
+        }
+        else
+        {
+            b = witness_t(&composer, b_expected);
+        }
+
+        // mix in some constant terms for good measure
+        a *= uint32(&composer, 2);
+        a += uint32(&composer, 0x00112233);
+        b *= uint32(&composer, 2);
+        b += uint32(&composer, 0x00112233);
+
+        bool_t c = a > b;
+
+        bool c_result = static_cast<bool>(c.get_value());
+        EXPECT_EQ(c_result, c_expected);
+
+        waffle::TurboProver prover = composer.create_prover();
+
+        waffle::TurboVerifier verifier = composer.create_verifier();
+
+        waffle::plonk_proof proof = prover.construct_proof();
+
+        bool result = verifier.verify_proof(proof);
+        EXPECT_EQ(result, true);
+    };
+
+    run_test(false, false, 0);
+    run_test(false, true, 0);
+    run_test(true, false, 0);
+    run_test(true, true, 0);
+    run_test(false, false, 1);
+    run_test(false, true, 1);
+    run_test(true, false, 1);
+    run_test(true, true, 1);
+    run_test(false, false, 2);
+    run_test(false, true, 2);
+    run_test(true, false, 2);
+    run_test(true, true, 2);
+}
+
 uint32_t rotate(uint32_t value, size_t rotation)
 {
     return rotation ? (value >> rotation) + (value << (32 - rotation)) : value;

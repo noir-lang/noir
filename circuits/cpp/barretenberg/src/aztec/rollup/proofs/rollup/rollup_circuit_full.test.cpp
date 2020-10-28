@@ -50,7 +50,7 @@ class rollup_full_tests : public ::testing::Test {
     uint32_t append_note(uint32_t value)
     {
         tx_note note = { user.owner.public_key, value, user.note_secret, 0 };
-        auto enc_note = encrypt_note(note);
+        auto enc_note = note.encrypt_note();
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
         data_tree.update_element(index, leaf_data);

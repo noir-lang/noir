@@ -116,7 +116,8 @@ template <typename ComposerContext> byte_array<ComposerContext>::operator field_
         if (values[i].is_constant()) {
             temp.additive_constant = values[i].get_value() ? barretenberg::fr::one() : barretenberg::fr::zero();
         } else {
-            temp.witness_index = values[i].witness_index;
+            const auto value = values[i].normalize();
+            temp.witness_index = value.witness_index;
         }
         barretenberg::fr scaling_factor_value = two.pow(static_cast<uint64_t>(bits - 1 - i));
         field_t<ComposerContext> scaling_factor(values[i].context, scaling_factor_value);

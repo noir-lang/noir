@@ -28,7 +28,7 @@ grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
                                                       const grumpkin::fq& right,
                                                       const size_t hash_index = 0);
 
-grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs);
+grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index = 0);
 
 template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, T>& inputs)
 {
@@ -36,6 +36,7 @@ template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, 
     return compress_native(converted);
 }
 
+grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input);
 std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input);
 
 template <size_t num_bits>

@@ -1,6 +1,7 @@
 #include "tx_note.hpp"
 #include "pedersen_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
+#include <numeric/uint256/uint256.hpp>
 
 using namespace barretenberg;
 
@@ -8,29 +9,41 @@ namespace rollup {
 namespace proofs {
 namespace notes {
 
-grumpkin::g1::affine_element encrypt_note(const tx_note& plaintext)
+grumpkin::g1::affine_element tx_note::encrypt_note() const
 {
-    grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(plaintext.value, 0);
-    grumpkin::g1::element p_2 = crypto::pedersen::fixed_base_scalar_mul<250>(plaintext.secret, 1);
-    grumpkin::g1::element p_4 = crypto::pedersen::fixed_base_scalar_mul<32>((uint64_t)plaintext.asset_id, 2);
+    grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(value, 0);
+    grumpkin::g1::element p_2 = crypto::pedersen::fixed_base_scalar_mul<250>(secret, 1);
+    grumpkin::g1::element p_4 = crypto::pedersen::fixed_base_scalar_mul<32>((uint64_t)asset_id, 2);
     grumpkin::g1::element sum;
-    if (plaintext.value > 0) {
+    if (value > 0) {
         sum = p_1 + p_2;
     } else {
         sum = p_2;
     }
-    if (plaintext.asset_id > 0)
+    if (asset_id > 0)
     {
         sum += p_4;
     }
     grumpkin::g1::affine_element p_3 =
-        crypto::pedersen::compress_to_point_native(plaintext.owner.x, plaintext.owner.y, 3);
+        crypto::pedersen::compress_to_point_native(owner.x, owner.y, 3);
 
     sum += p_3;
 
     sum = sum.normalize();
 
     return { sum.x, sum.y };
+}
+
+uint128_t tx_note::compute_nullifier(const uint32_t tree_index, const bool is_real_note) const
+{
+    const auto enc_note = encrypt_note();
+    std::vector<barretenberg::fr> buf{
+        enc_note.x,
+        secret,
+        barretenberg::fr(uint256_t((uint64_t)tree_index) + (uint256_t(is_real_note) << 64)),
+    };
+    uint256_t result = (crypto::pedersen::compress_native(buf, rollup::proofs::notes::TX_NOTE_NULLIFIER_INDEX));
+    return uint128_t(result);
 }
 
 /**

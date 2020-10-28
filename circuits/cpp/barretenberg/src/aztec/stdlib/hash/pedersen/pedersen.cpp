@@ -260,14 +260,18 @@ point<C> pedersen<C>::encrypt(const std::vector<field_t>& inputs, const size_t h
     return accumulate(to_accumulate);
 }
 
-template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const bool handle_edge_cases)
+template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const bool handle_edge_cases, const size_t hash_index)
 {
-    if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
+    if (C::type == waffle::ComposerType::PLOOKUP) {
+        // TODO handle hash index in plookup. This is a tricky problem but
+        // we can defer solving it until we migrate to UltraPlonk
         return pedersen_plookup<C>::compress(inputs);
     }
-    return encrypt(inputs, 0, handle_edge_cases).x;
+    return encrypt(inputs, hash_index, handle_edge_cases).x;
 }
 
+// If the input values are all zero, we return the array length instead of `0`
+// This is because we require the inputs to regular pedersen compression function are nonzero (we use this method to hash the base layer of our merkle trees)
 template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& input)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
@@ -285,13 +289,19 @@ template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& inpu
         } else {
             bytes_to_slice = bytes_per_element;
         }
-
-        field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice));
+        field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice)).normalize();
         elements.emplace_back(element);
     }
-
     field_t compressed = compress(elements, true);
-    return byte_array(compressed);
+
+    bool_t is_zero(true);
+    for (const auto& element : elements)
+    {
+        is_zero = is_zero && element.is_zero();
+    }
+    
+    field_t output = field_t(is_zero).madd(field_t(num_bytes) - compressed, compressed);
+    return byte_array(output);
 }
 
 template <typename C>
