@@ -5,24 +5,32 @@ use super::*;
 // In that case, it would be the functions symbol table
 
 impl<'a> TypeChecker<'a> {
-    pub fn type_check_expr(&mut self,expr :  &mut Expression) -> Type {
+    pub fn type_check_expr(&mut self,expr :  &mut Expression) -> Result<Type, AnalyserError> {
         match &mut expr.kind {
-            ExpressionKind::Cast(cast) => cast.r#type.clone() ,
+            ExpressionKind::Cast(cast) => Ok(cast.r#type.clone()) ,
             ExpressionKind::Call(path, call_expr) => {
 
                 // Find function
+                // This should have been caught in the Resolver phase
                 let func = self.find_function(&path, &call_expr.func_name);
-                let func = match func {
-                    None => panic!("Could not find a function named {} , under the path {:?}", &call_expr.func_name.0.contents, path),
-                    Some(func) => func,
-                };
+                let func = func.expect(&format!("Compiler Error: Could not find a function named {} , under the path {:?}", &call_expr.func_name.0.contents, path));
 
                 let (parameters, return_type) = match func {
                     NoirFunction::LowLevelFunction(literal) => (literal.parameters, literal.return_type),
                     NoirFunction::Function(literal) => (literal.parameters, literal.return_type),
                 };
 
-                let argument_types : Vec<Type> = call_expr.arguments.iter().map(|arg| self.type_check_expr(&mut arg.clone())).collect();
+                let (argument_types, _) = self.type_check_vector_expressions(&mut call_expr.arguments)?;
+                // let (argument_types, errors) : (Vec<_>, Vec<_>) = call_expr.arguments.iter().map(|arg| self.type_check_expr(&mut arg.clone())).partition(Result::is_ok);
+                // let argument_types: Vec<Type> = argument_types.into_iter().map(Result::unwrap).collect();
+                // let errors: Vec<AnalyserError> = errors.into_iter().map(Result::unwrap_err).collect();
+                // for err in errors {
+                //     self.push_err(err);
+                // }
+                // if errors.len() > 0 {
+                //     return Err(AnalyserError::from_expression(format!("could not parse call expression"), expr));
+                // }
+
 
                 assert_eq!(parameters.len(), argument_types.len()); // This should have been caught in the resolver
 
@@ -30,10 +38,10 @@ impl<'a> TypeChecker<'a> {
                     TypeChecker::type_check_param_argument(parameter, argument_type)
                 }
 
-               return_type
+               Ok(return_type)
             },
             ExpressionKind::Ident(iden) => {
-                self.lookup_local_identifier(&iden.to_string().into())
+                Ok(self.lookup_local_identifier(&iden.to_string().into()))
             },
             ExpressionKind::Literal(ref mut lit) => self.type_check_literal(lit),
             ExpressionKind::Infix(ref mut infx) => self.type_check_infix(infx),
@@ -44,19 +52,18 @@ impl<'a> TypeChecker<'a> {
                 // Find the type for the identifier
                 let typ = self.lookup_local_identifier(&indx.collection_name);
 
-                let (_, base_type) = match typ {
-                    Type::Array(num_elements, base_type) => (num_elements, base_type),
-                    _=> panic!("Cannot index on non array types")
-                };
-                *base_type
+                match typ {
+                    Type::Array(num_elements, base_type) => Ok(*base_type),
+                    _=> Err(AnalyserError::from_ident(format!("cannot index into a value of type"), &indx.collection_name))
+                }
             },
             ExpressionKind::For(for_expr) => {
                 let start_range = &mut for_expr.start_range;
                 let end_range = &mut for_expr.end_range;
 
                 
-                let start_type = self.type_check_expr(start_range);
-                let end_type = self.type_check_expr(end_range);
+                let start_type = self.type_check_expr(start_range)?;
+                let end_type = self.type_check_expr(end_range)?;
                 
                 assert_eq!(start_type, Type::Constant);
                 assert_eq!(end_type, Type::Constant);
@@ -66,7 +73,7 @@ impl<'a> TypeChecker<'a> {
                 self.add_variable_declaration(for_expr.identifier.clone(), Type::Constant);
                 
                 // Note, we ignore return type in a block statement for a for-loop
-                let base_typ = self.type_check_block_stmt(&mut for_expr.block);
+                let base_typ = self.type_check_block_stmt(&mut for_expr.block)?;
                 self.local_types.end_for_loop();
 
                 // Try to figure out the number of iterations
@@ -75,31 +82,30 @@ impl<'a> TypeChecker<'a> {
                     Some(integer) => ArraySize::Fixed(integer),
                     None => ArraySize::Variable,
                 };
-                Type::Array(array_size, Box::new(base_typ))
+                Ok(Type::Array(array_size, Box::new(base_typ)))
             },
             ExpressionKind::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back")
         }
     }
     
-    fn type_check_literal(&mut self,lit : &mut Literal) -> Type{
+    fn type_check_literal(&mut self,lit : &mut Literal) -> Result<Type, AnalyserError>{
         match lit {
             Literal::Array(arr_lit) => {
                 // Arrays are parsed with unspecified types, so they need to be correctly typed here
                 //
                 // First collect each elements type
-                let arr_types : Vec<_> = arr_lit.contents.iter_mut().map(|element| self.type_check_expr(element)).collect();
+                let (arr_types, span) = self.type_check_vector_expressions(&mut arr_lit.contents)?;
                 if arr_types.len() == 0 {
                     arr_lit.r#type = Type::Unit;
-                    return Type::Unit;
+                    return Ok(Type::Unit);
                 }
 
                 // Specify the type of the Array
                 arr_lit.r#type = Type::Array(ArraySize::Fixed(arr_types.len() as u128), Box::new(arr_types[0].clone()));
                 
                 // Check if the array is homogenous
-                
                 if arr_types.len() == 1{
-                    return arr_lit.r#type.clone()
+                    return Ok(arr_lit.r#type.clone())
                 }
 
                 for (i,type_pair) in arr_types.windows(2).enumerate() {
@@ -107,32 +113,35 @@ impl<'a> TypeChecker<'a> {
                     let right_type = &type_pair[1]; 
 
                     if left_type != right_type {
-                        panic!("Array is not homogenous at indices ({}, {}), found an element of type {} and an element of type {}", i,i+1, left_type, right_type)
+                        let message = format!("Array is not homogenous at indices ({}, {}), found an element of type {} and an element of type {}", i,i+1, left_type, right_type);
+                        return Err(AnalyserError::Unstructured{message,span })
                     }
                 }
                 
-                return arr_lit.r#type.clone()
+                return Ok(arr_lit.r#type.clone())
             }, 
             Literal::Bool(_) => {
                 unimplemented!("[Coming Soon] : Currently native boolean types have not been implemented")
             }, 
             Literal::Integer(_) => {
                 // Literal integers will always be a constant, since the lexer was able to parse the integer
-                return Type::Constant;
+                return Ok(Type::Constant);
             },
             Literal::Str(_) => {
                 unimplemented!("[Coming Soon] : Currently string literal types have not been implemented")
             }, 
-            Literal::Type(typ) => typ.clone()
+            Literal::Type(typ) => Ok(typ.clone())
         }
     }
     
-    pub fn type_check_infix(&mut self,infx: &mut InfixExpression) -> Type {
+    pub fn type_check_infix(&mut self,infx: &mut InfixExpression) -> Result<Type, AnalyserError> {
         
-        let lhs_type = self.type_check_expr(&mut infx.lhs);
-        let rhs_type = self.type_check_expr(&mut infx.rhs);
+        let lhs_type = self.type_check_expr(&mut infx.lhs)?;
+        let rhs_type = self.type_check_expr(&mut infx.rhs)?;
     
-        lhs_type.infix_operand_type_rules(&infx.operator, &rhs_type)
+        // XXX: We currently don't have spanning info for types, so lets use the full expressions for now 
+        let span = infx.lhs.span.merge(infx.rhs.span);
+        lhs_type.infix_operand_type_rules(&infx.operator, &rhs_type).map_err(|message| AnalyserError::Unstructured{message, span})
     }
 
     fn type_check_param_argument(param: &(Ident, Type), arg_type : &Type) {
@@ -180,6 +189,25 @@ impl<'a> TypeChecker<'a> {
         let num_iterations = end_constant - start_constant;
         
         Some(num_iterations.to_u128())
+    }
+    fn type_check_vector_expressions(&mut self, exprs: &mut Vec<Expression>) -> Result<(Vec<Type>, Span), AnalyserError>{
+        assert!(exprs.len() > 0);
+        
+        let start_span = exprs.first().unwrap().span;
+        let end_span = exprs.last().unwrap().span;
+        let span = start_span.merge(end_span);
+
+        let (exprs, errors) : (Vec<_>, Vec<_>) = exprs.iter_mut().map(|arg| self.type_check_expr(&mut arg.clone())).partition(Result::is_ok);
+        let exprs: Vec<Type> = exprs.into_iter().map(Result::unwrap).collect();
+        let errors: Vec<AnalyserError> = errors.into_iter().map(Result::unwrap_err).collect();
+        let errors_len = errors.len();
+        for err in errors {
+            self.push_err(err);
+        }
+        if errors_len > 0 {
+            return Err(AnalyserError::Unstructured{message: format!("could not parse vector of expressions"), span});
+        }
+        return Ok((exprs, span))
     }
 
 }
