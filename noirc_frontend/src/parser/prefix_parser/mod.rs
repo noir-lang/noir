@@ -9,6 +9,7 @@ mod unary;
 mod r#use;
 mod module;
 mod r#for;
+mod constrain;
 
 use unary::UnaryParser;
 use group::GroupParser;
@@ -22,6 +23,7 @@ pub use function::FuncParser;
 pub use r#if::IfParser;
 pub use r#use::UseParser;
 pub use module::ModuleParser;
+pub use constrain::ConstrainParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
