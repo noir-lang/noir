@@ -153,7 +153,7 @@ impl<'a> Resolver<'a> {
                 Statement::Expression(expr) => {
                     if !self.resolve_expr(&expr) {
                         let message = format!("Could not resolve the expression");
-                        let err = ResolverError::from_expression(message, expr);
+                        let err = AnalyserError::from_expression(message, expr);
                         self.push_err(err);
                     };
                 },
@@ -185,25 +185,21 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_declaration_stmt(&mut self, identifier : &Ident, expr : &Expression, stmt_type : &str) {
+    fn resolve_declaration_stmt(&mut self, identifier : &Ident, expr : &Expression) {
         // Add the new variable to the list of declarations
         self.add_variable_decl(identifier.clone());
 
         // Check that the expression on the RHS is using variables which have already been declared
-        if !self.resolve_expr(expr) {
-            let message = format!("Could not resolve the expression in the {} statement", stmt_type); 
-            let err = ResolverError::from_expression(message, expr);
-            self.push_err(err);
-        };
+        self.resolve_expr(expr);
     }
     fn resolve_private_stmt(&mut self, private_stmt : &PrivateStatement) {
-        self.resolve_declaration_stmt(&private_stmt.identifier, &private_stmt.expression, "private");
+        self.resolve_declaration_stmt(&private_stmt.identifier, &private_stmt.expression);
     }
     fn resolve_const_stmt(&mut self, const_stmt : &ConstStatement) {
-        self.resolve_declaration_stmt(&const_stmt.identifier, &const_stmt.expression, "constant");
+        self.resolve_declaration_stmt(&const_stmt.identifier, &const_stmt.expression);
     }
     fn resolve_let_stmt(&mut self, let_stmt : &LetStatement) {
-        self.resolve_declaration_stmt(&let_stmt.identifier, &let_stmt.expression, "let");
+        self.resolve_declaration_stmt(&let_stmt.identifier, &let_stmt.expression);
     }
     fn resolve_constrain_stmt(&mut self, constrain_stmt : &ConstrainStatement) {
         self.resolve_infix_expr(&constrain_stmt.0);

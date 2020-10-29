@@ -6,7 +6,14 @@ use crate::ast::{Expression,ExpressionKind, Literal, InfixExpression};
 impl<'a> Resolver<'a> {
     pub(crate) fn resolve_expr(&mut self, expr : &Expression) -> bool{
         match &expr.kind{
-            ExpressionKind::Ident(identifier) => self.find_variable(&identifier.clone().into()),
+            ExpressionKind::Ident(identifier) => {
+                let resolved = self.find_variable(&identifier.clone().into());
+                if !resolved {
+                    let err = ResolverError::Unresolved {span :expr.span, symbol_type : "value".to_owned(), symbol : identifier.to_string()};
+                    self.push_err(err);
+                }
+                resolved
+            },
             ExpressionKind::Cast(cast_expr) => {
                 self.resolve_expr(&cast_expr.lhs)
             },
@@ -32,7 +39,7 @@ impl<'a> Resolver<'a> {
 
                 if param_len != argument_len {
                     let message = format!("Function {} expected {} number of arguments, but got {}", call_expr.func_name.0.contents, param_len, argument_len);
-                    let err = ResolverError::from_ident(message, &call_expr.func_name);
+                    let err = AnalyserError::from_ident(message, &call_expr.func_name);
                     self.push_err(err);
                 }
                 
@@ -47,12 +54,12 @@ impl<'a> Resolver<'a> {
                 
                 if !resolved_collection_name {
                     let message = format!("Cannot find a declaration for the array {}", &index_expr.collection_name.0.contents);
-                    let err = ResolverError::from_ident(message, &index_expr.collection_name);
+                    let err = AnalyserError::from_ident(message, &index_expr.collection_name);
                     self.push_err(err);
                 }
                 if !resolved_index {
                     let message = format!("Cannot find variable `{:?}` which is being used to index the array {}", &index_expr.index, &index_expr.collection_name.0.contents);
-                    let err = ResolverError::from_ident(message, &index_expr.collection_name);
+                    let err = AnalyserError::from_ident(message, &index_expr.collection_name);
                     self.push_err(err);
                     
                 }
@@ -77,12 +84,12 @@ impl<'a> Resolver<'a> {
                 
                 if !resolved_lhs {
                     let message = format!("Could not resolve the start range of the for loop");
-                    let err = ResolverError::from_expression(message, &start_range);
+                    let err = AnalyserError::from_expression(message, &start_range);
                     self.push_err(err)
                 }
                 if !resolved_rhs {
                     let message = format!("Could not resolve the end range of the for loop");
-                    let err = ResolverError::from_expression(message, &end_range);
+                    let err = AnalyserError::from_expression(message, &end_range);
                     self.push_err(err)
                 }
 
@@ -105,20 +112,9 @@ impl<'a> Resolver<'a> {
 
     pub(super) fn resolve_infix_expr(&mut self, infix: &InfixExpression) -> bool {
         
-        let lhs_resolved = self.resolve_expr(&infix.lhs);
-        if !lhs_resolved {
-            let message = format!("Could not resolve expression");
-            let err = ResolverError::from_expression(message, &infix.lhs);
-            self.push_err(err)
-        }
-        
+        let lhs_resolved = self.resolve_expr(&infix.lhs);    
         let rhs_resolved = self.resolve_expr(&infix.rhs);
-        if !rhs_resolved {
-            let message = format!("Could not resolve expression");
-            let err = ResolverError::from_expression(message, &infix.rhs);
-            self.push_err(err)
-        }
-
+    
         lhs_resolved & rhs_resolved
     }
 
@@ -148,7 +144,7 @@ impl<'a> Resolver<'a> {
             let resolved_element = self.resolve_expr(&element);
             if !resolved_element {
                 let message = format!("Cannot resolve the {} at index {} in the {} {:?}", type_of_element, i, data_type, list);
-                let err = ResolverError::from_expression(message, element);
+                let err = AnalyserError::from_expression(message, element);
                 self.push_err(err);
             }
         }
