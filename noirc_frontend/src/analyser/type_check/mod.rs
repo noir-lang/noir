@@ -14,16 +14,6 @@ use super::errors::{AnalyserError, Span};
 
 mod expression;
 
-macro_rules! unwrap_or_return {
-    ( $e:expr ) => {
-        match $e {
-            Ok(x) => x,
-            Err(_) => return,
-        }
-    }
-}
-
-
 pub struct TypeChecker<'a> {
     table : &'a SymbolTable,
     local_types : ScopeForest,
@@ -38,7 +28,6 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn add_variable_declaration(&mut self, name : Ident, typ : Type) {
-        
         let scope = self.local_types.get_mut_scope();
         let is_new_entry = scope.add_key_value(name.clone(),typ);
 
@@ -128,38 +117,33 @@ fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefi
 // Check that all assignments have the correct types
 fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Result<Type, AnalyserError> {
 
+
     let mut last_return_type = Type::Unit;
 
     for stmt in block.0.iter_mut() {
-        match stmt {
+       let stmt_return_type =  match stmt {
             Statement::Private(ref mut priv_stmt) => {
-                self.type_check_private_stmt(priv_stmt);
-                last_return_type = Type::Unit;
+                self.type_check_private_stmt(priv_stmt)
             },
             Statement::Expression(ref mut expr) => {
-                last_return_type = self.type_check_expr(expr)?;
+                self.type_check_expr(expr)
             },
             Statement::Block(_) => {
                 panic!("Currently we do not support block statements inside of block statements")
             },
             Statement::Const(const_stmt) => {
-                self.type_check_const_stmt(const_stmt);
-                last_return_type = Type::Unit;
+                self.type_check_const_stmt(const_stmt)
             },
             Statement::If(_) => {
-                last_return_type = Type::Unit;
                 panic!("[Possible Deprecation] : If statements are not implemented yet, however they might be deprecated for if expressions");
             },
             Statement::Let(let_stmt) => {
-                self.type_check_let_stmt(let_stmt);
-                last_return_type = Type::Unit;
+                self.type_check_let_stmt(let_stmt)
             },
             Statement::Constrain(constr_stmt) =>{
-                self.type_check_constrain_stmt(constr_stmt);
-                last_return_type = Type::Unit;
+                self.type_check_constrain_stmt(constr_stmt)
             },
             Statement::Public(_) => {
-                last_return_type = Type::Unit;
                 // XXX: Initially, we were going to give the ability to declare public variables inside of functions.
                 // Now it seems more plausible to only have Public variables be declared as function types,
                 // So that we can keep track of linear transformations between public variables which may leak a witness
@@ -168,15 +152,20 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Result<Type,
                 // to be limited to this in the main function parameters
                 panic!("[Deprecated] : Declaring public variables in block statements is being deprecated. You will still be able to state them as Types in function parameters ")
             }
-        }
+        }?;
+        // We immediately abort for an error, because we may not have the type information for the identifier 
+        // in the statement which threw the error. We could make it more complex in the future, by continuing
+        // when the type information is explicitly supplied, and or when it can be inferred from the statement
+
+        last_return_type = stmt_return_type;
     }
 
     Ok(last_return_type)
 }
 
-fn type_check_private_stmt(&mut self,stmt : &mut PrivateStatement) {
+fn type_check_private_stmt(&mut self,stmt : &mut PrivateStatement) -> Result<Type, AnalyserError>{
     let mut lhs_type = &stmt.r#type; 
-    let expr_type = unwrap_or_return!(self.type_check_expr(&mut stmt.expression)); // We ignore the error because the reporter will log the expression error
+    let expr_type = self.type_check_expr(&mut stmt.expression)?;
 
     // Only witness types can be used in a private statement
     // We additionally enforce that the LHS must be the same type as the RHS 
@@ -192,28 +181,25 @@ fn type_check_private_stmt(&mut self,stmt : &mut PrivateStatement) {
     // Importantly, we do not co-erce any types implicitly
     if lhs_type != &expr_type {
         let message = format!("\n\nType mismatch: Expected: {:?} got: {:?} \n\n", lhs_type, expr_type);
-        let err = AnalyserError::from_expression(message, &stmt.expression);
-        self.push_err(err);
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     
     // Check if this type can be used in a Private statement
     if !lhs_type.can_be_used_in_priv() {
         let message = format!("The Type {:?} cannot be used in a Private Statement", lhs_type);
-        let err = AnalyserError::from_expression(message, &stmt.expression);
-        self.push_err(err);
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
 
     stmt.r#type = expr_type;
 
     // Update the Type checker to include this new identifier
-    self.add_variable_declaration(stmt.identifier.clone(),stmt.r#type.clone());
+    self.add_variable_declaration(stmt.identifier.clone(),stmt.r#type.clone()); 
+    Ok(Type::Unit)
   
 }
-fn type_check_let_stmt(&mut self,stmt : &mut LetStatement) {
+fn type_check_let_stmt(&mut self,stmt : &mut LetStatement) -> Result<Type, AnalyserError>{
     let mut lhs_type = &stmt.r#type; 
-    let expr_type = unwrap_or_return!(self.type_check_expr(&mut stmt.expression));
+    let expr_type = self.type_check_expr(&mut stmt.expression)?;
 
     // Witness types cannot be used in a let statement, they are for Private statements
 
@@ -227,76 +213,64 @@ fn type_check_let_stmt(&mut self,stmt : &mut LetStatement) {
     // Importantly, we do not co-erce any types implicitly
     if lhs_type != &expr_type {
         let message = format!("\n\nType mismatch: Expected: {:?} got: {:?} \n\n", lhs_type, expr_type);
-        let err = AnalyserError::from_expression(message, &stmt.expression);
-        self.push_err(err);
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     
     // Check if this type can be used in a Let statement
     if !lhs_type.can_be_used_in_let() {
         let message = format!("The type {:?} cannot be used in a Let Statement", lhs_type);
-        let err = AnalyserError::from_expression(message, &stmt.expression);
-        self.push_err(err);    
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     
     stmt.r#type = expr_type;
     
     // Update the Type checker to include this new identifier
     self.add_variable_declaration(stmt.identifier.clone(),stmt.r#type.clone());
+
+    Ok(Type::Unit)
     
 }
-fn type_check_const_stmt(&mut self,stmt : &mut ConstStatement) {
+fn type_check_const_stmt(&mut self,stmt : &mut ConstStatement) -> Result<Type, AnalyserError>{
     let lhs_type = &stmt.r#type;
+
     if !(lhs_type == &Type::Constant || lhs_type == &Type::Unspecified) {
         let message = format!("Constant statements can only contain constant types, found type {}", lhs_type);
-        let err = AnalyserError::from_expression(message, &stmt.expression);
-        self.push_err(err);    
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
-    let expr_type = unwrap_or_return!(self.type_check_expr(&mut stmt.expression));
+    let expr_type = self.type_check_expr(&mut stmt.expression)?;
     
     // Constant statements can only contain the Constant type
     if expr_type != Type::Constant {
         let message = format!("RHS of constrain statement must be of type `Constant`");
-        let err = AnalyserError::from_expression(message, &stmt.expression);
-        self.push_err(err);    
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     
     stmt.r#type = expr_type;
     
     // Update the Type checker to include this new identifier
     self.add_variable_declaration(stmt.identifier.clone(),stmt.r#type.clone());
+    Ok(Type::Unit)
 }
-fn type_check_constrain_stmt(&mut self,stmt : &mut ConstrainStatement) {
-    let lhs_type = unwrap_or_return!(self.type_check_expr(&mut stmt.0.lhs));
-    let rhs_type = unwrap_or_return!(self.type_check_expr(&mut stmt.0.rhs));
-
-    let span = stmt.0.lhs.span.merge(stmt.0.rhs.span);
+fn type_check_constrain_stmt(&mut self,stmt : &mut ConstrainStatement) -> Result<Type, AnalyserError> {
+    let lhs_type = self.type_check_expr(&mut stmt.0.lhs)?;
+    let rhs_type = self.type_check_expr(&mut stmt.0.rhs)?;
 
     // Are there any restrictions on the operator for constrain statements
-    if !stmt.0.operator.is_comparator() {
+    if !stmt.0.operator.contents.is_comparator()  {
         let message = format!("Only comparison operators can be used in a constrain statement");
-        let err = AnalyserError::Unstructured{message, span};
-        self.push_err(err);    
-        return
+        return Err(AnalyserError::Unstructured{message, span :stmt.0.operator.span()});
     };
     
     if !lhs_type.can_be_used_in_constrain() {
         let message = format!("found type {:?} . This type cannot be used in a constrain statement", lhs_type);
-        let err = AnalyserError::from_expression(message, &stmt.0.lhs);
-        self.push_err(err);    
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.0.lhs));
     }
     if !rhs_type.can_be_used_in_constrain() {
         let message = format!("found type {:?} . This type cannot be used in a constrain statement", rhs_type);
-        let err = AnalyserError::from_expression(message, &stmt.0.rhs);
-        self.push_err(err);    
-        return
+        return Err(AnalyserError::from_expression(message, &stmt.0.rhs));
     }
 
-    // XXX: We leave upper bound checks until runtime, but it is certainly possible to add them to the analyser
+    Ok(Type::Unit)    // XXX: We leave upper bound checks until runtime, but it is certainly possible to add them to the analyser
 }
 }
 
