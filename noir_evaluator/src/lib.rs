@@ -196,21 +196,21 @@ impl Evaluator {
         env: &mut Environment,
         lhs: Object,
         rhs: Object,
-        op: BinaryOp,
+        op: BinaryOpKind,
     ) -> Object {
         match op {
-            BinaryOp::Add => binary_op::handle_add_op(lhs, rhs, env, self),
-            BinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
-            BinaryOp::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
-            BinaryOp::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
-            BinaryOp::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
-            BinaryOp::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
-            BinaryOp::And => binary_op::handle_and_op(lhs, rhs, env, self),
-            BinaryOp::Xor => binary_op::handle_xor_op(lhs, rhs, env, self),
-            BinaryOp::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
-            BinaryOp::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
-            BinaryOp::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
-            BinaryOp::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
+            BinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, env, self),
+            BinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
+            BinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
+            BinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
+            BinaryOpKind::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
+            BinaryOpKind::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
+            BinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, env, self),
+            BinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, env, self),
+            BinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
+            BinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
+            BinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
+            BinaryOpKind::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
             _ => panic!("Currently the {:?} op is not supported", op),
         }
     }
@@ -369,11 +369,11 @@ impl Evaluator {
             env,
             lhs_poly.clone(),
             rhs_poly.clone(),
-            constrain_stmt.0.operator,
+            constrain_stmt.0.operator.contents,
         );
 
         // XXX: WE could probably move this into equal folder, as it is an optimisation that only applies to it
-        if constrain_stmt.0.operator == BinaryOp::Equal {
+        if constrain_stmt.0.operator.contents == BinaryOpKind::Equal {
             // Check if we have any lone variables and then if the other side is a linear/constant
             let (witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
                 (true, _) => (lhs_poly.witness(), rhs_poly),
@@ -477,7 +477,7 @@ impl Evaluator {
             ExpressionKind::Infix(infx) => {
                 let lhs = self.expression_to_object(env, infx.lhs);
                 let rhs = self.expression_to_object(env, infx.rhs);
-                self.evaluate_infix_expression(env, lhs, rhs, infx.operator)
+                self.evaluate_infix_expression(env, lhs, rhs, infx.operator.contents)
             }
             ExpressionKind::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, cast_expr.lhs);
