@@ -1,8 +1,9 @@
 use crate::Span;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{SimpleFiles, SimpleFile};
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, ColorSpec, Color, WriteColor};
 use codespan_reporting::term;
+use std::io::Write;
 
 use codespan::{ByteIndex, ByteOffset, RawOffset};
 use codespan::{Span as ByteSpan};
@@ -67,8 +68,13 @@ impl Reporter {
         let writer = StandardStream::stderr(ColorChoice::Always);
         let config = codespan_reporting::term::Config::default();
 
-        for diagnostic in diagnostics {
+        for diagnostic in diagnostics.iter() {
             term::emit(&mut writer.lock(), &config, &files.0, &diagnostic).unwrap();
         }
-}
+        
+        if diagnostics.len() != 0 {
+            writer.lock().set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
+            writeln!(&mut writer.lock(), "error: aborting due to number of errors being {}", diagnostics.len()).unwrap();
+        }
+    }
 }
