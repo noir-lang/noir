@@ -132,7 +132,6 @@ impl<'a> Resolver<'a> {
             Literal::Str(_) => {
                 unimplemented!("[Coming Soon] : Currently string literal types have not been implemented")
             }, 
-            Literal::Type(_) => true
         }
     }
 
