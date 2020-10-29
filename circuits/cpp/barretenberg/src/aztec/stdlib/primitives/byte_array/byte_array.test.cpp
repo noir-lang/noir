@@ -104,4 +104,63 @@ TEST(stdlib_byte_array, test_byte_array_input_output_consistency)
     EXPECT_EQ(b_result.get_value(), b_expected);
 }
 
+
+TEST(stdlib_byte_array, get_bit)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    byte_array arr(&composer, std::vector<uint8_t>{ 0x01, 0x02, 0x03, 0x04 });
+
+    EXPECT_EQ(arr.get_bit(0).get_value(), false);
+    EXPECT_EQ(arr.get_bit(1).get_value(), false);
+    EXPECT_EQ(arr.get_bit(2).get_value(), true);
+    EXPECT_EQ(arr.get_bit(3).get_value(), false);
+    EXPECT_EQ(arr.get_bit(4).get_value(), false);
+    EXPECT_EQ(arr.get_bit(5).get_value(), false);
+    EXPECT_EQ(arr.get_bit(6).get_value(), false);
+    EXPECT_EQ(arr.get_bit(7).get_value(), false);
+
+    EXPECT_EQ(arr.get_bit(8).get_value(), true);
+    EXPECT_EQ(arr.get_bit(9).get_value(), true);
+    EXPECT_EQ(arr.get_bit(10).get_value(), false);
+    EXPECT_EQ(arr.get_bit(11).get_value(), false);
+    EXPECT_EQ(arr.get_bit(12).get_value(), false);
+    EXPECT_EQ(arr.get_bit(13).get_value(), false);
+    EXPECT_EQ(arr.get_bit(14).get_value(), false);
+    EXPECT_EQ(arr.get_bit(15).get_value(), false);
+
+    EXPECT_EQ(arr.size(), 4UL);
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    auto proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+
+
+TEST(stdlib_byte_array, set_bit)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    byte_array arr(&composer, std::vector<uint8_t>{ 0x01, 0x02, 0x03, 0x04 });
+
+    arr.set_bit(16, bool_t(witness_t(&composer, true)));
+    arr.set_bit(18, bool_t(witness_t(&composer, true)));
+    arr.set_bit(24, bool_t(witness_t(&composer, false)));
+    arr.set_bit(0, bool_t(witness_t(&composer, true)));
+
+    const auto out = arr.get_value();
+    EXPECT_EQ(out[0], uint8_t(0));
+    EXPECT_EQ(out[1], uint8_t(7));
+    EXPECT_EQ(out[3], uint8_t(5));
+
+    auto prover = composer.create_prover();
+    auto verifier = composer.create_verifier();
+    auto proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+
+
 } // namespace test_stdlib_byte_array

@@ -30,7 +30,7 @@ field_ct check_nullifiers_inserted(Composer& composer,
 {
 
     auto new_nullifier_value = byte_array_ct(&composer, 64);
-    new_nullifier_value.set_bit(511, 1);
+    new_nullifier_value.set_bit(0, 1);
     field_ct last_real_null_index;
 
     for (size_t i = 0; i < new_null_indicies.size(); ++i) {
@@ -41,7 +41,7 @@ field_ct check_nullifiers_inserted(Composer& composer,
         // This makes padding transactions act as noops.
         last_real_null_index = (new_null_indicies[i] * is_real) + (last_real_null_index * !is_real);
         auto old_nullifier_value = byte_array_ct(&composer, 64);
-        old_nullifier_value.set_bit(511, !is_real);
+        old_nullifier_value.set_bit(0, !is_real);
         auto new_null_path = create_witness_hash_path(composer, new_null_paths[i]);
         auto old_null_path = create_witness_hash_path(composer, old_null_paths[i]);
 

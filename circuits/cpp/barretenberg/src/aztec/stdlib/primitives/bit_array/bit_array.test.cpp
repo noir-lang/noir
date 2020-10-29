@@ -17,6 +17,7 @@ typedef stdlib::field_t<waffle::StandardComposer> field_t;
 typedef stdlib::uint32<waffle::StandardComposer> uint32;
 typedef stdlib::witness_t<waffle::StandardComposer> witness_t;
 typedef stdlib::bit_array<waffle::StandardComposer> bit_array;
+typedef stdlib::byte_array<waffle::StandardComposer> byte_array;
 
 TEST(stdlib_bit_array, test_uint32_input_output_consistency)
 {
@@ -75,6 +76,21 @@ TEST(stdlib_bit_array, test_string_input_output_consistency)
     bit_array test_bit_array = bit_array(&composer, expected);
 
     std::string result = test_bit_array.get_witness_as_string();
+
+    EXPECT_EQ(result, expected);
+}
+
+
+TEST(stdlib_bit_array, test_byte_array_conversion)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    std::string expected = "string literals inside a SNARK circuit? What nonsense!";
+    bit_array test_bit_array = bit_array(&composer, expected);
+
+    byte_array test_bytes(test_bit_array);
+    bit_array test_output(test_bytes);
+    std::string result = test_output.get_witness_as_string();
 
     EXPECT_EQ(result, expected);
 }

@@ -8,14 +8,14 @@ namespace stdlib {
 
 template <typename ComposerContext> class byte_array {
   public:
-    typedef std::vector<bool_t<ComposerContext>> bits_t;
+    typedef std::vector<field_t<ComposerContext>> bytes_t;
 
     byte_array(ComposerContext* parent_context);
     byte_array(ComposerContext* parent_context, size_t const n);
     byte_array(ComposerContext* parent_context, std::string const& input);
     byte_array(ComposerContext* parent_context, std::vector<uint8_t> const& input);
-    byte_array(ComposerContext* parent_context, bits_t const& input);
-    byte_array(ComposerContext* parent_context, bits_t&& input);
+    byte_array(ComposerContext* parent_context, bytes_t const& input);
+    byte_array(ComposerContext* parent_context, bytes_t&& input);
     byte_array(const field_t<ComposerContext>& input, const size_t num_bytes = 32);
 
     template <typename ItBegin, typename ItEnd>
@@ -36,16 +36,15 @@ template <typename ComposerContext> class byte_array {
 
     byte_array slice(size_t offset) const;
     byte_array slice(size_t offset, size_t length) const;
-    byte_array slice_bits(size_t offset, size_t length) const;
     byte_array reverse() const;
 
-    size_t size() const { return values.size() / 8; }
+    size_t size() const { return values.size(); }
 
-    bits_t const& bits() const { return values; }
+    bytes_t const& bytes() const { return values; }
 
-    bool_t<ComposerContext> const& get_bit(size_t index) const { return values[values.size() - index - 1]; }
+    bool_t<ComposerContext> get_bit(size_t index) const;
 
-    void set_bit(size_t index, bool_t<ComposerContext> const& value) { values[index] = value; }
+    void set_bit(size_t index, bool_t<ComposerContext> const& value);
 
     ComposerContext* get_context() const { return context; }
 
@@ -55,7 +54,14 @@ template <typename ComposerContext> class byte_array {
 
   private:
     ComposerContext* context;
-    bits_t values;
+    bytes_t values;
+
+    struct byte_slice {
+        field_t<ComposerContext> low;
+        field_t<ComposerContext> high;
+        bool_t<ComposerContext> bit;
+    };
+    byte_slice split_byte(const size_t bit_index) const;
 };
 
 template <typename ComposerContext>
