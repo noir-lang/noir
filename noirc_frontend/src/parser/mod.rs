@@ -1,7 +1,6 @@
-mod constraint_parser;
 mod infix_parser;
-mod parser;
 mod prefix_parser;
+mod parser;
 
 mod errors;
 

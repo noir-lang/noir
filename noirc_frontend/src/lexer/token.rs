@@ -206,9 +206,7 @@ impl Token {
             Token::Ident(_) => TokenKind::Ident,
             Token::Int(_)
             | Token::Bool(_)
-            | Token::Str(_)
-            | Token::Keyword(Keyword::Fn)
-            | Token::IntType(_) => TokenKind::Literal,
+            | Token::Str(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             ref tok => TokenKind::Token(tok.clone()),
         }
