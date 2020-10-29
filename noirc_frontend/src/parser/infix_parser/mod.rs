@@ -2,14 +2,16 @@ mod binary;
 mod call;
 mod index;
 mod path;
+mod cast;
 
 use binary::BinaryParser;
 use call::CallParser;
 use index::IndexParser;
 use path::PathParser;
+use cast::CastParser;
 
 use super::Precedence;
-use crate::ast::BinaryOp;
+use crate::ast::{BinaryOp, BinaryOpKind};
 use crate::ast::{CallExpression, CastExpression, Expression, ExpressionKind, IndexExpression, InfixExpression, NoirPath};
 use crate::token::Token;
 
@@ -23,6 +25,7 @@ pub enum InfixParser{
     Binary, 
     Call,
     Index,
+    Cast,
     Path,
 }
 
@@ -33,6 +36,7 @@ impl InfixParser {
             InfixParser::Call => span_parser(parser,left,CallParser::parse),
             InfixParser::Index => span_parser(parser,left,IndexParser::parse),
             InfixParser::Path => span_parser(parser,left,PathParser::parse),
+            InfixParser::Cast => span_parser(parser,left,CastParser::parse),
         }
     }
 }
