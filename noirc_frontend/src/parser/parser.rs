@@ -200,8 +200,7 @@ impl<'a> Parser<'a> {
         self.parse_unit(Token::RightBrace)
     }
     pub fn parse_statement(&mut self) -> ParserStmtResult {
-        use crate::parser::constraint_parser::ConstraintParser;
-        use crate::parser::prefix_parser::{DeclarationParser, IfParser};
+        use crate::parser::prefix_parser::{DeclarationParser, IfParser, ConstrainParser};
 
         // The first type of statement we could have is a variable declaration statement
         if self.curr_token.can_start_declaration() {
@@ -215,7 +214,7 @@ impl<'a> Parser<'a> {
                 return self.parse_statement()
             }
             Token::Keyword(Keyword::Constrain) => {
-                Statement::Constrain(ConstraintParser::parse_constrain_statement(self)?)
+                Statement::Constrain(ConstrainParser::parse_constrain_statement(self)?)
             }
             Token::Keyword(Keyword::If) => {
                 Statement::If(IfParser::parse_if_statement(self)?)
@@ -291,8 +290,8 @@ impl<'a> Parser<'a> {
             | Token::GreaterEqual
             | Token::Equal
             | Token::Assign
-            | Token::Keyword(Keyword::As)
             | Token::NotEqual => Some(InfixParser::Binary),
+            Token::Keyword(Keyword::As) => Some(InfixParser::Cast),
             Token::LeftParen => Some(InfixParser::Call),
             Token::LeftBracket => Some(InfixParser::Index),
             Token::DoubleColon => Some(InfixParser::Path),
@@ -403,10 +402,11 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use noirc_errors::Spanned;
     use crate::ast::{
         BlockStatement, CallExpression, Expression, FunctionDefinition,
          Ident, IfStatement, InfixExpression, Literal, PrefixExpression,
-        Statement, Type,
+        Statement, Type, BinaryOpKind
     };
     #[test]
     fn test_basic_let() {
@@ -538,22 +538,22 @@ mod test {
         let test_iden = vec![
             InfixExpression {
                 lhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
-                operator: Token::Plus.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::Add),
                 rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
             },
             InfixExpression {
                 lhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
-                operator: Token::Star.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::Multiply),
                 rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
             },
             InfixExpression {
                 lhs: ExpressionKind::Literal(Literal::Bool(true)).into_span(Default::default()),
-                operator: Token::Equal.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::Equal),
                 rhs: ExpressionKind::Literal(Literal::Bool(false)).into_span(Default::default()),
             },
             InfixExpression {
                 lhs: ExpressionKind::Literal(Literal::Bool(false)).into_span(Default::default()),
-                operator: Token::NotEqual.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::NotEqual),
                 rhs: ExpressionKind::Literal(Literal::Bool(false)).into_span(Default::default()),
             },
         ];
@@ -587,7 +587,7 @@ mod test {
             operator: UnaryOp::Minus,
             rhs: ExpressionKind::Infix(Box::new(InfixExpression {
                 lhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
-                operator: Token::Plus.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::Add),
                 rhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
             })).into_span(Default::default()),
         };
@@ -612,7 +612,7 @@ mod test {
                 operator: UnaryOp::Minus,
                 rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
             })).into_span(Default::default()),
-            operator: Token::Plus.into(),
+            operator: Spanned::from(Default::default(), BinaryOpKind::Add),
             rhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
         };
 
@@ -643,7 +643,7 @@ mod test {
         let expected_if = IfStatement {
             condition: ExpressionKind::Predicate(Box::new(InfixExpression {
                 lhs: x_ident.clone().into(),
-                operator: Token::Less.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::Less),
                 rhs: y_ident.into(),
             })).into_span(Default::default()),
             consequence: BlockStatement(vec![Statement::Expression(
@@ -673,7 +673,7 @@ mod test {
         let expected_if = IfStatement {
             condition: ExpressionKind::Predicate(Box::new(InfixExpression {
                 lhs: foo_ident.into(),
-                operator: Token::Less.into(),
+                operator: Spanned::from(Default::default(), BinaryOpKind::Less),
                 rhs: bar_ident.into(),
             })).into_span(Default::default()),
             consequence: BlockStatement(vec![Statement::Expression(
@@ -734,7 +734,7 @@ mod test {
 
         let infix_expression = InfixExpression {
             lhs: x_ident.into(),
-            operator: Token::Plus.into(),
+            operator: Spanned::from(Default::default(), BinaryOpKind::Add),
             rhs: y_ident.into(),
         };
 
@@ -769,7 +769,7 @@ mod test {
                 ExpressionKind::Literal(Literal::Integer(1)).into_span(Default::default()),
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: ExpressionKind::Literal(Literal::Integer(2)).into_span(Default::default()),
-                    operator: Token::Plus.into(),
+                    operator: Spanned::from(Default::default(), BinaryOpKind::Add),
                     rhs: ExpressionKind::Literal(Literal::Integer(3)).into_span(Default::default()),
                 })).into_span(Default::default()),
             ],
