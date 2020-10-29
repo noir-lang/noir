@@ -53,7 +53,7 @@ fn check_program(ast : Program, is_std_lib : bool) -> Result<(Program, SymbolTab
     let ast = Resolver::resolve(ast, &symbol_table)?;
     
     // Type checker
-    let ast = TypeChecker::check(ast, &symbol_table);
+    let ast = TypeChecker::check(ast, &symbol_table)?;
 
     // XXX: This is inefficient and is only done because the AST might have changed 
     // as we are doing type inferrence. We would be able to remove this if we updated
