@@ -1,5 +1,5 @@
 use crate::{BlockStatement, Ident, Type};
-use crate::token::{Keyword, Token, Attribute};
+use crate::token::{Keyword, Token, Attribute, SpannedToken};
 use noirc_errors::{Spanned, Span};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -67,15 +67,6 @@ impl ExpressionKind {
             _ => None,
         }
     }
-    pub fn r#type(self) -> Option<Type> {
-        match self {
-            ExpressionKind::Literal(literal) => match literal {
-                Literal::Type(typ) => return Some(typ),
-                _ => return None,
-            },
-            _ => None,
-        }
-    }
     /// Converts an Expression to a u128
     /// The Expression must be a literal integer
     pub fn to_u128(&self) -> u128 {
@@ -118,8 +109,10 @@ impl ExpressionKind {
     }
 }
 
+pub type BinaryOp = Spanned<BinaryOpKind>;
+
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
-pub enum BinaryOp {
+pub enum BinaryOpKind {
     Add,
     Subtract,
     Multiply,
@@ -138,41 +131,41 @@ pub enum BinaryOp {
     Assign,
 }
 
-impl BinaryOp {
+impl BinaryOpKind {
     /// Comparator operators return a 0 or 1
     /// When seen in the middle of an infix operator,
     /// they transform the infix expression into a predicate expression
     pub fn is_comparator(&self) -> bool {
         match self {
-            BinaryOp::Equal |
-            BinaryOp::NotEqual |
-            BinaryOp::LessEqual |
-            BinaryOp::Less |
-            BinaryOp::Greater |
-            BinaryOp::GreaterEqual => true, 
+            BinaryOpKind::Equal |
+            BinaryOpKind::NotEqual |
+            BinaryOpKind::LessEqual |
+            BinaryOpKind::Less |
+            BinaryOpKind::Greater |
+            BinaryOpKind::GreaterEqual => true, 
             _=> false
         }
     }
 }
 
-impl From<&Token> for BinaryOp {
-    fn from(token: &Token) -> BinaryOp {
+impl From<&Token> for BinaryOpKind {
+    fn from(token: &Token) -> BinaryOpKind {
         match token {
-            Token::Plus => BinaryOp::Add,
-            Token::Ampersand => BinaryOp::And,
-            Token::Caret => BinaryOp::Xor,
-            Token::Pipe => BinaryOp::Or,
-            Token::Minus => BinaryOp::Subtract,
-            Token::Star => BinaryOp::Multiply,
-            Token::Slash => BinaryOp::Divide,
-            Token::Equal => BinaryOp::Equal,
-            Token::NotEqual => BinaryOp::NotEqual,
-            Token::Less => BinaryOp::Less,
-            Token::LessEqual => BinaryOp::LessEqual,
-            Token::Greater => BinaryOp::Greater,
-            Token::GreaterEqual => BinaryOp::GreaterEqual,
-            Token::Assign => BinaryOp::Assign,
-            Token::Keyword(Keyword::As) => BinaryOp::As,
+            Token::Plus => BinaryOpKind::Add,
+            Token::Ampersand => BinaryOpKind::And,
+            Token::Caret => BinaryOpKind::Xor,
+            Token::Pipe => BinaryOpKind::Or,
+            Token::Minus => BinaryOpKind::Subtract,
+            Token::Star => BinaryOpKind::Multiply,
+            Token::Slash => BinaryOpKind::Divide,
+            Token::Equal => BinaryOpKind::Equal,
+            Token::NotEqual => BinaryOpKind::NotEqual,
+            Token::Less => BinaryOpKind::Less,
+            Token::LessEqual => BinaryOpKind::LessEqual,
+            Token::Greater => BinaryOpKind::Greater,
+            Token::GreaterEqual => BinaryOpKind::GreaterEqual,
+            Token::Assign => BinaryOpKind::Assign,
+            Token::Keyword(Keyword::As) => BinaryOpKind::As,
             _ => panic!(
                 "The token:  \" {} \"does not seem to be a binary operation ",
                 token
@@ -181,9 +174,14 @@ impl From<&Token> for BinaryOp {
     }
 }
 
-impl From<Token> for BinaryOp {
-    fn from(token : Token) -> BinaryOp {
-        BinaryOp::from(&token)
+impl From<Token> for BinaryOpKind {
+    fn from(token : Token) -> BinaryOpKind {
+        BinaryOpKind::from(&token)
+    }
+}
+impl From<&SpannedToken> for BinaryOp {
+    fn from(st : &SpannedToken) -> BinaryOp {
+        Spanned::from(st.into_span(), BinaryOpKind::from(st.token()))
     }
 }
 
@@ -214,7 +212,6 @@ pub enum Literal {
     Bool(bool),
     Integer(i128),
     Str(String),
-    Type(Type), // XXX: Possibly replace this with a Type Expression
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

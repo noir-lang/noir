@@ -135,7 +135,7 @@ impl Type {
 
     // Given a binary operator and another type. This method will produce the 
     // output type
-    pub fn infix_operand_type_rules(&self, op : &BinaryOp, other: &Type) -> Result<Type, String> {
+    pub fn infix_operand_type_rules(&self, op : &BinaryOpKind, other: &Type) -> Result<Type, String> {
         if op.is_comparator() {
             return Ok(Type::Bool)
         }
