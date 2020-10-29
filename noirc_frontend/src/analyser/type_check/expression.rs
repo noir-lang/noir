@@ -21,17 +21,7 @@ impl<'a> TypeChecker<'a> {
                 };
 
                 let (argument_types, _) = self.type_check_vector_expressions(&mut call_expr.arguments)?;
-                // let (argument_types, errors) : (Vec<_>, Vec<_>) = call_expr.arguments.iter().map(|arg| self.type_check_expr(&mut arg.clone())).partition(Result::is_ok);
-                // let argument_types: Vec<Type> = argument_types.into_iter().map(Result::unwrap).collect();
-                // let errors: Vec<AnalyserError> = errors.into_iter().map(Result::unwrap_err).collect();
-                // for err in errors {
-                //     self.push_err(err);
-                // }
-                // if errors.len() > 0 {
-                //     return Err(AnalyserError::from_expression(format!("could not parse call expression"), expr));
-                // }
-
-
+       
                 assert_eq!(parameters.len(), argument_types.len()); // This should have been caught in the resolver
 
                 for (parameter, argument_type) in parameters.iter().zip(argument_types.iter()) {
@@ -53,7 +43,7 @@ impl<'a> TypeChecker<'a> {
                 let typ = self.lookup_local_identifier(&indx.collection_name);
 
                 match typ {
-                    Type::Array(num_elements, base_type) => Ok(*base_type),
+                    Type::Array(_, base_type) => Ok(*base_type),
                     _=> Err(AnalyserError::from_ident(format!("cannot index into a value of type"), &indx.collection_name))
                 }
             },
@@ -130,7 +120,6 @@ impl<'a> TypeChecker<'a> {
             Literal::Str(_) => {
                 unimplemented!("[Coming Soon] : Currently string literal types have not been implemented")
             }, 
-            Literal::Type(typ) => Ok(typ.clone())
         }
     }
     
@@ -138,10 +127,10 @@ impl<'a> TypeChecker<'a> {
         
         let lhs_type = self.type_check_expr(&mut infx.lhs)?;
         let rhs_type = self.type_check_expr(&mut infx.rhs)?;
-    
-        // XXX: We currently don't have spanning info for types, so lets use the full expressions for now 
+
+        // XXX: This may get complicated, if specific rules are added per operators
         let span = infx.lhs.span.merge(infx.rhs.span);
-        lhs_type.infix_operand_type_rules(&infx.operator, &rhs_type).map_err(|message| AnalyserError::Unstructured{message, span})
+        lhs_type.infix_operand_type_rules(&infx.operator.contents, &rhs_type).map_err(|message| AnalyserError::Unstructured{message, span})
     }
 
     fn type_check_param_argument(param: &(Ident, Type), arg_type : &Type) {
