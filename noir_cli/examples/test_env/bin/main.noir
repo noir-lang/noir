@@ -1,4 +1,0 @@
-   fn main(x : Witness, y : Witness,result : Public) {
-          priv j = std::util::array::sum([x as u8,y as u8]);
-          constrain (j as u12) == result;
-   }
