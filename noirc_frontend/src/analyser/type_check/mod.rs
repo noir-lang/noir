@@ -10,7 +10,7 @@ type Scope = GenericScope<Ident, Type>;
 type ScopeTree = GenericScopeTree<Ident, Type>;
 type ScopeForest = GenericScopeForest<Ident, Type>;
 
-use super::errors::{AnalyserError, Span};
+use super::errors::{AnalyserError, Span, TypeError};
 
 mod expression;
 

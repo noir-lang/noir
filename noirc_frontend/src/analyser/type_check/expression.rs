@@ -103,8 +103,10 @@ impl<'a> TypeChecker<'a> {
                     let right_type = &type_pair[1]; 
 
                     if left_type != right_type {
-                        let message = format!("Array is not homogenous at indices ({}, {}), found an element of type {} and an element of type {}", i,i+1, left_type, right_type);
-                        return Err(AnalyserError::Unstructured{message,span })
+                        let i_span = arr_lit.contents[i].span;
+                        let i_plus_one_span = arr_lit.contents[i+1].span;
+                        let err = TypeError::NonHomogenousArray{first_span : i_span, first_index : i, second_span : i_plus_one_span, second_index : i+1,first_type : left_type.to_string(), second_type : right_type.to_string()};
+                        return Err(AnalyserError::TypeError(err))
                     }
                 }
                 
