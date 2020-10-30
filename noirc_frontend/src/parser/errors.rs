@@ -30,34 +30,21 @@ impl DiagnosableError for ParserError {
             ParserError::LexerError(lex_err) => lex_err.to_diagnostic(),
             ParserError::InternalError{message, span} => panic!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),
             ParserError::NoPrefixFunction{span, lexeme} => {
-                Diagnostic{
-                    message : format!("{} cannot be used as a prefix operator.", lexeme),
-                    span : *span
-                }
+                let mut diag = Diagnostic::simple_error(format!("Unexpected start of an expression {}", lexeme), format!("did not expect this token"), *span);
+                diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimeter."));
+                diag
             },
             ParserError::NoInfixFunction{span, lexeme} => {
-                Diagnostic{
-                    message : format!("{} cannot be used as a infix operator.", lexeme),
-                    span : *span
-                }
+                Diagnostic::simple_error(format!("Token cannot be used as an Infix operator"), format!("cannot be used as a infix operator."), *span)
             },
             ParserError::UnexpectedToken{span , expected, found} => {
-                Diagnostic{
-                    message : format!("Expected a {} but found {}", expected, found),
-                    span : *span
-                }
+                Diagnostic::simple_error(format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
             }
             ParserError::UnexpectedTokenKind{span , expected, found} => {
-                Diagnostic{
-                    message : format!("Expected a {} but found {}", expected, found),
-                    span : *span
-                }
+                Diagnostic::simple_error(format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
             },
             ParserError::UnstructuredError{span, message} => {
-                Diagnostic{
-                    message : message.to_string(),
-                    span : *span
-                }
+                Diagnostic::simple_error("".to_owned(), message.to_string(), *span)
             },
         }
     }

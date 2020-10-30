@@ -19,10 +19,7 @@ impl DiagnosableError for LexerError {
     fn to_diagnostic(&self) -> Diagnostic{
         match self {
             LexerError::UnexpectedCharacter{span, found} => {
-                Diagnostic{
-                    message :format!("An unexpected character {:?} was found.", found),
-                    span : *span
-                }
+                Diagnostic::simple_error(format!("an unexpected character was found"), format!(" {:?} is unexpected", found), *span)
             },
             LexerError::InternalError => panic!("Internal Error. This is a bug in the compiler"),
             _=> todo!()
