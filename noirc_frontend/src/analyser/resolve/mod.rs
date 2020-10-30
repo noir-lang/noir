@@ -7,12 +7,17 @@ use super::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeFo
 /// Checks that each variable was declared before it's use
 /// Checks that there are no unused variables
 
-type Scope = GenericScope<Ident, usize>;
-type ScopeTree = GenericScopeTree<Ident, usize>;
-type ScopeForest = GenericScopeForest<Ident, usize>;
+struct ResolverMeta{
+    num_times_used : usize,
+    span : Span,
+}
+
+type Scope = GenericScope<String, ResolverMeta>;
+type ScopeTree = GenericScopeTree<String, ResolverMeta>;
+type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 mod expression;
-use super::errors::{AnalyserError, ResolverError};
+use super::errors::{AnalyserError, ResolverError,Span};
 
 pub struct Resolver<'a>{
     table : &'a SymbolTable,
@@ -29,11 +34,12 @@ impl<'a> Resolver<'a> {
     fn add_variable_decl(&mut self, name : Ident) {
 
         let scope = self.local_declarations.get_mut_scope();
-        let is_new_entry = scope.add_key_value(name.clone(),0);
+        let resolver_meta = ResolverMeta {num_times_used : 0, span : name.0.span()};
+        let is_new_entry = scope.add_key_value(name.0.contents.clone(), resolver_meta);
 
         if !is_new_entry {
-            let first_decl = scope.occupied_key(&name).unwrap();
-            let err = ResolverError::DuplicateDefinition{first_span: first_decl.0.span(), second_span : name.0.span(), ident: name.0.contents};
+            let first_decl = scope.find(&name.0.contents).unwrap();
+            let err = ResolverError::DuplicateDefinition{first_span: first_decl.span, second_span : name.0.span(), ident: name.0.contents};
             self.push_err(err);
         }
         
@@ -48,10 +54,10 @@ impl<'a> Resolver<'a> {
     fn find_variable(&mut self, name : &Ident) -> bool {
                
         let scope_tree = self.local_declarations.current_scope_tree();
-        let variable = scope_tree.find_key(name);
+        let variable = scope_tree.find_key(&name.0.contents);
         
         if let Some(variable_found) = variable {
-            *variable_found = *variable_found + 1;
+            variable_found.num_times_used = variable_found.num_times_used + 1;
             return true
         } 
         return false
@@ -103,23 +109,22 @@ impl<'a> Resolver<'a> {
     }
 
     fn check_for_unused_variables_in_local_scope(&mut self, decl_map : &Scope) {
-        let unused_variables = decl_map.predicate(|kv :&(&Ident, &usize)| -> bool {
+        let unused_variables = decl_map.predicate(|kv :&(&String, &ResolverMeta)| -> bool {
             
             let variable_name = kv.0;
-            let num_times_fetched = kv.1;
+            let metadata = kv.1;
             
-            let has_underscore_prefix = variable_name.0.contents.starts_with("_");
+            let has_underscore_prefix = variable_name.starts_with("_"); // XXX: This is used for development mode, and will be removed
 
-            if *num_times_fetched == 0 && !has_underscore_prefix {
+            if metadata.num_times_used == 0 && !has_underscore_prefix {
                 return true
             }
             false
         });
 
-        let variables_names : Vec<_>= unused_variables.map(|(var_name, _)|var_name ).collect();
-        for unused_var in variables_names.into_iter() {
-            let span = unused_var.0.span();
-            let ident = unused_var.0.contents.clone();
+        for (unused_var, meta) in unused_variables.into_iter() {
+            let span = meta.span;
+            let ident = unused_var.clone();
             let err = ResolverError::UnusedVariables{span, ident};
             self.push_err(err);
         }
