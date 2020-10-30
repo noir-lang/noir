@@ -41,10 +41,36 @@ impl FileMap {
 
 /// Diagnostics 
 pub struct CustomDiagnostic {
-    // Diagnostic message
+    message : String,
+    secondaries : Vec<CustomLabel>,
+    notes : Vec<String>,
+}
+
+impl CustomDiagnostic {
+    pub fn simple_error(primary_message : String, secondary_message : String, secondary_span : Span ) -> CustomDiagnostic {
+        CustomDiagnostic{
+            message : primary_message,
+            secondaries : vec![CustomLabel::new(secondary_message, secondary_span)],
+            notes : Vec::new()
+        }
+    }
+    pub fn add_note(&mut self, message : String) {
+        self.notes.push(message);
+    }
+    pub fn add_secondary(&mut self, message : String, span : Span) {
+        self.secondaries.push(CustomLabel::new(message, span));
+    }
+}
+
+struct CustomLabel{
     pub message : String, 
-    // Span of token which is giving the error message
     pub span : Span,
+}
+
+impl CustomLabel {
+    pub fn new(message : String, span : Span) -> CustomLabel {
+        CustomLabel{message, span}
+    }
 }
 
 pub struct Reporter;
@@ -53,15 +79,15 @@ impl Reporter {
     pub fn with_diagnostics(file_id : FileID, files : &FileMap, diagnostics : &Vec<CustomDiagnostic>) {       
         // Convert each Custom Diagnostic into a diagnostic
         let diagnostics : Vec<_> = diagnostics.into_iter().map(|cd| {
+           
 
-            let start_span = cd.span.start.to_byte_index().to_usize();
-            let end_span = cd.span.end.to_byte_index().to_usize() + 1;
-            
-            Diagnostic::error()
-                // .with_code("E01")
-                .with_labels(vec![
-        Label::secondary(file_id.0, start_span..end_span).with_message(&cd.message),
-        ])
+            let secondary_labels : Vec<_> = cd.secondaries.iter().map(|sl| {
+                let start_span = sl.span.start.to_byte_index().to_usize();
+                let end_span = sl.span.end.to_byte_index().to_usize() + 1;
+                Label::secondary(file_id.0, start_span..end_span).with_message(&sl.message)
+            }).collect();
+
+            Diagnostic::error().with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
         
         }).collect();
 
