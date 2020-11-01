@@ -160,7 +160,7 @@ class uint_nt {
     {}
 
     uint_nt(const byte_array_ct& other)
-        : __width(other.bits().size())
+        : __width(other.bytes().size() * 8)
     {
         switch (__width) {
         case 8: {

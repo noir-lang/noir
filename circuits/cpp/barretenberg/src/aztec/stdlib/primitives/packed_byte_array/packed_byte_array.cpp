@@ -79,16 +79,14 @@ packed_byte_array<Composer>::packed_byte_array(const byte_array_pt& input)
 {
     const size_t num_elements = num_bytes / BYTES_PER_ELEMENT + (num_bytes % BYTES_PER_ELEMENT != 0);
 
-    const auto& bits = input.bits();
+    const auto& bytes = input.bytes();
 
-    constexpr size_t bits_per_element = BYTES_PER_ELEMENT * 8;
     for (size_t i = 0; i < num_elements; ++i) {
         const size_t bytes_in_element = (i == num_elements - 1) ? num_bytes - i * BYTES_PER_ELEMENT : BYTES_PER_ELEMENT;
-        const size_t bits_in_element = bytes_in_element * 8;
         field_pt limb(context, 0);
-        for (size_t j = 0; j < bits_in_element; ++j) {
-            const uint64_t shift = static_cast<uint64_t>(bits_per_element - 1 - j);
-            limb += field_pt(bits[i * bits_per_element + j]) * field_pt(context, uint256_t(1) << shift);
+        for (size_t j = 0; j < bytes_in_element; ++j) {
+            const uint64_t shift = static_cast<uint64_t>(BYTES_PER_ELEMENT - 1 - j) * 8;
+            limb += field_pt(bytes[i * BYTES_PER_ELEMENT + j]) * field_pt(context, uint256_t(1) << shift);
         }
         limbs.push_back(limb);
     }
@@ -133,24 +131,23 @@ packed_byte_array<Composer>& packed_byte_array<Composer>::operator=(packed_byte_
 
 template <typename Composer> packed_byte_array<Composer>::operator byte_array_pt() const
 {
-    std::vector<bool_pt> bits;
-    const size_t num_bits = num_bytes * 8;
+    std::vector<field_pt> bytes;
 
-    constexpr size_t bits_per_element = BYTES_PER_ELEMENT * 8;
     for (size_t i = 0; i < limbs.size(); ++i) {
-        const size_t bits_in_limb = (i == limbs.size() - 1) ? num_bits - (i * bits_per_element) : bits_per_element;
+        const size_t bytes_in_limb = (i == limbs.size() - 1) ? num_bytes - (i * BYTES_PER_ELEMENT) : BYTES_PER_ELEMENT;
         field_pt accumulator(context, 0);
         uint256_t limb_value(limbs[i].get_value());
-        for (size_t j = 0; j < bits_in_limb; ++j) {
-            const uint64_t bit_shift = (bits_per_element - 1 - j);
-            uint64_t bit_val = (limb_value >> bit_shift).data[0] & (uint64_t)(1);
-            bool_pt bit(witness_t(context, fr(bit_val)));
-            accumulator += (field_pt(bit) * field_pt(context, uint256_t(1) << bit_shift));
-            bits.emplace_back(bit);
+        for (size_t j = 0; j < bytes_in_limb; ++j) {
+            const uint64_t bit_shift = (BYTES_PER_ELEMENT - 1 - j) * 8;
+            uint64_t byte_val = (limb_value >> bit_shift).data[0] & (uint64_t)(255);
+            field_pt byte(witness_t(context, fr(byte_val)));
+            context->create_range_constraint(byte.witness_index, 8);
+            accumulator += (field_pt(byte) * field_pt(context, uint256_t(1) << bit_shift));
+            bytes.emplace_back(byte);
         }
         accumulator.assert_equal(limbs[i]);
     }
-    return byte_array_pt(context, bits);
+    return byte_array_pt(context, bytes);
 }
 
 template <typename Composer>

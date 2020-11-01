@@ -16,8 +16,24 @@ template <typename ComposerContext> class bit_array {
     bit_array(byte_array<ComposerContext> const& input)
         : context(input.get_context())
         , length(input.size() * 8)
-        , values(input.bits())
     {
+        const auto bytes = input.bytes();
+        const size_t num_bits = bytes.size() * 8;
+        values.resize(num_bits);
+        for (size_t i = 0; i < bytes.size(); ++i)
+        {
+            const auto byte = bytes[i];
+            field_t<ComposerContext> accumulator(0);
+            for (size_t j = 0; j < 8; ++j)
+            {
+                const auto bit_witness = uint256_t((uint256_t(byte.get_value()) >> (7 - j)) & uint256_t(1));
+                bool_t<ComposerContext> bit = witness_t<ComposerContext>(context, bit_witness);
+                values[i* 8 + j] = bit;
+                accumulator *= 2;
+                accumulator += bit;
+            }
+            byte.assert_equal(accumulator);
+        }
         std::reverse(values.begin(), values.end());
     }
 
@@ -51,7 +67,33 @@ template <typename ComposerContext> class bit_array {
     bool_t<ComposerContext>& operator[](const size_t idx);
     bool_t<ComposerContext> operator[](const size_t idx) const;
 
-    explicit operator byte_array<ComposerContext>() { return byte_array(context, values.rbegin(), values.rend()); };
+    explicit operator byte_array<ComposerContext>() {
+
+        std::vector<bool_t<ComposerContext>> rbits(values.rbegin(), values.rend());
+
+        const size_t num_bits = rbits.size();
+        const size_t num_bytes = (num_bits / 8) + (num_bits % 8 != 0);
+
+        std::vector<field_t<ComposerContext>> values(num_bytes);
+
+        for (size_t i = 0; i < num_bytes; ++i)
+        {
+            size_t end = 8;
+            if (i == num_bytes - 1 && (num_bits % 8 != 0))
+            {
+                end = num_bits % 8;
+            }
+            field_t<ComposerContext> accumulator(0);
+            for (size_t j = 0; j < end; ++j)
+            {
+                const auto bit = rbits[i * 8 + j];
+                const uint256_t scaling_factor = uint256_t(1) << (end - j - 1);
+                accumulator += field_t<ComposerContext>(bit) * barretenberg::fr(scaling_factor);
+            }
+            values[i] = accumulator.normalize();
+        }
+        return byte_array(context, values);
+    };
 
     template <size_t N> operator std::array<uint32<ComposerContext>, N>()
     {
@@ -128,6 +170,12 @@ template <typename ComposerContext> class bit_array {
             printf(" %x", (ulong_vector[i]));
         }
         printf(" ]\n");
+    }
+
+    std::vector<bool_t<ComposerContext>> get_bits() const
+    {
+        const std::vector<bool_t<ComposerContext>>  result(values.begin(), values.end());
+        return result;
     }
 
   private:

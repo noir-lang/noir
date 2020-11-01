@@ -5,17 +5,6 @@ namespace plonk {
     static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
 namespace stdlib {
 
-/*
-inline barretenberg::fr set_bit(const barretenberg::fr& scalar, const uint64_t bit_position)
-{
-    barretenberg::fr result = scalar;
-    uint64_t limb_idx = bit_position / 64ULL;
-    uint64_t limb_bit_position = bit_position - (limb_idx * 64ULL);
-    result.data[limb_idx] = result.data[limb_idx] + (1ULL << limb_bit_position);
-    return result;
-}
-*/
-
 template <typename ComposerContext> class witness_t {
   public:
     witness_t() = default;

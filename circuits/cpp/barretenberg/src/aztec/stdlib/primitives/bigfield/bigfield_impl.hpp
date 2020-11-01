@@ -5,6 +5,7 @@
 
 #include "../composers/composers.hpp"
 
+#include "../bit_array/bit_array.hpp"
 #include "../field/field.hpp"
 
 using namespace barretenberg;
@@ -131,8 +132,10 @@ bigfield<C, T>::bigfield(bigfield&& other)
 
 template <typename C, typename T> bigfield<C, T>::bigfield(const byte_array<C>& bytes)
 {
+    const bit_array<C> bytes_as_bits(bytes);
+    const auto rbits = bytes_as_bits.get_bits();
+    std::vector<bool_t<C>> bits(rbits.rbegin(), rbits.rend());
     context = bytes.get_context();
-    std::vector<bool_t<C>> bits = bytes.bits();
     const size_t num_bits = bits.size();
     const size_t offset = num_bits - modulus_u512.get_msb() - 1;
     std::vector<field_t<C>> elements;
