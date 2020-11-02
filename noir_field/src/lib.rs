@@ -42,6 +42,13 @@ impl FieldElement {
     pub fn max_num_bits() -> u32 {
         Fr::NUM_BITS
     }
+    pub fn from_str(input : &str) -> Option<FieldElement> {
+        let fr = match Fr::from_str(input) {
+            None => return None,
+            Some(x) => x,
+        };
+        Some(FieldElement(fr))
+    }
     // This is the amount of bits that are always zero, since we have enough bits to represents every element in the field without them
     fn wasted_bits() -> u32 {
         let vec: Vec<_> = BitIterator::new(Fr::one().into_repr()).collect();
@@ -58,7 +65,7 @@ impl FieldElement {
             None => return 0,
             Some(index) => {
                 // The most significant bit was found at index.
-                // The index tells us how many elements cme before the most significant bit
+                // The index tells us how many elements came before the most significant bit
 
                 // We need to compute the offset as the representation may have wasted bits
                 let offset = FieldElement::wasted_bits();
@@ -69,6 +76,10 @@ impl FieldElement {
                 return Fr::NUM_BITS - msb_index_offset;
             }
         }
+    }
+
+    pub fn fits_in_u128(&self) -> bool {
+        self.num_bits() <= 128
     }
 
     pub fn zero() -> FieldElement {
