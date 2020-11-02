@@ -200,7 +200,7 @@ fn verify(args: ArgMatches) {
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push(Path::new("proofs"));
     proof_path.push(Path::new(proof_name));
-    proof_path.set_extension("noir");
+    proof_path.set_extension("proof");
 
     let proof: Vec<_> = std::fs::read(proof_path).unwrap();
 
@@ -271,7 +271,7 @@ fn prove(args: ArgMatches) {
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push("proofs");
     proof_path.push(proof_name);
-    proof_path.set_extension("noir");
+    proof_path.set_extension("proof");
 
     dbg!(hex::encode(proof.clone()));
 
