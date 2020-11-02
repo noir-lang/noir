@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  RELEASE_BIN: noir
+
 jobs:
   publish:
     name: Publish for ${{ matrix.os }}
@@ -20,16 +23,16 @@ jobs:
         include:
           - name: linux
             os: ubuntu-latest
-            artifact_name: <name>
-            asset_name: <name>-linux
+            artifact_name: ${{ env.RELEASE_BIN }}
+            asset_name: ${{ env.RELEASE_BIN }}-linux
           - name: windows
             os: windows-latest
-            artifact_name: <name>.exe
-            asset_name: <name>-windows
+            artifact_name: ${{ env.RELEASE_BIN }}.exe
+            asset_name: ${{ env.RELEASE_BIN }}-windows
           - name: macos
             os: macos-latest
-            artifact_name: <name>
-            asset_name: <name>-macos
+            artifact_name: ${{ env.RELEASE_BIN }}
+            asset_name: ${{ env.RELEASE_BIN }}-macos
 
     steps:
     - uses: actions/checkout@v1
