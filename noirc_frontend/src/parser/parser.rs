@@ -368,17 +368,18 @@ impl<'a> Parser<'a> {
         // Next token should be an Integer or right brace
         let array_len = match self.peek_token.clone().into() {
             Token::Int(integer) => {
-                if integer < 0 {
-                    let message = format!("Cannot have a negative array size, [-k]Type is disallowed");
+                
+                if !integer.fits_in_u128() {
+                    let message = format!("Array sizes must fit within a u128");
                     return Err(ParserError::UnstructuredError{message, span: self.peek_token.into_span()});
 
                 }
                 self.advance_tokens();
-                ArraySize::Fixed(integer as u128)
+                ArraySize::Fixed(integer.to_u128())
             },
             Token::RightBracket => ArraySize::Variable,
             _ => {
-                let message = format!("The array size is defined as [k] for fixed size or [] for variable length");
+                let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal");
                 return Err(ParserError::UnstructuredError{message, span: self.peek_token.into_span()});
             },
         };
@@ -471,7 +472,7 @@ mod test {
         let program = parser.parse_program().unwrap();
 
         let test_iden = vec![
-            Literal::Integer(10),
+            Literal::Integer(10.into()),
             Literal::Bool(true),
             Literal::Str("string_literal".to_string()),
         ];
@@ -501,11 +502,11 @@ mod test {
         let test_iden = vec![
             PrefixExpression {
                 operator: UnaryOp::Not,
-                rhs: ExpressionKind::Literal(Literal::Integer(99)).into_span(Default::default()),
+                rhs: ExpressionKind::Literal(Literal::Integer(99.into())).into_span(Default::default()),
             },
             PrefixExpression {
                 operator: UnaryOp::Minus,
-                rhs: ExpressionKind::Literal(Literal::Integer(100)).into_span(Default::default()),
+                rhs: ExpressionKind::Literal(Literal::Integer(100.into())).into_span(Default::default()),
             },
             PrefixExpression {
                 operator: UnaryOp::Not,
@@ -537,14 +538,14 @@ mod test {
 
         let test_iden = vec![
             InfixExpression {
-                lhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
+                lhs: ExpressionKind::Literal(Literal::Integer(5.into())).into_span(Default::default()),
                 operator: Spanned::from(Default::default(), BinaryOpKind::Add),
-                rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
+                rhs: ExpressionKind::Literal(Literal::Integer(5.into())).into_span(Default::default()),
             },
             InfixExpression {
-                lhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
+                lhs: ExpressionKind::Literal(Literal::Integer(10.into())).into_span(Default::default()),
                 operator: Spanned::from(Default::default(), BinaryOpKind::Multiply),
-                rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
+                rhs: ExpressionKind::Literal(Literal::Integer(5.into())).into_span(Default::default()),
             },
             InfixExpression {
                 lhs: ExpressionKind::Literal(Literal::Bool(true)).into_span(Default::default()),
@@ -586,9 +587,9 @@ mod test {
         let grouped_expression = PrefixExpression {
             operator: UnaryOp::Minus,
             rhs: ExpressionKind::Infix(Box::new(InfixExpression {
-                lhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
+                lhs: ExpressionKind::Literal(Literal::Integer(5.into())).into_span(Default::default()),
                 operator: Spanned::from(Default::default(), BinaryOpKind::Add),
-                rhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
+                rhs: ExpressionKind::Literal(Literal::Integer(10.into())).into_span(Default::default()),
             })).into_span(Default::default()),
         };
 
@@ -610,10 +611,10 @@ mod test {
         let ungrouped_expression = InfixExpression {
             lhs: ExpressionKind::Prefix(Box::new(PrefixExpression {
                 operator: UnaryOp::Minus,
-                rhs: ExpressionKind::Literal(Literal::Integer(5)).into_span(Default::default()),
+                rhs: ExpressionKind::Literal(Literal::Integer(5.into())).into_span(Default::default()),
             })).into_span(Default::default()),
             operator: Spanned::from(Default::default(), BinaryOpKind::Add),
-            rhs: ExpressionKind::Literal(Literal::Integer(10)).into_span(Default::default()),
+            rhs: ExpressionKind::Literal(Literal::Integer(10.into())).into_span(Default::default()),
         };
 
         let stmt = program.statements[1].clone();
@@ -766,11 +767,11 @@ mod test {
         let test_iden = vec![CallExpression {
             func_name: add_ident,
             arguments: vec![
-                ExpressionKind::Literal(Literal::Integer(1)).into_span(Default::default()),
+                ExpressionKind::Literal(Literal::Integer(1.into())).into_span(Default::default()),
                 ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: ExpressionKind::Literal(Literal::Integer(2)).into_span(Default::default()),
+                    lhs: ExpressionKind::Literal(Literal::Integer(2.into())).into_span(Default::default()),
                     operator: Spanned::from(Default::default(), BinaryOpKind::Add),
-                    rhs: ExpressionKind::Literal(Literal::Integer(3)).into_span(Default::default()),
+                    rhs: ExpressionKind::Literal(Literal::Integer(3.into())).into_span(Default::default()),
                 })).into_span(Default::default()),
             ],
         }];
