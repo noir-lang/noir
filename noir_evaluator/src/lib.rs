@@ -486,7 +486,15 @@ impl Evaluator {
             ExpressionKind::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let arr = env.get_array(indexed_expr.collection_name.0.clone().contents);
-                arr.get(indexed_expr.index.kind.to_u128())
+
+                // evaluate the index expression
+                let index_as_obj = self.expression_to_object(env, indexed_expr.index);
+                let index_as_u128 = match index_as_obj.to_u128() {
+                    None => panic!("Indexed expression does not evaluate to a constant"),
+                    Some(i) => i
+                };
+                
+                arr.get(index_as_u128)
             }
             // This is currently specific to core library calls
             ExpressionKind::Call(path, call_expr) => {

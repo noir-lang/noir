@@ -100,6 +100,13 @@ impl Object {
     pub fn from_witness(witness: Witness) -> Object {
         Object::Linear(Linear::from_witness(witness))
     }
+
+    pub fn to_u128(self) -> Option<u128> {
+        match self{
+            Object::Constants(c) => Some(c.to_u128()),
+            _=> None
+        }
+    }
 }
 
 impl From<Object> for Gate {
