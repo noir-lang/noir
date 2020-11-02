@@ -1,4 +1,5 @@
 use std::fmt;
+use noir_field::FieldElement;
 use noirc_errors::{Position, Spanned, Span};
 
 
@@ -44,15 +45,13 @@ impl SpannedToken {
 }
 
 // XXX(low): Need to Add functionality to parse all types of numbers including hex. This would be in the lexer
-// XXX(low): Add positional information
 // XXX(low): Add a Comment Token to force users to have documentation on public functions
-// XXX(med) : Modify Int to use noir_field, so it will be Int(FieldElement)
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 /// All possible tokens allowed in the target language
 pub enum Token {
     Ident(String),
-    Int(i128),
+    Int(FieldElement),
     Bool(bool),
     Str(String),
     Keyword(Keyword),
@@ -129,7 +128,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{}", s),
-            Token::Int(n) => write!(f, "{}", n),
+            Token::Int(n) => write!(f, "{:?}", n),
             Token::Bool(b) => write!(f, "{}", b),
             Token::Str(ref b) => write!(f, "{}", b),
             Token::Comment(ref b) => write!(f, "{}", b),

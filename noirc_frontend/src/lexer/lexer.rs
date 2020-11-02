@@ -1,6 +1,7 @@
 use super::token::{Attribute, IntType, Keyword, Token, SpannedToken};
 use std::iter::Peekable;
 use std::str::Chars;
+use noir_field::FieldElement;
 use noirc_errors::{Position, File, Span};
 use super::errors::LexerError;
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
@@ -263,7 +264,10 @@ impl<'a> Lexer<'a> {
     }
     fn eat_digit(&mut self, initial_char: char) -> SpannedToken {
         let (integer_str, start_span, end_span) = self.eat_while(Some(initial_char), |ch| ch.is_numeric());
-        let integer: i128 = integer_str.parse().unwrap();
+        let integer = match FieldElement::from_str(&integer_str) {
+            None => panic!("Expected an integer in base10. Hex is not supported currently, coming soon."),
+            Some(integer) => integer 
+        };
         let integer_token = Token::Int(integer.into());
         integer_token.into_span(start_span, end_span,)
     }
@@ -381,7 +385,7 @@ fn test_comment() {
         Token::Keyword(Keyword::Let),
         Token::Ident("x".to_string()),
         Token::Assign,
-        Token::Int(5),
+        Token::Int(FieldElement::from(5)),
     ];
 
     let mut lexer = Lexer::new(0,input);
@@ -437,7 +441,7 @@ fn test_span() {
     
     // Int position
     let int_position = whitespace_position.forward();
-    let int_token = Token::Int(5).into_single_span(int_position);
+    let int_token = Token::Int(5.into()).into_single_span(int_position);
 
     let expected = vec![
         let_token,
