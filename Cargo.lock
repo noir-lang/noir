@@ -1170,7 +1170,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_cli"
+name = "noir"
 version = "0.1.0"
 dependencies = [
  "acir",
