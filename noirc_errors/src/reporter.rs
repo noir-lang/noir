@@ -121,7 +121,7 @@ impl Reporter {
         
         if diagnostics.len() != 0 {
             writer.lock().set_color(ColorSpec::new().set_fg(Some(Color::Red))).unwrap();
-            writeln!(&mut writer.lock(), "error: aborting due to number of errors being {}", diagnostics.len()).unwrap();
+            writeln!(&mut writer.lock(), "error: aborting due to {} previous errors", diagnostics.len()).unwrap();
         }
     }
 }
