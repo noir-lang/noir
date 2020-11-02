@@ -1,4 +1,7 @@
 name: Publish
+# <arch>-<vendor>-<os>-<env>
+# For esoteric targets, there is probably a succint way to do it with a target array
+# Alternatively, we can wait for action-rs to get a v2, where we can input 'targets' 
 
 on:
   push:
@@ -22,22 +25,30 @@ jobs:
             os: ubuntu-latest
             artifact_name: noir
             asset_name: noir-linux
-          - name: windows
+            target: x86_64-unknown-linux-gnu
+            - name: windows
             os: windows-latest
             artifact_name: noir.exe
             asset_name: noir-windows
-          - name: macos
+            target: x86_64-pc-windows-gnu
+            - name: macos
             os: macos-latest
             artifact_name: noir
             asset_name: noir-macos
+            target: x86_64-apple-darwin
 
     steps:
     - uses: actions/checkout@v1
 
+    - name: 'Get Previous tag'
+      id: previoustag
+      uses: "WyriHaximus/github-action-get-previous-tag@master"
+    
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
+        target: ${{ matrix.target }}
 
     - name: Build
       run: cargo build --release --locked
@@ -47,5 +58,5 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/release/${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}
+        asset_name: ${{ matrix.asset_name }}-${{ steps.previoustag.outputs.tag }}-${{ matrix.target }}
         tag: ${{ github.ref }}
