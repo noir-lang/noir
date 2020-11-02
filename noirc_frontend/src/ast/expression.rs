@@ -1,7 +1,7 @@
 use crate::{BlockStatement, Ident, Type};
 use crate::token::{Keyword, Token, Attribute, SpannedToken};
 use noirc_errors::{Spanned, Span};
-
+use noir_field::FieldElement;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
     Ident(String), // an identifer can also produce a value. e.g. let x = y; y is an expression in this case
@@ -67,14 +67,9 @@ impl ExpressionKind {
             _ => None,
         }
     }
-    /// Converts an Expression to a u128
-    /// The Expression must be a literal integer
-    pub fn to_u128(&self) -> u128 {
-        let integer = self.integer().expect("Expression is not an integer");
-        integer as u128
-    }
 
-    fn integer(&self) -> Option<i128> {
+
+    fn integer(&self) -> Option<FieldElement> {
         let literal = match self {
             ExpressionKind::Literal(literal) => literal,
             _ => return None,
@@ -210,7 +205,7 @@ impl UnaryOp {
 pub enum Literal {
     Array(ArrayLiteral),
     Bool(bool),
-    Integer(i128),
+    Integer(FieldElement),
     Str(String),
 }
 
