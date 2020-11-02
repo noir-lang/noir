@@ -25,17 +25,17 @@ jobs:
             os: ubuntu-latest
             artifact_name: noir
             asset_name: noir-linux
-            target: x86_64-unknown-linux-gnu
+            target: [x86_64-unknown-linux-gnu]
           - name: windows
             os: windows-latest
             artifact_name: noir.exe
             asset_name: noir-windows
-            target: x86_64-pc-windows-gnu
+            target: [x86_64-pc-windows-gnu]
           - name: macos
             os: macos-latest
             artifact_name: noir
             asset_name: noir-macos
-            target: x86_64-apple-darwin
+            target: [x86_64-apple-darwin]
 
     steps:
     - uses: actions/checkout@v1
