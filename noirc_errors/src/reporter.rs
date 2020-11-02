@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use crate::Span;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::{SimpleFiles, SimpleFile};
@@ -8,12 +9,32 @@ use std::io::Write;
 use codespan::{ByteIndex, ByteOffset, RawOffset};
 use codespan::{Span as ByteSpan};
 
-pub struct FileMap(SimpleFiles<String, String>);
+#[derive(Clone)]
+pub struct PathString(PathBuf);
+
+impl std::fmt::Display for PathString {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        f.write_str(&self.0.to_string_lossy())
+    }
+}
+
+impl PathString {
+    pub fn from_path(p : PathBuf) -> Self {
+        PathString(p)
+    }
+}
+impl From<PathBuf> for PathString {
+    fn from(pb : PathBuf) -> PathString {
+        PathString::from_path(pb)
+    }
+}
+
+pub struct FileMap(SimpleFiles<PathString, String>);
 
 #[derive(Copy, Clone)]
 pub struct FileID(pub usize);
 
-pub struct File<'input>(&'input SimpleFile<String, String>);
+pub struct File<'input>(&'input SimpleFile<PathString, String>);
 
 impl<'input> File<'input> {
     pub fn get_source(self) -> &'input str {
@@ -26,7 +47,7 @@ impl FileMap {
         FileMap(SimpleFiles::new())
     }
 
-    pub fn add_file(&mut self, file_name : String, code: String) -> FileID {
+    pub fn add_file(&mut self, file_name : PathString, code: String) -> FileID {
         let file_id = self.0.add(file_name, code);
         FileID(file_id)
     }

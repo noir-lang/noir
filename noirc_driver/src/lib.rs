@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use noirc_errors::{FileMap, Reporter};
 use noirc_errors::DiagnosableError;
 use noirc_frontend::lexer::Lexer;
@@ -26,10 +27,10 @@ impl Driver{
         }
     }
 
-    pub fn compile_file(&mut self, file_name : String, code: String) -> CompiledProgram {
+    pub fn compile_file(&mut self, file_name : PathBuf, source: String) -> CompiledProgram {
 
         // First add the file to the system 
-        let file_id = self.file_map.add_file(file_name, code);
+        let file_id = self.file_map.add_file(file_name.into(), source);
 
         let file = self.file_map.get_file(file_id).unwrap();
 

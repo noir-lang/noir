@@ -122,8 +122,8 @@ fn build_main() -> CompiledMain {
     );
 
     let mut driver = Driver::new();
-    let file_as_string = std::fs::read_to_string(main_file).unwrap();
-    let compiled_program = driver.compile_file("main.noir".to_owned(), file_as_string.clone());
+    let file_as_string = std::fs::read_to_string(&main_file).unwrap();
+    let compiled_program = driver.compile_file(main_file, file_as_string.clone());
     let constraint_system =
         aztec_backend::serialise_circuit(&compiled_program.circuit, compiled_program.num_witnesses, compiled_program.num_public_inputs);
 
