@@ -25,17 +25,15 @@ jobs:
             os: ubuntu-latest
             artifact_name: noir
             asset_name: noir-linux
-            target: x86_64-unknown-linux-gnu
-            - name: windows
+          - name: windows
             os: windows-latest
             artifact_name: noir.exe
             asset_name: noir-windows
             target: x86_64-pc-windows-gnu
-            - name: macos
+          - name: macos
             os: macos-latest
             artifact_name: noir
             asset_name: noir-macos
-            target: x86_64-apple-darwin
 
     steps:
     - uses: actions/checkout@v1
@@ -48,7 +46,7 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        target: ${{ matrix.target }}
+        # target: ${{ matrix.target }}
 
     - name: Build
       run: cargo build --release --locked
@@ -58,5 +56,5 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/release/${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}-${{ steps.previoustag.outputs.tag }}-${{ matrix.target }}
+        asset_name: ${{ matrix.asset_name }}-${{ steps.previoustag.outputs.tag }}
         tag: ${{ github.ref }}
