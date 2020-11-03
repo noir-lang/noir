@@ -31,7 +31,7 @@ impl DiagnosableError for ParserError {
             ParserError::InternalError{message, span} => panic!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),
             ParserError::NoPrefixFunction{span, lexeme} => {
                 let mut diag = Diagnostic::simple_error(format!("Unexpected start of an expression {}", lexeme), format!("did not expect this token"), *span);
-                diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimeter."));
+                diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimiter."));
                 diag
             },
             ParserError::NoInfixFunction{span, lexeme} => {
