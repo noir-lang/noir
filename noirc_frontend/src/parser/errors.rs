@@ -35,7 +35,7 @@ impl DiagnosableError for ParserError {
                 diag
             },
             ParserError::NoInfixFunction{span, lexeme} => {
-                Diagnostic::simple_error(format!("Token cannot be used as an Infix operator"), format!("cannot be used as a infix operator."), *span)
+                Diagnostic::simple_error(format!("Token {} cannot be used as an Infix operator", lexeme), format!("cannot be used as a infix operator."), *span)
             },
             ParserError::UnexpectedToken{span , expected, found} => {
                 Diagnostic::simple_error(format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
