@@ -1,6 +1,7 @@
 use crate::object::Object;
 use crate::{Environment, Evaluator, Expression};
 use noirc_frontend::ast::ArrayLiteral;
+use super::{EvaluatorError, ArrayError};
 
 #[derive(Clone, Debug)]
 pub struct Array {
@@ -9,36 +10,33 @@ pub struct Array {
 }
 
 impl Array {
-    pub fn from(evaluator: &mut Evaluator, env: &mut Environment, arr_lit: ArrayLiteral) -> Array {
+    pub fn from(evaluator: &mut Evaluator, env: &mut Environment, arr_lit: ArrayLiteral) -> Result<Array, EvaluatorError> {
         // Take each element in the array and turn it into an object
-        // XXX: We do not do any type checking here, this will be done by the analyser.
-        // It will ensure that each type is the same and that the ArrayLiteral has an appropriate type
-        let elements_as_objects: Vec<_> = arr_lit
-            .contents
-            .into_iter()
-            .map(|expr| evaluator.expression_to_object(env, expr))
-            .collect();
-        Array {
-            contents: elements_as_objects,
-            length: arr_lit.length,
+        // We do not check that the array is homogenous, this is done by the type checker.
+        // We could double check here, however with appropriate tests, it should not be needed.
+        let (objects, mut errs) = evaluator.expression_list_to_objects(env, &arr_lit.contents);
+        if !errs.is_empty() {
+            return Err(errs.pop().unwrap())
         }
+
+        Ok(Array {
+            contents: objects,
+            length: arr_lit.length,
+        })
     }
-    pub fn get(&self, index: u128) -> Object {
+    pub fn get(&self, index: u128) -> Result<Object, EvaluatorError> {
         if index >= self.length {
-            panic!(
-                "out of bounds error, index is {} but length is {}",
-                index, self.length
-            )
+            return Err(EvaluatorError::ArrayError(ArrayError::OutOfBounds{index, bound : self.length}));
         };
 
-        self.contents[index as usize].clone()
+        Ok(self.contents[index as usize].clone())
     }
 
-    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr : Expression) -> Option<Array> {
-        let object = evaluator.expression_to_object(env, expr);
+    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr : Expression) -> Result<Array, EvaluatorError> {
+        let object = evaluator.expression_to_object(env, expr)?;
         match object {
-            Object::Array(arr) => Some(arr),
-            _=> None
+            Object::Array(arr) => Ok(arr),
+            _=> Err(EvaluatorError::expected_type("array", object.r#type()))
         }
     }
 }
