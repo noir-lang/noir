@@ -1,4 +1,4 @@
-use crate::{CallExpression, Environment, Evaluator, Object};
+use crate::{CallExpression, Environment, Evaluator, Object, EvaluatorError};
 
 mod arraysum;
 use arraysum::ArraySum;
@@ -26,14 +26,14 @@ pub trait BuiltInCaller {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: CallExpression,
-    ) -> Object;
+    ) -> Result<Object, EvaluatorError>;
 }
 
 pub fn call_builtin(        
     evaluator: &mut Evaluator,
     env: &mut Environment,
     builtin_name: &str,
-    call_expr: CallExpression) -> Object 
+    call_expr: CallExpression) -> Result<Object, EvaluatorError> 
 {
    
     let func = match BuiltInFunctions::look_up_func_name(builtin_name) {
