@@ -60,7 +60,7 @@ impl Driver{
 
         let abi = checked_program.abi();
     
-        let evaluator = Evaluator::new(checked_program, symbol_table);
+        let evaluator = Evaluator::new(checked_program, symbol_table).expect("None was returned from Evaluator constructor. Expected a main file, libraries are not supported at the moment ");
     
         let (circuit, num_witnesses, num_public_inputs) = evaluator.evaluate();
 
