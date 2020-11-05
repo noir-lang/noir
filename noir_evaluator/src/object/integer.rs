@@ -4,6 +4,8 @@ use crate::{Object, Gate};
 
 use crate::{AndGate, Environment, Evaluator, FieldElement, Signedness, Type, XorGate};
 
+use super::EvaluatorError;
+
 #[derive(Clone, Debug)]
 pub struct Integer {
     pub(crate) witness: Witness,
@@ -85,7 +87,7 @@ impl Integer {
         poly: Object,
         env: &mut Environment,
         evaluator: &mut Evaluator,
-    ) -> Integer {
+    ) -> Result<Integer, EvaluatorError> {
         // You can only sub an integer from an integer and they must have the same number of bits
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly);
 
@@ -100,16 +102,16 @@ impl Integer {
             witness_rhs,
             env,
             evaluator,
-        );
+        )?;
 
-        Integer::from_object(res, self.num_bits, env, evaluator)
+        Ok(Integer::from_object(res, self.num_bits, env, evaluator))
     }
     pub fn sub(
         &self,
         poly: Object,
         env: &mut Environment,
         evaluator: &mut Evaluator,
-    ) -> Integer {
+    ) -> Result<Integer, EvaluatorError> {
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly);
 
         assert_eq!(
@@ -124,10 +126,10 @@ impl Integer {
             witness_rhs,
             env,
             evaluator,
-        );
+        )?;
 
         // Constrain the result to be equal to an integer in range of 2^num_bits
-        Integer::from_object(res, self.num_bits, env, evaluator)
+        Ok(Integer::from_object(res, self.num_bits, env, evaluator))
     }
 
     pub fn logic(
@@ -136,7 +138,7 @@ impl Integer {
         env: &mut Environment,
         is_xor_gate: bool,
         evaluator: &mut Evaluator,
-    ) -> Integer {
+    ) -> Result<Integer, EvaluatorError> {
         if self.num_bits != rhs.num_bits {
             panic!("Expected a u{} got u{}", self.num_bits, rhs.num_bits);
         }
@@ -165,15 +167,15 @@ impl Integer {
 
         // Note: The result is not constrained to be `self.num_bits` because the underlying proof system will
         // make force the result ot be equal to the correct result of a & b
-        Integer {
+        Ok(Integer {
             witness: result,
             num_bits: self.num_bits,
-        }
+        })
     }
-    pub fn xor(&self, rhs: Integer, env: &mut Environment, evaluator: &mut Evaluator) -> Integer {
+    pub fn xor(&self, rhs: Integer, env: &mut Environment, evaluator: &mut Evaluator) -> Result<Integer, EvaluatorError> {
         self.logic(rhs, env, true, evaluator)
     }
-    pub fn and(&self, rhs: Integer, env: &mut Environment, evaluator: &mut Evaluator) -> Integer {
+    pub fn and(&self, rhs: Integer, env: &mut Environment, evaluator: &mut Evaluator) -> Result<Integer, EvaluatorError> {
         self.logic(rhs, env, false, evaluator)
     }
 
@@ -182,7 +184,7 @@ impl Integer {
         poly: Object,
         env: &mut Environment,
         evaluator: &mut Evaluator,
-    ) -> Integer {
+    ) -> Result<Integer, EvaluatorError> {
         // You can only mul an integer with another integer and they must have the same number of bits
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly);
 
@@ -197,9 +199,9 @@ impl Integer {
             witness_rhs,
             env,
             evaluator,
-        );
+        )?;
 
-        Integer::from_object(res, self.num_bits + num_bits, env, evaluator)
+        Ok(Integer::from_object(res, self.num_bits + num_bits, env, evaluator))
     }
 }
 
