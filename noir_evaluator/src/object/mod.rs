@@ -8,6 +8,8 @@ pub use acir::native_types::{Witness, Linear, Arithmetic};
 use acir::circuit::gate::Gate;
 use noir_field::FieldElement;
 
+use super::errors::{EvaluatorError, ArrayError};
+
 #[derive(Clone, Debug)]
 pub enum Object {
     Null,
@@ -19,6 +21,15 @@ pub enum Object {
 }
 
 impl Object {
+
+    pub fn r#type(&self) -> &'static str {
+        match self {
+            Object::Integer(_) | Object::Arithmetic(_) | Object::Linear(_) => "witness",
+            Object::Array(_)=> "collection",
+            Object::Constants(_) => "constant",
+            Object::Null => "()"  
+        }
+    }
     // Converts a Object into an arithmetic object
     pub fn into_arithmetic(&self) -> Arithmetic {
         match self {
@@ -36,10 +47,10 @@ impl Object {
             _ => false,
         }
     }
-    pub fn constant(&self) -> Option<FieldElement> {
+    pub fn constant(&self) -> Result<FieldElement, EvaluatorError> {
         match self {
-            Object::Constants(x) => Some(*x),
-            _ => None,
+            Object::Constants(x) => Ok(*x),
+            _ => Err(EvaluatorError::expected_type("constant",self.r#type())),
         }
     }
     pub fn is_constant(&self) -> bool {
@@ -99,13 +110,6 @@ impl Object {
     }
     pub fn from_witness(witness: Witness) -> Object {
         Object::Linear(Linear::from_witness(witness))
-    }
-
-    pub fn to_u128(self) -> Option<u128> {
-        match self{
-            Object::Constants(c) => Some(c.to_u128()),
-            _=> None
-        }
     }
 }
 
