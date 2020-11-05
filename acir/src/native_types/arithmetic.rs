@@ -246,6 +246,19 @@ impl From<Linear> for Arithmetic {
     }
 }
 
+impl Add<&Arithmetic> for &Linear{
+    type Output = Arithmetic;
+    fn add(self, rhs: &Arithmetic) -> Arithmetic {
+        &Arithmetic::from(self) + rhs
+    }
+}
+impl Add<&Linear> for &Arithmetic{
+    type Output = Arithmetic;
+    fn add(self, rhs: &Linear) -> Arithmetic {
+        &Arithmetic::from(rhs) + self
+    }
+}
+
 impl Arithmetic {
     // Checks if this polynomial can fit into one arithmetic identity
     // Should I put this on Arithmetic struct as method?
