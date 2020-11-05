@@ -7,6 +7,7 @@ mod sha256;
 
 pub use sha256::Sha256Gadget;
 use acir::OPCODE;
+use super::EvaluatorError;
 
 pub trait GadgetCaller {
     fn name() -> acir::OPCODE;
@@ -14,14 +15,14 @@ pub trait GadgetCaller {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: CallExpression,
-    ) -> Object;
+    ) -> Result<Object, EvaluatorError>;
 }
 
 pub fn call_low_level(        
     evaluator: &mut Evaluator,
     env: &mut Environment,
     opcode_name: &str,
-    call_expr: CallExpression) -> Object 
+    call_expr: CallExpression) -> Result<Object, EvaluatorError> 
 {
    
     let func = match OPCODE::lookup(opcode_name) {

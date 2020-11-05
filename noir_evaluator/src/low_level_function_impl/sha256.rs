@@ -4,6 +4,7 @@ use acir::OPCODE;
 use crate::object::{Array, Object};
 use crate::{CallExpression, Environment, Evaluator};
 
+use super::EvaluatorError;
 
 pub struct Sha256Gadget;
 
@@ -17,8 +18,8 @@ impl GadgetCaller for Sha256Gadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: CallExpression,
-    ) -> Object {
-        let inputs = Sha256Gadget::prepare_inputs(evaluator, env, call_expr);
+    ) -> Result<Object, EvaluatorError> {
+        let inputs = Sha256Gadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create two fresh variables that will link to the SHA256 output
         let (low_128_witness, low_128_poly) =
@@ -39,7 +40,7 @@ impl GadgetCaller for Sha256Gadget {
             contents: vec![low_128_poly, high_128_poly],
         };
 
-        Object::Array(arr)
+        Ok(Object::Array(arr))
     }
 }
 
@@ -48,17 +49,17 @@ impl Sha256Gadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: CallExpression,
-    ) -> Vec<GadgetInput> {
+    ) -> Result<Vec<GadgetInput>, EvaluatorError> {
 
-        // For sha256, we expect a single input which should be an array
-        assert_eq!(call_expr.arguments.len(),1);
-
-        let arr_expr = call_expr.arguments.pop().unwrap();
-        let arr = match Array::from_expression(evaluator, env, arr_expr) {
-            Some(arr) => arr,
-            None => panic!("Sha256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase")
+        let arr_expr = {
+            // For sha256, we expect a single input which should be an array
+            assert_eq!(call_expr.arguments.len(),1);
+            call_expr.arguments.pop().unwrap()
         };
 
+        // "Sha256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
+        let arr = Array::from_expression(evaluator, env, arr_expr)?;
+        
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(0);
 
         for element in arr.contents.into_iter() {
@@ -81,6 +82,6 @@ impl Sha256Gadget {
             });
         }
 
-        inputs
+        Ok(inputs)
     }
 }
