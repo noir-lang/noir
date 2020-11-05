@@ -1,8 +1,12 @@
 mod binary_op;
+
 mod environment;
 mod low_level_function_impl;
 mod builtin;
 mod object;
+
+mod errors;
+pub use errors::EvaluatorError;
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -36,7 +40,7 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    pub fn new(program: Program, symbol_table: SymbolTable) -> Evaluator {
+    pub fn new(program: Program, symbol_table: SymbolTable) -> Option<Evaluator> {
         let Program {
             statements,
             imports: _,
@@ -49,13 +53,11 @@ impl Evaluator {
         let possible_main = symbol_table.look_up_main_func();
         
         let main_function = match possible_main {
-            None => panic!(
-                "Could not find a main function, currently we do not support library projects"
-            ),
+            None => return None,
             Some(main_func) => main_func,
         };
 
-        Evaluator {
+        Some(Evaluator {
             num_witness: 0,
             num_selectors: 0,
             num_public_inputs: 0,
@@ -66,7 +68,7 @@ impl Evaluator {
             main_function,
             gates: Vec::new(),
             counter: 0,
-        }
+        })
     }
 
     // Returns the current counter value and then increments the counter
@@ -87,16 +89,6 @@ impl Evaluator {
         (witness, poly)
     }
 
-    // XXX: Fix this later, with Debug trait. Only using it now for REPL
-    pub fn debug(&self) {
-        for wit in self.witnesses.iter() {
-            dbg!(wit);
-        }
-        for sel in self.selectors.iter() {
-            dbg!(sel);
-        }
-    }
-
     pub fn num_witnesses(&self) -> usize {
         self.num_witness
     }
@@ -111,7 +103,8 @@ impl Evaluator {
         let mut env = Environment::new();
 
         // First compile
-        self.compile(&mut env);
+        // XXX: Once the refactoring has completed, we will rename evaluate to compile and compile to synthesize or something more indicative of what it does
+        self.compile(&mut env).unwrap();
 
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
@@ -182,7 +175,7 @@ impl Evaluator {
         // We know it is a Linear polynomial, so we match on that.
         let linear_poly = match witness_poly.clone() {
             Object::Linear(x) => x,
-            _ => unimplemented!("Expected the intermediate variable to be a linear polynomial"),
+            _ => unreachable!("Expected the intermediate variable to be a linear polynomial"),
         };
 
         // Link that witness to the arithmetic gate
@@ -197,7 +190,7 @@ impl Evaluator {
         lhs: Object,
         rhs: Object,
         op: BinaryOpKind,
-    ) -> Object {
+    ) -> Result<Object, EvaluatorError> {
         match op {
             BinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, env, self),
             BinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
@@ -211,7 +204,8 @@ impl Evaluator {
             BinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
             BinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
             BinaryOpKind::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
-            _ => panic!("Currently the {:?} op is not supported", op),
+            BinaryOpKind::Assign => unreachable!("The Binary operation `=` can only be used in declaration statements"),
+            BinaryOpKind::Or => todo!("The Or operation is currently not implemented. Coming soon.")
         }
     }
 
@@ -219,14 +213,14 @@ impl Evaluator {
     // This is because, we currently do not have support for optimisations with polynomials of higher degree or higher fan-ins
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
-    fn evaluate_identifier(&mut self, ident: String, env: &mut Environment) -> Object {
-        let polynomial = env.get(ident.clone());
+    fn evaluate_identifier(&mut self, ident: &String, env: &mut Environment) -> Object {
+        let polynomial = env.get(ident);
         polynomial
     }
 
 
     /// Compiles the AST into the intermediate format, which we call the gates
-    pub fn compile(&mut self, env: &mut Environment) {
+    pub fn compile(&mut self, env: &mut Environment) -> Result<(), EvaluatorError>{
         // Add the parameters from the main function into the evaluator as witness variables
         // XXX: We are only going to care about Public and Private witnesses for now
 
@@ -241,7 +235,7 @@ impl Evaluator {
                 Type::Witness => {
                     witnesses.push(param_name)
                 },
-                _=> unimplemented!("Currently we only have support for Private and Public inputs in the main function definition")
+                _=> todo!("Currently we only have support for Private and Public inputs in the main function definition. It has not been decided as to whether we should allow other types")
             }
         }
 
@@ -259,12 +253,15 @@ impl Evaluator {
         }
 
         // Now call the main function
+        // XXX: We should be able to replace this with call_function in the future, 
+        // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
         for statement in self.main_function.body.0.clone().into_iter() {
-            self.evaluate_statement(env, statement);
+            self.evaluate_statement(env, statement)?;
         }
+        Ok(())
     }
 
-    fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Object {
+    fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Result<Object, EvaluatorError> {
         match statement {
             Statement::Private(x) => self.handle_private_statement(env, x.clone()),
             Statement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, constrain_stmt),
@@ -272,22 +269,22 @@ impl Evaluator {
             Statement::Const(x) => {
                 self.num_selectors = self.num_selectors + 1;
                 let variable_name: String = x.identifier.0.contents;
-                let value = self.evaluate_integer(env, x.expression); // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
+                let value = self.evaluate_integer(env, x.expression)?; // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
                 self.selectors
                     .push(Selector(variable_name.clone(), value.clone()));
                 env.store(variable_name, value);
-                Object::Null
+                Ok(Object::Null)
             }
             Statement::Expression(expr) => self.expression_to_object(env, expr),
             Statement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
-                self.handle_let_statement(env, let_stmt);
+                self.handle_let_statement(env, let_stmt)?;
 
-                Object::Null
+                Ok(Object::Null)
             }
-            _ => {
-                panic!("This statement type has not been implemented");
-            }
+            Statement::If(_) => todo!("This may be deprecated for if expressions"),
+            Statement::Public(_) => todo!("This may be deprecated. We do however want a way to keep track of linear transformations between private variable and public/constants"),
+            Statement::Block(_) => todo!("This may be deprecated for block expressions")
         }
     }
 
@@ -313,12 +310,12 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         x: PrivateStatement,
-    ) -> Object {
+    ) -> Result<Object, EvaluatorError> {
         let variable_name: String = x.identifier.clone().0.contents;
         let witness = self.store_witness(variable_name.clone(), x.r#type.clone());
         let witness_linear = Linear::from_witness(witness.clone());
 
-        let rhs_poly = self.expression_to_object(env, x.expression.clone());
+        let rhs_poly = self.expression_to_object(env, x.expression.clone())?;
 
         match rhs_poly.arithmetic() {
             Some(arith) => {
@@ -346,11 +343,11 @@ impl Evaluator {
                 Object::Integer(integer)
             }
             Type::Witness => Object::from_witness(witness),
-            k => panic!("Oops, Expected an integer or Witness type, found {:?}", k),
+            k => return Err(EvaluatorError::expected_type("Integer or Witness", &k.to_string())),
         };
         env.store(variable_name.clone(), rhs_poly);
 
-        Object::Null
+        Ok(Object::Null)
     }
 
     // The LHS of a private statement is always a new witness
@@ -360,9 +357,9 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         constrain_stmt: ConstrainStatement,
-    ) -> Object {
-        let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs);
-        let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs);
+    ) -> Result<Object, EvaluatorError> {
+        let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs)?;
+        let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs)?;
 
         // Evaluate the constrain infix statement
         let _ = self.evaluate_infix_expression(
@@ -372,7 +369,7 @@ impl Evaluator {
             constrain_stmt.0.operator.contents,
         );
 
-        // XXX: WE could probably move this into equal folder, as it is an optimisation that only applies to it
+        // XXX: We could probably move this into equal folder, as it is an optimisation that only applies to it
         if constrain_stmt.0.operator.contents == BinaryOpKind::Equal {
             // Check if we have any lone variables and then if the other side is a linear/constant
             let (witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
@@ -391,14 +388,14 @@ impl Evaluator {
                 None => {}
             };
         };
-        Object::Null
+        Ok(Object::Null)
     }
     // Let statements are used to declare higher level objects
     fn handle_let_statement(
         &mut self,
         env: &mut Environment,
         let_stmt: LetStatement,
-    ) -> Object {
+    ) -> Result<Object, EvaluatorError> {
         // Convert the LHS into an identifier
         let variable_name: String = let_stmt.identifier.0.contents;
 
@@ -406,30 +403,28 @@ impl Evaluator {
         // we can extend into a separate (generic) module
 
         // Extract the array
-        let rhs_poly = self.expression_to_object(env, let_stmt.expression);
+        let rhs_poly = self.expression_to_object(env, let_stmt.expression)?;
 
         match rhs_poly {
             Object::Array(arr) => {
                 env.store(variable_name.into(), Object::Array(arr));
             }
-            _ => panic!(
-                "logic for types that are not arrays in a let statement, not implemented yet!"
-            ),
+            _ => unimplemented!("logic for types that are not arrays in a let statement, not implemented yet!"),
         };
 
-        Object::Null
+        Ok(Object::Null)
     }
     fn handle_for_expr(
         &mut self,
         env: &mut Environment,
         for_expr: ForExpression,
-    ) -> Object {
+    ) -> Result<Object, EvaluatorError> {
         
         // First create an iterator over all of the for loop identifiers
         // XXX: We preferably need to introduce public integers and private integers, so that we can 
         // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest 
-        let start = self.expression_to_object(env, for_expr.start_range).constant().unwrap();
-        let end = self.expression_to_object(env, for_expr.end_range).constant().unwrap();
+        let start = self.expression_to_object(env, for_expr.start_range)?.constant()?;
+        let end = self.expression_to_object(env, for_expr.end_range)?.constant()?;
         let ranged_object = RangedObject::new(start, end);
         
         let mut contents : Vec<Object> = Vec::new();
@@ -441,70 +436,66 @@ impl Evaluator {
             let variable_name: String = for_expr.identifier.0.clone().contents;
             env.store(variable_name, Object::Constants(indice));
 
-            let return_typ = self.eval_block(env, for_expr.block.clone());
+            let return_typ = self.eval_block(env, for_expr.block.clone())?;
             contents.push(return_typ);
 
             env.end_for_loop();
         }
         let length = contents.len() as u128;
 
-        Object::Array(Array{contents, length})
+        Ok(Object::Array(Array{contents, length}))
     }
 
-    pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Object {
-        let polynomial = self.expression_to_object(env, expr);
+    pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Result<Object, EvaluatorError> {
+        let polynomial = self.expression_to_object(env, expr)?;
 
-        // Check that it is a constant, currently we only have integer constants
-        // XXX: We could possibly add the public inputs logic aswell Object::Public
-        // XXX: Think about this some more, as public inputs are ultimately private
-        match polynomial {
-            Object::Constants(_) => return polynomial,
-            _ => panic!("Expected a constant. Only Constants can be integers"),
+        if polynomial.is_constant() {
+            return Ok(polynomial)
         }
+        return Err(EvaluatorError::expected_type("constant",polynomial.r#type()));
     }
 
     pub fn expression_to_object(
         &mut self,
         env: &mut Environment,
         expr: Expression,
-    ) -> Object {
+    ) -> Result<Object, EvaluatorError> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(x)) => Object::Constants(x.into()),
+            ExpressionKind::Literal(Literal::Integer(x)) => Ok(Object::Constants(x.into())),
             ExpressionKind::Literal(Literal::Array(arr_lit)) => {
-                Object::Array(Array::from(self, env, arr_lit))
+                Ok(Object::Array(Array::from(self, env, arr_lit)?))
             }
-            ExpressionKind::Ident(x) => self.evaluate_identifier(x.to_string(), env),
+            ExpressionKind::Ident(x) => Ok(self.evaluate_identifier(&x, env)),
             ExpressionKind::Infix(infx) => {
-                let lhs = self.expression_to_object(env, infx.lhs);
-                let rhs = self.expression_to_object(env, infx.rhs);
+                let lhs = self.expression_to_object(env, infx.lhs)?;
+                let rhs = self.expression_to_object(env, infx.rhs)?;
                 self.evaluate_infix_expression(env, lhs, rhs, infx.operator.contents)
             }
             ExpressionKind::Cast(cast_expr) => {
-                let lhs = self.expression_to_object(env, cast_expr.lhs);
-                binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
+                let lhs = self.expression_to_object(env, cast_expr.lhs)?;
+                Ok(binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self))
             }
             ExpressionKind::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr = env.get_array(indexed_expr.collection_name.0.clone().contents);
+                let arr = env.get_array(&indexed_expr.collection_name.0.contents).map_err(|err|EvaluatorError::EnvironmentError(err))?;
 
-                // evaluate the index expression
-                let index_as_obj = self.expression_to_object(env, indexed_expr.index);
-                let index_as_u128 = match index_as_obj.to_u128() {
-                    None => panic!("Indexed expression does not evaluate to a constant"),
-                    Some(i) => i
+                // Evaluate the index expression
+                // XXX: We could simplify this by chaining the `?` but this will make finding the error harder to decipher while Object discards span and there is no wrapping
+                let span = indexed_expr.index.span.clone();
+                let index_as_obj = self.expression_to_object(env, indexed_expr.index)?;
+                let index_as_constant = match index_as_obj.constant() {
+                    Ok(v) => v,
+                    Err(_) => return Err(EvaluatorError::UnstructuredError{span : span, message : format!("Indexed expression does not evaluate to a constant")})
                 };
+                let index_as_u128 = index_as_constant.to_u128();
                 
                 arr.get(index_as_u128)
             }
-            // This is currently specific to core library calls
             ExpressionKind::Call(path, call_expr) => {
                 let func_name = call_expr.func_name.clone();
                 let func_def = self.symbol_table.look_up_func(path.clone(), &func_name);
             
-                let noir_func = match func_def {
-                    Some(noir_func) => noir_func,
-                    None => panic!("Tried to call {}, but function not found", &func_name.0.contents)
-                };               
+                let noir_func = func_def.expect(&format!("Tried to call {}, but function not found. This should have been caught by the analyser", &func_name.0.contents));    
                 // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
                 // If not then we just call the library as usual with the function definition
@@ -516,7 +507,6 @@ impl Evaluator {
                             Attribute::Foreign(opcode_name) => low_level_function_impl::call_low_level(self, env, &opcode_name, *call_expr),
                             Attribute::Builtin(builtin_name) => builtin::call_builtin(self, env, &builtin_name, *call_expr)
                         }
-                        
                     },
                 }
                     
@@ -531,20 +521,19 @@ impl Evaluator {
         }
     }
 
-    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: Function) -> Object {
+    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: Function) -> Result<Object, EvaluatorError> {
               // Create a new environment for this function
                 // This is okay because functions are not stored in the environment
                 // We need to add the arguments into the environment though
                 // Note: The arguments are evaluated in the old environment
                 let mut new_env = Environment::new();
-                let arguments: Vec<Object> = call_expr
-                    .arguments
-                    .iter()
-                    .map(|expr| self.expression_to_object(env, expr.clone()))
-                    .collect();
+                let (arguments, mut errors) = self.expression_list_to_objects(env, &call_expr.arguments);
+                if !errors.is_empty() {
+                    // XXX: We could have an error variant to return multiple errors here
+                    // As long as we can guarantee that each expression does not affect the proceeding, this should be fine
+                    return Err(errors.pop().unwrap())
+                }
 
-                // We also need to check that each argument matches with the correct type and correct number of parameters
-                // XXX: This will be done in the type checker - analysis
 
                 for ((param_name, param_type), argument) in
                     func.parameters.iter().zip(arguments.iter())
@@ -552,26 +541,30 @@ impl Evaluator {
                     new_env.store(param_name.0.clone().contents, argument.clone());
                 }
 
-                let return_val = self.apply_func(&mut new_env, func);
+                let return_val = self.apply_func(&mut new_env, func)?;
 
-                // Take all of the arithmetic gates from the functions environment and add it to the global environment
-                // XXX: Check this
-                // for (ident, polynomial) in new_env.into_iter() {
-                //     env.store(ident, polynomial);
-                // }
-
-                return_val
+                Ok(return_val)
     }
 
-    fn apply_func(&mut self, env: &mut Environment, func: Function) -> Object {
+    fn apply_func(&mut self, env: &mut Environment, func: Function) -> Result<Object, EvaluatorError> {
         self.eval_block(env, func.body)
     }
 
-    fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Object {
+    fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Result<Object, EvaluatorError> {
         let mut result = Object::Null;
         for stmt in block.0.into_iter() {
-            result = self.evaluate_statement(env, stmt);
+            result = self.evaluate_statement(env, stmt)?;
         }
-        result
+        Ok(result)
+    }
+
+    fn expression_list_to_objects(&mut self, env : &mut Environment, exprs : &[Expression]) -> (Vec<Object>, Vec<EvaluatorError>) {
+        let (objects, errors) : (Vec<_>, Vec<_>) = exprs.iter()
+        .map(|expr| self.expression_to_object(env, expr.clone()))
+        .partition(Result::is_ok);
+
+        let objects: Vec<_> = objects.into_iter().map(Result::unwrap).collect();
+        let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
+        (objects, errors)
     }
 }

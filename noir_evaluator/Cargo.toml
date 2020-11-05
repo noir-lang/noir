@@ -8,5 +8,7 @@ edition = "2018"
 
 [dependencies]
 noirc_frontend = {path = "../noirc_frontend"}
+noirc_errors = {path = "../noirc_errors"}
 noir_field = {path = "../noir_field"}
 acir = {path = "../acir"}
+thiserror = "1.0.21"
