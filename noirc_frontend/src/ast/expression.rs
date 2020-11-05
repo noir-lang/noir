@@ -121,7 +121,6 @@ pub enum BinaryOpKind {
     And,
     Or,
     Xor,
-    As,
     // This is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
@@ -160,7 +159,6 @@ impl From<&Token> for BinaryOpKind {
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
             Token::Assign => BinaryOpKind::Assign,
-            Token::Keyword(Keyword::As) => BinaryOpKind::As,
             _ => panic!(
                 "The token:  \" {} \"does not seem to be a binary operation ",
                 token
