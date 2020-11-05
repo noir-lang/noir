@@ -1,14 +1,14 @@
-use crate::{Environment, Evaluator, Object};
+use crate::{Environment, Evaluator, Object, EvaluatorError};
 
 pub fn handle_and_op(
     left: Object,
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Object {
+) -> Result<Object, EvaluatorError> {
     match (left, right) {
         (Object::Integer(x), Object::Integer(y)) => {
-            Object::Integer(x.and(y, env, evaluator))
+            Ok(Object::Integer(x.and(y, env, evaluator)?))
         }
         (_, _) => panic!("Currently we only support bitwise operations on ranged operations"),
     }

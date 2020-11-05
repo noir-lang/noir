@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Environment, Evaluator, FieldElement, Integer, Linear, Object};
+use crate::{Environment, Evaluator, FieldElement, Integer, Linear, Object, EvaluatorError};
 
 // There are three cases:
 // a < b
@@ -19,7 +19,7 @@ fn bound_check(
     upper_bound_included: bool,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Object {
+) -> Result<Object, EvaluatorError> {
     let offset = if upper_bound_included {
         FieldElement::zero()
     } else {
@@ -37,7 +37,7 @@ fn bound_check(
             // the compiler will complain as we cannot subtract an integer from a linear polynomial
             let lower_bound_as_arith = lower_bound.into_arithmetic();
 
-            let k = handle_sub_op(Object::Linear(x), Object::Arithmetic(lower_bound_as_arith), env, evaluator);
+            let k = handle_sub_op(Object::Linear(x), Object::Arithmetic(lower_bound_as_arith), env, evaluator)?;
 
             Integer::from_object(k, max_bound_bits, env, evaluator)
         }
@@ -49,7 +49,7 @@ fn bound_check(
                 lower_bound,
                 env,
                 evaluator,
-            );
+            )?;
             Integer::from_object(k, max_bound_bits, env, evaluator)
         }
         (_, _) => {
@@ -57,7 +57,7 @@ fn bound_check(
         }
     };
     integer.constrain(evaluator);
-    Object::Null
+    Ok(Object::Null)
 }
 
 pub fn handle_less_than_op(
@@ -65,7 +65,7 @@ pub fn handle_less_than_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Object {
+) -> Result<Object,EvaluatorError> {
     bound_check(left, right, false, env, evaluator)
 }
 pub fn handle_less_than_equal_op(
@@ -73,7 +73,7 @@ pub fn handle_less_than_equal_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Object {
+) -> Result<Object,EvaluatorError> {
     bound_check(left, right, true, env, evaluator)
 }
 pub fn handle_greater_than_op(
@@ -81,7 +81,7 @@ pub fn handle_greater_than_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Object {
+) -> Result<Object,EvaluatorError> {
     bound_check(right, left, false, env, evaluator)
 }
 pub fn handle_greater_than_equal_op(
@@ -89,6 +89,6 @@ pub fn handle_greater_than_equal_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Object {
+) -> Result<Object,EvaluatorError> {
     bound_check(right, left, true, env, evaluator)
 }
