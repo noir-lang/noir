@@ -1192,7 +1192,9 @@ version = "0.1.0"
 dependencies = [
  "acir",
  "noir_field",
+ "noirc_errors",
  "noirc_frontend",
+ "thiserror",
 ]
 
 [[package]]
