@@ -142,9 +142,9 @@ impl BinaryOpKind {
     }
 }
 
-impl From<&Token> for BinaryOpKind {
-    fn from(token: &Token) -> BinaryOpKind {
-        match token {
+impl From<&Token> for Option<BinaryOpKind> {
+    fn from(token: &Token) -> Option<BinaryOpKind> {
+        let op = match token {
             Token::Plus => BinaryOpKind::Add,
             Token::Ampersand => BinaryOpKind::And,
             Token::Caret => BinaryOpKind::Xor,
@@ -159,22 +159,15 @@ impl From<&Token> for BinaryOpKind {
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
             Token::Assign => BinaryOpKind::Assign,
-            _ => panic!(
-                "The token:  \" {} \"does not seem to be a binary operation ",
-                token
-            ),
-        }
+            _ => return None
+        };
+        return Some(op)
     }
 }
 
-impl From<Token> for BinaryOpKind {
-    fn from(token : Token) -> BinaryOpKind {
-        BinaryOpKind::from(&token)
-    }
-}
-impl From<&SpannedToken> for BinaryOp {
-    fn from(st : &SpannedToken) -> BinaryOp {
-        Spanned::from(st.into_span(), BinaryOpKind::from(st.token()))
+impl From<Token> for Option<BinaryOpKind> {
+    fn from(token : Token) -> Option<BinaryOpKind> {
+        token.into()
     }
 }
 
@@ -187,14 +180,11 @@ pub enum UnaryOp {
 impl UnaryOp {
     /// Converts a token to a unary operator
     /// If you want the parser to recognise another Token as being a prefix operator, it is defined here
-    pub fn from(token: &Token) -> UnaryOp {
+    pub fn from(token: &Token) -> Option<UnaryOp> {
         match token {
-            Token::Minus => UnaryOp::Minus,
-            Token::Bang => UnaryOp::Not,
-            _ => panic!(
-                "The token {} has not been linked to a unary operator",
-                token
-            ),
+            Token::Minus => Some(UnaryOp::Minus),
+            Token::Bang => Some(UnaryOp::Not),
+            _ => None
         }
     }
 
