@@ -31,14 +31,14 @@ impl Object {
         }
     }
     // Converts a Object into an arithmetic object
-    pub fn into_arithmetic(&self) -> Arithmetic {
+    pub fn into_arithmetic(&self) -> Option<Arithmetic> {
         match self {
-            Object::Null => panic!("Cannot convert null into a Object"),
-            Object::Integer(integer) => Linear::from_witness(integer.witness.clone()).into(),
-            Object::Array(_) => panic!("Cannot convert an array into an arithmetic object"),
-            Object::Arithmetic(arith) => arith.clone(),
-            Object::Constants(constant) => constant.into(),
-            Object::Linear(linear) => linear.into()
+            Object::Null => None,
+            Object::Integer(integer) => Some(Linear::from_witness(integer.witness.clone()).into()),
+            Object::Array(_) => None,
+            Object::Arithmetic(arith) => Some(arith.clone()),
+            Object::Constants(constant) => Some(constant.into()),
+            Object::Linear(linear) => Some(linear.into())
         }
     }
     pub fn is_gate(&self) -> bool {
@@ -141,28 +141,31 @@ pub struct RangedObject{
 }
 
 impl RangedObject {
-    pub fn new(start : FieldElement, end: FieldElement) -> Self {
+    pub fn new(start : FieldElement, end: FieldElement) -> Result<Self, EvaluatorError> {
         // We will move these checks into the analyser once
         // we have Private and Public integers, so they are only checked once
         
         // For now, we allow start and end ranges to be in the range u252
         // 252 is arbitrary and holds no weight, I simply chose it to be close to bn254
         let start_bits = start.num_bits();
-        if  start_bits > 252 {
-            panic!("Currently, we only allow integers to be represented by a u252, start range needs {} bits to be represented", start_bits)
+        if start_bits > 252 {
+            let message = format!("Currently, we only allow integers to be represented by a u252, start range needs {} bits to be represented", start_bits);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message })
         };
         
         let end_bits = end.num_bits();
         if end_bits > 252 {
-            panic!("Currently, we only allow integers to be represented by a u252, end range needs {} bits to be represented", end_bits)
+            let message = format!("Currently, we only allow integers to be represented by a u252, end range needs {} bits to be represented", end_bits);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message })
         };
         
         // We only allow ascending ranges
         if (end-start).num_bits() > 252 {
-            panic!("We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not")
+            let message = format!("We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not");
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message })
         };
 
-        RangedObject{start, end}
+        Ok(RangedObject{start, end})
     }
 }
 

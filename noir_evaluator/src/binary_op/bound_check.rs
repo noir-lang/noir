@@ -35,7 +35,7 @@ fn bound_check(
             // Convert lower bound to arithmetic struct
             // This is done because, if the lower bound is a integer, 
             // the compiler will complain as we cannot subtract an integer from a linear polynomial
-            let lower_bound_as_arith = lower_bound.into_arithmetic();
+            let lower_bound_as_arith = lower_bound.into_arithmetic().ok_or(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("invalid lower bound being used in bound check")})?;
 
             let k = handle_sub_op(Object::Linear(x), Object::Arithmetic(lower_bound_as_arith), env, evaluator)?;
 
@@ -52,11 +52,12 @@ fn bound_check(
             )?;
             Integer::from_object(k, max_bound_bits, env, evaluator)
         }
-        (_, _) => {
-            panic!("You can only apply the < op, if the upper bound is an Integer or an Constant")
+        (_, y) => {
+            let err = EvaluatorError::UnstructuredError{span : Default::default(), message : format!("You can only apply the < or > op, if the upper bound is not an integer or an constant. Found type {}", y.r#type())};
+            return Err(err)
         }
-    };
-    integer.constrain(evaluator);
+    }?;
+    integer.constrain(evaluator)?;
     Ok(Object::Null)
 }
 

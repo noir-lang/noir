@@ -26,12 +26,19 @@ pub fn call_low_level(
 {
    
     let func = match OPCODE::lookup(opcode_name) {
-        None => panic!("cannot find a low level opcode with the name {} in the IR", opcode_name),
+        None => {
+            let message = format!("cannot find a low level opcode with the name {} in the IR", opcode_name);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+        }
+        
         Some(func) => func
     };
-
+    
     match func {
         OPCODE::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
-        k => panic!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k),
+        k => {
+            let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+        }
     }
 }

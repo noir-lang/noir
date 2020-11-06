@@ -44,6 +44,8 @@ pub enum EvaluatorError {
     ArrayError(ArrayError),
     #[error("Unstructured Error")]
     UnstructuredError { span: Span, message : String},
+    #[error("Unsupported operation error")]
+    UnsupportedOp { span: Span, op : String, first_type : String, second_type : String},
 }
 
 
@@ -60,6 +62,9 @@ impl DiagnosableError for EvaluatorError {
             EvaluatorError::ArrayError(err) => err.to_diagnostic(),
             EvaluatorError::UnstructuredError{span, message} => {
                 Diagnostic::simple_error("".to_owned(), message.to_string(), *span)
+            },
+            EvaluatorError::UnsupportedOp {span, op, first_type, second_type} => {
+                Diagnostic::simple_error("unsupported operation".to_owned(), format!("no support for {} with types {} and {}", op, first_type, second_type), *span)
             },
         }
     }

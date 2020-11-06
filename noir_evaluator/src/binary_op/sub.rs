@@ -10,19 +10,19 @@ pub fn handle_sub_op(
     evaluator: &mut Evaluator,
 ) -> Result<Object, EvaluatorError> {
     let negated_right = match &right {
-        Object::Null => panic!("Cannot do an operation with the Null Object"),
+        Object::Null => return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("cannot do an operation with the null object")}),
         Object::Arithmetic(arith) => Object::Arithmetic(-arith),
         Object::Constants(c) => Object::Constants(-c.clone()),
         Object::Linear(linear) => Object::Linear(-linear),
         Object::Integer(_) => {
             let left_int = left.integer();
             if left_int.is_none() {
-                panic!("RHS is an integer, however the LHS is not ");
+                return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("rhs is an integer, however the lhs is not")})
             } else {
                 return Ok(Object::Integer(left_int.unwrap().sub(right, env, evaluator)?));
             }
         }
-        x => super::unsupported_error(vec![x.clone()]),
+        x => return Err(EvaluatorError::UnsupportedOp{span : Default::default(), op : "sub".to_owned(), first_type : left.r#type().to_owned(), second_type :right.r#type().to_owned()}),
     };
 
     handle_add_op(left, negated_right, env, evaluator)

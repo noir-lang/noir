@@ -10,6 +10,6 @@ pub fn handle_xor_op(
         (Object::Integer(x), Object::Integer(y)) => {
             Ok(Object::Integer(x.xor(y, env, evaluator)?))
         }
-        (_, _) => panic!("Currently we only support bitwise operations on ranged operations"),
+        (x, y) => return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("bitwise operations are only available on integers, found types : {} and {}", x.r#type(), y.r#type())}),
     }
 }

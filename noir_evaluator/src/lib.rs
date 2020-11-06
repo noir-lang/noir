@@ -425,7 +425,7 @@ impl Evaluator {
         // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest 
         let start = self.expression_to_object(env, for_expr.start_range)?.constant()?;
         let end = self.expression_to_object(env, for_expr.end_range)?.constant()?;
-        let ranged_object = RangedObject::new(start, end);
+        let ranged_object = RangedObject::new(start, end)?;
         
         let mut contents : Vec<Object> = Vec::new();
 
@@ -473,7 +473,7 @@ impl Evaluator {
             }
             ExpressionKind::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, cast_expr.lhs)?;
-                Ok(binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self))
+                binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
             }
             ExpressionKind::Index(indexed_expr) => {
                 // Currently these only happen for arrays

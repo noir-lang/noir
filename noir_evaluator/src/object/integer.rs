@@ -20,7 +20,7 @@ impl Integer {
         Integer { witness, num_bits }
     }
 
-    pub fn constrain(&self, evaluator: &mut Evaluator) {
+    pub fn constrain(&self, evaluator: &mut Evaluator) -> Result<(), EvaluatorError>{
         if self.num_bits == 1 {
             // Add a bool gate
             let x = Linear::from_witness(self.witness.clone());
@@ -31,16 +31,16 @@ impl Integer {
             evaluator.gates.push(Gate::Arithmetic(bool_constraint));
         } else if self.num_bits == FieldElement::max_num_bits() {
             // Don't apply any constraints if the range is for the maximum number of bits
-            panic!(
-                "All Witnesses are by default u{}. Apply this type does not apply any constraints.",
-                FieldElement::max_num_bits()
-            );
+            let message = format!("All Witnesses are by default u{}. Applying this type does not apply any constraints.",FieldElement::max_num_bits());
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+
         } else {
             // Note if the number of bits is odd, then barretenberg will panic
             evaluator
                 .gates
                 .push(Gate::Range(self.witness.clone(), self.num_bits));
         }
+        Ok(())
     }
 
     pub fn from_arithmetic(
@@ -67,18 +67,18 @@ impl Integer {
         num_bits: u32,
         env: &mut Environment,
         evaluator: &mut Evaluator,
-    ) -> Integer {
+    ) -> Result<Integer, EvaluatorError> {
         match poly {
             Object::Arithmetic(arith) => {
-                Integer::from_arithmetic(arith, num_bits, env, evaluator)
+                Ok(Integer::from_arithmetic(arith, num_bits, env, evaluator))
             }
             Object::Linear(linear) => {
-                Integer::from_arithmetic(linear.into(), num_bits, env, evaluator)
+                Ok(Integer::from_arithmetic(linear.into(), num_bits, env, evaluator))
             }
-            k => panic!(
-                "Error: Tried to convert a {:?} into an integer. This is not possible.",
-                k
-            ),
+            k => {
+                let message = format!("tried to convert a {} into an integer. This is not possible.",k.r#type());
+                return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+            },
         }
     }
 
@@ -89,7 +89,7 @@ impl Integer {
         evaluator: &mut Evaluator,
     ) -> Result<Integer, EvaluatorError> {
         // You can only sub an integer from an integer and they must have the same number of bits
-        let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly);
+        let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
         assert_eq!(
             self.num_bits, num_bits,
@@ -104,7 +104,7 @@ impl Integer {
             evaluator,
         )?;
 
-        Ok(Integer::from_object(res, self.num_bits, env, evaluator))
+        Ok(Integer::from_object(res, self.num_bits, env, evaluator)?)
     }
     pub fn sub(
         &self,
@@ -112,7 +112,7 @@ impl Integer {
         env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, EvaluatorError> {
-        let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly);
+        let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
         assert_eq!(
             self.num_bits, num_bits,
@@ -129,7 +129,7 @@ impl Integer {
         )?;
 
         // Constrain the result to be equal to an integer in range of 2^num_bits
-        Ok(Integer::from_object(res, self.num_bits, env, evaluator))
+        Ok(Integer::from_object(res, self.num_bits, env, evaluator)?)
     }
 
     pub fn logic(
@@ -140,7 +140,8 @@ impl Integer {
         evaluator: &mut Evaluator,
     ) -> Result<Integer, EvaluatorError> {
         if self.num_bits != rhs.num_bits {
-            panic!("Expected a u{} got u{}", self.num_bits, rhs.num_bits);
+            let message = format!("Expected a u{} got u{}", self.num_bits, rhs.num_bits);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message});
         }
 
         let op_str = if is_xor_gate { "xor" } else { "and" };
@@ -186,13 +187,12 @@ impl Integer {
         evaluator: &mut Evaluator,
     ) -> Result<Integer, EvaluatorError> {
         // You can only mul an integer with another integer and they must have the same number of bits
-        let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly);
+        let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
-        assert_eq!(
-            self.num_bits, num_bits,
-            "Both integers must have the same integer type. expected u{}, got u{}",
-            self.num_bits, num_bits
-        );
+        if self.num_bits != num_bits {
+            let message = format!("Both integers must have the same integer type. expected u{}, got u{}",self.num_bits, num_bits);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+        }
 
         let res = binary_op::handle_mul_op(
             Object::from_witness(self.witness.clone()),
@@ -201,18 +201,22 @@ impl Integer {
             evaluator,
         )?;
 
-        Ok(Integer::from_object(res, self.num_bits + num_bits, env, evaluator))
+        Ok(Integer::from_object(res, self.num_bits + num_bits, env, evaluator)?)
     }
 }
 
-fn extract_witness_and_num_bits(num_bits: u32, poly: Object) -> (Object, u32) {
-    match &poly {
+fn extract_witness_and_num_bits(num_bits: u32, poly: Object) -> Result<(Object, u32), EvaluatorError> {
+    let (object, bits) = match &poly {
         Object::Integer(integer_rhs) => (
             Object::from_witness(integer_rhs.witness.clone()),
             integer_rhs.num_bits,
         ),
         Object::Linear(_) => (poly, num_bits),
         Object::Constants(c) => (Object::Constants(*c), num_bits), // XXX: Here since we know the value of constant, we could get how many bits it is and do static checks
-        k => panic!("Woops expected an integer, but got {:?}", k),
-    }
+        k => {
+            let message = format!("Woops expected an integer or a field element with known bit size, but got {:?}", k);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+        }
+    };
+    Ok((object, bits))
 }

@@ -37,13 +37,15 @@ pub fn call_builtin(
 {
    
     let func = match BuiltInFunctions::look_up_func_name(builtin_name) {
-        None => panic!("cannot find a builtin function with the attribute name {}", builtin_name),
+        None => {
+            let message = format!("cannot find a builtin function with the attribute name {}", builtin_name);
+            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+        }
         Some(func) => func
     };
-
+    
     match func {
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, call_expr),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, call_expr),
-        k => panic!("The builtin function `{}(..)` exists, however, currently the compiler does not have a concrete implementation for it", &call_expr.func_name.0.contents),
     }
 }
