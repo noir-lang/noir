@@ -22,6 +22,7 @@ struct join_split_tx {
     std::array<tx_note, 2> input_note;
     std::array<tx_note, 2> output_note;
 
+    grumpkin::fr account_private_key;
     uint32_t account_index;
     grumpkin::g1::affine_element signing_pub_key;
     merkle_tree::fr_hash_path account_path;
@@ -42,12 +43,3 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx);
 } // namespace join_split
 } // namespace proofs
 } // namespace rollup
-
-// Optimisation of to_buffer that reserves full amount now for optimal efficiency.
-inline std::vector<uint8_t> to_buffer(rollup::proofs::join_split::join_split_tx const& tx)
-{
-    std::vector<uint8_t> buf;
-    buf.reserve(64 + (4 * 5) + 32 + (64 * 32 * 2) + (100 * 4) + 64 + 64);
-    write(buf, tx);
-    return buf;
-}

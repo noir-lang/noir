@@ -30,6 +30,7 @@ struct join_split_inputs {
     field_ct account_index;
     merkle_tree::hash_path account_path;
     field_ct output_owner;
+    field_ct account_private_key;
 };
 
 struct join_split_outputs {

@@ -29,11 +29,7 @@ struct account_note {
         if (leaf_data_.size()) {
             return leaf_data_;
         }
-        // TODO: Not sure about this prefix stuff. Is it needed? We need to fit note data into 2 fields...
-        // field_ct account_prefix(&composer_, ACCOUNT);
-        // field_ct gibberish_prefix(&composer_, GIBBERISH);
-        // byte_array_ct prefix = (account_prefix * is_real) + (gibberish_prefix * !is_real);
-        return leaf_data_ /*.write(prefix)*/.write(owner_pub_key_.x).write(signing_pub_key_.x);
+        return leaf_data_.write(owner_pub_key_.x).write(signing_pub_key_.x);
     }
 
     field_ct nullifier() const

@@ -118,6 +118,7 @@ class rollup_full_tests : public ::testing::Test {
         tx.account_index = account_note_idx;
         tx.account_path = data_tree.get_hash_path(account_note_idx);
         tx.signing_pub_key = user.signing_keys[0].public_key;
+        tx.account_private_key = user.owner.private_key;
 
         uint8_t owner_address[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,

@@ -17,19 +17,23 @@ struct tx_note {
     barretenberg::fr secret;
     uint32_t asset_id;
     grumpkin::g1::affine_element encrypt_note() const;
-    uint128_t compute_nullifier(const uint32_t tree_index, const bool is_real_note) const;
+    fr compute_nullifier(const uint32_t tree_index,
+                         grumpkin::fr const& account_private_key,
+                         const bool is_real_note) const;
 };
 
 struct tx_account_note {
     grumpkin::g1::affine_element owner_key;
     grumpkin::g1::affine_element signing_key;
 
-    uint128_t compute_nullifier() {
-        std::vector<barretenberg::fr> hash_elements {
+    uint128_t compute_nullifier()
+    {
+        std::vector<barretenberg::fr> hash_elements{
             owner_key.x,
             signing_key.x,
         };
-        const auto result = crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_NULLIFIER_INDEX);
+        const auto result =
+            crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_NULLIFIER_INDEX);
         return uint128_t(uint256_t(result));
     }
 };

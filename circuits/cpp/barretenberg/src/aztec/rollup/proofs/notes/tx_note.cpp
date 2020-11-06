@@ -1,6 +1,7 @@
 #include "tx_note.hpp"
 #include "pedersen_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
+#include <crypto/blake2s/blake2s.hpp>
 #include <numeric/uint256/uint256.hpp>
 
 using namespace barretenberg;
@@ -20,12 +21,10 @@ grumpkin::g1::affine_element tx_note::encrypt_note() const
     } else {
         sum = p_2;
     }
-    if (asset_id > 0)
-    {
+    if (asset_id > 0) {
         sum += p_4;
     }
-    grumpkin::g1::affine_element p_3 =
-        crypto::pedersen::compress_to_point_native(owner.x, owner.y, 3);
+    grumpkin::g1::affine_element p_3 = crypto::pedersen::compress_to_point_native(owner.x, owner.y, 3);
 
     sum += p_3;
 
@@ -34,16 +33,25 @@ grumpkin::g1::affine_element tx_note::encrypt_note() const
     return { sum.x, sum.y };
 }
 
-uint128_t tx_note::compute_nullifier(const uint32_t tree_index, const bool is_real_note) const
+fr tx_note::compute_nullifier(const uint32_t tree_index,
+                              grumpkin::fr const& account_private_key,
+                              const bool is_real_note) const
 {
     const auto enc_note = encrypt_note();
+
+    auto hashed_pk = crypto::pedersen::fixed_base_scalar_mul<254>(static_cast<fr>(account_private_key),
+                                                                  TX_NOTE_ACCOUNT_PRIVATE_KEY_INDEX);
+
     std::vector<barretenberg::fr> buf{
         enc_note.x,
-        secret,
+        hashed_pk.x,
+        hashed_pk.y,
         barretenberg::fr(uint256_t((uint64_t)tree_index) + (uint256_t(is_real_note) << 64)),
     };
-    uint256_t result = (crypto::pedersen::compress_native(buf, rollup::proofs::notes::TX_NOTE_NULLIFIER_INDEX));
-    return uint128_t(result);
+    uint256_t result = crypto::pedersen::compress_native(buf, rollup::proofs::notes::TX_NOTE_NULLIFIER_INDEX);
+    auto blake_input = to_buffer(result);
+    auto blake_result = blake2::blake2s(blake_input);
+    return from_buffer<fr>(blake_result);
 }
 
 /**

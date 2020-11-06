@@ -22,7 +22,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     note_value = note_value.to_montgomery_form();
 
     fr asset_id_value = 0xaabbccddULL;
-    
+
     grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note_value, 0);
     grumpkin::g1::element right = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
     grumpkin::g1::element top = crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
@@ -32,7 +32,6 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     expected += top;
     expected = expected.normalize();
 
-    // TODO MAKE THIS HASH INDEX NOT ZERO
     grumpkin::g1::affine_element hashed_pub_key =
         crypto::pedersen::compress_to_point_native(note_owner_pub_key.x, note_owner_pub_key.y, 3);
 
@@ -76,7 +75,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     fr asset_id_value = 0xaabbccddULL;
 
     grumpkin::g1::element expected = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
-    expected +=  crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
+    expected += crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
     grumpkin::g1::affine_element hashed_pub_key =
         crypto::pedersen::compress_to_point_native(note_owner_pub_key.x, note_owner_pub_key.y, 3);
 

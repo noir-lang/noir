@@ -119,8 +119,9 @@ class escape_hatch_tests : public ::testing::Test {
         tx.output_owner = fr::random_element();
         tx.account_index = account_index;
         tx.account_path = data_tree.get_hash_path(account_index);
-        tx.signing_pub_key = user.signing_keys[0].public_key;   
+        tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = 0;
+        tx.account_private_key = user.owner.private_key;
         return tx;
     }
 
@@ -147,16 +148,16 @@ class escape_hatch_tests : public ::testing::Test {
         tx.new_data_roots_root = root_tree.root();
         tx.new_data_roots_path = root_tree.get_hash_path(root_tree_index);
 
-        uint128_t nullifier1 = tx.js_tx.input_note[0].compute_nullifier(uint32_t(tx.js_tx.input_index[0]), true);
-        uint128_t nullifier2 = tx.js_tx.input_note[1].compute_nullifier(uint32_t(tx.js_tx.input_index[1]), true);
+        auto nullifier1 = uint128_t(
+            tx.js_tx.input_note[0].compute_nullifier(uint32_t(tx.js_tx.input_index[0]), user.owner.private_key, true));
+        auto nullifier2 = uint128_t(
+            tx.js_tx.input_note[1].compute_nullifier(uint32_t(tx.js_tx.input_index[1]), user.owner.private_key, true));
 
         auto nullifier_value = std::vector<uint8_t>(64, 0);
         nullifier_value[63] = 1;
 
-        uint128_t account_nullifier = tx_account_note({
-            user.owner.public_key,
-            user.signing_keys[0].public_key,
-        }).compute_nullifier();
+        uint128_t account_nullifier =
+            tx_account_note({ user.owner.public_key, user.signing_keys[0].public_key }).compute_nullifier();
         tx.account_null_path = null_tree.get_hash_path(account_nullifier);
 
         tx.old_null_root = null_tree.root();

@@ -100,6 +100,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_path = tree->get_hash_path(account_index);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = 1; // asset_id can take any value if there are no public input/output values
+        tx.account_private_key = user.owner.private_key;
         return tx;
     }
 
@@ -139,6 +140,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_path = tree->get_hash_path(0);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = 0;
+        tx.account_private_key = user.owner.private_key;
         return tx;
     }
 
@@ -383,6 +385,13 @@ TEST_F(join_split_tests, test_signing_key_equal_account_key_disables_account_che
     auto tx = create_join_split_tx({ 0, 1 }, 0);
     tx.signing_pub_key = user.owner.public_key;
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_wrong_account_private_key_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.account_private_key = grumpkin::fr::random_element();
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
 TEST_F(join_split_tests, test_wrong_signature_fails)

@@ -26,7 +26,10 @@ struct private_note {
 
 public_note encrypt_note(const private_note& plaintext);
 
-field_ct compute_nullifier(const private_note& plaintext, const public_note& ciphertext, const field_ct& tree_index, const bool_ct& is_real);
+field_ct compute_nullifier(const field_ct& account_private_key,
+                           const public_note& ciphertext,
+                           const field_ct& tree_index,
+                           const bool_ct& is_real);
 // template <size_t num_bits> note_triple fixed_base_scalar_mul(const field_ct& in, const size_t generator_index);
 // extern template note_triple fixed_base_scalar_mul<32>(const field_ct& in, const size_t generator_index);
 // extern template note_triple fixed_base_scalar_mul<250>(const field_ct& in, const size_t generator_index);

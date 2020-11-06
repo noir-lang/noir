@@ -19,12 +19,15 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.input_path);
     write(buf, tx.input_note);
     write(buf, tx.output_note);
+
+    write(buf, tx.account_private_key);
+    write(buf, tx.account_index);
+    write(buf, tx.signing_pub_key);
+    write(buf, tx.account_path);
     write(buf, tx.signature);
+
     write(buf, tx.input_owner);
     write(buf, tx.output_owner);
-    write(buf, tx.account_index);
-    write(buf, tx.account_path);
-    write(buf, tx.signing_pub_key);
 }
 
 void read(uint8_t const*& it, join_split_tx& tx)
@@ -39,12 +42,15 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.input_path);
     read(it, tx.input_note);
     read(it, tx.output_note);
+
+    read(it, tx.account_private_key);
+    read(it, tx.account_index);
+    read(it, tx.signing_pub_key);
+    read(it, tx.account_path);
     read(it, tx.signature);
+
     read(it, tx.input_owner);
     read(it, tx.output_owner);
-    read(it, tx.account_index);
-    read(it, tx.account_path);
-    read(it, tx.signing_pub_key);
 }
 
 bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
@@ -64,7 +70,8 @@ bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
         && lhs.output_owner == rhs.output_owner
         && lhs.account_index == rhs.account_index
         && lhs.account_path == rhs.account_path
-        && lhs.signing_pub_key == rhs.signing_pub_key;
+        && lhs.signing_pub_key == rhs.signing_pub_key
+        && lhs.account_private_key == rhs.account_private_key;
     // clang-format on
 }
 

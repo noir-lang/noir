@@ -260,7 +260,10 @@ point<C> pedersen<C>::encrypt(const std::vector<field_t>& inputs, const size_t h
     return accumulate(to_accumulate);
 }
 
-template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs, const bool handle_edge_cases, const size_t hash_index)
+template <typename C>
+field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs,
+                                 const bool handle_edge_cases,
+                                 const size_t hash_index)
 {
     if (C::type == waffle::ComposerType::PLOOKUP) {
         // TODO handle hash index in plookup. This is a tricky problem but
@@ -271,7 +274,8 @@ template <typename C> field_t<C> pedersen<C>::compress(const std::vector<field_t
 }
 
 // If the input values are all zero, we return the array length instead of `0`
-// This is because we require the inputs to regular pedersen compression function are nonzero (we use this method to hash the base layer of our merkle trees)
+// This is because we require the inputs to regular pedersen compression function are nonzero (we use this method to
+// hash the base layer of our merkle trees)
 template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& input)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
@@ -295,11 +299,10 @@ template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& inpu
     field_t compressed = compress(elements, true);
 
     bool_t is_zero(true);
-    for (const auto& element : elements)
-    {
+    for (const auto& element : elements) {
         is_zero = is_zero && element.is_zero();
     }
-    
+
     field_t output = field_t(is_zero).madd(field_t(num_bytes) - compressed, compressed);
     return byte_array(output);
 }
