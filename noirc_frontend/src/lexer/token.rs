@@ -288,7 +288,7 @@ impl IntType {
             );
         }
         if (str_as_u32 % 2 == 1) && (str_as_u32 > 1) {
-            panic!("Barretenberg currently panics on odd integered bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
+            todo!("Barretenberg currently panics on odd integered bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
         }
 
         if is_signed {
@@ -473,11 +473,12 @@ const fn declaration_keywords() -> [Keyword; 4] {
 impl Token {
     /// Converts Token into a declaration keyword
     /// Panics if the token cannot start a declaration
+    /// XXX: There should be a cleaner way of doing this.
     pub fn to_declaration_keyword(&self) -> Keyword {
         assert!(self.can_start_declaration());
         match self {
             Token::Keyword(kw) => *kw,
-            _ => panic!("All tokens which can start declarations, must be keyword"),
+            _ => unreachable!("All tokens which can start declarations, must be keyword"),
         }
     }
     // The set of keyword which can declare variables
