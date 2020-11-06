@@ -32,7 +32,7 @@ impl DiagnosableError for ParserError {
     fn to_diagnostic(&self) -> Diagnostic{
         match self {
             ParserError::LexerError(lex_err) => lex_err.to_diagnostic(),
-            ParserError::InternalError{message, span} => panic!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),
+            ParserError::InternalError{message, span} => unreachable!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),
             ParserError::NoPrefixFunction{span, lexeme} => {
                 let mut diag = Diagnostic::simple_error(format!("Unexpected start of an expression {}", lexeme), format!("did not expect this token"), *span);
                 diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimiter."));
@@ -59,12 +59,3 @@ impl DiagnosableError for ParserError {
         }
     }
 }
-
-// panic!(
-//     "The token:  \" {} \"does not seem to be a binary operation ",
-//     token
-// ),
-// panic!(
-//     "The token {} has not been linked to a unary operator",
-//     token
-// ),
