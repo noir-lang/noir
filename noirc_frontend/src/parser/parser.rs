@@ -434,7 +434,7 @@ mod test {
         // First make sure that the statement is a let statement
         let let_stmt = match statement {
             Statement::Let(stmt) => stmt,
-            _ => panic!("Expected a let statement"),
+            _ => unreachable!("Expected a let statement"),
         };
 
         // Now assert the correct identifier is in the let statement
@@ -714,7 +714,7 @@ mod test {
             Statement::Private(priv_stmt) => {
                 assert_eq!(priv_stmt, priv_stmt_expected);
             }
-            _ => panic!("Expected a private statement"),
+            _ => unreachable!("Expected a private statement"),
         }
     }
 
