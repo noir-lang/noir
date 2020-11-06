@@ -1,5 +1,5 @@
 use crate::lexer::errors::LexerError;
-use crate::lexer::token::{Token, TokenKind};
+use crate::lexer::token::{Token, TokenKind, SpannedToken};
 
 use thiserror::Error;
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -20,6 +20,10 @@ pub enum ParserError {
     UnexpectedTokenKind { span: Span, expected: TokenKind, found : TokenKind },
     #[error("Unstructured Error")]
     UnstructuredError { span: Span, message : String},
+    #[error("Token is not a unary operation")]
+    TokenNotUnaryOp { spanned_token: SpannedToken},
+    #[error("Token is not a binary operation")]
+    TokenNotBinaryOp { spanned_token: SpannedToken},
     #[error("Internal Compiler Error, unrecoverable")] // Actually lets separate these two types of errors
     InternalError{message : String, span : Span},
 }
@@ -37,6 +41,12 @@ impl DiagnosableError for ParserError {
             ParserError::NoInfixFunction{span, lexeme} => {
                 Diagnostic::simple_error(format!("Token {} cannot be used as an Infix operator", lexeme), format!("cannot be used as a infix operator."), *span)
             },
+            ParserError::TokenNotUnaryOp{spanned_token} => {
+                Diagnostic::simple_error(format!("Unsupported unary operation {}", spanned_token.token()), format!("cannot use as a unary operation."), spanned_token.into_span())
+            },
+            ParserError::TokenNotBinaryOp{spanned_token} => {
+                Diagnostic::simple_error(format!("Unsupported binary operation {}", spanned_token.token()), format!("cannot use as a binary operation."), spanned_token.into_span())
+            },
             ParserError::UnexpectedToken{span , expected, found} => {
                 Diagnostic::simple_error(format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
             }
@@ -49,3 +59,12 @@ impl DiagnosableError for ParserError {
         }
     }
 }
+
+// panic!(
+//     "The token:  \" {} \"does not seem to be a binary operation ",
+//     token
+// ),
+// panic!(
+//     "The token {} has not been linked to a unary operator",
+//     token
+// ),
