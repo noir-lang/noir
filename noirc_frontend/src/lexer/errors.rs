@@ -11,8 +11,6 @@ pub enum LexerError {
     CharacterNotInLanguage { span: Span, found: char },
     #[error("Internal Error : {:?} is not a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
-    #[error("Internal Compiler Error, unrecoverable")] // Actually lets separate these two types of errors
-    InternalError,
 }
 
 impl DiagnosableError for LexerError {
@@ -21,8 +19,12 @@ impl DiagnosableError for LexerError {
             LexerError::UnexpectedCharacter{span, found} => {
                 Diagnostic::simple_error(format!("an unexpected character was found"), format!(" {:?} is unexpected", found), *span)
             },
-            LexerError::InternalError => panic!("Internal Error. This is a bug in the compiler"),
-            _=> todo!()
+            LexerError::CharacterNotInLanguage{span, found} => {
+                Diagnostic::simple_error(format!("char is not in language"), format!(" {:?} is not in language", found), *span)
+            },
+            LexerError::NotADoubleChar{span, found} => {
+                Diagnostic::simple_error(format!("tried to parse {} as double char", found), format!(" {:?} is not a double char, this is an internal error", found), *span)
+            },
         }
     }
 }
