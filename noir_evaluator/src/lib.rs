@@ -178,14 +178,8 @@ impl Evaluator {
         let inter_var_witness = self.add_witness_to_cs(inter_var_unique_name, Type::Witness);
         let inter_var_object = self.add_witness_to_env(inter_var_witness.clone(), env);
 
-        // We know it is a Linear polynomial, so we match on that.
-        let linear_poly = match inter_var_object.clone() {
-            Object::Linear(x) => x,
-            _ => unreachable!("Expected the intermediate variable to be a linear polynomial"),
-        };
-
         // Link that witness to the arithmetic gate
-        let constraint = &arithmetic_gate - &linear_poly.into();
+        let constraint = &arithmetic_gate - &inter_var_witness;
         self.gates.push(Gate::Arithmetic(constraint));
         (inter_var_object, inter_var_witness)
     }
@@ -302,41 +296,50 @@ impl Evaluator {
         x: PrivateStatement,
     ) -> Result<Object, EvaluatorError> {
         let variable_name: String = x.identifier.clone().0.contents;
-        let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone());
-        let witness_linear = Linear::from_witness(witness.clone());
-
+        let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
         let rhs_poly = self.expression_to_object(env, x.expression.clone())?;
 
-        match rhs_poly.arithmetic() {
-            Some(arith) => {
-                self.gates
-                    .push(Gate::Arithmetic(arith - &witness_linear.into()));
-            }
-            None => {
-                assert!(rhs_poly.is_linear()); // XXX: Cannot do priv x = 5; x is a constant in this case
-                                               // XXX: To simplify apply constraint, even if we know it is an linear poly.
-                                               // XXX: We can check this in the semantic analyser and modify the AST, so that we always apply a constraint here
-                                               // Because the SA will optimise away the linear constraints
 
-                let lhs = Arithmetic::from(witness_linear);
-                let rhs = Arithmetic::from(rhs_poly.linear().unwrap());
-                self.gates.push(Gate::Arithmetic(&lhs - &rhs));
-            }
-        };
+        // There are two ways to add the variable to the environment. We can add the variable and link it to itself,
+        // This is fine since we constrain the RHS to be equal to the LHS.
+        // The other way is to check if the RHS is a linear polynomial, and link the variable to the RHS instead
+        // This second way is preferred because it allows for more optimisation options.
+        // If the RHS is not a linear polynomial, then we do the first option. 
+        if rhs_poly.can_defer_constraint() {
+            env.store(variable_name, rhs_poly.clone());
+        } else {
+            self.add_witness_to_env(witness.clone(), env);
+        }
 
-        // Check the type so we can see if we need to apply an extra constraint to the witness
-        let rhs_poly = match &x.r#type {
-            //  Check if the type requires us to apply an extra constraint
-            Type::Integer(_, num_bits) => {
-                let integer = Integer::from_witness(witness, *num_bits);
-                integer.constrain(self)?;
-                Object::Integer(integer)
-            }
-            Type::Witness => Object::from_witness(witness),
-            k => return Err(EvaluatorError::expected_type("Integer or Witness", &k.to_string())),
-        };
-        env.store(variable_name.clone(), rhs_poly);
 
+        // This is a private statement, which is why we extract only a witness type from the object
+        let rhs_as_witness = rhs_poly.extract_private_witness().ok_or(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("only witnesses can be used in a private statement")})?; 
+        self.gates.push(Gate::Arithmetic(&rhs_as_witness - &witness));
+        
+        // Lets go through some possible scenarios to explain why the code is correct
+        // 0: priv x = 5;
+        //
+        // This is not possible since the RHS is not a Witness type. It is constant. 
+        //
+        // 1: priv x = y + z;
+        //
+        // Here we apply one gate `y + z - x = 0`
+        //
+        // 2: priv x : u8 = y + z as u32;
+        // 
+        // This is not allowed because the lhs says u8 and the rhs says u32
+        // 
+        // 3: priv x : u32 = y + z as u32
+        // 
+        // Since the lhs type is the same as the rhs, it will pass analysis.
+        // When we constrain the rhs `y + z as u32` we are sure that the RHS is a u32 or it will fail
+        // When we then add the constraint that x - y + z = 0
+        // We know that x must be a u32 aswell, since the constraint enforces them to be equal
+        //
+        // TLDR; This works because the RHS is already constrained when we receive it as an object
+        // Even if we remove the typing information, the constraint has already been applied, so it is correct.
+        // Elaborating a little more. An integer x is a witness which has been constrained to be y num_bits. If we simply remove the type information
+        // ie just take x, then apply the constraint z - x' = 0. Then x' is implicitly constrained to be y num bits also.
         Ok(Object::Null)
     }
 
