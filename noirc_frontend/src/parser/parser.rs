@@ -216,9 +216,6 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::Constrain) => {
                 Statement::Constrain(ConstrainParser::parse_constrain_statement(self)?)
             }
-            Token::Keyword(Keyword::If) => {
-                Statement::If(IfParser::parse_if_statement(self)?)
-            }
             _ => {
                 let expr = self.parse_expression_statement()?;
                 Statement::Expression(expr)
@@ -266,6 +263,7 @@ impl<'a> Parser<'a> {
     fn choose_prefix_parser(&self) -> Option<PrefixParser> {
   
         match self.curr_token.token() {
+            Token::Keyword(Keyword::If) => Some(PrefixParser::If),
             Token::Keyword(Keyword::For) => Some(PrefixParser::For),
             Token::LeftBracket => Some(PrefixParser::Array),
             x if x.kind() == TokenKind::Ident => Some(PrefixParser::Name),
@@ -406,7 +404,7 @@ mod test {
     use noirc_errors::Spanned;
     use crate::ast::{
         BlockStatement, CallExpression, Expression, FunctionDefinition,
-         Ident, IfStatement, InfixExpression, Literal, PrefixExpression,
+         Ident, IfExpression, InfixExpression, Literal, PrefixExpression,
         Statement, Type, BinaryOpKind
     };
     #[test]
@@ -641,7 +639,7 @@ mod test {
         let x_ident : Ident = String::from("x").into();
         let y_ident : Ident = String::from("y").into();
 
-        let expected_if = IfStatement {
+        let expected_if = IfExpression {
             condition: ExpressionKind::Predicate(Box::new(InfixExpression {
                 lhs: x_ident.clone().into(),
                 operator: Spanned::from(Default::default(), BinaryOpKind::Less),
@@ -654,11 +652,15 @@ mod test {
         };
 
         let stmt = program.statements[0].clone();
-        let if_stmt = match stmt {
-            Statement::If(x) => x,
-            _ => unreachable!(),
+        let expr = match stmt {
+            Statement::Expression(expr) => expr,
+            _=> unreachable!(),
         };
-        assert_eq!(*if_stmt, expected_if)
+        let if_expr = match expr.kind {
+            ExpressionKind::If(if_expr) => if_expr,
+            _=> unreachable!()
+        };
+        assert_eq!(*if_expr, expected_if)
     }
     #[test]
     fn test_parse_if_else_expression() {
@@ -671,7 +673,7 @@ mod test {
         let cat_ident : Ident = String::from("cat").into();
         let dog_ident : Ident = String::from("dog").into();
 
-        let expected_if = IfStatement {
+        let expected_if = IfExpression {
             condition: ExpressionKind::Predicate(Box::new(InfixExpression {
                 lhs: foo_ident.into(),
                 operator: Spanned::from(Default::default(), BinaryOpKind::Less),
@@ -686,12 +688,16 @@ mod test {
         };
 
         let stmt = program.statements[0].clone();
-        let if_stmt = match stmt {
-            Statement::If(x) => x,
+        let expr = match stmt {
+            Statement::Expression(expr) => expr,
             _ => unreachable!(),
         };
+        let if_expr = match expr.kind {
+            ExpressionKind::If(if_expr) => if_expr,
+            _=> unreachable!()
+        };
 
-        assert_eq!(*if_stmt, expected_if)
+        assert_eq!(*if_expr, expected_if)
     }
 
     #[test]

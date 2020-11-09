@@ -28,7 +28,7 @@ pub use constrain::ConstrainParser;
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
     ArrayLiteral, BlockStatement, Expression, ExpressionKind,FunctionDefinition, Ident,
-    IfStatement, ForExpression, Literal, PrefixExpression, Type,
+    IfExpression, ForExpression, Literal, PrefixExpression, Type,
 };
 use crate::token::{Keyword, Token, TokenKind, Attribute};
 use noirc_errors::{Spanned, Span};
@@ -43,6 +43,7 @@ use crate::ast::{
 /// and choose based on the token. This is a bit more modularised and cleaner to read however
 pub enum PrefixParser {
     For,
+    If,
     Group,
     Literal,
     Name,
@@ -54,6 +55,7 @@ impl PrefixParser {
     pub fn parse(&self,parser: &mut Parser) -> ParserExprResult {
         match self {
             PrefixParser::For => span_parser(parser,ForParser::parse),
+            PrefixParser::If => span_parser(parser,IfParser::parse),
             PrefixParser::Array => span_parser(parser,ArrayParser::parse),
             PrefixParser::Name => span_parser(parser,NameParser::parse),
             PrefixParser::Literal => span_parser(parser,LiteralParser::parse),
