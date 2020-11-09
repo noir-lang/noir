@@ -27,6 +27,7 @@ impl Driver{
         }
     }
 
+    // Currently we only parse a single file, so this method returns the Compiled program
     pub fn compile_file(&mut self, file_name : PathBuf, source: String) -> CompiledProgram {
 
         // First add the file to the system 
@@ -71,10 +72,4 @@ impl Driver{
             abi
         }
     }
-}
-
-
-#[test]
-fn test_driver() {
-    let _ = Driver::new();
 }
