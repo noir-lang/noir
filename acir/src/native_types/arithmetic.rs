@@ -41,6 +41,9 @@ impl Default for Arithmetic {
 }
 
 impl Arithmetic {
+    pub const fn can_defer_constraint(&self) -> bool {
+        false
+    }
     pub fn simplify_fan(&mut self) {
         let max_terms = std::cmp::max(self.fan_in.len(), self.fan_out.len());
         let mut hash_map: HashMap<Witness, FieldElement> = HashMap::with_capacity(max_terms);
@@ -245,6 +248,11 @@ impl From<Linear> for Arithmetic {
         Arithmetic::from(&lin)
     }
 }
+impl From<&Witness> for Arithmetic {
+    fn from(wit: &Witness) -> Arithmetic {
+        Linear::from_witness(wit.clone()).into()
+    }
+}
 
 impl Add<&Arithmetic> for &Linear{
     type Output = Arithmetic;
@@ -256,6 +264,12 @@ impl Add<&Linear> for &Arithmetic{
     type Output = Arithmetic;
     fn add(self, rhs: &Linear) -> Arithmetic {
         &Arithmetic::from(rhs) + self
+    }
+}
+impl Sub<&Witness> for &Arithmetic{
+    type Output = Arithmetic;
+    fn sub(self, rhs: &Witness) -> Arithmetic {
+         self - &Arithmetic::from(rhs)
     }
 }
 

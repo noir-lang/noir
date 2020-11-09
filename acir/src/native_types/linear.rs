@@ -21,15 +21,15 @@ impl Linear {
             add_scale: FieldElement::zero(),
         }
     }
+    // XXX: This is true for the NPC languages that we use, are there any where this is not true? 
+    pub const fn can_defer_constraint(&self) -> bool {
+        true
+    }
 }
 
 impl From<Witness> for Linear {
     fn from(w: Witness) -> Linear {
-        Linear {
-            add_scale: FieldElement::zero(),
-            witness: w,
-            mul_scale: FieldElement::one(),
-        }
+        Linear::from_witness(w)
     }
 }
 impl From<FieldElement> for Linear {

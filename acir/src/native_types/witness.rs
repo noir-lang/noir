@@ -31,4 +31,7 @@ impl Witness {
     pub fn variable_name(&self) -> &str {
         &self.0
     }
+    pub const fn can_defer_constraint(&self) -> bool {
+        true
+    }
 }
