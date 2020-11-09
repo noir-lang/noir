@@ -111,6 +111,34 @@ impl Object {
     pub fn from_witness(witness: Witness) -> Object {
         Object::Linear(Linear::from_witness(witness))
     }
+
+    // XXX: It is possible to make this into a Mul trait, but it seems to hurt readability
+    // Could we move this into the Mul file itself?
+    pub fn mul_constant(&self, constant : FieldElement) -> Option<Object> {
+        let obj = match self {
+            Object::Null => return None,
+            Object::Array(arr) => {
+
+                let mut result = Vec::with_capacity(arr.length as usize);
+                for element in arr.contents.iter() {
+                    result.push(element.mul_constant(constant)?);
+                }
+                
+                Object::Array(Array{
+                    contents: result,
+                    length: arr.length,
+                })
+            },
+            Object::Linear(lin) => Object::Linear(lin * &constant),
+            Object::Integer(integer) => {
+                let result = &Linear::from_witness(integer.witness.clone()) * &constant;
+                Object::Linear(result)
+            },
+            Object::Constants(lhs) => Object::Constants(*lhs * constant),
+            Object::Arithmetic(lhs) => Object::Arithmetic(lhs * &constant),
+        };
+        return Some(obj)
+    }
 }
 
 impl From<Object> for Gate {
