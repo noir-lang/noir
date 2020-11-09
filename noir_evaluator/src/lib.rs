@@ -282,7 +282,6 @@ impl Evaluator {
 
                 Ok(Object::Null)
             }
-            Statement::If(_) => todo!("This may be deprecated for if expressions"),
             Statement::Public(_) => todo!("This may be deprecated. We do however want a way to keep track of linear transformations between private variable and public/constants"),
             Statement::Block(_) => todo!("This may be deprecated for block expressions")
         }
@@ -514,10 +513,10 @@ impl Evaluator {
             ExpressionKind::For(for_expr) => {
                 self.handle_for_expr(env,*for_expr)
             }
-            k => {
-                dbg!(k);
-                todo!()
-            }
+            ExpressionKind::If(_) => todo!(),
+            ExpressionKind::Prefix(_) => todo!(),
+            ExpressionKind::Predicate(_) => todo!(),
+            ExpressionKind::Literal(_) => todo!()
         }
     }
 
