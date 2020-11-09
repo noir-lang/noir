@@ -65,6 +65,27 @@ impl Object {
             _ => None,
         }
     }
+    pub fn extract_private_witness(self) -> Option<Arithmetic> {
+        match self {
+            Object::Arithmetic(x) => Some(x),
+            Object::Linear(x) => Some(x.into()),
+            Object::Integer(x) => Some((&x.witness).into()),
+            Object::Array(_) => None,
+            Object::Constants(_) => None,
+            Object::Null => None,
+        }
+    }
+
+    pub fn can_defer_constraint(&self) -> bool {
+        match self {
+            Object::Arithmetic(x) => x.can_defer_constraint(),
+            Object::Linear(x) => x.can_defer_constraint(),
+            Object::Integer(x) => x.witness.can_defer_constraint(),
+            Object::Array(_) => false,
+            Object::Constants(_) => false,
+            Object::Null => false,
+        }
+    }
 
     pub fn witness(&self) -> Option<Witness> {
         if !self.is_unit_witness() {
