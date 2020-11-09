@@ -53,7 +53,6 @@ impl From<Ident> for ExpressionKind {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
-    If(Box<IfStatement>),
     Let(LetStatement),
     Const(ConstStatement),
     Constrain(ConstrainStatement),
@@ -69,14 +68,6 @@ impl Into<Statement> for Expression {
         Statement::Expression(self)
     }
 }
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IfStatement {
-    pub condition: Expression,
-    pub consequence: BlockStatement,
-    pub alternative: Option<BlockStatement>,
-}
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {

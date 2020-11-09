@@ -12,7 +12,8 @@ pub enum ExpressionKind {
     Call(NoirPath, Box<CallExpression>), // Make Path Optional and so we only have one call expression
     Cast(Box<CastExpression>),
     Predicate(Box<InfixExpression>),
-    For(Box<ForExpression>)
+    For(Box<ForExpression>),
+    If(Box<IfExpression>),
 }
 
 #[derive(Debug, Eq, Clone)]
@@ -208,6 +209,13 @@ pub struct InfixExpression {
     pub lhs: Expression,
     pub operator: BinaryOp,
     pub rhs: Expression,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct IfExpression {
+    pub condition: Expression,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
 }
 
 // This is an infix expression with 'as' as the binary operator
