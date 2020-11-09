@@ -78,15 +78,22 @@ impl Evaluator {
         self.counter
     }
 
-    fn create_fresh_witness(
-        &mut self,
-        name: String,
-        env: &mut Environment,
-    ) -> (Witness, Object) {
-        let unique_name = format!("{}{}", name, self.get_unique_value(),);
-        let witness = self.store_witness(unique_name.clone(), Type::Witness);
-        let poly = self.store_lone_variable(unique_name, env);
-        (witness, poly)
+    // Takes a String which will be the variables name and adds it to the list of known Witnesses
+    fn add_witness_to_cs(&mut self, variable_name: String, typ: Type) -> Witness {
+        self.num_witness = self.num_witness + 1;
+        let witness = Witness(variable_name, self.num_witness);
+        self.witnesses.insert(witness.clone(), typ);
+        witness
+    }
+
+    fn add_witness_to_env(&mut self, witness: Witness, env: &mut Environment) -> Object {
+        let value = Object::from_witness(witness.clone());
+        env.store(witness.0, value.clone());
+        value
+    }
+
+    fn make_unique(&mut self, string: &str) -> String {
+        format!("{}{}", string, self.get_unique_value())
     }
 
     pub fn num_witnesses(&self) -> usize {
@@ -165,15 +172,14 @@ impl Evaluator {
         arithmetic_gate: Arithmetic,
         typ: Type,
     ) -> (Object, Witness) {
-        // Create a new witness variable
-        let inter_var_name = format!("{}_{}", "_inter", self.get_unique_value());
-
-        // Add witness to the constraint system
-        let inter_var_witness = self.store_witness(inter_var_name.clone(), typ);
-        let witness_poly = self.store_lone_variable(inter_var_name, env);
+        
+        // Create a unique witness name and add witness to the constraint system        
+        let inter_var_unique_name = self.make_unique("_inter");
+        let inter_var_witness = self.add_witness_to_cs(inter_var_unique_name, Type::Witness);
+        let inter_var_object = self.add_witness_to_env(inter_var_witness.clone(), env);
 
         // We know it is a Linear polynomial, so we match on that.
-        let linear_poly = match witness_poly.clone() {
+        let linear_poly = match inter_var_object.clone() {
             Object::Linear(x) => x,
             _ => unreachable!("Expected the intermediate variable to be a linear polynomial"),
         };
@@ -181,7 +187,7 @@ impl Evaluator {
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &linear_poly.into();
         self.gates.push(Gate::Arithmetic(constraint));
-        (witness_poly, inter_var_witness)
+        (inter_var_object, inter_var_witness)
     }
 
     pub fn evaluate_infix_expression(
@@ -243,13 +249,13 @@ impl Evaluator {
 
         // Add all of the public inputs first, then the witnesses
         for param_name in pub_inputs.into_iter() {
-            self.store_witness(param_name.0.clone().contents, Type::Public);
-            self.store_lone_variable(param_name.0.clone().contents, env);
+            let witness = self.add_witness_to_cs(param_name.0.clone().contents, Type::Public);
+            self.add_witness_to_env(witness, env);
         }
-
+        
         for param_name in witnesses.into_iter() {
-            self.store_witness(param_name.0.clone().contents, Type::Witness);
-            self.store_lone_variable(param_name.0.clone().contents, env);
+            let witness = self.add_witness_to_cs(param_name.0.clone().contents, Type::Witness);
+            self.add_witness_to_env(witness, env);
         }
 
         // Now call the main function
@@ -287,21 +293,6 @@ impl Evaluator {
         }
     }
 
-    // XXX(med) : combine these two methods and or rename
-    // XXX(bug) : If you call store_witness after store_lone_variable, then the Object will have the index of the previous witness
-    // XXX: Maybe better to name it `create_witness`
-    fn store_witness(&mut self, variable_name: String, typ: Type) -> Witness {
-        self.num_witness = self.num_witness + 1;
-        let witness = Witness(variable_name, self.num_witness);
-        self.witnesses.insert(witness.clone(), typ);
-        witness
-    }
-    fn store_lone_variable(&mut self, variable_name: String, env: &mut Environment) -> Object {
-        let value = Object::from_witness(Witness(variable_name.clone(), self.num_witness));
-        env.store(variable_name, value.clone());
-        value
-    }
-
     // The LHS of a private statement is always a new witness
     // Cannot do `private x + k = z`
     // It is also a new variable, since private is used to derive variables
@@ -311,7 +302,7 @@ impl Evaluator {
         x: PrivateStatement,
     ) -> Result<Object, EvaluatorError> {
         let variable_name: String = x.identifier.clone().0.contents;
-        let witness = self.store_witness(variable_name.clone(), x.r#type.clone());
+        let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone());
         let witness_linear = Linear::from_witness(witness.clone());
 
         let rhs_poly = self.expression_to_object(env, x.expression.clone())?;
@@ -338,7 +329,7 @@ impl Evaluator {
             //  Check if the type requires us to apply an extra constraint
             Type::Integer(_, num_bits) => {
                 let integer = Integer::from_witness(witness, *num_bits);
-                integer.constrain(self);
+                integer.constrain(self)?;
                 Object::Integer(integer)
             }
             Type::Witness => Object::from_witness(witness),

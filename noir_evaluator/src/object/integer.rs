@@ -146,9 +146,8 @@ impl Integer {
 
         let op_str = if is_xor_gate { "xor" } else { "and" };
 
-        // XXX: We need to create a better function for fresh variables
-        let result_str = format!("{}_{}", op_str, evaluator.get_unique_value(),);
-        let result = evaluator.store_witness(result_str.clone(), Type::Witness);
+        let result_str = evaluator.make_unique(op_str);
+        let result = evaluator.add_witness_to_cs(result_str.clone(), Type::Witness);
 
         if is_xor_gate {
             evaluator.gates.push(Gate::Xor(XorGate {

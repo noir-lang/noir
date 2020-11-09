@@ -29,13 +29,13 @@ use crate::{Environment, Evaluator, FieldElement, Object, Type, EvaluatorError};
 /// Creates a new witness and constrains it to be the inverse of the polynomial passed in
 pub fn invert(x: Object, env: &mut Environment, evaluator: &mut Evaluator) -> Result<Object, EvaluatorError> {
     // Create a fresh witness
-    // XXX: We need to create a better function for fresh variables
-    let inter_var_name = format!("{}{}", "inverse_", evaluator.get_unique_value(),);
-    evaluator.store_witness(inter_var_name.clone(), Type::Witness);
-    let x_inv = evaluator.store_lone_variable(inter_var_name, env);
+    let inter_var_name = evaluator.make_unique("inverse_");
+
+    let inverse_witness = evaluator.add_witness_to_cs(inter_var_name, Type::Witness);
+    let inverse_obj = evaluator.add_witness_to_env(inverse_witness, env);
 
     // Multiply inverse by original value
-    let should_be_one = handle_mul_op(x, x_inv.clone(), env, evaluator)?;
+    let should_be_one = handle_mul_op(x, inverse_obj.clone(), env, evaluator)?;
 
     // Constrain x * x_inv = 1
     let _ = handle_equal_op(
@@ -46,5 +46,5 @@ pub fn invert(x: Object, env: &mut Environment, evaluator: &mut Evaluator) -> Re
     );
 
     // Return inverse
-    Ok(x_inv)
+    Ok(inverse_obj)
 }
