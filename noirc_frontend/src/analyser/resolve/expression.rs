@@ -106,6 +106,7 @@ impl<'a> Resolver<'a> {
 
                 true
             },
+            ExpressionKind::If(_) => todo!(),
             ExpressionKind::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back"),
         }
     }

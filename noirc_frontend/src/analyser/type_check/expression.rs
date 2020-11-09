@@ -74,6 +74,7 @@ impl<'a> TypeChecker<'a> {
                 };
                 Ok(Type::Array(array_size, Box::new(base_typ)))
             },
+            ExpressionKind::If(_) => todo!(),
             ExpressionKind::Prefix(_) => unimplemented!("[Possible Deprecation] : Currently prefix have been rolled back")
         }
     }

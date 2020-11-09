@@ -134,9 +134,6 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Result<Type,
             Statement::Const(const_stmt) => {
                 self.type_check_const_stmt(const_stmt)
             },
-            Statement::If(_) => {
-                panic!("[Possible Deprecation] : If statements are not implemented yet, however they might be deprecated for if expressions");
-            },
             Statement::Let(let_stmt) => {
                 self.type_check_let_stmt(let_stmt)
             },
