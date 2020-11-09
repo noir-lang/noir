@@ -145,6 +145,7 @@ impl From<Object> for Gate {
     fn from(poly: Object) -> Gate {
         match poly {
             Object::Arithmetic(arith) => Gate::Arithmetic(arith),
+            // XXX: Arriving here means we have an internal error/bug, so we abort
             _ => unimplemented!("Only Arithmetic Objects can be converted into gates"),
         }
     }
