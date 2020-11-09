@@ -68,7 +68,7 @@ class account_tests : public ::testing::Test {
     uint256_t compute_alias_nullifier(fr const& alias, bool register_alias)
     {
         std::vector<fr> hash_elements{
-            register_alias ? fr(3) : fr(0),
+            register_alias ? fr(notes::ALIAS_NULLIFIER_PREFIX) : fr(notes::GIBBERISH_NULLIFIER_PREFIX),
             alias,
         };
         auto result = crypto::pedersen::compress_native(hash_elements, notes::ALIAS_NULLIFIER_INDEX);
