@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Environment, Evaluator, FieldElement, Linear, Object, Type, EvaluatorError};
+use crate::{Arithmetic, Environment, Evaluator, Linear, Object, Type, EvaluatorError, Array};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -10,18 +10,28 @@ pub fn handle_mul_op(
     env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, EvaluatorError> {
+
+    let general_err = err_cannot_mul(left.r#type(), right.r#type());
+
+
     match (left, right) {
-        (Object::Null, _) => Ok(handle_null_mul()),
-        (Object::Arithmetic(arith), y) => handle_arithmetic_mul(arith, y, env, evaluator),
-        (Object::Constants(c), y) => handle_constant_mul(c, y),
-        (Object::Linear(lin), y) => handle_linear_mul(lin, y, env, evaluator),
-        (Object::Integer(integer), y) => Ok(Object::Integer(integer.mul(y, env, evaluator)?)),
-        (x, y) => return Err(EvaluatorError::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : x.r#type().to_owned(), second_type :y.r#type().to_owned()})
+
+        (Object::Null, _) | (_, Object::Null) => Err(general_err),
+
+        (Object::Array(_), Object::Array(_)) => Err(general_err),
+
+        (Object::Arithmetic(x), y) | (y, Object::Arithmetic(x)) => handle_arithmetic_mul(x, y, env, evaluator),
+
+        (Object::Constants(x), y) | (y, Object::Constants(x)) => y.mul_constant(x).ok_or(general_err),
+
+        (Object::Linear(lin), y) | (y, Object::Linear(lin)) => handle_linear_mul(lin, y, env, evaluator),
+        
+        (Object::Integer(integer), y) | ( y,Object::Integer(integer)) => Ok(Object::Integer(integer.mul(y, env, evaluator)?)),
     }
 }
 
-fn handle_null_mul() -> Object {
-    panic!("Cannot do an operation with the Null Object")
+fn err_cannot_mul(first_type : &'static str,second_type : &'static str ) -> EvaluatorError {
+    EvaluatorError::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : first_type.to_owned() , second_type : second_type.to_owned()}
 }
 
 fn handle_arithmetic_mul(
@@ -39,17 +49,7 @@ fn handle_arithmetic_mul(
     let (intermediate_var, _) = evaluator.create_intermediate_variable(env, arith, Type::Witness);
     return handle_mul_op(intermediate_var, polynomial, env, evaluator);
 }
-fn handle_constant_mul(constant: FieldElement, polynomial: Object) -> Result<Object, EvaluatorError> {
-    let result = match polynomial {
-        Object::Arithmetic(arith) => Object::Arithmetic(&arith * &constant),
-        Object::Linear(linear) => Object::Linear(&linear * &constant),
-        Object::Constants(constant_rhs) => Object::Constants(constant * constant_rhs),
-        Object::Null => handle_null_mul(),
-        Object::Integer(_) => return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("currently you can only multiply an integer with an integer. Will be changed later to produce an Arith/Linear")}),
-        x => return Err(EvaluatorError::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : x.r#type().to_owned(), second_type :"constant".to_owned()})
-    };
-    Ok(result)
-}
+
 fn handle_linear_mul(
     linear: Linear,
     polynomial: Object,
@@ -62,8 +62,22 @@ fn handle_linear_mul(
         }
         Object::Linear(linear_rhs) => Ok(Object::Arithmetic(&linear * &linear_rhs)),
         Object::Constants(constant) => Ok(Object::Linear(&linear * &constant)),
-        Object::Null => Ok(handle_null_mul()),
-        Object::Integer(_) => return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("currently you can only multiply an integer with an integer. Will be changed later to produce an Arith/Linear")}),
-        x => return Err(EvaluatorError::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : x.r#type().to_owned(), second_type :"linear".to_owned()}),
+        Object::Integer(integer) => {
+            let result = &Linear::from_witness(integer.witness.clone()) * &linear;
+            Ok(Object::Arithmetic(result))
+        },
+        Object::Array(arr) => {
+
+            let mut result = Vec::with_capacity(arr.length as usize);
+            for element in arr.contents.into_iter() {
+                result.push(handle_linear_mul(linear.clone(), element, env, evaluator)?);
+            }
+            
+            Ok(Object::Array(Array{
+                contents: result,
+                length: arr.length,
+            }))
+        },
+        Object::Null => Err(err_cannot_mul("()", "Witness")) 
     }
 }
