@@ -90,4 +90,9 @@ impl AnalyserError {
     pub fn from_expression(message : String, expr: &Expression) -> AnalyserError {
         AnalyserError::Unstructured{message, span :expr.span }
     }
+    pub fn type_mismatch(expected : &Type, got : &Type, expr_span : Span) -> AnalyserError {
+        // Type does not have span information, so we take it as a parameter for now
+        let message = format!("Type mismatch: expected {}, got {}", expected, got);
+        return AnalyserError::Unstructured{message, span :expr_span }
+    }  
 }

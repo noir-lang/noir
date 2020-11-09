@@ -149,12 +149,17 @@ fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Result<Type,
                 // to be limited to this in the main function parameters
                 panic!("[Deprecated] : Declaring public variables in block statements is being deprecated. You will still be able to state them as Types in function parameters ")
             }
-        }?;
+        };
         // We immediately abort for an error, because we may not have the type information for the identifier 
         // in the statement which threw the error. We could make it more complex in the future, by continuing
         // when the type information is explicitly supplied, and or when it can be inferred from the statement
-
-        last_return_type = stmt_return_type;
+        match stmt_return_type {
+            Ok(rt) => last_return_type = rt,
+            Err(err) => {
+                self.push_err(err);
+                break
+            }
+        }   
     }
 
     Ok(last_return_type)
@@ -176,14 +181,14 @@ fn type_check_private_stmt(&mut self,stmt : &mut PrivateStatement) -> Result<Typ
 
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
+    dbg!(lhs_type.clone(), expr_type.clone());
     if lhs_type != &expr_type {
-        let message = format!("\n\nType mismatch: Expected: {:?} got: {:?} \n\n", lhs_type, expr_type);
-        return Err(AnalyserError::from_expression(message, &stmt.expression));
+        return Err(AnalyserError::type_mismatch(lhs_type, &expr_type, stmt.expression.span))
     }
     
     // Check if this type can be used in a Private statement
     if !lhs_type.can_be_used_in_priv() {
-        let message = format!("The Type {:?} cannot be used in a Private Statement", lhs_type);
+        let message = format!("the type {} cannot be used in a Private Statement", lhs_type);
         return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
 
@@ -209,13 +214,12 @@ fn type_check_let_stmt(&mut self,stmt : &mut LetStatement) -> Result<Type, Analy
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
     if lhs_type != &expr_type {
-        let message = format!("\n\nType mismatch: Expected: {:?} got: {:?} \n\n", lhs_type, expr_type);
-        return Err(AnalyserError::from_expression(message, &stmt.expression));
+        return Err(AnalyserError::type_mismatch(lhs_type, &expr_type, stmt.expression.span))
     }
     
     // Check if this type can be used in a Let statement
     if !lhs_type.can_be_used_in_let() {
-        let message = format!("The type {:?} cannot be used in a Let Statement", lhs_type);
+        let message = format!("the type {} cannot be used in a Let Statement", lhs_type);
         return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     
@@ -231,14 +235,14 @@ fn type_check_const_stmt(&mut self,stmt : &mut ConstStatement) -> Result<Type, A
     let lhs_type = &stmt.r#type;
 
     if !(lhs_type == &Type::Constant || lhs_type == &Type::Unspecified) {
-        let message = format!("Constant statements can only contain constant types, found type {}", lhs_type);
+        let message = format!("constant statements can only contain constant types, found type {}", lhs_type);
         return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     let expr_type = self.type_check_expr(&mut stmt.expression)?;
     
     // Constant statements can only contain the Constant type
     if expr_type != Type::Constant {
-        let message = format!("RHS of constrain statement must be of type `Constant`");
+        let message = format!("rhs of constrain statement must be of type `Constant`");
         return Err(AnalyserError::from_expression(message, &stmt.expression));
     }
     
@@ -254,16 +258,16 @@ fn type_check_constrain_stmt(&mut self,stmt : &mut ConstrainStatement) -> Result
 
     // Are there any restrictions on the operator for constrain statements
     if !stmt.0.operator.contents.is_comparator()  {
-        let message = format!("Only comparison operators can be used in a constrain statement");
+        let message = format!("only comparison operators can be used in a constrain statement");
         return Err(AnalyserError::Unstructured{message, span :stmt.0.operator.span()});
     };
     
     if !lhs_type.can_be_used_in_constrain() {
-        let message = format!("found type {:?} . This type cannot be used in a constrain statement", lhs_type);
+        let message = format!("found type {} . This type cannot be used in a constrain statement", lhs_type);
         return Err(AnalyserError::from_expression(message, &stmt.0.lhs));
     }
     if !rhs_type.can_be_used_in_constrain() {
-        let message = format!("found type {:?} . This type cannot be used in a constrain statement", rhs_type);
+        let message = format!("found type {} . This type cannot be used in a constrain statement", rhs_type);
         return Err(AnalyserError::from_expression(message, &stmt.0.rhs));
     }
 
