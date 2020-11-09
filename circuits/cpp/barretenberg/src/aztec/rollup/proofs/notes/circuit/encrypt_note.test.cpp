@@ -1,13 +1,12 @@
-#include "pedersen_note.hpp"
-#include <crypto/pedersen/pedersen.hpp>
-#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "encrypt_note.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::proofs::notes;
+using namespace rollup::proofs::notes::circuit;
 
-TEST(rollup_pedersen_note, test_new_pedersen_note)
+TEST(encrypt_note, encrypts)
 {
     Composer composer = Composer();
 
@@ -43,11 +42,11 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
-    private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
+    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
 
-    public_note result = encrypt_note(plaintext);
-    composer.assert_equal_constant(result.ciphertext.x.witness_index, expected.x);
-    composer.assert_equal_constant(result.ciphertext.y.witness_index, expected.y);
+    point_ct result = encrypt_note(plaintext);
+    composer.assert_equal_constant(result.x.witness_index, expected.x);
+    composer.assert_equal_constant(result.y.witness_index, expected.y);
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -61,7 +60,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
+TEST(encrypt_note, encrypts_with_0_value)
 {
     Composer composer = Composer();
 
@@ -88,11 +87,11 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
 
-    private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
+    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
 
-    public_note result = encrypt_note(plaintext);
-    composer.assert_equal_constant(result.ciphertext.x.witness_index, expected.x);
-    composer.assert_equal_constant(result.ciphertext.y.witness_index, expected.y);
+    point_ct result = encrypt_note(plaintext);
+    composer.assert_equal_constant(result.x.witness_index, expected.x);
+    composer.assert_equal_constant(result.y.witness_index, expected.y);
 
     waffle::TurboProver prover = composer.create_prover();
 

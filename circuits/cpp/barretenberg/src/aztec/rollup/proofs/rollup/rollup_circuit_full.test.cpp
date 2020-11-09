@@ -6,7 +6,8 @@
 #include "../inner_proof_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
-#include "../notes/sign_notes.hpp"
+#include "../notes/native/sign_notes.hpp"
+#include "../notes/native/encrypt_note.hpp"
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include "../inner_proof_data.hpp"
@@ -21,6 +22,7 @@ using rollup::proofs::inner_proof_data;
 using namespace rollup::proofs::rollup;
 using namespace rollup::proofs::join_split;
 using namespace rollup::proofs::account;
+using namespace rollup::proofs::notes::native;
 using namespace plonk::stdlib::merkle_tree;
 
 class rollup_full_tests : public ::testing::Test {
@@ -49,8 +51,8 @@ class rollup_full_tests : public ::testing::Test {
 
     uint32_t append_note(uint32_t value)
     {
-        tx_note note = { user.owner.public_key, value, user.note_secret, 0 };
-        auto enc_note = note.encrypt_note();
+        value_note note = { user.owner.public_key, value, user.note_secret, 0 };
+        auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
         data_tree.update_element(index, leaf_data);
@@ -101,10 +103,10 @@ class rollup_full_tests : public ::testing::Test {
                                                  uint32_t public_output = 0,
                                                  uint32_t account_note_idx = 0)
     {
-        tx_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0 };
-        tx_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0 };
-        tx_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0 };
-        tx_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0 };
+        value_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0 };
+        value_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0 };
+        value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = public_input;

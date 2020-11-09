@@ -1,10 +1,10 @@
-#include "../notes/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "escape_hatch.hpp"
 #include "escape_hatch_circuit.hpp"
 #include "escape_hatch_tx.hpp"
-#include "../notes/sign_notes.hpp"
-#include "../notes/note_generator_indices.hpp"
+#include "../notes/native/sign_notes.hpp"
+#include "../notes/native/encrypt_note.hpp"
+#include "../notes/native/compute_nullifier.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -17,6 +17,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::join_split;
 using namespace rollup::proofs::escape_hatch;
+using namespace rollup::proofs::notes::native;
 
 class escape_hatch_tests : public ::testing::Test {
   protected:
@@ -39,13 +40,13 @@ class escape_hatch_tests : public ::testing::Test {
 
     void preload_value_notes()
     {
-        tx_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
-        tx_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
+        value_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
+        value_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
 
-        auto enc_note1 = note1.encrypt_note();
+        auto enc_note1 = encrypt_note(note1);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
 
-        auto enc_note2 = note2.encrypt_note();
+        auto enc_note2 = encrypt_note(note2);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
     }
 
@@ -101,10 +102,10 @@ class escape_hatch_tests : public ::testing::Test {
 
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies, uint32_t account_index)
     {
-        tx_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0 };
-        tx_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0 };
-        tx_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0 };
-        tx_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0 };
+        value_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0 };
+        value_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0 };
+        value_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -133,8 +134,8 @@ class escape_hatch_tests : public ::testing::Test {
         tx.rollup_id = static_cast<uint32_t>(data_tree.size() / 2 - 1);
         tx.data_start_index = static_cast<uint32_t>(data_tree.size());
         tx.old_data_path = data_tree.get_hash_path(tx.data_start_index);
-        auto enc_note1 = tx.js_tx.output_note[0].encrypt_note();
-        auto enc_note2 = tx.js_tx.output_note[1].encrypt_note();
+        auto enc_note1 = encrypt_note(tx.js_tx.output_note[0]);
+        auto enc_note2 = encrypt_note(tx.js_tx.output_note[1]);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
         tx.new_data_root = data_tree.root();
@@ -148,16 +149,15 @@ class escape_hatch_tests : public ::testing::Test {
         tx.new_data_roots_root = root_tree.root();
         tx.new_data_roots_path = root_tree.get_hash_path(root_tree_index);
 
-        auto nullifier1 = uint128_t(
-            tx.js_tx.input_note[0].compute_nullifier(uint32_t(tx.js_tx.input_index[0]), user.owner.private_key, true));
-        auto nullifier2 = uint128_t(
-            tx.js_tx.input_note[1].compute_nullifier(uint32_t(tx.js_tx.input_index[1]), user.owner.private_key, true));
+        auto nullifier1 = uint128_t(compute_nullifier(
+            encrypt_note(tx.js_tx.input_note[0]), tx.js_tx.input_index[0], user.owner.private_key, true));
+        auto nullifier2 = uint128_t(compute_nullifier(
+            encrypt_note(tx.js_tx.input_note[1]), tx.js_tx.input_index[1], user.owner.private_key, true));
 
         auto nullifier_value = std::vector<uint8_t>(64, 0);
         nullifier_value[63] = 1;
 
-        uint128_t account_nullifier =
-            tx_account_note({ user.owner.public_key, user.signing_keys[0].public_key }).compute_nullifier();
+        uint128_t account_nullifier = 0;
         tx.account_null_path = null_tree.get_hash_path(account_nullifier);
 
         tx.old_null_root = null_tree.root();

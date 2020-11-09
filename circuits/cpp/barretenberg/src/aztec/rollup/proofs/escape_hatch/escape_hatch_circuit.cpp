@@ -1,6 +1,6 @@
 #include "escape_hatch.hpp"
 #include "../join_split/join_split_circuit.hpp"
-#include "../notes/note_pair.hpp"
+#include "../notes/circuit/note_pair.hpp"
 #include "../rollup/rollup_circuit.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -22,10 +22,10 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         witness_ct(&composer, tx.js_tx.num_input_notes),
         witness_ct(&composer, tx.js_tx.input_index[0]),
         witness_ct(&composer, tx.js_tx.input_index[1]),
-        create_note_pair(composer, tx.js_tx.input_note[0]),
-        create_note_pair(composer, tx.js_tx.input_note[1]),
-        create_note_pair(composer, tx.js_tx.output_note[0]),
-        create_note_pair(composer, tx.js_tx.output_note[1]),
+        notes::circuit::create_note_pair(composer, tx.js_tx.input_note[0]),
+        notes::circuit::create_note_pair(composer, tx.js_tx.input_note[1]),
+        notes::circuit::create_note_pair(composer, tx.js_tx.output_note[0]),
+        notes::circuit::create_note_pair(composer, tx.js_tx.output_note[1]),
         { witness_ct(&composer, tx.js_tx.signing_pub_key.x), witness_ct(&composer, tx.js_tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.js_tx.signature),
         witness_ct(&composer, tx.js_tx.old_data_root),
@@ -39,8 +39,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
 
     auto outputs = join_split_circuit_component(composer, inputs);
 
-    // TODO: should be able to be a constant, but causes things to fail :/ (does it still?)
-    auto one = uint32_ct(witness_ct(&composer, 1));
+    auto one = uint32_ct(1);
     auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));
     auto old_data_root = field_ct(witness_ct(&composer, tx.js_tx.old_data_root));
     auto new_data_root = field_ct(witness_ct(&composer, tx.new_data_root));
@@ -65,22 +64,19 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
                                     new_data_roots_root,
                                     old_data_roots_root);
 
-    rollup::check_data_tree_updated(composer,
-                                    1,
-                                    create_witness_hash_path(composer, tx.new_data_path),
-                                    create_witness_hash_path(composer, tx.old_data_path),
-                                    { byte_array_ct(&composer)
-                                          .write(inputs.output_note1.second.ciphertext.x)
-                                          .write(inputs.output_note1.second.ciphertext.y),
-                                      byte_array_ct(&composer)
-                                          .write(inputs.output_note2.second.ciphertext.x)
-                                          .write(inputs.output_note2.second.ciphertext.y) },
-                                    old_data_root,
-                                    new_data_root,
-                                    data_start_index);
+    rollup::check_data_tree_updated(
+        composer,
+        1,
+        create_witness_hash_path(composer, tx.new_data_path),
+        create_witness_hash_path(composer, tx.old_data_path),
+        { byte_array_ct(&composer).write(inputs.output_note1.second.x).write(inputs.output_note1.second.y),
+          byte_array_ct(&composer).write(inputs.output_note2.second.x).write(inputs.output_note2.second.y) },
+        old_data_root,
+        new_data_root,
+        data_start_index);
 
-    rollup::check_accounts_not_nullified(
-        composer, one, old_null_root, { outputs.account_nullifier }, { tx.account_null_path });
+    // rollup::check_accounts_not_nullified(
+    //     composer, one, old_null_root, { outputs.account_nullifier }, { tx.account_null_path });
 
     // Public inputs mimick a 1 rollup, minus the pairing point at the end.
     composer.set_public_input(rollup_id.witness_index);
@@ -99,10 +95,10 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     composer.set_public_input(inputs.public_input.witness_index);
     composer.set_public_input(inputs.public_output.witness_index);
     composer.set_public_input(inputs.asset_id.witness_index);
-    composer.set_public_input(inputs.output_note1.second.ciphertext.x.witness_index);
-    composer.set_public_input(inputs.output_note1.second.ciphertext.y.witness_index);
-    composer.set_public_input(inputs.output_note2.second.ciphertext.x.witness_index);
-    composer.set_public_input(inputs.output_note2.second.ciphertext.y.witness_index);
+    composer.set_public_input(inputs.output_note1.second.x.witness_index);
+    composer.set_public_input(inputs.output_note1.second.y.witness_index);
+    composer.set_public_input(inputs.output_note2.second.x.witness_index);
+    composer.set_public_input(inputs.output_note2.second.y.witness_index);
     composer.set_public_input(outputs.nullifier1.witness_index);
     composer.set_public_input(outputs.nullifier2.witness_index);
     public_witness_ct(&composer, tx.js_tx.input_owner);

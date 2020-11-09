@@ -1,9 +1,9 @@
-#include "../notes/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "../inner_proof_data.hpp"
 #include "join_split.hpp"
 #include "join_split_circuit.hpp"
-#include "../notes/sign_notes.hpp"
+#include "../notes/native/sign_notes.hpp"
+#include "../notes/native/encrypt_note.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -14,6 +14,7 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs;
+using namespace rollup::proofs::notes::native;
 using namespace rollup::proofs::join_split;
 
 std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -68,22 +69,22 @@ class join_split_tests : public ::testing::Test {
      */
     void preload_value_notes()
     {
-        tx_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
-        tx_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
+        value_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
+        value_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
 
-        auto enc_note1 = note1.encrypt_note();
+        auto enc_note1 = encrypt_note(note1);
         tree->update_element(tree->size(), create_leaf_data(enc_note1));
 
-        auto enc_note2 = note2.encrypt_note();
+        auto enc_note2 = encrypt_note(note2);
         tree->update_element(tree->size(), create_leaf_data(enc_note2));
     }
 
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies, uint32_t account_index)
     {
-        tx_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0 };
-        tx_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0 };
-        tx_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0 };
-        tx_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0 };
+        value_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0 };
+        value_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0 };
+        value_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -120,10 +121,10 @@ class join_split_tests : public ::testing::Test {
      */
     join_split_tx public_transfer_setup()
     {
-        tx_note input_note1 = { user.owner.public_key, 0, user.note_secret, 0 };
-        tx_note input_note2 = { user.owner.public_key, 0, user.note_secret, 0 };
-        tx_note output_note1 = { user.owner.public_key, 0, user.note_secret, 0 };
-        tx_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, 0, user.note_secret, 0 };
+        value_note input_note2 = { user.owner.public_key, 0, user.note_secret, 0 };
+        value_note output_note1 = { user.owner.public_key, 0, user.note_secret, 0 };
+        value_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = 100;
@@ -173,7 +174,7 @@ class join_split_tests : public ::testing::Test {
 
 TEST_F(join_split_tests, test_0_input_notes)
 {
-    tx_note gibberish = { user.owner.public_key, 0, user.note_secret, 0 };
+    value_note gibberish = { user.owner.public_key, 0, user.note_secret, 0 };
 
     join_split_tx tx = simple_setup();
     tx.public_input = 150;
@@ -187,9 +188,9 @@ TEST_F(join_split_tests, test_large_output_note)
 {
     auto deposit_value = (uint256_t(1) << 252) - 1;
 
-    tx_note gibberish = { user.owner.public_key, 0, user.note_secret, 0 };
-    tx_note output_note1 = { user.owner.public_key, deposit_value, user.note_secret, 0 };
-    tx_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0 };
+    value_note gibberish = { user.owner.public_key, 0, user.note_secret, 0 };
+    value_note output_note1 = { user.owner.public_key, deposit_value, user.note_secret, 0 };
+    value_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0 };
 
     join_split_tx tx = simple_setup();
     tx.public_input = deposit_value;

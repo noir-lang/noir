@@ -1,9 +1,7 @@
-#include "../notes/pedersen_note.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "account.hpp"
 #include "../inner_proof_data.hpp"
-#include "../notes/note_types.hpp"
-#include "../notes/note_generator_indices.hpp"
+#include "../notes/constants.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -70,7 +68,7 @@ class account_tests : public ::testing::Test {
     uint256_t compute_alias_nullifier(fr const& alias, bool register_alias)
     {
         std::vector<fr> hash_elements{
-            register_alias ? fr(notes::ALIAS) : fr(notes::GIBBERISH),
+            register_alias ? fr(3) : fr(0),
             alias,
         };
         auto result = crypto::pedersen::compress_native(hash_elements, notes::ALIAS_NULLIFIER_INDEX);

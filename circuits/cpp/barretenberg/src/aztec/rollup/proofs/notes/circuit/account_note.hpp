@@ -1,12 +1,12 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
-#include "note_types.hpp"
-#include "note_generator_indices.hpp"
+#include "../constants.hpp"
 
 namespace rollup {
 namespace proofs {
 namespace notes {
+namespace circuit {
 
 using namespace plonk::stdlib::types::turbo;
 
@@ -63,6 +63,7 @@ struct account_note {
     mutable field_ct nullifier_;
 };
 
+} // namespace circuit
 } // namespace notes
 } // namespace proofs
 } // namespace rollup

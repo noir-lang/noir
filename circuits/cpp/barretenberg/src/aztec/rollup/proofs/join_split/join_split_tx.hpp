@@ -1,5 +1,5 @@
 #pragma once
-#include "../notes/tx_note.hpp"
+#include "../notes/native/value_note.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
@@ -9,7 +9,6 @@ namespace proofs {
 namespace join_split {
 
 using namespace plonk::stdlib::types::turbo;
-using namespace notes;
 
 struct join_split_tx {
     uint256_t public_input;
@@ -19,8 +18,8 @@ struct join_split_tx {
     std::array<uint32_t, 2> input_index;
     barretenberg::fr old_data_root;
     std::array<merkle_tree::fr_hash_path, 2> input_path;
-    std::array<tx_note, 2> input_note;
-    std::array<tx_note, 2> output_note;
+    std::array<notes::native::value_note, 2> input_note;
+    std::array<notes::native::value_note, 2> output_note;
 
     grumpkin::fr account_private_key;
     uint32_t account_index;
