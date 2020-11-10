@@ -72,31 +72,38 @@ constexpr size_t get_num_rounds(const size_t num_points)
 
 template <size_t bits, size_t bit_position> inline uint64_t get_wnaf_bits_const(const uint64_t* scalar) noexcept
 {
-    /**
-     *  we want to take a 128 bit scalar and shift it down by (bit_position).
-     * We then wish to mask out `bits` number of bits.
-     * Low limb contains first 64 bits, so we wish to shift this limb by (bit_position mod 64), which is also
-     * (bit_position & 63) If we require bits from the high limb, these need to be shifted left, not right. Actual bit
-     * position of bit in high limb = `b`. Desired position = 64 - (amount we shifted low limb by) = 64 - (bit_position
-     * & 63)
-     *
-     * So, step 1:
-     * get low limb and shift right by (bit_position & 63)
-     * get high limb and shift left by (64 - (bit_position & 63))
-     *
-     */
-    constexpr size_t lo_limb_idx = bit_position / 64;
-    constexpr size_t hi_limb_idx = (bit_position + bits - 1) / 64;
-    constexpr uint64_t lo_shift = bit_position & 63UL;
-    constexpr uint64_t bit_mask = (1UL << static_cast<uint64_t>(bits)) - 1UL;
+    if constexpr (bits == 0)
+    {
+        return 0ULL;
+    }
+    else
+    {
+        /**
+         *  we want to take a 128 bit scalar and shift it down by (bit_position).
+         * We then wish to mask out `bits` number of bits.
+         * Low limb contains first 64 bits, so we wish to shift this limb by (bit_position mod 64), which is also
+         * (bit_position & 63) If we require bits from the high limb, these need to be shifted left, not right. Actual bit
+         * position of bit in high limb = `b`. Desired position = 64 - (amount we shifted low limb by) = 64 - (bit_position
+         * & 63)
+         *
+         * So, step 1:
+         * get low limb and shift right by (bit_position & 63)
+         * get high limb and shift left by (64 - (bit_position & 63))
+         *
+         */
+        constexpr size_t lo_limb_idx = bit_position / 64;
+        constexpr size_t hi_limb_idx = (bit_position + bits - 1) / 64;
+        constexpr uint64_t lo_shift = bit_position & 63UL;
+        constexpr uint64_t bit_mask = (1UL << static_cast<uint64_t>(bits)) - 1UL;
 
-    uint64_t lo = (scalar[lo_limb_idx] >> lo_shift);
-    if constexpr (lo_limb_idx == hi_limb_idx) {
-        return lo & bit_mask;
-    } else {
-        constexpr uint64_t hi_shift = 64UL - (bit_position & 63UL);
-        uint64_t hi = ((scalar[hi_limb_idx] << (hi_shift)));
-        return (lo | hi) & bit_mask;
+        uint64_t lo = (scalar[lo_limb_idx] >> lo_shift);
+        if constexpr (lo_limb_idx == hi_limb_idx) {
+            return lo & bit_mask;
+        } else {
+            constexpr uint64_t hi_shift = 64UL - (bit_position & 63UL);
+            uint64_t hi = ((scalar[hi_limb_idx] << (hi_shift)));
+            return (lo | hi) & bit_mask;
+        }
     }
 }
 

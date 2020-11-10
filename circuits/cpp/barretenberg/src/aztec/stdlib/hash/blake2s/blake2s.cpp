@@ -40,7 +40,8 @@ template <typename Composer> void blake2s_increment_counter(blake2s_state<Compos
 {
     S.t[0] = S.t[0] + inc;
     // TODO: Secure!? Think so as inc is known at "compile" time as it's derived from the msg length.
-    S.t[1] = S.t[1] + ((S.t[0] < inc).get_value() ? 1 : 0);
+    const bool to_inc = S.t[0].get_value() < inc;
+    S.t[1] = S.t[1] + (to_inc ? 1 : 0);
 }
 
 #define G(r, i, a, b, c, d)                                                                                            \

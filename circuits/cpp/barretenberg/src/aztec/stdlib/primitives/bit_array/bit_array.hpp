@@ -67,7 +67,7 @@ template <typename ComposerContext> class bit_array {
     bool_t<ComposerContext>& operator[](const size_t idx);
     bool_t<ComposerContext> operator[](const size_t idx) const;
 
-    explicit operator byte_array<ComposerContext>() {
+    explicit operator byte_array<ComposerContext>() const {
 
         std::vector<bool_t<ComposerContext>> rbits(values.rbegin(), values.rend());
 
