@@ -1,12 +1,12 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include <stdlib/hash/pedersen/pedersen.hpp>
-#include "note_types.hpp"
-#include "note_generator_indices.hpp"
+#include "../constants.hpp"
 
 namespace rollup {
 namespace proofs {
 namespace notes {
+namespace circuit {
 
 using namespace plonk::stdlib::types::turbo;
 
@@ -29,11 +29,7 @@ struct account_note {
         if (leaf_data_.size()) {
             return leaf_data_;
         }
-        // TODO: Not sure about this prefix stuff. Is it needed? We need to fit note data into 2 fields...
-        // field_ct account_prefix(&composer_, ACCOUNT);
-        // field_ct gibberish_prefix(&composer_, GIBBERISH);
-        // byte_array_ct prefix = (account_prefix * is_real) + (gibberish_prefix * !is_real);
-        return leaf_data_ /*.write(prefix)*/.write(owner_pub_key_.x).write(signing_pub_key_.x);
+        return leaf_data_.write(owner_pub_key_.x).write(signing_pub_key_.x);
     }
 
     field_ct nullifier() const
@@ -67,6 +63,7 @@ struct account_note {
     mutable field_ct nullifier_;
 };
 
+} // namespace circuit
 } // namespace notes
 } // namespace proofs
 } // namespace rollup

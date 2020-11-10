@@ -1,6 +1,6 @@
 #pragma once
 #include "join_split_tx.hpp"
-#include "../notes/note_pair.hpp"
+#include "../notes/circuit/note_pair.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -8,7 +8,6 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
-using namespace notes;
 using namespace plonk::stdlib::types::turbo;
 
 struct join_split_inputs {
@@ -18,10 +17,10 @@ struct join_split_inputs {
     uint32_ct num_input_notes;
     field_ct input_note1_index;
     field_ct input_note2_index;
-    note_pair input_note1;
-    note_pair input_note2;
-    note_pair output_note1;
-    note_pair output_note2;
+    notes::circuit::note_pair input_note1;
+    notes::circuit::note_pair input_note2;
+    notes::circuit::note_pair output_note1;
+    notes::circuit::note_pair output_note2;
     point_ct signing_pub_key;
     stdlib::schnorr::signature_bits<Composer> signature;
     field_ct merkle_root;
@@ -30,6 +29,7 @@ struct join_split_inputs {
     field_ct account_index;
     merkle_tree::hash_path account_path;
     field_ct output_owner;
+    field_ct account_private_key;
 };
 
 struct join_split_outputs {

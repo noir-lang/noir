@@ -1,5 +1,5 @@
 #pragma once
-#include "../notes/tx_note.hpp"
+#include "../notes/native/value_note.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
@@ -9,7 +9,6 @@ namespace proofs {
 namespace join_split {
 
 using namespace plonk::stdlib::types::turbo;
-using namespace notes;
 
 struct join_split_tx {
     uint256_t public_input;
@@ -19,9 +18,10 @@ struct join_split_tx {
     std::array<uint32_t, 2> input_index;
     barretenberg::fr old_data_root;
     std::array<merkle_tree::fr_hash_path, 2> input_path;
-    std::array<tx_note, 2> input_note;
-    std::array<tx_note, 2> output_note;
+    std::array<notes::native::value_note, 2> input_note;
+    std::array<notes::native::value_note, 2> output_note;
 
+    grumpkin::fr account_private_key;
     uint32_t account_index;
     grumpkin::g1::affine_element signing_pub_key;
     merkle_tree::fr_hash_path account_path;
@@ -42,12 +42,3 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx);
 } // namespace join_split
 } // namespace proofs
 } // namespace rollup
-
-// Optimisation of to_buffer that reserves full amount now for optimal efficiency.
-inline std::vector<uint8_t> to_buffer(rollup::proofs::join_split::join_split_tx const& tx)
-{
-    std::vector<uint8_t> buf;
-    buf.reserve(64 + (4 * 5) + 32 + (64 * 32 * 2) + (100 * 4) + 64 + 64);
-    write(buf, tx);
-    return buf;
-}

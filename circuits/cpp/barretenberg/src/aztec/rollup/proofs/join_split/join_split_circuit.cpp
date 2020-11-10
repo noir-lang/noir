@@ -1,5 +1,6 @@
 #include "join_split_circuit.hpp"
-#include "../notes/account_note.hpp"
+#include "../notes/circuit/account_note.hpp"
+#include "../notes/circuit/compute_nullifier.hpp"
 #include "verify_signature.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
@@ -10,7 +11,7 @@ namespace proofs {
 namespace join_split {
 
 using namespace plonk;
-using namespace notes;
+using namespace notes::circuit;
 using namespace plonk::stdlib::merkle_tree;
 
 /**
@@ -18,6 +19,7 @@ using namespace plonk::stdlib::merkle_tree;
  * Return the nullifier for the input note.
  */
 field_ct process_input_note(Composer& composer,
+                            field_ct const& account_private_key,
                             field_ct const& merkle_root,
                             merkle_tree::hash_path const& hash_path,
                             field_ct const& index,
@@ -25,7 +27,7 @@ field_ct process_input_note(Composer& composer,
                             bool_ct is_real)
 {
     byte_array_ct leaf(&composer);
-    leaf.write(note.second.ciphertext.x).write(note.second.ciphertext.y);
+    leaf.write(note.second.x).write(note.second.y);
     bool_ct good =
         merkle_tree::check_membership(composer, merkle_root, hash_path, leaf, byte_array_ct(index)) || !is_real;
     composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
@@ -36,10 +38,10 @@ field_ct process_input_note(Composer& composer,
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
     // tree to ensure notes will always have unique entries. The is_real flag protects against nullifing a real
     // note when the number of input notes < 2.
-    // [256 bits of encrypted note x coord][index as field element + (is_real << 64)][223 bits of note secret][1 bit is_real]
-    // We merge `is_real` into the `index` field element to reduce the cost of the pedersen hash.
-    // As `index` is a 32-bit integer the `is_real` component will not overlap
-    field_ct nullifier_index = notes::compute_nullifier(note.first, note.second, index, is_real);
+    // [256 bits of encrypted note x coord][index as field element + (is_real << 64)][223 bits of note secret][1 bit
+    // is_real] We merge `is_real` into the `index` field element to reduce the cost of the pedersen hash. As `index` is
+    // a 32-bit integer the `is_real` component will not overlap
+    field_ct nullifier_index = compute_nullifier(note.second, index, account_private_key, is_real);
 
     return nullifier_index;
 }
@@ -48,7 +50,7 @@ field_ct process_account_note(Composer& composer,
                               field_ct const& merkle_root,
                               merkle_tree::hash_path const& hash_path,
                               field_ct const& index,
-                              notes::account_note const& account_note,
+                              account_note const& account_note,
                               bool_ct must_exist)
 {
     byte_array_ct leaf = account_note.leaf_data();
@@ -108,19 +110,28 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.assert_equal(note1_owner.x.witness_index, note2_owner.x.witness_index, "input note owners don't match");
     composer.assert_equal(note1_owner.y.witness_index, note2_owner.y.witness_index, "input note owners don't match");
 
+    // Verify input notes are owned by account private key.
+    auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
+    composer.assert_equal(
+        account_public_key.x.witness_index, note1_owner.x.witness_index, "account_private_key incorrect");
+    composer.assert_equal(
+        account_public_key.y.witness_index, note1_owner.y.witness_index, "account_private_key incorrect");
+
     // Verify that the given signature was signed over all 4 notes using the given signing key.
-    std::array<public_note, 4> notes = {
+    std::array<point_ct, 4> notes = {
         inputs.input_note1.second, inputs.input_note2.second, inputs.output_note1.second, inputs.output_note2.second
     };
     verify_signature(notes, inputs.output_owner, inputs.signing_pub_key, inputs.signature);
     // Verify each input note exists in the tree, and compute nullifiers.
     field_ct nullifier1 = process_input_note(composer,
+                                             inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path1,
                                              inputs.input_note1_index,
                                              inputs.input_note1,
                                              inputs.num_input_notes >= 1);
     field_ct nullifier2 = process_input_note(composer,
+                                             inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path2,
                                              inputs.input_note2_index,
@@ -128,12 +139,11 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              inputs.num_input_notes >= 2);
 
     // Verify that the signing key is owned by the owner of the notes.
-    auto account_note = notes::account_note(note1_owner, inputs.signing_pub_key, true);
+    auto acc_note = account_note(note1_owner, inputs.signing_pub_key, true);
     // The first condition means we can spend notes with only an account key (e.g. if there are no account notes).
-    bool_ct must_exist =
-        account_note.owner_pub_key().x != account_note.signing_pub_key().x && inputs.num_input_notes >= 1;
+    bool_ct must_exist = acc_note.owner_pub_key().x != acc_note.signing_pub_key().x && inputs.num_input_notes >= 1;
     field_ct account_nullifier = process_account_note(
-        composer, inputs.merkle_root, inputs.account_path, inputs.account_index, account_note, must_exist);
+        composer, inputs.merkle_root, inputs.account_path, inputs.account_index, acc_note, must_exist);
 
     return { nullifier1, nullifier2, account_nullifier };
 }
@@ -159,6 +169,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         witness_ct(&composer, tx.account_index),
         merkle_tree::create_witness_hash_path(composer, tx.account_path),
         witness_ct(&composer, tx.output_owner),
+        witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);
@@ -168,8 +179,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     composer.set_public_input(inputs.public_input.get_witness_index());
     composer.set_public_input(inputs.public_output.get_witness_index());
     composer.set_public_input(inputs.asset_id.get_witness_index());
-    set_note_public(composer, inputs.output_note1.second);
-    set_note_public(composer, inputs.output_note2.second);
+    inputs.output_note1.second.set_public();
+    inputs.output_note2.second.set_public();
     composer.set_public_input(outputs.nullifier1.witness_index);
     composer.set_public_input(outputs.nullifier2.witness_index);
     public_witness_ct(&composer, tx.input_owner);

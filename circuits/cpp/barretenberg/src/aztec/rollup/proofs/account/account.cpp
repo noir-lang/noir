@@ -1,18 +1,19 @@
 #include "account.hpp"
-#include "../notes/account_note.hpp"
-#include "../notes/note_generator_indices.hpp"
+#include "../notes/circuit/account_note.hpp"
+#include "../notes/constants.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace account {
 
 using namespace plonk;
 using namespace plonk::stdlib::types::turbo;
+using namespace rollup::proofs::notes::circuit;
 
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
@@ -21,7 +22,7 @@ field_ct process_account_note(Composer& composer,
                               field_ct const& merkle_root,
                               merkle_tree::fr_hash_path const& hash_path,
                               field_ct const& index,
-                              notes::account_note const& account_note,
+                              account_note const& account_note,
                               bool_ct const& must_exist)
 {
     // Check that the input note data, follows the given hash paths, to the publically given merkle root.
@@ -48,11 +49,11 @@ field_ct process_account_note(Composer& composer,
 field_ct compute_alias_nullifier(Composer& composer, field_ct const& alias, bool register_alias_)
 {
     const bool_ct register_alias = bool_ct(witness_ct(&composer, register_alias_));
-    const field_ct prefix = (field_ct(witness_ct(&composer, (uint8_t)notes::ALIAS)) * register_alias) +
-                            (field_ct(witness_ct(&composer, (uint8_t)notes::GIBBERISH)) * !register_alias);
+    const field_ct prefix = (field_ct(notes::ALIAS_NULLIFIER_PREFIX) * register_alias) +
+                            (field_ct(notes::GIBBERISH_NULLIFIER_PREFIX) * !register_alias);
     const std::vector<field_ct> hash_elements{
         prefix,
-        alias,  
+        alias,
     };
     return pedersen::compress(hash_elements, true, notes::ALIAS_NULLIFIER_INDEX);
 }
@@ -66,11 +67,11 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const point_ct signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
     const point_ct nullified_key = stdlib::create_point_witness(composer, tx.nullified_key);
     const uint32_ct num_new_keys = witness_ct(&composer, tx.num_new_keys);
-    const auto new_account_note_1 = notes::account_note(owner_pub_key, new_signing_pub_key_1, num_new_keys >= 1);
-    const auto new_account_note_2 = notes::account_note(owner_pub_key, new_signing_pub_key_2, num_new_keys >= 2);
-    const auto remove_account = notes::account_note(owner_pub_key, nullified_key, bool_ct(&composer, tx.nullify_key));
+    const auto new_account_note_1 = account_note(owner_pub_key, new_signing_pub_key_1, num_new_keys >= 1);
+    const auto new_account_note_2 = account_note(owner_pub_key, new_signing_pub_key_2, num_new_keys >= 2);
+    const auto remove_account = account_note(owner_pub_key, nullified_key, bool_ct(&composer, tx.nullify_key));
     const field_ct alias = witness_ct(&composer, tx.alias);
-    const auto signing_account_note = notes::account_note(owner_pub_key, signing_pub_key, true);
+    const auto signing_account_note = account_note(owner_pub_key, signing_pub_key, true);
 
     const auto alias_nullifier = compute_alias_nullifier(composer, alias, tx.register_alias);
     const auto remove_account_nullifier = remove_account.nullifier();

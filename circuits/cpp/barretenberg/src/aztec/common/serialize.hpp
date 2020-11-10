@@ -39,18 +39,6 @@ __extension__ using uint128_t = unsigned __int128;
 namespace serialize {
 // Basic integer read / write, to / from raw buffers.
 // Pointers to buffers are advanced by length of type.
-// inline void read(uint8_t const*& it, bool& value)
-// {
-//     value = *it;
-//     it += 1;
-// }
-
-// inline void write(uint8_t*& it, bool value)
-// {
-//     *it = value;
-//     it += 1;
-// }
-
 inline void read(uint8_t const*& it, uint8_t& value)
 {
     value = *it;
@@ -161,7 +149,7 @@ template <typename T> inline std::enable_if_t<std::is_integral_v<T>> write(std::
 
 namespace std {
 
-// Forwarding functions from std to global namespace for integers.
+// Forwarding functions from std to serialize namespace for integers.
 template <typename B, typename T> inline std::enable_if_t<std::is_integral_v<T>> read(B& buf, T& value)
 {
     serialize::read(buf, value);

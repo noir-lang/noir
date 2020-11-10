@@ -1,13 +1,12 @@
-#include "pedersen_note.hpp"
-#include <crypto/pedersen/pedersen.hpp>
-#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "encrypt_note.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::proofs::notes;
+using namespace rollup::proofs::notes::circuit;
 
-TEST(rollup_pedersen_note, test_new_pedersen_note)
+TEST(encrypt_note, encrypts)
 {
     Composer composer = Composer();
 
@@ -22,7 +21,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     note_value = note_value.to_montgomery_form();
 
     fr asset_id_value = 0xaabbccddULL;
-    
+
     grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note_value, 0);
     grumpkin::g1::element right = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
     grumpkin::g1::element top = crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
@@ -32,7 +31,6 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     expected += top;
     expected = expected.normalize();
 
-    // TODO MAKE THIS HASH INDEX NOT ZERO
     grumpkin::g1::affine_element hashed_pub_key =
         crypto::pedersen::compress_to_point_native(note_owner_pub_key.x, note_owner_pub_key.y, 3);
 
@@ -44,11 +42,11 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
-    private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
+    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
 
-    public_note result = encrypt_note(plaintext);
-    composer.assert_equal_constant(result.ciphertext.x.witness_index, expected.x);
-    composer.assert_equal_constant(result.ciphertext.y.witness_index, expected.y);
+    point_ct result = encrypt_note(plaintext);
+    composer.assert_equal_constant(result.x.witness_index, expected.x);
+    composer.assert_equal_constant(result.y.witness_index, expected.y);
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -62,7 +60,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
+TEST(encrypt_note, encrypts_with_0_value)
 {
     Composer composer = Composer();
 
@@ -76,7 +74,7 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     fr asset_id_value = 0xaabbccddULL;
 
     grumpkin::g1::element expected = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
-    expected +=  crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
+    expected += crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
     grumpkin::g1::affine_element hashed_pub_key =
         crypto::pedersen::compress_to_point_native(note_owner_pub_key.x, note_owner_pub_key.y, 3);
 
@@ -89,11 +87,11 @@ TEST(rollup_pedersen_note, test_new_pedersen_note_zero)
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
 
-    private_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
+    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
 
-    public_note result = encrypt_note(plaintext);
-    composer.assert_equal_constant(result.ciphertext.x.witness_index, expected.x);
-    composer.assert_equal_constant(result.ciphertext.y.witness_index, expected.y);
+    point_ct result = encrypt_note(plaintext);
+    composer.assert_equal_constant(result.x.witness_index, expected.x);
+    composer.assert_equal_constant(result.y.witness_index, expected.y);
 
     waffle::TurboProver prover = composer.create_prover();
 

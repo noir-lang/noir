@@ -13,6 +13,7 @@
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <stdlib/primitives/curves/bn254.hpp>
+#include <stdlib/primitives/group/group.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -38,9 +39,10 @@ typedef stdlib::uint32<Composer> uint32_ct;
 typedef stdlib::uint64<Composer> uint64_ct;
 typedef stdlib::bit_array<Composer> bit_array_ct;
 typedef stdlib::bigfield<Composer, barretenberg::Bn254FqParams> fq_ct;
-typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> group_ct;
+typedef stdlib::element<Composer, fq_ct, field_ct, barretenberg::g1> biggroup_ct;
 typedef stdlib::point<Composer> point_ct;
 typedef stdlib::pedersen<Composer> pedersen;
+typedef stdlib::group<Composer> group_ct;
 
 typedef stdlib::bn254<Composer> bn254;
 

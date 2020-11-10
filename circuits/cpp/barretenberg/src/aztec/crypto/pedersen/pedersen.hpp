@@ -14,6 +14,7 @@ struct fixed_base_ladder {
 };
 void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, fixed_base_ladder* ladder);
 
+const fixed_base_ladder* get_g1_ladder(const size_t num_bits);
 const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t num_bits);
 const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits);
 grumpkin::g1::affine_element get_generator(const size_t generator_index);
@@ -59,7 +60,6 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
     uint64_t wnaf_entries[num_quads + 2] = { 0 };
     bool skew = false;
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
-
     grumpkin::g1::element accumulator;
     accumulator = grumpkin::g1::element(ladder[0].one);
     if (skew) {
@@ -68,13 +68,14 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
 
     for (size_t i = 0; i < num_quads; ++i) {
         uint64_t entry = wnaf_entries[i + 1];
-        ;
         const grumpkin::g1::affine_element& point_to_add =
             ((entry & 0xffffff) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
         uint64_t predicate = (entry >> 31U) & 1U;
         accumulator.self_mixed_add_or_sub(point_to_add, predicate);
     }
-    return accumulator;
+
+    return accumulator.normalize();
 }
+
 } // namespace pedersen
 } // namespace crypto
