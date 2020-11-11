@@ -2,7 +2,7 @@
 #include "compute_rollup_circuit_data.hpp"
 #include "verify_rollup.hpp"
 #include "../inner_proof_data.hpp"
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
 
@@ -30,8 +30,8 @@ rollup_tx create_rollup(uint32_t rollup_id,
     auto old_data_path = data_tree.get_hash_path(data_start_index);
 
     std::vector<fr_hash_path> data_roots_paths;
-    std::vector<uint128_t> nullifier_indicies;
-    std::vector<uint128_t> account_nullifier_indicies;
+    std::vector<uint256_t> nullifier_indicies;
+    std::vector<uint256_t> account_nullifier_indicies;
     std::vector<uint8_t> zero_value(64, 0);
 
     std::vector<uint32_t> data_roots_indicies(data_roots_indicies_);
@@ -50,9 +50,9 @@ rollup_tx create_rollup(uint32_t rollup_id,
 
         data_roots_paths.push_back(root_tree.get_hash_path(data_roots_indicies[i]));
 
-        nullifier_indicies.push_back(uint128_t(struct_data.nullifier1));
-        nullifier_indicies.push_back(uint128_t(struct_data.nullifier2));
-        account_nullifier_indicies.push_back(uint128_t(struct_data.account_nullifier));
+        nullifier_indicies.push_back(uint256_t(struct_data.nullifier1));
+        nullifier_indicies.push_back(uint256_t(struct_data.nullifier2));
+        account_nullifier_indicies.push_back(uint256_t(struct_data.account_nullifier));
     }
 
     // Compute nullifier tree data.

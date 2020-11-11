@@ -1,17 +1,14 @@
 #include "leveldb_store.hpp"
-#include "leveldb_tree.hpp"
+#include "merkle_tree.hpp"
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <leveldb/db.h>
 #include <numeric/random/engine.hpp>
 #include <stdlib/types/turbo.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
-
-const std::string DB_PATH = "/tmp/leveldb_test";
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -56,6 +53,88 @@ TEST(stdlib_merkle_tree, test_kv_memory_vs_memory_consistency)
     EXPECT_EQ(db.root(), memdb.root());
 }
 
+TEST(stdlib_merkle_tree, test_size)
+{
+    MemoryStore store;
+    auto db = MerkleTree(store, 256);
+
+    EXPECT_EQ(db.size(), 0ULL);
+
+    // Add first.
+    db.update_element(0, VALUES[1]);
+    EXPECT_EQ(db.size(), 1ULL);
+
+    // Add second.
+    db.update_element(1, VALUES[2]);
+    EXPECT_EQ(db.size(), 2ULL);
+
+    // Set second to same value.
+    db.update_element(1, VALUES[2]);
+    EXPECT_EQ(db.size(), 2ULL);
+
+    // Set second to new value.
+    db.update_element(1, VALUES[3]);
+    EXPECT_EQ(db.size(), 2ULL);
+
+    // Set third to new value.
+    db.update_element(2, VALUES[4]);
+    EXPECT_EQ(db.size(), 3ULL);
+}
+
+TEST(stdlib_merkle_tree, test_get_hash_path)
+{
+    MemoryTree memdb(10);
+
+    MemoryStore store;
+    auto db = MerkleTree(store, 10);
+
+    EXPECT_EQ(memdb.get_hash_path(512), db.get_hash_path(512));
+
+    memdb.update_element(512, VALUES[512]);
+    db.update_element(512, VALUES[512]);
+
+    EXPECT_EQ(db.get_hash_path(512), memdb.get_hash_path(512));
+
+    for (size_t i = 0; i < 1024; ++i) {
+        memdb.update_element(i, VALUES[i]);
+        db.update_element(i, VALUES[i]);
+    }
+
+    EXPECT_EQ(db.get_hash_path(512), memdb.get_hash_path(512));
+}
+
+TEST(stdlib_merkle_tree, test_leveldb_get_hash_path_layers)
+{
+    {
+        MemoryStore store;
+        auto db = MerkleTree(store, 3);
+
+        auto before = db.get_hash_path(1);
+        db.update_element(0, VALUES[1]);
+        auto after = db.get_hash_path(1);
+
+        EXPECT_NE(before[0], after[0]);
+        EXPECT_NE(before[1], after[1]);
+        EXPECT_NE(before[2], after[2]);
+    }
+
+    {
+        MemoryStore store;
+        auto db = MerkleTree(store, 3);
+
+        auto before = db.get_hash_path(7);
+        db.update_element(0x0, VALUES[1]);
+        auto after = db.get_hash_path(7);
+
+        EXPECT_EQ(before[0], after[0]);
+        EXPECT_EQ(before[1], after[1]);
+        EXPECT_NE(before[2], after[2]);
+    }
+}
+
+#ifndef __wasm__
+constexpr auto DB_PATH = "/tmp/leveldb_test";
+
 TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
 {
     constexpr size_t depth = 10;
@@ -86,35 +165,6 @@ TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
     EXPECT_EQ(db.root(), memdb.root());
 }
 
-TEST(stdlib_merkle_tree, test_leveldb_size)
-{
-    LevelDbStore::destroy(DB_PATH);
-    LevelDbStore store(DB_PATH);
-    LevelDbTree db(store, 128);
-
-    EXPECT_EQ(db.size(), 0ULL);
-
-    // Add first.
-    db.update_element(0, VALUES[1]);
-    EXPECT_EQ(db.size(), 1ULL);
-
-    // Add second.
-    db.update_element(1, VALUES[2]);
-    EXPECT_EQ(db.size(), 2ULL);
-
-    // Set second to same value.
-    db.update_element(1, VALUES[2]);
-    EXPECT_EQ(db.size(), 2ULL);
-
-    // Set second to new value.
-    db.update_element(1, VALUES[3]);
-    EXPECT_EQ(db.size(), 2ULL);
-
-    // Set third to new value.
-    db.update_element(2, VALUES[4]);
-    EXPECT_EQ(db.size(), 3ULL);
-}
-
 TEST(stdlib_merkle_tree, test_leveldb_persistence)
 {
     LevelDbStore::destroy(DB_PATH);
@@ -122,7 +172,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
     fr root;
     {
         LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, 128);
+        LevelDbTree db(store, 256);
         db.update_element(0, VALUES[1]);
         db.update_element(1, VALUES[2]);
         db.update_element(2, VALUES[3]);
@@ -131,7 +181,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
     }
     {
         LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, 128);
+        LevelDbTree db(store, 256);
 
         EXPECT_EQ(db.root(), root);
         EXPECT_EQ(db.size(), 3ULL);
@@ -140,57 +190,4 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
         EXPECT_EQ(db.get_element(2), VALUES[3]);
     }
 }
-
-TEST(stdlib_merkle_tree, test_leveldb_get_hash_path)
-{
-    MemoryTree memdb(10);
-
-    LevelDbStore::destroy(DB_PATH);
-    LevelDbStore store(DB_PATH);
-    LevelDbTree db(store, 10);
-
-    EXPECT_EQ(memdb.get_hash_path(512), db.get_hash_path(512));
-
-    memdb.update_element(512, VALUES[512]);
-    db.update_element(512, VALUES[512]);
-
-    EXPECT_EQ(db.get_hash_path(512), memdb.get_hash_path(512));
-
-    for (size_t i = 0; i < 1024; ++i) {
-        memdb.update_element(i, VALUES[i]);
-        db.update_element(i, VALUES[i]);
-    }
-
-    EXPECT_EQ(db.get_hash_path(512), memdb.get_hash_path(512));
-}
-
-TEST(stdlib_merkle_tree, test_leveldb_get_hash_path_layers)
-{
-    {
-        LevelDbStore::destroy(DB_PATH);
-        LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, 3);
-
-        auto before = db.get_hash_path(1);
-        db.update_element(0, VALUES[1]);
-        auto after = db.get_hash_path(1);
-
-        EXPECT_NE(before[0], after[0]);
-        EXPECT_NE(before[1], after[1]);
-        EXPECT_NE(before[2], after[2]);
-    }
-
-    {
-        LevelDbStore::destroy(DB_PATH);
-        LevelDbStore store(DB_PATH);
-        LevelDbTree db(store, 3);
-
-        auto before = db.get_hash_path(7);
-        db.update_element(0x0, VALUES[1]);
-        auto after = db.get_hash_path(7);
-
-        EXPECT_EQ(before[0], after[0]);
-        EXPECT_EQ(before[1], after[1]);
-        EXPECT_NE(before[2], after[2]);
-    }
-}
+#endif

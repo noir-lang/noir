@@ -3,10 +3,11 @@
 #include "../proofs/join_split/create_noop_join_split_proof.hpp"
 #include "../proofs/rollup/create_rollup.hpp"
 #include "../proofs/rollup/rollup_tx.hpp"
+#include "../constants.hpp"
 #include <common/streams.hpp>
 #include <iostream>
 #include <stdlib/merkle_tree/leveldb_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 #include <stdlib/types/turbo.hpp>
 
 using namespace rollup::proofs::join_split;
@@ -17,9 +18,9 @@ using namespace plonk::stdlib::types::turbo;
 int main(int argc, char** argv)
 {
     MemoryStore store;
-    MerkleTree<MemoryStore> data_tree(store, 32, 0);
-    MerkleTree<MemoryStore> null_tree(store, 128, 1);
-    MerkleTree<MemoryStore> root_tree(store, 28, 2);
+    MerkleTree<MemoryStore> data_tree(store, rollup::DATA_TREE_DEPTH, 0);
+    MerkleTree<MemoryStore> null_tree(store, rollup::NULL_TREE_DEPTH, 1);
+    MerkleTree<MemoryStore> root_tree(store, rollup::ROOT_TREE_DEPTH, 2);
 
     std::vector<std::string> args(argv, argv + argc);
 

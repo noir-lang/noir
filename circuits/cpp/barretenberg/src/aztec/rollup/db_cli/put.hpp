@@ -5,7 +5,7 @@
 
 struct PutRequest {
     uint8_t tree_id;
-    uint128_t index;
+    uint256_t index;
     std::vector<uint8_t> value;
 };
 

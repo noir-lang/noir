@@ -8,7 +8,7 @@
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;

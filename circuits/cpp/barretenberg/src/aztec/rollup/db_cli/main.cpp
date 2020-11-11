@@ -1,7 +1,8 @@
 #include "get.hpp"
 #include "put.hpp"
 #include <stdlib/merkle_tree/leveldb_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <rollup/constants.hpp>
 
 using namespace plonk::stdlib::merkle_tree;
 
@@ -19,9 +20,9 @@ class WorldStateDb {
   public:
     WorldStateDb(std::string const& db_path)
         : store_(db_path)
-        , data_tree_(store_, 32, 0)
-        , nullifier_tree_(store_, 128, 1)
-        , root_tree_(store_, 28, 2)
+        , data_tree_(store_, rollup::DATA_TREE_DEPTH, 0)
+        , nullifier_tree_(store_, rollup::NULL_TREE_DEPTH, 1)
+        , root_tree_(store_, rollup::ROOT_TREE_DEPTH, 2)
         , trees_({ &data_tree_, &nullifier_tree_, &root_tree_ })
     {
         if (root_tree_.size() == 0) {

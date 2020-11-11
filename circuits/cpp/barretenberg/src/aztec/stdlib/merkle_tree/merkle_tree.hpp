@@ -13,7 +13,7 @@ class MemoryStore;
 
 template <typename Store> class MerkleTree {
   public:
-    typedef uint128_t index_t;
+    typedef uint256_t index_t;
     typedef std::vector<uint8_t> value_t;
 
     MerkleTree(Store& store, size_t depth, uint8_t tree_id = 0);

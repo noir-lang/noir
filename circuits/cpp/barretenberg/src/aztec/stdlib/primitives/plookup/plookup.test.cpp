@@ -52,18 +52,18 @@ TEST(stdlib_plookup, pedersen_lookup_left)
             const auto& table = crypto::pedersen::sidon::get_table(i);
             const size_t index = i * 3;
 
-            uint64_t slice_a = ((bits >> (index * 10)) & mask).data[0];
+            size_t slice_a = static_cast<size_t>(((bits >> (index * 10)) & mask).data[0]);
             expected_x[index] = (table[slice_a].x);
             expected_y[index] = (table[slice_a].y);
             expected_scalars[index] = slice_a;
 
-            uint64_t slice_b = ((bits >> ((index + 1) * 10)) & mask).data[0];
+            size_t slice_b = static_cast<size_t>(((bits >> ((index + 1) * 10)) & mask).data[0]);
             expected_x[index + 1] = (table[slice_b].x);
             expected_y[index + 1] = (table[slice_b].y);
             expected_scalars[index + 1] = slice_b;
 
             if (i < 8) {
-                uint64_t slice_c = ((bits >> ((index + 2) * 10)) & mask).data[0];
+                size_t slice_c = static_cast<size_t>(((bits >> ((index + 2) * 10)) & mask).data[0]);
                 expected_x[index + 2] = (table[slice_c].x);
                 expected_y[index + 2] = (table[slice_c].y);
                 expected_scalars[index + 2] = slice_c;
@@ -122,18 +122,18 @@ TEST(stdlib_plookup, pedersen_lookup_right)
             const auto& table = crypto::pedersen::sidon::get_table(i + num_rounds);
             const size_t index = i * 3;
 
-            uint64_t slice_a = ((bits >> (index * 10)) & mask).data[0];
+            size_t slice_a = static_cast<size_t>(((bits >> (index * 10)) & mask).data[0]);
             expected_x[index] = (table[slice_a].x);
             expected_y[index] = (table[slice_a].y);
             expected_scalars[index] = slice_a;
 
-            uint64_t slice_b = ((bits >> ((index + 1) * 10)) & mask).data[0];
+            size_t slice_b = static_cast<size_t>(((bits >> ((index + 1) * 10)) & mask).data[0]);
             expected_x[index + 1] = (table[slice_b].x);
             expected_y[index + 1] = (table[slice_b].y);
             expected_scalars[index + 1] = slice_b;
 
             if (i < 8) {
-                uint64_t slice_c = ((bits >> ((index + 2) * 10)) & mask).data[0];
+                size_t slice_c = static_cast<size_t>(((bits >> ((index + 2) * 10)) & mask).data[0]);
                 expected_x[index + 2] = (table[slice_c].x);
                 expected_y[index + 2] = (table[slice_c].y);
                 expected_scalars[index + 2] = slice_c;

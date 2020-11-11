@@ -5,11 +5,12 @@
 #include "../notes/native/sign_notes.hpp"
 #include "../notes/native/encrypt_note.hpp"
 #include "../notes/native/compute_nullifier.hpp"
+#include "../../constants.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
@@ -30,9 +31,9 @@ class escape_hatch_tests : public ::testing::Test {
     }
 
     escape_hatch_tests()
-        : data_tree(store, 32, 0)
-        , null_tree(store, 128, 1)
-        , root_tree(store, 28, 2)
+        : data_tree(store, rollup::DATA_TREE_DEPTH, 0)
+        , null_tree(store, rollup::NULL_TREE_DEPTH, 1)
+        , root_tree(store, rollup::ROOT_TREE_DEPTH, 2)
     {
         update_root_tree_with_data_root(0);
         user = rollup::fixtures::create_user_context();
@@ -149,15 +150,15 @@ class escape_hatch_tests : public ::testing::Test {
         tx.new_data_roots_root = root_tree.root();
         tx.new_data_roots_path = root_tree.get_hash_path(root_tree_index);
 
-        auto nullifier1 = uint128_t(compute_nullifier(
+        auto nullifier1 = uint256_t(compute_nullifier(
             encrypt_note(tx.js_tx.input_note[0]), tx.js_tx.input_index[0], user.owner.private_key, true));
-        auto nullifier2 = uint128_t(compute_nullifier(
+        auto nullifier2 = uint256_t(compute_nullifier(
             encrypt_note(tx.js_tx.input_note[1]), tx.js_tx.input_index[1], user.owner.private_key, true));
 
         auto nullifier_value = std::vector<uint8_t>(64, 0);
         nullifier_value[63] = 1;
 
-        uint128_t account_nullifier = 0;
+        uint256_t account_nullifier = 0;
         tx.account_null_path = null_tree.get_hash_path(account_nullifier);
 
         tx.old_null_root = null_tree.root();

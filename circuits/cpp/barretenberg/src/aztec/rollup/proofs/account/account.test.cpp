@@ -7,7 +7,7 @@
 #include <crypto/schnorr/schnorr.hpp>
 #include <crypto/blake2s/blake2s.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;

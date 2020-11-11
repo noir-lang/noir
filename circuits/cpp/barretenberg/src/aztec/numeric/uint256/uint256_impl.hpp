@@ -1,4 +1,7 @@
 #pragma once
+#include "../bitop/get_msb.hpp"
+
+namespace numeric {
 
 constexpr std::pair<uint64_t, uint64_t> uint256_t::mul_wide(const uint64_t a, const uint64_t b) const
 {
@@ -183,25 +186,10 @@ constexpr bool uint256_t::get_bit(const uint64_t bit_index) const
 
 constexpr uint64_t uint256_t::get_msb() const
 {
-    constexpr auto get_uint64_msb = [](const uint64_t in) {
-        constexpr uint8_t de_bruijn_sequence[64]{ 0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61,
-                                                  54, 58, 35, 52, 50, 42, 21, 44, 38, 32, 29, 23, 17, 11, 4,  62,
-                                                  46, 55, 26, 59, 40, 36, 15, 53, 34, 51, 20, 43, 31, 22, 10, 45,
-                                                  25, 39, 14, 33, 19, 30, 9,  24, 13, 18, 8,  12, 7,  6,  5,  63 };
-
-        uint64_t t = in | (in >> 1);
-        t |= t >> 2;
-        t |= t >> 4;
-        t |= t >> 8;
-        t |= t >> 16;
-        t |= t >> 32;
-        return static_cast<uint64_t>(de_bruijn_sequence[(t * 0x03F79D71B4CB0A89ULL) >> 58ULL]);
-    };
-
-    uint64_t idx = get_uint64_msb(data[3]);
-    idx = (idx == 0 && data[3] == 0) ? get_uint64_msb(data[2]) : idx + 64;
-    idx = (idx == 0 && data[2] == 0) ? get_uint64_msb(data[1]) : idx + 64;
-    idx = (idx == 0 && data[1] == 0) ? get_uint64_msb(data[0]) : idx + 64;
+    uint64_t idx = numeric::get_msb(data[3]);
+    idx = (idx == 0 && data[3] == 0) ? numeric::get_msb(data[2]) : idx + 64;
+    idx = (idx == 0 && data[2] == 0) ? numeric::get_msb(data[1]) : idx + 64;
+    idx = (idx == 0 && data[1] == 0) ? numeric::get_msb(data[0]) : idx + 64;
     return idx;
 }
 
@@ -413,3 +401,5 @@ constexpr uint256_t uint256_t::operator<<(const uint256_t& other) const
 
     return result;
 }
+
+} // namespace numeric

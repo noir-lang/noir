@@ -22,7 +22,7 @@ MemoryTree::MemoryTree(size_t depth)
         for (size_t i = 0; i < layer_size; ++i) {
             hashes_[offset + i] = current;
         }
-        current = compress_native({ current, current });
+        current = compress_native(current, current);
     }
 
     // std::cout << "root: " << current << std::endl;
@@ -54,7 +54,7 @@ fr MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
     for (size_t i = 0; i < depth_; ++i) {
         hashes_[offset + index] = current;
         index &= (~0ULL) - 1;
-        current = compress_native({ hashes_[offset + index], hashes_[offset + index + 1] });
+        current = compress_native(hashes_[offset + index], hashes_[offset + index + 1]);
         offset += layer_size;
         layer_size /= 2;
         index /= 2;

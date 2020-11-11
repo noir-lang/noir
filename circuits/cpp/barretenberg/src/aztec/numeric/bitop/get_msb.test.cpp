@@ -1,6 +1,12 @@
 #include "get_msb.hpp"
 #include <gtest/gtest.h>
 
+TEST(bitop, get_msb_uint64_0_value)
+{
+    uint64_t a = 0b00000000000000000000000000000000;
+    EXPECT_EQ(numeric::get_msb(a), 0U);
+}
+
 TEST(bitop, get_msb_uint32_0)
 {
     uint32_t a = 0b00000000000000000000000000000001;

@@ -1,4 +1,5 @@
 #include "rollup_tx.hpp"
+#include "../../constants.hpp"
 #include <gtest/gtest.h>
 
 using namespace rollup::proofs::rollup;
@@ -21,8 +22,8 @@ TEST(rollup_tx, test_serialization)
 
     rollup.old_null_root = fr::random_element();
     rollup.new_null_roots = std::vector(rollup.num_txs * 2, fr::random_element());
-    rollup.old_null_paths = std::vector(rollup.num_txs * 2, fr_hash_path(128, random_pair));
-    rollup.new_null_paths = std::vector(rollup.num_txs * 2, fr_hash_path(128, random_pair));
+    rollup.old_null_paths = std::vector(rollup.num_txs * 2, fr_hash_path(rollup::NULL_TREE_DEPTH, random_pair));
+    rollup.new_null_paths = std::vector(rollup.num_txs * 2, fr_hash_path(rollup::NULL_TREE_DEPTH, random_pair));
 
     rollup.old_data_roots_root = fr::random_element();
     rollup.new_data_roots_root = fr::random_element();

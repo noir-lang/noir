@@ -231,7 +231,7 @@ grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inp
         init();
     }
 #ifndef NO_MULTITHREADING
-#pragma omp parallel for
+#pragma omp parallel for num_threads(inputs.size())
 #endif
     for (size_t i = 0; i < inputs.size(); ++i) {
         out[i] = hash_single(inputs[i], i + hash_index);

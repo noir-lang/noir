@@ -1,6 +1,7 @@
 #include "compute_rollup_circuit_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "rollup_circuit.hpp"
+#include "../../constants.hpp"
 #include <fstream>
 #include <sys/stat.h>
 #include <common/timer.hpp>
@@ -82,9 +83,12 @@ rollup_circuit_data compute_rollup_circuit_data(size_t rollup_size,
     Composer composer = Composer(srs_path);
 
     // Junk data required just to create keys.
-    auto gibberish_data_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
-    auto gibberish_null_path = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element()));
-    auto gibberish_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_data_path =
+        fr_hash_path(DATA_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_null_path =
+        fr_hash_path(NULL_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_roots_path =
+        fr_hash_path(ROOT_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
 
     rollup_tx rollup = {
         0,

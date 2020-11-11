@@ -1,4 +1,4 @@
-#include "leveldb_tree.hpp"
+#include "merkle_tree.hpp"
 #include "hash.hpp"
 #include "leveldb_store.hpp"
 #include "memory_store.hpp"
@@ -15,13 +15,18 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
+template <typename T> inline bool bit_set(T const& index, size_t i)
+{
+    return bool((index >> i) & 0x1);
+}
+
 template <typename Store>
 MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     : store_(store)
     , depth_(depth)
     , tree_id_(tree_id)
 {
-    ASSERT(depth_ >= 1 && depth <= 128);
+    ASSERT(depth_ >= 1 && depth <= 256);
     zero_hashes_.resize(depth);
 
     // Compute the zero values at each layer.
@@ -29,7 +34,7 @@ MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     for (size_t i = 0; i < depth; ++i) {
         zero_hashes_[i] = current;
         // std::cout << "zero hash level " << i << ": " << current << std::endl;
-        current = compress_native({ current, current });
+        current = compress_native(current, current);
     }
 }
 
@@ -48,7 +53,7 @@ template <typename Store> fr MerkleTree<Store>::root() const
     value_t root;
     std::vector<uint8_t> key = { tree_id_ };
     bool status = store_.get(key, root);
-    return status ? from_buffer<fr>(root) : compress_native({ zero_hashes_.back(), zero_hashes_.back() });
+    return status ? from_buffer<fr>(root) : compress_native(zero_hashes_.back(), zero_hashes_.back());
 }
 
 template <typename Store> typename MerkleTree<Store>::index_t MerkleTree<Store>::size() const
@@ -78,13 +83,13 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
             auto left = from_buffer<fr>(data, 0);
             auto right = from_buffer<fr>(data, 32);
             path[i] = std::make_pair(left, right);
-            bool is_right = (index >> i) & 0x1;
+            bool is_right = bit_set(index, i);
             auto it = data.data() + (is_right ? 32 : 0);
             status = store_.get(std::vector<uint8_t>(it, it + 32), data);
         } else {
             // This is a stump. The hash path can be fully restored from this node.
             fr current = from_buffer<fr>(data, 0);
-            index_t element_index = from_buffer<uint128_t>(data, 32);
+            index_t element_index = from_buffer<index_t>(data, 32);
             index_t diff = element_index ^ numeric::keep_n_lsb(index, i + 1);
 
             // std::cout << "ghp hit stump height:" << i << " element_index:" << (uint64_t)element_index
@@ -92,13 +97,13 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
 
             if (diff < 2) {
                 for (size_t j = 0; j <= i; ++j) {
-                    bool is_right = (element_index >> j) & 0x1;
+                    bool is_right = bit_set(element_index, j);
                     if (is_right) {
                         path[j] = std::make_pair(zero_hashes_[j], current);
                     } else {
                         path[j] = std::make_pair(current, zero_hashes_[j]);
                     }
-                    current = compress_native({ path[j].first, path[j].second });
+                    current = compress_native(path[j].first, path[j].second);
                 }
             } else {
                 size_t common_bits = numeric::count_leading_zeros(diff);
@@ -112,13 +117,13 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                 }
                 current = compute_zero_path_hash(common_height, element_index, current);
                 for (size_t j = common_height; j <= i; ++j) {
-                    bool is_right = (element_index >> j) & 0x1;
+                    bool is_right = bit_set(element_index, j);
                     if (is_right) {
                         path[j] = std::make_pair(zero_hashes_[j], current);
                     } else {
                         path[j] = std::make_pair(current, zero_hashes_[j]);
                     }
-                    current = compress_native({ path[j].first, path[j].second });
+                    current = compress_native(path[j].first, path[j].second);
                 }
             }
             break;
@@ -142,6 +147,7 @@ template <typename Store> typename MerkleTree<Store>::value_t MerkleTree<Store>:
 
 template <typename Store> fr MerkleTree<Store>::update_element(index_t index, value_t const& value)
 {
+    // std::cout << "update_element: " << (uint64_t)index << std::endl;
     using serialize::write;
     value_t leaf_key;
     write(leaf_key, tree_id_);
@@ -162,10 +168,10 @@ template <typename Store> fr MerkleTree<Store>::update_element(index_t index, va
 
 template <typename Store> fr MerkleTree<Store>::binary_put(index_t a_index, fr const& a, fr const& b, size_t height)
 {
-    bool a_is_right = (a_index >> (height - 1)) & 0x1;
+    bool a_is_right = bit_set(a_index, height - 1);
     auto left = a_is_right ? b : a;
     auto right = a_is_right ? a : b;
-    auto key = compress_native({ left, right });
+    auto key = compress_native(left, right);
     put(key, left, right);
     // std::cout << "BINARY PUT height: " << height << " key:" << key << " left:" << left << " right:" << right
     //<< std::endl;
@@ -222,9 +228,9 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
     }
 
     // std::cout << "got data of size " << data.size() << std::endl;
-    if (data.size() < 64) {
+    if (data.size() != 64) {
         // We've come across a stump.
-        index_t existing_index = from_buffer<uint128_t>(data, 32);
+        index_t existing_index = from_buffer<index_t>(data, 32);
 
         if (existing_index == index) {
             // We are updating the stumps element. Easy update.
@@ -244,7 +250,7 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
 
         return fork_stump(existing_value, existing_index, value, index, height, common_height);
     } else {
-        bool is_right = (index >> (height - 1)) & 0x1;
+        bool is_right = bit_set(index, height - 1);
         // std::cout << "Normal node is_right:" << is_right << std::endl;
         fr subtree_root = from_buffer<fr>(data, is_right ? 32 : 0);
         subtree_root = update_element(subtree_root, value, numeric::keep_n_lsb(index, height - 1), height - 1);
@@ -255,18 +261,21 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
         } else {
             left = subtree_root;
         }
-        auto new_root = compress_native({ left, right });
+        auto new_root = compress_native(left, right);
         put(new_root, left, right);
         // TODO: Perhaps delete old node?
         return new_root;
     }
 }
 
+/**
+ * Computes the root hash of a tree of `height`, that is empty other than `value` at `index`.
+ */
 template <typename Store> fr MerkleTree<Store>::compute_zero_path_hash(size_t height, index_t index, fr const& value)
 {
     fr current = value;
     for (size_t i = 0; i < height; ++i) {
-        bool is_right = (index >> i) & 0x1;
+        bool is_right = bit_set(index, i);
         fr left, right;
         if (is_right) {
             left = zero_hashes_[i];
@@ -275,7 +284,7 @@ template <typename Store> fr MerkleTree<Store>::compute_zero_path_hash(size_t he
             right = zero_hashes_[i];
             left = current;
         }
-        current = compress_native({ is_right ? zero_hashes_[i] : current, is_right ? current : zero_hashes_[i] });
+        current = compress_native(is_right ? zero_hashes_[i] : current, is_right ? current : zero_hashes_[i]);
     }
     return current;
 }
@@ -294,6 +303,8 @@ template <typename Store> void MerkleTree<Store>::put_stump(fr const& key, index
     value_t buf;
     write(buf, value);
     write(buf, index);
+    // Add an additional byte, to signify we are a stump.
+    write(buf, true);
     store_.put(key.to_buffer(), buf);
     // std::cout << "PUT STUMP key:" << key << " index:" << (uint64_t)index << " value:" << value << std::endl;
 }

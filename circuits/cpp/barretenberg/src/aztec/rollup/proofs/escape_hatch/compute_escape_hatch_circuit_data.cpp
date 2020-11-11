@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sys/stat.h>
 #include <common/timer.hpp>
+#include "../../constants.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -24,31 +25,34 @@ bool exists(std::string const& path)
 
 escape_hatch_tx dummy_tx()
 {
-    auto gibberish_path_28 = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
-    auto gibberish_path_32 = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
-    auto gibberish_path_128 = fr_hash_path(128, std::make_pair(fr::random_element(), fr::random_element()));
+    auto root_gibberish_path =
+        fr_hash_path(ROOT_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
+    auto data_gibberish_path =
+        fr_hash_path(DATA_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
+    auto null_gibberish_path =
+        fr_hash_path(NULL_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
 
     escape_hatch_tx tx;
     tx.js_tx = join_split::noop_tx();
 
     tx.new_data_root = fr::random_element();
-    tx.old_data_path = gibberish_path_32;
-    tx.new_data_path = gibberish_path_32;
+    tx.old_data_path = data_gibberish_path;
+    tx.new_data_path = data_gibberish_path;
 
     tx.old_null_root = fr::random_element();
     tx.new_null_roots = { fr::random_element(), fr::random_element() };
     tx.old_null_paths.resize(2);
-    tx.old_null_paths[0] = gibberish_path_128;
-    tx.old_null_paths[1] = gibberish_path_128;
+    tx.old_null_paths[0] = null_gibberish_path;
+    tx.old_null_paths[1] = null_gibberish_path;
     tx.new_null_paths.resize(2);
-    tx.new_null_paths[0] = gibberish_path_128;
-    tx.new_null_paths[1] = gibberish_path_128;
-    tx.account_null_path = gibberish_path_128;
+    tx.new_null_paths[0] = null_gibberish_path;
+    tx.new_null_paths[1] = null_gibberish_path;
+    tx.account_null_path = null_gibberish_path;
 
     tx.old_data_roots_root = fr::random_element();
     tx.new_data_roots_root = fr::random_element();
-    tx.old_data_roots_path = gibberish_path_28;
-    tx.new_data_roots_path = gibberish_path_28;
+    tx.old_data_roots_path = root_gibberish_path;
+    tx.new_data_roots_path = root_gibberish_path;
 
     return tx;
 }

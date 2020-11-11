@@ -1,5 +1,5 @@
 #pragma once
-#include <uchar.h>
+#include <stddef.h>
 
 namespace rollup {
 namespace proofs {

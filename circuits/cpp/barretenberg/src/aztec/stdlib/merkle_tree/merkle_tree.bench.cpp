@@ -1,6 +1,6 @@
 #include "hash.hpp"
 #include "leveldb_store.hpp"
-#include "leveldb_tree.hpp"
+#include "merkle_tree.hpp"
 #include <benchmark/benchmark.h>
 #include <leveldb/db.h>
 #include <numeric/random/engine.hpp>
@@ -12,7 +12,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-constexpr size_t DEPTH = 128;
+constexpr size_t DEPTH = 256;
 constexpr size_t MAX = 4096;
 const std::string DB_PATH = "/tmp/leveldb_test";
 
@@ -29,7 +29,7 @@ static std::vector<LevelDbTree::value_t> VALUES = []() {
 void hash(State& state) noexcept
 {
     for (auto _ : state) {
-        compress_native({ { 0, 0, 0, 0 }, { 1, 1, 1, 1 } });
+        compress_native({ 0, 0, 0, 0 }, { 1, 1, 1, 1 });
     }
 }
 BENCHMARK(hash)->MinTime(5);
@@ -61,21 +61,21 @@ void update_elements(State& state) noexcept
 }
 BENCHMARK(update_elements)->Unit(benchmark::kMillisecond)->RangeMultiplier(2)->Range(256, MAX);
 
-void update_1024_random_elements(State& state) noexcept
+void update_random_elements(State& state) noexcept
 {
     for (auto _ : state) {
         state.PauseTiming();
         LevelDbStore::destroy(DB_PATH);
         LevelDbStore store(DB_PATH);
         LevelDbTree db(store, DEPTH);
-        for (size_t i = 0; i < 1024; i++) {
+        for (size_t i = 0; i < (size_t)state.range(0); i++) {
             state.PauseTiming();
-            LevelDbTree::index_t index = engine.get_random_uint128();
+            auto index = LevelDbTree::index_t(engine.get_random_uint256());
             state.ResumeTiming();
             db.update_element(index, VALUES[i]);
         }
     }
 }
-BENCHMARK(update_1024_random_elements)->Unit(benchmark::kMillisecond);
+BENCHMARK(update_random_elements)->Unit(benchmark::kMillisecond)->Range(100, 100)->Iterations(1);
 
 BENCHMARK_MAIN();

@@ -24,7 +24,7 @@ inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t in
         } else {
             path[i].first = current;
         }
-        current = compress_native({ path[i].first, path[i].second });
+        current = compress_native(path[i].first, path[i].second);
         index /= 2;
     }
     return path;
@@ -41,14 +41,14 @@ template <typename Ctx> inline hash_path<Ctx> create_witness_hash_path(Ctx& ctx,
 
 inline fr get_hash_path_root(fr_hash_path const& input)
 {
-    return compress_native({ input[input.size() - 1].first, input[input.size() - 1].second });
+    return compress_native(input[input.size() - 1].first, input[input.size() - 1].second);
 }
 
 inline fr zero_hash_at_height(size_t height)
 {
     auto current = hash_value_native(std::vector<uint8_t>(64, 0));
     for (size_t i = 0; i < height; ++i) {
-        current = compress_native({ current, current });
+        current = compress_native(current, current);
     }
     return current;
 }

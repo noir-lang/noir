@@ -165,8 +165,6 @@ class alignas(32) uint256_t {
     constexpr std::pair<uint256_t, uint256_t> divmod(const uint256_t& b) const;
 };
 
-#include "./uint256_impl.hpp"
-
 inline std::ostream& operator<<(std::ostream& os, uint256_t const& a)
 {
     std::ios_base::fmtflags f(os.flags());
@@ -197,5 +195,7 @@ template <typename B> inline void write(B& it, uint256_t const& value)
 }
 
 } // namespace numeric
+
+#include "./uint256_impl.hpp"
 
 using numeric::uint256_t;

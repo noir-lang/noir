@@ -11,17 +11,16 @@ namespace plonk {
 namespace stdlib {
 namespace merkle_tree {
 
-template <typename ComposerContext> inline field_t<ComposerContext> hash_value(byte_array<ComposerContext> const& input, const bool use_blake2s = false)
+template <typename ComposerContext>
+inline field_t<ComposerContext> hash_value(byte_array<ComposerContext> const& input, const bool use_blake2s = false)
 {
     ASSERT(input.get_context() != nullptr);
-    if (use_blake2s)
-    {
+    if (use_blake2s) {
         const auto result = static_cast<field_t<ComposerContext>>(stdlib::blake2s(input));
         return result;
-    }
-    else
-    {
-        const auto result = static_cast<field_t<ComposerContext>>(plonk::stdlib::pedersen<ComposerContext>::compress(input));
+    } else {
+        const auto result =
+            static_cast<field_t<ComposerContext>>(plonk::stdlib::pedersen<ComposerContext>::compress(input));
         return result;
     }
 }
@@ -29,20 +28,17 @@ template <typename ComposerContext> inline field_t<ComposerContext> hash_value(b
 inline barretenberg::fr hash_value_native(std::vector<uint8_t> const& input, const bool use_blake2s = false)
 {
     std::vector<uint8_t> output;
-    if (use_blake2s)
-    {
+    if (use_blake2s) {
         output = blake2::blake2s(input);
-    }
-    else
-    {
+    } else {
         output = crypto::pedersen::compress_native(input);
     }
     return barretenberg::fr::serialize_from_buffer(output.data());
 }
 
-inline barretenberg::fr compress_native(std::vector<barretenberg::fr> const& input)
+inline barretenberg::fr compress_native(barretenberg::fr const& lhs, barretenberg::fr const& rhs)
 {
-    return crypto::pedersen::compress_native(input[0], input[1]);
+    return crypto::pedersen::compress_native(lhs, rhs);
 }
 
 } // namespace merkle_tree

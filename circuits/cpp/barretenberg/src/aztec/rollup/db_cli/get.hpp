@@ -3,7 +3,7 @@
 
 struct GetRequest {
     uint8_t tree_id;
-    uint128_t index;
+    uint256_t index;
 };
 
 struct GetResponse {

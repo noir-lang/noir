@@ -11,8 +11,9 @@
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include "../inner_proof_data.hpp"
+#include "../../constants.hpp"
 #include <common/test.hpp>
-#include <stdlib/merkle_tree/leveldb_tree.hpp>
+#include <stdlib/merkle_tree/merkle_tree.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/memory_tree.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
@@ -28,9 +29,9 @@ using namespace plonk::stdlib::merkle_tree;
 class rollup_full_tests : public ::testing::Test {
   protected:
     rollup_full_tests()
-        : data_tree(store, 32, 0)
-        , null_tree(store, 128, 1)
-        , root_tree(store, 28, 2)
+        : data_tree(store, rollup::DATA_TREE_DEPTH, 0)
+        , null_tree(store, rollup::NULL_TREE_DEPTH, 1)
+        , root_tree(store, rollup::ROOT_TREE_DEPTH, 2)
     {
         update_root_tree_with_data_root(0);
         rand_engine = &numeric::random::get_debug_engine(true);
@@ -87,7 +88,7 @@ class rollup_full_tests : public ::testing::Test {
     {
         auto data = create_account_leaf_data(owner_key, signing_key);
         auto nullifier = merkle_tree::hash_value_native(data);
-        null_tree.update_element(uint128_t(nullifier), { 1 });
+        null_tree.update_element(uint256_t(nullifier), { 1 });
     }
 
     void update_root_tree_with_data_root(size_t index)
