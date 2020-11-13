@@ -1,3 +1,6 @@
 build*
 src/wasi-sdk-8.0
 srs_db/ignition
+srs_db/lagrange
+srs_db/coset_lagrange
+srs_db/modified_lagrange

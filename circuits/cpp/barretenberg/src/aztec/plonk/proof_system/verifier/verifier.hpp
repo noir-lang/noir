@@ -5,6 +5,7 @@
 #include "../widgets/random_widgets/random_widget.hpp"
 #include <plonk/transcript/manifest.hpp>
 #include <plonk/transcript/transcript_wrappers.hpp>
+#include <plonk/proof_system/commitment_scheme/commitment_scheme.hpp>
 
 namespace waffle {
 template <typename program_settings> class VerifierBase {
@@ -26,6 +27,7 @@ template <typename program_settings> class VerifierBase {
     std::shared_ptr<verification_key> key;
     std::map<std::string, barretenberg::g1::affine_element> kate_g1_elements;
     std::map<std::string, barretenberg::fr> kate_fr_elements;
+    std::unique_ptr<CommitmentScheme> commitment_scheme;
 };
 
 extern template class VerifierBase<unrolled_standard_verifier_settings>;

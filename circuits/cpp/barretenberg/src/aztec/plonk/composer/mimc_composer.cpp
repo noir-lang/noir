@@ -5,6 +5,7 @@
 #include <plonk/proof_system/widgets/transition_widgets/mimc_widget.hpp>
 #include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 using namespace barretenberg;
 #define STANDARD_SELECTOR_REFS                                                                                         \
@@ -292,6 +293,11 @@ Prover MiMCComposer::preprocess()
     output_state.transition_widgets.emplace_back(std::move(mimc_widget));
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
 
+    std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -300,6 +306,11 @@ MiMCVerifier MiMCComposer::create_verifier()
     compute_verification_key();
 
     MiMCVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
+
+    std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }

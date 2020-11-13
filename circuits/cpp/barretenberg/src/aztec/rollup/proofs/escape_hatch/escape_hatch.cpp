@@ -8,6 +8,7 @@
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -89,6 +90,11 @@ std::vector<uint8_t> create_escape_hatch_proof(escape_hatch_tx const& tx)
 bool verify_proof(waffle::plonk_proof const& proof)
 {
     Verifier verifier(verification_key, Composer::create_manifest(verification_key->num_public_inputs));
+
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::turbo_settings>> kate_commitment_scheme = 
+        std::make_unique<waffle::KateCommitmentScheme<waffle::turbo_settings>>();
+    verifier.commitment_scheme = std::move(kate_commitment_scheme);
+
     return verifier.verify_proof(proof);
 }
 

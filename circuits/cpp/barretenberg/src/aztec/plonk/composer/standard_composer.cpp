@@ -5,6 +5,7 @@
 #include <plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp>
 #include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 using namespace barretenberg;
 
@@ -502,6 +503,12 @@ Verifier StandardComposer::create_verifier()
 {
     compute_verification_key();
     Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
+
+    std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -509,6 +516,12 @@ UnrolledVerifier StandardComposer::create_unrolled_verifier()
 {
     compute_verification_key();
     UnrolledVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+
+    std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<unrolled_standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -525,6 +538,11 @@ UnrolledProver StandardComposer::create_unrolled_prover()
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+
+    std::unique_ptr<KateCommitmentScheme<unrolled_standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<unrolled_standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }
@@ -544,6 +562,11 @@ Prover StandardComposer::create_prover()
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.transition_widgets.emplace_back(std::move(arithmetic_widget));
+
+    std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<standard_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }

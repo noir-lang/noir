@@ -8,6 +8,16 @@ namespace waffle {
 template <typename Field, typename Transcript, typename program_settings>
 Field compute_kate_batch_evaluation(typename Transcript::Key* key, const Transcript& transcript)
 {
+    // In this method, we compute the scalar multiplicand of the batch evaluation commitment 
+    // described in step 11 of verifier's algorithm.
+    //
+    // Step 11: Compute batch evaluation commitment [E]_1
+    //          [E]_1  :=  (t_eval + \nu_{r}.r_eval + \nu_{a}.a_eval + \nu_{b}.b_eval
+    //                      \nu_{c}.c_eval + \nu_{\sigma1}.sigma1_eval + \nu_{\sigma2}.sigma2_eval +
+    //                      nu_z_omega.separator.z_eval_omega) . [1]_1
+    //
+    // The challenges nu_{string} depend on the scalar they are being multiplied to.
+    //
     Field batch_eval(0);
 
     const auto separator_challenge = transcript.get_challenge_field_element("separator", 0);

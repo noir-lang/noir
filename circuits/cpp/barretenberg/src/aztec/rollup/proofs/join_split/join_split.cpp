@@ -1,6 +1,7 @@
 #include "join_split.hpp"
 #include "join_split_circuit.hpp"
 #include <plonk/composer/turbo/compute_verification_key.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -65,6 +66,11 @@ bool verify_proof(waffle::plonk_proof const& proof)
 {
     UnrolledVerifier verifier(verification_key,
                               Composer::create_unrolled_manifest(verification_key->num_public_inputs));
+
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme = 
+        std::make_unique<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>>();
+    verifier.commitment_scheme = std::move(kate_commitment_scheme);
+
     return verifier.verify_proof(proof);
 }
 

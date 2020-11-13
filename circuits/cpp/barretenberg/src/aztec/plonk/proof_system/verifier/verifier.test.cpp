@@ -9,6 +9,7 @@
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 namespace verifier_helpers {
 
@@ -96,6 +97,11 @@ waffle::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_
               std::back_inserter(circuit_verification_key->polynomial_manifest));
 
     Verifier verifier(circuit_verification_key, create_manifest());
+
+    std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<standard_settings>>();
+    verifier.commitment_scheme = std::move(kate_commitment_scheme);
+
     // std::unique_ptr<waffle::VerifierArithmeticWidget> widget = std::make_unique<waffle::VerifierArithmeticWidget>();
     // verifier.verifier_widgets.emplace_back(std::move(widget));
     return verifier;
@@ -274,9 +280,13 @@ waffle::Prover generate_test_data(const size_t n)
     std::unique_ptr<waffle::ProverArithmeticWidget<waffle::standard_settings>> widget =
         std::make_unique<waffle::ProverArithmeticWidget<waffle::standard_settings>>(key.get(), witness.get());
 
+    std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<standard_settings>>();
+
     waffle::Prover state = waffle::Prover(std::move(key), std::move(witness), create_manifest());
     state.random_widgets.emplace_back(std::move(permutation_widget));
     state.transition_widgets.emplace_back(std::move(widget));
+    state.commitment_scheme = std::move(kate_commitment_scheme);
     return state;
 }
 } // namespace verifier_helpers

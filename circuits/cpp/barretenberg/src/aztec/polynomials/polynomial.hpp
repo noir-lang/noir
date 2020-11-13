@@ -40,6 +40,7 @@ class polynomial {
     size_t get_max_size() const { return max_size; };
     barretenberg::fr& at(const size_t i) const { return coefficients[i]; };
     barretenberg::fr evaluate(const barretenberg::fr& z, const size_t target_size) const;
+    barretenberg::fr compute_barycentric_evaluation(const barretenberg::fr& z, const evaluation_domain& domain);
 
     void fft(const evaluation_domain& domain);
     void coset_fft(const evaluation_domain& domain);

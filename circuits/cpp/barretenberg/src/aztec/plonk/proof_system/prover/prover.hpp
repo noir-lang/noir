@@ -7,6 +7,7 @@
 #include "../widgets/random_widgets/random_widget.hpp"
 #include "./work_queue.hpp"
 #include "../widgets/transition_widgets/transition_widget.hpp"
+#include "../commitment_scheme/commitment_scheme.hpp"
 namespace waffle {
 
 template <typename settings> class ProverBase {
@@ -87,6 +88,7 @@ template <typename settings> class ProverBase {
 
     std::shared_ptr<proving_key> key;
     std::shared_ptr<program_witness> witness;
+    std::unique_ptr<CommitmentScheme> commitment_scheme;
 
     work_queue queue;
     bool uses_quotient_mid;

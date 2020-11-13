@@ -21,6 +21,7 @@ template <typename program_settings>
 VerifierBase<program_settings>::VerifierBase(VerifierBase&& other)
     : manifest(other.manifest)
     , key(other.key)
+    , commitment_scheme(std::move(other.commitment_scheme))
 {}
 
 template <typename program_settings>
@@ -28,6 +29,7 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
 {
     key = other.key;
     manifest = other.manifest;
+    commitment_scheme = (std::move(other.commitment_scheme));
     kate_g1_elements.clear();
     kate_fr_elements.clear();
     return *this;
@@ -47,12 +49,19 @@ template <typename program_settings> bool VerifierBase<program_settings>::valida
 
 template <typename program_settings> bool VerifierBase<program_settings>::verify_proof(const waffle::plonk_proof& proof)
 {
+    // This function verifies a PLONK proof for given program settings.
+    // A PLONK proof for standard PLONK with linearisation as on page 31 in the paper is of the form:
+    //
+    // π_SNARK =   { [a]_1,[b]_1,[c]_1,[z]_1,[t_{low}]_1,[t_{mid}]_1,[t_{high}]_1,[W_z]_1,[W_zω]_1 \in G,
+    //              a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval, r_eval, z_eval_omega \in F }
+    //
+    // Proof π_SNARK must be first added in the transcrip with other program settings.
+    //
     key->program_width = program_settings::program_width;
     transcript::StandardTranscript transcript = transcript::StandardTranscript(
         proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
-    g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
-    g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
 
+    // Compute challenges using Fiat-Shamir heuristic from transcript
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(key->n >> 24),
                              static_cast<uint8_t>(key->n >> 16),
@@ -71,8 +80,19 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     const auto alpha = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
     const auto zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
+
+    // Compute the evaluations of the lagrange polynomials L_1(X) and L_{n - k}(X) at X = zeta.
+    // Here k = num_roots_cut_out_of_the_vanishing_polynomial and n is the size of the evaluation domain.
     const auto lagrange_evals = barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->domain);
 
+    // Step 8: Compute quotient polynomial evaluation at zeta
+    //           r_eval − ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ) z_eval_omega)α − L_1(zeta).α^{3} + (z_eval_omega - ∆_{PI}).L_{n-k}(zeta)α^{2}
+    // t_eval = --------------------------------------------------------------------------------------------------------------------------------------------------------------
+    //                                                                       Z_H*(zeta)
+    // where Z_H*(X) is the modified vanishing polynomial.
+    // The `compute_quotient_evaluation_contribution` function computes the numerator of t_eval
+    // according to the program settings for standard/turbo/ultra PLONK.
+    // 
     key->z_pow_n = zeta;
     for (size_t i = 0; i < key->domain.log2_size; ++i) {
         key->z_pow_n *= key->z_pow_n;
@@ -86,22 +106,44 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     transcript.apply_fiat_shamir("separator");
     const auto separator_challenge = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
 
-    fr batch_evaluation =
-        compute_kate_batch_evaluation<fr, transcript::StandardTranscript, program_settings>(key.get(), transcript);
+    // In the following function, we do the following computation.
+    // Step 10: Compute batch opening commitment [F]_1
+    //          [F]  :=  [t_{low}]_1 + \zeta^{n}.[tmid]1 + \zeta^{2n}.[t_{high}]_1
+    //                   + [D]_1 + \nu_{a}.[a]_1 + \nu_{b}.[b]_1 + \nu_{c}.[c]_1 
+    //                   + \nu_{\sigma1}.[s_{\sigma_1}]1 + \nu_{\sigma2}.[s_{\sigma_2}]1
+    //
+    // We do not compute [D]_1 term in this method as the information required to compute [D]_1
+    // in inadequate as far as this KateCommitmentScheme class is concerned.
+    //
+    // Step 11: Compute batch evaluation commitment [E]_1
+    //          [E]_1  :=  (t_eval + \nu_{r}.r_eval + \nu_{a}.a_eval + \nu_{b}.b_eval
+    //                      \nu_{c}.c_eval + \nu_{\sigma1}.sigma1_eval + \nu_{\sigma2}.sigma2_eval +
+    //                      nu_z_omega.separator.z_eval_omega) . [1]_1
+    //
+    // Note that we do not actually compute the scalar multiplications but just accumulate the scalars 
+    // and the group elements in different vectors.
+    // 
+    commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key);
 
-    kate_g1_elements.insert({ "BATCH_EVALUATION", g1::affine_one });
-    kate_fr_elements.insert({ "BATCH_EVALUATION", -batch_evaluation });
+    // Step 9: Compute partial opening batch commitment [D]_1:
+    //         [D]_1 = (a_eval.b_eval.[qM]_1 + a_eval.[qL]_1 + b_eval.[qR]_1 + c_eval.[qO]_1 + [qC]_1) * nu_{linear} * α      >> selector polynomials
+    //                  + [(a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ).α + L_1(z).α^{3}].nu_{linear}.[z]_1 >> grand product perm polynomial
+    //                  - (a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)α.β.nu_{linear}.z_omega_eval.[sigma3]_1     >> last perm polynomial
+    //
+    // Again, we dont actually compute the MSMs and just accumulate scalars and group elements and postpone MSM to last step.
+    //
+    program_settings::append_scalar_multiplication_inputs(key.get(), alpha, transcript, kate_fr_elements);
 
+    // Fetch the group elements [W_z]_1,[W_zω]_1 from the transcript
+    g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
+    g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
+
+    // Accumulate pairs of scalars and group elements which would be used in the final pairing check.
     kate_g1_elements.insert({ "PI_Z_OMEGA", PI_Z_OMEGA });
     kate_fr_elements.insert({ "PI_Z_OMEGA", zeta * key->domain.root * separator_challenge });
 
     kate_g1_elements.insert({ "PI_Z", PI_Z });
     kate_fr_elements.insert({ "PI_Z", zeta });
-
-    populate_kate_element_map<fr, g1::affine_element, transcript::StandardTranscript, program_settings>(
-        key.get(), transcript, kate_g1_elements, kate_fr_elements);
-
-    program_settings::append_scalar_multiplication_inputs(key.get(), alpha, transcript, kate_fr_elements);
 
     validate_commitments();
     validate_scalars();
@@ -171,6 +213,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         { P[1].x, P[1].y },
     };
 
+    // The final pairing check of step 12.
     barretenberg::fq12 result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
         P_affine, key->reference_string->get_precomputed_g2_lines(), 2);
 

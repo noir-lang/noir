@@ -12,6 +12,7 @@
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/composer/plookup/compute_verification_key.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 #include "plookup_tables/plookup_tables.hpp"
 #include "plookup_tables/aes128.hpp"
@@ -1095,6 +1096,11 @@ PlookupProver PlookupComposer::create_prover()
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
     output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
 
+    std::unique_ptr<KateCommitmentScheme<plookup_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<plookup_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -1131,6 +1137,11 @@ UnrolledPlookupProver PlookupComposer::create_unrolled_prover()
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
     output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
 
+    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -1140,6 +1151,11 @@ PlookupVerifier PlookupComposer::create_verifier()
 
     PlookupVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<turbo_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -1148,6 +1164,11 @@ UnrolledPlookupVerifier PlookupComposer::create_unrolled_verifier()
     compute_verification_key();
 
     UnrolledPlookupVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+
+    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }

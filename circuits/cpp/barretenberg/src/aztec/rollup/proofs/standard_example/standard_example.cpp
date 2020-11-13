@@ -1,6 +1,7 @@
 #include "standard_example.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/standard/compute_verification_key.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -52,6 +53,11 @@ Prover new_prover()
 bool verify_proof(waffle::plonk_proof const& proof)
 {
     Verifier verifier(verification_key, Composer::create_manifest(1));
+
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::standard_settings>> kate_commitment_scheme = 
+        std::make_unique<waffle::KateCommitmentScheme<waffle::standard_settings>>();
+    verifier.commitment_scheme = std::move(kate_commitment_scheme);
+
     return verifier.verify_proof(proof);
 }
 

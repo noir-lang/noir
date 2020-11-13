@@ -31,6 +31,7 @@ ProverBase<settings>::ProverBase(ProverBase<settings>&& other)
     , transcript(other.transcript)
     , key(std::move(other.key))
     , witness(std::move(other.witness))
+    , commitment_scheme(std::move(other.commitment_scheme))
     , queue(key.get(), witness.get(), &transcript)
 {
     for (size_t i = 0; i < other.random_widgets.size(); ++i) {
@@ -56,6 +57,8 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
     transcript = other.transcript;
     key = std::move(other.key);
     witness = std::move(other.witness);
+    commitment_scheme = std::move(other.commitment_scheme);
+
     queue = work_queue(key.get(), witness.get(), &transcript);
     return *this;
 }
@@ -64,13 +67,9 @@ template <typename settings> void ProverBase<settings>::compute_wire_pre_commitm
 {
     for (size_t i = 0; i < settings::program_width; ++i) {
         std::string wire_tag = "w_" + std::to_string(i + 1);
-        queue.add_to_queue({
-            work_queue::WorkType::SCALAR_MULTIPLICATION,
-            witness->wires.at(wire_tag).get_coefficients(),
-            "W_" + std::to_string(i + 1),
-            barretenberg::fr(0),
-            0,
-        });
+        std::string commit_tag = "W_" + std::to_string(i + 1);
+        barretenberg::fr* coefficients = witness->wires.at(wire_tag).get_coefficients();
+        commitment_scheme->commit(coefficients, commit_tag, barretenberg::fr(0), queue);
     }
 
     // add public inputs
@@ -124,22 +123,15 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     //
     for (size_t i = 0; i < settings::program_width - 1; ++i) {
         const size_t offset = n * i;
-        queue.add_to_queue({
-            work_queue::WorkType::SCALAR_MULTIPLICATION,
-            &key->quotient_large.get_coefficients()[offset],
-            "T_" + std::to_string(i + 1),
-            barretenberg::fr(0),
-            0,
-        });
+        fr* coefficients = &key->quotient_large.get_coefficients()[offset];
+        std::string quotient_tag = "T_" + std::to_string(i + 1);
+        commitment_scheme->commit(coefficients, quotient_tag, barretenberg::fr(0), queue);
     }
 
-    queue.add_to_queue({
-        work_queue::WorkType::SCALAR_MULTIPLICATION,
-        &key->quotient_large.get_coefficients()[(settings::program_width - 1) * n],
-        "T_" + std::to_string(settings::program_width),
-        settings::program_width == 3? barretenberg::fr(1) : barretenberg::fr(0),
-        0,
-    });    
+    fr* coefficients = &key->quotient_large.get_coefficients()[(settings::program_width - 1) * n];
+    std::string quotient_tag = "T_" + std::to_string(settings::program_width);
+    fr program_flag = settings::program_width == 3? barretenberg::fr(1) : barretenberg::fr(0);
+    commitment_scheme->commit(coefficients, quotient_tag, program_flag, queue);
 }
 
 template <typename settings> void ProverBase<settings>::execute_preamble_round()
@@ -389,170 +381,8 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
-#ifdef DEBUG_TIMING
-    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-#endif
-    compute_batch_opening_polynomials();
-#ifdef DEBUG_TIMING
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute base opening poly contribution: " << diff.count() << "ms" << std::endl;
-#endif
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
-
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute widget opening poly contributions: " << diff.count() << "ms" << std::endl;
-#endif
-    const auto zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    const auto zeta_omega = zeta * key->small_domain.root;
-    polynomial& opening_poly = key->opening_poly;
-    polynomial& shifted_opening_poly = key->shifted_opening_poly;
-
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
-    opening_poly.compute_kate_opening_coefficients(zeta);
-
-    shifted_opening_poly.compute_kate_opening_coefficients(zeta_omega);
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute kate opening poly coefficients: " << diff.count() << "ms" << std::endl;
-#endif
-#ifdef DEBUG_TIMING
-    start = std::chrono::steady_clock::now();
-#endif
-
-    queue.add_to_queue({
-        work_queue::WorkType::SCALAR_MULTIPLICATION,
-        opening_poly.get_coefficients(),
-        "PI_Z",
-        barretenberg::fr(0),
-        0,
-    });
-    queue.add_to_queue({
-        work_queue::WorkType::SCALAR_MULTIPLICATION,
-        shifted_opening_poly.get_coefficients(),
-        "PI_Z_OMEGA",
-        barretenberg::fr(0),
-        0,
-    });
-#ifdef DEBUG_TIMING
-    end = std::chrono::steady_clock::now();
-    diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute opening commitment: " << diff.count() << "ms" << std::endl;
-#endif
-}
-
-template <typename settings> void ProverBase<settings>::compute_batch_opening_polynomials()
-{
-    std::vector<std::pair<fr*, fr>> opened_polynomials_at_zeta;
-    std::vector<std::pair<fr*, fr>> opened_polynomials_at_zeta_omega;
-
-    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
-        const auto& info = key->polynomial_manifest[i];
-        const std::string poly_label(info.polynomial_label);
-        fr* poly = nullptr;
-        switch (info.source) {
-        case PolynomialSource::WITNESS: {
-            poly = &witness->wires.at(poly_label)[0];
-            break;
-        }
-        case PolynomialSource::SELECTOR: {
-            poly = &key->constraint_selectors.at(poly_label)[0];
-            break;
-        }
-        case PolynomialSource::PERMUTATION: {
-            poly = &key->permutation_selectors.at(poly_label)[0];
-            break;
-        }
-        }
-        if (!info.is_linearised || !settings::use_linearisation) {
-            const fr nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label);
-            opened_polynomials_at_zeta.push_back({ poly, nu_challenge });
-        }
-        if (info.requires_shifted_evaluation) {
-            const auto nu_challenge = transcript.get_challenge_field_element_from_map("nu", poly_label + "_omega");
-            opened_polynomials_at_zeta_omega.push_back({ poly, nu_challenge });
-        }
-    }
-
-    const auto zeta = transcript.get_challenge_field_element("z");
-
-    polynomial& opening_poly = key->opening_poly;
-    polynomial& shifted_opening_poly = key->shifted_opening_poly;
-
-    for (size_t i = 1; i < settings::program_width; ++i) {
-        const size_t offset = i * key->small_domain.size;
-        const fr scalar = zeta.pow(static_cast<uint64_t>(offset));
-        opened_polynomials_at_zeta.push_back({ &key->quotient_large[offset], scalar });
-
-        if (i == settings::program_width - 1 && settings::program_width == 3)
-        {
-            // We need to add the (3n + 1)-th coefficient of the quotient polynomial t(X)
-            // to the opening proof polynomial in the case of standard plonk.
-            // i.e. opening_poly += \zeta^{2 * n} . t[3 * n]
-            opening_poly.add_lagrange_base_coefficient(key->quotient_large[3 * n] * scalar);
-        }
-    }
-
-    if constexpr (settings::use_linearisation) {
-        const fr linear_challenge = transcript.get_challenge_field_element_from_map("nu", "r");
-        opened_polynomials_at_zeta.push_back({ &key->linear_poly[0], linear_challenge });
-    }
-
-
-    ITERATE_OVER_DOMAIN_START(key->small_domain);
-    opening_poly[i] = key->quotient_large[i];
-    for (const auto& [poly, challenge] : opened_polynomials_at_zeta) {
-        opening_poly[i] += poly[i] * challenge;
-    }
-    shifted_opening_poly[i] = 0;
-    for (const auto& [poly, challenge] : opened_polynomials_at_zeta_omega) {
-        shifted_opening_poly[i] += poly[i] * challenge;
-    }
-    ITERATE_OVER_DOMAIN_END;
-}
-
-template <typename settings> void ProverBase<settings>::add_polynomial_evaluations_to_transcript()
-{
-    fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
-    fr shifted_z = zeta * key->small_domain.root;
-
-    const auto get_polynomial = [key = this->key, witness = this->witness](const auto& poly_info,
-                                                                           const auto& poly_label) -> polynomial& {
-        switch (poly_info.source) {
-        case PolynomialSource::WITNESS: {
-            return witness->wires.at(poly_label);
-        }
-        case PolynomialSource::SELECTOR: {
-            return key->constraint_selectors.at(poly_label);
-        }
-        case PolynomialSource::PERMUTATION: {
-            return key->permutation_selectors.at(poly_label);
-        }
-        default: {
-            barretenberg::errors::throw_or_abort("invalid polynomial source");
-            return witness->wires.at("w_1");
-        }
-        }
-    };
-    for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
-        const auto& info = key->polynomial_manifest[i];
-        std::string label(info.polynomial_label);
-        polynomial& poly = get_polynomial(info, label);
-
-        if (!info.is_linearised || !settings::use_linearisation) {
-            transcript.add_element(label, poly.evaluate(zeta, key->small_domain.size).to_buffer());
-        }
-        if (info.requires_shifted_evaluation) {
-            transcript.add_element(label + "_omega", poly.evaluate(shifted_z, key->small_domain.size).to_buffer());
-        }
-    }
+    
+    commitment_scheme->batch_open(transcript, queue, key, witness);
 }
 
 template <typename settings> barretenberg::fr ProverBase<settings>::compute_linearisation_coefficients()
@@ -562,7 +392,7 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
 
     polynomial& r = key->linear_poly;
 
-    add_polynomial_evaluations_to_transcript();
+    commitment_scheme->add_opening_evaluations_to_transcript(transcript, key, witness, false);
     fr t_eval = key->quotient_large.evaluate(zeta, 4 * n);
 
     if constexpr (settings::use_linearisation) {

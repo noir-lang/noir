@@ -505,6 +505,21 @@ template <size_t program_width, bool idpolys, const size_t num_roots_cut_out_of_
 barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanishing_polynomial>::compute_linear_contribution(
     const fr& alpha, const transcript::StandardTranscript& transcript, polynomial& r)
 {
+    // This method computes a part of the linearisation polynomial r(X) in round 4 of prover's algorithm in PLONK paper/
+    // Since this is a member function of the `ProverPermutationWidget` class, we only compute the terms relevant to the
+    // copy constraints. Concretely, we compute the terms:
+    //
+    // r(X) = (a_eval.b_eval.q_M(X) + a_eval.q_L(X) + b_eval.q_R(X) + c_eval.q_O(X) + q_C(X)) +            |-------> gate constraints
+    //        ((a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ) z(X))α -                     |     
+    //        ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ) β.z_eval_omega.S_{sigma3}(X))α +    )------> copy constraints
+    //        z(X).L_1(z).α^{3}                                                                            |    
+    //
+    // Note here, we are only trying to compute the `copy constraints` part and the `gate constraints` part need to be done 
+    // using Arithmetic widget. Also, the prover calls this function only when linearisation trick is used, so we don't
+    // need to explicitly check the condition `use_linearisation`.
+    //
+
+    // Step 1: regenrate challenges, fetch evaluations wire polynomials
     polynomial& z = witness->wires.at("z");
     barretenberg::fr z_challenge = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
 
@@ -523,6 +538,10 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
 
     barretenberg::fr z_1_shifted_eval = fr::serialize_from_buffer(&transcript.get_element("z_omega")[0]);
 
+    // Step 2: compute scalar multiplicand of the permutation polynomial z(X)
+    // This has two flavours, one in which we use identity polynomials for representing identity permutations
+    // and the other one in which user defines polynomials to represent identity permutation.
+    // The multiplicand of z(X) accordingly changes.
     barretenberg::fr T0;
     barretenberg::fr z_contribution = fr(1);
 
@@ -545,10 +564,12 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
         }
     }
 
+    // Step 3: add lagrange polynomial term to multiplicand of z(X)
     barretenberg::fr z_1_multiplicand = z_contribution * alpha;
     T0 = lagrange_evals.l_start * alpha_cubed;
     z_1_multiplicand += T0;
 
+    // Step 4: compute the multiplicand of the copy permutation polynomial S_{sigma3}(X)
     barretenberg::fr sigma_contribution = fr(1);
     for (size_t i = 0; i < program_width - 1; ++i) {
         barretenberg::fr permutation_evaluation =
@@ -562,6 +583,7 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     barretenberg::fr sigma_last_multiplicand = -(sigma_contribution * alpha);
     sigma_last_multiplicand *= beta;
 
+    // Step 5: add up the z(X) and S_{sigma3}(X) terms into r(X)
     const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(program_width));
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     r[i] = (z[i] * z_1_multiplicand) + (sigma_last[i] * sigma_last_multiplicand);
@@ -585,13 +607,19 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     const bool use_linearisation,
     const bool idpolys)
 {
-
+    // This function computes the part of the quotient polynomial evaluation relevant to the PLONK's permutation argument.
+    // Note that this is needed by the verifier in step 8 of verification algorithm. This has two flavours:
+    //  1. The prover is using linearisation, i.e. she is computing polynomial r(X) and sending its evaluation r_eval 
+    //  2. The prover is not using linearisation and the overhead computation needs to be done by the verifier.
+    //
     Field alpha_cubed = alpha.sqr() * alpha;
     Field z = transcript.get_challenge_field_element("z");
     Field beta = transcript.get_challenge_field_element("beta", 0);
     Field gamma = transcript.get_challenge_field_element("beta", 1);
     Field z_beta = z * beta;
 
+    // We need wire polynomials' and sigma polynomials' evaluations at zeta which we fetch from the transcript.
+    // Fetch a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval 
     std::vector<Field> wire_evaluations;
     std::vector<Field> sigma_evaluations;
 
@@ -606,6 +634,13 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         wire_evaluations.emplace_back(transcript.get_field_element("w_" + std::to_string(i + 1)));
     }
 
+    // Compute evaluations of lagrange polynomials L_1(X) and L_{n-k} at z (= zeta)
+    // Recall, k is the number of roots cut out of the vanishing polynomial Z_H(X)
+    // Note that 
+    //                                  X^n - 1
+    // L_i(X) = L_1(X.w^{-i + 1}) = -----------------
+    //                               X.w^{-i + 1} - 1
+    //
     Field numerator = key->z_pow_n - Field(1);
 
     numerator *= key->domain.domain_inverse;
@@ -620,31 +655,6 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
 
     Field z_1_shifted_eval = transcript.get_field_element("z_omega");
 
-    Field T0;
-    Field z_contribution = Field(1);
-    for (size_t i = 0; i < key->program_width; ++i) {
-        Field coset_generator = (i == 0) ? Field(1) : Field::coset_generator(i - 1);
-        T0 = z_beta * coset_generator;
-        T0 += wire_evaluations[i];
-        T0 += gamma;
-        z_contribution *= T0;
-    }
-    Field z_1_multiplicand = z_contribution * alpha;
-    T0 = l_start * alpha_cubed;
-    z_1_multiplicand += T0;
-
-    Field sigma_contribution = Field(1);
-    for (size_t i = 0; i < key->program_width - 1; ++i) {
-        Field permutation_evaluation = transcript.get_field_element("sigma_" + std::to_string(i + 1));
-        T0 = permutation_evaluation * beta;
-        T0 += wire_evaluations[i];
-        T0 += gamma;
-        sigma_contribution *= T0;
-    }
-    sigma_contribution *= z_1_shifted_eval;
-    Field sigma_last_multiplicand = -(sigma_contribution * alpha);
-    sigma_last_multiplicand *= beta;
-
     // reconstruct evaluation of quotient polynomial from prover messages
     Field T1;
     Field T2;
@@ -654,8 +664,10 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         alpha_pow[i] = alpha_pow[i - 1] * alpha_pow[0];
     }
 
-    sigma_contribution = Field(1);
-
+    // Part 1: compute sigma contribution, i.e.
+    // ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ) z_eval_omega)α
+    Field sigma_contribution = Field(1);
+    Field T0;
     for (size_t i = 0; i < key->program_width - 1; ++i) {
         T0 = sigma_evaluations[i] * beta;
         T1 = wire_evaluations[i] + gamma;
@@ -663,19 +675,25 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         sigma_contribution *= T0;
     }
 
-    std::vector<Field> public_inputs = transcript.get_field_element_vector("public_inputs");
-
-    Field public_input_delta = compute_public_input_delta<Field>(public_inputs, beta, gamma, key->domain.root);
     T0 = wire_evaluations[key->program_width - 1] + gamma;
     sigma_contribution *= T0;
     sigma_contribution *= z_1_shifted_eval;
     sigma_contribution *= alpha_pow[0];
 
+    // Part 2: compute the public-inputs term, i.e.
+    // (z_eval_omega - ∆_{PI}).L_{n-k}(z).α^{2}
+    std::vector<Field> public_inputs = transcript.get_field_element_vector("public_inputs");
+    Field public_input_delta = compute_public_input_delta<Field>(public_inputs, beta, gamma, key->domain.root);
+
     T1 = z_1_shifted_eval - public_input_delta;
     T1 *= l_end;
     T1 *= alpha_pow[1];
 
+    // Part 3: compute starting lagrange polynomial term, i.e.
+    // L_1(z).α^{3}
     T2 = l_start * alpha_pow[2];
+
+    // Combine parts 1, 2, 3. If linearisation is used, we need to add r_eval to T1 and we're done.
     T1 -= T2;
     T1 -= sigma_contribution;
 
@@ -686,14 +704,44 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
 
     t_eval += T1;
 
+    // If linearisation is not used, the verifier needs to compute the evaluation of the linearisation polynomial r(X).
+    // It has two terms, one due to the permutation argument (aka copy constraints) and the other due to the gate constraints.
+    //        
+    // r(X) = (a_eval.b_eval.q_M(X) + a_eval.q_L(X) + b_eval.q_R(X) + c_eval.q_O(X) + q_C(X)) +            |-------> gate constraints
+    //        ((a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ) z(X))α -                     |     
+    //        ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ) β.z_eval_omega.S_{sigma3}(X))α +    )------> copy constraints
+    //        z(X).L_1(z).α^{3}                                                                            |    
+    //
+    // Note here, we are only trying to compute the `copy constraints` part and the `gate constraints` part need to be done 
+    // using Arithmetic widget.
+    //
     if (!use_linearisation) {
-        Field z_eval = transcript.get_field_element("z");
-        t_eval += (z_1_multiplicand * z_eval);
+
+        // Part 4: compute multiplicand of last sigma polynomial, i.e.
+        // -(a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ) β.z_eval_omega.α
+        Field sigma_contribution = Field(1);
+        for (size_t i = 0; i < key->program_width - 1; ++i) {
+            Field permutation_evaluation = transcript.get_field_element("sigma_" + std::to_string(i + 1));
+            T0 = permutation_evaluation * beta;
+            T0 += wire_evaluations[i];
+            T0 += gamma;
+            sigma_contribution *= T0;
+        }
+        sigma_contribution *= z_1_shifted_eval;
+        Field sigma_last_multiplicand = -(sigma_contribution * alpha);
+        sigma_last_multiplicand *= beta;
+
+        // add up part 4 to the t_eval term
         t_eval += (sigma_last_multiplicand * sigma_evaluations[key->program_width - 1]);
 
-        if (idpolys) {
-            Field z_eval = transcript.get_field_element("z");
+        Field z_eval = transcript.get_field_element("z");
 
+        if (idpolys) {
+
+            // Part 5.1: If idpolys is true, it indicates that we are not using the identity polynomials to 
+            // represent identity permutations. In that case, we need to use the pre-defined values for
+            // representing identity permutations and then compute the term
+            // [(a_eval + β.id_1 + γ)(b_eval + β.id_2 + γ)(c_eval + β.id_3 + γ).α + L_1(z).α^{3}]
             Field id_contribution = Field(1);
             for (size_t i = 0; i < key->program_width; ++i) {
                 Field id_evaluation = transcript.get_field_element("id_" + std::to_string(i + 1));
@@ -702,9 +750,32 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
                 T0 += gamma;
                 id_contribution *= T0;
             }
-            id_contribution *= z_eval;
             Field id_last_multiplicand = (id_contribution * alpha);
-            id_last_multiplicand *= beta;
+            T0 = l_start * alpha_cubed;
+            id_last_multiplicand += T0;
+
+            // add up part 5.1 to the t_eval term
+            t_eval += (id_last_multiplicand * z_eval);
+        }
+        else {
+
+            // Part 5.2: If idpolys is false, the identity permutations are identity polynomials. 
+            // So we need to compute the following term
+            // [(a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ).α + L_1(z).α^{3}]
+            Field z_contribution = Field(1);
+            for (size_t i = 0; i < key->program_width; ++i) {
+                Field coset_generator = (i == 0) ? Field(1) : Field::coset_generator(i - 1);
+                T0 = z_beta * coset_generator;
+                T0 += wire_evaluations[i];
+                T0 += gamma;
+                z_contribution *= T0;
+            }
+            Field z_1_multiplicand = (z_contribution * alpha);
+            T0 = l_start * alpha_cubed;
+            z_1_multiplicand += T0;
+
+            // add up part 5.2 to the t_eval term
+            t_eval += (z_1_multiplicand * z_eval);
         }
     }
 
@@ -720,11 +791,18 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     const bool use_linearisation,
     const bool idpolys)
 {
+    // In this method, we compute the scalars which are to be multiplied to the following
+    //  1. commitment to the permutation polynomial z(X), i.e. [z]_1
+    //  2. commitment to the last copy permutation S_{sigma3}(X), i.e. [sigma3]_1
+    // To this end, we first compute the challenges from the transcript and fetch wire 
+    // polynomials' evaluations at zeta (= z).
+    //
     Field alpha_step = transcript.get_challenge_field_element("alpha");
 
     Field alpha_cubed = alpha_base * alpha_step.sqr();
     Field shifted_z_eval = transcript.get_field_element("z_omega");
 
+    // We also need to compute the evaluation of lagrange polynomial L_1(X) at z.
     Field z = transcript.get_challenge_field_element("z");
     Field z_pow = z;
     for (size_t i = 0; i < key->domain.log2_size; ++i) {
@@ -745,6 +823,17 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     }
 
     // Field z_omega_challenge = transcript.get_challenge_field_element_from_map("nu", "z_omega");
+    //
+    // Here, we start by computing the scalar multiplicand of [z]_1 while using linearisarion.
+    // For standard PLONK's step 9 of the verifier, we wish to compute the term
+    // [(a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ).α + L_1(z).α^{3}] * nu_{linear}
+    //
+    // If identity permutations are not represented by identity polynomials, we must accordingly compute
+    // [(a_eval + β.id_1 + γ)(b_eval + β.id_2 + γ)(c_eval + β.id_3 + γ).α + L_1(z).α^{3}] * nu_{linear}
+    //
+    // Important: we don't add the term (u * nu_z_omega) to the scalar multiplicand of [z]_1 in this method,
+    // where u = separator challenge. That is done in `populate_kate_element_map` function inside `kate_verification.hpp`.
+    //
     if (use_linearisation) {
         Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
         Field T0;
@@ -773,6 +862,8 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         scalars["Z"] += (z_1_multiplicand);
     }
 
+    // Here, we compute the multiplicand of [sigma3]_1 as
+    // -(a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)α.β.nu_{linear}.z_omega_eval
     if (use_linearisation) {
         Field linear_nu = transcript.get_challenge_field_element_from_map("nu", "r");
         Field sigma_contribution = Field(1);

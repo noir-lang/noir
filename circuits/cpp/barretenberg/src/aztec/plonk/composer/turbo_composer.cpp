@@ -8,6 +8,7 @@
 #include <plonk/proof_system/widgets/transition_widgets/turbo_logic_widget.hpp>
 #include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
 using namespace barretenberg;
 
@@ -742,6 +743,11 @@ TurboProver TurboComposer::create_prover()
     output_state.transition_widgets.emplace_back(std::move(range_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
+    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme = 
+        std::make_unique<KateCommitmentScheme<turbo_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -773,6 +779,11 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
     output_state.transition_widgets.emplace_back(std::move(range_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
+    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme = 
+        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -782,6 +793,11 @@ TurboVerifier TurboComposer::create_verifier()
 
     TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
+    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme = 
+        std::make_unique<KateCommitmentScheme<turbo_settings>>();
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
+
     return output_state;
 }
 
@@ -789,7 +805,12 @@ UnrolledTurboVerifier TurboComposer::create_unrolled_verifier()
 {
     compute_verification_key();
 
+    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme = 
+        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
+
     UnrolledTurboVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
+
+    output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
     return output_state;
 }

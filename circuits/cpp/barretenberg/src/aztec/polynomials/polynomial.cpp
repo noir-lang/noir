@@ -354,4 +354,9 @@ fr polynomial::compute_kate_opening_coefficients(const barretenberg::fr& z)
     return polynomial_arithmetic::compute_kate_opening_coefficients(coefficients, coefficients, z, size);
 }
 
+fr polynomial::compute_barycentric_evaluation(const barretenberg::fr& z, const evaluation_domain& domain)
+{
+    return polynomial_arithmetic::compute_barycentric_evaluation(coefficients, domain.size, z, domain);
+}
+
 } // namespace barretenberg

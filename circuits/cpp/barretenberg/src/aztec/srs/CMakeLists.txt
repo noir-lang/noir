@@ -1,1 +1,1 @@
-barretenberg_module(srs env)
+barretenberg_module(srs polynomials env)
