@@ -247,9 +247,13 @@ HEAVY_TEST_F(escape_hatch_tests, switch_current_new_null_paths_fails)
     escape_hatch_tx tx = simple_setup();
     auto new_paths_copy = tx.new_null_paths;
 
+    // n.b. simply swapping the hash paths will now produce a valid proof. The
+    // circuit only extracts one item out of each hash path index - the partner hash.
+    // This partner hash does not change when performing a state update, so both old/new paths are valid.
     tx.new_null_paths = tx.old_null_paths;
     tx.old_null_paths = new_paths_copy;
 
+    std::swap(tx.old_null_paths[0], tx.old_null_paths[1]);
     EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
 }
 

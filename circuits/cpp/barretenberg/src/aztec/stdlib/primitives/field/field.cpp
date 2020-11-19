@@ -496,26 +496,16 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
     barretenberg::fr fc = is_equal ? barretenberg::fr::one() : fd.invert();
 
     bool_t result(witness_t(ctx, is_equal));
-    field_t c(witness_t(ctx, fc));
-    field_t d = *this - other;
-    field_t test_lhs = d * c;
-    field_t test_rhs = (field_t(ctx, barretenberg::fr::one()) - field_t(result));
-    test_rhs = test_rhs.normalize();
-    ctx->assert_equal(test_lhs.witness_index, test_rhs.witness_index);
+    field_t r(result);
+    field_t x(witness_t(ctx, fc));
 
-    barretenberg::fr fe = is_equal ? barretenberg::fr::one() : fd;
-    field_t e(witness_t(ctx, fe));
+    const field_t& a = *this;
+    const field_t& b = other;
+    const field_t diff = a - b;
 
-    // Ensures c is never 0.
-    barretenberg::fr q_m = barretenberg::fr::one();
-    barretenberg::fr q_l = barretenberg::fr::zero();
-    barretenberg::fr q_r = barretenberg::fr::zero();
-    barretenberg::fr q_c = barretenberg::fr::neg_one();
-    barretenberg::fr q_o = barretenberg::fr::zero();
-    const waffle::poly_triple gate_coefficients{
-        c.witness_index, e.witness_index, c.witness_index, q_m, q_l, q_r, q_o, q_c
-    };
-    ctx->create_poly_gate(gate_coefficients);
+    const field_t t1 = r.madd(-x + 1, x);
+    const field_t t2 = diff.madd(t1, r - 1);
+    ctx->assert_equal(t2.witness_index, ctx->zero_idx);
 
     return result;
 }
