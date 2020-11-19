@@ -14,7 +14,7 @@ template <typename ComposerContext> class pedersen {
     typedef plonk::stdlib::byte_array<ComposerContext> byte_array;
     typedef plonk::stdlib::bool_t<ComposerContext> bool_t;
 
-    static point hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases = false);
+    static point hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases = false, const bool validate_input_is_in_field = true);
     static point accumulate(const std::vector<point>& to_accumulate);
     static point conditionally_accumulate(const std::vector<point>& to_accumulate, const std::vector<field_t>& inputs);
 
@@ -22,7 +22,8 @@ template <typename ComposerContext> class pedersen {
     static field_t compress(const field_t& left,
                             const field_t& right,
                             const size_t hash_index = 0,
-                            const bool handle_edge_cases = false);
+                            const bool handle_edge_cases = false,
+                            const bool validate_input_is_in_field = true);
     static field_t compress(const std::vector<field_t>& inputs, const bool handle_edge_cases = false, const size_t hash_index = 0);
     template <size_t T>
     static field_t compress(const std::array<field_t, T>& inputs, const bool handle_edge_cases = true)
@@ -37,6 +38,8 @@ template <typename ComposerContext> class pedersen {
     static point encrypt(const std::vector<field_t>& inputs,
                          const size_t hash_index = 0,
                          const bool handle_edge_cases = true);
+
+    static void validate_wnaf_is_in_field(ComposerContext* ctx, const std::vector<uint32_t>& accumulator, const field_t& in, const bool validate_edge_cases);
 };
 
 extern template class pedersen<waffle::TurboComposer>;

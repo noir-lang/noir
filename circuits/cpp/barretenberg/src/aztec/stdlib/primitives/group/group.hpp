@@ -131,6 +131,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
                                              (origin_points[0].y - origin_points[1].y) };
 
     fr x_alpha = accumulator_offset;
+    std::vector<uint32_t> accumulator_witnesses;
     for (size_t i = 0; i < num_quads; ++i) {
         waffle::fixed_group_add_quad round_quad;
         round_quad.d = ctx->add_variable(accumulator_transcript[i]);
@@ -160,6 +161,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
         } else {
             ctx->create_fixed_group_add_gate_with_init(round_quad, init_quad);
         }
+        accumulator_witnesses.push_back(round_quad.d);
     }
 
     waffle::add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
@@ -172,7 +174,12 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
                                fr::zero(),
                                fr::zero() };
     ctx->create_big_add_gate(add_quad);
+    accumulator_witnesses.push_back(add_quad.d);
 
+    if (num_bits >= 254)
+    {
+        pedersen<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses, scalar, true);
+    }
     aligned_free(multiplication_transcript);
     aligned_free(accumulator_transcript);
 

@@ -15,7 +15,7 @@ template <typename C> wnaf_record<C> convert_field_into_wnaf(C* context, const f
     uint256_t value = limb.get_value();
 
     bool skew = false;
-    uint64_t wnaf_entries[130] = { 0 };
+    uint64_t wnaf_entries[129] = { 0 };
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 1>(&value.data[0], &wnaf_entries[0], skew, 0);
 
     std::vector<bool_t<C>> wnaf_bits;
@@ -216,12 +216,11 @@ bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     point<C> R_1 = variable_base_mul(generator, sig.s_lo, sig.s_hi);
     point<C> R_2 = variable_base_mul(pub_key, sig.e_lo, sig.e_hi);
 
+    // check R_1 != R_2
+    (R_1.x - R_2.x).assert_is_not_zero();
     field_t<C> lambda = (R_1.y - R_2.y) / (R_1.x - R_2.x);
     field_t<C> x_3 = lambda * lambda - (R_1.x + R_2.x);
     x_3 = x_3.normalize();
-
-    barretenberg::fr r_x = x_3.get_value();
-    r_x = r_x.from_montgomery_form();
 
     byte_array<C> hash_input(x_3);
     hash_input.write(message);

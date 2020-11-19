@@ -180,7 +180,7 @@ TEST_F(join_split_tests, test_0_input_notes)
     tx.public_input = 150;
     tx.num_input_notes = 0;
     tx.input_note = { gibberish, gibberish };
-
+    tx.asset_id = 0;
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
@@ -196,6 +196,7 @@ TEST_F(join_split_tests, test_large_output_note)
     tx.public_input = deposit_value;
     tx.public_output = 0;
     tx.num_input_notes = 0;
+    tx.asset_id = 0;
     tx.input_note = { gibberish, gibberish };
     tx.output_note = { output_note1, output_note2 };
 
@@ -269,7 +270,7 @@ TEST_F(join_split_tests, test_0_output_notes)
     tx.output_note[0].value = 0;
     tx.output_note[1].value = 0;
     tx.public_output = 150;
-
+    tx.asset_id = 0;
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
@@ -284,7 +285,7 @@ TEST_F(join_split_tests, test_0_input_notes_with_unbalanced_public_values)
     join_split_tx tx = public_transfer_setup();
     tx.public_input = 120;
     tx.output_note[0].value = 20;
-
+    tx.asset_id = 0;
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
@@ -295,7 +296,7 @@ TEST_F(join_split_tests, test_2_input_notes_with_unbalanced_public_values)
     tx.output_note[1].value = 0;
     tx.public_input = 100;
     tx.public_output = 170;
-
+    tx.asset_id = 0;
     EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
@@ -335,7 +336,7 @@ TEST_F(join_split_tests, test_0_notes_with_unbalanced_public_values_fails)
 {
     join_split_tx tx = public_transfer_setup();
     tx.public_input = 120;
-
+    tx.asset_id = 0;
     EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 

@@ -14,18 +14,20 @@ bool_t<Composer> check_subtree_membership(Composer& composer,
                                           hash_path<Composer> const& hashes,
                                           field_t<Composer> const& value,
                                           byte_array<Composer> const& index,
-                                          size_t at_height)
+                                          size_t at_height,
+                                          bool const is_updating_tree = false)
 {
     auto current = value;
     bool_t is_member = witness_t(&composer, true);
-
     for (size_t i = at_height; i < hashes.size(); ++i) {
         bool_t path_bit = index.get_bit(i);
 
         bool_t is_left = (current == hashes[i].first) & !path_bit;
         bool_t is_right = (current == hashes[i].second) & path_bit;
         is_member &= is_left ^ is_right;
-        current = pedersen<Composer>::compress(hashes[i].first, hashes[i].second);
+
+        // If we're updating a tree (i.e. presenting a new merkle root), we need to perform additional range checks when computing a pedersen hash
+        current = pedersen<Composer>::compress(hashes[i].first, hashes[i].second, 0, false, is_updating_tree);
     }
 
     is_member &= current == root;
@@ -39,9 +41,10 @@ void assert_check_subtree_membership(Composer& composer,
                                      field_t<Composer> const& value,
                                      byte_array<Composer> const& index,
                                      size_t at_height,
+                                     bool const is_updating_tree = false,
                                      std::string const& msg = "assert_check_subtree_membership")
 {
-    auto exists = check_subtree_membership(composer, root, hashes, value, index, at_height);
+    auto exists = check_subtree_membership(composer, root, hashes, value, index, at_height, is_updating_tree);
     composer.assert_equal_constant(exists.witness_index, fr::one(), msg);
 }
 
@@ -50,9 +53,10 @@ bool_t<Composer> check_membership(Composer& composer,
                                   field_t<Composer> const& root,
                                   hash_path<Composer> const& hashes,
                                   byte_array<Composer> const& value,
-                                  byte_array<Composer> const& index)
+                                  byte_array<Composer> const& index,
+                                  bool const is_updating_tree = false)
 {
-    return check_subtree_membership(composer, root, hashes, hash_value(value), index, 0);
+    return check_subtree_membership(composer, root, hashes, hash_value(value), index, 0, is_updating_tree);
 }
 
 template <typename Composer>
@@ -61,9 +65,10 @@ void assert_check_membership(Composer& composer,
                              hash_path<Composer> const& hashes,
                              byte_array<Composer> const& value,
                              byte_array<Composer> const& index,
+                             bool const is_updating_tree = false,
                              std::string const& msg = "assert_check_membership")
 {
-    auto exists = stdlib::merkle_tree::check_membership(composer, root, hashes, value, index);
+    auto exists = stdlib::merkle_tree::check_membership(composer, root, hashes, value, index, is_updating_tree);
     composer.assert_equal_constant(exists.witness_index, fr::one(), msg);
 }
 
@@ -79,10 +84,10 @@ void update_membership(Composer& composer,
                        std::string const& msg = "update_membership")
 {
     // Check that the old_value, is in the tree given by old_root, at index.
-    assert_check_membership(composer, old_root, old_hashes, old_value, index, msg + "_old_value");
+    assert_check_membership(composer, old_root, old_hashes, old_value, index, false, msg + "_old_value");
 
     // Check that the new_value, is in the tree given by new_root, at index.
-    assert_check_membership(composer, new_root, new_hashes, new_value, index, msg + "_new_value");
+    assert_check_membership(composer, new_root, new_hashes, new_value, index, true, msg + "_new_value");
 
     // Check that the old and new values, are actually in the same tree.
     for (size_t i = 0; i < new_hashes.size(); ++i) {
@@ -108,11 +113,11 @@ void update_subtree_membership(Composer& composer,
 {
     // Check that the old_subtree_root, is in the tree given by old_root, at index and at_height.
     assert_check_subtree_membership(
-        composer, old_root, old_hashes, old_subtree_root, index, at_height, msg + "_old_subtree");
+        composer, old_root, old_hashes, old_subtree_root, index, at_height, false, msg + "_old_subtree");
 
     // Check that the new_subtree_root, is in the tree given by new_root, at index and at_height.
     assert_check_subtree_membership(
-        composer, new_root, new_hashes, new_subtree_root, index, at_height, msg + "_new_subtree");
+        composer, new_root, new_hashes, new_subtree_root, index, at_height, true, msg + "_new_subtree");
 
     // Check that the old and new values, are actually in the same tree.
     for (size_t i = at_height; i < new_hashes.size(); ++i) {

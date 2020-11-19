@@ -28,7 +28,7 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
  * not neccessary to check if scalar multiplier is the output of a PRNG (e.g. SHA256)
  **/
 template <typename C>
-point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases)
+point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, const bool validate_edge_cases, const bool validate_input_is_in_field)
 {
     C* ctx = in.context;
 
@@ -116,6 +116,7 @@ point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, co
                                              (origin_points[0].y - origin_points[1].y) };
 
     fr x_alpha = accumulator_offset;
+    std::vector<uint32_t> accumulator_witnesses;
     for (size_t i = 0; i < num_quads; ++i) {
         waffle::fixed_group_add_quad round_quad;
         round_quad.d = ctx->add_variable(accumulator_transcript[i]);
@@ -145,6 +146,8 @@ point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, co
         } else {
             ctx->create_fixed_group_add_gate_with_init(round_quad, init_quad);
         }
+
+        accumulator_witnesses.push_back(round_quad.d);
     }
 
     waffle::add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
@@ -157,6 +160,7 @@ point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, co
                                fr::zero(),
                                fr::zero() };
     ctx->create_big_add_gate(add_quad);
+    accumulator_witnesses.push_back(add_quad.d);
 
     point result;
     result.x = field_t(ctx);
@@ -173,7 +177,204 @@ point<C> pedersen<C>::hash_single(const field_t& in, const size_t hash_index, co
     } else {
         ctx->assert_equal(add_quad.d, in.witness_index);
     }
+
+    if (validate_input_is_in_field)
+    {
+        validate_wnaf_is_in_field(ctx, accumulator_witnesses, in, validate_edge_cases);
+    }
     return result;
+}
+
+/**
+ * Check the wnaf sum is smaller than the circuit modulus
+ * 
+ * When we compute a scalar mul e.g. x * [1], we decompose `x` into an accumulating sum of 2-bit non-adjacent form values.
+ * In `hash_single`, we validate that the sum of the 2-bit NAFs (`w`) equals x. But we only check that `w == x mod p` where p is the circuit modulus.
+ * 
+ * If we require the pedersen hash to be injective, we must ensure that `w < p`.
+ * Typically this is required for all instances where `w` represents a field element.
+ * One exception is Merkle tree membership proofs as there is only one valid output that will hash to the Merkle root
+ * 
+ * Total cost is ~36 gates
+ **/ 
+template <typename C> void pedersen<C>::validate_wnaf_is_in_field(C* ctx, const std::vector<uint32_t>& accumulator, const field_t& in, const bool validate_edge_cases)
+{
+    /**
+     * To validate that `w < p`, we use schoolbook subtraction
+     * 
+     * The wnaf entries, other than the last entry, are in the range [-3, -1, 1, 3]
+     * 
+     *                                                                 -254
+     * The last wnaf entry, wnaf[127] is taken from the range [1, 1 + 2    ]
+     * 
+     *        127
+     *        ===
+     *        \                i
+     *  w =   /    wnaf[i]  . 4
+     *        === 
+     *       i = 0  
+     *                                               255
+     * The final value of w can range between 1 and 2
+     * 
+     *      -254
+     * The 2     term is the 'wnaf skew'. Only odd integers can be represented via a wnaf. The skew is an
+     * additional value that is added into the wnaf sum to enable even integer representation.
+     * 
+     * N.B. We do not consider the case where the input is equal to 0. This is a special edge case that must
+     *      be handled separately because of affine addition formulae exceptions.
+     * 
+     * The raw wnaf entries are not themselves represented as witnesses in the circuit.
+     * The pedersen hash gate derives the wnaf entries by taking the difference between two accumulating sums.
+     * We accumulate starting with the MOST significant wnaf entry
+     * 
+     * i.e. there is a container of witnesses, `accumulators[128]`, where:
+     * 
+     * 
+     *                      i
+     *                     ===
+     *                     \                      i - j
+     *  accumulator[i] =   /    wnaf[127 - j]  . 4
+     *                     === 
+     *                    j = 0  
+     * 
+     * The goal is to ensure that accumulator[127] < p using as few constraints as possible
+     * The following describes how we implement this check:
+     * 
+     * 1. Use the wnaf accumulator to split `w` into two limbs w.lo and w.hi   
+     * 
+     *    w.lo is the accumulating sum of the least significant 63 wnaf entries, plus the wnaf skew (0 or 1)
+     *    w.hi is the accumulating sum of the most significant 64 wnaf entries excluding the wnaf skew
+     *
+     *    We can extract w.hi from accumulator[64], but we need to remove the contribution from the wnaf skew
+     *    We can extract w.lo by subtracting w.hi * 2^{126} from the final accumulator (the final accumulator will be equal to `w`)
+     * 
+     * 2. Compute y.lo = (p.lo - w.lo) + 2^{126} (the 2^126 constant ensures this is positive)
+     *    p.lo is the least significant 126 bits of p
+     *    p.hi is the most significant 128 bits of p
+     * 
+     * 4. Compute y.overlap = y.lo.slice(126, 128) - 1
+     *    (we can get this from applying a 128-bit range constraint to y.lo && extract the most significant quad)
+     *    y.overlap is a 2-bit integer and *NOT* a 1-bit integer. This is because w.lo can be negative
+     *    y.overlap represents the 2 bits of y.lo that overlap with y.hi
+     *    We subtract 1 to counter the constant 2^{126} term we added into y.lo
+     * 
+     * 5. Compute y.hi = p.hi - w.hi + y.overlap
+     * 
+     * 6. Range constrain y.hi to be a 128-bit integer
+     * 
+     * We slice the low limb to be 126 bits so that both our range checks can be over 128-bit integers (if the range is a multiple of 8 we save 1 gate per range check)
+     * 
+     * The following table describes the range of values the above terms can take, if w < p
+     * 
+     *   ----------------------------------------------
+     *   | limb               | min value | max value |
+     *   ----------------------------------------------
+     *   |                    |     126   |  126      |
+     *   | w.lo               |  -(2  - 1)| 2         |
+     *   ----------------------------------------------
+     *   |                    |           |  129      |
+     *   | w.hi               |         1 | 2   - 1   |
+     *   ----------------------------------------------
+     *   |                126 |           |  255      |
+     *   | w.lo + w.hi * 2    |         1 | 2         |
+     *   ----------------------------------------------
+     *   |                    |    126    |    128    |
+     *   | y.lo               | > 2   - 1 | < 2       |
+     *   ----------------------------------------------
+     *   |                    |           |    128    |
+     *   | y.hi               |         0 | < 2       |
+     *   ----------------------------------------------
+     * 
+     * Possible result states and the conditions that must be satisfied:
+     *
+     *   ------------------------------------------------------------------------------------------------------------------------------------------------------
+     *   | condition               | (p.lo - w.lo + 2^126) >> 126 | status of low limb | does p.lo overlap with p.hi?        | condition for w < p            |
+     *   ------------------------------------------------------------------------------------------------------------------------------------------------------
+     *   | w.lo > p.lo             | 0                            | negative           | yes, p.lo borrows 1 from p.hi       | (p.hi - w.hi - 1) must be >= 0 |
+     *   | w.lo <= p.lo, w.lo >= 0 | 1                            | positive           | no                                  | (p.hi - w.hi) must be >= 0     |
+     *   | w.lo << 0               | 2                            | positive           | yes, p.lo carries 1 to p.hi         | (p.hi - w.hi + 1) must be >= 0 |
+     *   ------------------------------------------------------------------------------------------------------------------------------------------------------
+     **/ 
+
+    constexpr uint256_t modulus = fr::modulus;
+    const fr p_lo = modulus.slice(0, 126);
+    const fr p_hi = modulus.slice(126, 256);
+    const fr shift = fr(uint256_t(1) << 126);
+
+    // Step 1: convert accumulator into two 126/128 bit limbs
+    uint32_t mid_index = accumulator[64];
+    uint32_t end_index = accumulator[accumulator.size() - 1];
+
+    /**
+     * We need to extract the skew term from accumulator[0]
+     * 
+     * We know that accumulator[0] is either 1 or (1 + 2^{-254})
+     * 
+     * Therefore  the 2^{-254} term in accumulator[0] will translate to a value of `1` when `input` is computed
+     * This corresponds to `input` being an even number (without a skew term, wnaf represenatations can only express odd numbers)
+     * 
+     * We need to factor out this skew term from w.hi as it is part of w.lo
+     * 
+     * 
+     **/
+
+    // is_even = 0 if input is odd
+    // is_even = 1 if input is even
+    field_t is_even = (field_t::from_witness_index(ctx, accumulator[0]) - 1) * fr(uint256_t(1) << 254);
+
+    field_t high_limb_with_skew = field_t::from_witness_index(ctx, mid_index);
+    
+    // Reconstructed_input will equal input (this is checked in the pedersen hash function)
+    // We extract term from the accumulators because input might have constant scaling factors applied to it
+    field_t reconstructed_input = field_t::from_witness_index(ctx, end_index);
+ 
+    /**
+     *                                                         126
+     *    w.lo = reconstructed_input - (high_limb_with_skew * 2  - is_even)
+     *                          126
+     *    y.lo = p.lo - w.lo + 2
+     *                   126
+     * => y.lo = p.lo + 2    - is_even - reconstructed_input + high_limb_with_skew
+     * 
+     *  (we do not explicitly compute w.lo to save an addition gate)
+     **/ 
+
+    field_t y_lo = (-reconstructed_input).add_two(high_limb_with_skew * shift + (p_lo + shift), -is_even);
+
+    /**
+     * If `validate_edge_cases = true`, we need to handle the possibility the input is zero
+     * 
+     * If the input is zero, the produced wnaf will be nonsense and may not be < p
+     * (the wnaf is not used when computing a pedersen hash of 0, additional constraints are used to handle this edge case).
+     * If the input is zero we must set `y.lo` and `y.hi` to 0 so the range checks do not fail
+     **/ 
+    bool_t input_not_zero;
+    if (validate_edge_cases)
+    {
+        input_not_zero = !in.is_zero();
+        y_lo *= input_not_zero;
+    }
+
+    // Validate y.lo is a 128-bit integer
+    const auto y_lo_accumulators = ctx->create_range_constraint(y_lo.normalize().witness_index, 128);
+
+    // Extract y.overlap, the 2 most significant bits of y.lo
+    field_t y_overlap = field_t::from_witness_index(ctx, y_lo_accumulators[0]) - 1;
+
+    /**
+     *                                           -126
+     *   w.hi = high_limb_with_skew - is_even * 2
+     * 
+     *   y.hi = p.hi + (y.overlap - 1) - w.hi
+     **/ 
+    field_t y_hi = (is_even * fr(uint256_t(1) << 126).invert()).add_two(-high_limb_with_skew, y_overlap + (p_hi));
+    if (validate_edge_cases)
+    {
+        y_hi *= input_not_zero;
+    }
+
+    // Validate y.hi is a 128-bit integer
+    ctx->create_range_constraint(y_hi.normalize().witness_index, 128);
 }
 
 template <typename C> point<C> pedersen<C>::accumulate(const std::vector<point>& to_accumulate)
@@ -225,15 +426,16 @@ template <typename C>
 field_t<C> pedersen<C>::compress(const field_t& in_left,
                                  const field_t& in_right,
                                  const size_t hash_index,
-                                 const bool handle_edge_cases)
+                                 const bool handle_edge_cases,
+                                 const bool validate_input_is_in_field)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
         return pedersen_plookup<C>::compress(in_left, in_right);
     }
 
     std::vector<point> accumulators;
-    accumulators.push_back(hash_single(in_left, hash_index, handle_edge_cases));
-    accumulators.push_back(hash_single(in_right, hash_index + 1, handle_edge_cases));
+    accumulators.push_back(hash_single(in_left, hash_index, handle_edge_cases, validate_input_is_in_field));
+    accumulators.push_back(hash_single(in_right, hash_index + 1, handle_edge_cases, validate_input_is_in_field));
     if (handle_edge_cases) {
         std::vector<field_t> inputs;
         inputs.push_back(in_left);
@@ -296,7 +498,8 @@ template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& inpu
         field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice)).normalize();
         elements.emplace_back(element);
     }
-    field_t compressed = compress(elements, true);
+    // no need to validate inputs in field, we know each scalar is 31 bytes max
+    field_t compressed = compress(elements, true, false);
 
     bool_t is_zero(true);
     for (const auto& element : elements) {

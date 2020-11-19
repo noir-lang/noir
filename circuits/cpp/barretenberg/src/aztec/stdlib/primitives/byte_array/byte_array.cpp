@@ -4,6 +4,8 @@
 
 #include "../composers/composers.hpp"
 
+using namespace barretenberg;
+
 namespace plonk {
 namespace stdlib {
 
@@ -62,7 +64,9 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, c
         }
     } else {
         constexpr barretenberg::fr byte_shift(256);
-        field_t<ComposerContext> validator(context, barretenberg::fr::zero());
+        field_t<ComposerContext> validator(context, 0);
+
+        field_t<ComposerContext> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
         for (size_t i = 0; i < num_bytes; ++i)
         {
             barretenberg::fr byte_val = value.slice((num_bytes - i - 1)* 8, (num_bytes - i) * 8);
@@ -72,8 +76,30 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, c
             field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
             validator = validator + (scaling_factor * byte);
             values[i] = byte;
+            if (i == 15)
+            {
+                shifted_high_limb = field_t<ComposerContext>(validator);
+            }
         }
         context->assert_equal(validator.witness_index, input.witness_index);
+
+        // validate input bytes < p
+        if (num_bytes >= 32)
+        {
+            constexpr uint256_t modulus = fr::modulus;
+            const fr p_lo = modulus.slice(0, 128);
+            const fr p_hi = modulus.slice(128, 256);
+            const fr shift = fr(uint256_t(1) << 128);
+            field_t<ComposerContext> y_lo = (-validator) + (p_lo + shift);
+            y_lo += shifted_high_limb;
+            
+            const auto low_accumulators = context->create_range_constraint(y_lo.normalize().witness_index, 130);
+            field_t<ComposerContext> y_borrow = -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
+            
+            field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
+            y_hi -= y_borrow;
+            context->create_range_constraint(y_hi.witness_index, 128);
+        }
     }
 }
 
