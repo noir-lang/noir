@@ -30,12 +30,13 @@ struct join_split_inputs {
     merkle_tree::hash_path account_path;
     field_ct output_owner;
     field_ct account_private_key;
+    field_ct alias_hash;
+    field_ct nonce;
 };
 
 struct join_split_outputs {
     field_ct nullifier1;
     field_ct nullifier2;
-    field_ct account_nullifier;
 };
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs);

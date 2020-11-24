@@ -21,9 +21,11 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.output_note);
 
     write(buf, tx.account_private_key);
+    write(buf, tx.alias_hash);
+    write(buf, tx.nonce);
     write(buf, tx.account_index);
-    write(buf, tx.signing_pub_key);
     write(buf, tx.account_path);
+    write(buf, tx.signing_pub_key);
     write(buf, tx.signature);
 
     write(buf, tx.input_owner);
@@ -44,9 +46,11 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.output_note);
 
     read(it, tx.account_private_key);
+    read(it, tx.alias_hash);
+    read(it, tx.nonce);
     read(it, tx.account_index);
-    read(it, tx.signing_pub_key);
     read(it, tx.account_path);
+    read(it, tx.signing_pub_key);
     read(it, tx.signature);
 
     read(it, tx.input_owner);
@@ -65,13 +69,15 @@ bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
         && lhs.input_path == rhs.input_path
         && lhs.input_note == rhs.input_note
         && lhs.output_note == rhs.output_note
-        && lhs.signature == rhs.signature
-        && lhs.input_owner == rhs.input_owner
-        && lhs.output_owner == rhs.output_owner
+        && lhs.account_private_key == rhs.account_private_key
+        && lhs.alias_hash == rhs.alias_hash
+        && lhs.nonce == rhs.nonce
         && lhs.account_index == rhs.account_index
         && lhs.account_path == rhs.account_path
         && lhs.signing_pub_key == rhs.signing_pub_key
-        && lhs.account_private_key == rhs.account_private_key;
+        && lhs.signature == rhs.signature
+        && lhs.input_owner == rhs.input_owner
+        && lhs.output_owner == rhs.output_owner;
     // clang-format on
 }
 
@@ -90,12 +96,15 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "in_note2: " << tx.input_note[1] << "\n"
               << "out_note1: " << tx.output_note[0] << "\n"
               << "out_note2: " << tx.output_note[1] << "\n"
-              << "signature: " << tx.signature << "\n"
-              << "input_owner: " << tx.input_owner << "\n"
-              << "output_owner: " << tx.output_owner << "\n"
+              << "account_private_key: " << tx.account_private_key << "\n"
+              << "alias_hash: " << tx.alias_hash << "\n"
+              << "nonce: " << tx.nonce << "\n"
               << "account_index: " << tx.account_index << "\n"
               << "account_path: " << tx.account_path << "\n"
-              << "signing_pub_key: " << tx.signing_pub_key << "\n";
+              << "signing_pub_key: " << tx.signing_pub_key << "\n"
+              << "signature: " << tx.signature << "\n"
+              << "input_owner: " << tx.input_owner << "\n"
+              << "output_owner: " << tx.output_owner << "\n";
 }
 
 } // namespace join_split

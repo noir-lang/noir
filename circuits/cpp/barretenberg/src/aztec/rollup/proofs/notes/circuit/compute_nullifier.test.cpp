@@ -14,7 +14,7 @@ TEST(compute_nullifier_circuit, native_consistency)
     auto user = rollup::fixtures::create_user_context();
     auto priv_key = uint256_t(user.owner.private_key);
 
-    auto native_input_note = native::value_note{ user.owner.public_key, 100, user.note_secret, 0 };
+    auto native_input_note = native::value_note{ user.owner.public_key, 100, user.note_secret, 0, 0 };
     auto native_enc_note = native::encrypt_note(native_input_note);
     auto native_nullifier = native::compute_nullifier(native_enc_note, 1, priv_key, true);
 

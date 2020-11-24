@@ -15,17 +15,18 @@ struct value_note {
     uint256_t value;
     barretenberg::fr secret;
     uint32_t asset_id;
+    uint32_t nonce;
 };
 
 inline bool operator==(value_note const& lhs, value_note const& rhs)
 {
-    return lhs.owner == rhs.owner && lhs.value == rhs.value && lhs.secret == rhs.secret;
+    return lhs.owner == rhs.owner && lhs.value == rhs.value && lhs.secret == rhs.secret && lhs.nonce == rhs.nonce;
 }
 
 inline std::ostream& operator<<(std::ostream& os, value_note const& note)
 {
     os << "{ owner_x: " << note.owner.x << ", owner_y: " << note.owner.y << ", view_key: " << note.secret
-       << ", value: " << note.value << ", asset_id: " << note.asset_id << " }";
+       << ", value: " << note.value << ", asset_id: " << note.asset_id << ", nonce: " << note.nonce << " }";
     return os;
 }
 
@@ -36,6 +37,7 @@ inline void read(uint8_t const*& it, value_note& note)
     read(it, note.value);
     read(it, note.secret);
     read(it, note.asset_id);
+    read(it, note.nonce);
 }
 
 inline void write(std::vector<uint8_t>& buf, value_note const& note)
@@ -45,6 +47,7 @@ inline void write(std::vector<uint8_t>& buf, value_note const& note)
     write(buf, note.value);
     write(buf, note.secret);
     write(buf, note.asset_id);
+    write(buf, note.nonce);
 }
 
 } // namespace native

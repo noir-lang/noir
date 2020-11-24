@@ -29,7 +29,7 @@ join_split_tx noop_tx()
 {
     grumpkin::fr priv_key = grumpkin::fr::random_element();
     grumpkin::g1::affine_element pub_key = grumpkin::g1::one * priv_key;
-    native::value_note gibberish_note = { pub_key, 0, fr::random_element(), 0 };
+    native::value_note gibberish_note = { pub_key, 0, fr::random_element(), 0, 0 };
     gibberish_note.secret.data[3] = gibberish_note.secret.data[3] & 0x03FFFFFFFFFFFFFFULL;
     gibberish_note.secret = gibberish_note.secret.to_montgomery_form();
     auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
@@ -48,6 +48,8 @@ join_split_tx noop_tx()
     tx.account_path = gibberish_path;
     tx.signing_pub_key = pub_key;
     tx.account_private_key = priv_key;
+    tx.alias_hash = fr::random_element();
+    tx.nonce = 0;
 
     tx.input_owner = fr::random_element();
     tx.output_owner = fr::random_element();

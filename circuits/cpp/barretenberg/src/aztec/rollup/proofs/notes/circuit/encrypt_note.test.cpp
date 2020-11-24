@@ -21,6 +21,7 @@ TEST(encrypt_note, encrypts)
     note_value = note_value.to_montgomery_form();
 
     fr asset_id_value = 0xaabbccddULL;
+    fr nonce_value = 0x11223456ULL;
 
     grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note_value, 0);
     grumpkin::g1::element right = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
@@ -42,7 +43,8 @@ TEST(encrypt_note, encrypts)
     field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
-    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
+    field_ct nonce = witness_ct(&composer, nonce_value);
+    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id, nonce };
 
     point_ct result = encrypt_note(plaintext);
     composer.assert_equal_constant(result.x.witness_index, expected.x);
@@ -72,6 +74,7 @@ TEST(encrypt_note, encrypts_with_0_value)
 
     fr note_value(0);
     fr asset_id_value = 0xaabbccddULL;
+    fr nonce_value = 0x11223456ULL;
 
     grumpkin::g1::element expected = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
     expected += crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
@@ -86,8 +89,9 @@ TEST(encrypt_note, encrypts_with_0_value)
     field_ct note_owner_x = witness_ct(&composer, note_owner_pub_key.x);
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
+    field_ct nonce = witness_ct(&composer, nonce_value);
 
-    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id };
+    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id, nonce };
 
     point_ct result = encrypt_note(plaintext);
     composer.assert_equal_constant(result.x.witness_index, expected.x);

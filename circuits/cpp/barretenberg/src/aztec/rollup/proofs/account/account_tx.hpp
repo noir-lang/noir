@@ -12,19 +12,25 @@ using namespace crypto::schnorr;
 
 struct account_tx {
     barretenberg::fr merkle_root;
-    grumpkin::g1::affine_element owner_pub_key;
+    grumpkin::g1::affine_element account_public_key;
+    grumpkin::g1::affine_element new_account_public_key;
     uint32_t num_new_keys;
     grumpkin::g1::affine_element new_signing_pub_key_1;
     grumpkin::g1::affine_element new_signing_pub_key_2;
-    bool register_alias;
-    barretenberg::fr alias;
-    bool nullify_key;
-    grumpkin::g1::affine_element nullified_key;
+    barretenberg::fr alias_hash;
+    uint32_t nonce;
+    bool migrate;
+    barretenberg::fr gibberish;
 
     uint32_t account_index;
-    grumpkin::g1::affine_element signing_pub_key;
     plonk::stdlib::merkle_tree::fr_hash_path account_path;
+    grumpkin::g1::affine_element signing_pub_key;
     crypto::schnorr::signature signature;
+
+    barretenberg::fr account_id() const
+    {
+        return alias_hash + (barretenberg::fr{ (uint64_t)nonce } * barretenberg::fr(2).pow(224));
+    }
 
     void sign(crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> const& keys);
 };

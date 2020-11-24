@@ -2,6 +2,7 @@
 #include "account.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/constants.hpp"
+#include "../notes/native/account_note.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -15,6 +16,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs;
 using namespace rollup::proofs::account;
+using namespace rollup::proofs::notes::native;
 
 class account_tests : public ::testing::Test {
   protected:
@@ -34,62 +36,65 @@ class account_tests : public ::testing::Test {
         user = rollup::fixtures::create_user_context();
     }
 
-    std::vector<uint8_t> create_account_leaf_data(grumpkin::g1::affine_element const& owner_key,
-                                                  grumpkin::g1::affine_element const& signing_key)
-    {
-        std::vector<uint8_t> buf;
-        write(buf, owner_key.x);
-        write(buf, signing_key.x);
-        return buf;
-    }
-
     /**
      * Add two account notes for the user.
      */
     void preload_account_notes()
     {
-        tree->update_element(tree->size(),
-                             create_account_leaf_data(user.owner.public_key, user.signing_keys[0].public_key));
-        tree->update_element(tree->size(),
-                             create_account_leaf_data(user.owner.public_key, user.signing_keys[1].public_key));
+        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        tree->update_element(
+            tree->size(), create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+        tree->update_element(
+            tree->size(), create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
-    uint256_t compute_account_nullifier(grumpkin::g1::affine_element const& owner_key,
-                                        grumpkin::g1::affine_element const& signing_key)
+    std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+                                                  grumpkin::g1::affine_element const& owner_key,
+                                                  grumpkin::g1::affine_element const& signing_key)
     {
-        std::vector<fr> hash_elements{
-            owner_key.x,
-            signing_key.x,
+        auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
+        std::vector<uint8_t> buf;
+        write(buf, enc_note.x);
+        write(buf, enc_note.y);
+        return buf;
+    }
+
+    uint256_t compute_account_id_nullifier(fr const& account_id, fr const& gibberish, bool migrate_account)
+    {
+        const std::vector<fr> hash_elements{
+            fr(1),
+            account_id,
+            gibberish * !migrate_account,
         };
-        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_NULLIFIER_INDEX);
+        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_ID_HASH_INDEX);
         return uint256_t(result);
     }
 
-    uint256_t compute_alias_nullifier(fr const& alias, bool register_alias)
+    uint256_t compute_gibberish_nullifier(fr const& gibberish)
     {
-        std::vector<fr> hash_elements{
-            register_alias ? fr(notes::ALIAS_NULLIFIER_PREFIX) : fr(notes::GIBBERISH_NULLIFIER_PREFIX),
-            alias,
+        const std::vector<fr> hash_elements{
+            fr(1),
+            gibberish,
         };
-        auto result = crypto::pedersen::compress_native(hash_elements, notes::ALIAS_NULLIFIER_INDEX);
+        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_GIBBERISH_HASH_INDEX);
         return uint256_t(result);
     }
 
-    account_tx create_account_tx()
+    account_tx create_account_tx(uint32_t nonce = 0)
     {
         account_tx tx;
         tx.merkle_root = tree->root();
-        tx.owner_pub_key = user.owner.public_key;
+        tx.account_public_key = user.owner.public_key;
+        tx.new_account_public_key = user.owner.public_key;
         tx.num_new_keys = 2;
         tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
         tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
-        tx.register_alias = true;
-        const std::string alias = "my_alias";
-        tx.alias = from_buffer<fr>(blake2::blake2s({ alias.begin(), alias.end() }));
-        tx.nullify_key = true;
-        tx.nullified_key = user.owner.public_key;
+        tx.alias_hash = user.alias_hash;
+        tx.nonce = nonce;
+        tx.migrate = true;
+        tx.gibberish = fr::random_element();
         tx.account_index = 0;
-        tx.signing_pub_key = user.owner.public_key;
+        tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_path = tree->get_hash_path(0);
         tx.sign(user.owner);
 
@@ -107,6 +112,9 @@ class account_tests : public ::testing::Test {
     {
         Composer composer(get_proving_key(), nullptr);
         account_circuit(composer, tx);
+        if (composer.failed) {
+            std::cout << "Logic failed: " << composer.err << std::endl;
+        }
         return !composer.failed;
     }
 
@@ -127,57 +135,121 @@ HEAVY_TEST_F(account_tests, test_create_account_full_proof)
     EXPECT_TRUE(verify(tx));
 }
 
-TEST_F(account_tests, test_missing_signing_key_fails)
+TEST_F(account_tests, test_migrate_account)
+{
+    preload_account_notes();
+    auto tx = create_account_tx(1);
+    tx.account_index = 0;
+    tx.sign(user.signing_keys[0]);
+
+    EXPECT_TRUE(verify_logic(tx));
+}
+
+// Signature
+
+TEST_F(account_tests, test_wrong_account_key_pair_fails)
 {
     auto tx = create_account_tx();
-    tx.signing_pub_key = user.signing_keys[0].public_key;
+    auto keys = rollup::fixtures::create_key_pair(nullptr);
+    tx.sign(keys);
+
+    EXPECT_FALSE(tx.account_public_key == keys.public_key);
     EXPECT_FALSE(verify_logic(tx));
 }
+
+TEST_F(account_tests, test_migrate_account_with_account_key_fails)
+{
+    preload_account_notes();
+    auto tx = create_account_tx(1);
+    tx.signing_pub_key = user.signing_keys[0].public_key;
+
+    EXPECT_FALSE(verify_logic(tx));
+}
+
+// Account membership
 
 TEST_F(account_tests, test_alternative_signing_key_1)
 {
     preload_account_notes();
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(1);
+    tx.migrate = false;
     tx.account_index = 0;
     tx.sign(user.signing_keys[0]);
+
     EXPECT_TRUE(verify_logic(tx));
 }
 
 TEST_F(account_tests, test_alternative_signing_key_2)
 {
     preload_account_notes();
-    auto tx = create_account_tx();
+    auto tx = create_account_tx(1);
+    tx.migrate = false;
     tx.account_index = 1;
+    tx.account_path = tree->get_hash_path(1);
     tx.sign(user.signing_keys[1]);
+
     EXPECT_TRUE(verify_logic(tx));
 }
 
-HEAVY_TEST_F(account_tests, test_correct_alias_nullifier)
+TEST_F(account_tests, test_wrong_alias_hash_fails)
 {
-    auto tx = create_account_tx();
-    auto prover = new_account_prover(tx);
-    auto proof = prover.construct_proof();
-    auto data = inner_proof_data(proof.proof_data);
-    EXPECT_EQ(data.nullifier1, compute_alias_nullifier(tx.alias, true));
+    preload_account_notes();
+    auto tx = create_account_tx(1);
+    tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
+    tx.sign(user.signing_keys[0]);
+
+    EXPECT_FALSE(verify_logic(tx));
 }
 
-HEAVY_TEST_F(account_tests, test_correct_revoke_nullifier)
+// Account public key
+
+TEST_F(account_tests, test_migrate_to_new_account_public_key)
 {
-    auto tx = create_account_tx();
-    auto prover = new_account_prover(tx);
-    auto proof = prover.construct_proof();
-    auto data = inner_proof_data(proof.proof_data);
-    EXPECT_EQ(data.nullifier2, compute_account_nullifier(user.owner.public_key, user.owner.public_key));
+    preload_account_notes();
+    auto tx = create_account_tx(1);
+    auto new_keys = rollup::fixtures::create_key_pair(nullptr);
+    tx.new_account_public_key = new_keys.public_key;
+    tx.account_index = 0;
+    tx.sign(user.signing_keys[0]);
+
+    EXPECT_TRUE(verify_logic(tx));
 }
 
-/*
-Removed until figure out how to revoke without leaking.
-HEAVY_TEST_F(account_tests, test_correct_account_nullifier)
+TEST_F(account_tests, test_change_account_public_key_fails)
+{
+    preload_account_notes();
+    auto tx = create_account_tx(1);
+    auto new_keys = rollup::fixtures::create_key_pair(nullptr);
+    tx.migrate = false;
+    tx.new_account_public_key = new_keys.public_key;
+    tx.account_index = 0;
+    tx.sign(user.signing_keys[0]);
+
+    EXPECT_FALSE(verify_logic(tx));
+}
+
+// Nullifier
+
+HEAVY_TEST_F(account_tests, test_correct_account_id_nullifier)
 {
     auto tx = create_account_tx();
     auto prover = new_account_prover(tx);
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
-    EXPECT_EQ(data.account_nullifier, compute_account_nullifier(user.owner.public_key, user.owner.public_key));
+
+    EXPECT_EQ(data.nullifier1, compute_account_id_nullifier(tx.account_id(), tx.gibberish, true));
+    EXPECT_EQ(data.nullifier2, compute_gibberish_nullifier(tx.gibberish));
 }
-*/
+
+HEAVY_TEST_F(account_tests, test_gibberish_account_id_nullifier)
+{
+    preload_account_notes();
+    auto tx = create_account_tx(1);
+    tx.migrate = false;
+    auto prover = new_account_prover(tx);
+    auto proof = prover.construct_proof();
+    auto data = inner_proof_data(proof.proof_data);
+
+    EXPECT_EQ(data.nullifier1, compute_account_id_nullifier(tx.account_id(), tx.gibberish, false));
+    EXPECT_EQ(data.nullifier2, compute_gibberish_nullifier(tx.gibberish));
+}

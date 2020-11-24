@@ -25,7 +25,6 @@ struct escape_hatch_tx {
     std::vector<fr> new_null_roots;
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
-    fr_hash_path account_null_path;
 
     fr old_data_roots_root;
     fr new_data_roots_root;

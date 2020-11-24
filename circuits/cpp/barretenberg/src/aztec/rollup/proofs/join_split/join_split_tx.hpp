@@ -22,9 +22,11 @@ struct join_split_tx {
     std::array<notes::native::value_note, 2> output_note;
 
     grumpkin::fr account_private_key;
+    barretenberg::fr alias_hash;
+    uint32_t nonce;
     uint32_t account_index;
-    grumpkin::g1::affine_element signing_pub_key;
     merkle_tree::fr_hash_path account_path;
+    grumpkin::g1::affine_element signing_pub_key;
     crypto::schnorr::signature signature;
 
     barretenberg::fr input_owner;

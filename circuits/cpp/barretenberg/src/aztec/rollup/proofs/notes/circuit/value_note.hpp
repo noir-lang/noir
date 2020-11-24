@@ -18,6 +18,7 @@ struct value_note {
     field_ct secret;
     // this asset_id value must be 32 bits or smaller
     field_ct asset_id;
+    field_ct nonce;
 };
 
 inline value_note create_value_note_witness(Composer& composer, native::value_note const& note)
@@ -27,11 +28,12 @@ inline value_note create_value_note_witness(Composer& composer, native::value_no
     field_ct note_owner_y = witness_ct(&composer, note.owner.y);
     field_ct witness_value = witness_ct(&composer, note.value);
     field_ct asset_id = witness_ct(&composer, note.asset_id);
+    field_ct nonce = witness_ct(&composer, note.nonce);
 
     composer.create_range_constraint(asset_id.witness_index, 32);
     composer.create_range_constraint(witness_value.witness_index, NOTE_VALUE_BIT_LENGTH);
 
-    return { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id };
+    return { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id, nonce };
 }
 
 } // namespace circuit

@@ -3,6 +3,7 @@
 #include "../notes/constants.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
+#include <stdlib/primitives/field/pow.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
@@ -14,99 +15,94 @@ namespace account {
 
 using namespace plonk;
 using namespace plonk::stdlib::types::turbo;
-using namespace rollup::proofs::notes::circuit;
+using namespace notes::circuit;
 
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
 
-field_ct process_account_note(Composer& composer,
-                              field_ct const& merkle_root,
-                              merkle_tree::fr_hash_path const& hash_path,
-                              field_ct const& index,
-                              account_note const& account_note,
-                              bool_ct const& must_exist)
+field_ct compute_account_id_nullifier(field_ct const& proof_id,
+                                      field_ct const& account_id,
+                                      field_ct const& gibberish,
+                                      bool_ct migrate)
 {
-    // Check that the input note data, follows the given hash paths, to the publically given merkle root.
-    auto witness_hash_path = merkle_tree::create_witness_hash_path(composer, hash_path);
-
-    byte_array_ct leaf = account_note.leaf_data();
-
-    field_ct hashed = stdlib::merkle_tree::hash_value(leaf);
-
-    // To avoid hashing the data twice (for nullifier and leaf value calculation), we use check_subtree_membership
-    // at a height of 0, instead of the simpler check_membership function.
-    bool_ct exists = merkle_tree::check_subtree_membership(
-        composer, merkle_root, witness_hash_path, hashed, byte_array_ct(index), 0);
-    bool_ct good = exists || !must_exist;
-
-    // No input notes means we're not spending anything, in which case must_exist will be false.
-    composer.assert_equal_constant(good.witness_index, 1, "account note not a member");
-
-    // Account not nullifier leaks info. Returning 0 for now.
-    // return hashed;
-    return field_ct(witness_ct(&composer, 0));
+    return pedersen::compress({ proof_id, account_id, gibberish * !migrate }, true, notes::ACCOUNT_ID_HASH_INDEX);
 }
 
-field_ct compute_alias_nullifier(Composer& composer, field_ct const& alias, bool register_alias_)
+field_ct compute_gibberish_nullifier(field_ct const& proof_id, field_ct const& gibberish)
 {
-    const bool_ct register_alias = bool_ct(witness_ct(&composer, register_alias_));
-    const field_ct prefix = (field_ct(notes::ALIAS_NULLIFIER_PREFIX) * register_alias) +
-                            (field_ct(notes::GIBBERISH_NULLIFIER_PREFIX) * !register_alias);
-    const std::vector<field_ct> hash_elements{
-        prefix,
-        alias,
-    };
-    return pedersen::compress(hash_elements, true, notes::ALIAS_NULLIFIER_INDEX);
+    return pedersen::compress({ proof_id, gibberish }, true, notes::ACCOUNT_GIBBERISH_HASH_INDEX);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)
 {
-    const field_ct merkle_root = witness_ct(&composer, tx.merkle_root);
-    const point_ct owner_pub_key = stdlib::create_point_witness(composer, tx.owner_pub_key);
-    const point_ct new_signing_pub_key_1 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_1);
-    const point_ct new_signing_pub_key_2 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_2);
-    const point_ct signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
-    const point_ct nullified_key = stdlib::create_point_witness(composer, tx.nullified_key);
-    const uint32_ct num_new_keys = witness_ct(&composer, tx.num_new_keys);
-    const auto new_account_note_1 = account_note(owner_pub_key, new_signing_pub_key_1, num_new_keys >= 1);
-    const auto new_account_note_2 = account_note(owner_pub_key, new_signing_pub_key_2, num_new_keys >= 2);
-    const auto remove_account = account_note(owner_pub_key, nullified_key, bool_ct(&composer, tx.nullify_key));
-    const field_ct alias = witness_ct(&composer, tx.alias);
-    const auto signing_account_note = account_note(owner_pub_key, signing_pub_key, true);
+    const auto proof_id = field_ct(witness_ct(&composer, 1));
+    const auto nonce = field_ct(witness_ct(&composer, tx.nonce));
+    const auto alias_hash = field_ct(witness_ct(&composer, tx.alias_hash));
+    const auto migrate = bool_ct(witness_ct(&composer, tx.migrate));
+    const auto gibberish = field_ct(witness_ct(&composer, tx.gibberish));
+    const auto signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
+    const auto account_public_key = stdlib::create_point_witness(composer, tx.account_public_key);
+    const auto new_account_public_key = stdlib::create_point_witness(composer, tx.new_account_public_key);
+    const auto spending_public_key_1 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_1);
+    const auto spending_public_key_2 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_2);
+    const auto account_note_index = field_ct(witness_ct(&composer, tx.account_index));
+    const auto account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_path);
+    const auto signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
+    const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
 
-    const auto alias_nullifier = compute_alias_nullifier(composer, alias, tx.register_alias);
-    const auto remove_account_nullifier = remove_account.nullifier();
+    const auto account_id = alias_hash + nonce * pow(field_ct(2), uint32_ct(224));
+    const auto output_nonce = nonce + migrate;
+    const auto output_account_id = alias_hash + (output_nonce * pow(field_ct(2), uint32_ct(224)));
 
+    const auto output_note_1 = encrypt_account_note(output_account_id, new_account_public_key, spending_public_key_1);
+    const auto output_note_2 = encrypt_account_note(output_account_id, new_account_public_key, spending_public_key_2);
+
+    const auto nullifier_1 = compute_account_id_nullifier(proof_id, account_id, gibberish, migrate);
+    const auto nullifier_2 = compute_gibberish_nullifier(proof_id, gibberish);
+
+    // Check signature.
+    const bool_ct zero_nonce = nonce == field_ct(0);
+    const point_ct signer = { account_public_key.x * zero_nonce + signing_pub_key.x * !zero_nonce,
+                              account_public_key.y * zero_nonce + signing_pub_key.y * !zero_nonce };
     std::vector<field_ct> to_compress = {
-        owner_pub_key.x, new_account_note_1.signing_pub_key().x, new_account_note_2.signing_pub_key().x,
-        alias,           remove_account.signing_pub_key().x,
+        account_id, account_public_key.x, new_account_public_key.x, spending_public_key_1.x, spending_public_key_2.x
     };
     const byte_array_ct message = pedersen::compress(to_compress, true);
-    stdlib::schnorr::signature_bits<Composer> signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
-    stdlib::schnorr::verify_signature(message, signing_account_note.signing_pub_key(), signature);
+    stdlib::schnorr::verify_signature(message, signer, signature);
     if (composer.failed) {
         composer.err = "verify signature failed.";
     }
 
-    // Verify that the signing key is either the owner key, or another existing account key.
-    field_ct account_index = witness_ct(&composer, tx.account_index);
-    bool_ct must_exist = signing_account_note.owner_pub_key().x != signing_account_note.signing_pub_key().x;
-    field_ct account_nullifier =
-        process_account_note(composer, merkle_root, tx.account_path, account_index, signing_account_note, must_exist);
+    // Check signing account note exists if nonce != 0.
+    const auto assert_account_exists = !zero_nonce;
+    const auto account_note_data = encrypt_account_note(account_id, account_public_key, signer);
+    const auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
+    const auto exists = merkle_tree::check_membership(
+        composer, data_tree_root, account_note_path, leaf_data, byte_array_ct(account_note_index));
+    composer.assert_equal(exists.normalize().witness_index,
+                          assert_account_exists.normalize().witness_index,
+                          "account check_membership failed");
+
+    // Check account public key does not change unless migrating.
+    const auto account_keys_equal_or_migrating =
+        (account_public_key.x == new_account_public_key.x && account_public_key.y == new_account_public_key.y) ||
+        migrate;
+    composer.assert_equal_constant(account_keys_equal_or_migrating.witness_index, 1, "public key should not change");
 
     // Expose public inputs.
-    public_witness_ct(&composer, 1);                          // proof_id
-    composer.set_public_input(owner_pub_key.x.witness_index); // public_input but using for owner x.
-    composer.set_public_input(owner_pub_key.y.witness_index); // public_output but using for owner y.
-    public_witness_ct(&composer, 0);                          // asset_id
-    new_account_note_1.set_public();
-    new_account_note_2.set_public();
-    composer.set_public_input(alias_nullifier.witness_index);
-    composer.set_public_input(remove_account_nullifier.witness_index);
-    public_witness_ct(&composer, 0); // input_owner
-    public_witness_ct(&composer, 0); // output_owner
-    composer.set_public_input(merkle_root.witness_index);
-    composer.set_public_input(account_nullifier.witness_index);
+    composer.set_public_input(proof_id.witness_index);                 // proof_id
+    composer.set_public_input(new_account_public_key.x.witness_index); // public_input but using for owner x.
+    composer.set_public_input(new_account_public_key.y.witness_index); // public_output but using for owner y.
+    composer.set_public_input(output_account_id.witness_index);        // asset_id
+    composer.set_public_input(output_note_1.x.witness_index);
+    composer.set_public_input(output_note_1.y.witness_index);
+    composer.set_public_input(output_note_2.x.witness_index);
+    composer.set_public_input(output_note_2.y.witness_index);
+    composer.set_public_input(nullifier_1.witness_index);
+    composer.set_public_input(nullifier_2.witness_index);
+    composer.set_public_input(spending_public_key_1.x.witness_index); // input_owner
+    composer.set_public_input(spending_public_key_2.x.witness_index); // output_owner
+    composer.set_public_input(data_tree_root.witness_index);
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)
@@ -162,7 +158,7 @@ bool verify_proof(waffle::plonk_proof const& proof)
     UnrolledVerifier verifier(verification_key,
                               Composer::create_unrolled_manifest(verification_key->num_public_inputs));
 
-    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme =
         std::make_unique<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 

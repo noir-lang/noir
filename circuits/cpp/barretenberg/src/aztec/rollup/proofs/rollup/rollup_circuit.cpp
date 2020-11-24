@@ -3,8 +3,8 @@
 #include <stdlib/merkle_tree/membership.hpp>
 #include <common/throw_or_abort.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace rollup {
@@ -28,7 +28,6 @@ field_ct check_nullifiers_inserted(Composer& composer,
                                    field_ct latest_null_root,
                                    std::vector<field_ct> const& new_null_indicies)
 {
-
     auto new_nullifier_value = byte_array_ct(&composer, 64);
     new_nullifier_value.set_bit(0, 1);
     field_ct last_real_null_index;
@@ -69,7 +68,6 @@ void check_root_tree_updated(Composer& composer,
                              field_ct const& new_data_roots_root,
                              field_ct const& old_data_roots_root)
 {
-
     auto empty_tree_value = byte_array_ct(&composer, 64);
     auto new_data_root_arr = byte_array_ct(new_data_root);
     auto one = field_ct(witness_ct(&composer, 1));
@@ -109,26 +107,6 @@ void check_data_tree_updated(Composer& composer,
                               byte_array_ct(data_start_index),
                               height,
                               __FUNCTION__);
-}
-
-void check_accounts_not_nullified(Composer& composer,
-                                  uint32_ct const& num_txs,
-                                  field_ct const& null_root,
-                                  std::vector<field_ct> const& account_null_indicies,
-                                  std::vector<fr_hash_path> const& account_null_paths)
-{
-
-    // Check that 0 exists at each of the account nullifier indicies.
-    for (size_t i = 0; i < account_null_indicies.size(); ++i) {
-        auto is_real = num_txs > uint32_ct(witness_ct(&composer, i));
-        auto exists = check_membership(composer,
-                                       null_root,
-                                       create_witness_hash_path(composer, account_null_paths[i]),
-                                       byte_array_ct(&composer, 64),
-                                       byte_array_ct(account_null_indicies[i]));
-        auto good = exists || !is_real;
-        composer.assert_equal_constant(good.witness_index, 1, format(__FUNCTION__, "_", i));
-    }
 }
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
@@ -226,9 +204,6 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                    num_txs,
                                                    old_null_root,
                                                    new_null_indicies);
-
-    // Account note nullifier leaks info. Disabling key revokation checks for now.
-    // check_accounts_not_nullified(composer, num_txs, old_null_root, account_null_indicies, rollup.account_null_paths);
 
     // Publish public inputs.
     composer.set_public_input(rollup_id.witness_index);

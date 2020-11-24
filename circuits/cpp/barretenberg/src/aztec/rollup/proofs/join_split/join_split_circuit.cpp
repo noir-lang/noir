@@ -3,6 +3,7 @@
 #include "../notes/circuit/compute_nullifier.hpp"
 #include "verify_signature.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
+#include <stdlib/primitives/field/pow.hpp>
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -46,31 +47,6 @@ field_ct process_input_note(Composer& composer,
     return nullifier_index;
 }
 
-field_ct process_account_note(Composer& composer,
-                              field_ct const& merkle_root,
-                              merkle_tree::hash_path const& hash_path,
-                              field_ct const& index,
-                              account_note const& account_note,
-                              bool_ct must_exist)
-{
-    byte_array_ct leaf = account_note.leaf_data();
-
-    field_ct hashed = stdlib::merkle_tree::hash_value(leaf);
-
-    // To avoid hashing the data twice (for nullifier and leaf value calculation), we use check_subtree_membership
-    // at a height of 0, instead of the simpler check_membership function.
-    bool_ct exists =
-        merkle_tree::check_subtree_membership(composer, merkle_root, hash_path, hashed, byte_array_ct(index), 0);
-    bool_ct good = exists || !must_exist;
-
-    // No input notes means we're not spending anything, in which case must_exist will be false.
-    composer.assert_equal_constant(good.witness_index, 1, "account note not a member");
-
-    // Account not nullifier leaks info. Returning 0 for now.
-    // return hashed;
-    return field_ct(witness_ct(&composer, 0));
-}
-
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
     // Verify all notes have a consistent asset id
@@ -97,29 +73,47 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
 
     // if there is a public input/output, we must validate the asset id matches those of the note asset ids
     bool_ct public_value_is_zero = inputs.public_input.is_zero() && inputs.public_output.is_zero();
-    field_ct public_asset_id_check = ((inputs.output_note1.first.asset_id - inputs.asset_id) * !public_value_is_zero).normalize();
-    composer.assert_equal(public_asset_id_check.witness_index,
-                          composer.zero_idx,
-                          "note asset ids not equal to tx asset id");
+    field_ct public_asset_id_check =
+        ((inputs.output_note1.first.asset_id - inputs.asset_id) * !public_value_is_zero).normalize();
+    composer.assert_equal(
+        public_asset_id_check.witness_index, composer.zero_idx, "note asset ids not equal to tx asset id");
 
-    // Verify input notes have the same owner.
-    auto note1_owner = inputs.input_note1.first.owner;
-    auto note2_owner = inputs.input_note2.first.owner;
-    composer.assert_equal(note1_owner.x.witness_index, note2_owner.x.witness_index, "input note owners don't match");
-    composer.assert_equal(note1_owner.y.witness_index, note2_owner.y.witness_index, "input note owners don't match");
+    // Verify input notes have the same account value id.
+    auto note1 = inputs.input_note1.first;
+    auto note2 = inputs.input_note2.first;
+    composer.assert_equal(note1.owner.x.witness_index, note2.owner.x.witness_index, "input note owners don't match");
+    composer.assert_equal(note1.owner.y.witness_index, note2.owner.y.witness_index, "input note owners don't match");
+    composer.assert_equal(note1.nonce.witness_index, note2.nonce.witness_index, "input note nonce don't match");
 
-    // Verify input notes are owned by account private key.
+    // Verify input notes are owned by account private key and nonce.
     auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
     composer.assert_equal(
-        account_public_key.x.witness_index, note1_owner.x.witness_index, "account_private_key incorrect");
+        account_public_key.x.witness_index, note1.owner.x.witness_index, "account_private_key incorrect");
     composer.assert_equal(
-        account_public_key.y.witness_index, note1_owner.y.witness_index, "account_private_key incorrect");
+        account_public_key.y.witness_index, note1.owner.y.witness_index, "account_private_key incorrect");
+    composer.assert_equal(inputs.nonce.witness_index, note1.nonce.witness_index, "nonce incorrect");
 
-    // Verify that the given signature was signed over all 4 notes using the given signing key.
+    // Verify that the given signature was signed over all 4 notes and output owner using
+    // -> the account public key if nonce == 0
+    // -> the given signing key if nonce > 0
+    bool_ct zero_nonce = inputs.nonce == field_ct(0);
+    point_ct signer = { account_public_key.x * zero_nonce + inputs.signing_pub_key.x * !zero_nonce,
+                        account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
     std::array<point_ct, 4> notes = {
         inputs.input_note1.second, inputs.input_note2.second, inputs.output_note1.second, inputs.output_note2.second
     };
-    verify_signature(notes, inputs.output_owner, inputs.signing_pub_key, inputs.signature);
+    verify_signature(notes, inputs.output_owner, signer, inputs.signature);
+
+    // Verify that the account exists if nonce > 0
+    auto account_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
+    auto account_note_data = encrypt_account_note(account_id, account_public_key, signer);
+    auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
+    auto exists = merkle_tree::check_membership(
+        composer, inputs.merkle_root, inputs.account_path, leaf_data, byte_array_ct(inputs.account_index));
+    auto signing_key_registered_or_zero_nonce = exists || zero_nonce;
+    composer.assert_equal_constant(
+        signing_key_registered_or_zero_nonce.witness_index, 1, "account check_membership failed");
+
     // Verify each input note exists in the tree, and compute nullifiers.
     field_ct nullifier1 = process_input_note(composer,
                                              inputs.account_private_key,
@@ -136,14 +130,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              inputs.input_note2,
                                              note_2_valid);
 
-    // Verify that the signing key is owned by the owner of the notes.
-    auto acc_note = account_note(note1_owner, inputs.signing_pub_key, true);
-    // The first condition means we can spend notes with only an account key (e.g. if there are no account notes).
-    bool_ct must_exist = acc_note.owner_pub_key().x != acc_note.signing_pub_key().x && note_1_valid;
-    field_ct account_nullifier = process_account_note(
-        composer, inputs.merkle_root, inputs.account_path, inputs.account_index, acc_note, must_exist);
-
-    return { nullifier1, nullifier2, account_nullifier };
+    return { nullifier1, nullifier2 };
 }
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
@@ -168,6 +155,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         merkle_tree::create_witness_hash_path(composer, tx.account_path),
         witness_ct(&composer, tx.output_owner),
         witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
+        witness_ct(&composer, tx.alias_hash),
+        witness_ct(&composer, tx.nonce),
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);
@@ -187,7 +176,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     // Any public witnesses exposed from here on, will not be exposed by the rollup, and thus will
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.
     composer.set_public_input(inputs.merkle_root.witness_index);
-    composer.set_public_input(outputs.account_nullifier.witness_index);
 } // namespace join_split
 
 } // namespace join_split

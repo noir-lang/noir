@@ -6,8 +6,10 @@
 #include "../inner_proof_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
+#include "../account/account.hpp"
 #include "../notes/native/sign_notes.hpp"
 #include "../notes/native/encrypt_note.hpp"
+#include "../notes/native/account_note.hpp"
 #include "../notes/constants.hpp"
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
@@ -55,7 +57,7 @@ class rollup_tests : public ::testing::Test {
 
     uint32_t append_note(uint32_t value)
     {
-        value_note note = { user.owner.public_key, value, user.note_secret, 0 };
+        value_note note = { user.owner.public_key, value, user.note_secret, 0, 0 };
         auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
@@ -70,31 +72,35 @@ class rollup_tests : public ::testing::Test {
         }
     }
 
-    std::vector<uint8_t> create_account_leaf_data(grumpkin::g1::affine_element const& owner_key,
+    std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+                                                  grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
+        auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
-        write(buf, owner_key.x);
-        write(buf, signing_key.x);
+        write(buf, enc_note.x);
+        write(buf, enc_note.y);
         return buf;
     }
 
     void append_account_notes()
     {
-        data_tree.update_element(data_tree.size(),
-                                 create_account_leaf_data(user.owner.public_key, user.signing_keys[0].public_key));
-        data_tree.update_element(data_tree.size(),
-                                 create_account_leaf_data(user.owner.public_key, user.signing_keys[1].public_key));
+        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        data_tree.update_element(
+            data_tree.size(),
+            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+        data_tree.update_element(
+            data_tree.size(),
+            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
-    void nullify_account(grumpkin::g1::affine_element const& owner_key, grumpkin::g1::affine_element const& signing_key)
+    void nullify_account_id(fr const& account_id)
     {
-        std::vector<fr> hash_elements{
-            owner_key.x,
-            signing_key.x,
+        const std::vector<fr> hash_elements{
+            fr(1),
+            account_id,
         };
-        auto nullifier =
-            crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_NULLIFIER_INDEX);
+        auto nullifier = crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_ID_HASH_INDEX);
 
         null_tree.update_element(uint256_t(nullifier), { 1 });
     }
@@ -110,12 +116,13 @@ class rollup_tests : public ::testing::Test {
                                                  std::array<uint32_t, 2> out_note_value,
                                                  uint32_t public_input = 0,
                                                  uint32_t public_output = 0,
-                                                 uint32_t account_note_idx = 0)
+                                                 uint32_t account_note_idx = 0,
+                                                 uint32_t nonce = 0)
     {
-        value_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0 };
-        value_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0 };
-        value_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0 };
-        value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0, nonce };
+        value_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0, nonce };
+        value_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0, nonce };
+        value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0, nonce };
 
         join_split_tx tx;
         tx.public_input = public_input;
@@ -130,6 +137,8 @@ class rollup_tests : public ::testing::Test {
         tx.account_path = data_tree.get_hash_path(account_note_idx);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_private_key = user.owner.private_key;
+        tx.alias_hash = user.alias_hash;
+        tx.nonce = nonce;
 
         uint8_t owner_address[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,
@@ -137,19 +146,53 @@ class rollup_tests : public ::testing::Test {
         tx.input_owner = from_buffer<fr>(owner_address);
         tx.output_owner = fr::random_element(rand_engine);
 
+        auto signer = nonce ? user.signing_keys[0] : user.owner;
         tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                                   tx.output_owner,
-                                  { user.signing_keys[0].private_key, user.signing_keys[0].public_key },
+                                  signer,
                                   rand_engine);
 
         Composer composer =
             Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
         composer.rand_engine = rand_engine;
         join_split_circuit(composer, tx);
+        if (composer.failed) {
+            std::cout << "Join Split logic failed: " << composer.err << std::endl;
+        }
         auto prover = composer.create_unrolled_prover();
         auto join_split_proof = prover.construct_proof();
 
         return join_split_proof.proof_data;
+    }
+
+    std::vector<uint8_t> create_account_proof(uint32_t nonce = 0, uint32_t account_note_idx = 0)
+    {
+        account_tx tx;
+        tx.merkle_root = data_tree.root();
+        tx.account_public_key = user.owner.public_key;
+        tx.new_account_public_key = user.owner.public_key;
+        tx.num_new_keys = 2;
+        tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
+        tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
+        tx.alias_hash = user.alias_hash;
+        tx.nonce = nonce;
+        tx.migrate = true;
+        tx.gibberish = fr::random_element();
+        tx.account_index = account_note_idx;
+        tx.signing_pub_key = user.signing_keys[0].public_key;
+        tx.account_path = data_tree.get_hash_path(account_note_idx);
+        tx.sign(nonce ? user.signing_keys[0] : user.owner);
+
+        Composer composer = Composer(account_cd.proving_key, account_cd.verification_key, account_cd.num_gates);
+        composer.rand_engine = rand_engine;
+        account_circuit(composer, tx);
+        if (composer.failed) {
+            std::cout << "Account logic failed: " << composer.err << std::endl;
+        }
+        auto prover = composer.create_unrolled_prover();
+        auto account_proof = prover.construct_proof();
+
+        return account_proof.proof_data;
     }
 
     MemoryStore store;
@@ -236,7 +279,6 @@ TEST_F(rollup_tests, test_1_proof_in_1_rollup_twice)
     EXPECT_TRUE(verified);
 
     // Two notes were added to data tree in create_rollup. Add the new data root to root tree.
-    update_root_tree_with_data_root(2);
     auto join_split_proof2 = create_join_split_proof({ 4, 5 }, { 70, 80 }, { 90, 60 });
     auto rollup2 = create_rollup(2, { join_split_proof2 }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
 
@@ -403,6 +445,36 @@ TEST_F(rollup_tests, test_incorrect_new_data_roots_root_fails)
     EXPECT_FALSE(verified);
 }
 
+// Account
+
+TEST_F(rollup_tests, test_1_account_proof_in_1_rollup_twice)
+{
+    size_t rollup_size = 1;
+
+    auto create_account = create_account_proof();
+    auto rollup_0 = create_rollup(0, { create_account }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    EXPECT_TRUE(verify_rollup_logic(rollup_0, rollup_1_keyless));
+
+    auto migrate_account = create_account_proof(1);
+    auto rollup_1 = create_rollup(1, { migrate_account }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+    EXPECT_TRUE(verify_rollup_logic(rollup_1, rollup_1_keyless));
+}
+
+TEST_F(rollup_tests, test_reuse_nullified_account_id_fails)
+{
+    size_t rollup_size = 1;
+
+    append_account_notes();
+    auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 0);
+    nullify_account_id(account_id);
+    update_root_tree_with_data_root(1);
+
+    auto account_proof = create_account_proof();
+    auto rollup = create_rollup(1, { account_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
+
+    EXPECT_FALSE(verify_rollup_logic(rollup, rollup_1_keyless));
+}
+
 // Rollups of size 2.
 TEST_F(rollup_tests, test_1_proof_in_2_rollup)
 {
@@ -419,26 +491,6 @@ TEST_F(rollup_tests, test_1_proof_in_2_rollup)
 
     EXPECT_TRUE(verified);
 }
-
-/*
-Removed until figure out how not to leak info.
-TEST_F(rollup_tests, test_cannot_use_nullified_signing_key)
-{
-    size_t rollup_size = 2;
-
-    append_account_notes();
-    nullify_account(user.owner.public_key, user.signing_keys[0].public_key);
-    append_notes({ 100, 50 });
-    update_root_tree_with_data_root(1);
-    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
-
-    auto rollup = create_rollup(1, { join_split_proof }, data_tree, null_tree, root_tree, rollup_size, padding_proof);
-
-    auto verified = verify_rollup_logic(rollup, rollup_2_keyless);
-
-    EXPECT_FALSE(verified);
-}
-*/
 
 TEST_F(rollup_tests, test_2_proofs_in_2_rollup)
 {

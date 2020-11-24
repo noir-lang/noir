@@ -47,7 +47,6 @@ escape_hatch_tx dummy_tx()
     tx.new_null_paths.resize(2);
     tx.new_null_paths[0] = null_gibberish_path;
     tx.new_null_paths[1] = null_gibberish_path;
-    tx.account_null_path = null_gibberish_path;
 
     tx.old_data_roots_root = fr::random_element();
     tx.new_data_roots_root = fr::random_element();

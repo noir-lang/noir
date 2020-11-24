@@ -35,6 +35,8 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         merkle_tree::create_witness_hash_path(composer, tx.js_tx.account_path),
         witness_ct(&composer, tx.js_tx.output_owner),
         witness_ct(&composer, static_cast<fr>(tx.js_tx.account_private_key)),
+        witness_ct(&composer, tx.js_tx.alias_hash),
+        witness_ct(&composer, tx.js_tx.nonce),
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);
@@ -74,9 +76,6 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         old_data_root,
         new_data_root,
         data_start_index);
-
-    // rollup::check_accounts_not_nullified(
-    //     composer, one, old_null_root, { outputs.account_nullifier }, { tx.account_null_path });
 
     // Public inputs mimick a 1 rollup, minus the pairing point at the end.
     composer.set_public_input(rollup_id.witness_index);

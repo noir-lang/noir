@@ -36,12 +36,6 @@ void check_data_tree_updated(Composer& composer,
                              field_ct const& new_data_root,
                              field_ct const& data_start_index);
 
-void check_accounts_not_nullified(Composer& composer,
-                                  uint32_ct const& num_txs,
-                                  field_ct const& null_root,
-                                  std::vector<field_ct> const& account_null_indicies,
-                                  std::vector<fr_hash_path> const& account_null_paths);
-
 recursion_output<bn254> rollup_circuit(Composer& composer,
                                        rollup_tx const& proofs,
                                        std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,

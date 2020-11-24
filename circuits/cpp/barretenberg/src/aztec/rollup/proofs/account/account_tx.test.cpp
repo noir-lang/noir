@@ -16,14 +16,15 @@ TEST(client_proofs_account_tx, test_serialization)
 {
     account_tx tx;
     tx.merkle_root = fr::random_element();
-    tx.owner_pub_key = grumpkin::g1::element::random_element();
+    tx.account_public_key = grumpkin::g1::element::random_element();
+    tx.new_account_public_key = grumpkin::g1::element::random_element();
     tx.num_new_keys = 2;
     tx.new_signing_pub_key_1 = grumpkin::g1::element::random_element();
     tx.new_signing_pub_key_2 = grumpkin::g1::element::random_element();
-    tx.register_alias = true;
-    tx.alias = fr::random_element();
-    tx.nullify_key = false;
-    tx.nullified_key = grumpkin::g1::element::random_element();
+    tx.alias_hash = fr::random_element();
+    tx.nonce = 3;
+    tx.migrate = true;
+    tx.gibberish = fr::random_element();
     tx.account_index = 123;
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();
 

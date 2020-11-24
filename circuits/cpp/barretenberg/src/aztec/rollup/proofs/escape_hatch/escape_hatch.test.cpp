@@ -4,6 +4,7 @@
 #include "escape_hatch_tx.hpp"
 #include "../notes/native/sign_notes.hpp"
 #include "../notes/native/encrypt_note.hpp"
+#include "../notes/native/account_note.hpp"
 #include "../notes/native/compute_nullifier.hpp"
 #include "../../constants.hpp"
 #include <common/streams.hpp>
@@ -39,10 +40,10 @@ class escape_hatch_tests : public ::testing::Test {
         user = rollup::fixtures::create_user_context();
     }
 
-    void preload_value_notes()
+    void preload_value_notes(uint32_t nonce = 0)
     {
-        value_note note1 = { user.owner.public_key, 100, user.note_secret, 0 };
-        value_note note2 = { user.owner.public_key, 50, user.note_secret, 0 };
+        value_note note1 = { user.owner.public_key, 100, user.note_secret, 0, nonce };
+        value_note note2 = { user.owner.public_key, 50, user.note_secret, 0, nonce };
 
         auto enc_note1 = encrypt_note(note1);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
@@ -53,10 +54,13 @@ class escape_hatch_tests : public ::testing::Test {
 
     void preload_account_notes()
     {
-        data_tree.update_element(data_tree.size(),
-                                 create_account_leaf_data(user.owner.public_key, user.signing_keys[0].public_key));
-        data_tree.update_element(data_tree.size(),
-                                 create_account_leaf_data(user.owner.public_key, user.signing_keys[1].public_key));
+        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        data_tree.update_element(
+            data_tree.size(),
+            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+        data_tree.update_element(
+            data_tree.size(),
+            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
     void update_root_tree_with_data_root(size_t index)
@@ -84,29 +88,33 @@ class escape_hatch_tests : public ::testing::Test {
         return buf;
     }
 
-    std::vector<uint8_t> create_account_leaf_data(grumpkin::g1::affine_element const& owner_key,
+    std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+                                                  grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
+        auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
-        write(buf, owner_key.x);
-        write(buf, signing_key.x);
+        write(buf, enc_note.x);
+        write(buf, enc_note.y);
         return buf;
     }
 
     escape_hatch_tx simple_setup()
     {
         preload_account_notes();
-        preload_value_notes();
+        preload_value_notes(1);
         update_root_tree_with_data_root(1);
-        return create_escape_hatch_tx({ 2, 3 }, 0);
+        return create_escape_hatch_tx({ 2, 3 }, 0, 1);
     }
 
-    join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies, uint32_t account_index)
+    join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies,
+                                       uint32_t account_index,
+                                       uint32_t nonce)
     {
-        value_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0 };
-        value_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0 };
-        value_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0 };
-        value_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0, nonce };
+        value_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0, nonce };
+        value_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0, nonce };
+        value_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0, nonce };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -124,13 +132,17 @@ class escape_hatch_tests : public ::testing::Test {
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = 0;
         tx.account_private_key = user.owner.private_key;
+        tx.alias_hash = user.alias_hash;
+        tx.nonce = nonce;
         return tx;
     }
 
-    escape_hatch_tx create_escape_hatch_tx(std::array<uint32_t, 2> const& input_indicies, uint32_t account_index)
+    escape_hatch_tx create_escape_hatch_tx(std::array<uint32_t, 2> const& input_indicies,
+                                           uint32_t account_index,
+                                           uint32_t nonce = 0)
     {
         escape_hatch_tx tx;
-        tx.js_tx = create_join_split_tx(input_indicies, account_index);
+        tx.js_tx = create_join_split_tx(input_indicies, account_index, nonce);
 
         tx.rollup_id = static_cast<uint32_t>(data_tree.size() / 2 - 1);
         tx.data_start_index = static_cast<uint32_t>(data_tree.size());
@@ -157,9 +169,6 @@ class escape_hatch_tests : public ::testing::Test {
 
         auto nullifier_value = std::vector<uint8_t>(64, 0);
         nullifier_value[63] = 1;
-
-        uint256_t account_nullifier = 0;
-        tx.account_null_path = null_tree.get_hash_path(account_nullifier);
 
         tx.old_null_root = null_tree.root();
         tx.old_null_paths.resize(2);

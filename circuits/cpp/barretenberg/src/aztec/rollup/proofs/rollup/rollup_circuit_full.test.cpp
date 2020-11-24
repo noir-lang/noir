@@ -8,6 +8,7 @@
 #include "../join_split/join_split_circuit.hpp"
 #include "../notes/native/sign_notes.hpp"
 #include "../notes/native/encrypt_note.hpp"
+#include "../notes/native/account_note.hpp"
 #include "../join_split/compute_join_split_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include "../inner_proof_data.hpp"
@@ -52,7 +53,7 @@ class rollup_full_tests : public ::testing::Test {
 
     uint32_t append_note(uint32_t value)
     {
-        value_note note = { user.owner.public_key, value, user.note_secret, 0 };
+        value_note note = { user.owner.public_key, value, user.note_secret, 0, 0 };
         auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
@@ -67,28 +68,26 @@ class rollup_full_tests : public ::testing::Test {
         }
     }
 
-    std::vector<uint8_t> create_account_leaf_data(grumpkin::g1::affine_element const& owner_key,
+    std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+                                                  grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
+        auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
-        write(buf, owner_key.x);
-        write(buf, signing_key.x);
+        write(buf, enc_note.x);
+        write(buf, enc_note.y);
         return buf;
     }
 
     void append_account_notes()
     {
-        data_tree.update_element(data_tree.size(),
-                                 create_account_leaf_data(user.owner.public_key, user.signing_keys[0].public_key));
-        data_tree.update_element(data_tree.size(),
-                                 create_account_leaf_data(user.owner.public_key, user.signing_keys[1].public_key));
-    }
-
-    void nullify_account(grumpkin::g1::affine_element const& owner_key, grumpkin::g1::affine_element const& signing_key)
-    {
-        auto data = create_account_leaf_data(owner_key, signing_key);
-        auto nullifier = merkle_tree::hash_value_native(data);
-        null_tree.update_element(uint256_t(nullifier), { 1 });
+        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        data_tree.update_element(
+            data_tree.size(),
+            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+        data_tree.update_element(
+            data_tree.size(),
+            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
     void update_root_tree_with_data_root(size_t index)
@@ -102,12 +101,13 @@ class rollup_full_tests : public ::testing::Test {
                                                  std::array<uint32_t, 2> out_note_value,
                                                  uint32_t public_input = 0,
                                                  uint32_t public_output = 0,
-                                                 uint32_t account_note_idx = 0)
+                                                 uint32_t account_note_idx = 0,
+                                                 uint32_t nonce = 0)
     {
-        value_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0 };
-        value_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0 };
-        value_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0 };
-        value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0 };
+        value_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0, 0 };
+        value_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0, 0 };
+        value_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0, 0 };
+        value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0, 0 };
 
         join_split_tx tx;
         tx.public_input = public_input;
@@ -123,15 +123,19 @@ class rollup_full_tests : public ::testing::Test {
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_private_key = user.owner.private_key;
         tx.asset_id = 0;
+        tx.alias_hash = user.alias_hash;
+        tx.nonce = nonce;
+
         uint8_t owner_address[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,
                                     0x43, 0xe5, 0xa5, 0xb9, 0x57, 0x0f, 0x75, 0xc5, 0x96, 0x04 };
         tx.input_owner = from_buffer<fr>(owner_address);
         tx.output_owner = fr::random_element(rand_engine);
 
+        auto signer = nonce ? user.signing_keys[0] : user.owner;
         tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
                                   tx.output_owner,
-                                  { user.signing_keys[0].private_key, user.signing_keys[0].public_key },
+                                  signer,
                                   rand_engine);
 
         Composer composer =

@@ -23,7 +23,6 @@ void write(std::vector<uint8_t>& buf, escape_hatch_tx const& tx)
     write(buf, tx.new_null_roots);
     write(buf, tx.old_null_paths);
     write(buf, tx.new_null_paths);
-    write(buf, tx.account_null_path);
 
     write(buf, tx.old_data_roots_root);
     write(buf, tx.new_data_roots_root);
@@ -46,7 +45,6 @@ void read(uint8_t const*& buf, escape_hatch_tx& tx)
     read(buf, tx.new_null_roots);
     read(buf, tx.old_null_paths);
     read(buf, tx.new_null_paths);
-    read(buf, tx.account_null_path);
 
     read(buf, tx.old_data_roots_root);
     read(buf, tx.new_data_roots_root);
@@ -67,7 +65,6 @@ bool operator==(escape_hatch_tx const& lhs, escape_hatch_tx const& rhs)
         && lhs.new_null_roots == rhs.new_null_roots
         && lhs.old_null_paths == rhs.old_null_paths
         && lhs.new_null_paths == rhs.new_null_paths
-        && lhs.account_null_path == rhs.account_null_path
         && lhs.old_data_roots_root == rhs.old_data_roots_root
         && lhs.new_data_roots_root == rhs.new_data_roots_root
         && lhs.old_data_roots_path == rhs.old_data_roots_path
@@ -100,7 +97,6 @@ std::ostream& operator<<(std::ostream& os, escape_hatch_tx const& tx)
     for (auto e : tx.new_null_paths) {
         os << e << "\n";
     }
-    os << "account_null_path: " << tx.account_null_path << "\n";
 
     os << "old_data_roots_root: " << tx.old_data_roots_root << "\n";
     os << "new_data_roots_root: " << tx.new_data_roots_root << "\n";
