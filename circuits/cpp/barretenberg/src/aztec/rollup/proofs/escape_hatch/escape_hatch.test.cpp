@@ -80,6 +80,25 @@ class escape_hatch_tests : public ::testing::Test {
         return verify_proof(proof);
     }
 
+    bool verify_logic(escape_hatch_tx& tx)
+    {
+        Composer composer(get_proving_key(), nullptr);
+        escape_hatch_circuit(composer, tx);
+        if (composer.failed) {
+            std::cout << "Logic failed: " << composer.err << std::endl;
+        }
+        return !composer.failed;
+    }
+
+    bool sign_and_verify_logic(escape_hatch_tx& tx, grumpkin::fr const& signing_private_key)
+    {
+        tx.js_tx.signature = sign_notes(
+            { tx.js_tx.input_note[0], tx.js_tx.input_note[1], tx.js_tx.output_note[0], tx.js_tx.output_note[1] },
+            tx.js_tx.output_owner,
+            { signing_private_key, tx.js_tx.signing_pub_key });
+        return verify_logic(tx);
+    }
+
     std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
     {
         std::vector<uint8_t> buf;
@@ -198,42 +217,43 @@ class escape_hatch_tests : public ::testing::Test {
 TEST_F(escape_hatch_tests, test_2_input_notes)
 {
     escape_hatch_tx tx = simple_setup();
-    auto buf = to_buffer(tx);
-    EXPECT_TRUE(sign_and_verify(tx, user.signing_keys[0].private_key));
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_1_false_new_null_path_fails)
+TEST_F(escape_hatch_tests, test_1_false_new_null_path_fails)
 {
     escape_hatch_tx tx = simple_setup();
-    tx.new_null_paths[1] = null_tree.get_hash_path(3);
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    auto gibberish_path = fr_hash_path(256, std::make_pair(fr::random_element(), fr::random_element()));
+    tx.old_null_paths[1] = gibberish_path;
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_switched_nullifier_paths_order_fails)
+TEST_F(escape_hatch_tests, test_switched_nullifier_paths_order_fails)
 {
     escape_hatch_tx tx = simple_setup();
     merkle_tree::fr_hash_path null_path_copy = tx.new_null_paths[1];
 
     tx.new_null_paths[1] = tx.new_null_paths[0];
     tx.new_null_paths[0] = null_path_copy;
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_1_false_old_nullifier_path_fails)
+TEST_F(escape_hatch_tests, test_1_false_old_nullifier_path_fails)
 {
     escape_hatch_tx tx = simple_setup();
-    tx.old_null_paths[1] = null_tree.get_hash_path(3);
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    auto gibberish_path = fr_hash_path(256, std::make_pair(fr::random_element(), fr::random_element()));
+    tx.old_null_paths[1] = gibberish_path;
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_incorrect_new_null_root_fails)
+TEST_F(escape_hatch_tests, test_incorrect_new_null_root_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.new_null_roots[1] = fr::random_element();
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, switched_around_new_null_root_fails)
+TEST_F(escape_hatch_tests, switched_around_new_null_root_fails)
 {
     escape_hatch_tx tx = simple_setup();
     barretenberg::fr null_root_copy = tx.new_null_roots[1];
@@ -241,17 +261,17 @@ HEAVY_TEST_F(escape_hatch_tests, switched_around_new_null_root_fails)
     tx.new_null_roots[1] = tx.new_null_roots[0];
     tx.new_null_roots[0] = null_root_copy;
 
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, wrong_null_merkle_root_fails)
+TEST_F(escape_hatch_tests, wrong_null_merkle_root_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.old_null_root = fr::random_element();
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, switch_current_new_null_paths_fails)
+TEST_F(escape_hatch_tests, switch_current_new_null_paths_fails)
 {
     escape_hatch_tx tx = simple_setup();
     auto new_paths_copy = tx.new_null_paths;
@@ -263,52 +283,58 @@ HEAVY_TEST_F(escape_hatch_tests, switch_current_new_null_paths_fails)
     tx.old_null_paths = new_paths_copy;
 
     std::swap(tx.old_null_paths[0], tx.old_null_paths[1]);
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[0].private_key)));
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_joining_same_note_fails)
+TEST_F(escape_hatch_tests, test_joining_same_note_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.js_tx.input_note[0].value = 75;
     tx.js_tx.input_note[1].value = 75;
     tx.js_tx.input_index = { 1, 1 };
 
-    EXPECT_FALSE(sign_and_verify(tx, user.signing_keys[0].private_key));
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_unbalanced_notes_fails)
+TEST_F(escape_hatch_tests, test_unbalanced_notes_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.js_tx.input_note[0].value = 99;
     tx.js_tx.input_note[1].value = 50;
-    EXPECT_FALSE(sign_and_verify(tx, user.signing_keys[0].private_key));
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_wrong_input_note_owner_fails)
+TEST_F(escape_hatch_tests, test_wrong_input_note_owner_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.js_tx.input_note[1].owner = grumpkin::g1::element::random_element();
-    EXPECT_FALSE(sign_and_verify(tx, user.signing_keys[0].private_key));
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_wrong_hash_path_fails)
+TEST_F(escape_hatch_tests, test_wrong_hash_path_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.js_tx.input_path[1] = data_tree.get_hash_path(0);
 
-    EXPECT_FALSE(sign_and_verify(tx, user.signing_keys[0].private_key));
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_wrong_merkle_root_fails)
+TEST_F(escape_hatch_tests, test_wrong_merkle_root_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.js_tx.old_data_root = fr::random_element();
 
-    EXPECT_FALSE(sign_and_verify(tx, user.signing_keys[0].private_key));
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 
-HEAVY_TEST_F(escape_hatch_tests, test_wrong_signature_fails)
+TEST_F(escape_hatch_tests, test_wrong_signature_fails)
 {
     escape_hatch_tx tx = simple_setup();
-    EXPECT_FALSE((sign_and_verify(tx, user.signing_keys[1].private_key)));
+    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[1].private_key)));
+}
+
+HEAVY_TEST_F(escape_hatch_tests, test_2_input_notes_full_test)
+{
+    escape_hatch_tx tx = simple_setup();
+    EXPECT_TRUE(sign_and_verify(tx, user.signing_keys[0].private_key));
 }
