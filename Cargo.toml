@@ -9,4 +9,5 @@ members = [
     "noirc_errors",
     "noirc_driver",
     "acir",
+    "std_lib",
 ]
