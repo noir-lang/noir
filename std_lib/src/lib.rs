@@ -1,0 +1,1 @@
+pub const LIB_NOIR : &'static str = include_str!("lib.noir");
