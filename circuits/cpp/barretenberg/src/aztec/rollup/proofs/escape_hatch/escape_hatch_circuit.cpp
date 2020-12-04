@@ -33,6 +33,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         merkle_tree::create_witness_hash_path(composer, tx.js_tx.input_path[1]),
         witness_ct(&composer, tx.js_tx.account_index),
         merkle_tree::create_witness_hash_path(composer, tx.js_tx.account_path),
+        witness_ct(&composer, tx.js_tx.input_owner),
         witness_ct(&composer, tx.js_tx.output_owner),
         witness_ct(&composer, static_cast<fr>(tx.js_tx.account_private_key)),
         witness_ct(&composer, tx.js_tx.alias_hash),

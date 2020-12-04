@@ -133,8 +133,7 @@ class rollup_full_tests : public ::testing::Test {
         tx.output_owner = fr::random_element(rand_engine);
 
         auto signer = nonce ? user.signing_keys[0] : user.owner;
-        tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                  tx.output_owner,
+        tx.signature = sign_notes(tx, 
                                   signer,
                                   rand_engine);
 

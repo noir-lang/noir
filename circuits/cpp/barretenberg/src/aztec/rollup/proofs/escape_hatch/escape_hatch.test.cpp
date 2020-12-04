@@ -71,10 +71,7 @@ class escape_hatch_tests : public ::testing::Test {
 
     bool sign_and_verify(escape_hatch_tx& tx, grumpkin::fr const& signing_private_key)
     {
-        tx.js_tx.signature = sign_notes(
-            { tx.js_tx.input_note[0], tx.js_tx.input_note[1], tx.js_tx.output_note[0], tx.js_tx.output_note[1] },
-            tx.js_tx.output_owner,
-            { signing_private_key, tx.js_tx.signing_pub_key });
+        tx.js_tx.signature = sign_notes(tx.js_tx, { signing_private_key, tx.js_tx.signing_pub_key });
         auto prover = new_escape_hatch_prover(tx);
         auto proof = prover.construct_proof();
         return verify_proof(proof);
@@ -92,10 +89,7 @@ class escape_hatch_tests : public ::testing::Test {
 
     bool sign_and_verify_logic(escape_hatch_tx& tx, grumpkin::fr const& signing_private_key)
     {
-        tx.js_tx.signature = sign_notes(
-            { tx.js_tx.input_note[0], tx.js_tx.input_note[1], tx.js_tx.output_note[0], tx.js_tx.output_note[1] },
-            tx.js_tx.output_owner,
-            { signing_private_key, tx.js_tx.signing_pub_key });
+        tx.js_tx.signature = sign_notes(tx.js_tx, { signing_private_key, tx.js_tx.signing_pub_key });
         return verify_logic(tx);
     }
 

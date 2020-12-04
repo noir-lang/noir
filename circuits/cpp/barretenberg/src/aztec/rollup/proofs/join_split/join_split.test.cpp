@@ -161,9 +161,7 @@ class join_split_tests : public ::testing::Test {
 
     bool sign_and_verify(join_split_tx& tx, grumpkin::fr const& signing_private_key)
     {
-        tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                  tx.output_owner,
-                                  { signing_private_key, tx.signing_pub_key });
+        tx.signature = sign_notes(tx, { signing_private_key, tx.signing_pub_key });
 
         auto prover = new_join_split_prover(tx);
         auto proof = prover.construct_proof();
@@ -182,9 +180,7 @@ class join_split_tests : public ::testing::Test {
 
     bool sign_and_verify_logic(join_split_tx& tx, grumpkin::fr const& signing_private_key)
     {
-        tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                                  tx.output_owner,
-                                  { signing_private_key, tx.signing_pub_key });
+        tx.signature = sign_notes(tx, { signing_private_key, tx.signing_pub_key });
 
         return verify_logic(tx);
     }
@@ -375,9 +371,7 @@ TEST_F(join_split_tests, test_wrong_output_owner_sig_fail)
     join_split_tx tx = simple_setup();
 
     // sign with correct output owner
-    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                              tx.output_owner,
-                              { user.owner.private_key, tx.signing_pub_key });
+    tx.signature = sign_notes(tx, { user.owner.private_key, tx.signing_pub_key });
 
     // set a fake output owner
     auto fake_owner = fr::random_element();
@@ -443,9 +437,7 @@ TEST_F(join_split_tests, test_zero_output_owner)
 
     tx.output_owner = fr::zero();
 
-    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                              tx.output_owner,
-                              { user.owner.private_key, tx.signing_pub_key });
+    tx.signature = sign_notes(tx, { user.owner.private_key, tx.signing_pub_key });
 
     EXPECT_TRUE(verify_logic(tx));
 }
@@ -454,9 +446,7 @@ HEAVY_TEST_F(join_split_tests, test_tainted_output_owner_fails)
 {
     join_split_tx tx = simple_setup();
     tx.signing_pub_key = user.owner.public_key;
-    tx.signature = sign_notes({ tx.input_note[0], tx.input_note[1], tx.output_note[0], tx.output_note[1] },
-                              tx.output_owner,
-                              { user.owner.private_key, user.owner.public_key });
+    tx.signature = sign_notes(tx, { user.owner.private_key, user.owner.public_key });
     uint8_t output_owner[32] = { 0x01, 0xaa, 0x42, 0xd4, 0x72, 0x88, 0x8e, 0xae, 0xa5, 0x56, 0x39,
                                  0x46, 0xeb, 0x5c, 0xf5, 0x6c, 0x81, 0x6,  0x4d, 0x80, 0xc6, 0xf5,
                                  0xa5, 0x38, 0xcc, 0x87, 0xae, 0x54, 0xae, 0xdb, 0x75, 0xd9 };

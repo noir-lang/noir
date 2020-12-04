@@ -99,10 +99,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     bool_ct zero_nonce = inputs.nonce == field_ct(0);
     point_ct signer = { account_public_key.x * zero_nonce + inputs.signing_pub_key.x * !zero_nonce,
                         account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
-    std::array<point_ct, 4> notes = {
-        inputs.input_note1.second, inputs.input_note2.second, inputs.output_note1.second, inputs.output_note2.second
-    };
-    verify_signature(notes, inputs.output_owner, signer, inputs.signature);
 
     // Verify that the account exists if nonce > 0
     auto account_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
@@ -130,6 +126,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              inputs.input_note2,
                                              note_2_valid);
 
+    verify_signature(inputs, nullifier1, nullifier2, signer, inputs.signature);
+
     return { nullifier1, nullifier2 };
 }
 
@@ -153,6 +151,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
         witness_ct(&composer, tx.account_index),
         merkle_tree::create_witness_hash_path(composer, tx.account_path),
+        witness_ct(&composer, tx.input_owner),
         witness_ct(&composer, tx.output_owner),
         witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         witness_ct(&composer, tx.alias_hash),
@@ -162,7 +161,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     auto outputs = join_split_circuit_component(composer, inputs);
 
     // The following make up the public inputs to the circuit.
-    public_witness_ct(&composer, 0); // proof_id
+    public_witness_ct(&composer, 0);
     composer.set_public_input(inputs.public_input.get_witness_index());
     composer.set_public_input(inputs.public_output.get_witness_index());
     composer.set_public_input(inputs.asset_id.get_witness_index());
@@ -170,8 +169,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     inputs.output_note2.second.set_public();
     composer.set_public_input(outputs.nullifier1.witness_index);
     composer.set_public_input(outputs.nullifier2.witness_index);
-    public_witness_ct(&composer, tx.input_owner);
-    public_witness_ct(&composer, tx.output_owner);
+    composer.set_public_input(inputs.input_owner.witness_index);
+    composer.set_public_input(inputs.output_owner.witness_index);
 
     // Any public witnesses exposed from here on, will not be exposed by the rollup, and thus will
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.
