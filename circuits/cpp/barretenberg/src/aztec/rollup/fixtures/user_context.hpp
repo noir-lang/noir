@@ -24,7 +24,7 @@ inline barretenberg::fr generate_alias_hash(std::string const& alias)
     return from_buffer<barretenberg::fr>(alias_buffer);
 }
 
-inline barretenberg::fr generate_account_id(barretenberg::fr const& alias_hash, uint32_t nonce = 0)
+inline barretenberg::fr generate_account_alias_id(barretenberg::fr const& alias_hash, uint32_t nonce = 0)
 {
     return alias_hash + (barretenberg::fr{ (uint64_t)nonce } * barretenberg::fr(2).pow(224));
 }

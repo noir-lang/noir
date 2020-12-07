@@ -7,7 +7,7 @@ namespace notes {
 namespace native {
 
 struct account_note {
-    barretenberg::fr account_id;
+    barretenberg::fr account_alias_id;
     grumpkin::g1::affine_element owner_key;
     grumpkin::g1::affine_element signing_key;
 };

@@ -101,8 +101,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                         account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
 
     // Verify that the account exists if nonce > 0
-    auto account_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
-    auto account_note_data = encrypt_account_note(account_id, account_public_key, signer);
+    auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
+    auto account_note_data = encrypt_account_note(account_alias_id, account_public_key, signer);
     auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
     auto exists = merkle_tree::check_membership(
         composer, inputs.merkle_root, inputs.account_path, leaf_data, byte_array_ct(inputs.account_index));

@@ -12,7 +12,8 @@ using namespace crypto::pedersen;
 void account_tx::sign(key_pair<grumpkin::fr, grumpkin::g1> const& keys)
 {
     std::vector<grumpkin::fq> to_compress = {
-        account_id(), account_public_key.x, new_account_public_key.x, new_signing_pub_key_1.x, new_signing_pub_key_2.x,
+        account_alias_id(),      account_public_key.x,    new_account_public_key.x,
+        new_signing_pub_key_1.x, new_signing_pub_key_2.x,
     };
     fr compressed = compress_native(to_compress);
     auto message = to_buffer(compressed);

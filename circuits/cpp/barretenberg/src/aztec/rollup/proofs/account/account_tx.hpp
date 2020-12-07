@@ -27,7 +27,7 @@ struct account_tx {
     grumpkin::g1::affine_element signing_pub_key;
     crypto::schnorr::signature signature;
 
-    barretenberg::fr account_id() const
+    barretenberg::fr account_alias_id() const
     {
         return alias_hash + (barretenberg::fr{ (uint64_t)nonce } * barretenberg::fr(2).pow(224));
     }

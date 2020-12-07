@@ -41,32 +41,34 @@ class account_tests : public ::testing::Test {
      */
     void preload_account_notes()
     {
-        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        auto account_alias_id = rollup::fixtures::generate_account_alias_id(user.alias_hash, 1);
         tree->update_element(
-            tree->size(), create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+            tree->size(),
+            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[0].public_key));
         tree->update_element(
-            tree->size(), create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
+            tree->size(),
+            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
-    std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+    std::vector<uint8_t> create_account_leaf_data(fr const& account_alias_id,
                                                   grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
+        auto enc_note = encrypt_account_note({ account_alias_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);
         return buf;
     }
 
-    uint256_t compute_account_id_nullifier(fr const& account_id, fr const& gibberish, bool migrate_account)
+    uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id, fr const& gibberish, bool migrate_account)
     {
         const std::vector<fr> hash_elements{
             fr(1),
-            account_id,
+            account_alias_id,
             gibberish * !migrate_account,
         };
-        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_ID_HASH_INDEX);
+        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_ALIAS_ID_HASH_INDEX);
         return uint256_t(result);
     }
 
@@ -230,18 +232,18 @@ TEST_F(account_tests, test_change_account_public_key_fails)
 
 // Nullifier
 
-HEAVY_TEST_F(account_tests, test_correct_account_id_nullifier)
+HEAVY_TEST_F(account_tests, test_correct_account_alias_id_nullifier)
 {
     auto tx = create_account_tx();
     auto prover = new_account_prover(tx);
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    EXPECT_EQ(data.nullifier1, compute_account_id_nullifier(tx.account_id(), tx.gibberish, true));
+    EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id(), tx.gibberish, true));
     EXPECT_EQ(data.nullifier2, compute_gibberish_nullifier(tx.gibberish));
 }
 
-HEAVY_TEST_F(account_tests, test_gibberish_account_id_nullifier)
+HEAVY_TEST_F(account_tests, test_gibberish_account_alias_id_nullifier)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);
@@ -250,6 +252,6 @@ HEAVY_TEST_F(account_tests, test_gibberish_account_id_nullifier)
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    EXPECT_EQ(data.nullifier1, compute_account_id_nullifier(tx.account_id(), tx.gibberish, false));
+    EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id(), tx.gibberish, false));
     EXPECT_EQ(data.nullifier2, compute_gibberish_nullifier(tx.gibberish));
 }

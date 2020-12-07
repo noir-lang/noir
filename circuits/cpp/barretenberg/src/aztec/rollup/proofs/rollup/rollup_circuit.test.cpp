@@ -72,11 +72,11 @@ class rollup_tests : public ::testing::Test {
         }
     }
 
-    std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+    std::vector<uint8_t> create_account_leaf_data(fr const& account_alias_id,
                                                   grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
+        auto enc_note = encrypt_account_note({ account_alias_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);
@@ -85,22 +85,23 @@ class rollup_tests : public ::testing::Test {
 
     void append_account_notes()
     {
-        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        auto account_alias_id = rollup::fixtures::generate_account_alias_id(user.alias_hash, 1);
         data_tree.update_element(
             data_tree.size(),
-            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[0].public_key));
         data_tree.update_element(
             data_tree.size(),
-            create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
+            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
-    void nullify_account_id(fr const& account_id)
+    void nullify_account_alias_id(fr const& account_alias_id)
     {
         const std::vector<fr> hash_elements{
             fr(1),
-            account_id,
+            account_alias_id,
         };
-        auto nullifier = crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_ID_HASH_INDEX);
+        auto nullifier =
+            crypto::pedersen::compress_native(hash_elements, rollup::proofs::notes::ACCOUNT_ALIAS_ID_HASH_INDEX);
 
         null_tree.update_element(uint256_t(nullifier), { 1 });
     }
@@ -459,13 +460,13 @@ TEST_F(rollup_tests, test_1_account_proof_in_1_rollup_twice)
     EXPECT_TRUE(verify_rollup_logic(rollup_1, rollup_1_keyless));
 }
 
-TEST_F(rollup_tests, test_reuse_nullified_account_id_fails)
+TEST_F(rollup_tests, test_reuse_nullified_account_alias_id_fails)
 {
     size_t rollup_size = 1;
 
     append_account_notes();
-    auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 0);
-    nullify_account_id(account_id);
+    auto account_alias_id = rollup::fixtures::generate_account_alias_id(user.alias_hash, 0);
+    nullify_account_alias_id(account_alias_id);
     update_root_tree_with_data_root(1);
 
     auto account_proof = create_account_proof();

@@ -26,11 +26,11 @@ std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_no
     return buf;
 }
 
-std::vector<uint8_t> create_account_leaf_data(fr const& account_id,
+std::vector<uint8_t> create_account_leaf_data(fr const& account_alias_id,
                                               grumpkin::g1::affine_element const& owner_key,
                                               grumpkin::g1::affine_element const& signing_key)
 {
-    auto enc_note = encrypt_account_note({ account_id, owner_key, signing_key });
+    auto enc_note = encrypt_account_note({ account_alias_id, owner_key, signing_key });
     std::vector<uint8_t> buf;
     write(buf, enc_note.x);
     write(buf, enc_note.y);
@@ -65,11 +65,13 @@ class join_split_tests : public ::testing::Test {
      */
     void preload_account_notes()
     {
-        auto account_id = rollup::fixtures::generate_account_id(user.alias_hash, 1);
+        auto account_alias_id = rollup::fixtures::generate_account_alias_id(user.alias_hash, 1);
         tree->update_element(
-            tree->size(), create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[0].public_key));
+            tree->size(),
+            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[0].public_key));
         tree->update_element(
-            tree->size(), create_account_leaf_data(account_id, user.owner.public_key, user.signing_keys[1].public_key));
+            tree->size(),
+            create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
     /**
