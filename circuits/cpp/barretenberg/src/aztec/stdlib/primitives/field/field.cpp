@@ -381,7 +381,7 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     return result;
 }
 
-template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero()
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero() const
 {
     if (witness_index == IS_CONSTANT) {
         ASSERT(additive_constant == barretenberg::fr(0));
@@ -395,7 +395,7 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
     context->create_poly_gate(gate_coefficients);
 }
 
-template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero()
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero() const
 {
     if (witness_index == IS_CONSTANT) {
         ASSERT(additive_constant != barretenberg::fr(0));

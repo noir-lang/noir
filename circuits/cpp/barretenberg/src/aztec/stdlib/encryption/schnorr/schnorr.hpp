@@ -6,6 +6,7 @@
 #include "../../primitives/bit_array/bit_array.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
 #include "../../primitives/point/point.hpp"
+#include "../../primitives/group/group.hpp"
 
 namespace plonk {
 namespace stdlib {

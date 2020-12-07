@@ -208,12 +208,7 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
 template <typename C>
 bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, const signature_bits<C>& sig)
 {
-    C* context = pub_key.x.context;
-
-    point<C> generator{ field_t<C>(context, grumpkin::g1::affine_one.x),
-                        field_t<C>(context, grumpkin::g1::affine_one.y) };
-
-    point<C> R_1 = variable_base_mul(generator, sig.s_lo, sig.s_hi);
+    point<C> R_1 = group<C>::fixed_base_scalar_mul(sig.s_lo, sig.s_hi);
     point<C> R_2 = variable_base_mul(pub_key, sig.e_lo, sig.e_hi);
 
     // check R_1 != R_2

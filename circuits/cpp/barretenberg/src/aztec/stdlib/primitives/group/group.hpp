@@ -5,6 +5,7 @@
 #include <plonk/composer/composer_base.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 
+#include "../../hash/pedersen/pedersen.hpp"
 namespace plonk {
 namespace stdlib {
 
@@ -14,6 +15,7 @@ using namespace crypto::pedersen;
 template <typename ComposerContext> class group {
   public:
     template <size_t num_bits> static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in);
+    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& lo, const field_t<ComposerContext>& hi);
 
     template <size_t num_bits>
     static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index);
@@ -41,6 +43,37 @@ auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext
     const auto ladder = get_ladder(generator_index, num_bits);
     auto generator = get_generator(generator_index);
     return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder);
+}
+
+/**
+ * Perform a fixed base scalar mul over a 258-bit input. Used for schnorr signature verification
+ * 
+ * we decompose lo and hi each into a wnaf form, which validates that both `lo` and `hi` are <= 2^129
+ * 
+ * total scalar is equal to (lo + hi << 128)
+ * 
+ * maximum value is (2^257 + 2^129). Further range constraints are required for more precision
+ **/ 
+template <typename ComposerContext>
+auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& lo, const field_t<ComposerContext>& hi)
+{
+    // This method does not work if lo or hi are 0. We don't apply the extra constraints to handle this edge case (merely rule it out), because 
+    // we can assume the scalar multipliers for schnorr are uniformly randomly distributed
+    (lo * hi).assert_is_not_zero();
+    const auto ladder_full = get_g1_ladder(256);
+    const auto ladder_low = &ladder_full[64];
+    auto generator = grumpkin::g1::one;
+    grumpkin::g1::affine_element generator_high = ladder_full[64].one;
+    const auto high = fixed_base_scalar_mul_internal<128>(hi, generator_high, ladder_full);
+    const auto low = fixed_base_scalar_mul_internal<128>(lo, generator, ladder_low);
+
+    // add high and low. We need to validate high != low. This can occur if `hi = 1` and `low = 2^128`
+    const auto x_delta = (high.x - low.x);
+    x_delta.assert_is_not_zero();
+    const auto lambda = (high.y - low.y) / x_delta;
+    const auto x_3 = lambda.madd(lambda, -(high.x + low.x));
+    const auto y_3 = lambda.madd((low.x - x_3), -low.y);
+    return point<ComposerContext>{x_3, y_3};
 }
 
 template <typename ComposerContext>
@@ -178,7 +211,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
 
     if (num_bits >= 254)
     {
-        pedersen<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses, scalar, true);
+        plonk::stdlib::pedersen<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses, scalar, true);
     }
     aligned_free(multiplication_transcript);
     aligned_free(accumulator_transcript);
