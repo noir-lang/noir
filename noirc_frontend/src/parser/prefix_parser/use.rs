@@ -1,3 +1,5 @@
+use crate::token::SpannedToken;
+
 use super::*;
 
 pub struct UseParser;
@@ -11,34 +13,36 @@ impl UseParser {
         parser.peek_check_kind_advance(TokenKind::Ident)?;
 
         let mut path = Vec::new();
-        path.push(parser.curr_token.clone());
+        path.push(tok_to_ident(parser.curr_token.clone())?);
         // Current token should now be an identifier.
         while parser.peek_token == Token::DoubleColon {
             parser.advance_tokens(); // Now we are on the `::`
 
             parser.advance_tokens(); // Now we are on the next Token which should be an identifier because after every `::` is an identifier
 
-            path.push(parser.curr_token.clone());
+            // Check that the token is an identifier
+            
+            path.push(tok_to_ident(parser.curr_token.clone())?);
         }
 
-        // XXX: Check if next token is `as` for path aliasing
-
-        // Check and convert all of the path variables to be identifiers
-        let mut path_as_strings = Vec::new();
-        for path_expr in path.into_iter() {
-            let token_span = path_expr.into_span();
-            let ident = match path_expr.into() {
-                Token::Ident(ident) => ident,
-                _ => return Err(ParserError::UnstructuredError{message : format!("names in path must be identifiers"), span : token_span }),
-            };
-
-            path_as_strings.push(ident);
+        // Check if next token is `as` for path aliasing
+        let mut alias = None;
+        if parser.peek_token == Token::Keyword(Keyword::As) {
+            parser.advance_tokens(); // Advance to the `as`
+            parser.advance_tokens(); // Advance to the `identifier` // XXX: maybe add an expect_ident here?
+            alias = Some(tok_to_ident(parser.curr_token.clone())?);
         }
 
-        let stmt = ImportStatement {
-            path: path_as_strings,
-            alias: None,
-        };
-        Ok(stmt)
+        // Imports are not included in the statement branch for the parser, which means we must clean up our own semicolons
+        parser.peek_check_variant_advance(&Token::Semicolon)?;
+
+        Ok(ImportStatement {path: path,alias,})
     }
+}
+
+fn tok_to_ident(spanned_tok : SpannedToken) -> Result<Ident, ParserError> {
+    if spanned_tok.kind() != TokenKind::Ident {
+        return Err(ParserError::UnstructuredError{message : format!("names in path must be identifiers"), span : spanned_tok.into_span() })
+    }
+    Ok(spanned_tok.into())
 }
