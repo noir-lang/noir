@@ -1,15 +1,16 @@
-use crate::ast::{Expression, Statement, NoirPath, FunctionDefinition};
-use crate::{SymbolTable, NoirFunction};
+use crate::{ImportStatement, ast::{Expression, Statement, NoirPath, FunctionDefinition}};
+use crate::NoirFunction;
 use crate::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
 use crate::parser::Program;
 use super::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest};
+use nargo::{CrateManager,  crate_unit::ModID, crate_manager::CrateID};
 
 /// Checks that each variable was declared before it's use
 /// Checks that there are no unused variables
-
 struct ResolverMeta{
     num_times_used : usize,
     span : Span,
+    import_id : Option<(ModID, CrateID)>, // For imports, we may want an external function. Unlike Rust, we only allow Module Imports, so it is not DefID
 }
 
 type Scope = GenericScope<String, ResolverMeta>;
@@ -20,21 +21,27 @@ mod expression;
 use super::errors::{AnalyserError, ResolverError,Span};
 
 pub struct Resolver<'a>{
-    table : &'a SymbolTable,
+    crate_manager : &'a CrateManager<Program>,
+    current_module : ModID,
+    current_crate : CrateID, // XXX: We should encode this into the module_id
     local_declarations : ScopeForest,
     errors : Vec<AnalyserError>
 }
 
 impl<'a> Resolver<'a> {
 
-    fn from_symbol_table(table : &'a SymbolTable) -> Resolver<'a> {
-        Resolver {table, local_declarations : ScopeForest::new(), errors: Vec::new()}
+    fn new( current_module : ModID,current_crate : CrateID, crate_manager : &'a CrateManager<Program>) -> Resolver<'a> {
+        Resolver {local_declarations : ScopeForest::new(), current_module, current_crate, errors: Vec::new(),crate_manager}
     }
 
     fn add_variable_decl(&mut self, name : Ident) {
+        self.add_decl(name, None)
+    }
+
+    fn add_decl(&mut self, name : Ident, import_id : Option<(ModID, CrateID)>) {
 
         let scope = self.local_declarations.get_mut_scope();
-        let resolver_meta = ResolverMeta {num_times_used : 0, span : name.0.span()};
+        let resolver_meta = ResolverMeta {num_times_used : 0, span : name.0.span(), import_id};
         let is_new_entry = scope.add_key_value(name.0.contents.clone(), resolver_meta);
 
         if !is_new_entry {
@@ -63,43 +70,62 @@ impl<'a> Resolver<'a> {
         return false
     }
 
-    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<NoirFunction> {   
-        self.table.look_up_func(path.clone(), &func_name)
+    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<&NoirFunction> {
+        let module = self.resolve_call_path(self.current_crate, self.current_module, path)?;
+        Some(module.find_function(&func_name.0.contents)?.into())
+    }
+
+        // Resolve `foo::bar` in foo::bar::call() to the module with the function
+        // This function has been duplicated, due to the fact that we cannot make it generic over the Key
+    pub fn resolve_call_path(&self, current_crate : CrateID, current_module : ModID, path : &NoirPath) -> Option<&'_ Program> {
+        match path {
+            NoirPath::Current => {
+                let krate = self.crate_manager.get_crate_with_id(current_crate)?;
+                krate.get_module(current_module)
+            },
+            NoirPath::External(pth) => {
+                let path = pth.first()?.clone();
+                let global_meta = self.local_declarations.find_global(&path.0.contents)?;
+                let (mod_id, crate_id ) =  global_meta.import_id?;
+                let krate = self.crate_manager.get_crate_with_id(crate_id)?;
+                krate.get_module(mod_id)
+            }
+        }
+        }
+
+    // Resolve use foo::bar to a (ModId, CrateId)
+    // In this example, it would be the ModID and CrateID for the `bar` module
+    fn resolve_import_stmt(&mut self, import : &ImportStatement) ->(String, ModID, CrateID) {
+        let (key, mod_id, crate_id) = super::resolve_import(import, self.crate_manager);
+        let resolver_meta = ResolverMeta {num_times_used : 0, span : key.0.span(), import_id : (mod_id, crate_id).into()};
+        self.local_declarations.add_global(key.0.contents.clone(), resolver_meta);
+        (key.0.contents, mod_id, crate_id)
     }
 
     // Checks if all variables have been correctly scoped
     // XXX: Can check here that main() has no return type
     // We can probably check for duplicate var and func names in here
-    pub fn resolve(mut ast : Program, table : &SymbolTable) -> Result<Program, Vec<AnalyserError>> {
+    pub fn resolve(ast : &mut Program, mod_id : ModID, crate_id : CrateID, crate_manager : &'a CrateManager<Program>) -> Result<(),Vec<AnalyserError>> {
 
         // Add functions into this, so that call expressions can be resolved
-        let mut resolver = Resolver::from_symbol_table(table);
+        let mut resolver = Resolver::new(mod_id, crate_id, crate_manager);
 
-        ast.main = match ast.main.clone() {
-            Some(main_func) =>    {    
-                Some(resolver.resolve_func_def(main_func))
-            },
-            None => None
-        };
+        // Resolve Import paths
+        for import in ast.imports.iter() {
+            let (key, mod_id, crate_id) = resolver.resolve_import_stmt(import);
+            ast.resolved_imports.insert(key, (mod_id, crate_id));
+        }
 
-        ast = resolver.resolve_ast(ast);
+        // Resolve AST
+        for func in ast.functions.iter(){
+            resolver.resolve_func_def(func.def());
+        }
 
-        ast.modules = ast.modules.into_iter().map(|(module_id, module)| {
-            (module_id, resolver.resolve_ast(module))
-        }).collect();
         if resolver.errors.len() > 0 {
             Err(resolver.errors)
         } else {
-            Ok(ast)
+            Ok(())
         }
-    }
-
-    fn resolve_ast(&mut self, mut ast : Program) -> Program {
-        ast.functions = ast.functions.into_iter().map(|func| {
-            self.resolve_func_def(func)
-        }).collect();
-
-        ast
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls : &ScopeTree) {
@@ -130,7 +156,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition{
+    fn resolve_func_def(&mut self, func : &FunctionDefinition) {
 
         // Add a new scope tree as we do not want the function to have access to the caller's scope
         self.local_declarations.start_function();
@@ -140,12 +166,11 @@ impl<'a> Resolver<'a> {
             self.add_variable_decl(param.0.clone());
         }
         
-        self.resolve_block_stmt(&mut func.body);
+        self.resolve_block_stmt(&func.body);
         
         let function_scope_tree = self.local_declarations.end_function();
         self.check_for_unused_variables_in_scope_tree(&function_scope_tree);
         
-        func
     }
 
     fn resolve_block_stmt(&mut self, block : &BlockStatement) {

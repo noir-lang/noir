@@ -2,7 +2,6 @@ use super::Resolver;
 use super::*;
 use crate::ast::{Expression,ExpressionKind, Literal, InfixExpression};
 
-
 impl<'a> Resolver<'a> {
     pub(crate) fn resolve_expr(&mut self, expr : &Expression) -> bool{
         match &expr.kind{
@@ -31,10 +30,7 @@ impl<'a> Resolver<'a> {
                     Some(func) => func,
                 };
 
-                let param_len = match func{
-                    NoirFunction::Function(literal) => literal.parameters.len(),
-                    NoirFunction::LowLevelFunction(literal) => literal.parameters.len(),
-                };
+                let param_len = func.def().parameters.len();
                 let argument_len = call_expr.arguments.len();
 
                 if param_len != argument_len {
