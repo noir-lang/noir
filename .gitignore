@@ -1,3 +1,7 @@
 /target
 .DS_Store
 .notes.md
+nargo/src/workspace.rs
+nargo/src/package_manager.rs
+acir/src/optimiser/range_optimiser.rs
+noirc_driver/src/file_manager.rs
