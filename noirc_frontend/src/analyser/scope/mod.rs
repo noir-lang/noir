@@ -107,7 +107,7 @@ impl<K : std::hash::Hash + Eq + Clone,V> ScopeForest<K, V> {
         ScopeForest(vec![ScopeTree::new()])
     }
     pub fn current_scope_tree(&mut self) -> &mut ScopeTree<K, V> {
-        self.0.last_mut().expect("Compiler Error: Tried to fetch the current scope, however none was found")
+        self.0.last_mut().expect("ice: tried to fetch the current scope, however none was found")
     }
 
     /// Returns the last pushed scope from the current scope tree
@@ -121,7 +121,6 @@ impl<K : std::hash::Hash + Eq + Clone,V> ScopeForest<K, V> {
     fn remove_scope_tree_extension(&mut self) -> Scope<K,V> {
         self.current_scope_tree().pop_scope()
     }
- 
     /// Starting a function requires a new scope tree, as you do not want the functions scope to 
     /// have access to the scope of the caller
     pub fn start_function(&mut self) {
@@ -130,7 +129,7 @@ impl<K : std::hash::Hash + Eq + Clone,V> ScopeForest<K, V> {
     /// Ending a function requires that we removes it's whole tree of scope
     /// This is by design the current scope, which is the last element in the vector
     pub fn end_function(&mut self) -> ScopeTree<K,V>{
-        self.0.pop().expect("Compiler Error: expected a scope tree, however none was found")
+        self.0.pop().expect("ice: expected a scope tree, however none was found")
     }
 
     /// Starting a for loop requires access to the outside scope. 
@@ -148,4 +147,4 @@ impl<K : std::hash::Hash + Eq + Clone,V> ScopeForest<K, V> {
 // We can have methods like: start_function() and end_function() and in the future(maybe) start_closure() end_closure()
 // We will have environment use this too
 
-// IMplement for_loops in evaluator, but we need to migrate the environment to use the scope forest
+// Implement for_loops in evaluator, but we need to migrate the environment to use the scope forest
