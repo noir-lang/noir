@@ -1,4 +1,6 @@
-use crate::{ImportStatement, ast::{Expression, Statement, NoirPath, FunctionDefinition}};
+use std::collections::HashMap;
+
+use crate::{ast::{Expression, Statement, NoirPath, FunctionDefinition}};
 use crate::NoirFunction;
 use crate::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
 use crate::parser::Program;
@@ -10,7 +12,6 @@ use nargo::{CrateManager,  crate_unit::ModID, crate_manager::CrateID};
 struct ResolverMeta{
     num_times_used : usize,
     span : Span,
-    import_id : Option<(ModID, CrateID)>, // For imports, we may want an external function. Unlike Rust, we only allow Module Imports, so it is not DefID
 }
 
 type Scope = GenericScope<String, ResolverMeta>;
@@ -25,13 +26,14 @@ pub struct Resolver<'a>{
     current_module : ModID,
     current_crate : CrateID, // XXX: We should encode this into the module_id
     local_declarations : ScopeForest,
+    resolved_imports : HashMap<String, (ModID, CrateID)>,
     errors : Vec<AnalyserError>
 }
 
 impl<'a> Resolver<'a> {
 
     fn new( current_module : ModID,current_crate : CrateID, crate_manager : &'a CrateManager<Program>) -> Resolver<'a> {
-        Resolver {local_declarations : ScopeForest::new(), current_module, current_crate, errors: Vec::new(),crate_manager}
+        Resolver {local_declarations : ScopeForest::new(), current_module, current_crate, errors: Vec::new(),resolved_imports: HashMap::new(),crate_manager}
     }
 
     fn add_variable_decl(&mut self, name : Ident) {
@@ -41,7 +43,7 @@ impl<'a> Resolver<'a> {
     fn add_decl(&mut self, name : Ident, import_id : Option<(ModID, CrateID)>) {
 
         let scope = self.local_declarations.get_mut_scope();
-        let resolver_meta = ResolverMeta {num_times_used : 0, span : name.0.span(), import_id};
+        let resolver_meta = ResolverMeta {num_times_used : 0, span : name.0.span()};
         let is_new_entry = scope.add_key_value(name.0.contents.clone(), resolver_meta);
 
         if !is_new_entry {
@@ -85,21 +87,20 @@ impl<'a> Resolver<'a> {
             },
             NoirPath::External(pth) => {
                 let path = pth.first()?.clone();
-                let global_meta = self.local_declarations.find_global(&path.0.contents)?;
-                let (mod_id, crate_id ) =  global_meta.import_id?;
-                let krate = self.crate_manager.get_crate_with_id(crate_id)?;
-                krate.get_module(mod_id)
+                let (mod_id, crate_id ) = self.resolved_imports.get(&path.0.contents)?;
+                let krate = self.crate_manager.get_crate_with_id(*crate_id)?;
+                krate.get_module(*mod_id)
             }
         }
         }
 
-    // Resolve use foo::bar to a (ModId, CrateId)
-    // In this example, it would be the ModID and CrateID for the `bar` module
-    fn resolve_import_stmt(&mut self, import : &ImportStatement) ->(String, ModID, CrateID) {
-        let (key, mod_id, crate_id) = super::resolve_import(import, self.crate_manager);
-        let resolver_meta = ResolverMeta {num_times_used : 0, span : key.0.span(), import_id : (mod_id, crate_id).into()};
-        self.local_declarations.add_global(key.0.contents.clone(), resolver_meta);
-        (key.0.contents, mod_id, crate_id)
+    fn resolve_imports(&mut self, ast : &mut Program) {
+        for import in ast.imports.iter() {
+            let (key, mod_id, crate_id) = super::resolve_import(import, self.crate_manager);
+            ast.resolved_imports.insert(key.0.contents, (mod_id, crate_id));
+        }
+        // Copy imports to resolver
+        self.resolved_imports = ast.resolved_imports.clone();
     }
 
     // Checks if all variables have been correctly scoped
@@ -110,11 +111,8 @@ impl<'a> Resolver<'a> {
         // Add functions into this, so that call expressions can be resolved
         let mut resolver = Resolver::new(mod_id, crate_id, crate_manager);
 
-        // Resolve Import paths
-        for import in ast.imports.iter() {
-            let (key, mod_id, crate_id) = resolver.resolve_import_stmt(import);
-            ast.resolved_imports.insert(key, (mod_id, crate_id));
-        }
+        // Resolve Import paths and copy to Resolver
+        resolver.resolve_imports(ast);
 
         // Resolve AST
         for func in ast.functions.iter(){
