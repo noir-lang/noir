@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
+use nargo::{CrateManager, crate_manager::CrateID, crate_unit::ModID};
+
+use crate::ImportStatement;
 use crate::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement, ArraySize};
 use crate::ast::{NoirPath, FunctionDefinition};
 use crate::parser::Program;
-use crate::{SymbolTable, NoirFunction};
-use std::collections::HashMap;
+use crate::NoirFunction;
 
 use super::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest};
 
@@ -15,16 +19,40 @@ use super::errors::{AnalyserError, Span, TypeError};
 mod expression;
 
 pub struct TypeChecker<'a> {
-    table : &'a SymbolTable,
+    crate_manager : &'a CrateManager<Program>,
+    current_module : ModID,
+    current_crate : CrateID, // XXX: We should encode this into the module_id
     local_types : ScopeForest,
-    errors : Vec<AnalyserError>
-
+    errors : Vec<AnalyserError>,
+    resolved_imports : HashMap<String, (ModID, CrateID)>
 }
 
 impl<'a> TypeChecker<'a> {
 
-    fn from_symbol_table(table : &SymbolTable) -> TypeChecker {
-        TypeChecker {table, local_types : ScopeForest::new(), errors:Vec::new()}
+    fn new(current_module : ModID,current_crate : CrateID, crate_manager : &CrateManager<Program>) -> TypeChecker {
+        TypeChecker {current_module, current_crate, crate_manager, local_types : ScopeForest::new(), errors:Vec::new(), resolved_imports: HashMap::new()}
+    }
+    
+    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<&NoirFunction> {   
+            let module = self.resolve_call_path(self.current_crate, self.current_module, path)?;
+            Some(module.find_function(&func_name.0.contents)?.into())
+    }
+    
+    // Resolve `foo::bar` in foo::bar::call() to the module with the function
+    // This function has been duplicated, due to the fact that we cannot make it generic over the Key
+    pub fn resolve_call_path(&self, current_crate : CrateID, current_module : ModID, path : &NoirPath) -> Option<&'_ Program> {
+        match path {
+            NoirPath::Current => {
+                let krate = self.crate_manager.get_crate_with_id(current_crate)?;
+                krate.get_module(current_module)
+            },
+            NoirPath::External(pth) => {
+                let path = pth.first()?.clone();
+                let (mod_id, crate_id ) = self.resolved_imports.get(&path.0.contents)?;
+                let krate = self.crate_manager.get_crate_with_id(*crate_id)?;
+                krate.get_module(*mod_id)
+            }
+        }
     }
 
     pub fn add_variable_declaration(&mut self, name : Ident, typ : Type) {
@@ -39,49 +67,35 @@ impl<'a> TypeChecker<'a> {
         self.errors.push(err.into())
     }
 
-    fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<NoirFunction> {   
-        self.table.look_up_func(path.clone(), &func_name)
-    }
     pub fn lookup_local_identifier(&mut self, name : &Ident) -> Type {
         let scope_tree = self.local_types.current_scope_tree();
         scope_tree.find_key(name).expect("Compiler Error: Cannot find type for specified name. This should be caught by the Resolver pass").clone()
     }
 
-    pub fn check(mut ast : Program, table : &SymbolTable) -> Result<Program, Vec<AnalyserError>> {
+    pub fn check(ast : &mut Program, mod_id : ModID, crate_id : CrateID, crate_manager : &'a CrateManager<Program>) -> Result<(), Vec<AnalyserError>> {
 
-        let mut type_checker = TypeChecker::from_symbol_table(table);
+        let mut type_checker = TypeChecker::new(mod_id, crate_id, crate_manager);
 
-        ast.main = match ast.main.clone() {
-            Some(main_func) =>    {    
-                Some(type_checker.type_check_func_def(main_func))
-            },
-            None => None
-        };
+        // Copy resolved imports
+        type_checker.resolved_imports = ast.resolved_imports.clone();
 
-        ast = type_checker.type_check_ast(ast);
-
-        ast.modules = ast.modules.into_iter().map(|(module_id, module)| {
-            (module_id, type_checker.type_check_ast(module))
-        }).collect();
+         type_checker.type_check_ast(ast);
 
         if type_checker.errors.len() > 0 {
             return Err(type_checker.errors)
         }
 
-        Ok(ast)
+        Ok(())
     }
 
-    fn type_check_ast(&mut self, mut ast : Program) -> Program {
-
-        ast.functions = ast.functions.into_iter().map(|func| {
-            self.type_check_func_def(func)
-        }).collect();
-
-        ast
+    fn type_check_ast(&mut self, ast : &mut Program) {
+        for func in ast.functions.iter_mut() {
+            self.type_check_func_def(func.def_mut());
+        }
     }
 
     // Check that all assignments have the correct types
-fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefinition {
+fn type_check_func_def(&mut self, func : &mut FunctionDefinition) {
     
     self.local_types.start_function();
 
@@ -92,7 +106,7 @@ fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefi
 
     let last_return_type = match self.type_check_block_stmt(&mut func.body) {
         Ok(lrt) => lrt,
-        Err(_) => return func // If an error is encountered, this will be picked up by the Reporter, lets not pollute stdout with mismatched return type
+        Err(_) => return // If an error is encountered, this will be picked up by the Reporter, lets not pollute stderr with mismatched return type
     };
 
 
@@ -110,13 +124,10 @@ fn type_check_func_def(&mut self, mut func : FunctionDefinition) -> FunctionDefi
     }
 
     self.local_types.end_function();
-
-    func
 }
 
 // Check that all assignments have the correct types
 fn type_check_block_stmt(&mut self, block : &mut BlockStatement) -> Result<Type, AnalyserError> {
-
 
     let mut last_return_type = Type::Unit;
 

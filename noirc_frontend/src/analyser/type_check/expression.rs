@@ -15,10 +15,7 @@ impl<'a> TypeChecker<'a> {
                 let func = self.find_function(&path, &call_expr.func_name);
                 let func = func.expect(&format!("Compiler Error: Could not find a function named {} , under the path {:?}", &call_expr.func_name.0.contents, path));
 
-                let (parameters, return_type) = match func {
-                    NoirFunction::LowLevelFunction(literal) => (literal.parameters, literal.return_type),
-                    NoirFunction::Function(literal) => (literal.parameters, literal.return_type),
-                };
+                let (parameters, return_type) = (func.def().parameters.clone(), func.def().return_type.clone());
 
                 let (argument_types, _) = self.type_check_vector_expressions(&mut call_expr.arguments)?;
        
