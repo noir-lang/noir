@@ -28,6 +28,11 @@ impl From<PathBuf> for PathString {
         PathString::from_path(pb)
     }
 }
+impl From<&PathBuf> for PathString {
+    fn from(pb : &PathBuf) -> PathString {
+        PathString::from(pb.to_owned())
+    }
+}
 
 pub struct FileMap(SimpleFiles<PathString, String>);
 

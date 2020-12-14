@@ -11,7 +11,7 @@ fn main() {
     let mut files = SimpleFiles::new();
 
 let file_id = files.add(
-    "main.noir",
+    "main.nr",
     
         r#"var x = 5"#,
 );
