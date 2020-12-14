@@ -18,7 +18,6 @@ use acir::native_types::{Witness, Arithmetic, Linear};
 use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
-use noirc_frontend::symbol_table::{SymbolTable};
 use noirc_frontend::ast::*;
 use noirc_frontend::parser::Program;
 use nargo::{CrateManager, CrateUnit};
@@ -569,40 +568,4 @@ impl Evaluator {
         let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
         (objects, errors)
     }
-}
-
-// The call_path variable is the path for the item you are trying to call
-// Example:
-// import foo::bar
-// bar::hello::call()
-//
-// The call_path would be `bar::hello`
-fn fully_qualified_path<'a>(current_symbol_table: &'a SymbolTable, call_path : &'a Vec<Ident>) -> Result<Vec<Ident>, EvaluatorError>{
-
-        // First find the import path in the current crate
-        // This is the foo::bar in `import foo::bar`
-        // To do this, we match on the first item in the call path
-        let top_level_mod = call_path.first().unwrap();
-        let top_level_mod_str = &top_level_mod.0.contents;
-        //
-        //
-        let import_symbol = match current_symbol_table.find_import(top_level_mod_str) {
-            None => return Err(EvaluatorError::UnstructuredError{span : top_level_mod.0.span(), message : format!("Missing import for: {}", top_level_mod_str)}),
-            Some(symbol_info) => symbol_info
-        };
-
-        // Now we merge the two paths to get the path from the global symbol table to the symbol we desire
-        // 
-        // Skip the first element in the call_path
-        // This is because the import path will also have this as it's last element 
-        // We do not take from the import path because if the import is aliased, then the call path is not 
-        // the correct path from the global symbol table to the symbol 
-        let call_path : Vec<_>= call_path.into_iter().skip(1).collect();
-        //
-        //
-        // XXX: We are still in the alpha phase, so adding another clone is fine. Two more phases and all unnecessary clones should be removed
-        // Out of Clones and lifetimes, Clones are definitely easier to read. The strategy to remove clones will not replace them with lifetimes!
-        let fully_qualified_path : Vec<_>= import_symbol.into_iter().chain(call_path.into_iter()).map(|borrowed_item|borrowed_item.clone()).collect();
-
-        Ok(fully_qualified_path)
 }
