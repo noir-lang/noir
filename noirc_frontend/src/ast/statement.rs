@@ -71,8 +71,8 @@ impl Into<Statement> for Expression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {
-    pub path: Vec<String>,
-    pub alias: Option<String>,
+    pub path: Vec<Ident>,
+    pub alias: Option<Ident>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
