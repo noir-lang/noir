@@ -4,67 +4,73 @@ mod parser;
 
 mod errors;
 
+use std::collections::HashMap;
+
 pub use errors::ParserError;
 
+use nargo::{crate_manager::CrateID, crate_unit::ModID};
 pub use parser::{Parser, ParserExprResult,ParserExprKindResult};
 
-use crate::ast::{Expression, FunctionDefinition, ImportStatement, Statement};
+use crate::{FunctionKind, NoirFunction, ast::{FunctionDefinition, ImportStatement, Type}};
 use crate::token::{Keyword, Token, SpannedToken};
-use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Program {
     pub imports: Vec<ImportStatement>,
-    pub statements: Vec<Statement>,
-    pub functions: Vec<FunctionDefinition>,
-    pub main: Option<FunctionDefinition>,
-    pub modules : HashMap<String, Program>,
+    pub functions: Vec<NoirFunction>,
+    pub module_decls : Vec<String>,
+    pub resolved_imports : HashMap<String, (ModID, CrateID)>
 }
 
 const MAIN_FUNCTION: &str = "main";
 
 impl Program {
-    pub fn new() -> Self {
-        Program::with_capacity(0)
+    /// Returns the program abi which is only present for executables and not libraries
+    /// Note: That a library can have a main method, so you should only call this, if you are sure the crate is a binary
+    pub fn abi(&self) -> Option<Vec<(String, Type)>> {
+        let main_func = self.find_function(MAIN_FUNCTION)?;
+        match main_func.kind {
+            FunctionKind::Normal => Some(Program::func_to_abi(main_func.def())), // The main function should be normal and not a builtin/lowlevel
+            _=> None 
+        }
+        
     }
-    pub fn with_capacity(cap: usize) -> Self {
+
+    pub fn find_function(&self, name : &str) -> Option<&NoirFunction> {
+        for func in self.functions.iter() {
+            let func_name  = func.name();
+            if func_name == name  {
+                return Some(func)
+            }
+        }
+        None
+    }
+        
+    fn with_capacity(cap: usize) -> Self {
         Program {
             imports: Vec::with_capacity(cap),
-            statements: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
-            main: None,
-            modules : HashMap::new(),
+            module_decls : Vec::new(),
+            resolved_imports : HashMap::new(),
         }
     }
-    pub fn push_statement(&mut self, stmt: Statement) {
-        self.statements.push(stmt)
+
+    fn push_function(&mut self, func: NoirFunction) {
+        self.functions.push(func);
     }
-    pub fn push_function(&mut self, func: FunctionDefinition) {
-        if &func.name.0.contents == MAIN_FUNCTION {
-            self.main = Some(func)
-        } else {
-            self.functions.push(func);
-        }
-    }
-    pub fn push_import(&mut self, import_stmt: ImportStatement) {
+    fn push_import(&mut self, import_stmt: ImportStatement) {
         self.imports.push(import_stmt);
     }
-    pub fn push_module(&mut self, mod_name: String, module : Program) {
-        self.modules.insert(mod_name, module);
+    fn push_module_decl(&mut self, mod_name: String) {
+        self.module_decls.push(mod_name);
     }
-    /// Returns the program abi which is only present for executables and not libraries
-    pub fn abi(&self) -> Option<Vec<(String, crate::ast::Type)>> {
-        match &self.main {
-            Some(main_func) => {
-                let abi = main_func
-                    .parameters
-                    .iter()
-                    .map(|(ident, typ)| (ident.0.contents.clone(), typ.clone()))
-                    .collect();
-                Some(abi)
-            }
-            None => None,
-        }
+
+    fn func_to_abi(func : &FunctionDefinition) -> Vec<(String, Type)> {
+        func
+        .parameters
+        .iter()
+        .map(|(ident, typ)| (ident.0.contents.clone(), typ.clone()))
+        .collect()
     }
 }
 
