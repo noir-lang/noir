@@ -18,12 +18,10 @@ use acir::native_types::{Witness, Arithmetic, Linear};
 use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
-use noirc_frontend::ast::FunctionDefinition as Function;
-use noirc_frontend::symbol_table::{SymbolTable, NoirFunction};
+use noirc_frontend::symbol_table::{SymbolTable};
 use noirc_frontend::ast::*;
-use noirc_frontend::lexer::token::Attribute;
 use noirc_frontend::parser::Program;
-
+use nargo::{CrateManager, CrateUnit};
 use noir_field::FieldElement;
 
 pub struct Evaluator {
@@ -31,31 +29,27 @@ pub struct Evaluator {
     num_selectors: usize,                         // XXX: Can possibly remove
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
     selectors: Vec<Selector>, // XXX: Possibly move into environment
-    statements: Vec<Statement>,
-    symbol_table: SymbolTable,
+    crate_manager: CrateManager<Program>,
     num_public_inputs: usize,
-    main_function: Function,
+    main_function: NoirFunction,
+    main_module : Program, 
     gates: Vec<Gate>, // Identifier, Object
     counter: usize,   // This is so that we can get a unique number
 }
 
 impl Evaluator {
-    pub fn new(program: Program, symbol_table: SymbolTable) -> Option<Evaluator> {
-        let Program {
-            statements,
-            imports: _,
-            functions: _,
-            main: _,
-            modules : _,
-        } = program;
-
-        // Check that we have a main function
-        let possible_main = symbol_table.look_up_main_func();
+    pub fn new(crate_manager: CrateManager<Program>) -> Option<Evaluator> {
         
-        let main_function = match possible_main {
-            None => return None,
-            Some(main_func) => main_func,
-        };
+        // Check that we have a main crate
+        // This will later be based on the crate_root
+        let main_crate = crate_manager.get_crate_with_name("main")?;
+        
+        // Check for the main module
+        // This will also later be based on the crate_root
+        let main_module = main_crate.get_module_with_name("main")?.clone();
+
+        // Check for main function
+        let main_function = main_module.find_function("main")?.clone();
 
         Some(Evaluator {
             num_witness: 0,
@@ -63,9 +57,9 @@ impl Evaluator {
             num_public_inputs: 0,
             witnesses: HashMap::new(),
             selectors: Vec::new(),
-            symbol_table,
-            statements,
+            crate_manager,
             main_function,
+            main_module : main_module,
             gates: Vec::new(),
             counter: 0,
         })
@@ -148,13 +142,13 @@ impl Evaluator {
         }
 
         // Print all gates for debug purposes
-        for gate in optimised_arith_gates.iter() {
-            dbg!(gate);
-        }
+        // for gate in optimised_arith_gates.iter() {
+        //     // dbg!(gate);
+        // }
 
-        for (i, witness) in self.witnesses.iter().enumerate() {
-            dbg!(i, witness);
-        }
+        // for (i, witness) in self.witnesses.iter().enumerate() {
+        //     // dbg!(i, witness);
+        // }
 
         (
             Circuit(optimised_arith_gates),
@@ -227,7 +221,7 @@ impl Evaluator {
         let mut pub_inputs = Vec::new();
         let mut witnesses = Vec::new();
 
-        for (param_name, param_type) in self.main_function.parameters.clone().into_iter() {
+        for (param_name, param_type) in self.main_function.def().parameters.clone().into_iter() {
             match param_type {
                 Type::Public =>{
                     pub_inputs.push(param_name);
@@ -255,7 +249,7 @@ impl Evaluator {
         // Now call the main function
         // XXX: We should be able to replace this with call_function in the future, 
         // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
-        for statement in self.main_function.body.0.clone().into_iter() {
+        for statement in self.main_function.def().body.0.clone().into_iter() {
             self.evaluate_statement(env, statement)?;
         }
         Ok(())
@@ -486,20 +480,35 @@ impl Evaluator {
             }
             ExpressionKind::Call(path, call_expr) => {
                 let func_name = call_expr.func_name.clone();
-                let func_def = self.symbol_table.look_up_func(path.clone(), &func_name);
-            
-                let noir_func = func_def.expect(&format!("Tried to call {}, but function not found. This should have been caught by the analyser", &func_name.0.contents));    
+
+                // If the NoirPath is Current then we can convert the path to a String and look in the local symbol table
+                // If not, we need the absolute path to look up the symbol in the global symbol table
+                let func_def = match path {
+                    NoirPath::Current => self.main_module.find_function(&func_name.0.contents),
+                    NoirPath::External(pth)=> {
+                        let path = pth.first().unwrap().clone();
+                        
+                        let (mod_id, crate_id ) = self.main_module.resolved_imports.get(&path.0.contents).unwrap();
+                        let krate = self.crate_manager.get_crate_with_id(*crate_id).unwrap();
+                        krate.get_module(*mod_id).unwrap().find_function(&func_name.0.contents)
+                    }
+                };
+                
+                let noir_func = func_def.expect(&format!("Tried to call {}, but function not found. This should have been caught by the analyser", &func_name.0.contents)).clone();    
                 // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
                 // If not then we just call the library as usual with the function definition
-                match noir_func {
-                    NoirFunction::Function(compiled_func) => self.call_function(env, &call_expr, compiled_func.clone()),
-                    NoirFunction::LowLevelFunction(func) => {
-                        let attribute = func.attribute.expect("All low level functions must contain an attribute which contains the opcode which it links to");
-                        match attribute {
-                            Attribute::Foreign(opcode_name) => low_level_function_impl::call_low_level(self, env, &opcode_name, *call_expr),
-                            Attribute::Builtin(builtin_name) => builtin::call_builtin(self, env, &builtin_name, *call_expr)
-                        }
+                match noir_func.kind {
+                    FunctionKind::Normal => self.call_function(env, &call_expr, noir_func.clone()),
+                    FunctionKind::LowLevel => {
+                        let attribute = noir_func.attribute().expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                        let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
+                        low_level_function_impl::call_low_level(self, env, opcode_name, *call_expr)
+                    },
+                    FunctionKind::Builtin => {
+                        let attribute = noir_func.attribute().expect("all low level functions must contain an attribute which contains the opcode which it links to");
+                        let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
+                        builtin::call_builtin(self, env, builtin_name, *call_expr)
                     },
                 }
                     
@@ -514,7 +523,7 @@ impl Evaluator {
         }
     }
 
-    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: Function) -> Result<Object, EvaluatorError> {
+    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: NoirFunction) -> Result<Object, EvaluatorError> {
               // Create a new environment for this function
                 // This is okay because functions are not stored in the environment
                 // We need to add the arguments into the environment though
@@ -529,18 +538,18 @@ impl Evaluator {
 
 
                 for ((param_name, param_type), argument) in
-                    func.parameters.iter().zip(arguments.iter())
+                    func.def().parameters.iter().zip(arguments.iter())
                 {
                     new_env.store(param_name.0.clone().contents, argument.clone());
                 }
 
-                let return_val = self.apply_func(&mut new_env, func)?;
+                let return_val = self.apply_func(&mut new_env, &func)?;
 
                 Ok(return_val)
     }
 
-    fn apply_func(&mut self, env: &mut Environment, func: Function) -> Result<Object, EvaluatorError> {
-        self.eval_block(env, func.body)
+    fn apply_func(&mut self, env: &mut Environment, func: &NoirFunction) -> Result<Object, EvaluatorError> {
+        self.eval_block(env, func.def().body.clone())
     }
 
     fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Result<Object, EvaluatorError> {
@@ -560,4 +569,40 @@ impl Evaluator {
         let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
         (objects, errors)
     }
+}
+
+// The call_path variable is the path for the item you are trying to call
+// Example:
+// import foo::bar
+// bar::hello::call()
+//
+// The call_path would be `bar::hello`
+fn fully_qualified_path<'a>(current_symbol_table: &'a SymbolTable, call_path : &'a Vec<Ident>) -> Result<Vec<Ident>, EvaluatorError>{
+
+        // First find the import path in the current crate
+        // This is the foo::bar in `import foo::bar`
+        // To do this, we match on the first item in the call path
+        let top_level_mod = call_path.first().unwrap();
+        let top_level_mod_str = &top_level_mod.0.contents;
+        //
+        //
+        let import_symbol = match current_symbol_table.find_import(top_level_mod_str) {
+            None => return Err(EvaluatorError::UnstructuredError{span : top_level_mod.0.span(), message : format!("Missing import for: {}", top_level_mod_str)}),
+            Some(symbol_info) => symbol_info
+        };
+
+        // Now we merge the two paths to get the path from the global symbol table to the symbol we desire
+        // 
+        // Skip the first element in the call_path
+        // This is because the import path will also have this as it's last element 
+        // We do not take from the import path because if the import is aliased, then the call path is not 
+        // the correct path from the global symbol table to the symbol 
+        let call_path : Vec<_>= call_path.into_iter().skip(1).collect();
+        //
+        //
+        // XXX: We are still in the alpha phase, so adding another clone is fine. Two more phases and all unnecessary clones should be removed
+        // Out of Clones and lifetimes, Clones are definitely easier to read. The strategy to remove clones will not replace them with lifetimes!
+        let fully_qualified_path : Vec<_>= import_symbol.into_iter().chain(call_path.into_iter()).map(|borrowed_item|borrowed_item.clone()).collect();
+
+        Ok(fully_qualified_path)
 }
