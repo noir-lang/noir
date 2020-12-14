@@ -10,10 +10,12 @@ use attribute_check::AttributeChecker;
 mod resolve;
 use resolve::Resolver;
 
+
 mod type_check;
 use type_check::TypeChecker;
 
-use crate::ast::FunctionDefinition;
+use crate::{Ident, NoirPath, ast::FunctionDefinition};
+
 /// This module is for now just a placeholder
 /// We want the analyser to do quite a few things such as:
 /// - Be able to check for unused variables (Resolver)
@@ -24,92 +26,75 @@ use crate::ast::FunctionDefinition;
 ///  This means the compiler only needs to constrain private statements when they see them. I think it also means we can refactor env, it will only be used for scope management + symbol table
 /// - Fill in inferred types for witnesses priv k = x as u8, should modify k to be the u8 Type
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
-use crate::ast::{Statement, ImportStatement};
-use crate::symbol_table::{SymbolTable, NoirFunction, SymbolInformation};
+use crate::ast::ImportStatement;
 use crate::parser::Program;
+use nargo::{CrateManager, CrateUnit, crate_manager::CrateID, crate_unit::{ModID, VirtualPath}};
 
-use std::collections::HashMap;
+use std::path::PathBuf;
 
-pub struct CheckedProgram{
-    pub imports: Vec<ImportStatement>,
-    pub statements: Vec<Statement>,
-    pub functions: HashMap<String, (NoirFunction, SymbolTable)>,
-    pub main: Option<FunctionDefinition>,
-}
-
-pub fn check(ast: Program) -> Result<(Program, SymbolTable), Vec<AnalyserError>> {
-    check_program(ast, false)
-}
-
-// We need to bootstrap the standard library. This code will be removed once we stop interpreting the AST
-// Or we move the stdlib symbol table to be on symbol table by default. (For this it would need to also be recompiled however)
-fn check_program(ast : Program, is_std_lib : bool) -> Result<(Program, SymbolTable), Vec<AnalyserError>> {
+/// We assume that the standard library has already been loaded
+pub fn check_crates(crate_manager: &mut CrateManager<Program>) -> Result<(), Vec<AnalyserError>> {
 
     // Attribute checker
-    AttributeChecker::check(&ast);
+    if let Err(err) = AttributeChecker::check_crates(&crate_manager) {    
+        return Err(vec![err])
+    }; 
 
     // Resolver
-    let symbol_table = build_symbol_table(&ast, is_std_lib);
-    let ast = Resolver::resolve(ast, &symbol_table)?;
-    
-    // Type checker
-    let ast = TypeChecker::check(ast, &symbol_table)?;
+    // Lets do the resolver!
+    // XXX: We are doing this because currently CrateIDs and ModIDs are not linked up
+    let mut modules_to_update = Vec::new();
+    for crate_id in crate_manager.crate_ids() {
+        let krate = crate_manager.get_crate_with_id(crate_id).unwrap();
+        for mod_id in krate.module_ids() {
+            let mut module = krate.get_module(mod_id).unwrap().clone();
+        
+            Resolver::resolve(&mut module, mod_id, crate_id, crate_manager)?;
+            TypeChecker::check(&mut module, mod_id, crate_id, crate_manager)?;
 
-    // XXX: This is inefficient and is only done because the AST might have changed 
-    // as we are doing type inferrence. We would be able to remove this if we updated
-    // the symbol table on the fly too
-    let symbol_table = build_symbol_table(&ast, is_std_lib);
-
-    Ok((ast, symbol_table))
-}
-
-fn build_symbol_table(ast: &Program, is_std_lib : bool) -> SymbolTable {
-    let mut root_table = SymbolTable::new();
-
-    // Add the low level standard library symbol table
-    // XXX: We will also compile and add the high level library here, but we do not have any high level std library constructs yet
-    // Once modules are implemented, this(stdlib) will then move upto the module layer
-    if !is_std_lib {
-        load_low_level_libraries_into_symbol_table(&mut root_table);
+            modules_to_update.push((mod_id, crate_id, module));
+        }
     }
 
-    load_local_functions_into_symbol_table(ast, &mut root_table);
-
-    root_table
+    // Update the modules in the crate manager
+    // This will be removed, once type checker does not work over the AST
+    for module in modules_to_update.into_iter() {
+        let mod_id = module.0;
+        let crate_id = module.1;
+        let module = module.2;
+        
+        let krate = crate_manager.get_mut_crate_with_id(crate_id).unwrap();
+        let fetched_module = krate.get_mut_module(mod_id).unwrap();
+        *fetched_module = module;
+    }
+    Ok(())
 }
 
-
-
-fn load_local_functions_into_symbol_table(ast: &Program, table: &mut SymbolTable) {
-    for func_def in ast.functions.iter() {
-        table.insert_func_def(func_def);
-    }
-
-    // Add main function separately as it is not inside of the list of functions.
-    // XXX: Should we just add it like any other function and look it up with the symbol table?
-    match &ast.main {
-        Some(main_func) => table.insert_func_def(main_func),
-        None => {}
-    };
-
-    for (module_key, module) in ast.modules.iter() {
-        let mut module_symbol_table = SymbolTable::new();
-        load_local_functions_into_symbol_table(module, &mut module_symbol_table);
-        table.insert(module_key.clone().into(), SymbolInformation::Table(module_symbol_table))
+pub fn noir_path_to_virtual_path(noir_path : NoirPath) -> VirtualPath {
+    match noir_path {
+        NoirPath::Current => panic!("We might remove this as we do not know what current is, can just use 'crate/super' "),
+        NoirPath::External(pth) => {
+            
+            let segments : String = pth.into_iter().map(|ident| {
+                let mut segment = ident.0.contents.clone();
+                segment.push_str("/");
+                segment
+            }).collect();
+            
+            VirtualPath::from_noir_path(PathBuf::from(segments))
+        }
     }
 }
 
-fn load_low_level_libraries_into_symbol_table(table: &mut SymbolTable) {
-    use std_lib::LIB_NOIR;
-    // Import std here
-    //
-    // Parse and add low level functions into a symbol table
-    // XXX: We could alternatively define the AST for this in the host language
-    
-    let mut parser = crate::Parser::with_input(&LIB_NOIR);
-    let (program) = parser.parse_program().unwrap();
-    let (checked_program, std_table) = check_program(program, true).unwrap();
-    // We do nothing with the checked program for two reasons: Every module should have a copy of std_lib
+    // Resolve use `foo::bar as hello` to a (Key, ModId, CrateId)
+    // In this example, it would be the ModID and CrateID for the `bar` module and the key would be hello
+    fn resolve_import(import : &ImportStatement, crate_manager : &CrateManager<Program>) -> (Ident, ModID, CrateID) {
+        let vp = noir_path_to_virtual_path(import.path.clone().into());
+        let (mod_id, crate_id, _) = crate_manager.find_module(vp).unwrap();
 
-    table.insert("std".to_string().into(), SymbolInformation::Table(std_table));
-}
+        let key = match &import.alias {
+        Some(alias) => alias.to_owned(),
+            None => import.path.last().unwrap().to_owned()
+        };
+        (key, mod_id, crate_id)
+    }
