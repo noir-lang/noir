@@ -341,6 +341,20 @@ impl Attribute {
             _=> panic!("unknown attribute type")
         }
     }
+
+    pub fn builtin(&self) -> Option<&str>{
+        match self {
+            Attribute::Foreign(_) => None,
+            Attribute::Builtin(name) => Some(name),
+        }
+    }
+    pub fn foreign(&self) -> Option<&str>{
+        match self {
+            Attribute::Foreign(name) => Some(name),
+            Attribute::Builtin(_) => None,
+        }
+    }
+
     pub fn is_foreign(&self) -> bool{
         match self 
         {
@@ -354,13 +368,6 @@ impl Attribute {
             Attribute::Foreign(_) => true,
             Attribute::Builtin(_) => true,
             _ => false
-        }
-    }
-
-    pub fn declares_a_low_level_func(&self) -> bool {
-        match self {
-            Attribute::Builtin(_) => true,
-            Attribute::Foreign(_) => true,
         }
     }
 }
@@ -432,6 +439,7 @@ impl fmt::Display for Keyword {
 impl Keyword {
     /// If the string is a keyword, return the associated token
     /// else return None
+    /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function 
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         match word {
             "fn" => Some(Token::Keyword(Keyword::Fn)),
