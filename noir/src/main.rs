@@ -107,14 +107,14 @@ struct CompiledMain {
     abi: Abi,
 }
 
-/// Looks for main.noir in the current directory
+/// Looks for main.nr in the current directory
 /// Returns the constraint system
 /// The compiled circuit (DSL variation)
 /// And the parameters for main
 fn build_main() -> CompiledMain {
     let mut main_file = std::env::current_dir().unwrap();
     main_file.push(std::path::PathBuf::from("bin"));
-    main_file.push(std::path::PathBuf::from("main.noir"));
+    main_file.push(std::path::PathBuf::from("main.nr"));
     assert!(
         main_file.exists(),
         "Cannot find main file at located {}",
@@ -188,7 +188,7 @@ fn new_package(args: ArgMatches) {
     let bin_dir = package_dir.join(Path::new(BINARY_DIR));
 
     let _ = write_to_file(input.as_bytes(), &bin_dir.join(Path::new("input.toml")));
-    let path = write_to_file(example.as_bytes(), &&bin_dir.join(Path::new("main.noir")));
+    let path = write_to_file(example.as_bytes(), &&bin_dir.join(Path::new("main.nr")));
     println!("Project successfully created! Binary located at {}", path);
 }
 fn verify(args: ArgMatches) {
@@ -249,7 +249,7 @@ fn prove(args: ArgMatches) {
         let value = witness_map.get(param).expect(&format!("ABI expects the parameter `{}`, but this was not found in input.toml", param));
         
         solved_witness.insert(
-            Witness::new(param.clone(), index + WITNESS_OFFSET),
+            Witness::new(param.to_owned(), index + WITNESS_OFFSET),
             value.clone(),
         );
     }
@@ -273,7 +273,7 @@ fn prove(args: ArgMatches) {
     proof_path.push(proof_name);
     proof_path.set_extension("proof");
 
-    dbg!(hex::encode(proof.clone()));
+    dbg!(hex::encode(&proof));
 
     let path = write_to_file(&proof, &proof_path);
     println!("Proof successfully created and located at {}", path)

@@ -10,4 +10,5 @@ members = [
     "noirc_driver",
     "acir",
     "std_lib",
+    "nargo",
 ]

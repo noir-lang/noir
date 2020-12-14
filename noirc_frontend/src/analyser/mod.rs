@@ -28,7 +28,7 @@ use crate::{Ident, NoirPath, ast::FunctionDefinition};
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
 use crate::ast::ImportStatement;
 use crate::parser::Program;
-use nargo::{CrateManager, CrateUnit, crate_manager::CrateID, crate_unit::{ModID, VirtualPath}};
+use nargo::{CrateManager, crate_manager::CrateID, crate_unit::{ModID, VirtualPath}};
 
 use std::path::PathBuf;
 
