@@ -11,11 +11,11 @@ class PlookupComposer : public ComposerBase {
     static constexpr size_t NUM_PLOOKUP_SELECTORS = 15;
     static constexpr size_t NUM_RESERVED_GATES = 4; // this must be >= num_roots_cut_out_of_vanishing_polynomial
     static constexpr size_t UINT_LOG2_BASE = 6;
-    //the plookup range proof requires work linear in range size, thus cannot be used directly for
-    //large ranges such as 2^64. For such ranges the element will be decomposed into smaller 
+    // the plookup range proof requires work linear in range size, thus cannot be used directly for
+    // large ranges such as 2^64. For such ranges the element will be decomposed into smaller
     // chuncks according to the parameter below
-static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = 17;
-static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_BITNUM)-1;
+    static constexpr size_t DEFAULT_PLOOKUP_RANGE_BITNUM = 17;
+    static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1 << DEFAULT_PLOOKUP_RANGE_BITNUM) - 1;
 
     struct RangeList {
         uint64_t target_range;
@@ -123,8 +123,9 @@ static constexpr size_t DEFAULT_PLOOKUP_RANGE_SIZE = (1<<DEFAULT_PLOOKUP_RANGE_B
     /**
      * Generalized Permutation Methods
      **/
-std::vector<uint32_t> decompose_into_default_range(const uint32_t variable_index, const size_t num_bits);
-std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(const uint32_t variable_index, const size_t num_bits);
+    std::vector<uint32_t> decompose_into_default_range(const uint32_t variable_index, const size_t num_bits);
+    std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(const uint32_t variable_index,
+                                                                             const size_t num_bits);
     void create_dummy_constraints(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
@@ -133,8 +134,8 @@ std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(const u
     void assign_tag(const uint32_t variable_index, const uint32_t tag)
     {
         ASSERT(tag <= current_tag);
-        ASSERT(variable_tags[get_real_variable_index(variable_index)] == DUMMY_TAG);
-        variable_tags[get_real_variable_index(variable_index)] = tag;
+        ASSERT(variable_tags[real_variable_index[variable_index]] == DUMMY_TAG);
+        variable_tags[real_variable_index[variable_index]] = tag;
     }
 
     uint32_t create_tag(const uint32_t tag_index, const uint32_t tau_index)

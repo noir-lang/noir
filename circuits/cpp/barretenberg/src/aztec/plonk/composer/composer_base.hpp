@@ -118,7 +118,8 @@ class ComposerBase {
     };
 
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
-    static constexpr size_t NUM_RESERVED_GATES = 4;     // this must be >= num_roots_cut_out_of_vanishing_polynomial
+    static constexpr uint32_t FIRST_VARIABLE_IN_CLASS = UINT32_MAX - 2;
+    static constexpr size_t NUM_RESERVED_GATES = 4; // this must be >= num_roots_cut_out_of_vanishing_polynomial
 
     enum WireType { LEFT = 0U, RIGHT = (1U << 30U), OUTPUT = (1U << 31U), FOURTH = 0xc0000000, NULL_WIRE };
 
@@ -222,39 +223,61 @@ class ComposerBase {
     virtual void create_poly_gate(const poly_triple& in) = 0;
     virtual size_t get_num_constant_gates() const = 0;
 
-    uint32_t get_real_variable_index(uint32_t index) const
+    // update all variables in cycle of index to have real variable new_real_index
+    uint32_t get_first_variable_in_class(uint32_t index) const
     {
-        if (index >= variable_index_map.size())
-            std::cerr << "index:" << index << std::endl;
-        ASSERT(index < variable_index_map.size());
-        if (variable_index_map[index] != REAL_VARIABLE) {
-            return get_real_variable_index(variable_index_map[index]);
+        while (prev_var_index[index] != FIRST_VARIABLE_IN_CLASS) {
+            index = prev_var_index[index];
         }
         return index;
     }
+    // update all variables from index in equivalence class to have real variable new_real_index
+    void update_real_variable_indices(uint32_t index, uint32_t new_real_index)
+    {
+        auto cur_index = index;
+        do {
+            real_variable_index[cur_index] = new_real_index;
+            cur_index = next_var_index[cur_index];
+        } while (cur_index != REAL_VARIABLE);
+    }
+    // uint32_t get_real_variable_index(uint32_t index) const
+    // {
+    //     if (index >= variable_index_map.size())
+    //         std::cerr << "index:" << index << std::endl;
+    //     ASSERT(index < variable_index_map.size());
+    //     if (variable_index_map[index] != REAL_VARIABLE) {
+    //         return get_real_variable_index(variable_index_map[index]);
+    //     }
+    //     return index;
+    // }
 
     barretenberg::fr get_variable(const uint32_t index) const
     {
         ASSERT(variables.size() > index);
-        return variables[get_real_variable_index(index)];
+        return variables[real_variable_index[index]];
     }
 
     virtual uint32_t add_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);
-        variable_index_map.emplace_back(REAL_VARIABLE);
+        const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
+        real_variable_index.emplace_back(index);
+        next_var_index.emplace_back(REAL_VARIABLE);
+        prev_var_index.emplace_back(FIRST_VARIABLE_IN_CLASS);
         variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
-        return static_cast<uint32_t>(variables.size()) - 1U;
+        return index;
     }
 
     virtual uint32_t add_public_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);
-        variable_index_map.emplace_back(REAL_VARIABLE);
+        const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
+        real_variable_index.emplace_back(index);
+        next_var_index.emplace_back(REAL_VARIABLE);
+        prev_var_index.emplace_back(FIRST_VARIABLE_IN_CLASS);
         variable_tags.emplace_back(DUMMY_TAG);
         wire_copy_cycles.push_back(std::vector<cycle_node>());
-        const uint32_t index = static_cast<uint32_t>(variables.size()) - 1U;
         public_inputs.emplace_back(index);
         return index;
     }
@@ -307,7 +330,10 @@ class ComposerBase {
     std::vector<uint32_t> w_4;
     std::vector<uint32_t> public_inputs;
     std::vector<barretenberg::fr> variables;
-    std::vector<uint32_t> variable_index_map;
+    std::vector<uint32_t> next_var_index; // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
+    std::vector<uint32_t>
+        prev_var_index; // index of  previous variable in equivalence class (=FIRST if you're in a cycle alone)
+    std::vector<uint32_t> real_variable_index; // indices of corresponding real variables
     std::vector<uint32_t> variable_tags;
     uint32_t current_tag = DUMMY_TAG;
     std::map<uint32_t, uint32_t> tau; // the permutation on variable tags;

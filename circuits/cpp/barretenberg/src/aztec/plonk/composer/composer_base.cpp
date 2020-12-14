@@ -13,9 +13,18 @@ void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_
         failed = true;
         err = msg;
     }
-    uint32_t b_real_idx = get_real_variable_index(b_variable_idx);
-    variable_index_map[b_real_idx] = a_variable_idx;
-    uint32_t a_real_idx = get_real_variable_index(a_variable_idx);
+    uint32_t a_real_idx = real_variable_index[a_variable_idx];
+    uint32_t b_real_idx = real_variable_index[b_variable_idx];
+    // If a==b is already enforced exit method
+    if (a_real_idx == b_real_idx)
+        return;
+    // otherwise update the real_idx of b-chain members to that of a
+    auto b_start_idx = get_first_variable_in_class(b_variable_idx);
+    update_real_variable_indices(b_start_idx, a_real_idx);
+    // now merge equivalence classes of a and b by tying last (= real) element of b-chain to first element of a-chain
+    auto a_start_idx = get_first_variable_in_class(a_variable_idx);
+    next_var_index[b_real_idx] = a_start_idx;
+    prev_var_index[a_start_idx] = b_real_idx;
     bool no_tag_clash = (variable_tags[a_real_idx] == DUMMY_TAG || variable_tags[b_real_idx] == DUMMY_TAG ||
                          variable_tags[a_real_idx] == variable_tags[b_real_idx]);
     if (!no_tag_clash && !failed) {
@@ -33,16 +42,16 @@ template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
         cycle_node left{ static_cast<uint32_t>(i), WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i), WireType::RIGHT };
 
-        const auto public_input_index = get_real_variable_index(public_inputs[i]);
+        const auto public_input_index = real_variable_index[public_inputs[i]];
         std::vector<cycle_node>& cycle = wire_copy_cycles[static_cast<size_t>(public_input_index)];
         // These two nodes must be in adjacent locations in the cycle for correct handling of public inputs
         cycle.emplace_back(left);
         cycle.emplace_back(right);
     }
     for (size_t i = 0; i < n; ++i) {
-        const auto w_1_index = get_real_variable_index(w_l[i]);
-        const auto w_2_index = get_real_variable_index(w_r[i]);
-        const auto w_3_index = get_real_variable_index(w_o[i]);
+        const auto w_1_index = real_variable_index[w_l[i]];
+        const auto w_2_index = real_variable_index[w_r[i]];
+        const auto w_3_index = real_variable_index[w_o[i]];
 
         cycle_node left{ static_cast<uint32_t>(i + num_public_inputs), WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i + num_public_inputs), WireType::RIGHT };
@@ -52,7 +61,7 @@ template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
         wire_copy_cycles[static_cast<size_t>(w_3_index)].emplace_back(out);
 
         if constexpr (program_width > 3) {
-            const auto w_4_index = get_real_variable_index(w_4[i]);
+            const auto w_4_index = real_variable_index[w_4[i]];
             cycle_node fourth{ static_cast<uint32_t>(i + num_public_inputs), WireType::FOURTH };
             wire_copy_cycles[static_cast<size_t>(w_4_index)].emplace_back(fourth);
         }
@@ -160,7 +169,7 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     // of the constituent t_{high} of t(X) must be n (as against (n - 1) for other composer types).
     // Thus, to commit to t_{high}, we need the crs size to be (n + 1) for standard plonk.
     //
-    // For more explanation about the degree of t(X), see 
+    // For more explanation about the degree of t(X), see
     // ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
     //
     auto crs = crs_factory_->get_prover_crs(subgroup_size + 1);
