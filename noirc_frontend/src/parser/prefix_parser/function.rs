@@ -7,7 +7,7 @@ impl FuncParser {
     pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
         attribute : Option<Attribute>,
-    ) -> Result<FunctionDefinition, ParserError> {
+    ) -> Result<NoirFunction, ParserError> {
 
         // Check if we have an identifier.
         parser.peek_check_kind_advance(TokenKind::Ident)?;
@@ -28,6 +28,8 @@ impl FuncParser {
 
         let body = parser.parse_block_statement()?;
 
+        // Currently, we only allow lowlevel, builtin and normal functions
+        // In the future, we can add a test attribute. Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {
             name: spanned_func_name.into(),
             attribute : attribute,
@@ -35,7 +37,8 @@ impl FuncParser {
             body,
             return_type,
         };
-        Ok(func_def)
+
+        Ok(func_def.into())
     }
 
     fn parse_fn_parameters(parser: &mut Parser) -> Result<Vec<(Ident, Type)>, ParserError> {

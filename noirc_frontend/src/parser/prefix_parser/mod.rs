@@ -28,7 +28,7 @@ pub use constrain::ConstrainParser;
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
     ArrayLiteral, BlockStatement, Expression, ExpressionKind,FunctionDefinition, Ident,
-    IfExpression, ForExpression, Literal, PrefixExpression, Type,
+    IfExpression, ForExpression, Literal, PrefixExpression, Type, NoirFunction
 };
 use crate::token::{Keyword, Token, TokenKind, Attribute};
 use noirc_errors::{Spanned, Span};
