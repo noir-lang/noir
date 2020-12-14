@@ -2,9 +2,11 @@
 /// statement::Ident does not return a value, while Expression::Ident does.
 mod expression;
 mod statement;
+mod function;
 
 pub use expression::*;
 pub use statement::*;
+pub use function::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ArraySize {
