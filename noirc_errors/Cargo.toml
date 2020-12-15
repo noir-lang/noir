@@ -11,3 +11,4 @@ codespan-reporting = "0.9.5"
 anyhow = "1.0.33"
 codespan = "0.9.5"
 unindent = "0.1.7"
+fm = {path = "../fm"}

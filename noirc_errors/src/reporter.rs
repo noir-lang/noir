@@ -1,7 +1,5 @@
-use std::path::PathBuf;
 use crate::Span;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
-use codespan_reporting::files::{SimpleFiles, SimpleFile};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, ColorSpec, Color, WriteColor};
 use codespan_reporting::term;
 use std::io::Write;
@@ -9,63 +7,6 @@ use std::io::Write;
 use codespan::{ByteIndex, ByteOffset, RawOffset};
 use codespan::{Span as ByteSpan};
 
-#[derive(Clone)]
-pub struct PathString(PathBuf);
-
-impl std::fmt::Display for PathString {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        f.write_str(&self.0.to_string_lossy())
-    }
-}
-
-impl PathString {
-    pub fn from_path(p : PathBuf) -> Self {
-        PathString(p)
-    }
-}
-impl From<PathBuf> for PathString {
-    fn from(pb : PathBuf) -> PathString {
-        PathString::from_path(pb)
-    }
-}
-impl From<&PathBuf> for PathString {
-    fn from(pb : &PathBuf) -> PathString {
-        PathString::from(pb.to_owned())
-    }
-}
-
-pub struct FileMap(SimpleFiles<PathString, String>);
-
-#[derive(Copy, Clone)]
-pub struct FileID(pub usize);
-
-pub struct File<'input>(&'input SimpleFile<PathString, String>);
-
-impl<'input> File<'input> {
-    pub fn get_source(self) -> &'input str {
-        self.0.source()
-    }
-}
-
-impl FileMap {
-    pub fn new() -> Self {
-        FileMap(SimpleFiles::new())
-    }
-
-    pub fn add_file(&mut self, file_name : PathString, code: String) -> FileID {
-        let file_id = self.0.add(file_name, code);
-        FileID(file_id)
-    }
-    pub fn get_file(&mut self, file_id : FileID) -> Option<File> {
-        match self.0.get(file_id.0) {
-            Some(source) => Some(File(source)),
-            None => None
-        }
-    }
-
-}
-
-/// Diagnostics 
 pub struct CustomDiagnostic {
     message : String,
     secondaries : Vec<CustomLabel>,
@@ -102,7 +43,7 @@ impl CustomLabel {
 pub struct Reporter;
 
 impl Reporter {
-    pub fn with_diagnostics(file_id : FileID, files : &FileMap, diagnostics : &Vec<CustomDiagnostic>) {       
+    pub fn with_diagnostics(file_id : fm::FileID, files : &fm::FileManager, diagnostics : &Vec<CustomDiagnostic>) {       
         // Convert each Custom Diagnostic into a diagnostic
         let diagnostics : Vec<_> = diagnostics.into_iter().map(|cd| {
            
@@ -110,7 +51,7 @@ impl Reporter {
             let secondary_labels : Vec<_> = cd.secondaries.iter().map(|sl| {
                 let start_span = sl.span.start.to_byte_index().to_usize();
                 let end_span = sl.span.end.to_byte_index().to_usize() + 1;
-                Label::secondary(file_id.0, start_span..end_span).with_message(&sl.message)
+                Label::secondary(file_id.as_usize(), start_span..end_span).with_message(&sl.message)
             }).collect();
 
             Diagnostic::error().with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())
@@ -121,7 +62,7 @@ impl Reporter {
         let config = codespan_reporting::term::Config::default();
 
         for diagnostic in diagnostics.iter() {
-            term::emit(&mut writer.lock(), &config, &files.0, &diagnostic).unwrap();
+            term::emit(&mut writer.lock(), &config, files.as_simple_files(), &diagnostic).unwrap();
         }
         
         if diagnostics.len() != 0 {
