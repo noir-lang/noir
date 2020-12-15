@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use crate::dir_util::FILE_EXTENSION;
+use fm::FILE_EXTENSION;
 /// A virtual path is a path to a module.
 /// It has been augmented in such a way that it is easy to link a path to a specific module
 /// A virtual path differs from a file path, in that a virtual path can exist where a file path does not.

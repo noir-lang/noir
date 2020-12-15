@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 pathdiff = "0.2"
+fm = {path = "../fm"}

@@ -8,5 +8,3 @@ pub mod crate_manager;
 pub use crate_unit::CrateUnit;
 
 pub use crate_manager::CrateManager;
-
-pub mod dir_util;
