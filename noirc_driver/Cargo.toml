@@ -13,5 +13,7 @@ noir_evaluator = {path = "../noir_evaluator"}
 acir = {path = "../acir"}
 std_lib = {path = "../std_lib"}
 nargo = {path = "../nargo"}
+fm = {path = "../fm"}
+
 dirs = "3.0"
 pathdiff = "0.2"

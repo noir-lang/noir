@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use super::dir_util;
-use dir_util::{FILE_EXTENSION, MOD_FILE};
+
+use fm::{FILE_EXTENSION, MOD_FILE};
 use noirc_frontend::Program;
 use crate::Driver;
 use nargo::CrateUnit;
@@ -77,13 +77,13 @@ fn find_module(current_dir : &str, mod_name : &str) -> ModType {
 // Searches for name/mod.nr or name.nr
 // This is a part of noirc
 fn search_for_module_def(root_path : &str,name : &str) -> Option<ModType> {
-    let dir_mod = dir_util::find_dir(root_path, name);
-    let file_mod = dir_util::find_file(root_path, name, FILE_EXTENSION);
+    let dir_mod = fm::find_dir(root_path, name);
+    let file_mod = fm::find_file(root_path, name, FILE_EXTENSION);
 
     // Check if we have a SubModule
     let submodule =match dir_mod {
         Some(dir) => {
-            match dir_util::find_file(dir.clone(), MOD_FILE, FILE_EXTENSION) {
+            match fm::find_file(dir.clone(), MOD_FILE, FILE_EXTENSION) {
                 Some(mod_file) => Some(ModType::SubModule(mod_file)),
                 None => {
                     panic!("cannot find mod.nr file in directory, {:?}", dir.to_str())
