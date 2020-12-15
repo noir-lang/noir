@@ -12,6 +12,7 @@ acir = {path = "../acir"}
 noirc_errors = {path = "../noirc_errors"}
 thiserror = "1.0.21"
 std_lib = {path = "../std_lib"}
+fm = {path = "../fm"}
 
 # This is only needed by the analyser, we should eventually move analysis into it's own crate and rename this crate as it will no longer be the frontend
 nargo = {path = "../nargo"}

@@ -2,13 +2,13 @@ use super::token::{Attribute, IntType, Keyword, Token, SpannedToken};
 use std::iter::Peekable;
 use std::str::Chars;
 use noir_field::FieldElement;
-use noirc_errors::{Position, File, Span};
+use noirc_errors::Position;
+use fm::File;
 use super::errors::LexerError;
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
 // XXX(low) : Currently the Lexer does not return Result. It would be more idiomatic to do this, instead of returning Token::Error
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
 // XXX(low) : Possibly use &str instead of String when applicable
-// XXX(med) : Add line numbers to the token information
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerError>;
 
