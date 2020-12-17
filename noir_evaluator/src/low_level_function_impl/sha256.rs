@@ -4,7 +4,7 @@ use acir::OPCODE;
 use crate::object::{Array, Object};
 use crate::{CallExpression, Environment, Evaluator, Type};
 
-use super::EvaluatorError;
+use super::RuntimeErrorKind;
 
 pub struct Sha256Gadget;
 
@@ -18,7 +18,7 @@ impl GadgetCaller for Sha256Gadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: CallExpression,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         let inputs = Sha256Gadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create two fresh variables that will link to the SHA256 output
@@ -53,7 +53,7 @@ impl Sha256Gadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: CallExpression,
-    ) -> Result<Vec<GadgetInput>, EvaluatorError> {
+    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
 
         let arr_expr = {
             // For sha256, we expect a single input which should be an array

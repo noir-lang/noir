@@ -1,5 +1,5 @@
 use super::{invert, sub::handle_sub_op};
-use crate::{Environment, Evaluator, Object, EvaluatorError};
+use crate::{Environment, Evaluator, Object, RuntimeErrorKind};
 
 /// This calls the sub op under the hood
 /// Then asserts that the result has an inverse
@@ -9,7 +9,7 @@ pub fn handle_neq_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object, EvaluatorError> {
+) -> Result<Object, RuntimeErrorKind> {
     let result = handle_sub_op(left, right, env, evaluator)?;
     // Add an inversion to ensure that the inverse exists
     let _ = invert(result, env, evaluator);

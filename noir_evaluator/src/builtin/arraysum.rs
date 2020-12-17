@@ -1,7 +1,7 @@
 use super::BuiltInCaller;
 use crate::object::{Array, Object};
 use crate::binary_op;
-use crate::{CallExpression, Environment, Evaluator, EvaluatorError};
+use crate::{CallExpression, Environment, Evaluator, RuntimeErrorKind};
 
 /// Sums all of the elements in an array
 pub struct ArraySum;
@@ -12,7 +12,7 @@ impl BuiltInCaller for ArraySum {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: CallExpression,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
 
         let arr_expr = {
             assert_eq!(call_expr.arguments.len(),1);

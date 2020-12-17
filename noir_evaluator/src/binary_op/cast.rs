@@ -1,14 +1,14 @@
-use crate::{Environment, Evaluator, Integer, Linear, Object, Type, EvaluatorError};
+use crate::{Environment, Evaluator, Integer, Linear, Object, Type, RuntimeErrorKind};
 
 pub fn handle_cast_op(
     left: Object,
     right: Type,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object, EvaluatorError> {
+) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
         Type::Integer(sign, num_bits) => num_bits,
-        _ => return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("currently we do not support type casting to non integers")}),
+        _ => return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("currently we do not support type casting to non integers")}),
     };
 
     let casted_integer = match left {
@@ -18,7 +18,7 @@ pub fn handle_cast_op(
             casted_integer
         }
         Object::Constants(_) => {
-            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("currently we do not support casting constants to a type")})
+            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("currently we do not support casting constants to a type")})
         }
         Object::Linear(linear) => {
             let casted_integer = Integer::from_arithmetic(linear.into(), num_bits, env, evaluator);
@@ -43,7 +43,7 @@ pub fn handle_cast_op(
             };
             casted_integer
         }
-        x => return Err(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("cannot cast {} to an integer", x.r#type())}),
+        x => return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("cannot cast {} to an integer", x.r#type())}),
     };
     Ok(Object::Integer(casted_integer))
 }

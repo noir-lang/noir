@@ -1,7 +1,7 @@
 use crate::object::Object;
 use crate::{Environment, Evaluator, Expression};
 use noirc_frontend::ast::ArrayLiteral;
-use super::{EvaluatorError, ArrayError};
+use super::{RuntimeErrorKind};
 
 #[derive(Clone, Debug)]
 pub struct Array {
@@ -10,7 +10,7 @@ pub struct Array {
 }
 
 impl Array {
-    pub fn from(evaluator: &mut Evaluator, env: &mut Environment, arr_lit: ArrayLiteral) -> Result<Array, EvaluatorError> {
+    pub fn from(evaluator: &mut Evaluator, env: &mut Environment, arr_lit: ArrayLiteral) -> Result<Array, RuntimeErrorKind> {
         // Take each element in the array and turn it into an object
         // We do not check that the array is homogenous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
@@ -24,19 +24,19 @@ impl Array {
             length: arr_lit.length,
         })
     }
-    pub fn get(&self, index: u128) -> Result<Object, EvaluatorError> {
+    pub fn get(&self, index: u128) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {
-            return Err(EvaluatorError::ArrayError(ArrayError::OutOfBounds{index, bound : self.length}));
+            return Err(RuntimeErrorKind::ArrayOutOfBounds{index, bound : self.length});
         };
 
         Ok(self.contents[index as usize].clone())
     }
 
-    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr : Expression) -> Result<Array, EvaluatorError> {
+    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr : Expression) -> Result<Array, RuntimeErrorKind> {
         let object = evaluator.expression_to_object(env, expr)?;
         match object {
             Object::Array(arr) => Ok(arr),
-            _=> Err(EvaluatorError::expected_type("array", object.r#type()))
+            _=> Err(RuntimeErrorKind::expected_type("array", object.r#type()))
         }
     }
 }

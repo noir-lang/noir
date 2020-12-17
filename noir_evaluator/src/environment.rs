@@ -1,5 +1,6 @@
+
 use super::object::{Object, Array};
-use super::errors::EnvironmentError;
+use super::errors::RuntimeErrorKind;
 use noirc_frontend::analyser::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest};
 
 type Scope = GenericScope<String, Object>;
@@ -38,12 +39,12 @@ impl Environment {
         let scope = self.0.current_scope_tree();
         scope.find_key(name).unwrap().clone()
     }
-    pub fn get_array(&mut self, name: &String) -> Result<Array, EnvironmentError> {
+    pub fn get_array(&mut self, name: &String) -> Result<Array, RuntimeErrorKind> {
         let poly = self.get(name);
 
         match poly {
             Object::Array(arr) => Ok(arr),
-            k => Err(EnvironmentError::ArrayNotFound{name : name.to_owned(), found_type : k.r#type().to_owned()})
+            k => Err(RuntimeErrorKind::ArrayNotFound{name : name.to_owned(), found_type : k.r#type().to_owned()})
         }
     }
 }

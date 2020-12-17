@@ -1,4 +1,4 @@
-use crate::{Environment, Evaluator, Linear, Object, EvaluatorError};
+use crate::{Environment, Evaluator, Linear, Object, RuntimeErrorKind};
 
 
 // Intentionally chose to write this out manually as it's not expected to change often or at all
@@ -8,7 +8,7 @@ pub fn handle_add_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object, EvaluatorError> {
+) -> Result<Object, RuntimeErrorKind> {
     match (left, right) {
         //
         // You cannot add Null objects with anything else
@@ -40,6 +40,6 @@ pub fn handle_add_op(
     }
 }
 
-fn handle_cannot_add(typ : &'static str) -> EvaluatorError {
-    EvaluatorError::UnstructuredError{span : Default::default(), message : format!("{} cannot be used in an addition", typ)}
+fn handle_cannot_add(typ : &'static str) -> RuntimeErrorKind {
+    RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("{} cannot be used in an addition", typ)}
 }

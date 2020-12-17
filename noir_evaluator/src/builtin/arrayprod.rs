@@ -1,4 +1,4 @@
-use super::{BuiltInCaller, EvaluatorError};
+use super::{BuiltInCaller, RuntimeErrorKind};
 use crate::object::{Array, Object};
 use crate::binary_op;
 use crate::{CallExpression, Environment, Evaluator};
@@ -11,7 +11,7 @@ impl BuiltInCaller for ArrayProd {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: CallExpression,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
 
         let arr_expr = {
             assert_eq!(call_expr.arguments.len(),1);

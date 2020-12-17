@@ -6,7 +6,7 @@ mod builtin;
 mod object;
 
 mod errors;
-pub use errors::EvaluatorError;
+pub use errors::{RuntimeErrorKind, RuntimeError};
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -23,12 +23,13 @@ use noirc_frontend::parser::Program;
 use nargo::{CrateManager, CrateUnit};
 use noir_field::FieldElement;
 
-pub struct Evaluator {
+pub struct Evaluator<'a> {
+    file_id : usize,
     num_witness: usize,                           // XXX: Can possibly remove
     num_selectors: usize,                         // XXX: Can possibly remove
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
     selectors: Vec<Selector>, // XXX: Possibly move into environment
-    crate_manager: CrateManager<Program>,
+    crate_manager: &'a CrateManager<Program>,
     num_public_inputs: usize,
     main_function: NoirFunction,
     main_module : Program, 
@@ -36,8 +37,8 @@ pub struct Evaluator {
     counter: usize,   // This is so that we can get a unique number
 }
 
-impl Evaluator {
-    pub fn new(crate_manager: CrateManager<Program>) -> Option<Evaluator> {
+impl<'a> Evaluator<'a> {
+    pub fn new(crate_manager: &CrateManager<Program>) -> Option<Evaluator> {
         
         // Check that we have a main crate
         // This will later be based on the crate_root
@@ -46,11 +47,12 @@ impl Evaluator {
         // Check for the main module
         // This will also later be based on the crate_root
         let main_module = main_crate.get_module_with_name("main")?.clone();
-
+        let file_id = main_module.file_id;
         // Check for main function
         let main_function = main_module.find_function("main")?.clone();
 
         Some(Evaluator {
+            file_id,
             num_witness: 0,
             num_selectors: 0,
             num_public_inputs: 0,
@@ -97,14 +99,14 @@ impl Evaluator {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn evaluate(mut self) -> (Circuit, usize, usize) {
+    pub fn evaluate(mut self) -> Result<(Circuit, usize, usize), RuntimeError> {
 
         // create a new environment
         let mut env = Environment::new();
 
         // First compile
         // XXX: Once the refactoring has completed, we will rename evaluate to compile and compile to synthesize or something more indicative of what it does
-        self.compile(&mut env).unwrap();
+        self.compile(&mut env).map_err(|err| err.into_err(self.file_id))?;
 
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
@@ -149,11 +151,11 @@ impl Evaluator {
         //     // dbg!(i, witness);
         // }
 
-        (
+        Ok((
             Circuit(optimised_arith_gates),
             self.witnesses.len(),
             self.num_public_inputs,
-        )
+        ))
     }
 
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
@@ -183,7 +185,7 @@ impl Evaluator {
         lhs: Object,
         rhs: Object,
         op: BinaryOpKind,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         match op {
             BinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, env, self),
             BinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
@@ -213,7 +215,7 @@ impl Evaluator {
 
 
     /// Compiles the AST into the intermediate format, which we call the gates
-    pub fn compile(&mut self, env: &mut Environment) -> Result<(), EvaluatorError>{
+    pub fn compile(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind>{
         // Add the parameters from the main function into the evaluator as witness variables
         // XXX: We are only going to care about Public and Private witnesses for now
 
@@ -254,7 +256,7 @@ impl Evaluator {
         Ok(())
     }
 
-    fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Result<Object, EvaluatorError> {
+    fn evaluate_statement(&mut self, env: &mut Environment, statement: Statement) -> Result<Object, RuntimeErrorKind> {
         match statement {
             Statement::Private(x) => self.handle_private_statement(env, x.clone()),
             Statement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, constrain_stmt),
@@ -287,7 +289,7 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         x: PrivateStatement,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         let variable_name: String = x.identifier.clone().0.contents;
         let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
         let rhs_poly = self.expression_to_object(env, x.expression.clone())?;
@@ -306,7 +308,7 @@ impl Evaluator {
 
 
         // This is a private statement, which is why we extract only a witness type from the object
-        let rhs_as_witness = rhs_poly.extract_private_witness().ok_or(EvaluatorError::UnstructuredError{span : Default::default(), message : format!("only witnesses can be used in a private statement")})?; 
+        let rhs_as_witness = rhs_poly.extract_private_witness().ok_or(RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("only witnesses can be used in a private statement")})?; 
         self.gates.push(Gate::Arithmetic(&rhs_as_witness - &witness));
         
         // Lets go through some possible scenarios to explain why the code is correct
@@ -343,7 +345,7 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         constrain_stmt: ConstrainStatement,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs)?;
         let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs)?;
 
@@ -381,7 +383,7 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         let_stmt: LetStatement,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         // Convert the LHS into an identifier
         let variable_name: String = let_stmt.identifier.0.contents;
 
@@ -404,7 +406,7 @@ impl Evaluator {
         &mut self,
         env: &mut Environment,
         for_expr: ForExpression,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         
         // First create an iterator over all of the for loop identifiers
         // XXX: We preferably need to introduce public integers and private integers, so that we can 
@@ -432,20 +434,20 @@ impl Evaluator {
         Ok(Object::Array(Array{contents, length}))
     }
 
-    pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Result<Object, EvaluatorError> {
+    pub fn evaluate_integer(&mut self, env: &mut Environment, expr: Expression) -> Result<Object, RuntimeErrorKind> {
         let polynomial = self.expression_to_object(env, expr)?;
 
         if polynomial.is_constant() {
             return Ok(polynomial)
         }
-        return Err(EvaluatorError::expected_type("constant",polynomial.r#type()));
+        return Err(RuntimeErrorKind::expected_type("constant",polynomial.r#type()));
     }
 
     pub fn expression_to_object(
         &mut self,
         env: &mut Environment,
         expr: Expression,
-    ) -> Result<Object, EvaluatorError> {
+    ) -> Result<Object, RuntimeErrorKind> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(x)) => Ok(Object::Constants(x.into())),
             ExpressionKind::Literal(Literal::Array(arr_lit)) => {
@@ -463,7 +465,7 @@ impl Evaluator {
             }
             ExpressionKind::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr = env.get_array(&indexed_expr.collection_name.0.contents).map_err(|err|EvaluatorError::EnvironmentError(err))?;
+                let arr = env.get_array(&indexed_expr.collection_name.0.contents)?;
 
                 // Evaluate the index expression
                 // XXX: We could simplify this by chaining the `?` but this will make finding the error harder to decipher while Object discards span and there is no wrapping
@@ -471,7 +473,7 @@ impl Evaluator {
                 let index_as_obj = self.expression_to_object(env, indexed_expr.index)?;
                 let index_as_constant = match index_as_obj.constant() {
                     Ok(v) => v,
-                    Err(_) => return Err(EvaluatorError::UnstructuredError{span : span, message : format!("Indexed expression does not evaluate to a constant")})
+                    Err(_) => return Err(RuntimeErrorKind::UnstructuredError{span : span, message : format!("Indexed expression does not evaluate to a constant")})
                 };
                 let index_as_u128 = index_as_constant.to_u128();
                 
@@ -522,7 +524,7 @@ impl Evaluator {
         }
     }
 
-    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: NoirFunction) -> Result<Object, EvaluatorError> {
+    fn call_function(&mut self, env: &mut Environment, call_expr : &CallExpression, func: NoirFunction) -> Result<Object, RuntimeErrorKind> {
               // Create a new environment for this function
                 // This is okay because functions are not stored in the environment
                 // We need to add the arguments into the environment though
@@ -547,11 +549,11 @@ impl Evaluator {
                 Ok(return_val)
     }
 
-    fn apply_func(&mut self, env: &mut Environment, func: &NoirFunction) -> Result<Object, EvaluatorError> {
+    fn apply_func(&mut self, env: &mut Environment, func: &NoirFunction) -> Result<Object, RuntimeErrorKind> {
         self.eval_block(env, func.def().body.clone())
     }
 
-    fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Result<Object, EvaluatorError> {
+    fn eval_block(&mut self, env: &mut Environment, block: BlockStatement) -> Result<Object, RuntimeErrorKind> {
         let mut result = Object::Null;
         for stmt in block.0.into_iter() {
             result = self.evaluate_statement(env, stmt)?;
@@ -559,7 +561,7 @@ impl Evaluator {
         Ok(result)
     }
 
-    fn expression_list_to_objects(&mut self, env : &mut Environment, exprs : &[Expression]) -> (Vec<Object>, Vec<EvaluatorError>) {
+    fn expression_list_to_objects(&mut self, env : &mut Environment, exprs : &[Expression]) -> (Vec<Object>, Vec<RuntimeErrorKind>) {
         let (objects, errors) : (Vec<_>, Vec<_>) = exprs.iter()
         .map(|expr| self.expression_to_object(env, expr.clone()))
         .partition(Result::is_ok);

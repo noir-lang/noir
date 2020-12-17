@@ -1,4 +1,4 @@
-use crate::{CallExpression, Environment, Evaluator, Object, EvaluatorError};
+use crate::{CallExpression, Environment, Evaluator, Object, RuntimeErrorKind};
 
 mod arraysum;
 use arraysum::ArraySum;
@@ -26,20 +26,20 @@ pub trait BuiltInCaller {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: CallExpression,
-    ) -> Result<Object, EvaluatorError>;
+    ) -> Result<Object, RuntimeErrorKind>;
 }
 
 pub fn call_builtin(        
     evaluator: &mut Evaluator,
     env: &mut Environment,
     builtin_name: &str,
-    call_expr: CallExpression) -> Result<Object, EvaluatorError> 
+    call_expr: CallExpression) -> Result<Object, RuntimeErrorKind> 
 {
    
     let func = match BuiltInFunctions::look_up_func_name(builtin_name) {
         None => {
             let message = format!("cannot find a builtin function with the attribute name {}", builtin_name);
-            return Err(EvaluatorError::UnstructuredError{span : Default::default(), message})
+            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
         }
         Some(func) => func
     };

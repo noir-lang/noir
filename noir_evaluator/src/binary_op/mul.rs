@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Environment, Evaluator, Linear, Object, Type, EvaluatorError, Array};
+use crate::{Arithmetic, Environment, Evaluator, Linear, Object, Type, RuntimeErrorKind, Array};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -9,7 +9,7 @@ pub fn handle_mul_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object, EvaluatorError> {
+) -> Result<Object, RuntimeErrorKind> {
 
     let general_err = err_cannot_mul(left.r#type(), right.r#type());
 
@@ -30,8 +30,8 @@ pub fn handle_mul_op(
     }
 }
 
-fn err_cannot_mul(first_type : &'static str,second_type : &'static str ) -> EvaluatorError {
-    EvaluatorError::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : first_type.to_owned() , second_type : second_type.to_owned()}
+fn err_cannot_mul(first_type : &'static str,second_type : &'static str ) -> RuntimeErrorKind {
+    RuntimeErrorKind::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : first_type.to_owned() , second_type : second_type.to_owned()}
 }
 
 fn handle_arithmetic_mul(
@@ -39,7 +39,7 @@ fn handle_arithmetic_mul(
     polynomial: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object, EvaluatorError> {
+) -> Result<Object, RuntimeErrorKind> {
     if let Ok(constant) = polynomial.constant() {
          return Ok(Object::Arithmetic(&arith * &constant))
     };
@@ -55,7 +55,7 @@ fn handle_linear_mul(
     polynomial: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object, EvaluatorError> {
+) -> Result<Object, RuntimeErrorKind> {
     match polynomial {
         Object::Arithmetic(arith) => {
             return handle_arithmetic_mul(arith, Object::Linear(linear), env, evaluator);
