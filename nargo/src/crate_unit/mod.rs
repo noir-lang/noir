@@ -15,7 +15,7 @@ pub struct ModID(usize);
 /// At this level, there is no such thing as a `main.rs` for binaries.
 /// This is enforced by nargo. The entry point is the root file. nargo also enforces the structure of projects by the way
 /// XXX: Coming soon, a crate can only have a binary or a library file. For a project to have both, we introduce the notion of a workspace
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum CrateType {
     LIBRARY, 
     BINARY,
@@ -24,20 +24,13 @@ pub enum CrateType {
 /// A crate is a collection of modules, that must be compiled together.
 /// The CrateUnit is used to manage all of the available modules in the crate
 /// A crate is a compilation unit.
-
-// - Parse from the root file, which will be the entry point for binaries
-// - Save the directory of the root_file also, for relative paths 
-// - Read up on rust-analyzer, to see how they manage crates/crate_data
-// - We want to fix up the TypeChecker sooner rather than later and the layout of deps
 #[derive(Debug)]
 pub struct CrateUnit<Module> {
     root_file : PathBuf,
     root_dir : PathBuf,
-    crate_type : CrateType,
+    pub crate_type : CrateType,
     virtual_path_to_module : HashMap<VirtualPath, ModID>,
     module_name_to_mod_id : HashMap<String, ModID>,
-    /// Currently modules are represented as `Programs` which can be converted into a SymbolTable
-    /// XXX: we may deprecate the explicit symbol table altogether
     modules : Vec<Module>
 }
 
