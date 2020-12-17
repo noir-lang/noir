@@ -34,6 +34,7 @@ use crate::token::{Keyword, Token, TokenKind, Attribute};
 use noirc_errors::{Spanned, Span};
 
 use super::{Parser, Precedence,  Program, ParserError,ParserExprKindResult,ParserExprResult};
+use crate::parser::errors::ParserErrorKind;
 
 use crate::ast::{
     ConstStatement, ImportStatement, LetStatement, PrivateStatement, PublicStatement, Statement,

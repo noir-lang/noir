@@ -32,7 +32,7 @@ impl DeclarationParser {
             }
             kw => {
                 let message = format!("All declaration keywords should have a method to parser their structure, the keyword {} does not have this", kw);
-                return Err(ParserError::InternalError{message, span : parser.curr_token.into_span() });
+                return Err(ParserErrorKind::InternalError{message, span : parser.curr_token.into_span() }.into_err(parser.file_id));
             }
         }
     }
@@ -89,7 +89,7 @@ pub(crate) fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatemen
     if let Some(declared_type) = generic_stmt.typ {
         if declared_type != Type::Constant {
             let message = format!("Const statements can only have constant type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Constant ",declared_type);
-            return Err(ParserError::UnstructuredError{message, span : Span::default()}) // XXX: We don't have spanning for types yet
+            return Err(ParserErrorKind::UnstructuredError{message, span : Span::default()}.into_err(parser.file_id)) // XXX: We don't have spanning for types yet
         }
     }
     
@@ -119,7 +119,7 @@ pub(crate) fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatem
         if let Some(declared_type) = generic_stmt.typ {
             if declared_type != Type::Public {
                 let message = format!("Public statements can only have public type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Public ",declared_type);
-                return Err(ParserError::UnstructuredError{message, span : Span::default()}) // XXX: We don't have spanning for types yet
+                return Err(ParserErrorKind::UnstructuredError{message, span : Span::default()}.into_err(parser.file_id)) // XXX: We don't have spanning for types yet
             }
         }
 

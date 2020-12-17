@@ -1,3 +1,4 @@
+
 use super::*;
 
 pub struct IndexParser;
@@ -6,7 +7,7 @@ impl IndexParser {
    pub fn parse(parser: &mut Parser, collection_name: Expression) -> ParserExprKindResult {
         let collection_name_string = match collection_name.kind {
             ExpressionKind::Ident(x) => x,
-            _ => return Err(ParserError::UnstructuredError{message: format!("Expected an identifier for the collection name. Arbitrary expressions are yet to arrive"), span : collection_name.span})
+            _ => return Err(ParserErrorKind::UnstructuredError{message: format!("Expected an identifier for the collection name. Arbitrary expressions are yet to arrive"), span : collection_name.span}.into_err(parser.file_id))
         };
 
         // Current token is now the left bracket that sits between the name of the collection

@@ -11,7 +11,7 @@ impl NameParser {
             Token::Ident(x) => x.clone(),
             _ => {
                 let token_kind = parser.curr_token.kind();
-                return Err(ParserError::UnexpectedTokenKind{span : parser.curr_token.into_span(), expected : TokenKind::Ident,found : token_kind })
+                return Err(ParserErrorKind::UnexpectedTokenKind{span : parser.curr_token.into_span(), expected : TokenKind::Ident,found : token_kind }.into_err(parser.file_id))
             } 
 
         };

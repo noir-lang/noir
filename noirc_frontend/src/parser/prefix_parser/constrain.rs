@@ -31,18 +31,18 @@ impl ConstrainParser {
             Some(infix) => infix,
             None => {
                 let message = format!("Expected an infix expression since this is a constrain statement. You cannot assign values");
-                return Err(ParserError::UnstructuredError{message, span: expr.span})
+                return Err(ParserErrorKind::UnstructuredError{message, span: expr.span}.into_err(parser.file_id))
             },
         };
         if infix.operator.contents == BinaryOpKind::Assign {
             // XXX: We need to add span to BinaryOps, currently we use the span of the expression
             let message = format!("Cannot use '=' with a constrain statement");
-            return Err(ParserError::UnstructuredError{message, span: expr.span})
+            return Err(ParserErrorKind::UnstructuredError{message, span: expr.span}.into_err(parser.file_id))
         }
         
         if disallowed_operators().contains(&infix.operator.contents) {
             let message = format!("Cannot use the {:?} operator in a constraint statement.",&infix.operator);
-            return Err(ParserError::UnstructuredError{message, span: expr.span})
+            return Err(ParserErrorKind::UnstructuredError{message, span: expr.span}.into_err(parser.file_id))
         }
         
         Ok(ConstrainStatement(infix))

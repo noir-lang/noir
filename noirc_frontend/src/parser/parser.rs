@@ -1,4 +1,4 @@
-use super::{Precedence, Program};
+use super::{Precedence, Program, errors::ParserErrorKind};
 use crate::ast::{BlockStatement, Expression, Statement, Type, ArraySize, ExpressionKind};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, Token, TokenKind, SpannedToken};
@@ -16,6 +16,7 @@ type ParserStmtResult = ParserResult<Statement>;
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
 pub struct Parser<'a> {
+    pub(crate) file_id : usize,
     pub(crate) lexer: Lexer<'a>,
     pub(crate) curr_token: SpannedToken,
     pub(crate) peek_token: SpannedToken,
@@ -26,16 +27,14 @@ impl<'a> Parser<'a> {
     pub fn new(mut lexer: Lexer<'a>) -> Self {
         let curr_token = lexer.next_token().unwrap();
         let peek_token = lexer.next_token().unwrap();
+        
         Parser {
+            file_id: lexer.file_id,
             lexer,
             curr_token,
             peek_token,
             errors: Vec::new(),
         }
-    }
-
-    pub fn with_input(input : &'a str) -> Self {
-        Parser::new(Lexer::new(0,input))
     }
 
     /// Note that this function does not alert the user of an EOF
@@ -51,7 +50,7 @@ impl<'a> Parser<'a> {
                     break;
                 },
                 Err(lex_err) => {
-                    self.errors.push(ParserError::LexerError(lex_err))
+                    self.errors.push(ParserErrorKind::LexerError(lex_err).into_err(self.file_id))
                 }        
             }
         }
@@ -73,7 +72,7 @@ impl<'a> Parser<'a> {
             let peeked_span = self.peek_token.into_span();
             let peeked_token = self.peek_token.token().clone();
             self.advance_tokens(); // We advance the token regardless, so the parser does not choke on a prefix function
-            return Err(ParserError::UnexpectedToken{span : peeked_span, expected : token.clone(),found : peeked_token });
+            return Err(ParserErrorKind::UnexpectedToken{span : peeked_span, expected : token.clone(),found : peeked_token }.into_err(self.file_id));
         }
         self.advance_tokens();
         return Ok(());
@@ -88,7 +87,7 @@ impl<'a> Parser<'a> {
         if !same_kind {
             let peeked_span = self.peek_token.into_span();
             self.advance_tokens();
-            return Err(ParserError::UnexpectedTokenKind{span : peeked_span, expected : token_kind,found : peeked_kind })
+            return Err(ParserErrorKind::UnexpectedTokenKind{span : peeked_span, expected : token_kind,found : peeked_kind }.into_err(self.file_id))
         }
         self.advance_tokens();
         return Ok(());
@@ -98,7 +97,7 @@ impl<'a> Parser<'a> {
     pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserError>> {
         use super::prefix_parser::{FuncParser, UseParser, ModuleParser};
 
-        let mut program = Program::with_capacity(self.lexer.by_ref().approx_len());
+        let mut program = Program::with_capacity(self.lexer.by_ref().approx_len(), self.file_id);
 
         while self.curr_token != Token::EOF {
             match self.curr_token.clone().into() {
@@ -226,7 +225,7 @@ impl<'a> Parser<'a> {
         let mut left_exp = match self.choose_prefix_parser() {
             Some(prefix_parser) => prefix_parser.parse(self)?,
             None => {
-                return Err(ParserError::NoPrefixFunction{span : self.curr_token.into_span(), lexeme: self.curr_token.token().to_string()})
+                return Err(ParserErrorKind::NoPrefixFunction{span : self.curr_token.into_span(), lexeme: self.curr_token.token().to_string()}.into_err(self.file_id))
             }
         };
 
@@ -297,7 +296,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.curr_token != Token::RightBrace {
-            return Err(ParserError::UnstructuredError{message : format!("Expected a }} to end the block statement"), span : self.curr_token.into_span()});
+            return Err(ParserErrorKind::UnstructuredError{message : format!("Expected a }} to end the block statement"), span : self.curr_token.into_span()}.into_err(self.file_id));
         }
 
         Ok(BlockStatement(statements))
@@ -340,7 +339,7 @@ impl<'a> Parser<'a> {
             Token::LeftBracket => self.parse_array_type(),
             k => {
                 let message = format!("Expected a type, found {}", k);
-                return Err(ParserError::UnstructuredError{message, span : self.curr_token.into_span()});
+                return Err(ParserErrorKind::UnstructuredError{message, span : self.curr_token.into_span()}.into_err(self.file_id));
             },
         }
     }
@@ -356,7 +355,7 @@ impl<'a> Parser<'a> {
                 
                 if !integer.fits_in_u128() {
                     let message = format!("Array sizes must fit within a u128");
-                    return Err(ParserError::UnstructuredError{message, span: self.peek_token.into_span()});
+                    return Err(ParserErrorKind::UnstructuredError{message, span: self.peek_token.into_span()}.into_err(self.file_id));
 
                 }
                 self.advance_tokens();
@@ -365,7 +364,7 @@ impl<'a> Parser<'a> {
             Token::RightBracket => ArraySize::Variable,
             _ => {
                 let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal");
-                return Err(ParserError::UnstructuredError{message, span: self.peek_token.into_span()});
+                return Err(ParserErrorKind::UnstructuredError{message, span: self.peek_token.into_span()}.into_err(self.file_id));
             },
         };
 
@@ -376,7 +375,7 @@ impl<'a> Parser<'a> {
     
         // Disallow [4][3]Witness ie Matrices
         if self.peek_token == Token::LeftBracket {
-           return Err(ParserError::UnstructuredError{message  : format!("Currently Multi-dimensional arrays are not supported"), span : self.peek_token.into_span()})
+           return Err(ParserErrorKind::UnstructuredError{message  : format!("Currently Multi-dimensional arrays are not supported"), span : self.peek_token.into_span()}.into_err(self.file_id))
         }
     
         let array_type = self.parse_type()?;

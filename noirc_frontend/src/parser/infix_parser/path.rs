@@ -14,7 +14,7 @@ impl PathParser {
         // Check that the root module is an identifier
         let root_span = root_module.span;
         let root = match root_module.into_ident() {
-            None => return Err(ParserError::UnstructuredError{message : format!("Expected an identifier as the root module"), span : root_span}),
+            None => return Err(ParserErrorKind::UnstructuredError{message : format!("Expected an identifier as the root module"), span : root_span}.into_err(parser.file_id)),
             Some(ident) => ident,
         };
 
@@ -38,7 +38,7 @@ impl PathParser {
         // We extract the Call expression and set the path correctly here
         let call_expr = match method.kind {
             ExpressionKind::Call(_, call_expr) => call_expr,
-            k => return Err(ParserError::UnstructuredError{message : format!("Currently you can only access external functions {:?}", k), span :method.span}),
+            k => return Err(ParserErrorKind::UnstructuredError{message : format!("Currently you can only access external functions {:?}", k), span :method.span}.into_err(parser.file_id)),
         };
        Ok( ExpressionKind::Call(parsed_path.into(), call_expr))
     }
