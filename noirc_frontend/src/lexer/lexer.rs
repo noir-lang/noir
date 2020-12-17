@@ -1,4 +1,4 @@
-use super::token::{Attribute, IntType, Keyword, Token, SpannedToken};
+use super::{errors::LexerErrorKind, token::{Attribute, IntType, Keyword, Token, SpannedToken}};
 use std::iter::Peekable;
 use std::str::Chars;
 use noir_field::FieldElement;
@@ -15,6 +15,7 @@ pub type SpannedTokenResult = Result<SpannedToken, LexerError>;
 pub struct Lexer<'a> {
     char_iter: Peekable<Chars<'a>>,
     position  : Position,
+    pub file_id : usize, 
 }
 
 impl<'a> Lexer<'a> {
@@ -22,6 +23,7 @@ impl<'a> Lexer<'a> {
         Lexer {
             char_iter: source.chars().peekable(),
             position : Position::default_from(file_id),
+            file_id,
         }
     }
     pub fn from_file(file_id : usize, source: File<'a>) -> Self {
@@ -97,7 +99,7 @@ impl<'a> Lexer<'a> {
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 let span = self.position.mark().into_span();
-                Err(LexerError::CharacterNotInLanguage{span, found : ch })
+                Err(LexerErrorKind::CharacterNotInLanguage{span, found : ch }.into_err(self.file_id))
             },
             None => Ok(Token::EOF.into_single_span(self.position.mark())),
         }
@@ -159,7 +161,7 @@ impl<'a> Lexer<'a> {
             }
             _ => {
                 let span = self.position.mark().into_span();
-                Err(LexerError::NotADoubleChar{span, found : prev_token})
+                Err(LexerErrorKind::NotADoubleChar{span, found : prev_token}.into_err(self.file_id))
             },
         }
     }
@@ -208,7 +210,7 @@ impl<'a> Lexer<'a> {
             }
             _ =>  {
                 let span = self.position.mark().into_span();
-                Err(LexerError::UnexpectedCharacter{span, found : initial_char})
+                Err(LexerErrorKind::UnexpectedCharacter{span, found : initial_char}.into_err(self.file_id))
             },
         }
     }
