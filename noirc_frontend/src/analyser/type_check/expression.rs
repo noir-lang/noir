@@ -1,4 +1,4 @@
-use crate::ast::{Expression, ExpressionKind, Type, Literal, InfixExpression, ArraySize};
+use crate::{analyser::errors::TypeErrorKind, ast::{Expression, ExpressionKind, Type, Literal, InfixExpression, ArraySize}};
 use super::*;
 // We assume that the current symbol table contains the functions metadata
 // This is not always the root symbol table,if we do not look up the path from the root, if we introduce the closures
@@ -41,7 +41,7 @@ impl<'a> TypeChecker<'a> {
 
                 match typ {
                     Type::Array(_, base_type) => Ok(*base_type),
-                    _=> Err(AnalyserError::from_ident(format!("cannot index into a value of type"), &indx.collection_name))
+                    _=> Err(AnalyserError::from_ident(self.file_id,format!("cannot index into a value of type"), &indx.collection_name))
                 }
             },
             ExpressionKind::For(for_expr) => {
@@ -103,8 +103,8 @@ impl<'a> TypeChecker<'a> {
                     if left_type != right_type {
                         let i_span = arr_lit.contents[i].span;
                         let i_plus_one_span = arr_lit.contents[i+1].span;
-                        let err = TypeError::NonHomogenousArray{first_span : i_span, first_index : i, second_span : i_plus_one_span, second_index : i+1,first_type : left_type.to_string(), second_type : right_type.to_string()};
-                        return Err(AnalyserError::TypeError(err))
+                        let err = TypeErrorKind::NonHomogenousArray{first_span : i_span, first_index : i, second_span : i_plus_one_span, second_index : i+1,first_type : left_type.to_string(), second_type : right_type.to_string()}.into_err(self.file_id);
+                        return Err(AnalyserError::Type(err))
                     }
                 }
                 
@@ -130,7 +130,7 @@ impl<'a> TypeChecker<'a> {
 
         // XXX: This may get complicated, if specific rules are added per operators
         let span = infx.lhs.span.merge(infx.rhs.span);
-        lhs_type.infix_operand_type_rules(&infx.operator.contents, &rhs_type).map_err(|message| AnalyserError::Unstructured{message, span})
+        lhs_type.infix_operand_type_rules(&infx.operator.contents, &rhs_type).map_err(|message| AnalyserError::Unstructured{file_id : self.file_id,message, span})
     }
 
     fn type_check_param_argument(param: &(Ident, Type), arg_type : &Type) {
@@ -194,7 +194,7 @@ impl<'a> TypeChecker<'a> {
             self.push_err(err);
         }
         if errors_len > 0 {
-            return Err(AnalyserError::Unstructured{message: format!("could not parse vector of expressions"), span});
+            return Err(AnalyserError::Unstructured{file_id : self.file_id, message: format!("could not parse vector of expressions"), span});
         }
         return Ok((exprs, span))
     }

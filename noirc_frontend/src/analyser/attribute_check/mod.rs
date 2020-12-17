@@ -54,20 +54,22 @@ impl AttributeChecker {
         // The main crate should only have one module.
         let modules = main_crate.modules();
         if modules.len() != 1 {
-            return Err(AnalyserError::Unstructured{span : Default::default(), message : "could not process the main file. Please ensure that there is only one `file` with the name main.nr".into()})
+            // XXX: We need an error variant which requires no span
+            return Err(AnalyserError::Unstructured{file_id : 0, span : Default::default(), message : "could not process the main file. Please ensure that there is only one `file` with the name main.nr".into()})
         }
         let main_module = modules.first().unwrap();
-        
+        let file_id = main_module.file_id;
+
         // Every main crate should have a main method
         for func in main_module.functions.iter() {
             dbg!(&func.name());
         }
-        let main_func = main_module.find_function("main").ok_or(AnalyserError::Unstructured{span : Default ::default(), message : "could not find a main() method in main.nr".into()})?;
+        let main_func = main_module.find_function("main").ok_or(AnalyserError::Unstructured{file_id,span : Default ::default(), message : "could not find a main() method in main.nr".into()})?;
 
         // main function should have no attributes attached to it
         if main_func.attribute().is_some() {
             // XXX: functions do not have a span, so we use the default here
-            return Err(AnalyserError::Unstructured{span : Default::default(), message : "The main function in main.nr cannot contain attributes".into()})
+            return Err(AnalyserError::Unstructured{file_id, span : Default::default(), message : "The main function in main.nr cannot contain attributes".into()})
         }
 
         Ok(())

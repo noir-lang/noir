@@ -8,7 +8,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Ident(identifier) => {
                 let resolved = self.find_variable(&identifier.clone().into());
                 if !resolved {
-                    let err = ResolverError::Unresolved {span :expr.span, symbol_type : "value".to_owned(), symbol : identifier.to_string()};
+                    let err = ResolverErrorKind::Unresolved {span :expr.span, symbol_type : "value".to_owned(), symbol : identifier.to_string()}.into_err(self.file_id);
                     self.push_err(err);
                 }
                 resolved
@@ -23,7 +23,7 @@ impl<'a> Resolver<'a> {
                 let func = match func {
                     None => {
                         let name = call_expr.func_name.0.contents.clone();
-                        let err = ResolverError::Unresolved{span, symbol_type : "function".to_owned(), symbol : name};
+                        let err = ResolverErrorKind::Unresolved{span, symbol_type : "function".to_owned(), symbol : name}.into_err(self.file_id);
                         self.push_err(err);
                         return false
                     },
@@ -35,7 +35,7 @@ impl<'a> Resolver<'a> {
 
                 if param_len != argument_len {
                     let message = format!("Function {} expected {} number of arguments, but got {}", call_expr.func_name.0.contents, param_len, argument_len);
-                    let err = AnalyserError::from_ident(message, &call_expr.func_name);
+                    let err = AnalyserError::from_ident(self.file_id,message, &call_expr.func_name);
                     self.push_err(err);
                 }
                 
@@ -50,12 +50,12 @@ impl<'a> Resolver<'a> {
                 
                 if !resolved_collection_name {
                     let message = format!("Cannot find a declaration for the array {}", &index_expr.collection_name.0.contents);
-                    let err = AnalyserError::from_ident(message, &index_expr.collection_name);
+                    let err = AnalyserError::from_ident(self.file_id,message, &index_expr.collection_name);
                     self.push_err(err);
                 }
                 if !resolved_index {
                     let message = format!("Cannot find variable `{:?}` which is being used to index the array {}", &index_expr.index, &index_expr.collection_name.0.contents);
-                    let err = AnalyserError::from_ident(message, &index_expr.collection_name);
+                    let err = AnalyserError::from_ident(self.file_id,message, &index_expr.collection_name);
                     self.push_err(err);
                     
                 }
@@ -80,12 +80,12 @@ impl<'a> Resolver<'a> {
                 
                 if !resolved_lhs {
                     let message = format!("Could not resolve the start range of the for loop");
-                    let err = AnalyserError::from_expression(message, &start_range);
+                    let err = AnalyserError::from_expression(self.file_id,message, &start_range);
                     self.push_err(err)
                 }
                 if !resolved_rhs {
                     let message = format!("Could not resolve the end range of the for loop");
-                    let err = AnalyserError::from_expression(message, &end_range);
+                    let err = AnalyserError::from_expression(self.file_id,message, &end_range);
                     self.push_err(err)
                 }
 
@@ -140,7 +140,7 @@ impl<'a> Resolver<'a> {
             let resolved_element = self.resolve_expr(&element);
             if !resolved_element {
                 let message = format!("Cannot resolve the {} at index {} in the {} {:?}", type_of_element, i, data_type, list);
-                let err = AnalyserError::from_expression(message, element);
+                let err = AnalyserError::from_expression(self.file_id,message, element);
                 self.push_err(err);
             }
         }

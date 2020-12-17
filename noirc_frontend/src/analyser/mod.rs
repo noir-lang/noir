@@ -48,7 +48,7 @@ pub fn check_crates(crate_manager: &mut CrateManager<Program>) -> Result<(), Vec
         let krate = crate_manager.get_crate_with_id(crate_id).unwrap();
         for mod_id in krate.module_ids() {
             let mut module = krate.get_module(mod_id).unwrap().clone();
-        
+            
             Resolver::resolve(&mut module, mod_id, crate_id, crate_manager)?;
             TypeChecker::check(&mut module, mod_id, crate_id, crate_manager)?;
 

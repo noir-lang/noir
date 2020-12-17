@@ -4,7 +4,7 @@ use crate::{ast::{Expression, Statement, NoirPath, FunctionDefinition}};
 use crate::NoirFunction;
 use crate::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
 use crate::parser::Program;
-use super::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest};
+use super::{errors::ResolverErrorKind, scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest}};
 use nargo::{CrateManager,  crate_unit::ModID, crate_manager::CrateID};
 
 /// Checks that each variable was declared before it's use
@@ -22,6 +22,7 @@ mod expression;
 use super::errors::{AnalyserError, ResolverError,Span};
 
 pub struct Resolver<'a>{
+    file_id : usize,
     crate_manager : &'a CrateManager<Program>,
     current_module : ModID,
     current_crate : CrateID, // XXX: We should encode this into the module_id
@@ -32,8 +33,8 @@ pub struct Resolver<'a>{
 
 impl<'a> Resolver<'a> {
 
-    fn new( current_module : ModID,current_crate : CrateID, crate_manager : &'a CrateManager<Program>) -> Resolver<'a> {
-        Resolver {local_declarations : ScopeForest::new(), current_module, current_crate, errors: Vec::new(),resolved_imports: HashMap::new(),crate_manager}
+    fn new( file_id : usize, current_module : ModID,current_crate : CrateID, crate_manager : &'a CrateManager<Program>) -> Resolver<'a> {
+        Resolver {file_id, local_declarations : ScopeForest::new(), current_module, current_crate, errors: Vec::new(),resolved_imports: HashMap::new(),crate_manager}
     }
 
     fn add_variable_decl(&mut self, name : Ident) {
@@ -48,7 +49,7 @@ impl<'a> Resolver<'a> {
 
         if !is_new_entry {
             let first_decl = scope.find(&name.0.contents).unwrap();
-            let err = ResolverError::DuplicateDefinition{first_span: first_decl.span, second_span : name.0.span(), ident: name.0.contents};
+            let err = ResolverErrorKind::DuplicateDefinition{first_span: first_decl.span, second_span : name.0.span(), ident: name.0.contents}.into_err(self.file_id);
             self.push_err(err);
         }
         
@@ -109,7 +110,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve(ast : &mut Program, mod_id : ModID, crate_id : CrateID, crate_manager : &'a CrateManager<Program>) -> Result<(),Vec<AnalyserError>> {
 
         // Add functions into this, so that call expressions can be resolved
-        let mut resolver = Resolver::new(mod_id, crate_id, crate_manager);
+        let mut resolver = Resolver::new(ast.file_id, mod_id, crate_id, crate_manager);
 
         // Resolve Import paths and copy to Resolver
         resolver.resolve_imports(ast);
@@ -149,7 +150,7 @@ impl<'a> Resolver<'a> {
         for (unused_var, meta) in unused_variables.into_iter() {
             let span = meta.span;
             let ident = unused_var.clone();
-            let err = ResolverError::UnusedVariables{span, ident};
+            let err = ResolverErrorKind::UnusedVariables{span, ident}.into_err(self.file_id);
             self.push_err(err);
         }
     }
@@ -181,7 +182,7 @@ impl<'a> Resolver<'a> {
                 Statement::Expression(expr) => {
                     if !self.resolve_expr(&expr) {
                         let message = format!("Could not resolve the expression");
-                        let err = AnalyserError::from_expression(message, expr);
+                        let err = AnalyserError::from_expression(self.file_id,message, expr);
                         self.push_err(err);
                     };
                 },

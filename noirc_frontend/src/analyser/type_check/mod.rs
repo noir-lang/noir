@@ -19,6 +19,7 @@ use super::errors::{AnalyserError, Span, TypeError};
 mod expression;
 
 pub struct TypeChecker<'a> {
+    file_id : usize,
     crate_manager : &'a CrateManager<Program>,
     current_module : ModID,
     current_crate : CrateID, // XXX: We should encode this into the module_id
@@ -29,8 +30,8 @@ pub struct TypeChecker<'a> {
 
 impl<'a> TypeChecker<'a> {
 
-    fn new(current_module : ModID,current_crate : CrateID, crate_manager : &CrateManager<Program>) -> TypeChecker {
-        TypeChecker {current_module, current_crate, crate_manager, local_types : ScopeForest::new(), errors:Vec::new(), resolved_imports: HashMap::new()}
+    fn new(file_id : usize, current_module : ModID,current_crate : CrateID, crate_manager : &CrateManager<Program>) -> TypeChecker {
+        TypeChecker {file_id, current_module, current_crate, crate_manager, local_types : ScopeForest::new(), errors:Vec::new(), resolved_imports: HashMap::new()}
     }
     
     fn find_function(&self, path : &NoirPath, func_name : &Ident) -> Option<&NoirFunction> {   
@@ -74,7 +75,7 @@ impl<'a> TypeChecker<'a> {
 
     pub fn check(ast : &mut Program, mod_id : ModID, crate_id : CrateID, crate_manager : &'a CrateManager<Program>) -> Result<(), Vec<AnalyserError>> {
 
-        let mut type_checker = TypeChecker::new(mod_id, crate_id, crate_manager);
+        let mut type_checker = TypeChecker::new(ast.file_id, mod_id,crate_id, crate_manager);
 
         // Copy resolved imports
         type_checker.resolved_imports = ast.resolved_imports.clone();
@@ -119,7 +120,7 @@ fn type_check_func_def(&mut self, func : &mut FunctionDefinition) {
 
     if (&last_return_type != declared_return_type) & !is_low_level {
         let message = format!("mismatched types: Expected the function named `{}` to return the type `{}`, but got `{}`", &func.name.0.contents, declared_return_type, last_return_type);
-        let err = AnalyserError::from_ident(message, &func.name);
+        let err = AnalyserError::from_ident(self.file_id,message, &func.name);
         self.errors.push(err);
     }
 
@@ -194,13 +195,13 @@ fn type_check_private_stmt(&mut self,stmt : &mut PrivateStatement) -> Result<Typ
     // Importantly, we do not co-erce any types implicitly
     dbg!(lhs_type.clone(), expr_type.clone());
     if lhs_type != &expr_type {
-        return Err(AnalyserError::type_mismatch(lhs_type, &expr_type, stmt.expression.span))
+        return Err(AnalyserError::type_mismatch(self.file_id,lhs_type, &expr_type, stmt.expression.span))
     }
     
     // Check if this type can be used in a Private statement
     if !lhs_type.can_be_used_in_priv() {
         let message = format!("the type {} cannot be used in a Private Statement", lhs_type);
-        return Err(AnalyserError::from_expression(message, &stmt.expression));
+        return Err(AnalyserError::from_expression(self.file_id,message, &stmt.expression));
     }
 
     stmt.r#type = expr_type;
@@ -225,13 +226,13 @@ fn type_check_let_stmt(&mut self,stmt : &mut LetStatement) -> Result<Type, Analy
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
     if lhs_type != &expr_type {
-        return Err(AnalyserError::type_mismatch(lhs_type, &expr_type, stmt.expression.span))
+        return Err(AnalyserError::type_mismatch(self.file_id,lhs_type, &expr_type, stmt.expression.span))
     }
     
     // Check if this type can be used in a Let statement
     if !lhs_type.can_be_used_in_let() {
         let message = format!("the type {} cannot be used in a Let Statement", lhs_type);
-        return Err(AnalyserError::from_expression(message, &stmt.expression));
+        return Err(AnalyserError::from_expression(self.file_id,message, &stmt.expression));
     }
     
     stmt.r#type = expr_type;
@@ -247,14 +248,14 @@ fn type_check_const_stmt(&mut self,stmt : &mut ConstStatement) -> Result<Type, A
 
     if !(lhs_type == &Type::Constant || lhs_type == &Type::Unspecified) {
         let message = format!("constant statements can only contain constant types, found type {}", lhs_type);
-        return Err(AnalyserError::from_expression(message, &stmt.expression));
+        return Err(AnalyserError::from_expression(self.file_id,message, &stmt.expression));
     }
     let expr_type = self.type_check_expr(&mut stmt.expression)?;
     
     // Constant statements can only contain the Constant type
     if expr_type != Type::Constant {
         let message = format!("rhs of constrain statement must be of type `Constant`");
-        return Err(AnalyserError::from_expression(message, &stmt.expression));
+        return Err(AnalyserError::from_expression(self.file_id,message, &stmt.expression));
     }
     
     stmt.r#type = expr_type;
@@ -270,16 +271,16 @@ fn type_check_constrain_stmt(&mut self,stmt : &mut ConstrainStatement) -> Result
     // Are there any restrictions on the operator for constrain statements
     if !stmt.0.operator.contents.is_comparator()  {
         let message = format!("only comparison operators can be used in a constrain statement");
-        return Err(AnalyserError::Unstructured{message, span :stmt.0.operator.span()});
+        return Err(AnalyserError::Unstructured{file_id : self.file_id, message, span :stmt.0.operator.span()});
     };
     
     if !lhs_type.can_be_used_in_constrain() {
         let message = format!("found type {} . This type cannot be used in a constrain statement", lhs_type);
-        return Err(AnalyserError::from_expression(message, &stmt.0.lhs));
+        return Err(AnalyserError::from_expression(self.file_id,message, &stmt.0.lhs));
     }
     if !rhs_type.can_be_used_in_constrain() {
         let message = format!("found type {} . This type cannot be used in a constrain statement", rhs_type);
-        return Err(AnalyserError::from_expression(message, &stmt.0.rhs));
+        return Err(AnalyserError::from_expression(self.file_id,message, &stmt.0.rhs));
     }
 
     Ok(Type::Unit)    // XXX: We leave upper bound checks until runtime, but it is certainly possible to add them to the analyser
