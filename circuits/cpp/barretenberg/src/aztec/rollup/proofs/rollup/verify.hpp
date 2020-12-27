@@ -1,7 +1,8 @@
 #pragma once
-#include "compute_rollup_circuit_data.hpp"
+#include "compute_circuit_data.hpp"
 #include "rollup_circuit.hpp"
 #include "rollup_proof_data.hpp"
+#include "create_rollup.hpp"
 #include <stdlib/types/turbo.hpp>
 #include <common/throw_or_abort.hpp>
 
@@ -12,8 +13,7 @@ namespace rollup {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-inline bool pairing_check(recursion_output<bn254> recursion_output,
-                          std::shared_ptr<waffle::verification_key> const& inner_verification_key)
+inline bool pairing_check(recursion_output<bn254> recursion_output, std::shared_ptr<waffle::verification_key> const& vk)
 {
     g1::affine_element P[2];
     P[0].x = barretenberg::fq(recursion_output.P0.x.get_value().lo);
@@ -21,16 +21,18 @@ inline bool pairing_check(recursion_output<bn254> recursion_output,
     P[1].x = barretenberg::fq(recursion_output.P1.x.get_value().lo);
     P[1].y = barretenberg::fq(recursion_output.P1.y.get_value().lo);
     barretenberg::fq12 inner_proof_result = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
-        P, inner_verification_key->reference_string->get_precomputed_g2_lines(), 2);
+        P, vk->reference_string->get_precomputed_g2_lines(), 2);
     return inner_proof_result == barretenberg::fq12::one();
 }
 
-inline bool verify_rollup_logic(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
+inline bool verify_rollup_logic(rollup_tx& rollup, circuit_data const& circuit_data)
 {
 #ifndef __wasm__
     try {
 #endif
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
+
+        pad_rollup_tx(rollup, circuit_data.rollup_size, circuit_data.join_split_circuit_data.padding_proof);
 
         auto recursion_output =
             rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
@@ -57,12 +59,14 @@ struct verify_rollup_result {
     std::vector<uint8_t> proof_data;
 };
 
-inline verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circuit_data const& circuit_data)
+inline verify_rollup_result verify_rollup(rollup_tx& rollup, circuit_data const& circuit_data)
 {
 #ifndef __wasm__
     try {
 #endif
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
+
+        pad_rollup_tx(rollup, circuit_data.rollup_size, circuit_data.join_split_circuit_data.padding_proof);
 
         rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
 
@@ -70,10 +74,10 @@ inline verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circui
             throw_or_abort("Circuit logic failed: " + composer.err);
         }
 
-        auto prover = composer.create_prover();
+        auto prover = composer.create_unrolled_prover();
         auto proof = prover.construct_proof();
 
-        auto verifier = composer.create_verifier();
+        auto verifier = composer.create_unrolled_verifier();
         if (!verifier.verify_proof(proof)) {
             throw_or_abort("Proof validation failed.");
         }
@@ -87,8 +91,8 @@ inline verify_rollup_result verify_rollup(rollup_tx const& rollup, rollup_circui
         if (!pairing) {
             throw_or_abort("Pairing check failed.");
         }
-
         return { true, proof.proof_data };
+
 #ifndef __wasm__
     } catch (std::runtime_error const& err) {
         std::cerr << err.what() << std::endl;

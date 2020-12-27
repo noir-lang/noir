@@ -13,7 +13,7 @@ enum StandardSelectors {
 };
 inline std::vector<ComposerBase::SelectorProperties> standard_sel_props()
 {
-    // We set the use_quotient_mid variable to false in composer settings so as to 
+    // We set the use_quotient_mid variable to false in composer settings so as to
     // disallow fft computations of size 2n as the degrees of polynomials slighly change
     // on introducing the new vanishing polynomial with some roots cut out.
     std::vector<ComposerBase::SelectorProperties> result{
@@ -77,7 +77,7 @@ class StandardComposer : public ComposerBase {
     StandardComposer& operator=(StandardComposer&& other) = default;
     ~StandardComposer() {}
 
-    void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b);
+    void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b, std::string const& msg = "");
 
     virtual std::shared_ptr<proving_key> compute_proving_key() override;
     virtual std::shared_ptr<verification_key> compute_verification_key() override;

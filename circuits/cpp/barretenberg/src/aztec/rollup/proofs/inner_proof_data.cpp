@@ -21,7 +21,6 @@ inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
     input_owner = from_buffer<fr>(proof_data, InnerProofOffsets::INPUT_OWNER);
     output_owner = from_buffer<fr>(proof_data, InnerProofOffsets::OUTPUT_OWNER);
     merkle_root = from_buffer<fr>(proof_data, InnerProofOffsets::MERKLE_ROOT);
-    account_nullifier = from_buffer<uint256_t>(proof_data, InnerProofOffsets::ACCOUNT_NULLIFIER);
 }
 
 } // namespace proofs

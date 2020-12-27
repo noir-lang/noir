@@ -571,7 +571,7 @@ Prover StandardComposer::create_prover()
     return output_state;
 }
 
-void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b)
+void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, std::string const&)
 {
     const add_triple gate_coefficients{
         a_idx, a_idx, a_idx, fr::one(), fr::zero(), fr::zero(), -b,

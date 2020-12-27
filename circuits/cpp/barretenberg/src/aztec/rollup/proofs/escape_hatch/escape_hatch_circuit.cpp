@@ -2,6 +2,7 @@
 #include "../join_split/join_split_circuit.hpp"
 #include "../notes/circuit/note_pair.hpp"
 #include "../rollup/rollup_circuit.hpp"
+#include "../root_rollup/root_rollup_circuit.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -59,13 +60,13 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
                                                            old_null_root,
                                                            { outputs.nullifier1, outputs.nullifier2 });
 
-    rollup::check_root_tree_updated(composer,
-                                    create_witness_hash_path(composer, tx.new_data_roots_path),
-                                    create_witness_hash_path(composer, tx.old_data_roots_path),
-                                    rollup_id,
-                                    new_data_root,
-                                    new_data_roots_root,
-                                    old_data_roots_root);
+    root_rollup::check_root_tree_updated(composer,
+                                         create_witness_hash_path(composer, tx.new_data_roots_path),
+                                         create_witness_hash_path(composer, tx.old_data_roots_path),
+                                         rollup_id,
+                                         new_data_root,
+                                         new_data_roots_root,
+                                         old_data_roots_root);
 
     rollup::check_data_tree_updated(
         composer,

@@ -4,3 +4,4 @@ docker*
 src/wasi-sdk-8.0
 srs_db/ignition
 **/node_modules
+**/fixtures/**/proving_key

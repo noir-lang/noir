@@ -4,3 +4,4 @@ srs_db/ignition
 srs_db/lagrange
 srs_db/coset_lagrange
 srs_db/modified_lagrange
+**/fixtures/**/proving_key

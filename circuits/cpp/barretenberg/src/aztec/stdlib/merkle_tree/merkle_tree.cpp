@@ -90,12 +90,15 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
             // This is a stump. The hash path can be fully restored from this node.
             fr current = from_buffer<fr>(data, 0);
             index_t element_index = from_buffer<index_t>(data, 32);
-            index_t diff = element_index ^ numeric::keep_n_lsb(index, i + 1);
+            index_t subtree_index = numeric::keep_n_lsb(index, i + 1);
+            index_t diff = element_index ^ subtree_index;
 
             // std::cout << "ghp hit stump height:" << i << " element_index:" << (uint64_t)element_index
             //           << " index:" << (uint64_t)index << " diff:" << (uint64_t)diff << std::endl;
 
             if (diff < 2) {
+                // Requesting path to either the same element in the stump, or it's partner element.
+                // Starting at the bottom of the tree, compute the remaining path pairs.
                 for (size_t j = 0; j <= i; ++j) {
                     bool is_right = bit_set(element_index, j);
                     if (is_right) {
@@ -106,6 +109,9 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                     current = compress_native(path[j].first, path[j].second);
                 }
             } else {
+                // Requesting path to a different, indepenent element.
+                // We know that this element exits in an empty subtree, of height determined by the common bits in the
+                // stumps index and the requested index.
                 size_t common_bits = numeric::count_leading_zeros(diff);
                 size_t ignored_bits = sizeof(index_t) * 8 - i;
                 size_t common_height = i - (common_bits - ignored_bits) - 1;

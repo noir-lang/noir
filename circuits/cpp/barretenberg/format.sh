@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 if [ "$1" == "staged" ]; then
   echo Formatting staged files...
   for FILE in $(git diff-index --diff-filter=d --relative --cached --name-only HEAD | grep -e '\.\(cpp\|hpp\|tcc\)$'); do

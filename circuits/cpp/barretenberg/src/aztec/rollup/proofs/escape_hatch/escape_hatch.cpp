@@ -1,6 +1,6 @@
 #include "escape_hatch.hpp"
 #include "escape_hatch_circuit.hpp"
-#include "compute_escape_hatch_circuit_data.hpp"
+#include "compute_circuit_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "../rollup/rollup_circuit.hpp"
 #include <common/log.hpp>
@@ -91,7 +91,7 @@ bool verify_proof(waffle::plonk_proof const& proof)
 {
     Verifier verifier(verification_key, Composer::create_manifest(verification_key->num_public_inputs));
 
-    std::unique_ptr<waffle::KateCommitmentScheme<waffle::turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::turbo_settings>> kate_commitment_scheme =
         std::make_unique<waffle::KateCommitmentScheme<waffle::turbo_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 

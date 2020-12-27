@@ -128,13 +128,15 @@ void populate_kate_element_map(typename Curve::Composer* ctx,
 
 template <typename Curve>
 lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
-    const typename Curve::fr_ct& z, const evaluation_domain<typename Curve::Composer>& domain,
+    const typename Curve::fr_ct& z,
+    const evaluation_domain<typename Curve::Composer>& domain,
     const size_t num_roots_cut_out_of_vanishing_polynomial = 4)
 {
     // compute Z_H*(z), l_start(z), l_{end}(z)
-    // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that 
-    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k = num_roots_cut_out_of_vanishing_polynomial.
-    // For notational simplicity, we call l_1 as l_start and l_{n-k} as l_end.
+    // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that
+    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k =
+    // num_roots_cut_out_of_vanishing_polynomial. For notational simplicity, we call l_1 as l_start and l_{n-k} as
+    // l_end.
     //
     // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
     //
@@ -148,13 +150,13 @@ lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
     // compute modified vanishing polynomial Z_H*(z)
     //                       (z^{n} - 1)
     // Z_H*(z) = --------------------------------------------
-    //           (z - w^{n-1})(z - w^{n-2})...(z - w^{n - k}) 
+    //           (z - w^{n-1})(z - w^{n-2})...(z - w^{n - k})
     //
     fr_ct denominators_vanishing_poly = fr_ct(1);
     lagrange_evaluations<Composer> result;
 
     fr_ct work_root = domain.root_inverse;
-    for(size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial; ++i) {
+    for (size_t i = 0; i < num_roots_cut_out_of_vanishing_polynomial; ++i) {
         denominators_vanishing_poly *= (z - work_root);
         work_root *= domain.root_inverse;
     }
@@ -164,7 +166,7 @@ lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
     //           (X^n - 1)
     // L_1(X) = -----------
     //             X - 1
-    // 
+    //
     // L_{i}(X) = L_1(X.w^{-i})
     //                                                      (X^n - 1)
     // => L_{n-k}(X) = L_1(X.w^{k-n}) = L_1(X.w^{k + 1}) = ----------------
@@ -217,6 +219,10 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
+
+    // fr_ct init = transcript.get_challenge_field_element("init");
+    // fr_ct beta = transcript.get_challenge_field_element("beta");
+
     fr_ct alpha = transcript.get_challenge_field_element("alpha");
     fr_ct zeta = transcript.get_challenge_field_element("z");
 
@@ -256,12 +262,16 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta) {
         const auto& g1_value = kate_g1_elements[label];
         // if (!g1_value.on_curve()) {
+        //     std::cout << "error a" << std::endl;
         //     continue; // TODO handle this
         // }
-
-        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
-        //     continue;
-        // }
+        if (fr_value.get_value() == 0 && fr_value.witness_index != UINT32_MAX) {
+            std::cout << "bad scalar zero at " << label << std::endl;
+        }
+        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+            std::cout << "scalar zero at " << label << std::endl;
+            continue;
+        }
 
         if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
             elements_to_add.emplace_back(g1_value);
@@ -273,10 +283,13 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_large) {
         const auto& g1_value = kate_g1_elements[label];
-
-        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
-        //     continue;
-        // }
+        if (fr_value.get_value() == 0 && fr_value.witness_index != UINT32_MAX) {
+            std::cout << "bad scalar zero at " << label << std::endl;
+        }
+        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+            std::cout << "scalar zero at " << label << std::endl;
+            continue;
+        }
 
         if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
             elements_to_add.emplace_back(g1_value);
@@ -288,6 +301,14 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_omega) {
         const auto& g1_value = kate_g1_elements[label];
+        // if (fr_value.get_value() == 0 && fr_value.witness_index != UINT32_MAX   )
+        // {
+        //     std::cout << "bad scalar zero at " << label << std::endl;
+        // }
+        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        //     std::cout << "scalar zero at " << label << std::endl;
+        //     continue;
+        // }
 
         // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
         //     continue;
@@ -315,6 +336,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         rhs_elements.push_back((-(previous_output.P1)).normalize());
         rhs_scalars.push_back(random_separator);
     }
+
     auto opening_result =
         g1_ct::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
     opening_result = opening_result + double_opening_result;
@@ -326,32 +348,27 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     g1_ct rhs = g1_ct::batch_mul(rhs_elements, rhs_scalars, 128);
     rhs = rhs + PI_Z;
     rhs = (-rhs).normalize();
-    
 
     std::vector<uint32_t> proof_witness_indices{
-        opening_result.x.binary_basis_limbs[0].element.witness_index,
-        opening_result.x.binary_basis_limbs[1].element.witness_index,
-        opening_result.x.binary_basis_limbs[2].element.witness_index,
-        opening_result.x.binary_basis_limbs[3].element.witness_index,
-        opening_result.y.binary_basis_limbs[0].element.witness_index,
-        opening_result.y.binary_basis_limbs[1].element.witness_index,
-        opening_result.y.binary_basis_limbs[2].element.witness_index,
-        opening_result.y.binary_basis_limbs[3].element.witness_index,
-        rhs.x.binary_basis_limbs[0].element.witness_index,
-        rhs.x.binary_basis_limbs[1].element.witness_index,
-        rhs.x.binary_basis_limbs[2].element.witness_index,
-        rhs.x.binary_basis_limbs[3].element.witness_index,
-        rhs.y.binary_basis_limbs[0].element.witness_index,
-        rhs.y.binary_basis_limbs[1].element.witness_index,
-        rhs.y.binary_basis_limbs[2].element.witness_index,
-        rhs.y.binary_basis_limbs[3].element.witness_index,    
+        opening_result.x.binary_basis_limbs[0].element.normalize().witness_index,
+        opening_result.x.binary_basis_limbs[1].element.normalize().witness_index,
+        opening_result.x.binary_basis_limbs[2].element.normalize().witness_index,
+        opening_result.x.binary_basis_limbs[3].element.normalize().witness_index,
+        opening_result.y.binary_basis_limbs[0].element.normalize().witness_index,
+        opening_result.y.binary_basis_limbs[1].element.normalize().witness_index,
+        opening_result.y.binary_basis_limbs[2].element.normalize().witness_index,
+        opening_result.y.binary_basis_limbs[3].element.normalize().witness_index,
+        rhs.x.binary_basis_limbs[0].element.normalize().witness_index,
+        rhs.x.binary_basis_limbs[1].element.normalize().witness_index,
+        rhs.x.binary_basis_limbs[2].element.normalize().witness_index,
+        rhs.x.binary_basis_limbs[3].element.normalize().witness_index,
+        rhs.y.binary_basis_limbs[0].element.normalize().witness_index,
+        rhs.y.binary_basis_limbs[1].element.normalize().witness_index,
+        rhs.y.binary_basis_limbs[2].element.normalize().witness_index,
+        rhs.y.binary_basis_limbs[3].element.normalize().witness_index,
     };
     return recursion_output<Curve>{
-        opening_result,
-        rhs,
-        transcript.get_field_element_vector("public_inputs"),
-        proof_witness_indices,
-        true,
+        opening_result, rhs, transcript.get_field_element_vector("public_inputs"), proof_witness_indices, true,
     };
 }
 

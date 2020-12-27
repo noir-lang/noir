@@ -1,4 +1,4 @@
-#include "compute_escape_hatch_circuit_data.hpp"
+#include "compute_circuit_data.hpp"
 #include <gtest/gtest.h>
 
 using namespace rollup::proofs::escape_hatch;

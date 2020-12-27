@@ -1,4 +1,4 @@
-#include "compute_join_split_circuit_data.hpp"
+#include "compute_circuit_data.hpp"
 #include "join_split_circuit.hpp"
 #include "../notes/native/sign_notes.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
@@ -58,8 +58,7 @@ join_split_tx noop_tx()
     return tx;
 }
 
-join_split_circuit_data load_join_split_circuit_data(std::string const& srs_path,
-                                                     std::string const& join_split_key_path)
+circuit_data load_circuit_data(std::string const& srs_path, std::string const& join_split_key_path)
 {
     waffle::proving_key_data pk_data;
     waffle::verification_key_data vk_data;
@@ -81,7 +80,7 @@ join_split_circuit_data load_join_split_circuit_data(std::string const& srs_path
     return { proving_key, verification_key, pk_data.n, proof };
 }
 
-void write_join_split_circuit_data(join_split_circuit_data const& data, std::string const& join_split_key_path)
+void write_circuit_data(circuit_data const& data, std::string const& join_split_key_path)
 {
     std::cerr << "Writing keys and padding proof..." << std::endl;
     mkdir(join_split_key_path.c_str(), 0700);
@@ -98,7 +97,7 @@ void write_join_split_circuit_data(join_split_circuit_data const& data, std::str
     std::cerr << "Done." << std::endl;
 }
 
-join_split_circuit_data compute_join_split_circuit_data(std::string const& srs_path)
+circuit_data compute_circuit_data(std::string const& srs_path)
 {
     std::cerr << "Generating join-split circuit keys..." << std::endl;
 
@@ -116,17 +115,16 @@ join_split_circuit_data compute_join_split_circuit_data(std::string const& srs_p
     return { proving_key, verification_key, composer.get_num_gates(), proof.proof_data };
 }
 
-join_split_circuit_data compute_or_load_join_split_circuit_data(std::string const& srs_path,
-                                                                std::string const& key_path)
+circuit_data compute_or_load_circuit_data(std::string const& srs_path, std::string const& key_path)
 {
     auto join_split_key_path = key_path + "/join_split";
 
     if (exists(join_split_key_path)) {
-        return load_join_split_circuit_data(srs_path, join_split_key_path);
+        return load_circuit_data(srs_path, join_split_key_path);
     } else {
         mkdir(key_path.c_str(), 0700);
-        auto data = compute_join_split_circuit_data(srs_path);
-        write_join_split_circuit_data(data, join_split_key_path);
+        auto data = compute_circuit_data(srs_path);
+        write_circuit_data(data, join_split_key_path);
         return data;
     }
 }

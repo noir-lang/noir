@@ -11,7 +11,7 @@ inline std::vector<ComposerBase::SelectorProperties> mimc_sel_props()
 {
     std::vector<ComposerBase::SelectorProperties> result{
 
-        // We set the use_quotient_mid variable to false in composer settings so as to 
+        // We set the use_quotient_mid variable to false in composer settings so as to
         // disallow fft computations of size 2n as the degrees of polynomials slightly change
         // on introducing the new vanishing polynomial with some roots cut out.
         { "q_m", false, false },
@@ -194,7 +194,7 @@ class MiMCComposer : public StandardComposer {
         current_output_wire = static_cast<uint32_t>(-1);
     }
 
-    void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b)
+    void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b, std::string const& = "")
     {
         const add_triple gate_coefficients{
             a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,

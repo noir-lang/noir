@@ -92,7 +92,7 @@ class PlookupComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b)
+    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b, std::string const& = "")
     {
         ASSERT(variables[a_idx] == b);
         const add_triple gate_coefficients{

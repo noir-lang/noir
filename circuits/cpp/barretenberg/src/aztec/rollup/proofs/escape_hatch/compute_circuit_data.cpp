@@ -1,5 +1,5 @@
-#include "compute_escape_hatch_circuit_data.hpp"
-#include "../join_split/compute_join_split_circuit_data.hpp"
+#include "compute_circuit_data.hpp"
+#include "../join_split/compute_circuit_data.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include "escape_hatch_circuit.hpp"
 #include <plonk/proof_system/proving_key/serialize.hpp>
@@ -56,8 +56,7 @@ escape_hatch_tx dummy_tx()
     return tx;
 }
 
-escape_hatch_circuit_data load_escape_hatch_circuit_data(std::string const& srs_path,
-                                                         std::string const& escape_hatch_key_path)
+circuit_data load_circuit_data(std::string const& srs_path, std::string const& escape_hatch_key_path)
 {
     waffle::proving_key_data pk_data;
     waffle::verification_key_data vk_data;
@@ -79,7 +78,7 @@ escape_hatch_circuit_data load_escape_hatch_circuit_data(std::string const& srs_
     return { proving_key, verification_key, pk_data.n };
 }
 
-void write_escape_hatch_circuit_data(escape_hatch_circuit_data const& data, std::string const& escape_hatch_key_path)
+void write_circuit_data(circuit_data const& data, std::string const& escape_hatch_key_path)
 {
     std::cerr << "Writing keys and padding proof..." << std::endl;
     mkdir(escape_hatch_key_path.c_str(), 0700);
@@ -93,7 +92,7 @@ void write_escape_hatch_circuit_data(escape_hatch_circuit_data const& data, std:
     std::cerr << "Done." << std::endl;
 }
 
-escape_hatch_circuit_data compute_escape_hatch_circuit_data(std::string const& srs_path)
+circuit_data compute_circuit_data(std::string const& srs_path)
 {
     std::cerr << "Generating escape_hatch circuit keys..." << std::endl;
 
@@ -109,17 +108,16 @@ escape_hatch_circuit_data compute_escape_hatch_circuit_data(std::string const& s
     return { proving_key, verification_key, composer.get_num_gates() };
 }
 
-escape_hatch_circuit_data compute_or_load_escape_hatch_circuit_data(std::string const& srs_path,
-                                                                    std::string const& key_path)
+circuit_data compute_or_load_circuit_data(std::string const& srs_path, std::string const& key_path)
 {
     auto escape_hatch_key_path = key_path + "/escape_hatch";
 
     if (exists(escape_hatch_key_path)) {
-        return load_escape_hatch_circuit_data(srs_path, escape_hatch_key_path);
+        return load_circuit_data(srs_path, escape_hatch_key_path);
     } else {
         mkdir(key_path.c_str(), 0700);
-        auto data = compute_escape_hatch_circuit_data(srs_path);
-        write_escape_hatch_circuit_data(data, escape_hatch_key_path);
+        auto data = compute_circuit_data(srs_path);
+        write_circuit_data(data, escape_hatch_key_path);
         return data;
     }
 }

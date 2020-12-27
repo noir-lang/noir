@@ -26,8 +26,8 @@ bool_t<Composer> check_subtree_membership(Composer&,
         // reconstruct the two inputs we need to hash
         // if `path_bit = false`, we know `current` is the left leaf and `hashes[i].second` is the right leaf
         // if `path_bit = true`, we know `current` is the right leaf and `hashes[i].first` is the left leaf
-        // We don't need to explicitly check that hashes[i].first = current iff !path bit , or that hashes[i].second = current iff path_bit
-        // If either of these does not hold, then the final computed merkle root will not match
+        // We don't need to explicitly check that hashes[i].first = current iff !path bit , or that hashes[i].second =
+        // current iff path_bit If either of these does not hold, then the final computed merkle root will not match
         field_t<Composer> left = path_bit.madd(hashes[i].first - current, current);
         field_t<Composer> right = path_bit.madd(current - hashes[i].second, hashes[i].second);
         current = pedersen<Composer>::compress(left, right, 0, false, is_updating_tree);
@@ -77,7 +77,7 @@ void assert_check_membership(Composer& composer,
 template <typename Composer>
 void update_membership(Composer& composer,
                        field_t<Composer> const& new_root,
-                       hash_path<Composer> const& new_hashes,
+                       hash_path<Composer> const&,
                        byte_array<Composer> const& new_value,
                        field_t<Composer> const& old_root,
                        hash_path<Composer> const& old_hashes,
@@ -89,16 +89,16 @@ void update_membership(Composer& composer,
     assert_check_membership(composer, old_root, old_hashes, old_value, index, false, msg + "_old_value");
 
     // Check that the new_value, is in the tree given by new_root, at index.
-    assert_check_membership(composer, new_root, new_hashes, new_value, index, true, msg + "_new_value");
+    assert_check_membership(composer, new_root, old_hashes, new_value, index, true, msg + "_new_value");
 
     // Check that the old and new values, are actually in the same tree.
-    for (size_t i = 0; i < new_hashes.size(); ++i) {
-        bool_t path_bit = index.get_bit(i);
-        bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;
-        bool_t share_right = (old_hashes[i].second == new_hashes[i].second) & !path_bit;
-        composer.assert_equal_constant(
-            (share_left ^ share_right).witness_index, barretenberg::fr::one(), msg + "_same_tree");
-    }
+    //    for (size_t i = 0; i < new_hashes.size(); ++i) {
+    //        bool_t path_bit = index.get_bit(i);
+    //        bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;
+    //        bool_t share_right = (old_hashes[i].second == new_hashes[i].second) & !path_bit;
+    //        composer.assert_equal_constant(
+    //            (share_left ^ share_right).witness_index, barretenberg::fr::one(), msg + "_same_tree");
+    //    }
 }
 
 template <typename Composer>

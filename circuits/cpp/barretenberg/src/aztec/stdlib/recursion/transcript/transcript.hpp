@@ -135,6 +135,9 @@ template <typename Composer> class Transcript {
             return;
         }
         const size_t bytes_per_element = 31;
+
+        // split work_element into 2 limbs and insert into element_buffer
+        // each entry in element_buffer is 31 bytes
         const auto split = [&](field_pt& work_element,
                                std::vector<field_pt>& element_buffer,
                                const field_pt& element,
@@ -160,7 +163,6 @@ template <typename Composer> class Transcript {
                 return;
             }
             const size_t lo_bytes = num_bytes - hi_bytes;
-
             field_pt lo = witness_t(context, barretenberg::fr(element_u256.slice(0, lo_bytes * 8)));
             field_pt hi = witness_t(context, barretenberg::fr(element_u256.slice(lo_bytes * 8, 256)));
             context->create_range_constraint(lo.witness_index, lo_bytes * 8);
@@ -175,14 +177,22 @@ template <typename Composer> class Transcript {
                 context->assert_equal_constant(sum.witness_index, element.get_value());
             }
             current_byte_counter = (current_byte_counter + num_bytes) % bytes_per_element;
-            work_element = work_element + hi;
 
-            element_buffer.push_back(work_element);
+            // if current_byte_counter == 0 we've rolled over
+            if (current_byte_counter == 0) {
+                element_buffer.push_back(work_element);
+                element_buffer.push_back(lo);
+                work_element = field_pt(context, 0);
+            } else {
+                work_element = work_element + hi;
 
-            field_t lo_shift(context,
-                             barretenberg::fr(uint256_t(1ULL) << ((31ULL - (uint64_t)current_byte_counter) * 8ULL)));
-            work_element = (lo * lo_shift);
-            work_element = work_element.normalize();
+                element_buffer.push_back(work_element);
+
+                field_t lo_shift(
+                    context, barretenberg::fr(uint256_t(1ULL) << ((31ULL - (uint64_t)current_byte_counter) * 8ULL)));
+                work_element = (lo * lo_shift);
+                work_element = work_element.normalize();
+            }
         };
 
         std::vector<field_pt> compression_buffer;

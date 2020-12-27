@@ -1,6 +1,7 @@
 #pragma once
 #include "proving_key.hpp"
 #include <polynomials/serialize.hpp>
+#include <common/throw_or_abort.hpp>
 
 namespace waffle {
 
@@ -90,6 +91,9 @@ template <typename B> inline void write_mmap(B& buf, std::string const& path, pr
             auto size = p.get_size();
             std::ofstream os(filename);
             os.write((char*)&p[0], (std::streamsize)(size * sizeof(barretenberg::fr)));
+            if (!os.good()) {
+                throw_or_abort(format("Failed to write: ", filename));
+            }
         }
     }
     write(buf, key.contains_recursive_proof);

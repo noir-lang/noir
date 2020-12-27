@@ -12,7 +12,7 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-std::vector<uint8_t> create_noop_join_split_proof(join_split_circuit_data const& circuit_data, fr const& merkle_root)
+std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data, fr const& merkle_root)
 {
     join_split_tx tx = noop_tx();
     tx.old_data_root = merkle_root;

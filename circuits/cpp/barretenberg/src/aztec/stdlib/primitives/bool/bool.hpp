@@ -45,7 +45,7 @@ template <typename ComposerContext> class bool_t {
 
     void operator^=(const bool_t& other) { *this = operator^(other); }
 
-    void assert_equal(const bool_t& rhs) const
+    void assert_equal(const bool_t& rhs, std::string const& = "bool_t::assert_equal") const
     {
         const bool_t lhs = *this;
         ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();

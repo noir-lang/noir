@@ -18,9 +18,9 @@ static constexpr size_t num_generators = 256;
  * bit_length must be 2 bits larger than the maximum hash size
  * because we represent scalar multipliers via an array of 2-bit windowed non-adjacent form entries
  *
- * When representing an n-bit integer via a WNAF with a window size of b-bits, 
+ * When representing an n-bit integer via a WNAF with a window size of b-bits,
  * one requires a minimum of min = (n/b + 1) windows to represent any integer
- * 
+ *
  * if n = 256 and b = 2, min = 129 windows = 258 bits
  */
 static constexpr size_t bit_length = 258;
@@ -33,50 +33,50 @@ static std::array<fixed_base_ladder, quad_length> g1_ladder;
 static bool inited = false;
 
 /**
- * Precompute ladders and hash ladders  
- * 
- * `ladders` contains precomputed multiples of a base point  
- * 
+ * Precompute ladders and hash ladders
+ *
+ * `ladders` contains precomputed multiples of a base point
+ *
  * Each entry in `ladders` is a `fixed_base_ladder` struct, which contains a pair of points,
- * `one` and `three`  
- * 
- * e.g. a size-4 `ladder` over a base point `P`, will have the following structure:  
- * 
+ * `one` and `three`
+ *
+ * e.g. a size-4 `ladder` over a base point `P`, will have the following structure:
+ *
  *    ladder[3].one = [P]
  *    ladder[3].three = 3[P]
  *    ladder[2].one = 4[P] + [P]
  *    ladder[2].three = 4[P] + 3[P]
- *    ladder[1].one = 16[P] + [P]  
+ *    ladder[1].one = 16[P] + [P]
  *    ladder[1].three = 16[P] + 3[P]
  *    ladder[0].one = 64[P] + [P]
  *    ladder[0].three = 64[P] + 3[P]
- * 
- * i.e. for a ladder size of `n`, we have the following:  
- *   
+ *
+ * i.e. for a ladder size of `n`, we have the following:
+ *
  *                        n - 1 - i
  *    ladder[i].one   = (4           + 1).[P]
  *                        n - 1 - i
  *    ladder[i].three = (4           + 3).[P]
- * 
+ *
  * When a fixed-base scalar multiplier is decomposed into a size-2 WNAF, each ladder entry represents
  * the positive half of a WNAF table
- * 
+ *
  * `hash_ladders` are stitched together from two `ladders` objects to preserve the uniqueness of a pedersen hash.
  * If a pedersen hash input is a 256-bit scalar, using a single generator point would mean that multiple inputs would
- * hash to the same output. 
- * 
+ * hash to the same output.
+ *
  * e.g. if the grumpkin curve order is `n`, then hash(x) = hash(x + n) if we use a single generator
- * 
+ *
  * A `hash_ladders` first 128 entries, corresponding to the high 256-bits of a scalar, are taken from a ladder table.
- * The next 2 entries, however, are taken from a different ladder table, corresponding to a different generator  
- * 
- * When using `hash_ladders[i]`, the scalar is split into two segments:   
- * 
+ * The next 2 entries, however, are taken from a different ladder table, corresponding to a different generator
+ *
+ * When using `hash_ladders[i]`, the scalar is split into two segments:
+ *
  *  1. The least 4 significant bits use `ladders[2 * i + 1]` (i.e. generator 2 * i + 1)
  *  2. The remaining bits use `ladders[2 * i]` (i.e. generator 2 * i)
- * 
+ *
  * This is sufficient to create a unique hash for an input string that is < 2^{260}
- **/ 
+ **/
 const auto init = []() {
     generators = grumpkin::g1::derive_generators<num_generators>();
     ladders.resize(num_generators);
@@ -196,7 +196,7 @@ const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t n
     if (!inited) {
         init();
     }
-    return get_ladder_internal(ladders[generator_index], num_bits);
+    return get_ladder_internal(ladders[generator_index % num_generators], num_bits);
 }
 
 const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits)
@@ -204,7 +204,7 @@ const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const siz
     if (!inited) {
         init();
     }
-    return get_ladder_internal(hash_ladders[generator_index], num_bits);
+    return get_ladder_internal(hash_ladders[generator_index % num_generators], num_bits);
 }
 
 grumpkin::g1::affine_element get_generator(const size_t generator_index)
@@ -212,7 +212,7 @@ grumpkin::g1::affine_element get_generator(const size_t generator_index)
     if (!inited) {
         init();
     }
-    return generators[generator_index];
+    return generators[generator_index % num_generators];
 }
 
 grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index)

@@ -225,10 +225,10 @@ TEST_F(escape_hatch_tests, test_1_false_new_null_path_fails)
 TEST_F(escape_hatch_tests, test_switched_nullifier_paths_order_fails)
 {
     escape_hatch_tx tx = simple_setup();
-    merkle_tree::fr_hash_path null_path_copy = tx.new_null_paths[1];
+    merkle_tree::fr_hash_path null_path_copy = tx.old_null_paths[1];
 
-    tx.new_null_paths[1] = tx.new_null_paths[0];
-    tx.new_null_paths[0] = null_path_copy;
+    tx.old_null_paths[1] = tx.old_null_paths[0];
+    tx.old_null_paths[0] = null_path_copy;
     EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 
