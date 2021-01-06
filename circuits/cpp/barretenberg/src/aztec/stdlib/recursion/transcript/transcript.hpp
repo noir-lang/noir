@@ -180,7 +180,7 @@ template <typename Composer> class Transcript {
 
             // if current_byte_counter == 0 we've rolled over
             if (current_byte_counter == 0) {
-                element_buffer.push_back(work_element);
+                element_buffer.push_back(work_element + hi);
                 element_buffer.push_back(lo);
                 work_element = field_pt(context, 0);
             } else {

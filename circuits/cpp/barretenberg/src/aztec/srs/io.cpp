@@ -166,12 +166,19 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
 
 void read_transcript_g2(g2::affine_element& g2_x, std::string const& dir)
 {
+    const size_t g2_size = sizeof(fq2) * 2;
+
+    if (is_file_exist(dir + "/g2.dat")) {
+        auto buffer = read_file_into_buffer(dir + "/g2.dat", 0, g2_size);
+        read_g2_elements_from_buffer(&g2_x, buffer.data(), g2_size);
+        return;
+    }
+
     std::string path = get_transcript_path(dir, 0);
     Manifest manifest;
     read_manifest(path, manifest);
 
     const size_t g2_buffer_offset = sizeof(fq) * 2 * manifest.num_g1_points;
-    const size_t g2_size = sizeof(fq2) * 2;
     auto offset = sizeof(Manifest) + g2_buffer_offset;
 
     auto buffer = read_file_into_buffer(path, offset, g2_size);

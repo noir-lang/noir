@@ -1,3 +1,6 @@
+// Uncomment to simulate running in CI.
+// #define DISABLE_HEAVY_TESTS
+
 #include "../../fixtures/user_context.hpp"
 #include "../../constants.hpp"
 #include "../rollup/verify.hpp"
@@ -12,9 +15,6 @@
 namespace rollup {
 namespace proofs {
 namespace root_rollup {
-
-// Uncomment to simulate running in CI.
-// #define DISABLE_HEAVY_TESTS
 
 #ifdef DISABLE_HEAVY_TESTS
 constexpr auto REQUIRE_KEYS = false;
@@ -215,32 +215,6 @@ HEAVY_TEST_F(root_rollup_tests, test_root_rollup_full)
     EXPECT_EQ(rollup_data.new_null_root, null_tree.root());
     EXPECT_EQ(rollup_data.new_data_roots_root, root_tree.root());
     EXPECT_EQ(rollup_data.num_txs, 3U);
-}
-
-// Waiting on fix, then delete.
-HEAVY_TEST_F(root_rollup_tests, minimal_failing_test)
-{
-    auto rollup1 = create_rollup_tx({ js_proofs[0] });
-    auto rollup1_proof_data = compute_or_load_rollup(format("min_fail_rollup", INNER_ROLLUP_TXS), rollup1);
-    ASSERT_TRUE(!rollup1_proof_data.empty());
-
-    Composer composer("../srs_db/ignition");
-    auto recursive_manifest = Composer::create_unrolled_manifest(tx_rollup_cd.verification_key->num_public_inputs);
-
-    recursion_output<bn254> recursion_output;
-    auto recursive_verification_key =
-        plonk::stdlib::recursion::verification_key<bn254>::from_witness(&composer, tx_rollup_cd.verification_key);
-
-    recursion_output =
-        verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(&composer,
-                                                                      recursive_verification_key,
-                                                                      recursive_manifest,
-                                                                      waffle::plonk_proof{ rollup1_proof_data },
-                                                                      recursion_output);
-
-    auto verified = pairing_check(recursion_output, tx_rollup_cd.verification_key);
-
-    EXPECT_TRUE(verified);
 }
 
 } // namespace root_rollup

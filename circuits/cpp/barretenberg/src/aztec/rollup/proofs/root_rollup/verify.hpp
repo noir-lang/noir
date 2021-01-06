@@ -43,10 +43,9 @@ inline bool verify_logic(root_rollup_tx& rollup, circuit_data const& circuit_dat
             throw_or_abort("Circuit logic failed: " + composer.err);
         }
 
-        // WARNING: JUST UNTIL MIN FAIL TEST FIXED.
-        // if (!pairing_check(recursion_output, circuit_data.verification_key)) {
-        //     throw_or_abort("Pairing check failed.");
-        // }
+        if (!pairing_check(recursion_output, circuit_data.verification_key)) {
+            throw_or_abort("Pairing check failed.");
+        }
 
         return true;
 #ifndef __wasm__

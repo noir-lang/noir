@@ -1,4 +1,5 @@
 fixtures/account
 fixtures/join_split
 fixtures/rollup_2/proving_key
-fixtures/root_rollup_3
+fixtures/root_rollup_3/proving_key
+fixtures/root_rollup_3/padding_proof
