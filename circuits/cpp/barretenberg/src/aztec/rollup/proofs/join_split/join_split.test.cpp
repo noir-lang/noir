@@ -1,3 +1,4 @@
+#include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "../inner_proof_data.hpp"
 #include "join_split.hpp"
@@ -54,10 +55,10 @@ class join_split_tests : public ::testing::Test {
         store = std::make_unique<MemoryStore>();
         tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
         user = rollup::fixtures::create_user_context();
-        value_notes[0] = { user.owner.public_key, 100, user.note_secret, 0, 0 };
-        value_notes[1] = { user.owner.public_key, 50, user.note_secret, 0, 0 };
-        value_notes[2] = { user.owner.public_key, 90, user.note_secret, 0, 1 };
-        value_notes[3] = { user.owner.public_key, 40, user.note_secret, 0, 1 };
+        value_notes[0] = { user.owner.public_key, 100, user.note_secret, asset_id, 0 };
+        value_notes[1] = { user.owner.public_key, 50, user.note_secret, asset_id, 0 };
+        value_notes[2] = { user.owner.public_key, 90, user.note_secret, asset_id, 1 };
+        value_notes[3] = { user.owner.public_key, 40, user.note_secret, asset_id, 1 };
     }
 
     /**
@@ -92,9 +93,9 @@ class join_split_tests : public ::testing::Test {
         value_note input_note1 = value_notes[input_indicies[0]];
         value_note input_note2 = value_notes[input_indicies[1]];
         value_note output_note1 = {
-            user.owner.public_key, input_note1.value + input_note2.value, user.note_secret, 0, nonce
+            user.owner.public_key, input_note1.value + input_note2.value, user.note_secret, asset_id, nonce
         };
-        value_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0, nonce };
+        value_note output_note2 = { user.owner.public_key, 0, user.note_secret, asset_id, nonce };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -110,7 +111,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_index = account_index;
         tx.account_path = tree->get_hash_path(account_index);
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.asset_id = 1; // asset_id can take any value if there are no public input/output values
+        tx.asset_id = asset_id;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = !nonce ? fr::random_element() : user.alias_hash;
         tx.nonce = nonce;
@@ -191,14 +192,15 @@ class join_split_tests : public ::testing::Test {
     std::unique_ptr<MemoryStore> store;
     std::unique_ptr<MerkleTree<MemoryStore>> tree;
     value_note value_notes[4];
+    const uint32_t asset_id = 1;
+    const uint256_t max_value = (uint256_t(1) << notes::NOTE_VALUE_BIT_LENGTH) - 1;
 };
 
 TEST_F(join_split_tests, test_0_input_notes)
 {
-    value_note gibberish = { user.owner.public_key, 0, user.note_secret, 0, 0 };
+    value_note gibberish = { user.owner.public_key, 0, user.note_secret, asset_id, 0 };
 
     join_split_tx tx = simple_setup();
-    tx.asset_id = 0;
     tx.num_input_notes = 0;
     tx.input_note = { gibberish, gibberish };
     tx.public_input = 30;
@@ -232,7 +234,6 @@ HEAVY_TEST_F(join_split_tests, test_2_input_notes_full_proof)
 TEST_F(join_split_tests, test_0_output_notes)
 {
     join_split_tx tx = simple_setup();
-    tx.asset_id = 0;
     tx.output_note[0].value = 0;
     tx.output_note[1].value = 0;
     tx.public_output = tx.input_note[0].value + tx.input_note[1].value;
@@ -240,70 +241,136 @@ TEST_F(join_split_tests, test_0_output_notes)
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-TEST_F(join_split_tests, test_large_output_note)
-{
-    auto deposit_value = (uint256_t(1) << 252) - 1;
+// Public values
 
-    value_note gibberish = { user.owner.public_key, 0, user.note_secret, 0, 0 };
-    value_note output_note1 = { user.owner.public_key, deposit_value, user.note_secret, 0, 0 };
-    value_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0, 0 };
-
-    join_split_tx tx = simple_setup();
-    tx.public_input = deposit_value;
-    tx.public_output = 0;
-    tx.num_input_notes = 0;
-    tx.asset_id = 0;
-    tx.input_note = { gibberish, gibberish };
-    tx.output_note = { output_note1, output_note2 };
-
-    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
-}
-
-TEST_F(join_split_tests, test_0_input_notes_with_unbalanced_public_values)
-{
-    join_split_tx tx = public_transfer_setup();
-    tx.public_input = 120;
-    tx.output_note[0].value = 20;
-
-    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
-}
-
-TEST_F(join_split_tests, test_2_input_notes_with_unbalanced_public_values)
-{
-    join_split_tx tx = simple_setup();
-    tx.asset_id = 0;
-    tx.output_note[0].value = 80;
-    tx.output_note[1].value = 0;
-    tx.public_input = 100;
-    tx.public_output = 170;
-
-    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
-}
-
-TEST_F(join_split_tests, test_spending_1_note_with_non_0_value_second_note_fails)
+TEST_F(join_split_tests, test_max_public_input_output)
 {
     join_split_tx tx = simple_setup();
     tx.num_input_notes = 1;
-    tx.input_note[0].value = 100;
-    tx.input_note[1].value = 100;
-    tx.output_note[0].value = 100;
-    tx.output_note[1].value = 100;
+    tx.input_note[1].value = 0;
+    tx.output_note[0].value = tx.input_note[0].value;
+    tx.public_input = max_value;
+    tx.public_output = max_value;
 
-    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-TEST_F(join_split_tests, test_unbalanced_notes_fails)
-{
-    join_split_tx tx = simple_setup();
-    tx.input_note[1].value = 51;
-
-    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
-}
-
-TEST_F(join_split_tests, test_0_notes_with_unbalanced_public_values_fails)
+TEST_F(join_split_tests, test_overflow_public_input_fails)
 {
     join_split_tx tx = public_transfer_setup();
-    tx.public_input = 120;
+    tx.num_input_notes = 1;
+    tx.input_note[1].value = 0;
+    tx.output_note[0].value = tx.input_note[0].value;
+    tx.public_input = max_value + 1;
+    tx.public_output = max_value;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_overflow_public_output_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.num_input_notes = 1;
+    tx.input_note[1].value = 0;
+    tx.output_note[0].value = tx.input_note[0].value;
+    tx.public_input = max_value;
+    tx.public_output = max_value + 1;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+// Tx fee
+
+TEST_F(join_split_tests, test_non_zero_tx_fee)
+{
+    join_split_tx tx = simple_setup();
+    tx.public_input += 1;
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_non_zero_tx_fee_public_transfer)
+{
+    join_split_tx tx = public_transfer_setup();
+    tx.public_input += 1;
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_non_zero_tx_fee_zero_public_values)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value -= 1;
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_max_tx_fee)
+{
+    join_split_tx tx = simple_setup();
+    auto tx_fee = (uint256_t(1) << rollup::TX_FEE_BIT_LENGTH) - 1;
+    tx.public_input += tx_fee;
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_overflow_tx_fee_fails)
+{
+    join_split_tx tx = simple_setup();
+    auto tx_fee = uint256_t(1) << rollup::TX_FEE_BIT_LENGTH;
+    tx.public_input += tx_fee;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_larger_total_output_value_fails)
+{
+    join_split_tx tx = public_transfer_setup();
+    tx.output_note[0].value = 1;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+// Asset id
+
+TEST_F(join_split_tests, test_zero_public_values_arbitrary_asset_id)
+{
+    join_split_tx tx = simple_setup();
+    tx.asset_id = 3;
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_wrong_asset_id_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.public_input = 100;
+    tx.asset_id = 3;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_different_input_note_asset_id_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.input_note[0].asset_id = 3;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_different_output_note_asset_id_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].asset_id = 3;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_different_input_output_asset_id_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].asset_id = 3;
+    tx.output_note[1].asset_id = 3;
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }

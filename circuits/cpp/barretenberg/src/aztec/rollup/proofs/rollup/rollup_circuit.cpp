@@ -1,4 +1,5 @@
 #include "rollup_circuit.hpp"
+#include "../../constants.hpp"
 #include "../inner_proof_data.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 #include <common/throw_or_abort.hpp>
@@ -112,6 +113,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     recursion_output<bn254> recursion_output;
     std::vector<std::vector<field_ct>> inner_public_inputs;
+    auto total_tx_fee = field_ct::from_witness_index(&composer, composer.zero_idx);
 
     for (size_t i = 0; i < rollup_size; ++i) {
         // Pick verification key and check it's permitted.
@@ -152,6 +154,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER2]);
 
         inner_public_inputs.push_back(public_inputs);
+
+        total_tx_fee += public_inputs[InnerProofFields::TX_FEE];
     }
 
     auto new_data_path = create_witness_hash_path(composer, rollup.new_data_path);
@@ -174,6 +178,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                    old_null_root,
                                                    new_null_indicies);
 
+    composer.create_range_constraint(num_txs.get_witness_index(), MAX_TXS_BIT_LENGTH);
+
     // Publish public inputs.
     composer.set_public_input(witness_ct(&composer, 0).witness_index);
     public_witness_ct(&composer, rollup_size_pow2);
@@ -184,8 +190,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(data_roots_root.witness_index);
     composer.set_public_input(witness_ct(&composer, rollup.data_roots_root).witness_index);
+    composer.set_public_input(total_tx_fee.normalize().witness_index);
     composer.set_public_input(num_txs.get_witness_index());
-
     for (auto& inner : inner_public_inputs) {
         propagate_inner_proof_public_inputs(composer, inner);
     }

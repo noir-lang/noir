@@ -89,6 +89,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_data_roots_root.witness_index);
     composer.set_public_input(new_data_roots_root.witness_index);
+    composer.set_public_input(outputs.tx_fee.witness_index);
     public_witness_ct(&composer, 1); // num_txs.
 
     // "Inner proof".

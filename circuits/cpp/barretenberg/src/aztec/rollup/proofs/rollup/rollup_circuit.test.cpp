@@ -114,8 +114,9 @@ class rollup_tests : public ::testing::Test {
     std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
                                                  std::array<uint32_t, 2> in_note_value,
                                                  std::array<uint32_t, 2> out_note_value,
-                                                 uint32_t public_input = 0,
-                                                 uint32_t public_output = 0,
+                                                 uint256_t public_input = 0,
+                                                 uint256_t public_output = 0,
+                                                 uint256_t tx_fee = 7,
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t nonce = 0)
     {
@@ -125,8 +126,9 @@ class rollup_tests : public ::testing::Test {
         value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0, nonce };
 
         join_split::join_split_tx tx;
-        tx.public_input = public_input;
+        tx.public_input = public_input + tx_fee;
         tx.public_output = public_output;
+        tx.asset_id = 0;
         tx.num_input_notes = 2;
         tx.input_index = { in_note_idx[0], in_note_idx[1] };
         tx.old_data_root = data_tree.root();
@@ -336,14 +338,14 @@ TEST_F(rollup_tests, test_incorrect_data_start_index_fails)
     EXPECT_FALSE(verified);
 }
 
-TEST_F(rollup_tests, test_bad_join_split_proof_fails)
+TEST_F(rollup_tests, test_larger_total_output_value_fails)
 {
     size_t rollup_size = 1;
 
     append_account_notes();
     append_notes({ 100, 50 });
     update_root_tree_with_data_root(1);
-    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 0 });
+    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 90 });
 
     auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
 
@@ -364,6 +366,32 @@ TEST_F(rollup_tests, test_reuse_spent_note_fails)
     null_tree.update_element(uint256_t(inner_proof_data.nullifier1), { 64, 1 });
 
     auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
+
+    auto verified = verify_rollup_logic(rollup, rollup_1_keyless);
+
+    EXPECT_FALSE(verified);
+}
+
+TEST_F(rollup_tests, test_max_num_txs)
+{
+    size_t rollup_size = 1;
+    auto join_split_proof = create_noop_join_split_proof(join_split_cd, data_tree.root());
+
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
+    rollup.num_txs = (uint32_t(1) << MAX_TXS_BIT_LENGTH) - 1;
+
+    auto verified = verify_rollup_logic(rollup, rollup_1_keyless);
+
+    EXPECT_TRUE(verified);
+}
+
+TEST_F(rollup_tests, test_overflow_num_txs_fails)
+{
+    size_t rollup_size = 1;
+    auto join_split_proof = create_noop_join_split_proof(join_split_cd, data_tree.root());
+
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
+    rollup.num_txs = uint32_t(1) << MAX_TXS_BIT_LENGTH;
 
     auto verified = verify_rollup_logic(rollup, rollup_1_keyless);
 
@@ -422,6 +450,24 @@ TEST_F(rollup_tests, test_2_proofs_in_2_rollup)
     auto join_split_proof1 = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 80 });
     auto join_split_proof2 = create_join_split_proof({ 6, 7 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector{ join_split_proof1, join_split_proof2 };
+
+    auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
+
+    auto verified = verify_rollup_logic(rollup, rollup_2_keyless);
+
+    EXPECT_TRUE(verified);
+}
+
+TEST_F(rollup_tests, test_1_js_proof_1_account_proof_in_2_rollup)
+{
+    size_t rollup_size = 2;
+
+    append_account_notes();
+    append_notes({ 0, 0, 100, 50, 80, 60 });
+    update_root_tree_with_data_root(1);
+    auto join_split_proof = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 80 });
+    auto account_proof = create_account_proof();
+    auto txs = std::vector{ join_split_proof, account_proof };
 
     auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
 

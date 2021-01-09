@@ -1,3 +1,4 @@
+#include "../../constants.hpp"
 #include "../rollup/rollup_circuit.hpp"
 #include "./root_rollup_circuit.hpp"
 #include "../inner_proof_data.hpp"
@@ -55,7 +56,8 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     field_ct new_null_root = witness_ct(&composer, 0);
     field_ct old_root_root = witness_ct(&composer, root_rollup.old_data_roots_root);
     field_ct new_root_root = witness_ct(&composer, root_rollup.new_data_roots_root);
-    field_ct num_txs = witness_ct(&composer, 0);
+    field_ct total_tx_fee = field_ct::from_witness_index(&composer, composer.zero_idx);
+    field_ct num_txs = field_ct::from_witness_index(&composer, composer.zero_idx);
 
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
 
@@ -78,10 +80,11 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         auto old_null_root_inner = public_inputs[5];
         auto new_null_root_inner = public_inputs[6];
         auto old_root_root_inner = public_inputs[7];
-        auto num_txs_inner = public_inputs[9];
+        auto total_tx_fee_inner = public_inputs[9];
+        auto num_txs_inner = public_inputs[10];
 
         for (size_t j = 0; j < InnerProofFields::NUM_PUBLISHED * inner_rollup_size; ++j) {
-            inner_proof_public_inputs.push_back(public_inputs[10 + j]);
+            inner_proof_public_inputs.push_back(public_inputs[11 + j]);
         }
 
         // Every real inner proof should use the root tree root we've input.
@@ -108,6 +111,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
             new_data_root = new_data_root_inner;
             old_null_root = old_null_root_inner;
             new_null_root = new_null_root_inner;
+            total_tx_fee = total_tx_fee_inner;
             num_txs = num_txs_inner;
         } else {
             auto valid_data_start_index =
@@ -124,7 +128,10 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
 
             new_data_root = (new_data_root_inner * is_real) + (new_data_root * is_padding);
             new_null_root = (new_null_root_inner * is_real) + (new_null_root * is_padding);
+            total_tx_fee += total_tx_fee_inner;
             num_txs += num_txs_inner;
+
+            composer.create_range_constraint(num_txs.get_witness_index(), MAX_TXS_BIT_LENGTH);
         }
     }
 
@@ -142,6 +149,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_root_root.witness_index);
     composer.set_public_input(new_root_root.witness_index);
+    composer.set_public_input(total_tx_fee.get_witness_index());
     composer.set_public_input(num_txs.get_witness_index());
 
     for (auto& inp : inner_proof_public_inputs) {

@@ -21,6 +21,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     uint256_t nullifier2 = rand_engine.get_random_uint256();
     auto input_owner = fr::random_element();
     auto output_owner = fr::random_element();
+    uint256_t tx_fee = rand_engine.get_random_uint256();
 
     using serialize::write;
     std::vector<uint8_t> proof_data;
@@ -35,6 +36,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     write(proof_data, input_owner);
     write(proof_data, output_owner);
     write(proof_data, merkle_root);
+    write(proof_data, tx_fee);
 
     auto data = inner_proof_data(proof_data);
 
@@ -47,4 +49,5 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     EXPECT_EQ(data.input_owner, input_owner);
     EXPECT_EQ(data.output_owner, output_owner);
     EXPECT_EQ(data.merkle_root, merkle_root);
+    EXPECT_EQ(data.tx_fee, tx_fee);
 }

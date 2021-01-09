@@ -1,4 +1,5 @@
 #include "join_split_circuit.hpp"
+#include "../../constants.hpp"
 #include "../notes/circuit/account_note.hpp"
 #include "../notes/circuit/compute_nullifier.hpp"
 #include "verify_signature.hpp"
@@ -63,13 +64,10 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     // Check we're not joining the same input note.
     bool_ct indicies_equal = inputs.input_note1_index == inputs.input_note2_index;
     composer.assert_equal_constant(indicies_equal.witness_index, 0, "joining same note");
-    field_ct total_in_value = inputs.input_note1.first.value + inputs.input_note2.first.value + inputs.public_input;
-    field_ct total_out_value = inputs.output_note1.first.value + inputs.output_note2.first.value + inputs.public_output;
-    composer.assert_equal(total_in_value.witness_index, total_out_value.witness_index, "values don't balance");
 
-    // Verify input and output notes balance. Use field_ct to prevent overflow.
-    bool_ct note_1_valid = inputs.num_input_notes >= 1;
-    bool_ct note_2_valid = inputs.num_input_notes >= 2;
+    // Check public values.
+    composer.create_range_constraint(inputs.public_input.witness_index, NOTE_VALUE_BIT_LENGTH);
+    composer.create_range_constraint(inputs.public_output.witness_index, NOTE_VALUE_BIT_LENGTH);
 
     // if there is a public input/output, we must validate the asset id matches those of the note asset ids
     bool_ct public_value_is_zero = inputs.public_input.is_zero() && inputs.public_output.is_zero();
@@ -77,6 +75,12 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
         ((inputs.output_note1.first.asset_id - inputs.asset_id) * !public_value_is_zero).normalize();
     composer.assert_equal(
         public_asset_id_check.witness_index, composer.zero_idx, "note asset ids not equal to tx asset id");
+
+    // Derive tx_fee.
+    field_ct total_in_value = inputs.input_note1.first.value + inputs.input_note2.first.value + inputs.public_input;
+    field_ct total_out_value = inputs.output_note1.first.value + inputs.output_note2.first.value + inputs.public_output;
+    field_ct tx_fee = (total_in_value - total_out_value).normalize();
+    composer.create_range_constraint(tx_fee.witness_index, TX_FEE_BIT_LENGTH);
 
     // Verify input notes have the same account value id.
     auto note1 = inputs.input_note1.first;
@@ -111,6 +115,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
         signing_key_registered_or_zero_nonce.witness_index, 1, "account check_membership failed");
 
     // Verify each input note exists in the tree, and compute nullifiers.
+    bool_ct note_1_valid = (!field_ct(inputs.num_input_notes).is_zero()).normalize();
+    bool_ct note_2_valid = field_ct(inputs.num_input_notes) == field_ct(&composer, 2);
     field_ct nullifier1 = process_input_note(composer,
                                              inputs.account_private_key,
                                              inputs.merkle_root,
@@ -126,9 +132,9 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              inputs.input_note2,
                                              note_2_valid);
 
-    verify_signature(inputs, nullifier1, nullifier2, signer, inputs.signature);
+    verify_signature(inputs, nullifier1, nullifier2, tx_fee, signer, inputs.signature);
 
-    return { nullifier1, nullifier2 };
+    return { nullifier1, nullifier2, tx_fee };
 }
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
@@ -175,7 +181,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     // Any public witnesses exposed from here on, will not be exposed by the rollup, and thus will
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.
     composer.set_public_input(inputs.merkle_root.witness_index);
-}
+    composer.set_public_input(outputs.tx_fee.witness_index);
+} // namespace join_split
 
 } // namespace join_split
 } // namespace proofs

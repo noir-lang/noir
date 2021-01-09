@@ -7,11 +7,12 @@ namespace join_split {
 
 using namespace notes;
 
-bool verify_signature(join_split_inputs const& inputs, 
-                        field_ct const& nullifier1,
-                        field_ct const& nullifier2,
-                        point_ct const& owner_pub_key,
-                        schnorr::signature_bits const& signature)
+bool verify_signature(join_split_inputs const& inputs,
+                      field_ct const& nullifier1,
+                      field_ct const& nullifier2,
+                      field_ct const& tx_fee,
+                      point_ct const& owner_pub_key,
+                      schnorr::signature_bits const& signature)
 {
     // format message to contain:
     // * input value
@@ -23,6 +24,7 @@ bool verify_signature(join_split_inputs const& inputs,
     // * input note 2 nullifier
     // * input owner
     // * output owner
+    // * tx_fee
     std::vector<field_ct> to_compress;
 
     to_compress.push_back(inputs.public_input);
@@ -36,6 +38,7 @@ bool verify_signature(join_split_inputs const& inputs,
     to_compress.push_back(nullifier2);
     to_compress.push_back(inputs.input_owner);
     to_compress.push_back(inputs.output_owner);
+    to_compress.push_back(tx_fee);
 
     byte_array_ct message = pedersen::compress(to_compress, true);
     return verify_signature(message, owner_pub_key, signature);

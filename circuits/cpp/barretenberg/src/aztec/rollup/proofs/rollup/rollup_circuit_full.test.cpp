@@ -6,6 +6,7 @@
 #include "../inner_proof_data.hpp"
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
+#include "../account/account.hpp"
 #include "../notes/native/sign_notes.hpp"
 #include "../notes/native/encrypt_note.hpp"
 #include "../notes/native/account_note.hpp"
@@ -99,8 +100,8 @@ class rollup_tests_full : public ::testing::Test {
     std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
                                                  std::array<uint32_t, 2> in_note_value,
                                                  std::array<uint32_t, 2> out_note_value,
-                                                 uint32_t public_input = 0,
-                                                 uint32_t public_output = 0,
+                                                 uint256_t public_input = 0,
+                                                 uint256_t public_output = 0,
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t nonce = 0)
     {
@@ -110,7 +111,7 @@ class rollup_tests_full : public ::testing::Test {
         value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0, 0 };
 
         join_split::join_split_tx tx;
-        tx.public_input = public_input;
+        tx.public_input = public_input + tx_fee;
         tx.public_output = public_output;
         tx.num_input_notes = 2;
         tx.input_index = { in_note_idx[0], in_note_idx[1] };
@@ -145,6 +146,33 @@ class rollup_tests_full : public ::testing::Test {
         return join_split_proof.proof_data;
     }
 
+    std::vector<uint8_t> create_account_proof(uint32_t nonce = 0, uint32_t account_note_idx = 0)
+    {
+        account::account_tx tx;
+        tx.merkle_root = data_tree.root();
+        tx.account_public_key = user.owner.public_key;
+        tx.new_account_public_key = user.owner.public_key;
+        tx.num_new_keys = 2;
+        tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
+        tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
+        tx.alias_hash = user.alias_hash;
+        tx.nonce = nonce;
+        tx.migrate = true;
+        tx.gibberish = fr::random_element();
+        tx.account_index = account_note_idx;
+        tx.signing_pub_key = user.signing_keys[0].public_key;
+        tx.account_path = data_tree.get_hash_path(account_note_idx);
+        tx.sign(nonce ? user.signing_keys[0] : user.owner);
+
+        Composer composer = Composer(account_cd.proving_key, account_cd.verification_key, account_cd.num_gates);
+        composer.rand_engine = rand_engine;
+        account_circuit(composer, tx);
+        auto prover = composer.create_unrolled_prover();
+        auto account_proof = prover.construct_proof();
+
+        return account_proof.proof_data;
+    }
+
     MemoryStore store;
     MerkleTree<MemoryStore> data_tree;
     MerkleTree<MemoryStore> null_tree;
@@ -156,6 +184,7 @@ class rollup_tests_full : public ::testing::Test {
     static std::vector<uint8_t> padding_proof;
     static std::streambuf* old;
     static std::stringstream swallow;
+    const uint256_t tx_fee = 7;
 
   private:
     std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -201,13 +230,16 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
+    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee);
     EXPECT_EQ(rollup_data.num_txs, 1U);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
 
     auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
+    EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
     EXPECT_EQ(inner_data.public_input, tx_data.public_input);
     EXPECT_EQ(inner_data.public_output, tx_data.public_output);
+    EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
     EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
     EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
     EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
@@ -242,13 +274,16 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
+    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee);
     EXPECT_EQ(rollup_data.num_txs, 1U);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
 
     auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
+    EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
     EXPECT_EQ(inner_data.public_input, tx_data.public_input);
     EXPECT_EQ(inner_data.public_output, tx_data.public_output);
+    EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
     EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
     EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
     EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
@@ -286,14 +321,66 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
+    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee * 2);
     EXPECT_EQ(rollup_data.num_txs, txs.size());
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
         auto tx_data = inner_proof_data(txs[i]);
         auto inner_data = rollup_data.inner_proofs[i];
+        EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
         EXPECT_EQ(inner_data.public_input, tx_data.public_input);
         EXPECT_EQ(inner_data.public_output, tx_data.public_output);
+        EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
+        EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
+        EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
+        EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
+        EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
+        EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
+        EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
+    }
+}
+
+HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full_proof)
+{
+    size_t rollup_size = 2;
+
+    append_account_notes();
+    append_notes({ 0, 0, 100, 50, 80, 60 });
+    update_root_tree_with_data_root(1);
+    auto join_split_proof = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 50 }, 30, 60);
+    auto account_proof = create_account_proof();
+    auto txs = std::vector{ join_split_proof, account_proof };
+
+    auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
+
+    auto rollup_circuit_data =
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, "../srs_db/ignition", "", true, false, false);
+    auto result = verify_rollup(rollup, rollup_circuit_data);
+
+    ASSERT_TRUE(result.verified);
+
+    auto rollup_data = rollup_proof_data(result.proof_data);
+    EXPECT_EQ(rollup_data.rollup_id, 1UL);
+    EXPECT_EQ(rollup_data.rollup_size, rollup_size);
+    EXPECT_EQ(rollup_data.data_start_index, 8UL);
+    EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
+    EXPECT_EQ(rollup_data.new_data_root, rollup.new_data_root);
+    EXPECT_EQ(rollup_data.old_null_root, rollup.old_null_root);
+    EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
+    EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
+    EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
+    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee);
+    EXPECT_EQ(rollup_data.num_txs, txs.size());
+    EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
+
+    for (size_t i = 0; i < txs.size(); ++i) {
+        auto tx_data = inner_proof_data(txs[i]);
+        auto inner_data = rollup_data.inner_proofs[i];
+        EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
+        EXPECT_EQ(inner_data.public_input, tx_data.public_input);
+        EXPECT_EQ(inner_data.public_output, tx_data.public_output);
+        EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
         EXPECT_EQ(inner_data.new_note1, tx_data.new_note1);
         EXPECT_EQ(inner_data.new_note2, tx_data.new_note2);
         EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);

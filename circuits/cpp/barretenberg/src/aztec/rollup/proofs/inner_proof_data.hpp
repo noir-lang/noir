@@ -24,6 +24,7 @@ enum {
     INPUT_OWNER = 10,
     OUTPUT_OWNER = 11,
     MERKLE_ROOT = 12,
+    TX_FEE = 13,
 };
 const size_t NUM_PUBLISHED = 12;
 } // namespace InnerProofFields
@@ -43,6 +44,7 @@ enum {
     INPUT_OWNER = InnerProofFields::INPUT_OWNER * 32,
     OUTPUT_OWNER = InnerProofFields::OUTPUT_OWNER * 32,
     MERKLE_ROOT = InnerProofFields::MERKLE_ROOT * 32,
+    TX_FEE = InnerProofFields::TX_FEE * 32,
 };
 }
 
@@ -59,6 +61,7 @@ struct inner_proof_data {
     barretenberg::fr output_owner;
 
     barretenberg::fr merkle_root;
+    uint256_t tx_fee;
 
     inner_proof_data(std::vector<uint8_t> const& proof_data);
 };

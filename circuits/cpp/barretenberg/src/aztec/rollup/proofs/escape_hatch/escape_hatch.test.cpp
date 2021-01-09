@@ -130,7 +130,7 @@ class escape_hatch_tests : public ::testing::Test {
         value_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0, nonce };
 
         join_split_tx tx;
-        tx.public_input = 0;
+        tx.public_input = 7;
         tx.public_output = 0;
         tx.num_input_notes = 2;
         tx.input_index = input_indicies;

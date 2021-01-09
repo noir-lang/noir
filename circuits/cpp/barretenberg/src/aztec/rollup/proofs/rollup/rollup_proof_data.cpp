@@ -20,6 +20,7 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
     read(ptr, new_null_root);
     read(ptr, old_data_roots_root);
     read(ptr, new_data_roots_root);
+    read(ptr, total_tx_fee);
     ptr += 28;
     read(ptr, num_txs);
 

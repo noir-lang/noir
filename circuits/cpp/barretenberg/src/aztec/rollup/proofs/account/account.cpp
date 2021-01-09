@@ -94,6 +94,9 @@ void account_circuit(Composer& composer, account_tx const& tx)
         migrate;
     composer.assert_equal_constant(account_keys_equal_or_migrating.witness_index, 1, "public key should not change");
 
+    field_ct dummy_tx_fee = witness_ct(&composer, 0);
+    composer.assert_equal(dummy_tx_fee.witness_index, composer.zero_idx);
+
     // Expose public inputs.
     composer.set_public_input(proof_id.witness_index);                 // proof_id
     composer.set_public_input(new_account_public_key.x.witness_index); // public_input but using for owner x.
@@ -108,6 +111,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     composer.set_public_input(spending_public_key_1.x.witness_index); // input_owner
     composer.set_public_input(spending_public_key_2.x.witness_index); // output_owner
     composer.set_public_input(data_tree_root.witness_index);
+    composer.set_public_input(dummy_tx_fee.witness_index);
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)

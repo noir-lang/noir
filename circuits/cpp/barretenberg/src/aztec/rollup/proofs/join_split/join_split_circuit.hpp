@@ -38,6 +38,7 @@ struct join_split_inputs {
 struct join_split_outputs {
     field_ct nullifier1;
     field_ct nullifier2;
+    field_ct tx_fee;
 };
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs);

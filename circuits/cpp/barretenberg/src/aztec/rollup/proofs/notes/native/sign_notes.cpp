@@ -17,19 +17,18 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
                      numeric::random::Engine* engine)
 {
 
+    uint256_t total_input_value = tx.input_note[0].value + tx.input_note[1].value + tx.public_input;
+    uint256_t total_output_value = tx.output_note[0].value + tx.output_note[1].value + tx.public_output;
+    grumpkin::fq tx_fee = total_input_value - total_output_value;
     const grumpkin::g1::affine_element input_note_1 = encrypt_note(tx.input_note[0]);
     const grumpkin::g1::affine_element input_note_2 = encrypt_note(tx.input_note[1]);
     const grumpkin::g1::affine_element output_note_1 = encrypt_note(tx.output_note[0]);
     const grumpkin::g1::affine_element output_note_2 = encrypt_note(tx.output_note[1]);
 
-    const auto nullifier1 = compute_nullifier(input_note_1,
-                                                tx.input_index[0],
-                                                tx.account_private_key,
-                                                tx.num_input_notes >= 1);
-    const auto nullifier2 = compute_nullifier(input_note_2,
-                                                tx.input_index[1],
-                                                tx.account_private_key,
-                                                tx.num_input_notes >= 2);
+    const auto nullifier1 =
+        compute_nullifier(input_note_1, tx.input_index[0], tx.account_private_key, tx.num_input_notes >= 1);
+    const auto nullifier2 =
+        compute_nullifier(input_note_2, tx.input_index[1], tx.account_private_key, tx.num_input_notes >= 2);
 
     std::vector<grumpkin::fq> to_compress;
 
@@ -44,6 +43,7 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
     to_compress.push_back(nullifier2);
     to_compress.push_back(tx.input_owner);
     to_compress.push_back(tx.output_owner);
+    to_compress.push_back(tx_fee);
 
     fr compressed = compress_native(to_compress);
 
