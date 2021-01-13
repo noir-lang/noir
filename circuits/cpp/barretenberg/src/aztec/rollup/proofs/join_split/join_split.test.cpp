@@ -55,10 +55,10 @@ class join_split_tests : public ::testing::Test {
         store = std::make_unique<MemoryStore>();
         tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
         user = rollup::fixtures::create_user_context();
-        value_notes[0] = { user.owner.public_key, 100, user.note_secret, asset_id, 0 };
-        value_notes[1] = { user.owner.public_key, 50, user.note_secret, asset_id, 0 };
-        value_notes[2] = { user.owner.public_key, 90, user.note_secret, asset_id, 1 };
-        value_notes[3] = { user.owner.public_key, 40, user.note_secret, asset_id, 1 };
+        value_notes[0] = { 100, asset_id, 0, user.owner.public_key, user.note_secret };
+        value_notes[1] = { 50, asset_id, 0, user.owner.public_key, user.note_secret };
+        value_notes[2] = { 90, asset_id, 1, user.owner.public_key, user.note_secret };
+        value_notes[3] = { 40, asset_id, 1, user.owner.public_key, user.note_secret };
     }
 
     /**
@@ -93,9 +93,9 @@ class join_split_tests : public ::testing::Test {
         value_note input_note1 = value_notes[input_indicies[0]];
         value_note input_note2 = value_notes[input_indicies[1]];
         value_note output_note1 = {
-            user.owner.public_key, input_note1.value + input_note2.value, user.note_secret, asset_id, nonce
+            input_note1.value + input_note2.value, asset_id, nonce, user.owner.public_key, user.note_secret
         };
-        value_note output_note2 = { user.owner.public_key, 0, user.note_secret, asset_id, nonce };
+        value_note output_note2 = { 0, asset_id, nonce, user.owner.public_key, user.note_secret };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -136,10 +136,10 @@ class join_split_tests : public ::testing::Test {
      */
     join_split_tx public_transfer_setup()
     {
-        value_note input_note1 = { user.owner.public_key, 0, user.note_secret, 0, 0 };
-        value_note input_note2 = { user.owner.public_key, 0, user.note_secret, 0, 0 };
-        value_note output_note1 = { user.owner.public_key, 0, user.note_secret, 0, 0 };
-        value_note output_note2 = { user.owner.public_key, 0, user.note_secret, 0, 0 };
+        value_note input_note1 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note input_note2 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note output_note1 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
 
         join_split_tx tx;
         tx.public_input = 100;
@@ -155,7 +155,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_index = 0;
         tx.account_path = tree->get_hash_path(0);
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.asset_id = 0;
+        tx.asset_id = asset_id;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = fr::random_element();
         tx.nonce = 0;
@@ -198,7 +198,7 @@ class join_split_tests : public ::testing::Test {
 
 TEST_F(join_split_tests, test_0_input_notes)
 {
-    value_note gibberish = { user.owner.public_key, 0, user.note_secret, asset_id, 0 };
+    value_note gibberish = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
 
     join_split_tx tx = simple_setup();
     tx.num_input_notes = 0;

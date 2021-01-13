@@ -63,7 +63,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
 
     for (size_t i = 0; i < root_rollup.rollups.size(); ++i) {
         auto recursive_verification_key =
-            plonk::stdlib::recursion::verification_key<bn254>::from_witness(&composer, inner_verification_key);
+            plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
         recursion_output =
             verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(&composer,
                                                                           recursive_verification_key,

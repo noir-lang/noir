@@ -57,7 +57,7 @@ class rollup_tests : public ::testing::Test {
 
     uint32_t append_note(uint32_t value)
     {
-        value_note note = { user.owner.public_key, value, user.note_secret, 0, 0 };
+        value_note note = { value, 0, 0, user.owner.public_key, user.note_secret };
         auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
@@ -120,10 +120,10 @@ class rollup_tests : public ::testing::Test {
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t nonce = 0)
     {
-        value_note input_note1 = { user.owner.public_key, in_note_value[0], user.note_secret, 0, nonce };
-        value_note input_note2 = { user.owner.public_key, in_note_value[1], user.note_secret, 0, nonce };
-        value_note output_note1 = { user.owner.public_key, out_note_value[0], user.note_secret, 0, nonce };
-        value_note output_note2 = { user.owner.public_key, out_note_value[1], user.note_secret, 0, nonce };
+        value_note input_note1 = { in_note_value[0], 0, nonce, user.owner.public_key, user.note_secret };
+        value_note input_note2 = { in_note_value[1], 0, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note1 = { out_note_value[0], 0, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { out_note_value[1], 0, nonce, user.owner.public_key, user.note_secret };
 
         join_split::join_split_tx tx;
         tx.public_input = public_input + tx_fee;

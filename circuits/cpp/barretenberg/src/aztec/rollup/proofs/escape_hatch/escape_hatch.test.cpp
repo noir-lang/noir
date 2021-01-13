@@ -42,9 +42,8 @@ class escape_hatch_tests : public ::testing::Test {
 
     void preload_value_notes(uint32_t nonce = 0)
     {
-        value_note note1 = { user.owner.public_key, 100, user.note_secret, 0, nonce };
-        value_note note2 = { user.owner.public_key, 50, user.note_secret, 0, nonce };
-
+        value_note note1 = { 100, 0, nonce, user.owner.public_key, user.note_secret };
+        value_note note2 = { 50, 0, nonce, user.owner.public_key, user.note_secret };
         auto enc_note1 = encrypt_note(note1);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
 
@@ -124,10 +123,10 @@ class escape_hatch_tests : public ::testing::Test {
                                        uint32_t account_index,
                                        uint32_t nonce)
     {
-        value_note input_note1 = { user.owner.public_key, 100, user.note_secret, 0, nonce };
-        value_note input_note2 = { user.owner.public_key, 50, user.note_secret, 0, nonce };
-        value_note output_note1 = { user.owner.public_key, 70, user.note_secret, 0, nonce };
-        value_note output_note2 = { user.owner.public_key, 80, user.note_secret, 0, nonce };
+        value_note input_note1 = { 100, 0, nonce, user.owner.public_key, user.note_secret };
+        value_note input_note2 = { 50, 0, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note1 = { 70, 0, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { 80, 0, nonce, user.owner.public_key, user.note_secret };
 
         join_split_tx tx;
         tx.public_input = 7;

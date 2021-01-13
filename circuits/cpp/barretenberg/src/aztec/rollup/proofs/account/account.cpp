@@ -65,6 +65,10 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     // Check signature.
     const bool_ct zero_nonce = nonce == field_ct(0);
+
+    // Validate that, if nonce == 0 then migrate == 1
+    const bool_ct migrate_check = (migrate || !zero_nonce).normalize();
+    composer.assert_equal_constant(migrate_check.witness_index, 1, "both nonce and migrate are 0");
     const point_ct signer = { account_public_key.x * zero_nonce + signing_pub_key.x * !zero_nonce,
                               account_public_key.y * zero_nonce + signing_pub_key.y * !zero_nonce };
     std::vector<field_ct> to_compress = { account_alias_id,

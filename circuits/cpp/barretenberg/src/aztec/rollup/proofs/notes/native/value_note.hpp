@@ -11,11 +11,11 @@ namespace native {
 using namespace barretenberg;
 
 struct value_note {
-    grumpkin::g1::affine_element owner;
     uint256_t value;
-    barretenberg::fr secret;
     uint32_t asset_id;
     uint32_t nonce;
+    grumpkin::g1::affine_element owner;
+    barretenberg::fr secret;
 };
 
 inline bool operator==(value_note const& lhs, value_note const& rhs)
@@ -33,21 +33,21 @@ inline std::ostream& operator<<(std::ostream& os, value_note const& note)
 inline void read(uint8_t const*& it, value_note& note)
 {
     using serialize::read;
-    read(it, note.owner);
     read(it, note.value);
-    read(it, note.secret);
     read(it, note.asset_id);
     read(it, note.nonce);
+    read(it, note.owner);
+    read(it, note.secret);
 }
 
 inline void write(std::vector<uint8_t>& buf, value_note const& note)
 {
     using serialize::write;
-    write(buf, note.owner);
     write(buf, note.value);
-    write(buf, note.secret);
     write(buf, note.asset_id);
     write(buf, note.nonce);
+    write(buf, note.owner);
+    write(buf, note.secret);
 }
 
 } // namespace native
