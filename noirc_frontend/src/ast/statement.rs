@@ -1,6 +1,6 @@
-use crate::{ExpressionKind, InfixExpression, Type, Expression};
+use crate::{Expression, ExpressionKind, InfixExpression, Type, hir::crate_def_map::ModuleDefId};
 use crate::lexer::token::SpannedToken;
-use noirc_errors::{Spanned};
+use noirc_errors::{Span, Spanned};
 
 #[derive(PartialOrd, Eq, Ord,  Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
@@ -71,8 +71,36 @@ impl Into<Statement> for Expression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {
-    pub path: Vec<Ident>,
+    pub path: Path,
     pub alias: Option<Ident>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum PathKind {
+    Crate, 
+    Dep, 
+    Plain
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Path{
+    pub segments : Vec<Ident>,
+    pub kind : PathKind,
+}
+
+impl Path {
+    pub fn span(&self)-> Span {
+        let mut span = Span::default();
+        for segment in self.segments.iter() {
+            span.merge(segment.0.span());
+        }
+        span
+    }
+
+    pub fn last_segment(&self) -> Ident {
+        assert!(!self.segments.is_empty());
+        self.segments.last().unwrap().clone()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -81,6 +109,10 @@ pub struct BlockStatement(pub Vec<Statement>);
 impl BlockStatement {
     pub fn pop(&mut self) -> Option<Statement> {
         self.0.pop()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
