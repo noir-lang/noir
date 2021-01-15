@@ -9,14 +9,14 @@ use super::{FunctionDefinition, Type};
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoirFunction {
     pub kind: FunctionKind,
-    def : FunctionDefinition
+    pub def : FunctionDefinition
 }
 
 /// Currently, we support three types of functions:
 /// - Normal functions
 /// - LowLevel/Foreign which link to an OPCODE in ACIR
 /// - BuiltIn which are provided by the runtime
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FunctionKind {
     LowLevel, 
     Builtin,
@@ -24,7 +24,6 @@ pub enum FunctionKind {
 }
 
 impl NoirFunction {
-
     pub fn normal(def : FunctionDefinition) -> NoirFunction {
         NoirFunction {
             kind: FunctionKind::Normal,

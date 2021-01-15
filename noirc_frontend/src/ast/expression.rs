@@ -1,5 +1,5 @@
-use crate::{BlockStatement, Ident, Type};
-use crate::token::{Keyword, Token, Attribute, SpannedToken};
+use crate::{BlockStatement, Ident, Path, Type};
+use crate::token::{Token, Attribute};
 use noirc_errors::{Spanned, Span};
 use noir_field::FieldElement;
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -9,7 +9,10 @@ pub enum ExpressionKind {
     Prefix(Box<PrefixExpression>),
     Infix(Box<InfixExpression>),
     Index(Box<IndexExpression>),
-    Call(NoirPath, Box<CallExpression>), // Make Path Optional and so we only have one call expression
+    Call(
+        #[deprecated = "The path will be in the function name itself"]
+        NoirPath, 
+        Box<CallExpression>), // Make Path Optional and so we only have one call expression
     Cast(Box<CastExpression>),
     Predicate(Box<InfixExpression>),
     For(Box<ForExpression>),
@@ -245,7 +248,7 @@ pub struct ArrayLiteral {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpression {
-    pub func_name: Ident,
+    pub func_name: Path,
     pub arguments: Vec<Expression>,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
