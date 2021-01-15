@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use fm::{FILE_EXTENSION, MOD_FILE};
 use noirc_frontend::Program;
 use crate::Driver;
-use nargo::CrateUnit;
+use noirc_frontend::krate::crate_unit::CrateUnit;
 
 // We need this mod type because not every file can declare a new module.
 // If every file could declare a module, which is what Rust does, then we can remove this.
@@ -25,14 +25,12 @@ pub fn recursively_parse(driver : &mut Driver, module_system : &mut CrateUnit<Pr
 
     match module {
         ModType::Module(path) => {
-            let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
-
             let src = std::fs::read_to_string(&path).expect(&format!("expected a file at path: {}", path.to_str().unwrap()));
             let (program, _) = driver.parse_file(&path, src);
 
             assert!(program.module_decls.is_empty(), "module declarations can only be put in a mod.nr file or a lib.nr file");
             
-            module_system.insert_module(path, filename, program);
+            module_system.insert_module(path, program);
         },
         ModType::SubModule(path_to_mod_file) => {
             
@@ -41,18 +39,15 @@ pub fn recursively_parse(driver : &mut Driver, module_system : &mut CrateUnit<Pr
             let file_as_string = std::fs::read_to_string(&path_to_mod_file).unwrap();
             
             let (program, _) = driver.parse_file(&path_to_mod_file, file_as_string);
-            module_system.insert_module(path_to_mod_file.clone(), "mod".to_owned(),program.clone());
-            // XXX: the analysed symbol table is ignored because the analysis will take in a symbol table instead of a program
-            // To deal with type checking, we will tag each expr/stmt from the parser and create a sidetable
-            // In the future, we can remove analysis and just parse. Unless we decide to allow code written in the mod file also.
-            
+            module_system.insert_module(path_to_mod_file.clone(),program.clone());
+
             let path_str = dir_with_mod_file.to_str().unwrap();
-            
             for module_name in program.module_decls.iter(){  
                 find_and_recursively_parse(driver, module_system,&path_str, &module_name);
             };
         },
     }
+
 }
 
 fn find_and_recursively_parse(driver : &mut Driver, module_system : &mut CrateUnit<Program>, current_dir : &str, mod_name : &str) {
