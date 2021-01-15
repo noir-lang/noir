@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 pub use errors::ParserError;
 
-use nargo::{crate_manager::CrateID, crate_unit::ModID};
+use crate::{krate::{crate_manager::CrateID, crate_unit::ModID}};
 pub use parser::{Parser, ParserExprResult,ParserExprKindResult};
 
 use crate::{FunctionKind, NoirFunction, ast::{FunctionDefinition, ImportStatement, Type}};
