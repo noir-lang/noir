@@ -60,6 +60,12 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.assert_equal(inputs.input_note1.first.asset_id.witness_index,
                           inputs.output_note1.first.asset_id.witness_index,
                           "input/output note asset ids don't match");
+    composer.assert_equal(inputs.input_note1.first.asset_id.witness_index,
+                          inputs.asset_id.witness_index,
+                          "note asset ids not equal to tx asset id");
+
+    // Verify the asset id is less than the total number of assets.
+    composer.create_range_constraint(inputs.asset_id.witness_index, NUM_ASSETS_BIT_LENGTH);
 
     // Check we're not joining the same input note.
     bool_ct indicies_equal = inputs.input_note1_index == inputs.input_note2_index;
@@ -68,13 +74,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     // Check public values.
     composer.create_range_constraint(inputs.public_input.witness_index, NOTE_VALUE_BIT_LENGTH);
     composer.create_range_constraint(inputs.public_output.witness_index, NOTE_VALUE_BIT_LENGTH);
-
-    // if there is a public input/output, we must validate the asset id matches those of the note asset ids
-    bool_ct public_value_is_zero = inputs.public_input.is_zero() && inputs.public_output.is_zero();
-    field_ct public_asset_id_check =
-        ((inputs.output_note1.first.asset_id - inputs.asset_id) * !public_value_is_zero).normalize();
-    composer.assert_equal(
-        public_asset_id_check.witness_index, composer.zero_idx, "note asset ids not equal to tx asset id");
 
     // Derive tx_fee.
     field_ct total_in_value = inputs.input_note1.first.value + inputs.input_note2.first.value + inputs.public_input;

@@ -129,7 +129,7 @@ class escape_hatch_tests : public ::testing::Test {
         value_note output_note2 = { 80, 0, nonce, user.owner.public_key, user.note_secret };
 
         join_split_tx tx;
-        tx.public_input = 7;
+        tx.public_input = 0;
         tx.public_output = 0;
         tx.num_input_notes = 2;
         tx.input_index = input_indicies;
@@ -301,6 +301,13 @@ TEST_F(escape_hatch_tests, test_wrong_input_note_owner_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.js_tx.input_note[1].owner = grumpkin::g1::element::random_element();
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
+}
+
+TEST_F(escape_hatch_tests, test_non_empty_tx_fee_fails)
+{
+    escape_hatch_tx tx = simple_setup();
+    tx.js_tx.public_input = 1;
     EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 

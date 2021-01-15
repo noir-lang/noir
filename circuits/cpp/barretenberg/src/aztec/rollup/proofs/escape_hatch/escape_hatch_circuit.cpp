@@ -1,4 +1,5 @@
 #include "escape_hatch.hpp"
+#include "../../constants.hpp"
 #include "../join_split/join_split_circuit.hpp"
 #include "../notes/circuit/note_pair.hpp"
 #include "../rollup/rollup_circuit.hpp"
@@ -42,6 +43,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);
+    composer.assert_equal(outputs.tx_fee.witness_index, composer.zero_idx, "tx_fee");
 
     auto one = uint32_ct(1);
     auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));
@@ -89,7 +91,10 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_data_roots_root.witness_index);
     composer.set_public_input(new_data_roots_root.witness_index);
-    composer.set_public_input(outputs.tx_fee.witness_index);
+    for (size_t j = 0; j < NUM_ASSETS; ++j) {
+        auto zero_fee = public_witness_ct(&composer, 0);
+        composer.assert_equal_constant(zero_fee.witness_index, 0);
+    }
     public_witness_ct(&composer, 1); // num_txs.
 
     // "Inner proof".

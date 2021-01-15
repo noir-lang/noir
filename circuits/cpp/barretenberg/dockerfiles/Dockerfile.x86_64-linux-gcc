@@ -1,4 +1,4 @@
-FROM alpine:latest AS builder
+FROM alpine:3.12 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
@@ -11,7 +11,7 @@ COPY . .
 RUN mkdir build && cd build && cmake -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
 RUN cd build && make test
 
-FROM alpine:latest
+FROM alpine:3.12
 RUN apk update && apk add libstdc++ libgomp
 COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli
 COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli

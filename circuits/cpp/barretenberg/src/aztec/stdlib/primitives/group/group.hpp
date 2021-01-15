@@ -101,7 +101,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
 
-    size_t initial_exponent = ((num_bits & 1) == 1) ? num_bits - 1 : num_bits;
+    constexpr size_t initial_exponent = ((num_bits & 1) == 1) ? num_bits - 1 : num_bits;
 
     grumpkin::g1::element origin_points[2];
     origin_points[0] = grumpkin::g1::element(ladder[0].one);

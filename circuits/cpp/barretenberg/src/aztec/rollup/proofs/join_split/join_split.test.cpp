@@ -76,26 +76,34 @@ class join_split_tests : public ::testing::Test {
     }
 
     /**
-     * Add two account notes for the user, and two value notes.
+     * Add two value notes with nonce 0, and two value notes with nonce 1.
      */
     void preload_value_notes()
     {
-        for (value_note note : value_notes) {
+        for (auto note : value_notes) {
+            auto enc_note = encrypt_note(note);
+            tree->update_element(tree->size(), create_leaf_data(enc_note));
+        }
+    }
+
+    void append_notes(std::vector<value_note> const& notes)
+    {
+        for (auto note : notes) {
             auto enc_note = encrypt_note(note);
             tree->update_element(tree->size(), create_leaf_data(enc_note));
         }
     }
 
     join_split_tx create_join_split_tx(std::array<uint32_t, 2> const& input_indicies,
-                                       uint32_t account_index,
-                                       uint32_t nonce)
+                                       std::array<value_note, 2> const& input_notes,
+                                       uint32_t tx_asset_id,
+                                       uint32_t account_index = 0,
+                                       uint32_t nonce = 0)
     {
-        value_note input_note1 = value_notes[input_indicies[0]];
-        value_note input_note2 = value_notes[input_indicies[1]];
         value_note output_note1 = {
-            input_note1.value + input_note2.value, asset_id, nonce, user.owner.public_key, user.note_secret
+            input_notes[0].value + input_notes[1].value, tx_asset_id, nonce, user.owner.public_key, user.note_secret
         };
-        value_note output_note2 = { 0, asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { 0, tx_asset_id, nonce, user.owner.public_key, user.note_secret };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -104,14 +112,14 @@ class join_split_tests : public ::testing::Test {
         tx.input_index = input_indicies;
         tx.old_data_root = tree->root();
         tx.input_path = { tree->get_hash_path(input_indicies[0]), tree->get_hash_path(input_indicies[1]) };
-        tx.input_note = { input_note1, input_note2 };
+        tx.input_note = input_notes;
         tx.output_note = { output_note1, output_note2 };
         tx.input_owner = fr::random_element();
         tx.output_owner = fr::random_element();
         tx.account_index = account_index;
         tx.account_path = tree->get_hash_path(account_index);
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.asset_id = asset_id;
+        tx.asset_id = tx_asset_id;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = !nonce ? fr::random_element() : user.alias_hash;
         tx.nonce = nonce;
@@ -128,7 +136,11 @@ class join_split_tests : public ::testing::Test {
     {
         preload_value_notes();   // indicies: [0, 1](nonce 0), [2, 3](nonce 1)
         preload_account_notes(); // indicies: [4, 5]
-        return create_join_split_tx(input_indicies, account_index, nonce);
+        return create_join_split_tx(input_indicies,
+                                    { value_notes[input_indicies[0]], value_notes[input_indicies[1]] },
+                                    asset_id,
+                                    account_index,
+                                    nonce);
     }
 
     /**
@@ -136,10 +148,11 @@ class join_split_tests : public ::testing::Test {
      */
     join_split_tx public_transfer_setup()
     {
-        value_note input_note1 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
-        value_note input_note2 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
-        value_note output_note1 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
-        value_note output_note2 = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
+        uint32_t arbitrary_asset_id = 3;
+        value_note input_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note input_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note output_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
 
         join_split_tx tx;
         tx.public_input = 100;
@@ -155,7 +168,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_index = 0;
         tx.account_path = tree->get_hash_path(0);
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.asset_id = asset_id;
+        tx.asset_id = arbitrary_asset_id;
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = fr::random_element();
         tx.nonce = 0;
@@ -333,18 +346,9 @@ TEST_F(join_split_tests, test_larger_total_output_value_fails)
 
 // Asset id
 
-TEST_F(join_split_tests, test_zero_public_values_arbitrary_asset_id)
-{
-    join_split_tx tx = simple_setup();
-    tx.asset_id = 3;
-
-    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
-}
-
 TEST_F(join_split_tests, test_wrong_asset_id_fails)
 {
     join_split_tx tx = simple_setup();
-    tx.public_input = 100;
     tx.asset_id = 3;
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
@@ -371,6 +375,17 @@ TEST_F(join_split_tests, test_different_input_output_asset_id_fails)
     join_split_tx tx = simple_setup();
     tx.output_note[0].asset_id = 3;
     tx.output_note[1].asset_id = 3;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_invalid_asset_id_fails)
+{
+    uint32_t invalid_asset_id = rollup::NUM_ASSETS;
+    std::vector<value_note> input_notes = { { 100, invalid_asset_id, 0, user.owner.public_key, user.note_secret },
+                                            { 50, invalid_asset_id, 0, user.owner.public_key, user.note_secret } };
+    append_notes(input_notes);
+    auto tx = create_join_split_tx({ 0, 1 }, { input_notes[0], input_notes[1] }, invalid_asset_id);
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }

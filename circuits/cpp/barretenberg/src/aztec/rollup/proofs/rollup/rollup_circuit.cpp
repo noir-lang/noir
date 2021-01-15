@@ -113,7 +113,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     recursion_output<bn254> recursion_output;
     std::vector<std::vector<field_ct>> inner_public_inputs;
-    auto total_tx_fee = field_ct::from_witness_index(&composer, composer.zero_idx);
+    auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct::from_witness_index(&composer, composer.zero_idx));
 
     for (size_t i = 0; i < rollup_size; ++i) {
         // Pick verification key and check it's permitted.
@@ -155,7 +155,11 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
         inner_public_inputs.push_back(public_inputs);
 
-        total_tx_fee += public_inputs[InnerProofFields::TX_FEE];
+        auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
+        auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
+        for (size_t j = 0; j < NUM_ASSETS; ++j) {
+            total_tx_fees[j] += tx_fee * is_real * (asset_id == j);
+        }
     }
 
     auto new_data_path = create_witness_hash_path(composer, rollup.new_data_path);
@@ -190,7 +194,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(data_roots_root.witness_index);
     composer.set_public_input(witness_ct(&composer, rollup.data_roots_root).witness_index);
-    composer.set_public_input(total_tx_fee.normalize().witness_index);
+    for (auto total_tx_fee : total_tx_fees) {
+        composer.set_public_input(total_tx_fee.witness_index);
+    }
     composer.set_public_input(num_txs.get_witness_index());
     for (auto& inner : inner_public_inputs) {
         propagate_inner_proof_public_inputs(composer, inner);

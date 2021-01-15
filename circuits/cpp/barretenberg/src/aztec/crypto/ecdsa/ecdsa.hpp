@@ -1,6 +1,6 @@
 #include "../hashers/hashers.hpp"
-
 #include <array>
+#include <string>
 
 namespace crypto {
 namespace ecdsa {

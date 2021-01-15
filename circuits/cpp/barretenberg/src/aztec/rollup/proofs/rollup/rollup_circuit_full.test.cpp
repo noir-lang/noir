@@ -52,9 +52,9 @@ class rollup_tests_full : public ::testing::Test {
 
     static void TearDownTestCase() { std::cerr.rdbuf(old); }
 
-    uint32_t append_note(uint32_t value)
+    uint32_t append_note(uint32_t value, uint32_t asset_id, uint32_t nonce)
     {
-        value_note note = { value, 0, 0, user.owner.public_key, user.note_secret };
+        value_note note = { value, asset_id, nonce, user.owner.public_key, user.note_secret };
         auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
@@ -65,7 +65,7 @@ class rollup_tests_full : public ::testing::Test {
     void append_notes(std::vector<uint32_t> const& values)
     {
         for (auto v : values) {
-            append_note(v);
+            append_note(v, asset_id, 0);
         }
     }
 
@@ -105,10 +105,10 @@ class rollup_tests_full : public ::testing::Test {
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t nonce = 0)
     {
-        value_note input_note1 = { in_note_value[0], 0, 0, user.owner.public_key, user.note_secret };
-        value_note input_note2 = { in_note_value[1], 0, 0, user.owner.public_key, user.note_secret };
-        value_note output_note1 = { out_note_value[0], 0, 0, user.owner.public_key, user.note_secret };
-        value_note output_note2 = { out_note_value[1], 0, 0, user.owner.public_key, user.note_secret };
+        value_note input_note1 = { in_note_value[0], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note input_note2 = { in_note_value[1], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note1 = { out_note_value[0], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { out_note_value[1], asset_id, nonce, user.owner.public_key, user.note_secret };
 
         join_split::join_split_tx tx;
         tx.public_input = public_input + tx_fee;
@@ -123,7 +123,7 @@ class rollup_tests_full : public ::testing::Test {
         tx.account_path = data_tree.get_hash_path(account_note_idx);
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_private_key = user.owner.private_key;
-        tx.asset_id = 0;
+        tx.asset_id = asset_id;
         tx.alias_hash = user.alias_hash;
         tx.nonce = nonce;
 
@@ -184,6 +184,7 @@ class rollup_tests_full : public ::testing::Test {
     static std::vector<uint8_t> padding_proof;
     static std::streambuf* old;
     static std::stringstream swallow;
+    const uint32_t asset_id = 1;
     const uint256_t tx_fee = 7;
 
   private:
@@ -230,7 +231,9 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
-    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee);
+    for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
+        EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
+    }
     EXPECT_EQ(rollup_data.num_txs, 1U);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
 
@@ -274,7 +277,9 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
-    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee);
+    for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
+        EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
+    }
     EXPECT_EQ(rollup_data.num_txs, 1U);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
 
@@ -321,7 +326,9 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
-    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee * 2);
+    for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
+        EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee * 2 : 0UL);
+    }
     EXPECT_EQ(rollup_data.num_txs, txs.size());
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
@@ -361,7 +368,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     ASSERT_TRUE(result.verified);
 
     auto rollup_data = rollup_proof_data(result.proof_data);
-    EXPECT_EQ(rollup_data.rollup_id, 1UL);
+    EXPECT_EQ(rollup_data.rollup_id, 0UL);
     EXPECT_EQ(rollup_data.rollup_size, rollup_size);
     EXPECT_EQ(rollup_data.data_start_index, 8UL);
     EXPECT_EQ(rollup_data.old_data_root, rollup.old_data_root);
@@ -370,7 +377,9 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
-    EXPECT_EQ(rollup_data.total_tx_fee, tx_fee);
+    for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
+        EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
+    }
     EXPECT_EQ(rollup_data.num_txs, txs.size());
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
@@ -416,6 +425,9 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
     EXPECT_EQ(rollup_data.new_null_root, rollup.new_null_roots.back());
     EXPECT_EQ(rollup_data.old_data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(rollup_data.new_data_roots_root, rollup.data_roots_root);
+    for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
+        EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
+    }
     EXPECT_EQ(rollup_data.num_txs, 1U);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
 

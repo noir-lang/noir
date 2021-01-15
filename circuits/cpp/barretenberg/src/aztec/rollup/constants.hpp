@@ -10,4 +10,7 @@ constexpr size_t ROOT_TREE_DEPTH = 28;
 constexpr size_t MAX_TXS_BIT_LENGTH = 10;
 constexpr size_t TX_FEE_BIT_LENGTH = 254 - MAX_TXS_BIT_LENGTH;
 
+constexpr size_t NUM_ASSETS_BIT_LENGTH = 2;
+constexpr size_t NUM_ASSETS = 1 << NUM_ASSETS_BIT_LENGTH;
+
 } // namespace rollup

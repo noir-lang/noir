@@ -1,4 +1,5 @@
 #include "rollup_proof_data.hpp"
+#include "../../constants.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -20,7 +21,10 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
     read(ptr, new_null_root);
     read(ptr, old_data_roots_root);
     read(ptr, new_data_roots_root);
-    read(ptr, total_tx_fee);
+    total_tx_fees.resize(NUM_ASSETS);
+    for (size_t i = 0; i < NUM_ASSETS; ++i) {
+        read(ptr, total_tx_fees[i]);
+    }
     ptr += 28;
     read(ptr, num_txs);
 

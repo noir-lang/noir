@@ -30,7 +30,7 @@ struct rollup_proof_data {
     fr new_null_root;
     fr old_data_roots_root;
     fr new_data_roots_root;
-    uint256_t total_tx_fee;
+    std::vector<uint256_t> total_tx_fees;
     uint32_t num_txs;
     std::vector<propagated_inner_proof_data> inner_proofs;
     g1::affine_element recursion_output[2];

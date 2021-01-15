@@ -55,9 +55,9 @@ class rollup_tests : public ::testing::Test {
 
     static void TearDownTestCase() { std::cerr.rdbuf(old); }
 
-    uint32_t append_note(uint32_t value)
+    uint32_t append_note(uint32_t value, uint32_t asset_id, uint32_t nonce)
     {
-        value_note note = { value, 0, 0, user.owner.public_key, user.note_secret };
+        value_note note = { value, asset_id, nonce, user.owner.public_key, user.note_secret };
         auto enc_note = encrypt_note(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
@@ -65,10 +65,10 @@ class rollup_tests : public ::testing::Test {
         return index;
     }
 
-    void append_notes(std::vector<uint32_t> const& values)
+    void append_notes(std::vector<uint32_t> const& values, uint32_t asset_id = 1, uint32_t nonce = 0)
     {
         for (auto v : values) {
-            append_note(v);
+            append_note(v, asset_id, nonce);
         }
     }
 
@@ -118,17 +118,18 @@ class rollup_tests : public ::testing::Test {
                                                  uint256_t public_output = 0,
                                                  uint256_t tx_fee = 7,
                                                  uint32_t account_note_idx = 0,
+                                                 uint32_t asset_id = 1,
                                                  uint32_t nonce = 0)
     {
-        value_note input_note1 = { in_note_value[0], 0, nonce, user.owner.public_key, user.note_secret };
-        value_note input_note2 = { in_note_value[1], 0, nonce, user.owner.public_key, user.note_secret };
-        value_note output_note1 = { out_note_value[0], 0, nonce, user.owner.public_key, user.note_secret };
-        value_note output_note2 = { out_note_value[1], 0, nonce, user.owner.public_key, user.note_secret };
+        value_note input_note1 = { in_note_value[0], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note input_note2 = { in_note_value[1], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note1 = { out_note_value[0], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { out_note_value[1], asset_id, nonce, user.owner.public_key, user.note_secret };
 
         join_split::join_split_tx tx;
         tx.public_input = public_input + tx_fee;
         tx.public_output = public_output;
-        tx.asset_id = 0;
+        tx.asset_id = asset_id;
         tx.num_input_notes = 2;
         tx.input_index = { in_note_idx[0], in_note_idx[1] };
         tx.old_data_root = data_tree.root();
@@ -141,7 +142,6 @@ class rollup_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = user.alias_hash;
         tx.nonce = nonce;
-        tx.asset_id = 0;
 
         uint8_t owner_address[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,
@@ -392,6 +392,24 @@ TEST_F(rollup_tests, test_overflow_num_txs_fails)
 
     auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
     rollup.num_txs = uint32_t(1) << MAX_TXS_BIT_LENGTH;
+
+    auto verified = verify_rollup_logic(rollup, rollup_1_keyless);
+
+    EXPECT_FALSE(verified);
+}
+
+// Asset Id
+TEST_F(rollup_tests, test_invalid_asset_id_fails)
+{
+    size_t rollup_size = 1;
+    uint32_t invalid_asset_id = NUM_ASSETS;
+
+    append_account_notes();
+    append_notes({ 100, 50 }, invalid_asset_id);
+    update_root_tree_with_data_root(1);
+    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 }, 0, 0, 0, 0, invalid_asset_id);
+
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
 
     auto verified = verify_rollup_logic(rollup, rollup_1_keyless);
 
