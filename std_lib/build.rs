@@ -1,6 +1,5 @@
-// Taken from ante-rs
-
-use std::path::Path;
+use std::fs;
+use std::path::{Path,PathBuf};
 
 /// Expects that the given directory is an existing path
 fn rerun_if_stdlib_changes(directory: &Path) {
@@ -16,31 +15,6 @@ fn rerun_if_stdlib_changes(directory: &Path) {
     }
 }
 
-fn copy_stdlib(src: &Path, target: &Path) {
-    let dest = target.join("std_lib");
-    println!("Creating directory {}", dest.to_string_lossy());
-    std::fs::create_dir_all(dest).unwrap();
-
-    for entry in std::fs::read_dir(src).unwrap() {
-        let path = entry.unwrap().path();
-        assert!(path.exists());
-
-        if is_rs_file(&path) {
-            continue
-        }
-
-        if path.is_dir() {
-            rerun_if_stdlib_changes(&path);
-        } else {
-            let dest = target.join(&path);
-            println!("Copying {} to {}", path.to_string_lossy(), dest.to_string_lossy());
-            std::fs::copy(path, dest).unwrap();
-        }
-    }
-}
-
-use std::fs;
-use std::path::PathBuf;
 
 pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::io::Error> {
     let mut stack = Vec::new();
@@ -106,6 +80,6 @@ fn is_rs_file(src: &Path) -> bool {
 fn main() {
     let stdlib_src_dir = Path::new("src/");
     rerun_if_stdlib_changes(stdlib_src_dir);
-    let target = dirs::config_dir().unwrap().join("noir-lang").join("std_lib");
+    let target = dirs::config_dir().unwrap().join("noir-lang").join("std");
     copy(stdlib_src_dir, &target).unwrap();
 }
