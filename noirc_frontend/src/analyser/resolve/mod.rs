@@ -5,7 +5,8 @@ use crate::NoirFunction;
 use crate::ast::{Ident, BlockStatement, PrivateStatement, ConstrainStatement, ConstStatement, LetStatement};
 use crate::parser::Program;
 use super::{errors::ResolverErrorKind, scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest}};
-use nargo::{CrateManager,  crate_unit::ModID, crate_manager::CrateID};
+use crate::krate::crate_manager::{CrateManager, CrateID};
+use crate::krate::crate_unit::{ModID};
 
 /// Checks that each variable was declared before it's use
 /// Checks that there are no unused variables
@@ -19,7 +20,7 @@ type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 mod expression;
-use super::errors::{AnalyserError, ResolverError,Span};
+use super::errors::{AnalyserError, Span};
 
 pub struct Resolver<'a>{
     file_id : usize,
@@ -38,10 +39,6 @@ impl<'a> Resolver<'a> {
     }
 
     fn add_variable_decl(&mut self, name : Ident) {
-        self.add_decl(name, None)
-    }
-
-    fn add_decl(&mut self, name : Ident, import_id : Option<(ModID, CrateID)>) {
 
         let scope = self.local_declarations.get_mut_scope();
         let resolver_meta = ResolverMeta {num_times_used : 0, span : name.0.span()};
@@ -52,7 +49,7 @@ impl<'a> Resolver<'a> {
             let err = ResolverErrorKind::DuplicateDefinition{first_span: first_decl.span, second_span : name.0.span(), ident: name.0.contents}.into_err(self.file_id);
             self.push_err(err);
         }
-        
+
     }
 
     fn push_err(&mut self, err : impl Into<AnalyserError>) {
@@ -78,8 +75,8 @@ impl<'a> Resolver<'a> {
         Some(module.find_function(&func_name.0.contents)?.into())
     }
 
-        // Resolve `foo::bar` in foo::bar::call() to the module with the function
-        // This function has been duplicated, due to the fact that we cannot make it generic over the Key
+    // Resolve `foo::bar` in foo::bar::call() to the module with the function
+    // This function has been duplicated, due to the fact that we cannot make it generic over the Key
     pub fn resolve_call_path(&self, current_crate : CrateID, current_module : ModID, path : &NoirPath) -> Option<&'_ Program> {
         match path {
             NoirPath::Current => {
@@ -228,7 +225,10 @@ impl<'a> Resolver<'a> {
         self.resolve_declaration_stmt(&let_stmt.identifier, &let_stmt.expression);
     }
     fn resolve_constrain_stmt(&mut self, constrain_stmt : &ConstrainStatement) {
-        self.resolve_infix_expr(&constrain_stmt.0);
+        
+        
+        todo!()
+        // self.resolve_infix_expr(&constrain_stmt.0);
     }
 
 }

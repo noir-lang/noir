@@ -5,6 +5,7 @@ use super::*;
 // In that case, it would be the functions symbol table
 
 impl<'a> TypeChecker<'a> {
+ 
     pub fn type_check_expr(&mut self,expr :  &mut Expression) -> Result<Type, AnalyserError> {
         match &mut expr.kind {
             ExpressionKind::Cast(cast) => Ok(cast.r#type.clone()) ,
@@ -12,8 +13,9 @@ impl<'a> TypeChecker<'a> {
 
                 // Find function
                 // This should have been caught in the Resolver phase
-                let func = self.find_function(&path, &call_expr.func_name);
-                let func = func.expect(&format!("Compiler Error: Could not find a function named {} , under the path {:?}", &call_expr.func_name.0.contents, path));
+                let func_name = call_expr.func_name.segments.last().unwrap();
+                let func = self.find_function(&path, &func_name);
+                let func = func.expect(&format!("Compiler Error: Could not find a function named {} , under the path {:?}", &func_name.0.contents, path));
 
                 let (parameters, return_type) = (func.def().parameters.clone(), func.def().return_type.clone());
 

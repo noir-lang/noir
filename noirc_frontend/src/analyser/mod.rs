@@ -14,7 +14,7 @@ use resolve::Resolver;
 mod type_check;
 use type_check::TypeChecker;
 
-use crate::{Ident, NoirPath, ast::FunctionDefinition};
+use crate::{Ident, NoirPath};
 
 /// This module is for now just a placeholder
 /// We want the analyser to do quite a few things such as:
@@ -28,7 +28,8 @@ use crate::{Ident, NoirPath, ast::FunctionDefinition};
 /// - Check array boundaries, check the array is being indexed with a constant or a u128, if field element, check boundaries (this is also checked at runtime, it might make sense to leave it there)
 use crate::ast::ImportStatement;
 use crate::parser::Program;
-use nargo::{CrateManager, crate_manager::CrateID, crate_unit::{ModID, VirtualPath}};
+use crate::krate::crate_manager::{CrateID,CrateManager};
+use crate::krate::crate_unit::{ModID, VirtualPath};
 
 use std::path::PathBuf;
 
@@ -86,15 +87,16 @@ pub fn noir_path_to_virtual_path(noir_path : NoirPath) -> VirtualPath {
     }
 }
 
-    // Resolve use `foo::bar as hello` to a (Key, ModId, CrateId)
-    // In this example, it would be the ModID and CrateID for the `bar` module and the key would be hello
-    fn resolve_import(import : &ImportStatement, crate_manager : &CrateManager<Program>) -> (Ident, ModID, CrateID) {
-        let vp = noir_path_to_virtual_path(import.path.clone().into());
-        let (mod_id, crate_id, _) = crate_manager.find_module(vp).unwrap();
-
-        let key = match &import.alias {
-        Some(alias) => alias.to_owned(),
-            None => import.path.last().unwrap().to_owned()
-        };
-        (key, mod_id, crate_id)
-    }
+// Resolve use `foo::bar as hello` to a (Key, ModId, CrateId)
+// In this example, it would be the ModID and CrateID for the `bar` module and the key would be hello
+fn resolve_import(import : &ImportStatement, crate_manager : &CrateManager<Program>) -> (Ident, ModID, CrateID) {
+   todo!()
+    // let vp = noir_path_to_virtual_path(import.path.clone().into());
+    // crate_manager.debug_virtual_paths();
+    // let (mod_id, crate_id, _) = crate_manager.find_module(vp).unwrap();
+    // let key = match &import.alias {
+    // Some(alias) => alias.to_owned(),
+    //     None => import.path.last().unwrap().to_owned()
+    // };
+    // (key, mod_id, crate_id)
+}

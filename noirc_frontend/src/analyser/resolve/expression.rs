@@ -3,6 +3,11 @@ use super::*;
 use crate::ast::{Expression,ExpressionKind, Literal, InfixExpression};
 
 impl<'a> Resolver<'a> {
+
+    // pub(crate) fn resolve_expr(&mut self, expr : &Expression) -> bool{ 
+    //     todo!()
+
+    // }
     pub(crate) fn resolve_expr(&mut self, expr : &Expression) -> bool{
         match &expr.kind{
             ExpressionKind::Ident(identifier) => {
@@ -18,11 +23,13 @@ impl<'a> Resolver<'a> {
             },
             ExpressionKind::Call(path,call_expr) => {
 
-                let func = self.find_function(&path, &call_expr.func_name);
-                let span = call_expr.func_name.0.span();
+                let func_name = call_expr.func_name.segments.last().cloned().unwrap();
+                let func = self.find_function(&path, &func_name);
+                let span = func_name.0.span();
+                
                 let func = match func {
                     None => {
-                        let name = call_expr.func_name.0.contents.clone();
+                        let name = func_name.0.contents.clone();
                         let err = ResolverErrorKind::Unresolved{span, symbol_type : "function".to_owned(), symbol : name}.into_err(self.file_id);
                         self.push_err(err);
                         return false
@@ -34,8 +41,8 @@ impl<'a> Resolver<'a> {
                 let argument_len = call_expr.arguments.len();
 
                 if param_len != argument_len {
-                    let message = format!("Function {} expected {} number of arguments, but got {}", call_expr.func_name.0.contents, param_len, argument_len);
-                    let err = AnalyserError::from_ident(self.file_id,message, &call_expr.func_name);
+                    let message = format!("Function {} expected {} number of arguments, but got {}", func_name.0.contents, param_len, argument_len);
+                    let err = AnalyserError::from_ident(self.file_id,message, &func_name);
                     self.push_err(err);
                 }
                 

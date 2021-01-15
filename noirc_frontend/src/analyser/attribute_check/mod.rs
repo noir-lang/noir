@@ -9,7 +9,8 @@ use crate::{FunctionKind, NoirFunction, ast::{Type, ArraySize}};
 use acir::opcode::OutputSize;
 use crate::parser::Program;
 use super::errors::AnalyserError;
-use nargo::{CrateManager, CrateUnit};
+use crate::krate::crate_manager::CrateManager;
+use crate::krate::crate_unit::CrateUnit;
 
 pub struct AttributeChecker;
 
@@ -20,7 +21,7 @@ impl AttributeChecker {
         AttributeChecker::check_main_crate(&crate_manager)?;
 
         // Get all other crates except for main
-        // XXX: We can generilise by classing crates as libs and binarys
+        // XXX: We can generalise by classing crates as libs and binarys
         // Here we only want to get libraries
         let lib_crates = crate_manager.get_all_libraries().expect("could not fetch all libraries");
         for lib_crate in lib_crates {
@@ -61,9 +62,6 @@ impl AttributeChecker {
         let file_id = main_module.file_id;
 
         // Every main crate should have a main method
-        for func in main_module.functions.iter() {
-            dbg!(&func.name());
-        }
         let main_func = main_module.find_function("main").ok_or(AnalyserError::Unstructured{file_id,span : Default ::default(), message : "could not find a main() method in main.nr".into()})?;
 
         // main function should have no attributes attached to it

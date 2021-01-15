@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use nargo::{CrateManager, crate_manager::CrateID, crate_unit::ModID};
+use crate::krate::crate_manager::{CrateManager, CrateID};
+use crate::krate::crate_unit::{ModID};
 
-use crate::ImportStatement;
-use crate::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement, ArraySize};
+use crate::ast::{Statement, Type, PrivateStatement, BlockStatement, Ident, ConstStatement, ConstrainStatement, LetStatement};
 use crate::ast::{NoirPath, FunctionDefinition};
 use crate::parser::Program;
 use crate::NoirFunction;
@@ -14,7 +14,7 @@ type Scope = GenericScope<Ident, Type>;
 type ScopeTree = GenericScopeTree<Ident, Type>;
 type ScopeForest = GenericScopeForest<Ident, Type>;
 
-use super::errors::{AnalyserError, Span, TypeError};
+use super::errors::{AnalyserError, Span};
 
 mod expression;
 
@@ -193,7 +193,6 @@ fn type_check_private_stmt(&mut self,stmt : &mut PrivateStatement) -> Result<Typ
 
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
-    dbg!(lhs_type.clone(), expr_type.clone());
     if lhs_type != &expr_type {
         return Err(AnalyserError::type_mismatch(self.file_id,lhs_type, &expr_type, stmt.expression.span))
     }
