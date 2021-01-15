@@ -1,5 +1,7 @@
+use fm::FileID;
+
 use super::{Precedence, Program, errors::ParserErrorKind};
-use crate::ast::{BlockStatement, Expression, Statement, Type, ArraySize, ExpressionKind};
+use crate::{ast::{BlockStatement, Expression, Statement, Type, ArraySize, ExpressionKind}};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, Token, TokenKind, SpannedToken};
 use super::errors::ParserError;
@@ -35,6 +37,9 @@ impl<'a> Parser<'a> {
             peek_token,
             errors: Vec::new(),
         }
+    }
+    pub fn from_src(file_id : FileID, src : &'a str) -> Self {
+        Parser::new(Lexer::new(file_id.as_usize(), src))
     }
 
     /// Note that this function does not alert the user of an EOF
@@ -133,6 +138,7 @@ impl<'a> Parser<'a> {
             // so we advance from that
             self.advance_tokens();
         }
+
         if self.errors.len() > 0 {
             return Err(&self.errors)
         } else {
