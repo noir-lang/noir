@@ -6,7 +6,7 @@ use crate::FileManager;
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PathString(PathBuf);
 
 impl std::fmt::Display for PathString {
@@ -30,13 +30,15 @@ impl From<&PathBuf> for PathString {
         PathString::from(pb.to_owned())
     }
 }
-
+#[derive(Debug)]
 pub struct FileMap(SimpleFiles<PathString, String>);
 
-#[derive(Copy, Clone)]
+// XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileID
+#[derive(Default, Debug, Clone, PartialEq, Eq, Copy)] 
 pub struct FileID(usize);
 
 impl FileID {
+    //XXX: find a way to remove the need for this. Errors do not need to attach their FileIds immediately!
     pub fn as_usize(&self) -> usize {
         self.0
     }

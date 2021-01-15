@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 codespan-reporting = "0.9.5"
+
+[dev-dependencies]
+tempfile = "3.1.0"
