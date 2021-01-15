@@ -38,7 +38,7 @@ impl PathParser {
         // We extract the Call expression and set the path correctly here
         let call_expr = match method.kind {
             ExpressionKind::Call(_, call_expr) => call_expr,
-            k => return Err(ParserErrorKind::UnstructuredError{message : format!("Currently you can only access external functions {:?}", k), span :method.span}.into_err(parser.file_id)),
+            k => return Err(ParserErrorKind::UnstructuredError{message : format!("currently you can only access external functions {:?}", k), span :method.span}.into_err(parser.file_id)),
         };
        Ok( ExpressionKind::Call(parsed_path.into(), call_expr))
     }
