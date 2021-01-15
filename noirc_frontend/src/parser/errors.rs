@@ -37,6 +37,7 @@ impl ParserErrorKind {
     }
 }
 
+#[derive(Debug)]
 pub struct ParserError {
     kind : ParserErrorKind,
     file_id : usize,
