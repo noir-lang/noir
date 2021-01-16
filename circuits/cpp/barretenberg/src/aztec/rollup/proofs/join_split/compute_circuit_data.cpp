@@ -58,7 +58,8 @@ join_split_tx noop_tx()
     return tx;
 }
 
-circuit_data load_circuit_data(std::string const& srs_path, std::string const& join_split_key_path)
+circuit_data load_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
+                               std::string const& join_split_key_path)
 {
     waffle::proving_key_data pk_data;
     waffle::verification_key_data vk_data;
@@ -70,9 +71,8 @@ circuit_data load_circuit_data(std::string const& srs_path, std::string const& j
     auto vk_stream = std::ifstream(join_split_key_path + "/verification_key");
     read(vk_stream, vk_data);
 
-    auto crs = std::make_unique<waffle::FileReferenceStringFactory>(srs_path);
-    auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n));
-    auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+    auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n));
+    auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), srs->get_verifier_crs());
 
     std::ifstream is(join_split_key_path + "/noop_proof");
     std::vector<uint8_t> proof((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
@@ -97,12 +97,12 @@ void write_circuit_data(circuit_data const& data, std::string const& join_split_
     std::cerr << "Done." << std::endl;
 }
 
-circuit_data compute_circuit_data(std::string const& srs_path)
+circuit_data compute_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs)
 {
     std::cerr << "Generating join-split circuit keys..." << std::endl;
 
     join_split_tx tx(noop_tx());
-    Composer composer = Composer(srs_path);
+    Composer composer = Composer(srs);
     join_split_circuit(composer, tx);
 
     std::cerr << "Circuit size: " << composer.get_num_gates() << std::endl;
@@ -115,15 +115,16 @@ circuit_data compute_circuit_data(std::string const& srs_path)
     return { proving_key, verification_key, composer.get_num_gates(), proof.proof_data };
 }
 
-circuit_data compute_or_load_circuit_data(std::string const& srs_path, std::string const& key_path)
+circuit_data compute_or_load_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
+                                          std::string const& key_path)
 {
     auto join_split_key_path = key_path + "/join_split";
 
     if (exists(join_split_key_path)) {
-        return load_circuit_data(srs_path, join_split_key_path);
+        return load_circuit_data(srs, join_split_key_path);
     } else {
         mkdir(key_path.c_str(), 0700);
-        auto data = compute_circuit_data(srs_path);
+        auto data = compute_circuit_data(srs);
         write_circuit_data(data, join_split_key_path);
         return data;
     }

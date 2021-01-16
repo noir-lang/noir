@@ -99,13 +99,17 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                        size_t rollup_size)
 {
     auto floor_rollup_size = 1UL << numeric::get_msb(rollup_size);
-    auto rollup_size_pow2 = floor_rollup_size << (rollup_size != floor_rollup_size);
+    auto rollup_size_pow2_ = floor_rollup_size << (rollup_size != floor_rollup_size);
+    auto rollup_size_pow2 = field_ct(witness_ct(&composer, rollup_size_pow2_));
+    composer.assert_equal_constant(rollup_size_pow2.witness_index, rollup_size_pow2_);
+
     auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
     auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
     auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
     auto old_null_root = field_ct(witness_ct(&composer, rollup.old_null_root));
     auto data_roots_root = field_ct(witness_ct(&composer, rollup.data_roots_root));
     auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
+    composer.create_range_constraint(num_txs.get_witness_index(), MAX_TXS_BIT_LENGTH);
 
     auto new_data_values = std::vector<byte_array_ct>();
     auto new_null_indicies = std::vector<field_ct>();
@@ -133,12 +137,18 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         // Add the proofs data values to the list. If this is a noop proof (padding), then the data values are zeros.
         auto is_real = num_txs > uint32_ct(&composer, i);
         auto public_inputs = recursion_output.public_inputs;
+
+        // Zero padding public inputs.
+        for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED; ++i) {
+            public_inputs[i] *= is_real;
+        }
+
         new_data_values.push_back(byte_array_ct(&composer)
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_X] * is_real)
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_Y] * is_real));
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_X])
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_Y]));
         new_data_values.push_back(byte_array_ct(&composer)
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_X] * is_real)
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_Y] * is_real));
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_X])
+                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_Y]));
 
         // Check this proofs data root exists in the data root tree (unless a padding entry).
         auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];
@@ -164,9 +174,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     auto new_data_path = create_witness_hash_path(composer, rollup.new_data_path);
     auto old_data_path = create_witness_hash_path(composer, rollup.old_data_path);
-    new_data_values.resize(rollup_size_pow2 * 2, byte_array_ct(&composer, 64));
+    new_data_values.resize(rollup_size_pow2_ * 2, byte_array_ct(&composer, 64));
     check_data_tree_updated(composer,
-                            rollup_size_pow2,
+                            rollup_size_pow2_,
                             new_data_path,
                             old_data_path,
                             new_data_values,
@@ -182,11 +192,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                    old_null_root,
                                                    new_null_indicies);
 
-    composer.create_range_constraint(num_txs.get_witness_index(), MAX_TXS_BIT_LENGTH);
-
     // Publish public inputs.
     composer.set_public_input(witness_ct(&composer, 0).witness_index);
-    public_witness_ct(&composer, rollup_size_pow2);
+    composer.set_public_input(rollup_size_pow2.witness_index);
     composer.set_public_input(data_start_index.witness_index);
     composer.set_public_input(old_data_root.witness_index);
     composer.set_public_input(new_data_root.witness_index);
@@ -197,12 +205,12 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     for (auto total_tx_fee : total_tx_fees) {
         composer.set_public_input(total_tx_fee.witness_index);
     }
-    composer.set_public_input(num_txs.get_witness_index());
+    composer.set_public_input(witness_ct(&composer, 0).witness_index);
     for (auto& inner : inner_public_inputs) {
         propagate_inner_proof_public_inputs(composer, inner);
     }
 
-    for (size_t i = rollup_size; i < rollup_size_pow2; ++i) {
+    for (size_t i = rollup_size; i < rollup_size_pow2_; ++i) {
         add_padding_public_inputs(composer);
     }
 

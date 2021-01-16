@@ -37,20 +37,20 @@ int main(int argc, char** argv)
         output_vk_sol(os, escape_hatch_circuit_data.verification_key, escape_hatch_class_name);
     }
 
-    auto account_circuit_data = account::compute_circuit_data(srs_path);
-    auto join_split_circuit_data = join_split::compute_circuit_data(srs_path);
+    auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
+    auto account_circuit_data = account::compute_circuit_data(srs);
+    auto join_split_circuit_data = join_split::compute_circuit_data(srs);
     auto rollup_circuit_data = tx_rollup::get_circuit_data(
-        inner_txs, join_split_circuit_data, account_circuit_data, srs_path, "", true, false, false);
+        inner_txs, join_split_circuit_data, account_circuit_data, srs, "", true, false, false);
 
     // Release memory held by proving key, we don't need it.
     rollup_circuit_data.proving_key.reset();
 
-    for (size_t i = 1; i <= max_inner_num; i *= 2) {
+    for (size_t i = 1, j = inner_txs; j <= max_inner_num; i++, j *= 2) {
         auto root_rollup_circuit_data =
-            root_rollup::get_circuit_data(i, rollup_circuit_data, srs_path, "", true, false, false);
+            root_rollup::get_circuit_data(i, rollup_circuit_data, srs, "", true, false, false);
 
-        auto rollup_size = i * inner_txs;
-        auto class_name = std::string("Rollup") + std::to_string(rollup_size) + "Vk";
+        auto class_name = format("Rollup", inner_txs, "x", i, "Vk");
         std::ofstream os(output_path + "/" + class_name + ".sol");
         output_vk_sol(os, root_rollup_circuit_data.verification_key, class_name);
     }

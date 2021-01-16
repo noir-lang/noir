@@ -1,6 +1,7 @@
 #include "io.hpp"
 #include <common/mem.hpp>
 #include <common/net.hpp>
+#include <common/throw_or_abort.hpp>
 #include <fstream>
 #include <sys/stat.h>
 
@@ -155,12 +156,8 @@ void read_transcript_g1(g1::affine_element* monomials, size_t degree, std::strin
         path = get_transcript_path(dir, ++num);
     }
 
-    if (num == 0) {
-#ifdef __wasm__
-        std::abort();
-#else
-        throw std::runtime_error("No input files found.");
-#endif
+    if (num_read < degree) {
+        throw_or_abort(format("Only read ", num_read, " points but require ", degree, ". Is your srs large enough?"));
     }
 }
 

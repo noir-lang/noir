@@ -1,6 +1,3 @@
-// Uncomment to simulate running in CI.
-// #define DISABLE_HEAVY_TESTS
-
 #include "../../fixtures/user_context.hpp"
 #include "../../constants.hpp"
 #include "../rollup/verify.hpp"
@@ -16,16 +13,12 @@ namespace rollup {
 namespace proofs {
 namespace root_rollup {
 
-#ifdef DISABLE_HEAVY_TESTS
-constexpr auto REQUIRE_KEYS = false;
-#else
-constexpr auto REQUIRE_KEYS = true;
-#endif
-
 using namespace barretenberg;
 using namespace notes::native;
 using namespace plonk::stdlib::merkle_tree;
 
+namespace {
+std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
 join_split::circuit_data join_split_cd;
@@ -33,9 +26,11 @@ account::circuit_data account_cd;
 rollup::circuit_data tx_rollup_cd;
 circuit_data root_rollup_cd;
 std::vector<std::vector<uint8_t>> js_proofs;
+} // namespace
 
 class root_rollup_tests : public ::testing::Test {
   protected:
+    static constexpr auto CRS_PATH = "../srs_db/ignition";
     static constexpr auto FIXTURE_PATH = "../src/aztec/rollup/proofs/root_rollup/fixtures";
     static constexpr auto TEST_PROOFS_PATH = "../src/aztec/rollup/proofs/root_rollup/fixtures/test_proofs";
     static constexpr auto INNER_ROLLUP_TXS = 2U;
@@ -55,20 +50,19 @@ class root_rollup_tests : public ::testing::Test {
 
     static void SetUpTestCase()
     {
-        std::string crs_path = "../srs_db/ignition";
+        auto recreate = !exists(FIXTURE_PATH);
+        srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
 
-        if (REQUIRE_KEYS) {
-            account_cd = account::compute_or_load_circuit_data(crs_path, FIXTURE_PATH);
-            join_split_cd = join_split::compute_or_load_circuit_data(crs_path, FIXTURE_PATH);
+        if (recreate) {
+            account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+            join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
             tx_rollup_cd = rollup::get_circuit_data(
-                INNER_ROLLUP_TXS, join_split_cd, account_cd, crs_path, FIXTURE_PATH, true, true, true);
-            root_rollup_cd =
-                get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, crs_path, FIXTURE_PATH, true, true, true);
+                INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
+            root_rollup_cd = get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
         } else {
             tx_rollup_cd = rollup::get_circuit_data(
-                INNER_ROLLUP_TXS, join_split_cd, account_cd, crs_path, FIXTURE_PATH, false, false, true);
-            root_rollup_cd =
-                get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, crs_path, FIXTURE_PATH, false, false, true);
+                INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, false, false, true);
+            root_rollup_cd = get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, false, false, true);
         }
 
         MemoryStore store;
@@ -159,14 +153,6 @@ TEST_F(root_rollup_tests, test_incorrect_new_data_root_fails)
     ASSERT_FALSE(verified);
 }
 
-TEST_F(root_rollup_tests, test_partial_inner_rollup_not_last_fail)
-{
-    auto tx_data =
-        create_root_rollup_tx("root_211", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] }, { js_proofs[3] } });
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(verified);
-}
-
 TEST_F(root_rollup_tests, test_inner_rollups_out_of_order_fail)
 {
     auto tx_data =
@@ -192,29 +178,6 @@ TEST_F(root_rollup_tests, test_invalid_last_proof_fail)
     tx_data.num_inner_proofs = 2;
     auto verified = verify_logic(tx_data, root_rollup_cd);
     ASSERT_FALSE(verified);
-}
-
-HEAVY_TEST_F(root_rollup_tests, test_root_rollup_full)
-{
-    auto old_data_root = data_tree.root();
-    auto old_null_root = null_tree.root();
-    auto old_root_root = root_tree.root();
-
-    auto tx_data = create_root_rollup_tx("root_211", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
-    auto result = verify(tx_data, root_rollup_cd);
-    ASSERT_TRUE(result.verified);
-
-    auto rollup_data = rollup::rollup_proof_data(result.proof_data);
-    EXPECT_EQ(rollup_data.rollup_id, 0U);
-    EXPECT_EQ(rollup_data.rollup_size, INNER_ROLLUP_TXS * ROLLUPS_PER_ROLLUP);
-    EXPECT_EQ(rollup_data.data_start_index, 0U);
-    EXPECT_EQ(rollup_data.old_data_root, old_data_root);
-    EXPECT_EQ(rollup_data.old_null_root, old_null_root);
-    EXPECT_EQ(rollup_data.old_data_roots_root, old_root_root);
-    EXPECT_EQ(rollup_data.new_data_root, data_tree.root());
-    EXPECT_EQ(rollup_data.new_null_root, null_tree.root());
-    EXPECT_EQ(rollup_data.new_data_roots_root, root_tree.root());
-    EXPECT_EQ(rollup_data.num_txs, 3U);
 }
 
 } // namespace root_rollup

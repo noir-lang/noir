@@ -17,7 +17,7 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
 WORKDIR /usr/src/barretenberg
 COPY . .
 RUN mkdir build && cd build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
-RUN cd build && make test
+RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
 
 FROM alpine:3.12
 RUN apk update && apk add llvm10-libs

@@ -1,4 +1,5 @@
 #include "./pedersen.hpp"
+#include <common/throw_or_abort.hpp>
 #include <iostream>
 
 #ifndef NO_MULTITHREADING
@@ -10,7 +11,7 @@ namespace pedersen {
 namespace {
 
 // The number of unique base points with precomputed lookup tables
-static constexpr size_t num_generators = 256;
+static constexpr size_t num_generators = 2048;
 
 /**
  * The number of bits in each precomputed lookup table. Regular pedersen hashes use 254 bits, some other
@@ -196,7 +197,10 @@ const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t n
     if (!inited) {
         init();
     }
-    return get_ladder_internal(ladders[generator_index % num_generators], num_bits);
+    if (generator_index >= num_generators) {
+        throw_or_abort(format("Generator index out of range: ", generator_index));
+    }
+    return get_ladder_internal(ladders[generator_index], num_bits);
 }
 
 const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits)
@@ -204,7 +208,10 @@ const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const siz
     if (!inited) {
         init();
     }
-    return get_ladder_internal(hash_ladders[generator_index % num_generators], num_bits);
+    if (generator_index >= num_generators) {
+        throw_or_abort(format("Generator index out of range: ", generator_index));
+    }
+    return get_ladder_internal(hash_ladders[generator_index], num_bits);
 }
 
 grumpkin::g1::affine_element get_generator(const size_t generator_index)
@@ -212,7 +219,10 @@ grumpkin::g1::affine_element get_generator(const size_t generator_index)
     if (!inited) {
         init();
     }
-    return generators[generator_index % num_generators];
+    if (generator_index >= num_generators) {
+        throw_or_abort(format("Generator index out of range: ", generator_index));
+    }
+    return generators[generator_index];
 }
 
 grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index)

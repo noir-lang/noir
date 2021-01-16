@@ -22,6 +22,7 @@ void check_root_tree_updated(Composer& composer,
 recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                             root_rollup_tx const& rollups,
                                             size_t inner_rollup_size,
+                                            size_t outer_rollup_size,
                                             std::shared_ptr<waffle::verification_key> const& inner_verification_key);
 
 } // namespace root_rollup

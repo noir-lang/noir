@@ -42,9 +42,6 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
         read(ptr, inner_proofs[i].output_owner);
     }
 
-    // Discard padding proofs.
-    inner_proofs.resize(num_txs);
-
     for (auto& coord :
          { &recursion_output[0].x, &recursion_output[0].y, &recursion_output[1].x, &recursion_output[1].y }) {
         uint256_t limb[4];

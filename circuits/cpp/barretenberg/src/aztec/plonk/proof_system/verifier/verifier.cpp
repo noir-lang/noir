@@ -86,13 +86,15 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     const auto lagrange_evals = barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->domain);
 
     // Step 8: Compute quotient polynomial evaluation at zeta
-    //           r_eval − ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ) z_eval_omega)α − L_1(zeta).α^{3} + (z_eval_omega - ∆_{PI}).L_{n-k}(zeta)α^{2}
-    // t_eval = --------------------------------------------------------------------------------------------------------------------------------------------------------------
+    //           r_eval − ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)(c_eval + γ) z_eval_omega)α −
+    //           L_1(zeta).α^{3} + (z_eval_omega - ∆_{PI}).L_{n-k}(zeta)α^{2}
+    // t_eval =
+    // --------------------------------------------------------------------------------------------------------------------------------------------------------------
     //                                                                       Z_H*(zeta)
     // where Z_H*(X) is the modified vanishing polynomial.
     // The `compute_quotient_evaluation_contribution` function computes the numerator of t_eval
     // according to the program settings for standard/turbo/ultra PLONK.
-    // 
+    //
     key->z_pow_n = zeta;
     for (size_t i = 0; i < key->domain.log2_size; ++i) {
         key->z_pow_n *= key->z_pow_n;
@@ -109,7 +111,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // In the following function, we do the following computation.
     // Step 10: Compute batch opening commitment [F]_1
     //          [F]  :=  [t_{low}]_1 + \zeta^{n}.[tmid]1 + \zeta^{2n}.[t_{high}]_1
-    //                   + [D]_1 + \nu_{a}.[a]_1 + \nu_{b}.[b]_1 + \nu_{c}.[c]_1 
+    //                   + [D]_1 + \nu_{a}.[a]_1 + \nu_{b}.[b]_1 + \nu_{c}.[c]_1
     //                   + \nu_{\sigma1}.[s_{\sigma_1}]1 + \nu_{\sigma2}.[s_{\sigma_2}]1
     //
     // We do not compute [D]_1 term in this method as the information required to compute [D]_1
@@ -120,17 +122,21 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     //                      \nu_{c}.c_eval + \nu_{\sigma1}.sigma1_eval + \nu_{\sigma2}.sigma2_eval +
     //                      nu_z_omega.separator.z_eval_omega) . [1]_1
     //
-    // Note that we do not actually compute the scalar multiplications but just accumulate the scalars 
+    // Note that we do not actually compute the scalar multiplications but just accumulate the scalars
     // and the group elements in different vectors.
-    // 
+    //
     commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key);
 
     // Step 9: Compute partial opening batch commitment [D]_1:
-    //         [D]_1 = (a_eval.b_eval.[qM]_1 + a_eval.[qL]_1 + b_eval.[qR]_1 + c_eval.[qO]_1 + [qC]_1) * nu_{linear} * α      >> selector polynomials
-    //                  + [(a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ).α + L_1(z).α^{3}].nu_{linear}.[z]_1 >> grand product perm polynomial
-    //                  - (a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ)α.β.nu_{linear}.z_omega_eval.[sigma3]_1     >> last perm polynomial
+    //         [D]_1 = (a_eval.b_eval.[qM]_1 + a_eval.[qL]_1 + b_eval.[qR]_1 + c_eval.[qO]_1 + [qC]_1) * nu_{linear} * α
+    //         >> selector polynomials
+    //                  + [(a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ).α +
+    //                  L_1(z).α^{3}].nu_{linear}.[z]_1 >> grand product perm polynomial
+    //                  - (a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval +
+    //                  γ)α.β.nu_{linear}.z_omega_eval.[sigma3]_1     >> last perm polynomial
     //
-    // Again, we dont actually compute the MSMs and just accumulate scalars and group elements and postpone MSM to last step.
+    // Again, we dont actually compute the MSMs and just accumulate scalars and group elements and postpone MSM to last
+    // step.
     //
     program_settings::append_scalar_multiplication_inputs(key.get(), alpha, transcript, kate_fr_elements);
 
@@ -158,7 +164,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
         }
     }
 
-
     size_t num_elements = elements.size();
     elements.resize(num_elements * 2);
     barretenberg::scalar_multiplication::generate_pippenger_point_table(&elements[0], &elements[0], num_elements);
@@ -172,7 +177,6 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     if (key->contains_recursive_proof) {
         ASSERT(key->recursive_proof_public_input_indices.size() == 16);
         const auto& inputs = transcript.get_field_element_vector("public_inputs");
-
         const auto recover_fq_from_public_inputs =
             [&inputs](const size_t idx0, const size_t idx1, const size_t idx2, const size_t idx3) {
                 const uint256_t l0 = inputs[idx0];

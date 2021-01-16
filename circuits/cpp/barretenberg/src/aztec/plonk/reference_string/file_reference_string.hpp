@@ -66,4 +66,32 @@ class FileReferenceStringFactory : public ReferenceStringFactory {
     std::string path_;
 };
 
+class DynamicFileReferenceStringFactory : public ReferenceStringFactory {
+  public:
+    DynamicFileReferenceStringFactory(std::string const& path, size_t initial_degree = 0)
+        : path_(path)
+        , degree_(initial_degree)
+        , verifier_crs_(std::make_shared<VerifierFileReferenceString>(path_))
+    {}
+
+    DynamicFileReferenceStringFactory(DynamicFileReferenceStringFactory&& other) = default;
+
+    std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree)
+    {
+        if (degree > degree_) {
+            prover_crs_ = std::make_shared<FileReferenceString>(degree, path_);
+            degree_ = degree;
+        }
+        return prover_crs_;
+    }
+
+    std::shared_ptr<VerifierReferenceString> get_verifier_crs() { return verifier_crs_; }
+
+  private:
+    std::string path_;
+    size_t degree_;
+    std::shared_ptr<FileReferenceString> prover_crs_;
+    std::shared_ptr<VerifierFileReferenceString> verifier_crs_;
+};
+
 } // namespace waffle

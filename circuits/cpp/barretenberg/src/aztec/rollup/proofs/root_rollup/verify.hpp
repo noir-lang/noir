@@ -37,6 +37,7 @@ inline bool verify_logic(root_rollup_tx& rollup, circuit_data const& circuit_dat
         auto recursion_output = root_rollup_circuit(composer,
                                                     rollup,
                                                     circuit_data.inner_rollup_circuit_data.rollup_size,
+                                                    circuit_data.rollup_size,
                                                     circuit_data.inner_rollup_circuit_data.verification_key);
 
         if (composer.failed) {
@@ -74,6 +75,7 @@ inline verify_result verify(root_rollup_tx& rollup, circuit_data const& circuit_
         root_rollup_circuit(composer,
                             rollup,
                             circuit_data.inner_rollup_circuit_data.rollup_size,
+                            circuit_data.rollup_size,
                             circuit_data.inner_rollup_circuit_data.verification_key);
 
         if (composer.failed) {

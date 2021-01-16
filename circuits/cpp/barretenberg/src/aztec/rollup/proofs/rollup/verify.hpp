@@ -32,10 +32,9 @@ inline bool verify_rollup_logic(rollup_tx& rollup, circuit_data const& circuit_d
 #endif
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-        pad_rollup_tx(rollup, circuit_data.rollup_size, circuit_data.join_split_circuit_data.padding_proof);
+        pad_rollup_tx(rollup, circuit_data.num_txs, circuit_data.join_split_circuit_data.padding_proof);
 
-        auto recursion_output =
-            rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
+        auto recursion_output = rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.num_txs);
 
         if (composer.failed) {
             throw_or_abort("Circuit logic failed: " + composer.err);
@@ -66,9 +65,9 @@ inline verify_rollup_result verify_rollup(rollup_tx& rollup, circuit_data const&
 #endif
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-        pad_rollup_tx(rollup, circuit_data.rollup_size, circuit_data.join_split_circuit_data.padding_proof);
+        pad_rollup_tx(rollup, circuit_data.num_txs, circuit_data.join_split_circuit_data.padding_proof);
 
-        rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.rollup_size);
+        rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.num_txs);
 
         if (composer.failed) {
             throw_or_abort("Circuit logic failed: " + composer.err);

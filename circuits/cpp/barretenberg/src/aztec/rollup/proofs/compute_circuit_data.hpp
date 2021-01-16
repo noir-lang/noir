@@ -32,17 +32,17 @@ inline bool exists(std::string const& path)
 
 template <typename F>
 circuit_data get_circuit_data(std::string const& name,
-                              std::string const& srs_path,
+                              std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
                               std::string const& key_path,
                               bool compute,
                               bool save,
                               bool load,
+                              bool padding,
                               F const& build_circuit)
 {
     circuit_data data;
     auto circuit_key_path = key_path + "/" + name;
-    auto crs = std::make_unique<waffle::FileReferenceStringFactory>(srs_path);
-    Composer composer = Composer(srs_path);
+    Composer composer = Composer(srs);
 
     if (save) {
         mkdir(key_path.c_str(), 0700);
@@ -59,7 +59,7 @@ circuit_data get_circuit_data(std::string const& name,
             waffle::proving_key_data pk_data;
             read_mmap(pk_stream, pk_dir, pk_data);
             data.proving_key =
-                std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n));
+                std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n));
             data.num_gates = pk_data.n;
             std::cerr << "Circuit size (nearest 2^n): " << data.num_gates << std::endl;
         } else if (compute) {
@@ -94,7 +94,7 @@ circuit_data get_circuit_data(std::string const& name,
             waffle::verification_key_data vk_data;
             read(vk_stream, vk_data);
             data.verification_key =
-                std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+                std::make_shared<waffle::verification_key>(std::move(vk_data), srs->get_verifier_crs());
         } else if (compute) {
             std::cerr << "Computing verification key..." << std::endl;
             Timer timer;
@@ -110,14 +110,14 @@ circuit_data get_circuit_data(std::string const& name,
             }
         }
     }
-    {
+    if (padding) {
         auto padding_path = circuit_key_path + "/padding_proof";
         if (exists(padding_path) && load) {
             std::cerr << "Loading padding proof from: " << padding_path << std::endl;
             std::ifstream is(padding_path);
             std::vector<uint8_t> proof((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
             data.padding_proof = proof;
-        } else if (compute) {
+        } else if (data.proving_key) {
             std::cerr << "Computing padding proof..." << std::endl;
             Timer timer;
             auto prover = composer.create_unrolled_prover();
@@ -132,6 +132,11 @@ circuit_data get_circuit_data(std::string const& name,
                 }
             }
         }
+    }
+
+    // Free any unrequired memory.
+    if (data.proving_key) {
+        data.proving_key->reset();
     }
 
     return data;

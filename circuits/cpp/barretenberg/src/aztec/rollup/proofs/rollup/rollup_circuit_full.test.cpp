@@ -43,10 +43,11 @@ class rollup_tests_full : public ::testing::Test {
     static void SetUpTestCase()
     {
         std::string CRS_PATH = "../srs_db/ignition";
+        srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         old = std::cerr.rdbuf();
         // std::cerr.rdbuf(swallow.rdbuf());
-        account_cd = account::compute_circuit_data(CRS_PATH);
-        join_split_cd = join_split::compute_circuit_data(CRS_PATH);
+        account_cd = account::compute_circuit_data(srs);
+        join_split_cd = join_split::compute_circuit_data(srs);
         padding_proof = join_split_cd.padding_proof;
     }
 
@@ -179,6 +180,7 @@ class rollup_tests_full : public ::testing::Test {
     MerkleTree<MemoryStore> root_tree;
     fixtures::user_context user;
     numeric::random::Engine* rand_engine;
+    static std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
     static join_split::circuit_data join_split_cd;
     static account::circuit_data account_cd;
     static std::vector<uint8_t> padding_proof;
@@ -197,6 +199,7 @@ class rollup_tests_full : public ::testing::Test {
     }
 };
 
+std::shared_ptr<waffle::DynamicFileReferenceStringFactory> rollup_tests_full::srs;
 join_split::circuit_data rollup_tests_full::join_split_cd;
 account::circuit_data rollup_tests_full::account_cd;
 std::vector<uint8_t> rollup_tests_full::padding_proof;
@@ -216,7 +219,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, "../srs_db/ignition", "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -234,8 +237,8 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 1U);
-    EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
+    EXPECT_EQ(rollup_data.num_txs, 0UL);
+    EXPECT_EQ(rollup_data.inner_proofs.size(), 1UL);
 
     auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
@@ -262,7 +265,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, "../srs_db/ignition", "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -280,8 +283,8 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 1U);
-    EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
+    EXPECT_EQ(rollup_data.num_txs, 0UL);
+    EXPECT_EQ(rollup_data.inner_proofs.size(), 2UL);
 
     auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
@@ -311,7 +314,7 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, "../srs_db/ignition", "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -329,7 +332,7 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee * 2 : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, txs.size());
+    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
@@ -362,7 +365,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, "../srs_db/ignition", "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -380,7 +383,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, txs.size());
+    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
@@ -410,7 +413,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
     auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, "../srs_db/ignition", "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
     auto result = verify_rollup(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -428,8 +431,8 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 1U);
-    EXPECT_EQ(rollup_data.inner_proofs.size(), 1U);
+    EXPECT_EQ(rollup_data.num_txs, 0UL);
+    EXPECT_EQ(rollup_data.inner_proofs.size(), 1UL);
 
     auto tx_data = inner_proof_data(join_split_proof);
 
@@ -445,8 +448,8 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
         EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
     }
 
-    {
-        auto inner_data = rollup_data.inner_proofs[3];
+    for (size_t i = 1; i < rollup_data.inner_proofs.size(); ++i) {
+        auto inner_data = rollup_data.inner_proofs[i];
         auto zero_arr = std::array<uint8_t, 64>();
         EXPECT_EQ(inner_data.public_input, uint256_t(0));
         EXPECT_EQ(inner_data.public_output, uint256_t(0));

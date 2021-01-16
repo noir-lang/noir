@@ -87,23 +87,23 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     // Recall, the quotient polynomial t(X) = t_{low}(X) + t_{mid}(X).X^n + t_{high}(X).X^{2n}
     //
     // The reason we split t(X) into three degree-n polynomials is because:
-    //  (i) We want the opening proof polynomials bounded by degree n as the opening algorithm of the 
+    //  (i) We want the opening proof polynomials bounded by degree n as the opening algorithm of the
     //      polynomial commitment scheme results in O(n) prover computation.
-    // (ii) The size of the srs restricts us to compute commitments to polynomials of degree n 
+    // (ii) The size of the srs restricts us to compute commitments to polynomials of degree n
     //      (and disallows for degree 2n and 3n for large n).
     //
     // The degree of t(X) is determined by the term:
     // ((a(X) + βX + γ) (b(X) + βk_1X + γ) (c(X) + βk_2X + γ)z(X)) / Z*_H(X).
     //
-    // Let k = num_roots_cut_out_of_vanishing_polynomial, we have 
+    // Let k = num_roots_cut_out_of_vanishing_polynomial, we have
     // deg(t) = (n - 1) * (program_width + 1) - (n - k)
     //        = n * program_width - program_width - 1 + k
     //
-    // Since we must cut atleast 4 roots from the vanishing polynomial 
+    // Since we must cut atleast 4 roots from the vanishing polynomial
     // (refer to ./src/aztec/plonk/proof_system/widgets/random_widgets/permutation_widget_impl.hpp/L247),
     // k = 4 => deg(t) = n * program_width - program_width + 3
     //
-    // For standard plonk, program_width = 3 and thus, deg(t) = 3n. This implies that there would be 
+    // For standard plonk, program_width = 3 and thus, deg(t) = 3n. This implies that there would be
     // (3n + 1) coefficients of t(X). Now, splitting them into t_{low}(X), t_{mid}(X) and t_{high}(X),
     // t_{high} will have (n+1) coefficients while t_{low} and t_{mid} will have n coefficients.
     // This means that to commit t_{high}, we need a multi-scalar multiplication of size (n+1).
@@ -115,10 +115,10 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, the degree of
     // the quotient polynomial t(X) will increase, so the degrees of t_{high}, t_{mid}, t_{low} could also
     // increase according to the type of the composer type we are using. Currently, for TurboPLONK and Ultra-
-    // PLONK, the degree of t(X) is (4n - 1) and hence each t_{low}, t_{mid}, t_{high}, t_{higher} each is of 
+    // PLONK, the degree of t(X) is (4n - 1) and hence each t_{low}, t_{mid}, t_{high}, t_{higher} each is of
     // degree (n - 1) (and thus contains n coefficients). Therefore, we are on the brink!
-    // If we need to cut out more zeros off the vanishing polynomial, sizes of coefficients of individual 
-    // t_{i} would change and so we will have to ensure the correct size of multi-scalar multiplication in 
+    // If we need to cut out more zeros off the vanishing polynomial, sizes of coefficients of individual
+    // t_{i} would change and so we will have to ensure the correct size of multi-scalar multiplication in
     // computing the commitments to these polynomials.
     //
     for (size_t i = 0; i < settings::program_width - 1; ++i) {
@@ -130,7 +130,7 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
 
     fr* coefficients = &key->quotient_large.get_coefficients()[(settings::program_width - 1) * n];
     std::string quotient_tag = "T_" + std::to_string(settings::program_width);
-    fr program_flag = settings::program_width == 3? barretenberg::fr(1) : barretenberg::fr(0);
+    fr program_flag = settings::program_width == 3 ? barretenberg::fr(1) : barretenberg::fr(0);
     commitment_scheme->commit(coefficients, quotient_tag, program_flag, queue);
 }
 
@@ -165,14 +165,14 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
         // Why do we need 2 random scalars in witness polynomials? The reason is: our witness polynomials are
         // evaluated at only 1 point (\scripted{z}), so adding a random degree-1 polynomial suffices.
         //
-        // NOTE: In TurboPlonk and UltraPlonk, the witness polynomials are evaluated at 2 points and thus 
+        // NOTE: In TurboPlonk and UltraPlonk, the witness polynomials are evaluated at 2 points and thus
         // we need to add 3 random scalars in them.
         //
         // We start adding random scalars in `wire` polynomials from index (n - k) upto (n - k + 2).
         // For simplicity, we add 3 random scalars even for standard plonk (recall, just 2 of them are required)
         // since an additional random scalar would not affect things.
         //
-        // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, this method 
+        // NOTE: If in future there is a need to cut off more zeros off the vanishing polynomial, this method
         // will not change. This must be changed only if the number of evaluations of witness polynomials
         // change.
         //
@@ -381,7 +381,7 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
-    
+
     commitment_scheme->batch_open(transcript, queue, key, witness);
 }
 

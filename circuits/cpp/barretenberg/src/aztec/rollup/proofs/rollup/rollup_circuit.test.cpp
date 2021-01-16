@@ -46,11 +46,13 @@ class rollup_tests : public ::testing::Test {
         std::string CRS_PATH = "../srs_db";
         old = std::cerr.rdbuf();
         // std::cerr.rdbuf(swallow.rdbuf());
-        account_cd = account::compute_circuit_data(CRS_PATH);
-        join_split_cd = join_split::compute_circuit_data(CRS_PATH);
+        auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
+        account_cd = account::compute_circuit_data(srs);
+        join_split_cd = join_split::compute_circuit_data(srs);
         padding_proof = join_split_cd.padding_proof;
-        rollup_1_keyless = rollup::get_circuit_data(1, join_split_cd, account_cd, CRS_PATH, "", false, false, false);
-        rollup_2_keyless = rollup::get_circuit_data(2, join_split_cd, account_cd, CRS_PATH, "", false, false, false);
+        rollup_1_keyless = rollup::get_circuit_data(1, join_split_cd, account_cd, srs, "", false, false, false);
+        rollup_2_keyless = rollup::get_circuit_data(2, join_split_cd, account_cd, srs, "", false, false, false);
+        rollup_3_keyless = rollup::get_circuit_data(3, join_split_cd, account_cd, srs, "", false, false, false);
     }
 
     static void TearDownTestCase() { std::cerr.rdbuf(old); }
@@ -208,6 +210,7 @@ class rollup_tests : public ::testing::Test {
     static std::stringstream swallow;
     static rollup::circuit_data rollup_1_keyless;
     static rollup::circuit_data rollup_2_keyless;
+    static rollup::circuit_data rollup_3_keyless;
 
   private:
     std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
@@ -226,6 +229,7 @@ std::streambuf* rollup_tests::old;
 std::stringstream rollup_tests::swallow;
 rollup::circuit_data rollup_tests::rollup_1_keyless;
 rollup::circuit_data rollup_tests::rollup_2_keyless;
+rollup::circuit_data rollup_tests::rollup_3_keyless;
 
 TEST_F(rollup_tests, test_padding_proof)
 {
@@ -547,6 +551,23 @@ TEST_F(rollup_tests, test_nullifier_hash_path_consistency)
     auto verified = verify_rollup_logic(rollup, rollup_2_keyless);
 
     EXPECT_FALSE(verified);
+}
+
+// Rollups of size 3.
+TEST_F(rollup_tests, test_1_proof_in_3_rollup)
+{
+    size_t rollup_size = 3;
+
+    append_account_notes();
+    append_notes({ 100, 50 });
+    update_root_tree_with_data_root(1);
+    auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
+
+    auto rollup = create_rollup({ join_split_proof }, data_tree, null_tree, root_tree, rollup_size);
+
+    auto verified = verify_rollup_logic(rollup, rollup_3_keyless);
+
+    EXPECT_TRUE(verified);
 }
 
 } // namespace rollup
