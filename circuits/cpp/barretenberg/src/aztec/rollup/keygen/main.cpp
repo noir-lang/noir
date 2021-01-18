@@ -29,6 +29,7 @@ int main(int argc, char** argv)
     size_t max_inner_num = (size_t)atoi(args[2].c_str());
     const std::string output_path = args[3];
     const std::string srs_path = (args.size() >= 5) ? args[4] : "../srs_db/ignition";
+    const bool persist = (args.size() >= 6) ? (bool)atoi(args[5].c_str()) : false;
 
     {
         auto escape_hatch_circuit_data = escape_hatch::compute_circuit_data(srs_path);
@@ -41,14 +42,14 @@ int main(int argc, char** argv)
     auto account_circuit_data = account::compute_circuit_data(srs);
     auto join_split_circuit_data = join_split::compute_circuit_data(srs);
     auto rollup_circuit_data = tx_rollup::get_circuit_data(
-        inner_txs, join_split_circuit_data, account_circuit_data, srs, "", true, false, false);
+        inner_txs, join_split_circuit_data, account_circuit_data, srs, "./data", true, persist, persist);
 
     // Release memory held by proving key, we don't need it.
     rollup_circuit_data.proving_key.reset();
 
-    for (size_t i = 1, j = inner_txs; j <= max_inner_num; i++, j *= 2) {
+    for (size_t i = 1; i <= max_inner_num; i *= 2) {
         auto root_rollup_circuit_data =
-            root_rollup::get_circuit_data(i, rollup_circuit_data, srs, "", true, false, false);
+            root_rollup::get_circuit_data(i, rollup_circuit_data, srs, "./data", true, persist, persist);
 
         auto class_name = format("Rollup", inner_txs, "x", i, "Vk");
         std::ofstream os(output_path + "/" + class_name + ".sol");

@@ -20,30 +20,25 @@ namespace tx_rollup = ::rollup::proofs::rollup;
 using Tree = MerkleTree<MemoryStore>;
 
 auto prefix = "tx_factory: ";
+auto data_path = "./data/tx_factory";
 
-void create_inner_rollup(size_t rollup_num,
-                         uint32_t num_txs,
-                         uint32_t rollup_size,
-                         join_split::circuit_data const& join_split_circuit_data,
-                         barretenberg::fr const& data_tree_root,
-                         Tree& data_tree,
-                         Tree& null_tree,
-                         Tree& root_tree)
+tx_rollup::rollup_tx create_inner_rollup(size_t rollup_num,
+                                         uint32_t num_txs,
+                                         uint32_t rollup_size,
+                                         join_split::circuit_data const& join_split_circuit_data,
+                                         barretenberg::fr const& data_tree_root,
+                                         Tree& data_tree,
+                                         Tree& null_tree,
+                                         Tree& root_tree)
 {
     std::cerr << prefix << "Generating a " << rollup_size << " rollup with " << num_txs << " txs..." << std::endl;
     auto proofs = std::vector<std::vector<uint8_t>>(num_txs);
     for (size_t i = 0; i < num_txs; ++i) {
         auto name = format("js", rollup_num * rollup_size + i);
-        proofs[i] = root_rollup::compute_or_load_fixture("./data/tx_factory", name, [&]() {
-            return create_noop_join_split_proof(join_split_circuit_data, data_tree_root);
-        });
+        proofs[i] = root_rollup::compute_or_load_fixture(
+            data_path, name, [&]() { return create_noop_join_split_proof(join_split_circuit_data, data_tree_root); });
     }
-    tx_rollup::rollup_tx rollup = tx_rollup::create_rollup(proofs, data_tree, null_tree, root_tree, rollup_size);
-
-    std::cerr << prefix << "Sending..." << std::endl;
-    write(std::cout, (uint32_t)0);
-    write(std::cout, rollup);
-    std::cerr << prefix << "Sent." << std::endl;
+    return tx_rollup::create_rollup(proofs, data_tree, null_tree, root_tree, rollup_size);
 }
 
 int main(int argc, char** argv)
@@ -61,7 +56,7 @@ int main(int argc, char** argv)
     }
 
     mkdir("./data", 0700);
-    mkdir("./data/tx_factory", 0700);
+    mkdir(data_path, 0700);
 
     bool initialized;
     read(std::cin, initialized);
@@ -76,25 +71,36 @@ int main(int argc, char** argv)
 
     std::vector<std::vector<uint8_t>> rollups_data;
     while (num_txs > 0) {
+        auto rollup_num = rollups_data.size();
         auto n = std::min(num_txs, inner_rollup_size);
-        create_inner_rollup(rollups_data.size(),
-                            n,
-                            inner_rollup_size,
-                            join_split_circuit_data,
-                            data_root,
-                            data_tree,
-                            null_tree,
-                            root_tree);
+        auto name = format("rollup_", rollup_num, "_", n, "txs.dat");
         num_txs -= n;
 
-        std::vector<uint8_t> proof_data;
-        bool verified;
-        read(std::cin, proof_data);
-        read(std::cin, verified);
-        if (!verified) {
-            std::cerr << prefix << "Received an unverified proof." << std::endl;
-            return -1;
-        }
+        auto rollup = create_inner_rollup(rollups_data.size(),
+                                          n,
+                                          inner_rollup_size,
+                                          join_split_circuit_data,
+                                          data_root,
+                                          data_tree,
+                                          null_tree,
+                                          root_tree);
+
+        auto proof_data = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
+            std::cerr << prefix << "Sending..." << std::endl;
+            write(std::cout, (uint32_t)0);
+            write(std::cout, rollup);
+            std::cerr << prefix << "Sent." << std::endl;
+
+            std::vector<uint8_t> proof_data;
+            bool verified;
+            read(std::cin, proof_data);
+            read(std::cin, verified);
+            if (!verified) {
+                throw std::runtime_error("Received an unverified proof.");
+            }
+            return proof_data;
+        });
+
         rollups_data.push_back(proof_data);
     }
 

@@ -156,7 +156,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         composer.set_public_input(inp.witness_index);
     }
 
-    for (size_t i = num_proofs; i < outer_rollup_size; ++i) {
+    for (size_t i = num_proofs; i < outer_rollup_size / inner_rollup_size; ++i) {
         add_padding_public_inputs(composer, inner_rollup_size);
     }
 

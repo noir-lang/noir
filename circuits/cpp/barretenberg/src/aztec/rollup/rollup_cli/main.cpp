@@ -89,6 +89,7 @@ int main(int argc, char** argv)
     size_t root_rollup_size = (args.size() > 2) ? (size_t)atoi(args[2].c_str()) : 1;
     const std::string srs_path = (args.size() > 3) ? args[3] : "../srs_db/ignition";
     const std::string data_path = (args.size() > 4) ? args[4] : "./data";
+    bool reduce_mem = (args.size() > 5) ? (bool)atoi(args[5].c_str()) : false;
     auto persist = data_path != "-";
 
     std::cerr << "Loading crs..." << std::endl;
@@ -101,15 +102,15 @@ int main(int argc, char** argv)
 
     tx_rollup::circuit_data tx_rollup_circuit_data;
     root_rollup::circuit_data root_rollup_circuit_data;
-    if (persist) {
+    if (reduce_mem) {
         // Hacky, we have to immediately release the key because if we need to generate both keys it uses too much mem.
         // This way we create both keys on startup, but free the memory, then reload them on demand...
         tx_rollup_circuit_data = tx_rollup::get_circuit_data(
-            tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, true, true);
+            tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, persist, persist);
         tx_rollup_circuit_data.proving_key.reset();
 
-        root_rollup_circuit_data =
-            root_rollup::get_circuit_data(root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, true, true);
+        root_rollup_circuit_data = root_rollup::get_circuit_data(
+            root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, persist, persist);
         root_rollup_circuit_data.proving_key.reset();
 
         // We expect a tx rollup first, so reload it...
@@ -118,9 +119,9 @@ int main(int argc, char** argv)
     } else {
         // Assume we are not making massive circuits.
         tx_rollup_circuit_data = tx_rollup::get_circuit_data(
-            tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, false, false);
-        root_rollup_circuit_data =
-            root_rollup::get_circuit_data(root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, false, false);
+            tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, persist, persist);
+        root_rollup_circuit_data = root_rollup::get_circuit_data(
+            root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, persist, persist);
     }
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
@@ -136,7 +137,7 @@ int main(int argc, char** argv)
 
         switch (proof_id) {
         case 0: {
-            if (persist && !tx_rollup_circuit_data.proving_key) {
+            if (reduce_mem && !tx_rollup_circuit_data.proving_key) {
                 root_rollup_circuit_data.proving_key.reset();
                 tx_rollup_circuit_data = tx_rollup::get_circuit_data(
                     tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, false, true);
@@ -145,7 +146,7 @@ int main(int argc, char** argv)
             break;
         }
         case 1: {
-            if (persist && !root_rollup_circuit_data.proving_key) {
+            if (reduce_mem && !root_rollup_circuit_data.proving_key) {
                 tx_rollup_circuit_data.proving_key.reset();
                 root_rollup_circuit_data = root_rollup::get_circuit_data(
                     root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, false, true);
