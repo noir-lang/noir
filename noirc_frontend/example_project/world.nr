@@ -1,0 +1,1 @@
+fn world_foo() {}
