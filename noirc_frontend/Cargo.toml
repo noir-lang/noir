@@ -13,6 +13,8 @@ noirc_errors = {path = "../noirc_errors"}
 thiserror = "1.0.21"
 std_lib = {path = "../std_lib"}
 fm = {path = "../fm"}
+arena = {path = "../arena"}
 
-# This is only needed by the analyser, we should eventually move analysis into it's own crate and rename this crate as it will no longer be the frontend
-nargo = {path = "../nargo"}
+pathdiff = "0.2"
+smol_str = "0.1.17"
+rustc-hash = "1.1.0"
