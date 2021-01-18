@@ -1,13 +1,11 @@
 mod binary;
 mod call;
 mod index;
-mod path;
 mod cast;
 
 use binary::BinaryParser;
 use call::CallParser;
 use index::IndexParser;
-use path::PathParser;
 use cast::CastParser;
 
 use super::Precedence;
@@ -27,7 +25,6 @@ pub enum InfixParser{
     Call,
     Index,
     Cast,
-    Path,
 }
 
 impl InfixParser {
@@ -36,7 +33,6 @@ impl InfixParser {
             InfixParser::Binary => span_parser(parser,left,BinaryParser::parse),
             InfixParser::Call => span_parser(parser,left,CallParser::parse),
             InfixParser::Index => span_parser(parser,left,IndexParser::parse),
-            InfixParser::Path => span_parser(parser,left,PathParser::parse),
             InfixParser::Cast => span_parser(parser,left,CastParser::parse),
         }
     }
