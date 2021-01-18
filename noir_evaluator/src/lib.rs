@@ -102,9 +102,9 @@ impl<'a> Evaluator<'a> {
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
         // which takes the IR as input
-        const WIDTH: usize = 3;
+        const WIdTH: usize = 3;
 
-        let optimiser = CSatOptimiser::new(WIDTH);
+        let optimiser = CSatOptimiser::new(WIdTH);
 
         let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
 

@@ -1,5 +1,5 @@
 mod file_map;
-pub use file_map::{FileID, File, FileMap};
+pub use file_map::{FileId, File, FileMap};
 
 pub mod util;
 pub use util::*;
@@ -28,7 +28,7 @@ impl FileManager {
     }
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
-    pub fn add_file(&mut self, path_to_file : &PathBuf) -> Option<FileID> { 
+    pub fn add_file(&mut self, path_to_file : &PathBuf) -> Option<FileId> { 
 
         // We expect the caller to ensure that the file is a valid noir file
         let ext = path_to_file.extension().expect(&format!("{:?} does not have an extension", path_to_file));
@@ -44,22 +44,22 @@ impl FileManager {
         Some(file_id)
     }
 
-    pub fn fetch_file(&mut self, file_id : FileID) -> File {
+    pub fn fetch_file(&mut self, file_id : FileId) -> File {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
         self.file_map.get_file(file_id).unwrap()
     }
-    pub fn path(&mut self, file_id : FileID) -> &Path {
+    pub fn path(&mut self, file_id : FileId) -> &Path {
         // Unchecked as we ensure that all file_ids are created by the file manager 
         // So all file_ids will points to a corresponding path
         self.paths[file_id.as_usize()].as_path()
     }
-    pub fn parent(&mut self, file_id : FileID) -> &Path {
+    pub fn parent(&mut self, file_id : FileId) -> &Path {
         // Unwrap as we ensure that all file_ids's point to files
         // whom logically live in some directory
         self.path(file_id).parent().unwrap()
     }
 
-    pub fn resolve_path(&mut self, anchor : FileID, mod_name : &str) -> Result<FileID, String> {
+    pub fn resolve_path(&mut self, anchor : FileId, mod_name : &str) -> Result<FileId, String> {
 
         let mut candidate_files = Vec::new();
 

@@ -7,7 +7,7 @@
 use smol_str::SmolStr;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use fm::FileID;
+use fm::FileId;
 
 /// The local crate which is the crate being compiled
 /// should always have a CrateId of zero
@@ -62,7 +62,7 @@ pub enum CrateType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
-    pub root_file_id: FileID,
+    pub root_file_id: FileId,
     pub crate_type : CrateType,
     pub dependencies: Vec<Dependency>,
 }
@@ -86,7 +86,7 @@ impl CrateGraph {
     pub fn add_crate_root(
         &mut self,
         crate_type : CrateType,
-        file_id: FileID,
+        file_id: FileId,
     ) -> CrateId {
 
         let roots_with_file_id : Vec<_> = self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id).collect();
@@ -197,9 +197,9 @@ pub struct CyclicDependenciesError {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{CrateGraph, CrateName, FileID, CrateType};
+    use super::{CrateGraph, CrateName, FileId, CrateType};
     
-    fn dummy_file_ids(n : usize) -> Vec<FileID> {
+    fn dummy_file_ids(n : usize) -> Vec<FileId> {
         use fm::{FileMap, FILE_EXTENSION};
         let mut fm = FileMap::new();
         

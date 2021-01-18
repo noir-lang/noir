@@ -1,5 +1,5 @@
 
-use fm::FileID;
+use fm::FileId;
 
 use crate::{NoirFunction, Program};
 
@@ -15,7 +15,7 @@ pub struct DefCollector {
 impl DefCollector {
     /// Collect all of the definitions in a given crate into a CrateDefMap
     /// Modules which are not a part of the module hierarchy will be ignored.
-    pub fn collect(mut def_map : CrateDefMap, mut context : &mut Context ,ast : Program, root_file_id : FileID) {
+    pub fn collect(mut def_map : CrateDefMap, mut context : &mut Context ,ast : Program, root_file_id : FileId) {
 
         let crate_id = def_map.krate;
 
@@ -30,10 +30,10 @@ impl DefCollector {
         }
         // Get the module associated with the root of the crate
         // Since Macros are not being used (like Rust), this will have a one to one mapping 
-        // to file ID
+        // to file Id
         let module_id = def_map.root;
 
-        // Populate the Preallocated ModuleID to be the origin
+        // Populate the Preallocated ModuleId to be the origin
         // Note this rests on the fact that the root file already has a module allocated
         def_map[module_id].origin = ModuleOrigin::CrateRoot(root_file_id);
 

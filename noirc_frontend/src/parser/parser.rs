@@ -1,4 +1,4 @@
-use fm::FileID;
+use fm::FileId;
 
 use super::{Precedence, Program, errors::ParserErrorKind};
 use crate::{ast::{BlockStatement, Expression, Statement, Type, ArraySize, ExpressionKind}};
@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
         }
     }
-    pub fn from_src(file_id : FileID, src : &'a str) -> Self {
+    pub fn from_src(file_id : FileId, src : &'a str) -> Self {
         Parser::new(Lexer::new(file_id.as_usize(), src))
     }
 

@@ -33,11 +33,11 @@ impl From<&PathBuf> for PathString {
 #[derive(Debug)]
 pub struct FileMap(SimpleFiles<PathString, String>);
 
-// XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileID
+// XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
 #[derive(Default, Debug, Clone, PartialEq, Eq, Copy)] 
-pub struct FileID(usize);
+pub struct FileId(usize);
 
-impl FileID {
+impl FileId {
     //XXX: find a way to remove the need for this. Errors do not need to attach their FileIds immediately!
     pub fn as_usize(&self) -> usize {
         self.0
@@ -57,11 +57,11 @@ impl FileMap {
         FileMap(SimpleFiles::new())
     }
 
-    pub fn add_file(&mut self, file_name : PathString, code: String) -> FileID {
+    pub fn add_file(&mut self, file_name : PathString, code: String) -> FileId {
         let file_id = self.0.add(file_name, code);
-        FileID(file_id)
+        FileId(file_id)
     }
-    pub fn get_file(&self, file_id : FileID) -> Option<File> {
+    pub fn get_file(&self, file_id : FileId) -> Option<File> {
         match self.0.get(file_id.0) {
             Some(source) => Some(File(source)),
             None => None

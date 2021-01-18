@@ -2,7 +2,7 @@ use crate::{Parser,parser::Program};
 use std::collections::HashMap;
 use super::{Context, crate_graph::{CrateId}, def_collector_crate::DefCollector, lower::def_interner::FuncId};
 use arena::{Arena, Index};
-use fm::{FileID, FileManager};
+use fm::{FileId, FileManager};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 
@@ -84,15 +84,15 @@ impl CrateDefMap {
 
         root_module.scope.find_func_with_name(MAIN_FUNCTION)
     }
-    
-    pub fn root_file_id(&self) -> FileID {
+
+    pub fn root_file_id(&self) -> FileId {
         let root_module = &self.modules()[self.root.0];
         root_module.origin.into()
     }
 
 }
 /// Fetch the crate root and parse the file
-pub fn parse_root_file(fm : &mut FileManager, root_file_id : FileID) -> Program {
+pub fn parse_root_file(fm : &mut FileManager, root_file_id : FileId) -> Program {
     
     let file = fm.fetch_file(root_file_id);
     let mut parser = Parser::from_src(root_file_id,file.get_source());
@@ -241,12 +241,12 @@ pub enum Visibility {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ModuleOrigin {
-    CrateRoot(FileID),
-    File(FileID),
+    CrateRoot(FileId),
+    File(FileId),
 }
 
-impl Into<FileID> for ModuleOrigin {
-    fn into(self) -> FileID {
+impl Into<FileId> for ModuleOrigin {
+    fn into(self) -> FileId {
         match self {
             ModuleOrigin::CrateRoot(file_id) => file_id,
             ModuleOrigin::File(file_id) => file_id,
@@ -256,7 +256,7 @@ impl Into<FileID> for ModuleOrigin {
 
 impl Default for ModuleOrigin {
     fn default() -> Self {
-        ModuleOrigin::CrateRoot(FileID::default())
+        ModuleOrigin::CrateRoot(FileId::default())
     }
 }
 #[derive(Debug, Copy,Clone, PartialEq, Eq)]
