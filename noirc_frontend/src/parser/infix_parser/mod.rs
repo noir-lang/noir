@@ -12,7 +12,7 @@ use cast::CastParser;
 
 use super::Precedence;
 use crate::ast::{BinaryOp, BinaryOpKind};
-use crate::ast::{CallExpression, CastExpression, Expression, ExpressionKind, IndexExpression, InfixExpression, NoirPath};
+use crate::ast::{CallExpression, CastExpression, Expression, ExpressionKind, IndexExpression, InfixExpression};
 use crate::token::Token;
 
 use super::Parser;
