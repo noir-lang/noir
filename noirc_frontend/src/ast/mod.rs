@@ -134,57 +134,6 @@ impl Type {
     pub fn can_be_used_for_infix(&self, other : &Type) -> bool {
         self.is_base_type() && other.is_base_type()
     }
-
-    // Given a binary operator and another type. This method will produce the 
-    // output type
-    pub fn infix_operand_type_rules(&self, op : &BinaryOpKind, other: &Type) -> Result<Type, String> {
-        if op.is_comparator() {
-            return Ok(Type::Bool)
-        }
-        
-        match (self, other)  {
-
-            (Type::Integer(sign_x, bit_width_x), Type::Integer(sign_y, bit_width_y)) => {
-                if sign_x != sign_y {
-                    return Err(format!("Integers must have the same Signedness lhs is {:?}, rhs is {:?} ", sign_x, sign_y))
-                }
-                if bit_width_x != bit_width_y {
-                    return Err(format!("Integers must have the same Bit width lhs is {}, rhs is {} ", bit_width_x, bit_width_y))
-                }
-                Ok(Type::Integer(*sign_x, *bit_width_x))
-            }
-            (Type::Integer(_, _), Type::Witness) | ( Type::Witness, Type::Integer(_, _) ) => { 
-                Err(format!("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer"))
-            }
-            (Type::Integer(sign_x, bit_width_x), Type::Constant)| (Type::Constant,Type::Integer(sign_x, bit_width_x)) => {
-                Ok(Type::Integer(*sign_x, *bit_width_x))
-            }
-            (Type::Integer(_, _), typ) | (typ,Type::Integer(_, _)) => {
-                Err(format!("Integer cannot be used with type {:?}", typ))
-            }
-
-            // If no side contains an integer. Then we check if either side contains a witness
-            // If either side contains a witness, then the final result will be a witness
-            (Type::Witness, _) | (_,Type::Witness) => Ok(Type::Witness),
-            // Public types are added as witnesses under the hood
-            (Type::Public, _) | (_,Type::Public) => Ok(Type::Witness),
-            (Type::Bool, _) | (_,Type::Bool) => Ok(Type::Bool),
-
-            // An error type on either side will always return an error
-            (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
-            (Type::Unspecified, _) | (_,Type::Unspecified) => Ok(Type::Unspecified),
-            (Type::Unknown, _) | (_,Type::Unknown) => Ok(Type::Unknown),
-            (Type::Unit, _) | (_,Type::Unit) => Ok(Type::Unit),
-
-            (Type::FieldElement, _) | (_,Type::FieldElement) => Ok(Type::FieldElement),
-            
-            // Currently, arrays are not supported in binary operations
-            (Type::Array(_,_), _) | (_,Type::Array(_, _)) => Ok(Type::Error),
-            
-            (Type::Constant, Type::Constant)  => Ok(Type::Constant),
-           }
-        
-    }
 }
 
 use crate::token::IntType;
