@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::If) => Some(PrefixParser::If),
             Token::Keyword(Keyword::For) => Some(PrefixParser::For),
             Token::LeftBracket => Some(PrefixParser::Array),
-            x if x.kind() == TokenKind::Ident => Some(PrefixParser::Name),
+            x if x.kind() == TokenKind::Ident => Some(PrefixParser::Path),
             x if x.kind() == TokenKind::Literal => Some(PrefixParser::Literal),
             Token::Bang | Token::Minus => Some(PrefixParser::Unary),
             Token::LeftParen => Some(PrefixParser::Group),
@@ -284,7 +284,6 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::As) => Some(InfixParser::Cast),
             Token::LeftParen => Some(InfixParser::Call),
             Token::LeftBracket => Some(InfixParser::Index),
-            Token::DoubleColon => Some(InfixParser::Path),
             _ => None,
         }
     }

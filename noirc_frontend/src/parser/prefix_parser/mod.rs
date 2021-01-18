@@ -10,6 +10,7 @@ mod r#use;
 mod module;
 mod r#for;
 mod constrain;
+mod path;
 
 use unary::UnaryParser;
 use group::GroupParser;
@@ -24,6 +25,7 @@ pub use r#if::IfParser;
 pub use r#use::UseParser;
 pub use module::ModuleParser;
 pub use constrain::ConstrainParser;
+pub use path::PathParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
@@ -33,7 +35,8 @@ use crate::ast::{
 use crate::token::{Keyword, Token, TokenKind, Attribute};
 use noirc_errors::{Spanned, Span};
 
-use super::{Parser, Precedence,  Program, ParserError,ParserExprKindResult,ParserExprResult};
+
+use super::{Parser, Precedence, ParserError,ParserExprKindResult,ParserExprResult};
 use crate::parser::errors::ParserErrorKind;
 
 use crate::ast::{
@@ -50,6 +53,7 @@ pub enum PrefixParser {
     Name,
     Unary,
     Array,
+    Path,
 }
 
 impl PrefixParser {
@@ -62,6 +66,7 @@ impl PrefixParser {
             PrefixParser::Literal => span_parser(parser,LiteralParser::parse),
             PrefixParser::Unary => span_parser(parser,UnaryParser::parse),
             PrefixParser::Group => span_parser(parser,GroupParser::parse),
+            PrefixParser::Path => span_parser(parser,PathParser::parse),
         }
     }
 
