@@ -112,18 +112,16 @@ struct CompiledMain {
 /// The compiled circuit (DSL variation)
 /// And the parameters for main
 fn build_main() -> CompiledMain {
-    let mut main_file = std::env::current_dir().unwrap();
-    main_file.push(std::path::PathBuf::from("bin"));
-    main_file.push(std::path::PathBuf::from("main.nr"));
+    let mut main_file_path = std::env::current_dir().unwrap();
+    main_file_path.push(std::path::PathBuf::from("bin"));
+    main_file_path.push(std::path::PathBuf::from("main.nr"));
     assert!(
-        main_file.exists(),
+        main_file_path.exists(),
         "Cannot find main file at located {}",
-        main_file.display()
+        main_file_path.display()
     );
 
-    let mut driver = Driver::new();
-    let file_as_string = std::fs::read_to_string(&main_file).unwrap();
-    let compiled_program = driver.compile_file(main_file, file_as_string.clone());
+    let compiled_program = Driver::compile_file(main_file_path);
     let constraint_system =
         aztec_backend::serialise_circuit(&compiled_program.circuit, compiled_program.num_witnesses, compiled_program.num_public_inputs);
 
