@@ -86,18 +86,18 @@ impl<'a> Evaluator<'a> {
         self.num_witness
     }
 
+    /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
     // XXX: We return the num_witnesses, but this is the max number of witnesses
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn evaluate(mut self) -> Result<(Circuit, usize, usize), RuntimeError> {
+    pub fn compile(mut self) -> Result<(Circuit, usize, usize), RuntimeError> {
 
         // create a new environment
         let mut env = Environment::new();
 
-        // First compile
-        // XXX: Once the refactoring has completed, we will rename evaluate to compile and compile to synthesize or something more indicative of what it does
-        self.compile(&mut env).map_err(|err| err.into_err(self.file_id))?;
+        // First evaluate the main function
+        self.evaluate_main(&mut env).map_err(|err| err.into_err(self.file_id))?;
 
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
@@ -208,20 +208,19 @@ impl<'a> Evaluator<'a> {
     }
 
 
-    /// Compiles the AST into the intermediate format, which we call the gates
-    pub fn compile(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind>{
+    /// Compiles the AST into the intermediate format by evaluating the main function
+    pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind>{
         // Add the parameters from the main function into the evaluator as witness variables
         // XXX: We are only going to care about Public and Private witnesses for now
 
         let mut pub_inputs = Vec::new();
         let mut witnesses = Vec::new();
 
-
         let func_meta = self.context.def_interner.function_meta(self.main_function);
         for param in func_meta.parameters {
             let param_id = param.0;
             let param_type = param.1;
-            let param_name = self.context.def_interner.id_name(param.0);
+            let param_name = self.context.def_interner.id_name(param_id);
             
             match param_type {
                 Type::Public =>{

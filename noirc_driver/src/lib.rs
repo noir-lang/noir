@@ -103,7 +103,7 @@ impl Driver{
         let evaluator = Evaluator::new(file_id, main_function, &self.context);
 
         // Compile Program
-        let (circuit, num_witnesses, num_public_inputs) = match evaluator.evaluate() {
+        let (circuit, num_witnesses, num_public_inputs) = match evaluator.compile() {
             Ok((circuit, num_witnesses, num_public_inputs)) => (circuit, num_witnesses, num_public_inputs),
             Err(err) => {
                 Reporter::with_diagnostics(&self.context.file_manager(), &vec![err.to_diagnostic()]);
