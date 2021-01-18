@@ -1,9 +1,8 @@
 pub mod lexer;
 pub mod parser;
-pub mod analyser;
 pub mod ast;
 
-// XXX: I think this API can be cleaned up even more
+pub mod hir;
 
 // Lexer API
 pub use lexer::token;
