@@ -22,7 +22,7 @@ pub struct CompiledProgram {
 
 impl Driver{
     pub fn new() -> Self {
-        Driver {context : Context::new(FileManager::new(), CrateGraph::default())}
+        Driver {context : Context::default()}
     }
 
     // This is here for backwards compatibility.
