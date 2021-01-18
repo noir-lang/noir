@@ -4,11 +4,8 @@ mod parser;
 
 mod errors;
 
-use std::collections::HashMap;
-
 pub use errors::ParserError;
 
-use crate::{krate::{crate_manager::CrateID, crate_unit::ModID}};
 pub use parser::{Parser, ParserExprResult,ParserExprKindResult};
 
 use crate::{FunctionKind, NoirFunction, ast::{FunctionDefinition, ImportStatement, Type}};
@@ -20,7 +17,6 @@ pub struct Program {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub module_decls : Vec<String>,
-    pub resolved_imports : HashMap<String, (ModID, CrateID)>
 }
 
 const MAIN_FUNCTION: &str = "main";
@@ -53,7 +49,6 @@ impl Program {
             imports: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
             module_decls : Vec::new(),
-            resolved_imports : HashMap::new(),
         }
     }
 
