@@ -104,7 +104,6 @@ impl Precedence {
             Token::Keyword(Keyword::As) => Precedence::Prefix,
             Token::LeftParen => Precedence::Call,
             Token::LeftBracket => Precedence::Index,
-            Token::DoubleColon => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
