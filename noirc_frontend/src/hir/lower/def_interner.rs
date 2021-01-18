@@ -191,7 +191,7 @@ impl DefInterner {
         }
     }
     
-    // XXX: This is needed as Witnesses in Evaluator require a name
+    // XXX: This is needed as Witnesses in Evaluator require a name at the moment
     pub fn id_name(&self, ident_id : IdentId) -> String {
         self.id_to_name.get(&ident_id).expect("ice: all ident ids should have names").clone()
     }
@@ -202,11 +202,6 @@ impl DefInterner {
     // Since type checking always comes after resolution.
     // If resolution is correct, we will always assign types to Identifiers before we use them.
     // The same would go for Expressions.
-    //
-    // XXX: It is possible to have Higher Kinded Types and assign types to functions.
-    // Which may make call expressions more uniform.
-    // This may be necessary actually, if we do not wish to pull in the Context into type checking
-    // So we would have a function Type being a vector with the last argument being it's return type
     pub fn id_type(&self, index : Index) -> Type {
         self.id_to_type.get(&index).cloned().unwrap()
     }
