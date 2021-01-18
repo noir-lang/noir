@@ -9,10 +9,7 @@ pub enum ExpressionKind {
     Prefix(Box<PrefixExpression>),
     Infix(Box<InfixExpression>),
     Index(Box<IndexExpression>),
-    Call(
-        #[deprecated = "The path will be in the function name itself"]
-        NoirPath, 
-        Box<CallExpression>), // Make Path Optional and so we only have one call expression
+    Call(Box<CallExpression>),
     Cast(Box<CastExpression>),
     Predicate(Box<InfixExpression>),
     For(Box<ForExpression>),
@@ -255,69 +252,4 @@ pub struct CallExpression {
 pub struct IndexExpression {
     pub collection_name: Ident, // XXX: For now, this will be the name of the array, as we do not support other collections
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum NoirPath {
-    Current,
-    External(Vec<Ident>) // These are used for functions, and maybe constants in the future. Example: std::hash -> vec!["std", "hash"]
-}
-
-impl From<Vec<Ident>> for NoirPath {
-    fn from(path: Vec<Ident>) -> NoirPath {
-        if path.len() == 0 {
-            NoirPath::Current
-        } else {
-            NoirPath::External(path)
-        }
-    }
-}
-
-impl Into<Vec<Ident>> for NoirPath {
-    fn into(self) -> Vec<Ident> {
-        match self {
-            NoirPath::Current => Vec::new(),
-            NoirPath::External(path) => path
-        }
-    }
-}
-
-impl NoirPath {
-    pub fn to_string(&self) -> String {
-        let mut string = String::new();
-
-        match self {
-            NoirPath::Current => return string,
-            NoirPath::External(path) => {
-                for ns in path.iter() {
-                    string.push_str(&ns.0.contents);
-                    string.push_str("::");
-                }
-                // Remove last `::`
-                string.remove(string.len() - 1);
-                string.remove(string.len() - 1);
-            }
-        }
-
-        string
-    }
-    pub fn len(&self) -> usize {
-        match self {
-            NoirPath::Current => 0,
-            NoirPath::External(path) => path.len()
-        }
-    }
-    pub fn split_first(&self) -> Option<(&Ident, NoirPath)> {
-
-        let path = match self {
-            NoirPath::Current => return None,
-            NoirPath::External(path) => path
-        };
-
-        if let Some((first, rest) ) = path.split_first() {
-            return Some((first, rest.to_vec().into()))
-        } else {
-            return None
-        }
-    }
 }
