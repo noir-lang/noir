@@ -2,6 +2,7 @@ use crate::{BlockStatement, Ident, Path, Type};
 use crate::token::{Token, Attribute};
 use noirc_errors::{Spanned, Span};
 use noir_field::FieldElement;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
     Ident(String), // an identifer can also produce a value. e.g. let x = y; y is an expression in this case
@@ -14,6 +15,7 @@ pub enum ExpressionKind {
     Predicate(Box<InfixExpression>),
     For(Box<ForExpression>),
     If(Box<IfExpression>),
+    Path(Path),
 }
 
 #[derive(Debug, Eq, Clone)]
@@ -47,6 +49,12 @@ impl ExpressionKind {
         Expression {
             span, 
             kind : self
+        }
+    }
+    pub fn into_path(self) -> Option<Path> {
+        match self {
+            ExpressionKind::Path(path) => Some(path),
+            _=> None
         }
     }
 }

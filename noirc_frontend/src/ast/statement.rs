@@ -101,6 +101,23 @@ impl Path {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
     }
+
+    pub fn is_ident(&self) -> bool {
+        self.segments.len() == 1 && self.kind == PathKind::Plain
+    }
+
+    pub fn as_ident(&self) -> Option<&Ident> {
+       if !self.is_ident() {
+            return None
+       }
+       self.segments.first()
+    }
+    pub fn into_ident(&self) -> Option<Ident> {
+       if !self.is_ident() {
+            return None
+       }
+       self.segments.first().cloned()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
