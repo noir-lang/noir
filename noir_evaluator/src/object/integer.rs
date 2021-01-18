@@ -135,7 +135,7 @@ impl Integer {
     pub fn logic(
         &self,
         rhs: Integer,
-        env: &mut Environment,
+        _env: &mut Environment,
         is_xor_gate: bool,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {

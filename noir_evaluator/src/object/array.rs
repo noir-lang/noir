@@ -1,6 +1,6 @@
 use crate::object::Object;
-use crate::{Environment, Evaluator, Expression};
-use noirc_frontend::{ast::ArrayLiteral, hir::lower::{HirArrayLiteral, def_interner::ExprId}};
+use crate::{Environment, Evaluator};
+use noirc_frontend::{hir::lower::{HirArrayLiteral, def_interner::ExprId}};
 use super::{RuntimeErrorKind};
 
 #[derive(Clone, Debug)]
