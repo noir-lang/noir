@@ -7,6 +7,7 @@ use std::io::Write;
 use codespan::{ByteIndex, ByteOffset, RawOffset};
 use codespan::{Span as ByteSpan};
 
+#[derive(Debug)]
 pub struct CustomDiagnostic {
     file_id : usize,
     message : String,
@@ -31,6 +32,7 @@ impl CustomDiagnostic {
     }
 }
 
+#[derive(Debug)]
 struct CustomLabel{
     pub message : String, 
     pub span : Span,
