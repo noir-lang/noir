@@ -43,7 +43,7 @@ pub enum Type {
     Bool,
     Error, // XXX: Currently have not implemented structs, so this type is a stub
     Unspecified, // This is for when the user declares a variable without specifying it's type
-    Unknown, // This is mainly used for literals, where the parser cannot figure out the type for the literal
+    Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
     Unit,
 }
 

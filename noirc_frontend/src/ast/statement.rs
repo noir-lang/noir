@@ -1,4 +1,4 @@
-use crate::{Expression, ExpressionKind, InfixExpression, Type, hir::crate_def_map::ModuleDefId};
+use crate::{Expression, ExpressionKind, InfixExpression, Type};
 use crate::lexer::token::SpannedToken;
 use noirc_errors::{Span, Spanned};
 
@@ -92,7 +92,7 @@ impl Path {
     pub fn span(&self)-> Span {
         let mut span = Span::default();
         for segment in self.segments.iter() {
-            span.merge(segment.0.span());
+            span = span.merge(segment.0.span());
         }
         span
     }
@@ -117,7 +117,7 @@ impl BlockStatement {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-// This will be used for structs and maybe closures(if we decide to have them)
+// This will be used for non primitive data types like Arrays and Structs
 pub struct LetStatement {
     pub identifier: Ident,
     pub r#type: Type,
