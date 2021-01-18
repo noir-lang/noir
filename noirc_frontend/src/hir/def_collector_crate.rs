@@ -3,7 +3,7 @@ use fm::FileID;
 
 use crate::{NoirFunction, Program};
 
-use super::{Context, crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin}, def_collector_mod::ModCollector, lower::{def_interner::FuncId, resolver::Resolver}, resolution::{FunctionPathResolver, import::ImportDirective}, type_check::TypeChecker2};
+use super::{Context, crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin}, def_collector_mod::ModCollector, lower::{def_interner::FuncId, resolver::Resolver}, resolution::{FunctionPathResolver, import::ImportDirective}, type_check::TypeChecker};
 
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
@@ -88,7 +88,7 @@ impl DefCollector {
         } 
 
        // Type check all of the functions in the crate
-       let mut type_checker = TypeChecker2::new(&mut context.def_interner);
+       let mut type_checker = TypeChecker::new(&mut context.def_interner);
        for func_id in func_ids {
             type_checker.check_func(func_id);
        }
