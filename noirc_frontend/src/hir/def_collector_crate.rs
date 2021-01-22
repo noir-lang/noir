@@ -3,7 +3,7 @@ use fm::FileId;
 
 use crate::{NoirFunction, Program};
 
-use super::{Context, crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin}, def_collector_mod::ModCollector, lower::{def_interner::FuncId, resolver::Resolver}, resolution::{FunctionPathResolver, import::ImportDirective}, type_check::TypeChecker};
+use super::{Context, crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin}, def_collector_mod::ModCollector, lower::{node_interner::FuncId, resolver::Resolver}, resolution::{FunctionPathResolver, import::ImportDirective}, type_check::TypeChecker};
 
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {

@@ -1,8 +1,8 @@
-use crate::{Type, hir::lower::{def_interner::{DefInterner, ExprId, StmtId}, stmt::{HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}}};
+use crate::{Type, hir::lower::{node_interner::{NodeInterner, ExprId, StmtId}, stmt::{HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}}};
 
 use super::expr::type_check_expression;
 
-pub(crate) fn type_check(interner : &mut DefInterner, stmt_id : StmtId) {
+pub(crate) fn type_check(interner : &mut NodeInterner, stmt_id : StmtId) {
 
     match interner.statement(stmt_id) {
         HirStatement::Expression(expr_id) => type_check_expression(interner, expr_id),
@@ -27,7 +27,7 @@ pub(crate) fn type_check(interner : &mut DefInterner, stmt_id : StmtId) {
     }
 }
 
-fn type_check_priv_stmt(interner : &mut DefInterner, priv_stmt : HirPrivateStatement) {
+fn type_check_priv_stmt(interner : &mut NodeInterner, priv_stmt : HirPrivateStatement) {
     let resolved_type = type_check_declaration(interner, priv_stmt.expression, priv_stmt.r#type);
 
     // Check if this type can be used in a Private statement
@@ -39,7 +39,7 @@ fn type_check_priv_stmt(interner : &mut DefInterner, priv_stmt : HirPrivateState
     interner.push_ident_type(priv_stmt.identifier, resolved_type);
 }
 
-fn type_check_let_stmt(interner : &mut DefInterner, let_stmt : HirLetStatement) {
+fn type_check_let_stmt(interner : &mut NodeInterner, let_stmt : HirLetStatement) {
     let resolved_type = type_check_declaration(interner, let_stmt.expression, let_stmt.r#type);
 
     // Check if this type can be used in a Let statement
@@ -50,7 +50,7 @@ fn type_check_let_stmt(interner : &mut DefInterner, let_stmt : HirLetStatement) 
     // Set the type of the identifier to be equal to the annotated type
     interner.push_ident_type(let_stmt.identifier, resolved_type);
 }
-fn type_check_const_stmt(interner : &mut DefInterner, const_stmt : HirConstStatement) {
+fn type_check_const_stmt(interner : &mut NodeInterner, const_stmt : HirConstStatement) {
     
     // XXX: It may not make sense to have annotations for const statements, since they can only have one type
     // Unless we later want to have u32 constants and check those at compile time.
@@ -62,7 +62,7 @@ fn type_check_const_stmt(interner : &mut DefInterner, const_stmt : HirConstState
     
     interner.push_ident_type(const_stmt.identifier, resolved_type);
 }
-fn type_check_constrain_stmt(interner : &mut DefInterner, stmt : HirConstrainStatement) {
+fn type_check_constrain_stmt(interner : &mut NodeInterner, stmt : HirConstrainStatement) {
     
     type_check_expression(interner, stmt.0.lhs);
     let lhs_type = interner.id_type(stmt.0.lhs.into());
@@ -86,7 +86,7 @@ fn type_check_constrain_stmt(interner : &mut DefInterner, stmt : HirConstrainSta
 /// All declaration statements check that the user specified type(UST) is equal to the 
 /// expression on the RHS, unless the UST is unspecified
 /// In that case, the UST because the expression
-fn type_check_declaration(interner : &mut DefInterner, rhs_expr : ExprId, mut annotated_type : Type) -> Type {
+fn type_check_declaration(interner : &mut NodeInterner, rhs_expr : ExprId, mut annotated_type : Type) -> Type {
    
     // Type check the expression on the RHS
     type_check_expression(interner,rhs_expr);

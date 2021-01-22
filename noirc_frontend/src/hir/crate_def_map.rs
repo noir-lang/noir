@@ -1,6 +1,6 @@
 use crate::{Parser,parser::Program};
 use std::collections::HashMap;
-use super::{Context, crate_graph::{CrateId}, def_collector_crate::DefCollector, lower::def_interner::FuncId};
+use super::{Context, crate_graph::{CrateId}, def_collector_crate::DefCollector, lower::node_interner::FuncId};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 

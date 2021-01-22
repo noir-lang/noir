@@ -1,13 +1,13 @@
-use def_interner::StmtId;
+use node_interner::StmtId;
 use noir_field::FieldElement;
 
 use crate::{BinaryOpKind, Type, UnaryOp};
 pub mod stmt;
-pub mod def_interner;
+pub mod node_interner;
 pub mod function;
 pub mod resolver;
 
-use self::def_interner::{ExprId, FuncId, IdentId};
+use self::node_interner::{ExprId, FuncId, IdentId};
 
 /// A CrateItem is just a root level module
 /// Each crate has exactly one.

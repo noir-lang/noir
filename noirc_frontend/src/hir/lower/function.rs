@@ -1,7 +1,7 @@
 
 use crate::{FunctionKind,Type, token::Attribute};
 
-use super::def_interner::{IdentId, StmtId};
+use super::node_interner::{IdentId, StmtId};
 
 /// A Hir function is a vector of interned statements
 #[derive(Debug, Clone)]

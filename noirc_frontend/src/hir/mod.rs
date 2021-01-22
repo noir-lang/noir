@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate_def_map::CrateDefMap;
 use crate_graph::{CrateGraph, CrateId};
 use fm::FileManager;
-use lower::def_interner::{DefInterner};
+use lower::node_interner::{NodeInterner};
 
 pub mod resolution;
 pub mod scope;
@@ -22,7 +22,7 @@ pub mod lower;
 #[derive(Debug)]
 pub struct Context {
 
-    pub def_interner : DefInterner,
+    pub def_interner : NodeInterner,
 
     pub crate_graph : CrateGraph,
 
@@ -34,7 +34,7 @@ pub struct Context {
 impl Default for Context {
     fn default() -> Self {
         Context {
-            def_interner : DefInterner::default(),
+            def_interner : NodeInterner::default(),
             crate_graph : CrateGraph::default(),
             file_manager : FileManager::new(),
             def_maps : HashMap::new(),
@@ -45,7 +45,7 @@ impl Default for Context {
 impl Context {
     pub fn new(file_manager : FileManager, crate_graph : CrateGraph) -> Context {
         Context {
-            def_interner : DefInterner::default(),
+            def_interner : NodeInterner::default(),
             def_maps : HashMap::new(),
             crate_graph,
             file_manager,

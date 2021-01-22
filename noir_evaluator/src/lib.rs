@@ -19,9 +19,9 @@ use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
 // XXX: Remove this once, we have moved to HIR
-use noirc_frontend::{ast::*, hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, def_interner::IdentId, stmt::{HirBlockStatement, HirConstrainStatement, HirLetStatement}}}; 
+use noirc_frontend::{ast::*, hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirBlockStatement, HirConstrainStatement, HirLetStatement}}}; 
 
-use noirc_frontend::{hir::{crate_graph::{CrateType, LOCAL_CRATE}, lower::{HirExpression, HirLiteral, def_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
+use noirc_frontend::{hir::{crate_graph::{CrateType, LOCAL_CRATE}, lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
 use noirc_frontend::hir::Context;
 
 use noir_field::FieldElement;

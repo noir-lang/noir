@@ -21,7 +21,7 @@ use noirc_errors::Spanned;
 use crate::{Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::{self, CrateDefMap, ModuleDefId, ModuleId}, crate_graph::CrateId, resolution::{PathResolver, import::{ImportDirective, resolve_imports}}}};
 
 use crate::hir::{scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest}};
-use super::{HirArrayLiteral, HirBinaryOp, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, def_interner::{DefInterner, ExprId, FuncId, IdentId, StmtId}, function::{FuncMeta, HirFunction, Param}, stmt::{HirBlockStatement, HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
+use super::{HirArrayLiteral, HirBinaryOp, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, node_interner::{NodeInterner, ExprId, FuncId, IdentId, StmtId}, function::{FuncMeta, HirFunction, Param}, stmt::{HirBlockStatement, HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -33,11 +33,11 @@ pub struct Resolver<'a> {
     path_resolver : &'a dyn PathResolver,
     def_maps : &'a HashMap<CrateId, CrateDefMap>,
 
-    interner : &'a mut DefInterner,
+    interner : &'a mut NodeInterner,
 }
 
 impl<'a> Resolver<'a> {
-    pub fn new(interner : &'a mut DefInterner, path_resolver : &'a dyn PathResolver, def_maps : &'a HashMap<CrateId, CrateDefMap>) -> Resolver<'a> {
+    pub fn new(interner : &'a mut NodeInterner, path_resolver : &'a dyn PathResolver, def_maps : &'a HashMap<CrateId, CrateDefMap>) -> Resolver<'a> {
         Self {
             path_resolver,
             def_maps,
@@ -374,7 +374,7 @@ mod test {
 
     use std::collections::HashMap;
 
-    use crate::{Parser, Path, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{def_interner::{DefInterner, FuncId}, function::HirFunction}}};
+    use crate::{Parser, Path, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{node_interner::{NodeInterner, FuncId}, function::HirFunction}}};
 
     use super::{PathResolver, Resolver};
 
@@ -383,7 +383,7 @@ mod test {
     fn resolve_src_code(src : &str, func_namespace : Vec<String>) {
         let mut parser = Parser::from_src(Default::default(), src);
         let program = parser.parse_program().unwrap();
-        let mut interner = DefInterner::default();
+        let mut interner = NodeInterner::default();
         
         let mut func_ids = Vec::new();
         for _ in 0..func_namespace.len() {

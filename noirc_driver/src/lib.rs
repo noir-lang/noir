@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use fm::FileManager;
 use noirc_errors::Reporter;
 use noirc_errors::DiagnosableError;
-use noirc_frontend::{hir::{crate_def_map::CrateDefMap, crate_graph::{CrateGraph, CrateId, CrateName, CrateType, LOCAL_CRATE}, lower::def_interner::FuncId}};
+use noirc_frontend::{hir::{crate_def_map::CrateDefMap, crate_graph::{CrateGraph, CrateId, CrateName, CrateType, LOCAL_CRATE}, lower::node_interner::FuncId}};
 use noirc_frontend::hir::Context;
 use noir_evaluator::Evaluator;
 use noirc_frontend::ast::Type;

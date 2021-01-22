@@ -34,13 +34,13 @@ into_index!(ExprId);
 into_index!(StmtId);
 into_index!(IdentId);
 
-/// A Definition enum specifies anything that we can intern in the DefInterner
+/// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
-/// XXX: Possibly rename this to Node and `DefInterner` to `NodeInterner`
+/// XXX: Possibly rename this to Node and `NodeInterner` to `NodeInterner`
 #[derive(Debug)]
-enum Definition {
+enum Node {
     Function(HirFunction),
     Ident(Ident),
     Statement(HirStatement),
@@ -48,9 +48,9 @@ enum Definition {
 }
 
 #[derive(Debug)]
-pub struct DefInterner{
+pub struct NodeInterner{
 
-    defs : Arena<Definition>,
+    nodes : Arena<Node>,
     func_meta : HashMap<FuncId, FuncMeta>,
 
     // Maps for span
@@ -77,10 +77,10 @@ pub struct DefInterner{
     id_to_type : HashMap<Index, Type>,
 }
 
-impl Default for DefInterner {
+impl Default for NodeInterner {
     fn default() -> Self {
-        DefInterner {
-            defs : Arena::default(),
+        NodeInterner {
+            nodes : Arena::default(),
             func_meta : HashMap::new(),
             id_to_defs : HashMap::new(),
             id_to_span : HashMap::new(),
@@ -90,17 +90,17 @@ impl Default for DefInterner {
     }
 }
 
-impl DefInterner {
+impl NodeInterner {
     pub fn push_stmt(&mut self, stmt : HirStatement) -> StmtId {
-        StmtId(self.defs.insert(Definition::Statement(stmt)))
+        StmtId(self.nodes.insert(Node::Statement(stmt)))
     }
 
     pub fn push_expr(&mut self, expr : HirExpression) -> ExprId {
-        ExprId(self.defs.insert(Definition::Expression(expr)))
+        ExprId(self.nodes.insert(Node::Expression(expr)))
     }
 
     pub fn push_fn(&mut self, func : HirFunction) -> FuncId {
-        FuncId(self.defs.insert(Definition::Function(func)))
+        FuncId(self.nodes.insert(Node::Function(func)))
     }
 
     // Type Checker
@@ -115,10 +115,10 @@ impl DefInterner {
         self.push_fn(HirFunction::empty())
     }
     pub fn update_fn(&mut self, func_id : FuncId, hir_func : HirFunction) {
-        let def = self.defs.get_mut(func_id.0).expect("ice: all function ids should have definitions");
+        let def = self.nodes.get_mut(func_id.0).expect("ice: all function ids should have definitions");
 
         let func = match def {
-            Definition::Function(func) => func,
+            Node::Function(func) => func,
             _=> panic!("ice: all function ids should correspond to a function in the interner")
         };
         *func = hir_func;
@@ -132,7 +132,7 @@ impl DefInterner {
         let span = ident.0.span();
         let name = ident.0.contents.clone();
 
-        let id = IdentId(self.defs.insert(Definition::Ident(ident)));
+        let id = IdentId(self.nodes.insert(Node::Ident(ident)));
         
         self.id_to_span.insert(id, span);
         
@@ -155,10 +155,10 @@ impl DefInterner {
 
     // Cloning Hir structures is cheap, so we return owned structures 
     pub fn function(&self, func_id : FuncId) -> HirFunction {
-        let def = self.defs.get(func_id.0).expect("ice: all function ids should have definitions");
+        let def = self.nodes.get(func_id.0).expect("ice: all function ids should have definitions");
 
         match def {
-            Definition::Function(func) => return func.clone(),
+            Node::Function(func) => return func.clone(),
             _=> panic!("ice: all function ids should correspond to a function in the interner")
         }
     }
@@ -166,27 +166,27 @@ impl DefInterner {
         self.func_meta.get(&func_id).cloned().expect("ice: all function ids should have metadata")
     }
     pub fn statement(&self, stmt_id : StmtId) -> HirStatement {
-        let def = self.defs.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+        let def = self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
 
         match def {
-            Definition::Statement(stmt) => return stmt.clone(),
+            Node::Statement(stmt) => return stmt.clone(),
             _=> panic!("ice: all statement ids should correspond to a statement in the interner")
         }
     }
 
     pub fn expression(&self, expr_id : ExprId) -> HirExpression {
-        let def = self.defs.get(expr_id.0).expect("ice: all expression ids should have definitions");
+        let def = self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
-            Definition::Expression(expr) => return expr.clone(),
+            Node::Expression(expr) => return expr.clone(),
             _=> panic!("ice: all expression ids should correspond to a statement in the interner")
         }
     }
     pub fn ident(&self, ident_id : IdentId) -> Ident {
-        let def = self.defs.get(ident_id.0).expect("ice: all ident ids should have definitions");
+        let def = self.nodes.get(ident_id.0).expect("ice: all ident ids should have definitions");
 
         match def {
-            Definition::Ident(ident) => return ident.clone(),
+            Node::Ident(ident) => return ident.clone(),
             _=> panic!("ice: all expression ids should correspond to a statement in the interner")
         }
     }

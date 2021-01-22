@@ -1,6 +1,6 @@
 use crate::Type;
 
-use super::{ExprId, IdentId, HirInfixExpression, def_interner::StmtId};
+use super::{ExprId, IdentId, HirInfixExpression, node_interner::StmtId};
 
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {

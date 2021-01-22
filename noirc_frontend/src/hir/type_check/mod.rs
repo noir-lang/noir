@@ -6,17 +6,17 @@ mod expr;
 // If polymorphism is never need, then Wands algorithm should be powerful enough to accommodate 
 // all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
 
-use super::lower::{def_interner::{DefInterner, FuncId}};
+use super::lower::{node_interner::{NodeInterner, FuncId}};
 
 // XXX: Note that although it seems like we may not need the TypeChecker struct
 // Once errors are added back in fully, we will need it to store multiple errors
 pub struct TypeChecker<'a>{
-    interner : &'a mut DefInterner
+    interner : &'a mut NodeInterner
 }
 
 impl<'a> TypeChecker<'a> {
 
-    pub fn new(interner : &mut DefInterner) -> TypeChecker {
+    pub fn new(interner : &mut NodeInterner) -> TypeChecker {
         TypeChecker{interner}
     }
 
@@ -48,13 +48,13 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
-    use crate::{FunctionKind, Parser, Path, Type, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{HirExpression, HirInfixExpression, def_interner::{DefInterner, FuncId}, function::{FuncMeta, HirFunction, Param}, resolver::Resolver, stmt::{HirPrivateStatement, HirStatement}}, resolution::PathResolver}};
+    use crate::{FunctionKind, Parser, Path, Type, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{HirExpression, HirInfixExpression, node_interner::{NodeInterner, FuncId}, function::{FuncMeta, HirFunction, Param}, resolver::Resolver, stmt::{HirPrivateStatement, HirStatement}}, resolution::PathResolver}};
 
     use super::TypeChecker;
     
     #[test]
     fn basic_priv() {
-        let mut interner = DefInterner::default();    
+        let mut interner = NodeInterner::default();    
     
         // Add a simple Priv Statement into the interner
         // let z = x + y;
@@ -199,7 +199,7 @@ mod test {
     fn type_check_src_code(src : &str, func_namespace : Vec<String>) {
         let mut parser = Parser::from_src(Default::default(), src);
         let program = parser.parse_program().unwrap();
-        let mut interner = DefInterner::default();
+        let mut interner = NodeInterner::default();
         
         let mut func_ids = Vec::new();
         for _ in 0..func_namespace.len() {

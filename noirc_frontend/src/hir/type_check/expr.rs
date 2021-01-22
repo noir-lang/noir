@@ -1,6 +1,6 @@
-use crate::{ArraySize, Type, hir::lower::{HirBinaryOp, HirExpression, HirLiteral, def_interner::{DefInterner, ExprId, IdentId, StmtId}, function::Param, stmt::HirStatement}};
+use crate::{ArraySize, Type, hir::lower::{HirBinaryOp, HirExpression, HirLiteral, node_interner::{NodeInterner, ExprId, IdentId, StmtId}, function::Param, stmt::HirStatement}};
 
-pub(crate) fn type_check_expression(interner : &mut DefInterner, expr_id : ExprId) {
+pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : ExprId) {
     let hir_expr = interner.expression(expr_id);
     match hir_expr {
         HirExpression::Ident(ident_id) => {
@@ -238,7 +238,7 @@ fn check_param_argument(param : &Param, arg_type : &Type) {
 // XXX: Currently, we do not have BlockExpressions, so we need to extract the last expression from 
 // a block statement until then 
 // This will be removed once BlockExpressions are added.
-fn extract_last_type_from_block(interner : &DefInterner, stmt_id : StmtId) -> Type {
+fn extract_last_type_from_block(interner : &NodeInterner, stmt_id : StmtId) -> Type {
     let stmt = interner.statement(stmt_id);
     match stmt {
             HirStatement::Block(block_stmt) => {
