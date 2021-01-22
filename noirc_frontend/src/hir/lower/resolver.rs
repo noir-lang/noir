@@ -10,6 +10,8 @@
 //
 //
 // XXX: Change mentions of intern to resolve. In regards to the above comment
+//
+// XXX: Resolver does not check for unused functions
 struct ResolverMeta{
     num_times_used : usize,
     id : IdentId
@@ -18,10 +20,12 @@ use std::collections::HashMap;
 
 use noirc_errors::Spanned;
 
-use crate::{Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::{self, CrateDefMap, ModuleDefId, ModuleId}, crate_graph::CrateId, resolution::{PathResolver, import::{ImportDirective, resolve_imports}}}};
+use crate::{Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::{CrateDefMap, ModuleDefId, ModuleId}, crate_graph::CrateId, resolution::{PathResolver, import::{ImportDirective, resolve_imports}}}};
 
 use crate::hir::{scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest}};
-use super::{HirArrayLiteral, HirBinaryOp, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, node_interner::{NodeInterner, ExprId, FuncId, IdentId, StmtId}, function::{FuncMeta, HirFunction, Param}, stmt::{HirBlockStatement, HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
+use super::{HirArrayLiteral, HirBinaryOp, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, ExprId, FuncId, IdentId, StmtId}, stmt::{HirBlockStatement, HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
+
+use super::errors::ResolverError;
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -34,6 +38,8 @@ pub struct Resolver<'a> {
     def_maps : &'a HashMap<CrateId, CrateDefMap>,
 
     interner : &'a mut NodeInterner,
+
+    errors : Vec<ResolverError>,
 }
 
 impl<'a> Resolver<'a> {
@@ -42,10 +48,14 @@ impl<'a> Resolver<'a> {
             path_resolver,
             def_maps,
             scopes : ScopeForest::new(),
-            interner
+            interner,
+            errors: Vec::new(),
         }
     }
 
+    fn push_err(&mut self, err : ResolverError) {
+        self.errors.push(err.into())
+    }
 
     /// Resolving a function involves interning the metadata
     /// interning any statements inside of the function
@@ -58,7 +68,7 @@ impl<'a> Resolver<'a> {
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
-        Resolver::check_for_unused_variables_in_scope_tree(func_scope_tree);
+        self.check_for_unused_variables_in_scope_tree(func_scope_tree);
  
 
         (hir_func, func_meta)
@@ -67,19 +77,17 @@ impl<'a> Resolver<'a> {
         self.intern_expr(expr)
     }
 
-    fn check_for_unused_variables_in_scope_tree(scope_decls : ScopeTree) {
+    fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls : ScopeTree) {
         let mut unused_vars = Vec::new();
         for scope in scope_decls.0.into_iter(){
-            Resolver::check_for_unused_variables_in_local_scope(scope, &mut unused_vars)
-        }
+            Resolver::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
+        };
         
-        if !unused_vars.is_empty() {
-            println!("unused variables : {:?}", unused_vars);
-            panic!("XXX: error reporting has been rolled back. unused variables in the program")
+        for unused_var in unused_vars.iter() {            
+            self.push_err(ResolverError::UnusedVariable{ident_id : *unused_var});
         }
-
     }
-    fn check_for_unused_variables_in_local_scope(decl_map : Scope, unused_vars : &mut Vec<String>) {
+    fn check_for_unused_variables_in_local_scope(decl_map : Scope, unused_vars : &mut Vec<IdentId>) {
         let unused_variables = decl_map.predicate(|kv :&(&String, &ResolverMeta)| -> bool {
             
             let variable_name = kv.0;
@@ -93,7 +101,7 @@ impl<'a> Resolver<'a> {
             false
         });
 
-        unused_vars.extend(unused_variables.into_iter().map(|(name, _)|name).cloned());
+        unused_vars.extend(unused_variables.into_iter().map(|(_, meta)|meta.id));
 
     }
 
@@ -103,15 +111,20 @@ impl<'a> Resolver<'a> {
     fn add_variable_decl(&mut self, name : Ident) -> IdentId {
 
         let id = self.interner.push_ident(name.clone());
+        // Variable was defined here, so it's definition links to itself
+        self.interner.linked_id_to_def(id, id);
 
         let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta {num_times_used : 0, id};
-        let is_new_entry = scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
 
-        if !is_new_entry {
-            let _first_decl = scope.find(&name.0.contents).unwrap();
-            println!("{:?}", &name);
-            panic!("duplicate def: span is currently not being stored at the moment, we will collect ids, then collect their spans only when we need to report errors")
+        match old_value {
+            None => {
+                // New value, do nothing
+            }, 
+            Some(old_value) => {
+                self.push_err(ResolverError::DuplicateDefinition{first_ident : old_value.id, second_ident : id});
+            }
         }
         id
     }
@@ -119,8 +132,11 @@ impl<'a> Resolver<'a> {
     // Checks for a variable having been declared before
     // variable declaration and definition cannot be separate in Noir
     // Once the variable has been found, intern and link `name` to this definition
-    // return the IdentId of name
-    fn find_variable(&mut self, name : &Ident) -> Option<IdentId> {
+    // return the IdentId of `name`
+    // 
+    // If a variable is not found, then an error is logged and a dummy id 
+    // is returned, for better error reporting UX
+    fn find_variable(&mut self, name : &Ident) -> IdentId {
         
         // Give variable an IdentId. This is not a definition 
         let id = self.interner.push_ident(name.clone());
@@ -132,9 +148,13 @@ impl<'a> Resolver<'a> {
         if let Some(variable_found) = variable {
             variable_found.num_times_used = variable_found.num_times_used + 1;
             self.interner.linked_id_to_def(id, variable_found.id);
-            return Some(id)
+            return id
         } 
-        return None
+
+        let err = ResolverError::VariableNotDeclared{name : name.0.contents.clone(), span : name.0.span()};
+        self.push_err(err);
+
+        return IdentId::dummy_id()
     }
 
 
@@ -186,7 +206,6 @@ impl<'a> Resolver<'a> {
         func_meta
     }
 
-
     pub fn intern_stmt(&mut self, stmt : Statement) -> StmtId {
         match stmt {
             Statement::Let(let_stmt) => {
@@ -219,7 +238,6 @@ impl<'a> Resolver<'a> {
                 let stmt = HirConstrainStatement(HirInfixExpression {lhs, rhs, operator});
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
-
             },
             Statement::Public(_) => todo!(),
             Statement::Private(priv_stmt) => {
@@ -245,7 +263,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
                 let ident : Ident = Spanned::from(span, string).into();
-                let ident_id = self.find_variable(&ident).expect(&format!("XXX: error reporting has been rolled back while lowering, cannot find variable: {}", ident.0.contents));                
+                let ident_id = self.find_variable(&ident);                
                 self.interner.push_expr(HirExpression::Ident(ident_id))
             },
             ExpressionKind::Literal(literal) => {
@@ -286,13 +304,32 @@ impl<'a> Resolver<'a> {
                 self.interner.push_expr(HirExpression::Infix(expr))
             },
             ExpressionKind::Call(call_expr) => {
-                let module_def_id = self.path_resolver.resolve(self.def_maps, call_expr.func_name).expect("XXX: error reporting. Could not resolve function name");
-                let func_id = match module_def_id {
-                    ModuleDefId::FunctionId(func_id) => func_id,
-                    _=> panic!("XXX: error reporting has been reverted during lowering. Expected a function")
+                // Get the span and name of path for error reporting
+                let span = call_expr.func_name.span();
+                let func_name = call_expr.func_name.as_string();
+
+                let func_id = match self.path_resolver.resolve(self.def_maps, call_expr.func_name) {
+                    None => {
+                        // Could not resolve this symbol, log the error and return a dummy function id
+                        let err = ResolverError::PathUnresolved{span, name : func_name};
+                        self.push_err(err);
+
+                        FuncId::dummy_id()
+                    },
+                    Some(def_id) => {
+                        // A symbol was found. Check if it is a function
+                        if let Some(func_id) = def_id.as_function() {
+                            func_id
+                        } else {
+                            
+                            let err = ResolverError::Expected{expected : "function".to_owned(), got : def_id.as_str().to_owned(), span : span };
+                            self.push_err(err);
+                            FuncId::dummy_id()
+                        }
+                    },
                 };
-                
-                let mut arguments = Vec::new();
+  
+                let mut arguments = Vec::with_capacity(call_expr.arguments.len());
                 for arg in call_expr.arguments {
                     arguments.push(self.resolve_expression(arg));
                 }
@@ -319,7 +356,7 @@ impl<'a> Resolver<'a> {
 
                 let identifier =  self.add_variable_decl(for_expr.identifier);
                 
-                let mut stmts = Vec::new(); 
+                let mut stmts = Vec::with_capacity(for_expr.block.0.len()); 
                 for stmt in for_expr.block.0 {
                     stmts.push(self.intern_stmt(stmt));
                 }
@@ -327,7 +364,7 @@ impl<'a> Resolver<'a> {
                 let block_id = self.interner.push_stmt(HirStatement::Block(block));
                 let for_scope = self.scopes.end_for_loop();
 
-                Resolver::check_for_unused_variables_in_scope_tree(for_scope.into());
+                self.check_for_unused_variables_in_scope_tree(for_scope.into());
 
                 let expr = HirForExpression {
                     start_range, 
@@ -340,7 +377,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::If(_) => todo!("If statements are currently not supported"),
             ExpressionKind::Index(indexed_expr) => {
 
-                let collection_name = self.find_variable(&indexed_expr.collection_name).expect("XXX: error reporting has been reverted while lowering. expected an ident for the array ");
+                let collection_name = self.find_variable(&indexed_expr.collection_name);
                 let index = self.resolve_expression(indexed_expr.index);
                 let expr = HirIndexExpression {
                     collection_name,
@@ -352,12 +389,15 @@ impl<'a> Resolver<'a> {
                 // If the Path is being used as an Expression, then it is referring to an Identifier
                 //
                 // This is currently not supported : const x = foo::bar::SOME_CONST + 10;
-                let ident = match path.as_ident() {
-                    Some(ident) => ident,
-                    None => panic!("path : {:?} cannot be used as an identifier", path)
+                let ident_id = match path.as_ident() {
+                    None => {
+                        self.push_err(ResolverError::PathIsNotIdent{span : path.span()});
+
+                        IdentId::dummy_id()
+                    },
+                    Some(identifier) => self.find_variable(identifier),
                 };
 
-                let ident_id = self.find_variable(&ident).expect(&format!("XXX: error reporting has been rolled back while lowering, cannot find variable: {}", ident.0.contents));                
                 self.interner.push_expr(HirExpression::Ident(ident_id))
             }
         }
@@ -367,20 +407,21 @@ impl<'a> Resolver<'a> {
 
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
-// At the moment, we are testing that they are resolved and that they are lowered without errors
-// We are not testing for equality
+// A test harness will allow for more expressive and readable tests
 #[cfg(test)]
 mod test {
 
-    use std::collections::HashMap;
+    use std::{collections::HashMap};
 
-    use crate::{Parser, Path, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{node_interner::{NodeInterner, FuncId}, function::HirFunction}}};
+    use errors::ResolverError;
+
+    use crate::{Parser, Path, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{errors::{self}, function::HirFunction, node_interner::{NodeInterner, FuncId}}}};
 
     use super::{PathResolver, Resolver};
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
-    fn resolve_src_code(src : &str, func_namespace : Vec<String>) {
+    fn resolve_src_code(src : &str, func_namespace : Vec<String>) -> (NodeInterner, Vec<ResolverError>){
         let mut parser = Parser::from_src(Default::default(), src);
         let program = parser.parse_program().unwrap();
         let mut interner = NodeInterner::default();
@@ -396,11 +437,15 @@ mod test {
         }
         
         let def_maps : HashMap<CrateId, CrateDefMap>= HashMap::new();
+        
         let mut resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
 
         for func in program.functions {
             let _ = resolver.resolve_function(func);
         }
+        let errors = resolver.errors.clone();
+
+        (interner.clone(), errors)
     }
 
     #[test]
@@ -411,28 +456,120 @@ mod test {
             }
         ";
 
-        resolve_src_code(src, vec![String::from("main")]);
+        let (_,errors) = resolve_src_code(src, vec![String::from("main")]);
+        assert!(errors.is_empty());
     }
     #[test]
     fn resolve_basic_function() {
         let src = r#"
             fn main(x : Witness) {
-                let _y = x + x;
+                let y = x + x;
+                constrain y == x
+            }
+        "#;
+
+        let (_,errors) = resolve_src_code(src, vec![String::from("main")]);
+        assert!(errors.is_empty());
+    }
+    #[test]
+    fn resolve_unused_var() {
+        let src = r#"
+            fn main(x : Witness) {
+                let y = x + x;
                 constrain x == x
             }
         "#;
 
-        resolve_src_code(src, vec![String::from("main")]);
+        let (_,mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        
+        // There should only be one error
+        assert!(errors.len() == 1);
+        let err = errors.pop().unwrap();
+        // It should be regarding the unused variable
+        match err {
+            errors::ResolverError::UnusedVariable{ident_id} => assert_eq!(&ident_id,2),
+            _=> unimplemented!("we should only have an unused var error")
+        }
     }
     #[test]
-    fn resolve_literal_expr() {
+    fn resolve_unresolved_var() {
         let src = r#"
-            fn main() {
-                let _y = 5
+            fn main(x : Witness) {
+                let y = x + x;
+                constrain y == z
             }
         "#;
 
-        resolve_src_code(src, vec![String::from("main")]);
+        let (_,mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        
+        // There should only be one error
+        assert!(errors.len() == 1);
+        let err = errors.pop().unwrap();
+        
+        // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
+        match err {
+            errors::ResolverError::VariableNotDeclared{ name , span} => assert_eq!(name, "z"),
+            _=> unimplemented!("we should only have an unresolved variable")
+        }
+    }
+
+    #[test]
+    fn unresolved_path() {
+        let src = "
+            fn main(x : Witness) {
+                let _z = some::path::to::a::func(x);
+            }
+        ";
+
+        let (_, mut errors) = resolve_src_code(src, vec![String::from("main"),String::from("foo")]);
+        assert!(errors.len() == 1);
+        let err = errors.pop().unwrap();
+
+        path_unresolved_error(err, "some::path::to::a::func");
+    }
+
+    #[test]
+    fn resolve_literal_expr() {
+        let src = r#"
+            fn main(x : Witness) {
+                let y = 5;
+                constrain y == x
+            }
+        "#;
+
+        let (_,errors) = resolve_src_code(src, vec![String::from("main")]);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn multiple_resolution_errors() {
+        let src = r#"
+            fn main(x : Witness) {
+               let y = foo::bar(x);
+               let z = y + a;
+            }
+        "#;
+
+        let (interner,errors) = resolve_src_code(src, vec![String::from("main")]);
+        assert!(errors.len() == 3);
+
+        // Errors are:
+        // `a` is undeclared
+        // `z` is unused
+        // `foo::bar` does not exist
+        for err in errors {
+            match &err {
+                ResolverError::UnusedVariable { ident_id } => {
+                    let name = interner.id_name(*ident_id);
+                    assert_eq!(name, "z");
+                }
+                ResolverError::VariableNotDeclared { name, .. } => {
+                    assert_eq!(name, "a");
+                }
+                ResolverError::PathUnresolved { .. } => path_unresolved_error(err, "foo::bar"),
+                _=> unimplemented!()
+            };
+        }
     }
     #[test]
     fn resolve_prefix_expr() {
@@ -443,7 +580,8 @@ mod test {
             }
         "#;
 
-        resolve_src_code(src, vec![String::from("main")]);
+        let (_,errors) = resolve_src_code(src, vec![String::from("main")]);
+        assert!(errors.is_empty());
     }
     #[test]
     fn resolve_for_expr() {
@@ -455,7 +593,8 @@ mod test {
             }
         "#;
 
-        resolve_src_code(src, vec![String::from("main")]);
+        let (_,errors) = resolve_src_code(src, vec![String::from("main")]);
+        assert!(errors.is_empty());
     }
     #[test]
     fn resolve_call_expr() {
@@ -469,7 +608,17 @@ mod test {
             }
         "#;
 
-        resolve_src_code(src, vec![String::from("main"),String::from("foo")]);
+        let (_,errors) = resolve_src_code(src, vec![String::from("main"),String::from("foo")]);
+        assert!(errors.is_empty());
+    }
+
+    fn path_unresolved_error(err: ResolverError, expected_unresolved_path : &str) {
+        match err {
+            ResolverError::PathUnresolved{span, name} =>{
+                assert_eq!(name, expected_unresolved_path)
+            },
+            _=> unimplemented!("expected an unresolved path")
+        }
     }
 
     struct TestPathResolver(HashMap<String, ModuleDefId>);
