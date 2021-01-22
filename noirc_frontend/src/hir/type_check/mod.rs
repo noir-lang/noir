@@ -122,6 +122,7 @@ mod test {
         type_check_src_code(src, vec![String::from("main")]);
     }
     #[test]
+    #[should_panic]
     fn basic_let_stmt() {
 
         let src = r#"
