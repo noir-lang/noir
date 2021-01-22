@@ -53,8 +53,9 @@ impl<K : std::hash::Hash + Eq + Clone,V> Scope<K,V> {
         }
     }
 
-    pub fn add_key_value(&mut self, key : K, value : V) -> bool {
-        self.0.insert(key,value).is_none()
+    // From HashMap: If the map did not have this key present, None is returned.
+    pub fn add_key_value(&mut self, key : K, value : V) -> Option<V> {
+        self.0.insert(key,value)
     }
 
     /// Returns all of the elements which satisfy the predicate
