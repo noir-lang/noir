@@ -27,7 +27,7 @@ impl ConstrainParser {
         
         let expr = parser.parse_expression(Precedence::Lowest)?;
         // XXX: We do this so that the first == sign in the constraint statement is not seen as a predicate
-        let infix = match expr.kind.infix() {
+        let infix = match expr.kind.into_infix() {
             Some(infix) => infix,
             None => {
                 let message = format!("Expected an infix expression since this is a constrain statement. You cannot assign values");

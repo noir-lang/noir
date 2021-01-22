@@ -5,17 +5,71 @@ use noir_field::FieldElement;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
-    Ident(String), // an identifer can also produce a value. e.g. let x = y; y is an expression in this case
+    Ident(String),
     Literal(Literal),
     Prefix(Box<PrefixExpression>),
-    Infix(Box<InfixExpression>),
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
     Cast(Box<CastExpression>),
+    Infix(Box<InfixExpression>),
     Predicate(Box<InfixExpression>),
     For(Box<ForExpression>),
     If(Box<IfExpression>),
     Path(Path),
+}
+
+impl ExpressionKind {
+    pub fn into_path(self) -> Option<Path> {
+        match self {
+            ExpressionKind::Path(path) => Some(path),
+            _=> None
+        }
+    }
+
+    pub fn into_infix(self) -> Option<InfixExpression> {
+        match self {
+            ExpressionKind::Infix(infix) => Some(*infix),
+            ExpressionKind::Predicate(infix) => Some(*infix),
+            _ => None,
+        }
+    }
+
+    /// Returns true if the expression is a literal integer
+    pub fn is_integer(&self) -> bool {
+        self.as_integer().is_some()
+    }
+
+    fn as_integer(&self) -> Option<FieldElement> {
+        let literal = match self {
+            ExpressionKind::Literal(literal) => literal,
+            _ => return None,
+        };
+
+        match literal {
+            Literal::Integer(integer) => Some(*integer),
+            _=> None
+        }
+    }
+
+    /// Returns true if the expression can be used in a range expression
+    /// Currently we only support Identifiers and constants literals
+    pub fn can_be_used_range(&self) -> bool {
+        self.is_identifier() || self.is_integer()
+    }
+
+    /// Returns true if the expression is an identifier
+    fn is_identifier(&self) -> bool {
+        self.as_identifier().is_some()
+    }
+
+    fn as_identifier(&self) -> Option<String> {
+        match self {
+            ExpressionKind::Ident(x) => Some(x.clone()),
+            _=> None
+        }
+    }
+
+
 }
 
 #[derive(Debug, Eq, Clone)]
@@ -44,73 +98,12 @@ impl Expression {
     }
 }
 
-impl ExpressionKind {
-    pub fn into_span(self, span : Span) -> Expression {
-        Expression {
-            span, 
-            kind : self
-        }
-    }
-    pub fn into_path(self) -> Option<Path> {
-        match self {
-            ExpressionKind::Path(path) => Some(path),
-            _=> None
-        }
-    }
-}
-
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ForExpression{
     pub identifier: Ident,
     pub start_range: Expression,
     pub end_range: Expression,
     pub block: BlockStatement,
-}
-
-impl ExpressionKind {
-    pub fn infix(self) -> Option<InfixExpression> {
-        match self {
-            ExpressionKind::Infix(infix) => Some(*infix),
-            ExpressionKind::Predicate(infix) => Some(*infix),
-            _ => None,
-        }
-    }
-
-
-    fn integer(&self) -> Option<FieldElement> {
-        let literal = match self {
-            ExpressionKind::Literal(literal) => literal,
-            _ => return None,
-        };
-
-        match literal {
-            Literal::Integer(integer) => Some(*integer),
-            _=> None
-        }
-    }
-
-    /// Returns true if the expression is a literal integer
-    pub fn is_integer(&self) -> bool {
-        self.integer().is_some()
-    }
-    
-    pub fn identifier(&self) -> Option<String> {
-        match self {
-            ExpressionKind::Ident(x) => Some(x.clone()),
-            _=> None
-        }
-    }
-    /// Returns true if the expression is an identifier
-    pub fn is_identifier(&self) -> bool {
-        self.identifier().is_some()
-    }
-
-    /// Returns true if the expression can be used in a range expression
-    /// Currently we only support Identifiers and constants literals
-    pub fn can_be_used_range(&self) -> bool {
-        self.is_identifier() || self.is_integer()
-    }
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
@@ -130,7 +123,7 @@ pub enum BinaryOpKind {
     And,
     Or,
     Xor,
-    // This is the only binary operator which cannot be used in a constrain statement
+    // Assign is the only binary operator which cannot be used in a constrain statement
     Assign,
 }
 
@@ -174,12 +167,6 @@ impl From<&Token> for Option<BinaryOpKind> {
     }
 }
 
-impl From<Token> for Option<BinaryOpKind> {
-    fn from(token : Token) -> Option<BinaryOpKind> {
-        token.into()
-    }
-}
-
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
 pub enum UnaryOp {
     Minus,
@@ -219,13 +206,6 @@ pub struct InfixExpression {
     pub rhs: Expression,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IfExpression {
-    pub condition: Expression,
-    pub consequence: BlockStatement,
-    pub alternative: Option<BlockStatement>,
-}
-
 // This is an infix expression with 'as' as the binary operator
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CastExpression {
@@ -234,8 +214,13 @@ pub struct CastExpression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-// Function definition
-// fn add(x, y) {x+y}
+pub struct IfExpression {
+    pub condition: Expression,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute : Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
