@@ -118,6 +118,25 @@ impl Path {
        }
        self.segments.first().cloned()
     }
+
+    pub fn as_string(&self) -> String{
+        let mut string = String::new();
+        
+        let mut segments = self.segments.iter();
+        match segments.next() {
+            None => panic!("empty segment"),
+            Some(seg) => {
+                string.push_str(&seg.0.contents);
+            }
+        }
+        
+        for segment in segments {
+            string.push_str("::");
+            string.push_str(&segment.0.contents);
+        }
+
+        string
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
