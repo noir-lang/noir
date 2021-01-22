@@ -18,7 +18,10 @@ type ParserStmtResult = ParserResult<Statement>;
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
 pub struct Parser<'a> {
-    pub(crate) file_id : usize,
+    // XXX: Since a parser only parses a single file, 
+    // this can be omitted until the parser has completed.
+    // Then attached to the Error Reporter if there are any errors
+    pub(crate) file_id : usize, 
     pub(crate) lexer: Lexer<'a>,
     pub(crate) curr_token: SpannedToken,
     pub(crate) peek_token: SpannedToken,

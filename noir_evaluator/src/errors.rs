@@ -45,16 +45,16 @@ impl DiagnosableError for RuntimeError {
     fn to_diagnostic(&self) -> Diagnostic{
         match &self.kind {
             RuntimeErrorKind::ArrayOutOfBounds{index, bound} => {
-                Diagnostic::simple_error(self.file_id,format!("index out of bounds"), format!("out of bounds error, index is {} but length is {}",index, bound), Span::default())
+                Diagnostic::simple_error(format!("index out of bounds"), format!("out of bounds error, index is {} but length is {}",index, bound), Span::default())
             },
             RuntimeErrorKind::ArrayNotFound{found_type, name} => {
-                Diagnostic::simple_error(self.file_id,format!("cannot find an array with name {}", name), format!("{} has type", found_type), Span::default())
+                Diagnostic::simple_error(format!("cannot find an array with name {}", name), format!("{} has type", found_type), Span::default())
             },
             RuntimeErrorKind::UnstructuredError{span, message} => {
-                Diagnostic::simple_error(self.file_id,"".to_owned(), message.to_string(), *span)
+                Diagnostic::simple_error("".to_owned(), message.to_string(), *span)
             },
             RuntimeErrorKind::UnsupportedOp {span, op, first_type, second_type} => {
-                Diagnostic::simple_error(self.file_id,"unsupported operation".to_owned(), format!("no support for {} with types {} and {}", op, first_type, second_type), *span)
+                Diagnostic::simple_error("unsupported operation".to_owned(), format!("no support for {} with types {} and {}", op, first_type, second_type), *span)
             },
         }
     }

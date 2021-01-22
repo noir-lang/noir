@@ -50,27 +50,27 @@ impl DiagnosableError for ParserError {
             ParserErrorKind::LexerError(lex_err) => lex_err.to_diagnostic(),
             ParserErrorKind::InternalError{message, span} => unreachable!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),
             ParserErrorKind::NoPrefixFunction{span, lexeme} => {
-                let mut diag = Diagnostic::simple_error(self.file_id,format!("Unexpected start of an expression {}", lexeme), format!("did not expect this token"), *span);
+                let mut diag = Diagnostic::simple_error(format!("Unexpected start of an expression {}", lexeme), format!("did not expect this token"), *span);
                 diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimiter."));
                 diag
             },
             ParserErrorKind::NoInfixFunction{span, lexeme} => {
-                Diagnostic::simple_error(self.file_id,format!("Token {} cannot be used as an Infix operator", lexeme), format!("cannot be used as a infix operator."), *span)
+                Diagnostic::simple_error(format!("Token {} cannot be used as an Infix operator", lexeme), format!("cannot be used as a infix operator."), *span)
             },
             ParserErrorKind::TokenNotUnaryOp{spanned_token} => {
-                Diagnostic::simple_error(self.file_id,format!("Unsupported unary operation {}", spanned_token.token()), format!("cannot use as a unary operation."), spanned_token.into_span())
+                Diagnostic::simple_error(format!("Unsupported unary operation {}", spanned_token.token()), format!("cannot use as a unary operation."), spanned_token.into_span())
             },
             ParserErrorKind::TokenNotBinaryOp{spanned_token} => {
-                Diagnostic::simple_error(self.file_id,format!("Unsupported binary operation {}", spanned_token.token()), format!("cannot use as a binary operation."), spanned_token.into_span())
+                Diagnostic::simple_error(format!("Unsupported binary operation {}", spanned_token.token()), format!("cannot use as a binary operation."), spanned_token.into_span())
             },
             ParserErrorKind::UnexpectedToken{span , expected, found} => {
-                Diagnostic::simple_error(self.file_id,format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
+                Diagnostic::simple_error(format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
             }
             ParserErrorKind::UnexpectedTokenKind{span , expected, found} => {
-                Diagnostic::simple_error(self.file_id,format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
+                Diagnostic::simple_error(format!("Expected a {} but found {}", expected, found), format!("Expected {}", expected), *span)
             },
             ParserErrorKind::UnstructuredError{span, message} => {
-                Diagnostic::simple_error(self.file_id,"".to_owned(), message.to_string(), *span)
+                Diagnostic::simple_error("".to_owned(), message.to_string(), *span)
             },
         }
     }

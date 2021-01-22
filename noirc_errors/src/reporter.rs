@@ -9,16 +9,14 @@ use codespan::{Span as ByteSpan};
 
 #[derive(Debug)]
 pub struct CustomDiagnostic {
-    file_id : usize,
     message : String,
     secondaries : Vec<CustomLabel>,
     notes : Vec<String>,
 }
 
 impl CustomDiagnostic {
-    pub fn simple_error(file_id : usize, primary_message : String, secondary_message : String, secondary_span : Span ) -> CustomDiagnostic {
+    pub fn simple_error(primary_message : String, secondary_message : String, secondary_span : Span ) -> CustomDiagnostic {
         CustomDiagnostic{
-            file_id,
             message : primary_message,
             secondaries : vec![CustomLabel::new(secondary_message, secondary_span)],
             notes : Vec::new()
@@ -47,15 +45,13 @@ impl CustomLabel {
 pub struct Reporter;
 
 impl Reporter {
-    pub fn with_diagnostics(files : &fm::FileManager, diagnostics : &Vec<CustomDiagnostic>) {       
+    pub fn with_diagnostics(file_id : usize, files : &fm::FileManager, diagnostics : &Vec<CustomDiagnostic>) {       
         // Convert each Custom Diagnostic into a diagnostic
         let diagnostics : Vec<_> = diagnostics.into_iter().map(|cd| {
-           
-
             let secondary_labels : Vec<_> = cd.secondaries.iter().map(|sl| {
                 let start_span = sl.span.start.to_byte_index().to_usize();
                 let end_span = sl.span.end.to_byte_index().to_usize() + 1;
-                Label::secondary(cd.file_id, start_span..end_span).with_message(&sl.message)
+                Label::secondary(file_id, start_span..end_span).with_message(&sl.message)
             }).collect();
 
             Diagnostic::error().with_message(&cd.message).with_labels(secondary_labels).with_notes(cd.notes.clone())

@@ -106,7 +106,9 @@ impl Driver{
         let (circuit, num_witnesses, num_public_inputs) = match evaluator.compile() {
             Ok((circuit, num_witnesses, num_public_inputs)) => (circuit, num_witnesses, num_public_inputs),
             Err(err) => {
-                Reporter::with_diagnostics(&self.context.file_manager(), &vec![err.to_diagnostic()]);
+                // The FileId here will be the file id of the file with the main file
+                // Errors will be shown at the callsite without a stacktrace
+                Reporter::with_diagnostics(file_id, &self.context.file_manager(), &vec![err.to_diagnostic()]);
                 std::process::exit(1);
             }
         };
