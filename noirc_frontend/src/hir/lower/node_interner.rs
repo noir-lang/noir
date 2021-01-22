@@ -10,6 +10,13 @@ use super::{HirExpression, function::{FuncMeta, HirFunction}, stmt::HirStatement
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct IdentId(Index);
 
+impl IdentId {
+    //dummy id for error reporting
+    pub fn dummy_id() -> IdentId {
+        IdentId(Index::from_raw_parts(0, std::u64::MAX))
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct StmtId(Index);
 
@@ -18,6 +25,13 @@ pub struct ExprId(Index);
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
+
+impl FuncId {
+    //dummy id for error reporting
+    pub fn dummy_id() -> FuncId {
+        FuncId(Index::from_raw_parts(0, std::u64::MAX))
+    }
+}
 
 macro_rules! into_index {
     ($id_type:ty) => {
@@ -30,16 +44,33 @@ macro_rules! into_index {
     };
 }
 
+macro_rules! partialeq {
+    ($id_type:ty) => {
+        impl PartialEq<usize> for &$id_type {
+            fn eq(&self, other: &usize) -> bool {
+                let (index, _) = self.0.into_raw_parts();
+                index == *other
+            }
+        
+        }
+        
+    };
+}
+
 into_index!(ExprId);
 into_index!(StmtId);
 into_index!(IdentId);
+
+partialeq!(ExprId);
+partialeq!(IdentId);
+partialeq!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
 /// XXX: Possibly rename this to Node and `NodeInterner` to `NodeInterner`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Node {
     Function(HirFunction),
     Ident(Ident),
@@ -47,7 +78,7 @@ enum Node {
     Expression(HirExpression),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NodeInterner{
 
     nodes : Arena<Node>,
@@ -195,6 +226,11 @@ impl NodeInterner {
     pub fn id_name(&self, ident_id : IdentId) -> String {
         self.id_to_name.get(&ident_id).expect("ice: all ident ids should have names").clone()
     }
+
+    pub fn id_span(&self, ident_id : IdentId) -> Span {
+        self.id_to_span.get(&ident_id).copied().expect("ice : all Identifiers have spans")
+    }
+
 
     // Why can we unwrap here?
     // If the compiler is correct, it will not ask for a an Id of an object 
