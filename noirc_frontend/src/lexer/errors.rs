@@ -32,13 +32,13 @@ impl DiagnosableError for LexerError {
     fn to_diagnostic(&self) -> Diagnostic{
         match &self.kind {
         LexerErrorKind::UnexpectedCharacter{span, found} => {
-                Diagnostic::simple_error(self.file_id,format!("an unexpected character was found"), format!(" {:?} is unexpected", found), *span)
+                Diagnostic::simple_error(format!("an unexpected character was found"), format!(" {:?} is unexpected", found), *span)
             },
             LexerErrorKind::CharacterNotInLanguage{span, found} => {
-                Diagnostic::simple_error(self.file_id,format!("char is not in language"), format!(" {:?} is not in language", found), *span)
+                Diagnostic::simple_error(format!("char is not in language"), format!(" {:?} is not in language", found), *span)
             },
             LexerErrorKind::NotADoubleChar{span, found} => {
-                Diagnostic::simple_error(self.file_id,format!("tried to parse {} as double char", found), format!(" {:?} is not a double char, this is an internal error", found), *span)
+                Diagnostic::simple_error(format!("tried to parse {} as double char", found), format!(" {:?} is not a double char, this is an internal error", found), *span)
             },
         }
     }
