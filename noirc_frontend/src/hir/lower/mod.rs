@@ -6,6 +6,7 @@ pub mod stmt;
 pub mod node_interner;
 pub mod function;
 pub mod resolver;
+mod errors;
 
 use self::node_interner::{ExprId, FuncId, IdentId};
 
