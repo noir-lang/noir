@@ -1,9 +1,7 @@
 // Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++. 
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 
-use crate::barretenberg_rs::composer::{
-    Constraint, ConstraintSystem, LogicConstraint, RangeConstraint, Sha256Constraint,
-};
+use crate::barretenberg_rs::composer::{Constraint, ConstraintSystem, LogicConstraint, MerkleMembershipConstraint, MerkleRootConstraint, RangeConstraint, Sha256Constraint};
 use acir::native_types::Arithmetic;
 use acir::circuit::{Circuit, Gate};
 use acir::OPCODE;
@@ -20,6 +18,8 @@ pub fn serialise_circuit(
     let mut range_constraints: Vec<RangeConstraint> = Vec::new();
     let mut logic_constraints: Vec<LogicConstraint> = Vec::new();
     let mut sha256_constraints: Vec<Sha256Constraint> = Vec::new();
+    let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
+    let mut merkle_root_constraints: Vec<MerkleRootConstraint> = Vec::new();
 
     for gate in circuit.0.iter() {
         match gate {
@@ -89,6 +89,8 @@ pub fn serialise_circuit(
         logic_constraints: logic_constraints,
         range_constraints: range_constraints,
         sha256_constraints: sha256_constraints,
+        merkle_membership_constraints : merkle_membership_constraints,
+        merkle_root_constraints : merkle_root_constraints,
         constraints: constraints,
     };
 

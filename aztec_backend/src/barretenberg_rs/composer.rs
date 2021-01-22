@@ -103,6 +103,58 @@ impl RangeConstraint {
     }
 }
 #[derive(Clone, Hash, Debug)]
+pub struct MerkleMembershipConstraint {
+    pub hash_path: Vec<(i32, i32)>,
+    pub root: i32,
+    pub leaf: i32,
+    pub index: i32,
+    pub result: i32,
+}
+
+impl MerkleMembershipConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        // On the C++ side, it is being deserialized as a single vector
+        // So the given length is doubled
+        let hash_path_len = (self.hash_path.len()*2) as u32;
+
+        buffer.extend_from_slice(&hash_path_len.to_be_bytes());
+        for constraint in self.hash_path.iter() {
+            buffer.extend_from_slice(&constraint.0.to_be_bytes());
+            buffer.extend_from_slice(&constraint.1.to_be_bytes());
+        }
+
+        buffer.extend_from_slice(&self.root.to_be_bytes());
+        buffer.extend_from_slice(&self.leaf.to_be_bytes());
+        buffer.extend_from_slice(&self.result.to_be_bytes());
+        buffer.extend_from_slice(&self.index.to_be_bytes());
+
+        buffer
+    }
+}
+#[derive(Clone, Hash, Debug)]
+pub struct MerkleRootConstraint {
+    pub leaves: Vec<i32>,
+    pub root: i32,
+}
+
+impl MerkleRootConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let num_leaves = (self.leaves.len()) as u32;
+
+        buffer.extend_from_slice(&num_leaves.to_be_bytes());
+        for leaf in self.leaves.iter() {
+            buffer.extend_from_slice(&leaf.to_be_bytes());
+        }
+        buffer.extend_from_slice(&self.root.to_be_bytes());
+
+        buffer
+    }
+}
+#[derive(Clone, Hash, Debug)]
 pub struct Sha256Constraint {
     pub inputs: Vec<(i32, i32)>,
     pub result_low_128: i32,
@@ -177,6 +229,8 @@ pub struct ConstraintSystem {
     pub logic_constraints: Vec<LogicConstraint>,
     pub range_constraints: Vec<RangeConstraint>,
     pub sha256_constraints: Vec<Sha256Constraint>,
+    pub merkle_membership_constraints: Vec<MerkleMembershipConstraint>,
+    pub merkle_root_constraints: Vec<MerkleRootConstraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -209,6 +263,20 @@ impl ConstraintSystem {
             buffer.extend(&constraint.to_bytes());
         }
 
+        // Serialise each Merkle Membership constraint
+        let merkle_membership_constraints_len = self.merkle_membership_constraints.len() as u32;
+        buffer.extend_from_slice(&merkle_membership_constraints_len.to_be_bytes());
+        for constraint in self.merkle_membership_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each Merkle Root constraint
+        let merkle_root_len = self.merkle_root_constraints.len() as u32;
+        buffer.extend_from_slice(&merkle_root_len.to_be_bytes());
+        for constraint in self.merkle_root_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+        
         // Serialise each Arithmetic constraint
         let constraints_len = self.constraints.len() as u32;
         buffer.extend_from_slice(&constraints_len.to_be_bytes());
@@ -374,6 +442,7 @@ impl StandardComposer {
         }
     }
 }
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -397,6 +466,8 @@ mod test {
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
+            merkle_membership_constraints: vec![],
+            merkle_root_constraints : vec![],
             constraints: vec![constraint.clone()],
         };
 
@@ -461,6 +532,8 @@ mod test {
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
+            merkle_membership_constraints: vec![],
+            merkle_root_constraints : vec![],
             constraints: vec![constraint],
         };
 
@@ -510,6 +583,8 @@ mod test {
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
+            merkle_membership_constraints: vec![],
+            merkle_root_constraints : vec![],
             constraints: vec![constraint, constraint2],
         };
 

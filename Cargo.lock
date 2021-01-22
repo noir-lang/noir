@@ -90,7 +90,6 @@ dependencies = [
  "acir",
  "dirs",
  "error-chain",
- "noir_evaluator",
  "noir_field",
  "regex",
  "reqwest",
