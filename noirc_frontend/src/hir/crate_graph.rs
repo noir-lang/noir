@@ -217,13 +217,12 @@ mod tests {
     #[test]
     fn detect_cyclic_dependency_indirect() {
 
-        let file_ids = dummy_file_ids(1);
-        let file_id = file_ids[0];
+        let file_ids = dummy_file_ids(3);
         
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(CrateType::Library, file_id);
-        let crate2 = graph.add_crate_root(CrateType::Library,file_id);
-        let crate3 = graph.add_crate_root(CrateType::Library,file_id);
+        let crate1 = graph.add_crate_root(CrateType::Library, file_ids[0]);
+        let crate2 = graph.add_crate_root(CrateType::Library,file_ids[1]);
+        let crate3 = graph.add_crate_root(CrateType::Library,file_ids[2]);
         
         assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
