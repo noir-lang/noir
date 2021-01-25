@@ -20,7 +20,7 @@ use std::collections::HashMap;
 
 use noirc_errors::Spanned;
 
-use crate::{Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::{CrateDefMap, ModuleDefId, ModuleId}, crate_graph::CrateId, resolution::{PathResolver, import::{ImportDirective, resolve_imports}}}};
+use crate::{Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::{CrateDefMap, ModuleDefId, ModuleId}, crate_graph::CrateId, resolution::{PathResolver, import::{ImportDirective, resolve_imports}}}, lexer::errors};
 
 use crate::hir::{scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest}};
 use super::{HirArrayLiteral, HirBinaryOp, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, ExprId, FuncId, IdentId, StmtId}, stmt::{HirBlockStatement, HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
@@ -62,16 +62,19 @@ impl<'a> Resolver<'a> {
     /// and interning the function itself
     /// We resolve and lower the function at the same time
     /// Since lowering would require scope data, unless we add an extra resolution field to the AST
-    pub fn resolve_function(&mut self, func : NoirFunction) -> (HirFunction, FuncMeta) {
+    pub fn resolve_function(mut self, func : NoirFunction) -> Result<(HirFunction, FuncMeta), Vec<ResolverError>> {
         self.scopes.start_function();
         
         let (hir_func, func_meta) = self.intern_function(func);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
- 
-
-        (hir_func, func_meta)
+        
+        if self.errors.is_empty() {
+            return Ok((hir_func, func_meta))
+        } else {
+            return Err(self.errors)
+        }       
     }
     fn resolve_expression(&mut self, expr : Expression) -> ExprId {
         self.intern_expr(expr)
@@ -100,7 +103,6 @@ impl<'a> Resolver<'a> {
             }
             false
         });
-
         unused_vars.extend(unused_variables.into_iter().map(|(_, meta)|meta.id));
 
     }
@@ -112,7 +114,7 @@ impl<'a> Resolver<'a> {
 
         let id = self.interner.push_ident(name.clone());
         // Variable was defined here, so it's definition links to itself
-        self.interner.linked_id_to_def(id, id);
+        self.interner.linked_ident_to_def(id, id);
 
         let scope = self.scopes.get_mut_scope();
         let resolver_meta = ResolverMeta {num_times_used : 0, id};
@@ -147,7 +149,7 @@ impl<'a> Resolver<'a> {
         
         if let Some(variable_found) = variable {
             variable_found.num_times_used = variable_found.num_times_used + 1;
-            self.interner.linked_id_to_def(id, variable_found.id);
+            self.interner.linked_ident_to_def(id, variable_found.id);
             return id
         } 
 
@@ -258,8 +260,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn intern_expr(&mut self, expr : Expression) -> ExprId {
-        let kind = expr.kind;
-        match kind {
+        let expr_id = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
                 let ident : Ident = Spanned::from(span, string).into();
@@ -400,7 +401,10 @@ impl<'a> Resolver<'a> {
 
                 self.interner.push_expr(HirExpression::Ident(ident_id))
             }
-        }
+        };
+
+        self.interner.push_expr_span(expr_id, expr.span);
+        expr_id
     }
 }
 
@@ -438,12 +442,14 @@ mod test {
         
         let def_maps : HashMap<CrateId, CrateDefMap>= HashMap::new();
         
-        let mut resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
-
+        let mut errors = Vec::new();
         for func in program.functions {
-            let _ = resolver.resolve_function(func);
+            let mut resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
+            match resolver.resolve_function(func) {
+                Ok((_, _)) => {},
+                Err(err) => errors.extend(err)
+            }
         }
-        let errors = resolver.errors.clone();
 
         (interner.clone(), errors)
     }
@@ -560,7 +566,7 @@ mod test {
         for err in errors {
             match &err {
                 ResolverError::UnusedVariable { ident_id } => {
-                    let name = interner.id_name(*ident_id);
+                    let name = interner.ident_name(*ident_id);
                     assert_eq!(name, "z");
                 }
                 ResolverError::VariableNotDeclared { name, .. } => {

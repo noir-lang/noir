@@ -28,10 +28,10 @@ impl ResolverError {
         match self {
             ResolverError::DuplicateDefinition { first_ident, second_ident } => {
 
-                let first_span = interner.id_span(first_ident);
-                let second_span = interner.id_span(second_ident);
+                let first_span = interner.ident_span(first_ident);
+                let second_span = interner.ident_span(second_ident);
 
-                let name = interner.id_name(first_ident);
+                let name = interner.ident_name(first_ident);
                 
                 let mut diag = Diagnostic::simple_error(format!("duplicate definitions of {} found", name), format!("first definition found here"), first_span);
                 diag.add_secondary(format!("second definition found here"), second_span);
@@ -39,8 +39,8 @@ impl ResolverError {
             },
             ResolverError::UnusedVariable { ident_id } => {
                 
-                let name = interner.id_name(ident_id);
-                let span = interner.id_span(ident_id);
+                let name = interner.ident_name(ident_id);
+                let span = interner.ident_span(ident_id);
 
                 let mut diag = Diagnostic::simple_error(format!("unused variable {}", name), format!("unused variable "), span);
 
