@@ -19,6 +19,9 @@ pub fn type_check_func(interner : &mut NodeInterner, func_id : FuncId) -> Result
     // Note that we do not look for the defining Identifier for a parameter,
     // since we know that it is the parameter itself
     let meta = interner.function_meta(func_id);
+    let declared_return_type = &meta.return_type;
+    let can_ignore_ret = meta.can_ignore_return_type();
+
     for param in meta.parameters{
         interner.push_ident_type(param.0, param.1);
     }
@@ -28,7 +31,14 @@ pub fn type_check_func(interner : &mut NodeInterner, func_id : FuncId) -> Result
     for stmt in hir_func.statements() {
         stmt::type_check(interner, stmt)?
     }
-    
+
+    // Check declared return type and actual return type 
+    let (function_last_type, span) = expr::extract_last_type_from_block(interner,hir_func.statements().last().unwrap().clone());
+
+    if !can_ignore_ret && (&function_last_type != declared_return_type){
+        return Err(TypeCheckError::TypeMismatch{ expected_typ: declared_return_type.clone(), expr_typ: function_last_type, expr_span: span});
+    }
+
     Ok(())
 }
 
