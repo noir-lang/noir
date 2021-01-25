@@ -1,6 +1,8 @@
-use crate::{ArraySize, Type, hir::lower::{HirBinaryOp, HirExpression, HirLiteral, node_interner::{NodeInterner, ExprId, IdentId, StmtId}, function::Param, stmt::HirStatement}};
+use crate::{ArraySize, Type, hir::lower::{HirBinaryOp, HirExpression, HirLiteral, node_interner::{NodeInterner, ExprId, StmtId}, function::Param, stmt::HirStatement}};
 
-pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : ExprId) {
+use super::errors::TypeCheckError;
+
+pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : ExprId) -> Result<(), TypeCheckError> {
     let hir_expr = interner.expression(expr_id);
     match hir_expr {
         HirExpression::Ident(ident_id) => {
@@ -14,12 +16,14 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
         HirExpression::Literal(literal) => {
             match literal {
                 HirLiteral::Array(arr) => {
-                    let mut arr_types = Vec::with_capacity(arr.contents.len());
-                    for element_expr_id in arr.contents {
-                        // Type check the contents of the array
-                        type_check_expression(interner, element_expr_id);
-                        arr_types.push(interner.id_type(element_expr_id.into())) 
-                    }
+                    
+                    // Type check the contents of the array
+                    type_check_list_expression(interner, &arr.contents)?;
+                    
+                    // Retrieve type for each expression
+                    let arr_types : Vec<_> = arr.contents.into_iter().map(|expr_id| interner.id_type(expr_id.into())).collect();
+
+                    // Check the result for errors
                     
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogenous, which will be checked next
@@ -30,7 +34,7 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
                     // An array with one element will be homogenous
                     if arr_types.len() == 1{
                         interner.push_expr_type(expr_id, arr_type);
-                        return 
+                        return Ok(())
                     }
 
                     // To check if an array with more than one element
@@ -67,10 +71,10 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
         HirExpression::Infix(infix_expr) => {
             // The type of the infix expression must be looked up from a type table
             
-            type_check_expression(interner, infix_expr.lhs);
+            type_check_expression(interner, infix_expr.lhs)?;
             let lhs_type = interner.id_type(infix_expr.lhs.into());
             
-            type_check_expression(interner, infix_expr.rhs);
+            type_check_expression(interner, infix_expr.rhs)?;
             let rhs_type = interner.id_type(infix_expr.rhs.into());
 
             let result_type = infix_operand_type_rules(&lhs_type,&infix_expr.operator, &rhs_type).expect("error reporting has been rolled back. Type mismatch");
@@ -100,7 +104,7 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
             // Type check arguments
             let mut arg_types = Vec::with_capacity(call_expr.arguments.len());
             for arg_expr in call_expr.arguments {
-                type_check_expression(interner, arg_expr);
+                type_check_expression(interner, arg_expr)?;
                 arg_types.push(interner.id_type(arg_expr.into())) 
             }
 
@@ -114,7 +118,7 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
         }
         HirExpression::Cast(cast_expr) => {
             // Evaluate the Lhs
-            type_check_expression(interner, cast_expr.lhs);
+            type_check_expression(interner, cast_expr.lhs)?;
             let _lhs_type = interner.id_type(cast_expr.lhs.into());
 
             // Then check that the type_of(LHS) can be casted to the RHS
@@ -125,8 +129,8 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
             interner.push_expr_type(expr_id, cast_expr.r#type);
         }
         HirExpression::For(for_expr) => {
-            type_check_expression(interner, for_expr.start_range);
-            type_check_expression(interner, for_expr.end_range);
+            type_check_expression(interner, for_expr.start_range)?;
+            type_check_expression(interner, for_expr.end_range)?;
 
             let start_range_type = interner.id_type(for_expr.start_range.into());
             let end_range_type = interner.id_type(for_expr.end_range.into());
@@ -145,7 +149,7 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
             // The type of the identifier is equal to the type of the ranges
             interner.push_ident_type(for_expr.identifier, start_range_type);
 
-            super::stmt::type_check(interner, for_expr.block);
+            super::stmt::type_check(interner, for_expr.block)?;
 
             let last_type = extract_last_type_from_block(interner,for_expr.block);
 
@@ -160,13 +164,14 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
         },
         HirExpression::Predicate(_) => {todo!("predicate statements have not been implemented yet")},
         HirExpression::If(_) => todo!("If statements have not been implemented yet!")
-    }
+    };
+    Ok(())
 }
 
     // Given a binary operator and another type. This method will produce the 
     // output type
     pub fn infix_operand_type_rules(lhs_type : &Type, op : &HirBinaryOp, other: &Type) -> Result<Type, String> {
-        if op.is_comparator() {
+        if op.kind.is_comparator() {
             return Ok(Type::Bool)
         }
         
@@ -259,4 +264,18 @@ fn extract_last_type_from_block(interner : &NodeInterner, stmt_id : StmtId) -> T
             },
             _=> panic!("This statement should have been a block stmt")
         }
+}
+
+fn type_check_list_expression(interner: &mut NodeInterner, exprs: &[ExprId]) -> Result<(), TypeCheckError>{
+    assert!(exprs.len() > 0);
+    
+    let (_, errors) : (Vec<_>, Vec<_>) = exprs.into_iter().map(|arg| type_check_expression(interner, *arg)).partition(Result::is_ok);
+
+    let errors: Vec<TypeCheckError> = errors.into_iter().map(Result::unwrap_err).collect();
+    
+    if !errors.is_empty() {
+        return Err(TypeCheckError::MultipleErrors(errors));
+    }
+
+    Ok(())
 }
