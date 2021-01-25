@@ -2,10 +2,10 @@
 use std::collections::HashMap;
 
 use fm::FileId;
-use noirc_errors::{CustomDiagnostic, Reporter};
-use crate::{NoirFunction, Program, lexer::errors};
+use noirc_errors::{CustomDiagnostic};
+use crate::{NoirFunction, Program};
 
-use super::{Context, crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin}, crate_graph::CrateId, def_collector_mod::ModCollector, lower::{function::{FuncMeta, HirFunction}, node_interner::{FuncId, NodeInterner}, resolver::Resolver}, resolution::{FunctionPathResolver, import::ImportDirective, resolve_function_call_path}, type_check::TypeChecker};
+use super::{Context, crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin}, crate_graph::CrateId, def_collector_mod::ModCollector, lower::{node_interner::{FuncId, NodeInterner}, resolver::Resolver}, resolution::{FunctionPathResolver, import::ImportDirective, resolve_function_call_path}};
 
 /// Stores all of the unresolved functions in a particular file/mod 
 pub struct UnresolvedFunctions {
@@ -95,32 +95,29 @@ impl DefCollector {
         }
         
         // Lower each function in the crate. This is now possible since imports have been resolved
-        let func_ids = resolve_functions(&mut context.def_interner, crate_id, &context.def_maps, def_collector.collected_functions)?;
+        let file_func_ids = resolve_functions(&mut context.def_interner, crate_id, &context.def_maps, def_collector.collected_functions)?;
 
        // Type check all of the functions in the crate
-       let mut type_checker = TypeChecker::new(&mut context.def_interner);
-       for func_id in func_ids {
-            type_checker.check_func(func_id);
-       }
+        type_check_functions(&mut context.def_interner, file_func_ids)?;
        
        Ok(())
     }
 
 }
 
-fn resolve_functions(interner : &mut NodeInterner, crate_id : CrateId, def_maps : &HashMap<CrateId, CrateDefMap>, collected_functions: Vec<UnresolvedFunctions>) -> Result<Vec<FuncId>, Vec<CollectedErrors>> {
+fn resolve_functions(interner : &mut NodeInterner, crate_id : CrateId, def_maps : &HashMap<CrateId, CrateDefMap>, collected_functions: Vec<UnresolvedFunctions>) -> Result<Vec<(FileId, FuncId)>, Vec<CollectedErrors>> {
                 
-    let mut func_ids = Vec::new();
+    let mut file_func_ids = Vec::new();
     let mut errors = Vec::new();
 
     // Lower each function in the crate. This is now possible since imports have been resolved
     for unresolved_functions in collected_functions {
-        
-        let mut collected_errors = CollectedErrors{file_id : unresolved_functions.file_id, errors : Vec::new()};
+        let file_id = unresolved_functions.file_id;
+        let mut collected_errors = CollectedErrors{file_id, errors : Vec::new()};
     
         for (mod_id, func_id, func) in unresolved_functions.functions {
 
-            func_ids.push(func_id);
+            file_func_ids.push((file_id,func_id));
 
             let func_resolver = FunctionPathResolver::new(ModuleId{local_id : mod_id, krate: crate_id});
             let resolver = Resolver::new(interner, &func_resolver, def_maps);
@@ -142,7 +139,22 @@ fn resolve_functions(interner : &mut NodeInterner, crate_id : CrateId, def_maps 
     }
 
     if errors.is_empty() {
-        return Ok(func_ids)
+        return Ok(file_func_ids)
     }
     return Err(errors)
+}
+
+fn type_check_functions(interner : &mut NodeInterner, file_func_ids : Vec<(FileId, FuncId)>) -> Result<(), Vec<CollectedErrors>> {
+    
+    for (file_id, func_id) in file_func_ids {
+
+        if let Err(type_err) = super::type_check::type_check_func(interner, func_id) {
+            let diag = type_err.into_diagnostics(interner);
+            let errs = vec![CollectedErrors{ file_id, errors: diag}];
+            return Err(errs)
+        }
+
+    }
+
+    Ok(())
 }
