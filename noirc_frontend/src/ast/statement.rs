@@ -90,8 +90,12 @@ pub struct Path{
 
 impl Path {
     pub fn span(&self)-> Span {
-        let mut span = Span::default();
-        for segment in self.segments.iter() {
+        
+        let mut segments = self.segments.iter();
+        let first_segment = segments.next().expect("ice : cannot have an empty path");
+        let mut span = first_segment.0.span();
+
+        for segment in segments {
             span = span.merge(segment.0.span());
         }
         span
