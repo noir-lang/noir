@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate_def_map::CrateDefMap;
 use crate_graph::{CrateGraph, CrateId};
 use fm::FileManager;
-use lower::node_interner::{NodeInterner};
+use lower::node_interner::NodeInterner;
 
 pub mod resolution;
 pub mod scope;
