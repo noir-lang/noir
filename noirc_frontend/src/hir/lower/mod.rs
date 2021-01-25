@@ -1,7 +1,8 @@
 use node_interner::StmtId;
 use noir_field::FieldElement;
+use noirc_errors::Span;
 
-use crate::{BinaryOpKind, Type, UnaryOp};
+use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
 pub mod stmt;
 pub mod node_interner;
 pub mod function;
@@ -62,7 +63,7 @@ pub struct HirForExpression{
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum HirBinaryOp {
+pub enum HirBinaryOpKind {
     Add,
     Subtract,
     Multiply,
@@ -79,39 +80,55 @@ pub enum HirBinaryOp {
     Assign,
 }
 
-impl From<BinaryOpKind> for HirBinaryOp {
-    fn from(a : BinaryOpKind) -> HirBinaryOp {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct HirBinaryOp {
+    pub span : Span,
+    pub kind : HirBinaryOpKind
+}
+
+impl From<BinaryOpKind> for HirBinaryOpKind {
+    fn from(a : BinaryOpKind) -> HirBinaryOpKind {
         match a {
-            BinaryOpKind::Add => HirBinaryOp::Add,
-            BinaryOpKind::Subtract => HirBinaryOp::Subtract,
-            BinaryOpKind::Multiply => HirBinaryOp::Multiply,
-            BinaryOpKind::Divide => HirBinaryOp::Divide,
-            BinaryOpKind::Equal => HirBinaryOp::Equal,
-            BinaryOpKind::NotEqual => HirBinaryOp::NotEqual,
-            BinaryOpKind::Less => HirBinaryOp::Less,
-            BinaryOpKind::LessEqual => HirBinaryOp::LessEqual,
-            BinaryOpKind::Greater => HirBinaryOp::Greater,
-            BinaryOpKind::GreaterEqual => HirBinaryOp::GreaterEqual,
-            BinaryOpKind::And => HirBinaryOp::And,
-            BinaryOpKind::Or => HirBinaryOp::Or,
-            BinaryOpKind::Xor => HirBinaryOp::Xor,
-            BinaryOpKind::Assign => HirBinaryOp::Assign,
+            BinaryOpKind::Add => HirBinaryOpKind::Add,
+            BinaryOpKind::Subtract => HirBinaryOpKind::Subtract,
+            BinaryOpKind::Multiply => HirBinaryOpKind::Multiply,
+            BinaryOpKind::Divide => HirBinaryOpKind::Divide,
+            BinaryOpKind::Equal => HirBinaryOpKind::Equal,
+            BinaryOpKind::NotEqual => HirBinaryOpKind::NotEqual,
+            BinaryOpKind::Less => HirBinaryOpKind::Less,
+            BinaryOpKind::LessEqual => HirBinaryOpKind::LessEqual,
+            BinaryOpKind::Greater => HirBinaryOpKind::Greater,
+            BinaryOpKind::GreaterEqual => HirBinaryOpKind::GreaterEqual,
+            BinaryOpKind::And => HirBinaryOpKind::And,
+            BinaryOpKind::Or => HirBinaryOpKind::Or,
+            BinaryOpKind::Xor => HirBinaryOpKind::Xor,
+            BinaryOpKind::Assign => HirBinaryOpKind::Assign,
+        }
+    }
+}
+impl From<BinaryOp> for HirBinaryOp {
+    fn from(a : BinaryOp) -> HirBinaryOp {
+        let kind : HirBinaryOpKind = a.contents.into();
+
+        HirBinaryOp {
+            span : a.span(),
+            kind
         }
     }
 }
 
-impl HirBinaryOp {
+impl HirBinaryOpKind {
     /// Comparator operators return a 0 or 1
     /// When seen in the middle of an infix operator,
     /// they transform the infix expression into a predicate expression
     pub fn is_comparator(&self) -> bool {
         match self {
-            HirBinaryOp::Equal |
-            HirBinaryOp::NotEqual |
-            HirBinaryOp::LessEqual |
-            HirBinaryOp::Less |
-            HirBinaryOp::Greater |
-            HirBinaryOp::GreaterEqual => true, 
+            HirBinaryOpKind::Equal |
+            HirBinaryOpKind::NotEqual |
+            HirBinaryOpKind::LessEqual |
+            HirBinaryOpKind::Less |
+            HirBinaryOpKind::Greater |
+            HirBinaryOpKind::GreaterEqual => true, 
             _=> false
         }
     }
