@@ -19,7 +19,7 @@ use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
 // XXX: Remove this once, we have moved to HIR
-use noirc_frontend::{Type, FunctionKind, Signedness};
+use noirc_frontend::{FunctionKind, Signedness, Type, hir::lower::HirBinaryOpKind};
 use noirc_frontend::{hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirBlockStatement, HirConstrainStatement, HirLetStatement}}}; 
 
 use noirc_frontend::{hir::{lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
@@ -178,21 +178,21 @@ impl<'a> Evaluator<'a> {
         rhs: Object,
         op: HirBinaryOp,
     ) -> Result<Object, RuntimeErrorKind> {
-        match op {
-            HirBinaryOp::Add => binary_op::handle_add_op(lhs, rhs, env, self),
-            HirBinaryOp::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
-            HirBinaryOp::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
-            HirBinaryOp::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
-            HirBinaryOp::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
-            HirBinaryOp::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
-            HirBinaryOp::And => binary_op::handle_and_op(lhs, rhs, env, self),
-            HirBinaryOp::Xor => binary_op::handle_xor_op(lhs, rhs, env, self),
-            HirBinaryOp::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
-            HirBinaryOp::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
-            HirBinaryOp::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
-            HirBinaryOp::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
-            HirBinaryOp::Assign => unreachable!("The Binary operation `=` can only be used in declaration statements"),
-            HirBinaryOp::Or => todo!("The Or operation is currently not implemented. Coming soon.")
+        match op.kind {
+            HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
+            HirBinaryOpKind::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
+            HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
+            HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
+            HirBinaryOpKind::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Assign => unreachable!("The Binary operation `=` can only be used in declaration statements"),
+            HirBinaryOpKind::Or => todo!("The Or operation is currently not implemented. Coming soon.")
         }
     }
 
@@ -362,7 +362,7 @@ impl<'a> Evaluator<'a> {
         );
 
         // XXX: We could probably move this into equal folder, as it is an optimisation that only applies to it
-        if constrain_stmt.0.operator == HirBinaryOp::Equal {
+        if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
             // Check if we have any lone variables and then if the other side is a linear/constant
             let (witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
                 (true, _) => (lhs_poly.witness(), rhs_poly),
