@@ -15,6 +15,14 @@ pub struct CustomDiagnostic {
 }
 
 impl CustomDiagnostic {
+    pub fn from_message(msg : &str) -> CustomDiagnostic {
+        Self {
+            message : msg.to_owned(),
+            secondaries : Vec::new(),
+            notes: Vec::new(),
+        } 
+    }
+
     pub fn simple_error(primary_message : String, secondary_message : String, secondary_span : Span ) -> CustomDiagnostic {
         CustomDiagnostic{
             message : primary_message,
