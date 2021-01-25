@@ -89,14 +89,14 @@ pub struct NodeInterner{
     // We therefore give each variable, it's own IdentId
     //
     // Maps IdentId to it's definition
-    // For `let x = EXPR` x will point to itself
-    id_to_defs : HashMap<IdentId, IdentId>,
-    // Map each IdentId to it's own span
-    id_to_span : HashMap<IdentId, Span>,
+    // For `let x = EXPR` x will point to itself as a definition
+    ident_to_defs : HashMap<IdentId, IdentId>,
+    // Map each `Index` to it's own span
+    id_to_span : HashMap<Index, Span>,
     // Map each IdentId to it's name
     // This is a string right now, but once Strings are interned
     // In the lexer, this will be a SymbolId
-    id_to_name : HashMap<IdentId, String>,
+    ident_to_name : HashMap<IdentId, String>,
 
     // Type checking map
     //
@@ -113,14 +113,15 @@ impl Default for NodeInterner {
         NodeInterner {
             nodes : Arena::default(),
             func_meta : HashMap::new(),
-            id_to_defs : HashMap::new(),
+            ident_to_defs : HashMap::new(),
             id_to_span : HashMap::new(),
-            id_to_name : HashMap::new(),
+            ident_to_name : HashMap::new(),
             id_to_type : HashMap::new(),
         }
     }
 }
 
+// XXX: Add check that insertions are not overwrites for maps
 impl NodeInterner {
     pub fn push_stmt(&mut self, stmt : HirStatement) -> StmtId {
         StmtId(self.nodes.insert(Node::Statement(stmt)))
@@ -128,6 +129,9 @@ impl NodeInterner {
 
     pub fn push_expr(&mut self, expr : HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
+    }
+    pub fn push_expr_span(&mut self, expr_id : ExprId, span : Span) {
+        self.id_to_span.insert(expr_id.into(), span);
     }
 
     pub fn push_fn(&mut self, func : HirFunction) -> FuncId {
@@ -165,10 +169,10 @@ impl NodeInterner {
 
         let id = IdentId(self.nodes.insert(Node::Ident(ident)));
         
-        self.id_to_span.insert(id, span);
+        self.id_to_span.insert(id.into(), span);
         
         // XXX: Once Strings are interned name will also be an Id
-        self.id_to_name.insert(id, name);
+        self.ident_to_name.insert(id, name);
 
         // Note: These three maps are not invariant under their length
         // consider the case that we only ever inserted functions
@@ -176,12 +180,12 @@ impl NodeInterner {
 
         id
     }
-    pub fn linked_id_to_def(&mut self, ident : IdentId, def : IdentId) {
-        self.id_to_defs.insert(ident, def);
+    pub fn linked_ident_to_def(&mut self, ident : IdentId, def : IdentId) {
+        self.ident_to_defs.insert(ident, def);
     }
     /// Find the IdentifierId which declared/defined this IdentifierId
     pub fn ident_def(&self, ident : &IdentId) -> Option<IdentId> {
-        self.id_to_defs.get(ident).copied()
+        self.ident_to_defs.get(ident).copied()
     }
 
     // Cloning Hir structures is cheap, so we return owned structures 
@@ -223,15 +227,19 @@ impl NodeInterner {
     }
     
     // XXX: This is needed as Witnesses in Evaluator require a name at the moment
-    pub fn id_name(&self, ident_id : IdentId) -> String {
-        self.id_to_name.get(&ident_id).expect("ice: all ident ids should have names").clone()
+    pub fn ident_name(&self, ident_id : IdentId) -> String {
+        self.ident_to_name.get(&ident_id).expect("ice: all ident ids should have names").clone()
     }
 
-    pub fn id_span(&self, ident_id : IdentId) -> Span {
-        self.id_to_span.get(&ident_id).copied().expect("ice : all Identifiers have spans")
+    pub fn ident_span(&self, ident_id : IdentId) -> Span {
+        self.id_span(ident_id.into())
+    }
+    pub fn expr_span(&self, expr_id : ExprId) -> Span {
+        self.id_span(expr_id.into())
     }
 
-
+    
+    
     // Why can we unwrap here?
     // If the compiler is correct, it will not ask for a an Id of an object 
     // which does not have a type. This will cause a panic.
@@ -240,5 +248,8 @@ impl NodeInterner {
     // The same would go for Expressions.
     pub fn id_type(&self, index : Index) -> Type {
         self.id_to_type.get(&index).cloned().unwrap()
+    }
+    pub fn id_span(&self, index : Index) -> Span {
+        self.id_to_span.get(&index).copied().unwrap()
     }
 }
