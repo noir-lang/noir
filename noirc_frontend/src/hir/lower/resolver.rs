@@ -234,7 +234,7 @@ impl<'a> Resolver<'a> {
             },
             Statement::Constrain(constrain_stmt) => {
                 let lhs = self.resolve_expression(constrain_stmt.0.lhs);
-                let operator : HirBinaryOp = constrain_stmt.0.operator.contents.into();
+                let operator : HirBinaryOp = constrain_stmt.0.operator.into();
                 let rhs = self.resolve_expression(constrain_stmt.0.rhs);
 
                 let stmt = HirConstrainStatement(HirInfixExpression {lhs, rhs, operator});
@@ -299,7 +299,7 @@ impl<'a> Resolver<'a> {
                 let rhs = self.intern_expr(infix.rhs);
                 let expr = HirInfixExpression {
                     lhs,
-                    operator: infix.operator.contents.into(),
+                    operator: infix.operator.into(),
                     rhs,
                 };
                 self.interner.push_expr(HirExpression::Infix(expr))
