@@ -34,6 +34,10 @@ impl Driver{
 
     /// Adds the File with the local crate root to the file system 
     /// and adds the local crate to the graph
+    /// XXX: This may pose a problem with workspaces, where you can change the local crate and where 
+    /// we have multiple binaries
+    /// A Fix would be for the driver instance to store the local crate id.
+    // Granted that this is the only place which relies on the local crate being first
     pub fn create_local_crate<P: AsRef<Path>>(&mut self, root_file : P, crate_type : CrateType) {
         
         let dir_path = root_file.as_ref().to_path_buf();
@@ -45,19 +49,27 @@ impl Driver{
 
     /// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that 
     /// the compiler is compiling.  
-    pub fn create_non_local_crate<P: AsRef<Path>>(&mut self, root_file : P) -> CrateId {
+    pub fn create_non_local_crate<P: AsRef<Path>>(&mut self, root_file : P, crate_type : CrateType) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
         let root_file_id = self.context.file_manager().add_file(&dir_path).unwrap();
         
         // The first crate is always the local crate
         assert!(self.context.crate_graph.number_of_crates() != 0);
 
-        self.context.crate_graph.add_crate_root(CrateType::Library, root_file_id)// You can only depend on libraries
+        // You can add any crate type to the crate graph
+        // but you cannot depend on Binaries
+        self.context.crate_graph.add_crate_root(crate_type, root_file_id)
     }
 
     /// Adds a edge in the crate graph for two crates
     pub fn add_dep(&mut self, this_crate : CrateId, depends_on : CrateId, crate_name : &str) {
         let crate_name = CrateName::new(crate_name).expect("crate name contains blacklisted characters, please remove");
+
+        // Cannot depend on a binary
+        if self.context.crate_graph.crate_type(depends_on) == CrateType::Binary {
+            panic!("crates cannot depend on binaries. {:?} is a binary crate", crate_name)
+        }
+
         self.context.crate_graph.add_dep(this_crate, crate_name, depends_on).expect("cyclic dependency triggered");
     }
 
@@ -68,19 +80,17 @@ impl Driver{
     }
 
     fn analyse_crate(&mut self) {
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context);
-        // XXX: We need to modify the new Analyser to propagate errors
-        // if let Err(errs) =  analyser::check_crates(&mut self.crate_manager) {
-        //     let diagnostics : Vec<_> = errs.into_iter().map(|err| err.to_diagnostic()).collect();
-        //     Reporter::with_diagnostics(&self.file_manager, &diagnostics);
-        //     std::process::exit(1);
-        // }
+        if let Err(errs) = CrateDefMap::collect_defs(LOCAL_CRATE, &mut self.context) {
+            for errors in errs {
+                Reporter::with_diagnostics(errors.file_id.as_usize(), &self.context.file_manager(), &errors.errors);
+            }
+
+            std::process::exit(1);
+        }
     }
 
     pub fn into_compiled_program(&mut self) -> CompiledProgram{
         self.build();
-
-              
         // First find the local crate 
         // There is always a local crate
         let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
@@ -90,7 +100,7 @@ impl Driver{
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
         if self.context.crate_graph()[LOCAL_CRATE].crate_type != CrateType::Binary {
-            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the build flag");
+            println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the build command");
             std::process::exit(1);   
         };
 
@@ -127,7 +137,7 @@ impl Driver{
     pub fn add_std_lib(&mut self){
         let path_to_std_lib_file = path_to_stdlib().join("lib.nr");
 
-        let std_crate_id = self.create_non_local_crate(path_to_std_lib_file);
+        let std_crate_id = self.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
         
         let name = CrateName::new("std").unwrap();
 
@@ -144,7 +154,7 @@ impl Driver{
 
         func_meta.parameters.into_iter().map(|param| {
             let (param_id, param_type) = (param.0, param.1);
-            let param_name = self.context.def_interner.id_name(param_id);
+            let param_name = self.context.def_interner.ident_name(param_id);
             (param_name, param_type)
         }).collect()
 
