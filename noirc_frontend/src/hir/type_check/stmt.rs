@@ -122,9 +122,8 @@ fn type_check_declaration(interner : &mut NodeInterner, rhs_expr : ExprId, mut a
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
     if annotated_type != expr_type {
-        // XXX: Types are not yet spanned!
         let expr_span = interner.expr_span(rhs_expr);
-        return Err(TypeCheckError::TypeAnnotationMismatch{ ann_typ: annotated_type, ann_span: Span::default(), expr_typ: expr_type, expr_span});
+        return Err(TypeCheckError::TypeMismatch{ expected_typ: annotated_type, expr_typ: expr_type, expr_span});
     }
     
     // At this point annotated type and user specified type are the same

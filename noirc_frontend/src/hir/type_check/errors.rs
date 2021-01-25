@@ -10,8 +10,8 @@ pub enum TypeCheckError {
     OpCannotBeUsed {op : HirBinaryOp, place: &'static str, span : Span},
     #[error("type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed {typ : Type, place: &'static str, span : Span},
-    #[error("annotated type {ann_typ:?} is not the same as {expr_typ:?}")]
-    TypeAnnotationMismatch {ann_typ : Type, ann_span : Span, expr_typ : Type, expr_span : Span},
+    #[error("expected type {expected_typ:?} is not the same as {expr_typ:?}")]
+    TypeMismatch {expected_typ : Type, expr_typ : Type, expr_span : Span},
     // Usually the type checker will return after the first encountered errors
     // Due to the fact that types depend on each other.
     // This is not the case in a CallExpression however, or more generally a list of expressions
@@ -44,12 +44,8 @@ impl TypeCheckError {
                 TypeCheckError::OpCannotBeUsed { op, place, span } => {
                     vec![Diagnostic::simple_error(format!("the operator {:?} cannot be used in a {}", op, place), format!(""), span)]
                 }
-                TypeCheckError::TypeAnnotationMismatch { ann_typ, ann_span, expr_typ, expr_span } => {
-
-                    let mut diag = Diagnostic::from_message(&format!("expected type {}, found type {}", ann_typ, expr_typ));
-                    diag.add_secondary("type annotated here".to_owned(), ann_span);
-                    diag.add_secondary("which does not match the expression type here".to_owned(), expr_span);
-                    vec![diag]
+                TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
+                    vec![Diagnostic::simple_error(format!("expected type {}, found type {}", expected_typ, expr_typ), format!(""), expr_span)]
                 }
             }
 
@@ -58,7 +54,7 @@ impl TypeCheckError {
          pub fn add_context(self, ctx : &'static str) -> Option<Self> {
             match &self {
                 TypeCheckError::OpCannotBeUsed { .. } |
-                TypeCheckError::TypeAnnotationMismatch { .. } |
+                TypeCheckError::TypeMismatch { .. } |
                 TypeCheckError::TypeCannotBeUsed { .. } => Some(TypeCheckError::Context{err:Box::new(self), ctx}),
                 // Cannot apply a context to multiple diagnostics
                 TypeCheckError::MultipleErrors(_) => None,
