@@ -2,7 +2,7 @@ use fm::FileId;
 
 use crate::{NoirFunction, Program};
 
-use super::{crate_def_map::ModuleId, resolution::import::ImportDirective};
+use super::{crate_def_map::ModuleId, def_collector_crate::UnresolvedFunctions, resolution::import::ImportDirective};
 
 use super::{Context, crate_def_map::{LocalModuleId, ModuleData, ModuleOrigin, parse_root_file}, def_collector_crate::DefCollector};
 
@@ -34,6 +34,7 @@ impl<'a> ModCollector<'a> {
         }
         
         // Then add functions to functionArena
+        let mut unresolved_functions = UnresolvedFunctions {file_id : self.file_id, functions: Vec::new()};
         for function in self.ast.functions.clone() {
             let name = function.name().to_owned();
             let nf : NoirFunction = function.into();
@@ -48,11 +49,12 @@ impl<'a> ModCollector<'a> {
             // and replace it
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
-            self.def_collector.collected_functions.push((self.module_id, func_id, nf));
+            unresolved_functions.push_fn(self.module_id, func_id, nf);
  
             // Add function to scope/ns of the module
             self.def_collector.def_map.modules[self.module_id.0].scope.define_func_def(name, func_id);
         }
+        self.def_collector.collected_functions.push(unresolved_functions);
 
     }
     /// Search for a module named `mod_name`
