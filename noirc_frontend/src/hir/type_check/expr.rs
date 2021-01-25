@@ -1,3 +1,5 @@
+use noirc_errors::Span;
+
 use crate::{ArraySize, Type, hir::lower::{HirBinaryOp, HirExpression, HirLiteral, node_interner::{NodeInterner, ExprId, StmtId}, function::Param, stmt::HirStatement}};
 
 use super::errors::TypeCheckError;
@@ -151,7 +153,7 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : Expr
 
             super::stmt::type_check(interner, for_expr.block)?;
 
-            let last_type = extract_last_type_from_block(interner,for_expr.block);
+            let (last_type, _) = extract_last_type_from_block(interner,for_expr.block);
 
             // XXX: In the release before this, we were using the start and end range to determine the number
             // of iterations and marking the type as Fixed. Is this still necessary?
@@ -243,13 +245,13 @@ fn check_param_argument(param : &Param, arg_type : &Type) {
 // XXX: Currently, we do not have BlockExpressions, so we need to extract the last expression from 
 // a block statement until then 
 // This will be removed once BlockExpressions are added.
-fn extract_last_type_from_block(interner : &NodeInterner, stmt_id : StmtId) -> Type {
+pub(super) fn extract_last_type_from_block(interner : &NodeInterner, stmt_id : StmtId) -> (Type, Span) {
     let stmt = interner.statement(stmt_id);
     match stmt {
             HirStatement::Block(block_stmt) => {
                 let statements =  block_stmt.statements();
                 if statements.len() == 0 {
-                    return Type::Unit
+                    return (Type::Unit, Span::default())
                 }
                 let last_stmt_id = statements.last().unwrap();
                 
@@ -257,9 +259,9 @@ fn extract_last_type_from_block(interner : &NodeInterner, stmt_id : StmtId) -> T
                 // If the last statement is an expression statement, then we take the value
                 // if not, then we return Unit
                 match last_stmt {
-                    HirStatement::Expression(expr_id) => return interner.id_type(expr_id.into()),
+                    HirStatement::Expression(expr_id) => return (interner.id_type(expr_id.into()), interner.expr_span(expr_id)),
                     HirStatement::Block(_) => panic!("{}","this should not be possible to do right now, as {/*code*/} is not supported"),
-                    _=> return Type::Unit
+                    _=> return (Type::Unit, Span::default())
                 }
             },
             _=> panic!("This statement should have been a block stmt")
