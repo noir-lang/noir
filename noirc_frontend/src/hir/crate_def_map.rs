@@ -1,6 +1,6 @@
 use crate::{Parser,parser::Program};
 use std::collections::HashMap;
-use super::{Context, crate_graph::{CrateId}, def_collector_crate::DefCollector, lower::node_interner::FuncId};
+use super::{Context, crate_graph::{CrateId}, def_collector_crate::{CollectedErrors, DefCollector}, lower::node_interner::FuncId};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 
@@ -32,15 +32,14 @@ impl CrateDefMap {
     // XXX: We will need to pass in a CrateManager to give access to the other crates
     // Each crate gives itself a LocalModuleId, independently.
     // 
-    pub fn collect_defs(crate_id : CrateId, context : &mut Context){
-
+    pub fn collect_defs(crate_id : CrateId, context : &mut Context) -> Result<(), Vec<CollectedErrors>>{
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not 
         // expect the same crate to be processed twice. It does not
         // make the implementation wrong, it just makes it slow.
         if context.def_map(crate_id).is_some() {
-            return
+            return Ok(())
         }
 
         let root_file_id = context.crate_graph[crate_id].root_file_id;
@@ -61,7 +60,7 @@ impl CrateDefMap {
 
         // Now we want to populate the CrateDefMap using the DefCollector
         //
-        DefCollector::collect(def_map, context, ast, root_file_id);
+        DefCollector::collect(def_map, context, ast, root_file_id)
     }
 
     pub fn root(&self) -> LocalModuleId {
