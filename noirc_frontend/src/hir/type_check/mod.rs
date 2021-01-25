@@ -1,43 +1,35 @@
 
 mod stmt;
 mod expr;
+mod errors;
 
 // Type checking at the moment is very simple due to what is supported in the grammar.
 // If polymorphism is never need, then Wands algorithm should be powerful enough to accommodate 
 // all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
 
+use errors::TypeCheckError;
+
 use super::lower::{node_interner::{NodeInterner, FuncId}};
 
-// XXX: Note that although it seems like we may not need the TypeChecker struct
-// Once errors are added back in fully, we will need it to store multiple errors
-pub struct TypeChecker<'a>{
-    interner : &'a mut NodeInterner
-}
-
-impl<'a> TypeChecker<'a> {
-
-    pub fn new(interner : &mut NodeInterner) -> TypeChecker {
-        TypeChecker{interner}
-    }
-
-    /// Type checks a function and assigns the 
-    /// appropriate types to expressions in a side table
-    pub fn check_func(&mut self, func_id : FuncId){
+/// Type checks a function and assigns the 
+/// appropriate types to expressions in a side table
+pub fn type_check_func(interner : &mut NodeInterner, func_id : FuncId) -> Result<(), TypeCheckError>{
         
-        // First fetch the metadata and add the types for parameters
-        // Note that we do not look for the defining Identifier for a parameter,
-        // since we know that it is the parameter itself
-        let meta = self.interner.function_meta(func_id);
-        for param in meta.parameters{
-            self.interner.push_ident_type(param.0, param.1);
-        }
-
-        // Fetch the HirFunction and iterate all of it's statements
-        let hir_func = self.interner.function(func_id);
-        for stmt in hir_func.statements() {
-            stmt::type_check(&mut self.interner, stmt)
-        }
+    // First fetch the metadata and add the types for parameters
+    // Note that we do not look for the defining Identifier for a parameter,
+    // since we know that it is the parameter itself
+    let meta = interner.function_meta(func_id);
+    for param in meta.parameters{
+        interner.push_ident_type(param.0, param.1);
     }
+
+    // Fetch the HirFunction and iterate all of it's statements
+    let hir_func = interner.function(func_id);
+    for stmt in hir_func.statements() {
+        stmt::type_check(interner, stmt)?
+    }
+    
+    Ok(())
 }
 
 // XXX: These tests are all manual currently. 
@@ -48,9 +40,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
-    use crate::{FunctionKind, Parser, Path, Type, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{HirExpression, HirInfixExpression, node_interner::{NodeInterner, FuncId}, function::{FuncMeta, HirFunction, Param}, resolver::Resolver, stmt::{HirPrivateStatement, HirStatement}}, resolution::PathResolver}};
-
-    use super::TypeChecker;
+    use crate::{FunctionKind, Parser, Path, Type, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirInfixExpression, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, FuncId}, resolver::Resolver, stmt::{HirPrivateStatement, HirStatement}}, resolution::PathResolver}};
     
     #[test]
     fn basic_priv() {
@@ -61,22 +51,26 @@ mod test {
         //
         // Push x variable
         let x_id = interner.push_ident(Spanned::from(Span::default(), String::from("x")).into());
-        interner.linked_id_to_def(x_id, x_id);
+        interner.linked_ident_to_def(x_id, x_id);
         // Push y variable
         let y_id = interner.push_ident(Spanned::from(Span::default(), String::from("y")).into());
-        interner.linked_id_to_def(y_id, y_id);
+        interner.linked_ident_to_def(y_id, y_id);
         // Push z variable
         let z_id = interner.push_ident(Spanned::from(Span::default(), String::from("z")).into());
-        interner.linked_id_to_def(z_id, z_id);
+        interner.linked_ident_to_def(z_id, z_id);
         
         // Push x and y as expressions
         let x_expr_id = interner.push_expr(HirExpression::Ident(x_id));
         let y_expr_id = interner.push_expr(HirExpression::Ident(y_id));
 
         // Create Infix
+        let operator = HirBinaryOp {
+            span: Span::default(),
+            kind: HirBinaryOpKind::Add,
+        };
         let expr = HirInfixExpression {
             lhs : x_expr_id,
-            operator : crate::hir::lower::HirBinaryOp::Add,
+            operator,
             rhs : y_expr_id,
         };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
@@ -105,8 +99,7 @@ mod test {
         };
         interner.push_fn_meta(func_meta, func_id);
 
-        let mut type_checker = TypeChecker::new(&mut interner);
-        type_checker.check_func(func_id);
+        super::type_check_func(&mut interner,func_id).unwrap();
     }
     #[test]
     fn basic_priv2() {
@@ -213,9 +206,13 @@ mod test {
         }
         
         let def_maps : HashMap<CrateId, CrateDefMap>= HashMap::new();
-        let mut resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
-
-        let func_meta : Vec<_>= program.functions.into_iter().map(|nf| resolver.resolve_function(nf)).collect();
+        
+        let func_meta : Vec<_>= program.functions.into_iter().map(|nf| {
+            
+            let resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
+            resolver.resolve_function(nf).unwrap()
+        
+        }).collect();
 
         for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
             interner.update_fn(func_id, hir_func);
@@ -223,8 +220,6 @@ mod test {
         }   
 
         // Type check section
-        let mut typechecker = TypeChecker::new(&mut interner);
-        typechecker.check_func(func_ids.first().cloned().unwrap());
-
+        super::type_check_func(&mut interner, func_ids.first().cloned().unwrap()).unwrap();
     }
 }
