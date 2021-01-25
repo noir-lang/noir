@@ -19,9 +19,10 @@ use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
 // XXX: Remove this once, we have moved to HIR
-use noirc_frontend::{ast::*, hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirBlockStatement, HirConstrainStatement, HirLetStatement}}}; 
+use noirc_frontend::{Type, FunctionKind, Signedness};
+use noirc_frontend::{hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirBlockStatement, HirConstrainStatement, HirLetStatement}}}; 
 
-use noirc_frontend::{hir::{crate_graph::{CrateType, LOCAL_CRATE}, lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
+use noirc_frontend::{hir::{lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
 use noirc_frontend::hir::Context;
 
 use noir_field::FieldElement;
@@ -201,7 +202,7 @@ impl<'a> Evaluator<'a> {
     // Either it is 1 * x + 0 or it is ax+b
     fn evaluate_identifier(&mut self, ident_id: IdentId, env: &mut Environment) -> Object {
         
-        let ident_name = self.context.def_interner.id_name(ident_id);
+        let ident_name = self.context.def_interner.ident_name(ident_id);
         let polynomial = env.get(&ident_name);
 
         polynomial
@@ -220,7 +221,7 @@ impl<'a> Evaluator<'a> {
         for param in func_meta.parameters {
             let param_id = param.0;
             let param_type = param.1;
-            let param_name = self.context.def_interner.id_name(param_id);
+            let param_name = self.context.def_interner.ident_name(param_id);
             
             match param_type {
                 Type::Public =>{
@@ -266,7 +267,7 @@ impl<'a> Evaluator<'a> {
                 self.num_selectors = self.num_selectors + 1;
 
 
-                let variable_name: String = self.context.def_interner.id_name(x.identifier);
+                let variable_name: String = self.context.def_interner.ident_name(x.identifier);
                 let value = self.evaluate_integer(env, x.expression)?; // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
                 self.selectors
                     .push(Selector(variable_name.clone(), value.clone()));
@@ -293,7 +294,7 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         x: HirPrivateStatement,
     ) -> Result<Object, RuntimeErrorKind> {
-        let variable_name = self.context.def_interner.id_name(x.identifier);
+        let variable_name = self.context.def_interner.ident_name(x.identifier);
         let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
         
         let rhs_poly = self.expression_to_object(env, x.expression)?;
@@ -388,7 +389,7 @@ impl<'a> Evaluator<'a> {
         let_stmt: HirLetStatement,
     ) -> Result<Object, RuntimeErrorKind> {
         // Convert the LHS into an identifier
-        let variable_name = self.context.def_interner.id_name(let_stmt.identifier);
+        let variable_name = self.context.def_interner.ident_name(let_stmt.identifier);
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
@@ -424,7 +425,7 @@ impl<'a> Evaluator<'a> {
             env.start_for_loop();
 
             // Add indice to environment
-            let variable_name = self.context.def_interner.id_name(for_expr.identifier);
+            let variable_name = self.context.def_interner.ident_name(for_expr.identifier);
             env.store(variable_name, Object::Constants(indice));
 
             let statements = self.statement_to_block(for_expr.block).statements();
@@ -478,7 +479,7 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_name = self.context.def_interner.id_name(indexed_expr.collection_name);
+                let arr_name = self.context.def_interner.ident_name(indexed_expr.collection_name);
                 let arr = env.get_array(&arr_name)?;
         
                 // Evaluate the index expression
@@ -541,7 +542,7 @@ impl<'a> Evaluator<'a> {
                 for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter())
                 {
                     let param_id = param.0;
-                    let param_name = self.context.def_interner.id_name(param_id);
+                    let param_name = self.context.def_interner.ident_name(param_id);
                     
                     new_env.store(param_name, argument);
                 }
