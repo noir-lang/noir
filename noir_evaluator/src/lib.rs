@@ -19,8 +19,8 @@ use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
 // XXX: Remove this once, we have moved to HIR
-use noirc_frontend::{FunctionKind, Signedness, Type, hir::lower::HirBinaryOpKind};
-use noirc_frontend::{hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirBlockStatement, HirConstrainStatement, HirLetStatement}}}; 
+use noirc_frontend::{FunctionKind, Signedness, Type, hir::lower::{HirBinaryOpKind, HirBlockExpression}};
+use noirc_frontend::{hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirConstrainStatement, HirLetStatement}}}; 
 
 use noirc_frontend::{hir::{lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
 use noirc_frontend::hir::Context;
@@ -251,7 +251,8 @@ impl<'a> Evaluator<'a> {
         // XXX: We should be able to replace this with call_function in the future, 
         // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
         let main_func_body = self.context.def_interner.function(&self.main_function);
-        for stmt_id in main_func_body.statements() {
+        let block = main_func_body.block(&self.context.def_interner);
+        for stmt_id in block.statements() {
             self.evaluate_statement(env, stmt_id)?;
         }
         Ok(())
@@ -281,7 +282,6 @@ impl<'a> Evaluator<'a> {
                 Ok(Object::Null)
             }
             HirStatement::Public(_) => todo!("This may be deprecated. We do however want a way to keep track of linear transformations between private variable and public/constants"),
-            HirStatement::Block(_) => todo!("This may be deprecated for block expressions")
         }
     }
 
@@ -427,7 +427,7 @@ impl<'a> Evaluator<'a> {
             let variable_name = self.context.def_interner.ident_name(&for_expr.identifier);
             env.store(variable_name, Object::Constants(indice));
 
-            let block = self.statement_to_block(for_expr.block);
+            let block = self.expression_to_block(&for_expr.block);
             let statements = block.statements();
             let return_typ = self.eval_block(env, statements)?;
             contents.push(return_typ);
@@ -439,11 +439,10 @@ impl<'a> Evaluator<'a> {
         Ok(Object::Array(Array{contents, length}))
     }
 
-    fn statement_to_block(&mut self, stmt_id : StmtId) -> HirBlockStatement {
-        let stmt = self.context.def_interner.statement(&stmt_id);
-        match stmt {
-            HirStatement::Block(block_stmt) => block_stmt,
-            _=> panic!("ice: expected a block statement")
+    fn expression_to_block(&mut self, expr_id : &ExprId) -> HirBlockExpression {
+        match self.context.def_interner.expression(expr_id) {
+            HirExpression::Block(block_expr) => block_expr,
+            _=> panic!("ice: expected a block expression")
         }
     }
 
@@ -520,7 +519,8 @@ impl<'a> Evaluator<'a> {
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Predicate(_) => todo!(),
-            HirExpression::Literal(_) => todo!()
+            HirExpression::Literal(_) => todo!(),
+            HirExpression::Block(block) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here")
         }
     }
 
@@ -555,7 +555,8 @@ impl<'a> Evaluator<'a> {
     fn apply_func(&mut self, env: &mut Environment, func_id: &FuncId) -> Result<Object, RuntimeErrorKind> {
         
         let function = self.context.def_interner.function(func_id);
-        self.eval_block(env, function.statements())
+        let block = function.block(&self.context.def_interner);
+        self.eval_block(env, block.statements())
     }
 
     fn eval_block(&mut self, env: &mut Environment, block: &[StmtId]) -> Result<Object, RuntimeErrorKind> {
