@@ -245,6 +245,7 @@ impl NodeInterner {
     }
     
     // XXX: This is needed as Witnesses in Evaluator require a name at the moment
+    // normally, this would only be needed for error reporting
     pub fn ident_name(&self, ident_id : &IdentId) -> String {
         self.ident_to_name.get(ident_id).expect("ice: all ident ids should have names").clone()
     }
