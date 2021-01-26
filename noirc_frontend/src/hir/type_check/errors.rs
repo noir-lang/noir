@@ -11,15 +11,22 @@ pub enum TypeCheckError {
     #[error("type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed {typ : Type, place: &'static str, span : Span},
     #[error("expected type {expected_typ:?} is not the same as {expr_typ:?}")]
-    TypeMismatch {expected_typ : Type, expr_typ : Type, expr_span : Span},
+    TypeMismatch {expected_typ : String, expr_typ : String, expr_span : Span},
+    #[error("expected {expected:?} found {found:?}")]
+    ArityMisMatch {expected : u16, found : u16, span : Span},
+    // XXX: unstructured errors are not ideal for testing.
+    // They will be removed in a later iteration
+    #[error("unstructured msg: {msg:?}")]
+    Unstructured {msg : String, span : Span},
     // Usually the type checker will return after the first encountered errors
     // Due to the fact that types depend on each other.
     // This is not the case in a CallExpression however, or more generally a list of expressions
     #[error("multiple errors when type checking list of expressions")]
     MultipleErrors(Vec<TypeCheckError>),
     #[error("error with additional context")]
-    Context{err : Box<TypeCheckError>, ctx : &'static str}
-
+    Context{err : Box<TypeCheckError>, ctx : &'static str},
+    #[error("Array is not homogenous")]
+    NonHomogenousArray { first_span: Span, first_type : String, first_index : usize, second_span: Span, second_type : String, second_index : usize},
 }
 
 impl TypeCheckError {
@@ -47,6 +54,18 @@ impl TypeCheckError {
                 TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                     vec![Diagnostic::simple_error(format!("expected type {}, found type {}", expected_typ, expr_typ), format!(""), expr_span)]
                 }
+                TypeCheckError::NonHomogenousArray { first_span, first_type, first_index, second_span, second_type, second_index } => {
+                    let mut diag = Diagnostic::simple_error(format!("Non homogenous array found at indices ({},{})", first_index, second_index), format!("found type {}", first_type), first_span);
+                    diag.add_secondary(format!("but then found type {}", second_type), second_span);
+                    vec![diag]
+                }
+                TypeCheckError::ArityMisMatch { expected, found, span } => {
+                    vec![Diagnostic::simple_error(format!("expected {} number of arguments, found {}", expected, found), format!(""), span)]
+                }
+                TypeCheckError::Unstructured { msg, span } => {
+                    
+                    vec![Diagnostic::simple_error(msg, format!(""), span)]
+                }
             }
 
          }
@@ -54,7 +73,10 @@ impl TypeCheckError {
          pub fn add_context(self, ctx : &'static str) -> Option<Self> {
             match &self {
                 TypeCheckError::OpCannotBeUsed { .. } |
+                TypeCheckError::Unstructured { .. } |
                 TypeCheckError::TypeMismatch { .. } |
+                TypeCheckError::NonHomogenousArray { .. } |
+                TypeCheckError::ArityMisMatch { .. } |
                 TypeCheckError::TypeCannotBeUsed { .. } => Some(TypeCheckError::Context{err:Box::new(self), ctx}),
                 // Cannot apply a context to multiple diagnostics
                 TypeCheckError::MultipleErrors(_) => None,
