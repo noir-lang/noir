@@ -479,14 +479,16 @@ mod test {
             }
         "#;
 
-        let (_,mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (interner,mut errors) = resolve_src_code(src, vec![String::from("main")]);
         
         // There should only be one error
         assert!(errors.len() == 1);
         let err = errors.pop().unwrap();
         // It should be regarding the unused variable
         match err {
-            errors::ResolverError::UnusedVariable{ident_id} => assert_eq!(&ident_id,2),
+            errors::ResolverError::UnusedVariable{ident_id} => {
+                assert_eq!(interner.ident_name(&ident_id), "y".to_owned());
+            },
             _=> unimplemented!("we should only have an unused var error")
         }
     }
