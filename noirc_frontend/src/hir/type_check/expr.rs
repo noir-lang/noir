@@ -172,21 +172,31 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : &Exp
             // The type of the identifier is equal to the type of the ranges
             interner.push_ident_type(&for_expr.identifier, start_range_type);
 
-            super::stmt::type_check(interner, &for_expr.block)?;
-
-            let (last_type, _) = extract_last_type_from_block(interner,for_expr.block);
-
+            type_check_expression(interner, &for_expr.block)?;
+            let last_type = interner.id_type(for_expr.block);
             // XXX: In the release before this, we were using the start and end range to determine the number
             // of iterations and marking the type as Fixed. Is this still necessary?
             // It may be possible to do this properly again, once we do constant folding. Since the range will always be const expr 
             interner.push_expr_type(expr_id, Type::Array(ArraySize::Variable, Box::new(last_type)));
+        },
+        HirExpression::Block(block_expr) => {
+            for stmt in block_expr.statements(){
+                super::stmt::type_check(interner, stmt)?
+            }
+            let last_stmt_type = match block_expr.statements().last() {
+                None => Type::Unit,
+                Some(stmt) => extract_ret_type(interner, stmt)
+            };
+
+            interner.push_expr_type(expr_id, last_stmt_type)
+
         },
         HirExpression::Prefix(_) => {
             // type_of(prefix_expr) == type_of(rhs_expression)
             todo!("prefix expressions have not been implemented yet")
         },
         HirExpression::Predicate(_) => {todo!("predicate statements have not been implemented yet")},
-        HirExpression::If(_) => todo!("If statements have not been implemented yet!")
+        HirExpression::If(_) => todo!("If statements have not been implemented yet!"),
     };
     Ok(())
 }
@@ -266,41 +276,17 @@ fn check_param_argument(interner : &NodeInterner, param : &Param, arg_type : &Ty
         Ok(())
 }
 
-// XXX: Currently, we do not have BlockExpressions, so we need to extract the last expression from 
-// a block statement until then 
-// This will be removed once BlockExpressions are added.
-fn extract_last_type_from_block(interner : &NodeInterner, stmt_id : StmtId) -> (Type, Span) {
-    let stmt = interner.statement(&stmt_id);
-    match stmt {
-        HirStatement::Block(_) => {
-            extract_last_type_from_stmt(interner, stmt_id)
-        },
-        _=> panic!("expected a block statement")
-    }
-}
 
-// general version
-pub(super) fn extract_last_type_from_stmt(interner : &NodeInterner, stmt_id : StmtId) -> (Type, Span) {
-    let stmt = interner.statement(&stmt_id);
+fn extract_ret_type(interner : &NodeInterner, stmt_id : &StmtId) -> Type {
+    let stmt = interner.statement(stmt_id);
     match stmt {
-            HirStatement::Block(block_stmt) => {
-                let statements =  block_stmt.statements();
-                if statements.len() == 0 {
-                    return (Type::Unit, Span::default())
-                }
-                let last_stmt_id = statements.last().unwrap();
-                
-                let last_stmt = interner.statement(last_stmt_id);
-                // If the last statement is an expression statement, then we take the value
-                // if not, then we return Unit
-                match last_stmt {
-                    HirStatement::Expression(expr_id) => return (interner.id_type(&expr_id), interner.expr_span(&expr_id)),
-                    HirStatement::Block(_) => panic!("{}","this should not be possible to do right now, as {/*code*/} is not supported"),
-                    _=> return (Type::Unit, Span::default())
-                }
-            },
-            _=> return (Type::Unit, Span::default())
-        }
+        HirStatement::Let(_) => Type::Unit,
+        HirStatement::Const(_) => Type::Unit,
+        HirStatement::Constrain(_) => Type::Unit,
+        HirStatement::Public(_) => Type::Unit,
+        HirStatement::Private(_) => Type::Unit,
+        HirStatement::Expression(expr_id) => interner.id_type(&expr_id) 
+    }
 }
 
 fn type_check_list_expression(interner: &mut NodeInterner, exprs: &[ExprId]) -> Result<(), TypeCheckError>{
