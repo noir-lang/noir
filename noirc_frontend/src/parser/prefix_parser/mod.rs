@@ -11,12 +11,14 @@ mod module;
 mod r#for;
 mod constrain;
 mod path;
+mod block;
 
 use unary::UnaryParser;
 use group::GroupParser;
 use literal::LiteralParser;
 pub(super) use name::NameParser;
 use r#for::ForParser;
+use block::BlockParser;
 
 pub use array::ArrayParser;
 pub use declaration::DeclarationParser;
@@ -29,7 +31,7 @@ pub use path::PathParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
-    ArrayLiteral, BlockStatement, Expression, ExpressionKind,FunctionDefinition, Ident,
+    ArrayLiteral, BlockExpression, Expression, ExpressionKind,FunctionDefinition, Ident,
     IfExpression, ForExpression, Literal, PrefixExpression, Type, NoirFunction
 };
 use crate::token::{Keyword, Token, TokenKind, Attribute};
@@ -54,6 +56,7 @@ pub enum PrefixParser {
     Unary,
     Array,
     Path,
+    Block,
 }
 
 impl PrefixParser {
@@ -67,6 +70,7 @@ impl PrefixParser {
             PrefixParser::Unary => span_parser(parser,UnaryParser::parse),
             PrefixParser::Group => span_parser(parser,GroupParser::parse),
             PrefixParser::Path => span_parser(parser,PathParser::parse),
+            PrefixParser::Block => span_parser(parser,BlockParser::parse),
         }
     }
 
