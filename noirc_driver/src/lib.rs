@@ -108,7 +108,7 @@ impl Driver{
         let main_function = local_crate.main_function().expect("cannot compile a program with no main function");
 
         // Create ABi for main function
-        let abi = self.func_to_abi(main_function);
+        let abi = self.func_to_abi(&main_function);
 
         let evaluator = Evaluator::new(file_id, main_function, &self.context);
 
@@ -149,12 +149,12 @@ impl Driver{
     }
     
     /// Creates an ABI from a function
-    fn func_to_abi(&self, func_id : FuncId) -> Vec<(String, Type)>{
+    fn func_to_abi(&self, func_id : &FuncId) -> Vec<(String, Type)>{
         let func_meta = self.context.def_interner.function_meta(func_id);
 
         func_meta.parameters.into_iter().map(|param| {
             let (param_id, param_type) = (param.0, param.1);
-            let param_name = self.context.def_interner.ident_name(param_id);
+            let param_name = self.context.def_interner.ident_name(&param_id);
             (param_name, param_type)
         }).collect()
 
