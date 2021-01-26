@@ -1,7 +1,7 @@
 use fm::FileId;
 
 use super::{Precedence, Program, errors::ParserErrorKind};
-use crate::{ast::{BlockStatement, Expression, Statement, Type, ArraySize, ExpressionKind}};
+use crate::ast::{Expression, Statement, Type, ArraySize, ExpressionKind};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, Token, TokenKind, SpannedToken};
 use super::errors::ParserError;
@@ -265,6 +265,7 @@ impl<'a> Parser<'a> {
             x if x.kind() == TokenKind::Literal => Some(PrefixParser::Literal),
             Token::Bang | Token::Minus => Some(PrefixParser::Unary),
             Token::LeftParen => Some(PrefixParser::Group),
+            Token::LeftBrace => Some(PrefixParser::Block),
             _ => None,
         }
     }
@@ -289,25 +290,6 @@ impl<'a> Parser<'a> {
             Token::LeftBracket => Some(InfixParser::Index),
             _ => None,
         }
-    }
-
-    pub(crate) fn parse_block_statement(&mut self) -> Result<BlockStatement, ParserError> {
-        let mut statements: Vec<Statement> = Vec::new();
-        
-        // Advance past the current token which is the left brace which was used to start the block statement
-        // XXX: Check consistency with for parser, if parser and func parser
-        self.advance_tokens();
-
-        while (self.curr_token != Token::RightBrace) && (self.curr_token != Token::EOF) {
-            statements.push(self.parse_statement()?);
-            self.advance_tokens();
-        }
-
-        if self.curr_token != Token::RightBrace {
-            return Err(ParserErrorKind::UnstructuredError{message : format!("Expected a }} to end the block statement"), span : self.curr_token.into_span()}.into_err(self.file_id));
-        }
-
-        Ok(BlockStatement(statements))
     }
 
     pub(crate) fn parse_comma_separated_argument_list(
