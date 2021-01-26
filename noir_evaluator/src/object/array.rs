@@ -32,7 +32,7 @@ impl Array {
         Ok(self.contents[index as usize].clone())
     }
 
-    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr_id : ExprId) -> Result<Array, RuntimeErrorKind> {
+    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr_id : &ExprId) -> Result<Array, RuntimeErrorKind> {
         let object = evaluator.expression_to_object(env, expr_id)?;
         match object {
             Object::Array(arr) => Ok(arr),

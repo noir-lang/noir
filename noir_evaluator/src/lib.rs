@@ -200,7 +200,7 @@ impl<'a> Evaluator<'a> {
     // This is because, we currently do not have support for optimisations with polynomials of higher degree or higher fan-ins
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
-    fn evaluate_identifier(&mut self, ident_id: IdentId, env: &mut Environment) -> Object {
+    fn evaluate_identifier(&mut self, ident_id: &IdentId, env: &mut Environment) -> Object {
         
         let ident_name = self.context.def_interner.ident_name(ident_id);
         let polynomial = env.get(&ident_name);
@@ -217,11 +217,11 @@ impl<'a> Evaluator<'a> {
         let mut pub_inputs = Vec::new();
         let mut witnesses = Vec::new();
 
-        let func_meta = self.context.def_interner.function_meta(self.main_function);
+        let func_meta = self.context.def_interner.function_meta(&self.main_function);
         for param in func_meta.parameters {
             let param_id = param.0;
             let param_type = param.1;
-            let param_name = self.context.def_interner.ident_name(param_id);
+            let param_name = self.context.def_interner.ident_name(&param_id);
             
             match param_type {
                 Type::Public =>{
@@ -250,14 +250,14 @@ impl<'a> Evaluator<'a> {
         // Now call the main function
         // XXX: We should be able to replace this with call_function in the future, 
         // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
-        let main_func_body = self.context.def_interner.function(self.main_function);
+        let main_func_body = self.context.def_interner.function(&self.main_function);
         for stmt_id in main_func_body.statements() {
             self.evaluate_statement(env, stmt_id)?;
         }
         Ok(())
     }
     
-    fn evaluate_statement(&mut self, env: &mut Environment, stmt_id : StmtId) -> Result<Object, RuntimeErrorKind> {
+    fn evaluate_statement(&mut self, env: &mut Environment, stmt_id : &StmtId) -> Result<Object, RuntimeErrorKind> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
@@ -266,15 +266,14 @@ impl<'a> Evaluator<'a> {
             HirStatement::Const(x) => {
                 self.num_selectors = self.num_selectors + 1;
 
-
-                let variable_name: String = self.context.def_interner.ident_name(x.identifier);
-                let value = self.evaluate_integer(env, x.expression)?; // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
+                let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
+                let value = self.evaluate_integer(env, &x.expression)?; // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
                 self.selectors
                     .push(Selector(variable_name.clone(), value.clone()));
                 env.store(variable_name, value);
                 Ok(Object::Null)
             }
-            HirStatement::Expression(expr) => self.expression_to_object(env, expr),
+            HirStatement::Expression(expr) => self.expression_to_object(env, &expr),
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_let_statement(env, let_stmt)?;
@@ -294,10 +293,10 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         x: HirPrivateStatement,
     ) -> Result<Object, RuntimeErrorKind> {
-        let variable_name = self.context.def_interner.ident_name(x.identifier);
+        let variable_name = self.context.def_interner.ident_name(&x.identifier);
         let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
         
-        let rhs_poly = self.expression_to_object(env, x.expression)?;
+        let rhs_poly = self.expression_to_object(env, &x.expression)?;
 
 
         // There are two ways to add the variable to the environment. We can add the variable and link it to itself,
@@ -350,8 +349,8 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
     ) -> Result<Object, RuntimeErrorKind> {
-        let lhs_poly = self.expression_to_object(env, constrain_stmt.0.lhs)?;
-        let rhs_poly = self.expression_to_object(env, constrain_stmt.0.rhs)?;
+        let lhs_poly = self.expression_to_object(env, &constrain_stmt.0.lhs)?;
+        let rhs_poly = self.expression_to_object(env, &constrain_stmt.0.rhs)?;
 
         // Evaluate the constrain infix statement
         let _ = self.evaluate_infix_expression(
@@ -389,13 +388,13 @@ impl<'a> Evaluator<'a> {
         let_stmt: HirLetStatement,
     ) -> Result<Object, RuntimeErrorKind> {
         // Convert the LHS into an identifier
-        let variable_name = self.context.def_interner.ident_name(let_stmt.identifier);
+        let variable_name = self.context.def_interner.ident_name(&let_stmt.identifier);
 
         // XXX: Currently we only support arrays using this, when other types are introduced
         // we can extend into a separate (generic) module
 
         // Extract the array
-        let rhs_poly = self.expression_to_object(env, let_stmt.expression)?;
+        let rhs_poly = self.expression_to_object(env, &let_stmt.expression)?;
 
         match rhs_poly {
             Object::Array(arr) => {
@@ -415,8 +414,8 @@ impl<'a> Evaluator<'a> {
         // First create an iterator over all of the for loop identifiers
         // XXX: We preferably need to introduce public integers and private integers, so that we can 
         // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest 
-        let start = self.expression_to_object(env, for_expr.start_range)?.constant()?;
-        let end = self.expression_to_object(env, for_expr.end_range)?.constant()?;
+        let start = self.expression_to_object(env, &for_expr.start_range)?.constant()?;
+        let end = self.expression_to_object(env, &for_expr.end_range)?.constant()?;
         let ranged_object = RangedObject::new(start, end)?;
         
         let mut contents : Vec<Object> = Vec::new();
@@ -425,10 +424,11 @@ impl<'a> Evaluator<'a> {
             env.start_for_loop();
 
             // Add indice to environment
-            let variable_name = self.context.def_interner.ident_name(for_expr.identifier);
+            let variable_name = self.context.def_interner.ident_name(&for_expr.identifier);
             env.store(variable_name, Object::Constants(indice));
 
-            let statements = self.statement_to_block(for_expr.block).statements();
+            let block = self.statement_to_block(for_expr.block);
+            let statements = block.statements();
             let return_typ = self.eval_block(env, statements)?;
             contents.push(return_typ);
 
@@ -440,14 +440,14 @@ impl<'a> Evaluator<'a> {
     }
 
     fn statement_to_block(&mut self, stmt_id : StmtId) -> HirBlockStatement {
-        let stmt = self.context.def_interner.statement(stmt_id);
+        let stmt = self.context.def_interner.statement(&stmt_id);
         match stmt {
             HirStatement::Block(block_stmt) => block_stmt,
             _=> panic!("ice: expected a block statement")
         }
     }
 
-    pub fn evaluate_integer(&mut self, env: &mut Environment, expr_id: ExprId) -> Result<Object, RuntimeErrorKind> {
+    pub fn evaluate_integer(&mut self, env: &mut Environment, expr_id: &ExprId) -> Result<Object, RuntimeErrorKind> {
         let polynomial = self.expression_to_object(env, expr_id)?;
 
         if polynomial.is_constant() {
@@ -459,7 +459,7 @@ impl<'a> Evaluator<'a> {
     pub fn expression_to_object(
         &mut self,
         env: &mut Environment,
-        expr_id: ExprId,
+        expr_id: &ExprId,
     ) -> Result<Object, RuntimeErrorKind> {
         let expr = self.context.def_interner.expression(expr_id);
         match expr {
@@ -467,23 +467,23 @@ impl<'a> Evaluator<'a> {
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 Ok(Object::Array(Array::from(self, env, arr_lit)?))
             }
-            HirExpression::Ident(x) => Ok(self.evaluate_identifier(x, env)),
+            HirExpression::Ident(x) => Ok(self.evaluate_identifier(&x, env)),
             HirExpression::Infix(infx) => {
-                let lhs = self.expression_to_object(env, infx.lhs)?;
-                let rhs = self.expression_to_object(env, infx.rhs)?;
+                let lhs = self.expression_to_object(env, &infx.lhs)?;
+                let rhs = self.expression_to_object(env, &infx.rhs)?;
                 self.evaluate_infix_expression(env, lhs, rhs, infx.operator)
             }
             HirExpression::Cast(cast_expr) => {
-                let lhs = self.expression_to_object(env, cast_expr.lhs)?;
+                let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
                 binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
-                let arr_name = self.context.def_interner.ident_name(indexed_expr.collection_name);
+                let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
                 let arr = env.get_array(&arr_name)?;
         
                 // Evaluate the index expression
-                let index_as_obj = self.expression_to_object(env, indexed_expr.index)?;
+                let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
                 let index_as_constant = match index_as_obj.constant() {
                     Ok(v) => v,
                     Err(_) => panic!("Indexed expression does not evaluate to a constant")
@@ -494,7 +494,7 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Call(call_expr) => {
 
-                let func_meta = self.context.def_interner.function_meta(call_expr.func_id);
+                let func_meta = self.context.def_interner.function_meta(&call_expr.func_id);
                         
                 // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
@@ -537,28 +537,28 @@ impl<'a> Evaluator<'a> {
                     return Err(errors.pop().unwrap())
                 }
 
-                let func_meta = self.context.def_interner.function_meta(func_id);
+                let func_meta = self.context.def_interner.function_meta(&func_id);
 
                 for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter())
                 {
                     let param_id = param.0;
-                    let param_name = self.context.def_interner.ident_name(param_id);
+                    let param_name = self.context.def_interner.ident_name(&param_id);
                     
                     new_env.store(param_name, argument);
                 }
 
-                let return_val = self.apply_func(&mut new_env, func_id)?;
+                let return_val = self.apply_func(&mut new_env, &func_id)?;
 
                 Ok(return_val)
     }
 
-    fn apply_func(&mut self, env: &mut Environment, func_id: FuncId) -> Result<Object, RuntimeErrorKind> {
+    fn apply_func(&mut self, env: &mut Environment, func_id: &FuncId) -> Result<Object, RuntimeErrorKind> {
         
         let function = self.context.def_interner.function(func_id);
         self.eval_block(env, function.statements())
     }
 
-    fn eval_block(&mut self, env: &mut Environment, block: Vec<StmtId>) -> Result<Object, RuntimeErrorKind> {
+    fn eval_block(&mut self, env: &mut Environment, block: &[StmtId]) -> Result<Object, RuntimeErrorKind> {
         
         let mut result = Object::Null;
         for stmt in block {
@@ -569,7 +569,7 @@ impl<'a> Evaluator<'a> {
 
     fn expression_list_to_objects(&mut self, env : &mut Environment, exprs : &[ExprId]) -> (Vec<Object>, Vec<RuntimeErrorKind>) {
         let (objects, errors) : (Vec<_>, Vec<_>) = exprs.iter()
-        .map(|expr| self.expression_to_object(env, expr.clone()))
+        .map(|expr| self.expression_to_object(env, expr))
         .partition(Result::is_ok);
 
         let objects: Vec<_> = objects.into_iter().map(Result::unwrap).collect();

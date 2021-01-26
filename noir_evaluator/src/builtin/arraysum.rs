@@ -22,7 +22,7 @@ impl BuiltInCaller for ArraySum {
         };
 
         // ArraySum should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase
-        let arr = Array::from_expression(evaluator, env, arr_expr)?;
+        let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         let mut result = arr.get(0)?;
         for i in 1..arr.contents.len(){
