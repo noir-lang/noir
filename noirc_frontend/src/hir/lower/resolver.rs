@@ -566,7 +566,7 @@ mod test {
         for err in errors {
             match &err {
                 ResolverError::UnusedVariable { ident_id } => {
-                    let name = interner.ident_name(*ident_id);
+                    let name = interner.ident_name(ident_id);
                     assert_eq!(name, "z");
                 }
                 ResolverError::VariableNotDeclared { name, .. } => {
