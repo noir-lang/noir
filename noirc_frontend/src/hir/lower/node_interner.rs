@@ -40,6 +40,11 @@ macro_rules! into_index {
                 self.0
             }
         }
+        impl Into<Index> for &$id_type {
+            fn into(self) -> Index {
+                self.0
+            }
+        }
         
     };
 }
@@ -139,10 +144,10 @@ impl NodeInterner {
     }
 
     // Type Checker
-    pub fn push_expr_type(&mut self, expr_id : ExprId, typ : Type) {
+    pub fn push_expr_type(&mut self, expr_id : &ExprId, typ : Type) {
         self.id_to_type.insert(expr_id.into(), typ);
     }
-    pub fn push_ident_type(&mut self, ident_id : IdentId, typ : Type) {
+    pub fn push_ident_type(&mut self, ident_id : &IdentId, typ : Type) {
         self.id_to_type.insert(ident_id.into(), typ);
     }
   
@@ -189,7 +194,7 @@ impl NodeInterner {
     }
 
     // Cloning Hir structures is cheap, so we return owned structures 
-    pub fn function(&self, func_id : FuncId) -> HirFunction {
+    pub fn function(&self, func_id : &FuncId) -> HirFunction {
         let def = self.nodes.get(func_id.0).expect("ice: all function ids should have definitions");
 
         match def {
@@ -197,10 +202,10 @@ impl NodeInterner {
             _=> panic!("ice: all function ids should correspond to a function in the interner")
         }
     }
-    pub fn function_meta(&self, func_id : FuncId) -> FuncMeta {
-        self.func_meta.get(&func_id).cloned().expect("ice: all function ids should have metadata")
+    pub fn function_meta(&self, func_id : &FuncId) -> FuncMeta {
+        self.func_meta.get(func_id).cloned().expect("ice: all function ids should have metadata")
     }
-    pub fn statement(&self, stmt_id : StmtId) -> HirStatement {
+    pub fn statement(&self, stmt_id : &StmtId) -> HirStatement {
         let def = self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
 
         match def {
@@ -209,7 +214,7 @@ impl NodeInterner {
         }
     }
 
-    pub fn expression(&self, expr_id : ExprId) -> HirExpression {
+    pub fn expression(&self, expr_id : &ExprId) -> HirExpression {
         let def = self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
@@ -217,7 +222,7 @@ impl NodeInterner {
             _=> panic!("ice: all expression ids should correspond to a statement in the interner")
         }
     }
-    pub fn ident(&self, ident_id : IdentId) -> Ident {
+    pub fn ident(&self, ident_id : &IdentId) -> Ident {
         let def = self.nodes.get(ident_id.0).expect("ice: all ident ids should have definitions");
 
         match def {
@@ -227,15 +232,15 @@ impl NodeInterner {
     }
     
     // XXX: This is needed as Witnesses in Evaluator require a name at the moment
-    pub fn ident_name(&self, ident_id : IdentId) -> String {
-        self.ident_to_name.get(&ident_id).expect("ice: all ident ids should have names").clone()
+    pub fn ident_name(&self, ident_id : &IdentId) -> String {
+        self.ident_to_name.get(ident_id).expect("ice: all ident ids should have names").clone()
     }
 
-    pub fn ident_span(&self, ident_id : IdentId) -> Span {
-        self.id_span(ident_id.into())
+    pub fn ident_span(&self, ident_id : &IdentId) -> Span {
+        self.id_span(ident_id)
     }
-    pub fn expr_span(&self, expr_id : ExprId) -> Span {
-        self.id_span(expr_id.into())
+    pub fn expr_span(&self, expr_id : &ExprId) -> Span {
+        self.id_span(expr_id)
     }
 
     
@@ -246,10 +251,10 @@ impl NodeInterner {
     // Since type checking always comes after resolution.
     // If resolution is correct, we will always assign types to Identifiers before we use them.
     // The same would go for Expressions.
-    pub fn id_type(&self, index : Index) -> Type {
-        self.id_to_type.get(&index).cloned().unwrap()
+    pub fn id_type(&self, index : impl Into<Index>) -> Type {
+        self.id_to_type.get(&index.into()).cloned().unwrap()
     }
-    pub fn id_span(&self, index : Index) -> Span {
-        self.id_to_span.get(&index).copied().unwrap()
+    pub fn id_span(&self, index : impl Into<Index>) -> Span {
+        self.id_to_span.get(&index.into()).copied().unwrap()
     }
 }
