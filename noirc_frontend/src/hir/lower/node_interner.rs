@@ -13,7 +13,7 @@ pub struct IdentId(Index);
 impl IdentId {
     //dummy id for error reporting
     pub fn dummy_id() -> IdentId {
-        IdentId(Index::from_raw_parts(0, std::u64::MAX))
+        IdentId(Index::from_raw_parts(std::usize::MAX, 0))
     }
 }
 
@@ -23,13 +23,20 @@ pub struct StmtId(Index);
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct ExprId(Index);
 
+impl ExprId {
+    pub fn empty_block_id() -> ExprId {
+        ExprId(Index::from_raw_parts(0, 0))
+    }
+}
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
 
 impl FuncId {
     //dummy id for error reporting
+    // This can be anything, as the program will ultimately fail 
+    // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index::from_raw_parts(0, std::u64::MAX))
+        FuncId(Index::from_raw_parts(std::usize::MAX, 0))
     }
 }
 
@@ -115,14 +122,20 @@ pub struct NodeInterner{
 
 impl Default for NodeInterner {
     fn default() -> Self {
-        NodeInterner {
+        let mut interner = NodeInterner {
             nodes : Arena::default(),
             func_meta : HashMap::new(),
             ident_to_defs : HashMap::new(),
             id_to_span : HashMap::new(),
             ident_to_name : HashMap::new(),
             id_to_type : HashMap::new(),
-        }
+        };
+
+        // An empty block expression is used often, we add this into the `node` on startup
+        let expr_id = interner.push_expr(HirExpression::empty_block());
+        assert_eq!(expr_id, ExprId::empty_block_id());
+
+        interner
     }
 }
 
@@ -219,7 +232,7 @@ impl NodeInterner {
 
         match def {
             Node::Expression(expr) => return expr.clone(),
-            _=> panic!("ice: all expression ids should correspond to a statement in the interner")
+            _=> panic!("ice: all expression ids should correspond to a expression in the interner")
         }
     }
     pub fn ident(&self, ident_id : &IdentId) -> Ident {
