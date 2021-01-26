@@ -1,22 +1,35 @@
 
 use crate::{FunctionKind,Type, token::Attribute};
 
-use super::node_interner::{IdentId, StmtId};
+use super::{HirBlockExpression, HirExpression, node_interner::{ExprId, IdentId, NodeInterner, StmtId}};
 
-/// A Hir function is a vector of interned statements
+/// A Hir function is a block expression
+/// with a list of statements
 #[derive(Debug, Clone)]
-pub struct HirFunction(Vec<StmtId>);
+pub struct HirFunction(ExprId);
 
 impl HirFunction {
     pub fn empty() -> HirFunction {
-        HirFunction(Vec::new())
-    }
-    pub fn push_stmt(&mut self, id : StmtId) {
-        self.0.push(id)
+        HirFunction(ExprId::empty_block_id())
     }
 
-    pub fn statements(&self) -> &[StmtId] {
+    // This function is marked as unsafe because 
+    // the expression kind is not being checked
+    pub const fn unsafe_from_expr(expr_id : ExprId) -> HirFunction {
+        HirFunction(expr_id)
+    }
+
+    // This function is marked as unsafe because 
+    // the expression kind is not being checked
+    pub const fn as_expr(&self) -> &ExprId {
         &self.0
+    }
+
+    pub fn block(&self, interner : &NodeInterner) -> HirBlockExpression {
+        match interner.expression(&self.0) {
+            HirExpression::Block(block_expr) => block_expr,
+            _=> unreachable!("ice: functions can only be block expressions")
+        }
     }
 }
 
