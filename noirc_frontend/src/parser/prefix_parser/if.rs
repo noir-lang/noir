@@ -13,15 +13,15 @@ impl IfParser {
         parser.peek_check_variant_advance(&Token::RightParen)?;
 
         parser.peek_check_variant_advance(&Token::LeftBrace)?;
-        let consequence = parser.parse_block_statement()?;
+        let consequence = BlockParser::parse_block_expression(parser)?;
 
-        let mut alternative: Option<BlockStatement> = None;
+        let mut alternative: Option<BlockExpression> = None;
         if parser.peek_token == Token::Keyword(Keyword::Else) {
             parser.advance_tokens();
 
             parser.peek_check_variant_advance(&Token::LeftBrace)?;
-
-            alternative = Some(parser.parse_block_statement()?);
+            
+            alternative = Some(BlockParser::parse_block_expression(parser)?);
         }
 
         let if_expr = IfExpression {

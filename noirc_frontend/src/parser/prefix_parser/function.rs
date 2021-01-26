@@ -26,7 +26,7 @@ impl FuncParser {
 
         parser.peek_check_variant_advance(&Token::LeftBrace)?;
 
-        let body = parser.parse_block_statement()?;
+        let body = BlockParser::parse_block_expression(parser)?;
 
         // Currently, we only allow lowlevel, builtin and normal functions
         // In the future, we can add a test attribute. Arbitrary attributes will not be supported.

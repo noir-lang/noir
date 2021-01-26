@@ -19,7 +19,7 @@ impl ForParser {
         parser.peek_check_variant_advance(&Token::LeftBrace)?;
 
         // Parse body
-        let block = parser.parse_block_statement()?;
+        let block = BlockParser::parse_block_expression(parser)?;
 
         let for_expr = ForExpression {
             identifier: spanned_identifier,
