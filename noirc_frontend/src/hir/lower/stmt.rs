@@ -54,7 +54,7 @@ pub enum HirStatement {
 pub struct HirBlockStatement(pub Vec<StmtId>);
 
 impl HirBlockStatement {
-    pub fn statements(&self) -> Vec<StmtId> {
-        self.0.clone()
+    pub fn statements(&self) -> &[StmtId] {
+        &self.0
     }
 }
