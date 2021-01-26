@@ -15,8 +15,8 @@ impl HirFunction {
         self.0.push(id)
     }
 
-    pub fn statements(&self) -> Vec<StmtId> {
-        self.0.clone()
+    pub fn statements(&self) -> &[StmtId] {
+        &self.0
     }
 }
 
