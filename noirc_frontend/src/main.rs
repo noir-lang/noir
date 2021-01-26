@@ -42,7 +42,7 @@ fn main() {
         };
 
         // Get the HirFunction for that Id
-        let hir = context.def_interner.function(*func_id);
+        let hir = context.def_interner.function(func_id);
 
         println!("func hir is {:?}", hir);
         println!("func vis is {:?}", vis);
