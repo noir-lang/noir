@@ -46,15 +46,5 @@ pub enum HirStatement {
     Constrain(HirConstrainStatement),
     Public(HirPublicStatement),
     Private(HirPrivateStatement),
-    Block(HirBlockStatement),
     Expression(ExprId),
-}
-
-#[derive(Debug, Clone)]
-pub struct HirBlockStatement(pub Vec<StmtId>);
-
-impl HirBlockStatement {
-    pub fn statements(&self) -> &[StmtId] {
-        &self.0
-    }
 }

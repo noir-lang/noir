@@ -44,6 +44,7 @@ pub struct CrateItem {
 pub enum HirExpression {
     Ident(IdentId), 
     Literal(HirLiteral),
+    Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
@@ -54,12 +55,19 @@ pub enum HirExpression {
     If(IfExpression),
 }
 
+impl HirExpression {
+    /// Returns an empty block expression
+    pub const fn empty_block() -> HirExpression {
+        HirExpression::Block(HirBlockExpression(vec![]))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HirForExpression{
     pub identifier: IdentId,
     pub start_range: ExprId,
     pub end_range: ExprId,
-    pub block: StmtId,
+    pub block: ExprId,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -172,9 +180,9 @@ pub struct HirInfixExpression {
 
 #[derive(Debug, Clone)]
 pub struct IfExpression {
-    pub condition: StmtId,
-    pub consequence: StmtId,
-    pub alternative: Option<StmtId>,
+    pub condition: ExprId,
+    pub consequence: ExprId,
+    pub alternative: Option<ExprId>,
 }
 
 #[derive(Debug, Clone)]
@@ -198,4 +206,13 @@ pub struct HirCallExpression {
 pub struct HirIndexExpression {
     pub collection_name: IdentId,
     pub index: ExprId,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirBlockExpression(pub Vec<StmtId>);
+
+impl HirBlockExpression {
+    pub fn statements(&self) -> &[StmtId] {
+        &self.0
+    }
 }

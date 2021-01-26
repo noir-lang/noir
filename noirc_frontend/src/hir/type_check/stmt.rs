@@ -10,12 +10,6 @@ pub(crate) fn type_check(interner : &mut NodeInterner, stmt_id : &StmtId) -> Res
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt),
         HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt),
         HirStatement::Constrain(constrain_stmt) => type_check_constrain_stmt(interner, constrain_stmt),
-        HirStatement::Block(block_stmt) => {
-            for stmt in block_stmt.statements()  {
-                type_check(interner, stmt)?
-            }
-            Ok(())
-        }
         HirStatement::Public(_) => {
             // XXX: Initially, we were going to give the ability to declare public variables inside of functions.
             // Now it seems more plausible to only have Public variables be declared as function types,
