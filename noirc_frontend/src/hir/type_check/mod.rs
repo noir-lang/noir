@@ -8,8 +8,9 @@ mod errors;
 // all foreseeable types, if it is needed then we would need to switch to Hindley-Milner type or maybe bidirectional
 
 use errors::TypeCheckError;
+use expr::type_check_expression;
 
-use super::lower::{node_interner::{NodeInterner, FuncId}};
+use super::lower::{function::HirFunction, node_interner::{NodeInterner, FuncId}};
 
 /// Type checks a function and assigns the 
 /// appropriate types to expressions in a side table
@@ -28,14 +29,16 @@ pub fn type_check_func(interner : &mut NodeInterner, func_id : FuncId) -> Result
 
     // Fetch the HirFunction and iterate all of it's statements
     let hir_func = interner.function(&func_id);
-    for stmt in hir_func.statements() {
-        stmt::type_check(interner, stmt)?
-    }
+    let func_as_expr = hir_func.as_expr();
 
-    // Check declared return type and actual return type 
-    let (function_last_type, span) = expr::extract_last_type_from_stmt(interner,hir_func.statements().last().unwrap().clone());
-
-    if !can_ignore_ret && (&function_last_type != declared_return_type){
+    // Convert the function to a block expression and then type check the block expr
+    type_check_expression(interner, func_as_expr)?;
+    
+    // Check declared return type and actual return type
+    let function_last_type = interner.id_type(func_as_expr);
+    
+    if !can_ignore_ret && (&function_last_type != declared_return_type) {
+        let span = interner.id_span(func_as_expr); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         return Err(TypeCheckError::TypeMismatch{ expected_typ: declared_return_type.to_string(), expr_typ: function_last_type.to_string(), expr_span: span});
     }
 
@@ -50,7 +53,7 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
-    use crate::{FunctionKind, Parser, Path, Type, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{HirBinaryOp, HirBinaryOpKind, HirExpression, HirInfixExpression, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, FuncId}, resolver::Resolver, stmt::{HirPrivateStatement, HirStatement}}, resolution::PathResolver}};
+    use crate::{FunctionKind, Parser, Path, Type, hir::{crate_def_map::{CrateDefMap, ModuleDefId}, crate_graph::CrateId, lower::{HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, FuncId}, resolver::Resolver, stmt::{HirPrivateStatement, HirStatement}}, resolution::PathResolver}};
     
     #[test]
     fn basic_priv() {
@@ -93,9 +96,10 @@ mod test {
         };
         let stmt_id = interner.push_stmt(HirStatement::Private(priv_stmt));
 
+        let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
+        
         // Create function to enclose the private statement
-        let mut func = HirFunction::empty();
-        func.push_stmt(stmt_id);
+        let mut func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
         
         // Add function meta
