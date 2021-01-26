@@ -1,4 +1,4 @@
-use crate::{BlockStatement, Ident, Path, Type};
+use crate::{Ident, Path, Statement, Type};
 use crate::token::{Token, Attribute};
 use noirc_errors::{Spanned, Span};
 use noir_field::FieldElement;
@@ -7,6 +7,7 @@ use noir_field::FieldElement;
 pub enum ExpressionKind {
     Ident(String),
     Literal(Literal),
+    Block(BlockExpression),
     Prefix(Box<PrefixExpression>),
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
@@ -103,7 +104,7 @@ pub struct ForExpression{
     pub identifier: Ident,
     pub start_range: Expression,
     pub end_range: Expression,
-    pub block: BlockStatement,
+    pub block: BlockExpression,
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
@@ -216,8 +217,8 @@ pub struct CastExpression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IfExpression {
     pub condition: Expression,
-    pub consequence: BlockStatement,
-    pub alternative: Option<BlockStatement>,
+    pub consequence: BlockExpression,
+    pub alternative: Option<BlockExpression>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -225,7 +226,7 @@ pub struct FunctionDefinition {
     pub name: Ident,
     pub attribute : Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub parameters: Vec<(Ident, Type)>,
-    pub body: BlockStatement,
+    pub body: BlockExpression,
     pub return_type : Type,
 }
 
@@ -245,4 +246,17 @@ pub struct CallExpression {
 pub struct IndexExpression {
     pub collection_name: Ident, // XXX: For now, this will be the name of the array, as we do not support other collections
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BlockExpression(pub Vec<Statement>);
+
+impl BlockExpression {
+    pub fn pop(&mut self) -> Option<Statement> {
+        self.0.pop()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }

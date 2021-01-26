@@ -58,7 +58,6 @@ pub enum Statement {
     Constrain(ConstrainStatement),
     Public(PublicStatement),
     Private(PrivateStatement),
-    Block(Box<BlockStatement>),
     Expression(Expression),
 }
 
@@ -140,19 +139,6 @@ impl Path {
         }
 
         string
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct BlockStatement(pub Vec<Statement>);
-
-impl BlockStatement {
-    pub fn pop(&mut self) -> Option<Statement> {
-        self.0.pop()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
     }
 }
 
