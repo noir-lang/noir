@@ -20,10 +20,10 @@ use std::collections::HashMap;
 
 use noirc_errors::Spanned;
 
-use crate::{Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::{CrateDefMap, ModuleDefId, ModuleId}, crate_graph::CrateId, resolution::{PathResolver, import::{ImportDirective, resolve_imports}}}, lexer::errors};
+use crate::{BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction, Statement, hir::{crate_def_map::CrateDefMap, crate_graph::CrateId, resolution::{PathResolver}}};
 
 use crate::hir::{scope::{Scope as GenericScope, ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest}};
-use super::{HirArrayLiteral, HirBinaryOp, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, ExprId, FuncId, IdentId, StmtId}, stmt::{HirBlockStatement, HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
+use super::{HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression, HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral, HirPrefixExpression, HirUnaryOp, function::{FuncMeta, HirFunction, Param}, node_interner::{NodeInterner, ExprId, FuncId, IdentId, StmtId}, stmt::{HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}};
 
 use super::errors::ResolverError;
 
@@ -165,18 +165,8 @@ impl<'a> Resolver<'a> {
         let func_meta = self.extract_meta(&func);
     
         let hir_func = match func.kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel => {
-                HirFunction::empty()
-            },
-            FunctionKind::Normal => {
-                let mut hir_func = HirFunction::empty();
-                let body = func.def.body;
-                for stmt in body.0 {
-                    hir_func.push_stmt(self.intern_stmt(stmt));
-                }
-                hir_func
-            }
-    
+            FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
+            FunctionKind::Normal => HirFunction::unsafe_from_expr(self.resolve_block(func.def.body)),
         };
 
         (hir_func, func_meta)
@@ -251,7 +241,6 @@ impl<'a> Resolver<'a> {
                 };
                 self.interner.push_stmt(HirStatement::Private(stmt))
             },
-            Statement::Block(_) => todo!(),
             Statement::Expression(expr) => {
                 let stmt = HirStatement::Expression(self.resolve_expression(expr));
                 self.interner.push_stmt(stmt)
@@ -322,7 +311,6 @@ impl<'a> Resolver<'a> {
                         if let Some(func_id) = def_id.as_function() {
                             func_id
                         } else {
-                            
                             let err = ResolverError::Expected{expected : "function".to_owned(), got : def_id.as_str().to_owned(), span : span };
                             self.push_err(err);
                             FuncId::dummy_id()
@@ -357,12 +345,7 @@ impl<'a> Resolver<'a> {
 
                 let identifier =  self.add_variable_decl(for_expr.identifier);
                 
-                let mut stmts = Vec::with_capacity(for_expr.block.0.len()); 
-                for stmt in for_expr.block.0 {
-                    stmts.push(self.intern_stmt(stmt));
-                }
-                let block = HirBlockStatement(stmts);
-                let block_id = self.interner.push_stmt(HirStatement::Block(block));
+                let block_id = self.resolve_block(for_expr.block);
                 let for_scope = self.scopes.end_for_loop();
 
                 self.check_for_unused_variables_in_scope_tree(for_scope.into());
@@ -401,13 +384,23 @@ impl<'a> Resolver<'a> {
 
                 self.interner.push_expr(HirExpression::Ident(ident_id))
             }
+            ExpressionKind::Block(block_expr) => {
+                self.resolve_block(block_expr)
+            }
         };
 
         self.interner.push_expr_span(expr_id, expr.span);
         expr_id
     }
-}
 
+    fn resolve_block(&mut self, block_expr : BlockExpression) -> ExprId {
+        let stmts : Vec<_> = block_expr.0.into_iter().map(|stmt|self.intern_stmt(stmt)).collect();
+
+        let hir_block = HirBlockExpression(stmts);
+
+        self.interner.push_expr(HirExpression::Block(hir_block))
+    }
+}
 
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
@@ -444,7 +437,7 @@ mod test {
         
         let mut errors = Vec::new();
         for func in program.functions {
-            let mut resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
+            let resolver = Resolver::new(&mut interner, &path_resolver,&def_maps);
             match resolver.resolve_function(func) {
                 Ok((_, _)) => {},
                 Err(err) => errors.extend(err)
