@@ -1,13 +1,11 @@
-use noirc_errors::Span;
-
 use crate::{Type, hir::lower::{node_interner::{NodeInterner, ExprId, StmtId}, stmt::{HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement}}};
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
-pub(crate) fn type_check(interner : &mut NodeInterner, stmt_id : StmtId) -> Result<(), TypeCheckError>{
+pub(crate) fn type_check(interner : &mut NodeInterner, stmt_id : &StmtId) -> Result<(), TypeCheckError>{
 
     match interner.statement(stmt_id) {
-        HirStatement::Expression(expr_id) => type_check_expression(interner, expr_id),
+        HirStatement::Expression(expr_id) => type_check_expression(interner, &expr_id),
         HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt),  
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt),
         HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt),
@@ -35,12 +33,12 @@ fn type_check_priv_stmt(interner : &mut NodeInterner, priv_stmt : HirPrivateStat
 
     // Check if this type can be used in a Private statement
     if !resolved_type.can_be_used_in_priv() {
-        let span = interner.expr_span(priv_stmt.expression);
+        let span = interner.expr_span(&priv_stmt.expression);
         return Err(TypeCheckError::TypeCannotBeUsed{ typ: resolved_type, place: "private statement", span});
     }
 
     // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(priv_stmt.identifier, resolved_type);
+    interner.push_ident_type(&priv_stmt.identifier, resolved_type);
 
     Ok(())
 }
@@ -50,12 +48,12 @@ fn type_check_let_stmt(interner : &mut NodeInterner, let_stmt : HirLetStatement)
 
     // Check if this type can be used in a Let statement
     if !resolved_type.can_be_used_in_let() {
-        let span = interner.expr_span(let_stmt.expression.into());
+        let span = interner.expr_span(&let_stmt.expression);
         return Err(TypeCheckError::TypeCannotBeUsed{typ : resolved_type.clone(), place : "let statement", span : span});
     }
     
     // Set the type of the identifier to be equal to the annotated type
-    interner.push_ident_type(let_stmt.identifier, resolved_type);
+    interner.push_ident_type(&let_stmt.identifier, resolved_type);
     
     Ok(())
 }
@@ -66,23 +64,23 @@ fn type_check_const_stmt(interner : &mut NodeInterner, const_stmt : HirConstStat
     let resolved_type = type_check_declaration(interner, const_stmt.expression, const_stmt.r#type)?;
     
     if resolved_type != Type::Constant {
-        let span = interner.expr_span(const_stmt.expression.into());
+        let span = interner.expr_span(&const_stmt.expression);
         let mut err = TypeCheckError::TypeCannotBeUsed{typ: resolved_type, place: "constant statement", span};
         err = err.add_context("constant statements can only contain constant types").unwrap();
         return Err(err)
     }
     
-    interner.push_ident_type(const_stmt.identifier, resolved_type);
+    interner.push_ident_type(&const_stmt.identifier, resolved_type);
 
     Ok(())
 }
 fn type_check_constrain_stmt(interner : &mut NodeInterner, stmt : HirConstrainStatement)-> Result<(), TypeCheckError> {
     
-    type_check_expression(interner, stmt.0.lhs)?;
-    let lhs_type = interner.id_type(stmt.0.lhs.into());
+    type_check_expression(interner, &stmt.0.lhs)?;
+    let lhs_type = interner.id_type(stmt.0.lhs);
     
-    type_check_expression(interner,stmt.0.rhs)?;
-    let rhs_type = interner.id_type(stmt.0.rhs.into());
+    type_check_expression(interner,&stmt.0.rhs)?;
+    let rhs_type = interner.id_type(&stmt.0.rhs);
 
     // Since constrain statements are not expressions, we do not allow predicate or non-comparison binary operators
     if !stmt.0.operator.kind.is_comparator()  {
@@ -93,11 +91,11 @@ fn type_check_constrain_stmt(interner : &mut NodeInterner, stmt : HirConstrainSt
     };
 
     if !lhs_type.can_be_used_in_constrain() {
-        let span = interner.expr_span(stmt.0.lhs.into());
+        let span = interner.expr_span(&stmt.0.lhs);
         return Err(TypeCheckError::TypeCannotBeUsed{typ: lhs_type, place: "constrain statement", span});
     }
     if !rhs_type.can_be_used_in_constrain() {
-        let span = interner.expr_span(stmt.0.rhs.into());
+        let span = interner.expr_span(&stmt.0.rhs);
         return Err(TypeCheckError::TypeCannotBeUsed{typ: rhs_type, place: "constrain statement", span});
     }
 
@@ -110,8 +108,8 @@ fn type_check_constrain_stmt(interner : &mut NodeInterner, stmt : HirConstrainSt
 fn type_check_declaration(interner : &mut NodeInterner, rhs_expr : ExprId, mut annotated_type : Type) -> Result<Type, TypeCheckError> {
    
     // Type check the expression on the RHS
-    type_check_expression(interner,rhs_expr)?;
-    let expr_type = interner.id_type(rhs_expr.into());
+    type_check_expression(interner,&rhs_expr)?;
+    let expr_type = interner.id_type(&rhs_expr);
 
     // First check if the LHS is unspecified
     // If so, then we give it the same type as the expression
@@ -122,8 +120,8 @@ fn type_check_declaration(interner : &mut NodeInterner, rhs_expr : ExprId, mut a
     // Now check if LHS is the same type as the RHS
     // Importantly, we do not co-erce any types implicitly
     if annotated_type != expr_type {
-        let expr_span = interner.expr_span(rhs_expr);
-        return Err(TypeCheckError::TypeMismatch{ expected_typ: annotated_type, expr_typ: expr_type, expr_span});
+        let expr_span = interner.expr_span(&rhs_expr);
+        return Err(TypeCheckError::TypeMismatch{ expected_typ: annotated_type.to_string(), expr_typ: expr_type.to_string(), expr_span});
     }
     
     // At this point annotated type and user specified type are the same
