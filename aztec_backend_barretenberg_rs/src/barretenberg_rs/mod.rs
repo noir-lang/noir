@@ -4,8 +4,8 @@ pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
 pub mod composer;
 mod crs;
 mod pippenger;
+mod pedersen;
 
-use std::str;
 use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
 use wasmer_runtime::types::MemoryDescriptor;
 use wasmer_runtime::units::Pages;
@@ -41,7 +41,7 @@ impl Barretenberg {
             cell.set(arr[byte_id]);
         }
     }
-    // change to read_mem
+    // XXX: change to read_mem
     pub fn slice_memory(&mut self, start: usize, end: usize) -> Vec<u8> {
         let memory = self.instance.context().memory(0);
 
@@ -160,7 +160,7 @@ fn logstr(ctx: &mut Ctx, ptr: u32) {
         .collect();
 
     // Convert the subslice to a `&str`.
-    let string = str::from_utf8(&str_vec).unwrap();
+    let string = std::str::from_utf8(&str_vec).unwrap();
 
     // Print it!
     dbg!("{}", string);
