@@ -1,6 +1,6 @@
-use crate::OPCODE;
-use crate::native_types::{Witness};
-use crate::circuit::gate::GadgetCall;
+use acir::OPCODE;
+use acir::native_types::{Witness};
+use acir::circuit::gate::GadgetCall;
 use noir_field::FieldElement;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;

@@ -5,7 +5,7 @@ use noirc_frontend::ast::Type;
 use acir::native_types::Witness;
 use acir::circuit::Circuit;
 use noir_field::FieldElement;
-use acir::partial_witness_generator::Solver;
+use pwg::Solver;
 use std::collections::BTreeMap;
 use noirc_driver::Driver;
 use std::fs::File;

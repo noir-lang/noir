@@ -1,13 +1,18 @@
+/// Partial Witness Generator
+/// This is the default partial witness generator for ACIR
+
+
 mod arithmetic;
 mod gadget_call;
 mod logic;
+mod merkle;
 
 pub use arithmetic::ArithmeticSolver;
 pub use gadget_call::GadgetCaller;
 pub use logic::LogicSolver;
 
-use crate::circuit::{Circuit, Gate};
-use crate::native_types::Witness;
+use acir::circuit::{Circuit, Gate};
+use acir::native_types::Witness;
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 
@@ -19,7 +24,7 @@ use std::collections::BTreeMap;
 pub struct Solver;
 
 impl Solver {
-    /// Derives the rest of the witness based on the initial low level variables
+    /// Derives most of the witness based on the initial low level variables
     pub fn solve(initial_witness: &mut BTreeMap<Witness, FieldElement>, circuit: Circuit) {
         if circuit.0.len() == 0 {
             return;

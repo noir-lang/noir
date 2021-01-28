@@ -1315,6 +1315,7 @@ dependencies = [
  "noir_field",
  "noirc_driver",
  "noirc_frontend",
+ "pwg",
  "sha2",
  "structopt",
  "toml",
@@ -1657,6 +1658,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e0704ee1a7e00d7bb417d0770ea303c1bccbabf0ef1667dae92b5967f5f8a71"
 dependencies = [
  "unicode-xid 0.2.1",
+]
+
+[[package]]
+name = "pwg"
+version = "0.1.0"
+dependencies = [
+ "acir",
+ "blake2",
+ "noir_field",
+ "sha2",
 ]
 
 [[package]]
