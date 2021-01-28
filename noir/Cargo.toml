@@ -14,7 +14,6 @@ noir_field = {path = "../noir_field"}
 noir_evaluator = {path = "../noir_evaluator"}
 aztec_backend = {path = "../aztec_backend"}
 pwg = {path = "../pwg"}
-aztec_backend_barretenberg_rs = {path = "../aztec_backend_barretenberg_rs"}
 acir = {path = "../acir"}
 sha2 = "0.9"
 clap = "2.0"

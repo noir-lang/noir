@@ -1,5 +1,5 @@
 use clap::{App, Arg};
-use aztec_backend_barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
+use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
 use clap::ArgMatches;
 use noirc_frontend::ast::Type;
 use acir::native_types::Witness;

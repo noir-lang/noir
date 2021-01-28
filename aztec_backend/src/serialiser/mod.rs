@@ -1,7 +1,7 @@
 // Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++. 
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 
-use aztec_backend_barretenberg_rs::composer::{Constraint, ConstraintSystem, LogicConstraint, MerkleMembershipConstraint, MerkleRootConstraint, RangeConstraint, Sha256Constraint};
+use crate::barretenberg_rs::composer::{Constraint, ConstraintSystem, LogicConstraint, MerkleMembershipConstraint, MerkleRootConstraint, RangeConstraint, Sha256Constraint};
 use acir::native_types::Arithmetic;
 use acir::circuit::{Circuit, Gate};
 use acir::OPCODE;

@@ -5,7 +5,6 @@ members = [
     "noir_evaluator",
     "noir",
     "aztec_backend",
-    "aztec_backend_barretenberg_rs",
     "pwg",
     "noirc_frontend",
     "noirc_errors",

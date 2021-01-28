@@ -9,4 +9,11 @@ edition = "2018"
 [dependencies]
 noir_field = {path = "../noir_field"}
 acir = {path ="../acir"}
-aztec_backend_barretenberg_rs = {path ="../aztec_backend_barretenberg_rs"}
+
+wasmer-runtime = "0.16.0"
+wasmer-wasi = "0.16.0"
+
+dirs = "3.0"
+reqwest = {version = "0.10.8",features = ["blocking"]}
+error-chain = "0.12.4"
+regex = "1.4.0"
