@@ -1,5 +1,5 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
+pub static WASM: &'static [u8] = include_bytes!("barretenberg_no_mem.wasm");
 
 pub mod composer;
 mod crs;
@@ -7,12 +7,15 @@ mod pippenger;
 pub mod pedersen;
 pub mod blake2s;
 
-use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
-use wasmer_runtime::types::MemoryDescriptor;
-use wasmer_runtime::units::Pages;
-use wasmer_runtime::{compile, func, imports, memory::Memory, Ctx, Instance, Module, Value};
-use wasmer_wasi::generate_import_object_for_version;
-
+// use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
+// use wasmer_runtime::{Ctx, Module};
+// use wasmer_runtime::{Instance};
+use wasmer::{ChainableNamedResolver, Engine, Function, Instance, JITEngine, Value, imports};
+use wasmer::{Module, Store};
+use wasmer_compiler_cranelift::Cranelift;
+use wasmer_compiler_singlepass::Singlepass;
+use wasmer_engine_jit::JIT;
+use wasmer_wasi::{WasiState};
 /// Barretenberg is the low level struct which calls the WASM file
 /// This is the bridge between Rust and the WASM which itself is a bridge to the C++ codebase.
 pub struct Barretenberg {
@@ -34,7 +37,8 @@ impl WASMValue {
 impl Barretenberg {
     /// Transfer bytes to WASM heap
     pub fn transfer_to_heap(&mut self, arr: &[u8], offset: usize) {
-        let memory = self.instance.context().memory(0);
+        let memory = self.instance.exports.get_memory("memory").unwrap();       
+        
         for (byte_id, cell) in memory.view::<u8>()[offset as usize..(offset + arr.len())]
             .iter()
             .enumerate()
@@ -44,7 +48,7 @@ impl Barretenberg {
     }
     // XXX: change to read_mem
     pub fn slice_memory(&mut self, start: usize, end: usize) -> Vec<u8> {
-        let memory = self.instance.context().memory(0);
+        let memory = self.instance.exports.get_memory("memory").unwrap();       
 
         let mut result = Vec::new();
 
@@ -63,7 +67,8 @@ impl Barretenberg {
         // We then clone them inside of this function, so that the API does not have a bunch of Clones everywhere
 
         let params: Vec<_> = params.into_iter().map(|p| p.clone()).collect();
-        let option_value = self.instance.call(name, &params).unwrap().first().cloned();
+        let func = self.instance.exports.get_function(name).unwrap();
+        let option_value = func.call(&params).unwrap().first().cloned();
 
         WASMValue(option_value)
     }
@@ -73,7 +78,7 @@ impl Barretenberg {
         let ptr = self
             .call("bbmalloc", &Value::I32(bytes.len() as i32))
             .value();
-        self.transfer_to_heap(bytes, ptr.to_u128() as usize);
+        self.transfer_to_heap(bytes, ptr.unwrap_i32() as usize);
         ptr
     }
 
@@ -85,84 +90,72 @@ impl Barretenberg {
     }
 }
 
-fn load_module() -> Module {
-    let cache_key = WasmHash::generate(WASM);
+fn load_module() -> (Module, Store) {
+    use wasmer_cache::{Cache, FileSystemCache, Hash};
 
-    // Load module from the cache if we already compiled it
-    let mut fs_cache = unsafe { FileSystemCache::new(mod_cache_location()).unwrap() };
-    let module = match fs_cache.load(cache_key) {
+    let compiler_config = Cranelift::default();
+    let engine = JIT::new(compiler_config).engine();
+    let compile_store = Store::new(&engine);
+    
+    let headless_engine = JIT::headless().engine();
+    let headless_store = Store::new(&headless_engine);
+
+    let cache_key = Hash::generate(WASM);
+
+    // Load directory into cache
+    let mut fs_cache = FileSystemCache::new(mod_cache_location()).unwrap();
+    
+    // Load module; check if it is in the cache
+    // If it is not then compile
+    // If it is return it
+    let module = match unsafe{fs_cache.load(&headless_store, cache_key)} {
         Ok(module) => module,
         Err(_) => {
+
             println!("Compiling WASM... This will take ~3 minutes for the first time, and cached on subsequent runs.");
-            let module = compile(&WASM).expect("wasm compilation");
+
+
+            let module = Module::new(&compile_store, &WASM).unwrap();  
+
             // Store a module into the cache given a key
-            fs_cache.store(cache_key, module.clone()).unwrap();
+            fs_cache.store(cache_key, &module).unwrap();
             module
         }
     };
-    module
+
+    (module, headless_store)
 }
+
 
 fn mod_cache_location() -> std::path::PathBuf {
     let mut mod_cache_dir = dirs::home_dir().unwrap();
     mod_cache_dir.push(std::path::Path::new("noir_cache"));
-    mod_cache_dir.push(std::path::Path::new("mod_cache"));
+    mod_cache_dir.push(std::path::Path::new("barretenberg_module_cache"));
     mod_cache_dir
+}
+
+
+fn instance_load() -> Instance {
+
+    let (module, store) = load_module();
+
+    let mut wasi_env = WasiState::new("barretenberg").finalize().unwrap();
+    let import_object = wasi_env.import_object(&module).unwrap();
+    
+    let logstr_native = Function::new_native(&store, |_a : i32| {});
+
+    let custom_imports = imports! {
+        "env" => {
+            "logstr" => logstr_native,
+        },
+    };
+
+    let res_import = import_object.chain_back(custom_imports);
+    Instance::new(&module, &res_import).unwrap()
 }
 
 impl Barretenberg {
     pub fn new() -> Barretenberg {
-        let module = load_module();
-
-        // get the version of the WASI module in a non-strict way, meaning we're
-        // allowed to have extra imports
-        let wasi_version = wasmer_wasi::get_wasi_version(&module, false)
-            .expect("WASI version detected from Wasm module");
-
-        // WASI imports
-        let mut base_imports =
-            generate_import_object_for_version(wasi_version, vec![], vec![], vec![], vec![]);
-
-        // env is the default namespace for extern functions
-        let descriptor = MemoryDescriptor::new(Pages(130), None, false).unwrap();
-        let memory = Memory::new(descriptor).unwrap();
-        let custom_imports = imports! {
-            "env" => {
-                "logstr" => func!(logstr),
-                "memory" => memory.clone(),
-            },
-        };
-        // The WASI imports object contains all required import functions for a WASI module to run. This includes wasi_unstable
-        base_imports.extend(custom_imports);
-        let instance = module
-            .instantiate(&base_imports)
-            .expect("failed to instantiate wasm module");
-
-        Barretenberg { instance: instance }
+        Barretenberg { instance: instance_load() }
     }
-}
-
-fn logstr(ctx: &mut Ctx, ptr: u32) {
-    // Get a slice that maps to the memory currently used by the webassembly
-    // instance.
-    //
-    // Webassembly only supports a single memory for now,
-    // but in the near future, it'll support multiple.
-    //
-    // Therefore, we don't assume you always just want to access first
-    // memory and force you to specify the first memory.
-    let memory = ctx.memory(0);
-    let len = 10;
-
-    // Get a subslice that corresponds to the memory used by the string.
-    let str_vec: Vec<_> = memory.view()[ptr as usize..(ptr + len) as usize]
-        .iter()
-        .map(|cell| cell.get())
-        .collect();
-
-    // Convert the subslice to a `&str`.
-    let string = std::str::from_utf8(&str_vec).unwrap();
-
-    // Print it!
-    dbg!("{}", string);
 }

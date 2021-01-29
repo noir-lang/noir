@@ -10,8 +10,14 @@ edition = "2018"
 noir_field = {path = "../noir_field"}
 acir = {path ="../acir"}
 
-wasmer-runtime = "0.16.0"
-wasmer-wasi = "0.16.0"
+wasmer-wasi = "1.0.1"
+
+wasmer = "1.0.1"
+wasmer-compiler-singlepass = "1.0.1"
+wasmer-compiler-cranelift = "1.0.1"
+wasmer-engine-native = "1.0.1"
+wasmer-engine-jit = "1.0.1"
+wasmer-cache = "1.0.1"
 
 dirs = "3.0"
 reqwest = {version = "0.10.8",features = ["blocking"]}

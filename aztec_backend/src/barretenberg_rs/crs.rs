@@ -164,7 +164,7 @@ pub fn download_crs(mut path: std::path::PathBuf) {
 #[test]
 fn does_not_panic() {
     use super::Barretenberg;
-    use wasmer_runtime::Value;
+    use wasmer::Value;
 
     let mut barretenberg = Barretenberg::new();
 

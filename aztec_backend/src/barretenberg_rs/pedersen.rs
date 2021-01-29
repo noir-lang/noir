@@ -1,5 +1,5 @@
 use noir_field::FieldElement;
-use wasmer_runtime::Value;
+use wasmer::Value;
 
 use super::Barretenberg;
 

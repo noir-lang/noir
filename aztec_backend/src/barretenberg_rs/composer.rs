@@ -2,7 +2,7 @@ use super::crs::CRS;
 use super::pippenger::Pippenger;
 use super::Barretenberg;
 use noir_field::FieldElement as Scalar;
-use wasmer_runtime::Value;
+use wasmer::Value;
 
 pub struct StandardComposer {
     barretenberg: Barretenberg,
@@ -317,7 +317,7 @@ impl StandardComposer {
 
         let sc_as_bytes = self.barretenberg.slice_memory(
             contract_ptr as usize,
-            contract_ptr as usize + contract_size.to_u128() as usize,
+            contract_ptr as usize + contract_size.unwrap_i32() as usize,
         );
 
         // XXX: We truncate the first 40 bytes, due to it being mangled
@@ -339,7 +339,7 @@ impl StandardComposer {
 
         self.barretenberg.free(cs_ptr);
 
-        circuit_size.to_u128()
+        circuit_size.unwrap_i32() as u128
     }
 
     pub fn create_proof(
@@ -371,7 +371,7 @@ impl StandardComposer {
 
         let proof =  self.barretenberg.slice_memory(
             proof_ptr as usize,
-            proof_ptr as usize + proof_size.to_u128() as usize,
+            proof_ptr as usize + proof_size.unwrap_i32() as usize,
         );
 
         return proof
@@ -435,7 +435,7 @@ impl StandardComposer {
         self.barretenberg.free(proof_ptr);
         // self.barretenberg.free(g2_ptr);
 
-        match verified.to_u128() {
+        match verified.unwrap_i32() {
             0 => false,
             1 => true,
             _ => panic!("Expected a 1 or a zero for the verification result"),

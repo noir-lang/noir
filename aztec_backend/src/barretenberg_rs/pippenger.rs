@@ -1,5 +1,5 @@
 use super::Barretenberg;
-use wasmer_runtime::Value;
+use wasmer::Value;
 
 pub struct Pippenger {
     pippenger_ptr: Value,
