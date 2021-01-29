@@ -132,6 +132,11 @@ pub struct PerNs {
 }
 
 impl PerNs {
+
+    pub fn types(t: ModuleDefId) -> PerNs {
+        PerNs { types: Some((t, Visibility::Public)), values: None}
+    }
+
     pub fn take_types(self) -> Option<ModuleDefId> {
         self.types.map(|it| it.0)
     }
