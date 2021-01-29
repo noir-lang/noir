@@ -61,7 +61,7 @@ impl GadgetCaller {
 
                 assert!(gadget_call.inputs.len() > 1);
                 
-                let num_of_leaves = gadget_call.inputs.len() - 1;
+                let num_of_leaves = gadget_call.inputs.len();
                 let depth = log2(num_of_leaves);
 
                 let mut tree = MerkleTree::new(depth);
@@ -87,9 +87,10 @@ impl GadgetCaller {
 }
 
 fn log2(x : usize) -> u32 {
+    let x = x as u128;
     assert!(x.is_power_of_two());
     assert!(x > 0);
-    let u32_num_bits = std::mem::size_of::<u32>() * 8;
+    let u128_num_bits = std::mem::size_of::<u128>() * 8;
 
-    u32_num_bits as u32 - x.leading_zeros() - 1
+    u128_num_bits as u32 - x.leading_zeros() - 1
 }
