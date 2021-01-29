@@ -1,9 +1,8 @@
 use noir_field::FieldElement;
 
-
 pub type HashPath = Vec<(FieldElement, FieldElement)>;
 
-struct MerkleTree{
+pub struct MerkleTree{
     depth : u32,
     total_size : u32,
     root : FieldElement,
