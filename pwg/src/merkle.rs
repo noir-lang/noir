@@ -60,10 +60,18 @@ impl MerkleTree {
         }
         path
     }
-    /// Update the element at index and compute the new tree root
-    pub fn update_element(&mut self,mut index : usize, new_message : Vec<u8>) -> FieldElement {
-        let mut current = hash(&new_message);
+    /// Updates the message at index and computes the new tree root
+    pub fn update_message(&mut self,mut index : usize, new_message : Vec<u8>) -> FieldElement {
+        let current = hash(&new_message);
         self.pre_images[index] = new_message;
+        self.update_leaf(index, current)
+
+    }
+    /// Update the element at index and compute the new tree root
+    pub fn update_leaf(&mut self,mut index : usize, mut current : FieldElement) -> FieldElement {
+
+        // Note that this method does not update the list of messages [preimages]|
+        // use `update_message` to do this
 
         let mut offset = 0usize;
         let mut layer_size = self.total_size;
@@ -139,14 +147,14 @@ fn basic_interop_update() {
     // Test that the hashpath is correct
     let mut tree = MerkleTree::new(3);
 
-    tree.update_element(0, vec![0;64]);
-    tree.update_element(1, vec![1;64]);
-    tree.update_element(2, vec![2;64]);
-    tree.update_element(3, vec![3;64]);
-    tree.update_element(4, vec![4;64]);
-    tree.update_element(5, vec![5;64]);
-    tree.update_element(6, vec![6;64]);
-    let root = tree.update_element(7, vec![7;64]);
+    tree.update_message(0, vec![0;64]);
+    tree.update_message(1, vec![1;64]);
+    tree.update_message(2, vec![2;64]);
+    tree.update_message(3, vec![3;64]);
+    tree.update_message(4, vec![4;64]);
+    tree.update_message(5, vec![5;64]);
+    tree.update_message(6, vec![6;64]);
+    let root = tree.update_message(7, vec![7;64]);
 
     assert_eq!("241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e", root.to_hex());
 

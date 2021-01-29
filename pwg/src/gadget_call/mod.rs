@@ -3,7 +3,10 @@ use acir::native_types::{Witness};
 use acir::circuit::gate::GadgetCall;
 use noir_field::FieldElement;
 use sha2::{Digest, Sha256};
+use core::num;
 use std::collections::BTreeMap;
+
+use crate::merkle::MerkleTree;
 
 pub struct GadgetCaller {}
 
@@ -54,7 +57,39 @@ impl GadgetCaller {
             OPCODE::AES => {
                 panic!("AES is not yet implemented")
             } 
+            OPCODE::MerkleRoot => {
+
+                assert!(gadget_call.inputs.len() > 1);
+                
+                let num_of_leaves = gadget_call.inputs.len() - 1;
+                let depth = log2(num_of_leaves);
+
+                let mut tree = MerkleTree::new(depth);
+                
+                //Compute the root
+                let mut root = FieldElement::zero();
+                for (index, leaf_idx) in gadget_call.inputs.iter().enumerate() {
+
+                    let leaf = match initial_witness.get(&leaf_idx.witness) {
+                        None => panic!("Cannot find witness assignment for {:?}", leaf_idx),
+                        Some(assignment) => assignment,
+                    };
+                    
+                    root = tree.update_leaf(index, *leaf);
+                }
+
+                initial_witness.insert(gadget_call.outputs[0].clone(), root);
+            }
+            OPCODE::MerkleMembership => todo!("witness generator for merkle membership is not implemented")
         }
         // Iterate through standard library functions
     }
+}
+
+fn log2(x : usize) -> u32 {
+    assert!(x.is_power_of_two());
+    assert!(x > 0);
+    let u32_num_bits = std::mem::size_of::<u32>() * 8;
+
+    u32_num_bits as u32 - x.leading_zeros() - 1
 }
