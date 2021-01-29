@@ -1,7 +1,7 @@
 
 use std::{collections::HashMap};
 
-use crate::{Ident, Path, PathKind, hir::crate_graph::CrateId};
+use crate::{Ident, Path, PathKind, hir::{crate_def_map::ModuleId, crate_graph::CrateId}};
 
 use crate::hir::{crate_def_map::{CrateDefMap, LocalModuleId, ModuleDefId, PerNs}};
 
@@ -30,7 +30,6 @@ pub struct ResolvedImport {
 
 pub fn resolve_imports(crate_id : CrateId, imports_to_resolve : Vec<ImportDirective>, def_maps : &HashMap<CrateId, CrateDefMap>) -> (Vec<ImportDirective>, Vec<ResolvedImport>){
     let num_imports = imports_to_resolve.len();
-
     let def_map = &def_maps[&crate_id];
 
     let mut unresolved : Vec<ImportDirective> = Vec::new();
@@ -85,8 +84,15 @@ fn resolve_path_from_crate_root(def_map : &CrateDefMap, import_path : &[Ident], 
 fn resolve_name_in_module(def_map : &CrateDefMap, import_path : &[Ident], starting_mod: LocalModuleId, def_maps : &HashMap<CrateId, CrateDefMap>) -> PathResolution {
     let mut current_mod = &def_map.modules[starting_mod.0];
 
+    // There is a possibility that the import path is empty
+    // In that case, early return
+    if import_path.is_empty() {
+        let mod_id = ModuleId{krate : def_map.krate, local_id : starting_mod};
+        return PathResolution::Resolved(PerNs::types(mod_id.into()))
+    }
+
     let mut import_path = import_path.into_iter();
-   
+    
     let mut current_ns = match import_path.next() {
         Some(segment) => current_mod.scope.find_name(&segment.0.contents),
         None => return PathResolution::Unresolved(String::from("ice: could not fetch first segment"))
@@ -125,7 +131,6 @@ fn resolve_path_name(import_directive: &ImportDirective ) -> String {
 }
 
 fn resolve_external_dep(current_def_map : &CrateDefMap, directive : &ImportDirective, def_maps : &HashMap<CrateId, CrateDefMap>) -> PathResolution {
-    
     // Use extern_prelude to get the dep
     //
     // Remove the first segment, it is the "dep" symbol
@@ -136,10 +141,11 @@ fn resolve_external_dep(current_def_map : &CrateDefMap, directive : &ImportDirec
     // Fetch the root module from the prelude
     let crate_name = path_without_dep_seg.first().unwrap().0.contents.clone();
     let dep_module = current_def_map.extern_prelude.get(&crate_name).expect("error reporter: could not find crate");
-    
+
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[2..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
-    let path = Path{ segments: path_without_crate_name.to_vec(), kind: PathKind::Plain};
+
+    let path = Path{segments: path_without_crate_name.to_vec(), kind: PathKind::Plain};
     let dep_directive = ImportDirective { module_id: directive.module_id, path: path, alias: directive.alias.clone()};
     
     let dep_def_map = def_maps.get(&dep_module.krate).unwrap();
