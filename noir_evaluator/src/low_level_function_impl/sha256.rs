@@ -65,7 +65,7 @@ impl Sha256Gadget {
         // "Sha256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
         
-        let mut inputs: Vec<GadgetInput> = Vec::with_capacity(0);
+        let mut inputs: Vec<GadgetInput> = Vec::with_capacity(arr.contents.len());
 
         for element in arr.contents.into_iter() {
             let (witness, num_bits) = match element {
