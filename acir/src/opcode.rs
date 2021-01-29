@@ -1,7 +1,9 @@
 #[derive(Clone, Debug, Hash, Copy)]
 pub enum OPCODE {
     AES,
-    SHA256
+    SHA256,
+    MerkleRoot,
+    MerkleMembership,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -14,18 +16,24 @@ impl OPCODE{
  pub fn to_u16(&self) -> u16 {
      match self {
         OPCODE::AES => 0,
-        OPCODE::SHA256 => 1
+        OPCODE::SHA256 => 1,
+        OPCODE::MerkleRoot => 2, 
+        OPCODE::MerkleMembership => 3
      }
  }   
  pub fn name(&self) -> &str {
      match self {
          OPCODE::AES => "aes",
          OPCODE::SHA256 => "sha256",
+         OPCODE::MerkleRoot => "merkle_root",
+         OPCODE::MerkleMembership => "merkle_member"
      }
  }
  pub fn lookup(op_name : &str) -> Option<OPCODE> {
      match op_name {
          "sha256" => Some(OPCODE::SHA256), 
+         "merkle_root" => Some(OPCODE::MerkleRoot), 
+         "merkle_member" => Some(OPCODE::MerkleMembership), 
          _=> None,
      }
  }
@@ -40,6 +48,17 @@ impl OPCODE{
             input_size : InputSize::Variable,
             output_size: OutputSize(2),
          },
+         OPCODE::MerkleRoot => GadgetDefinition {
+            name : self.name().into(),
+            input_size : InputSize::Variable,
+            output_size: OutputSize(1),
+         },
+         OPCODE::MerkleMembership => GadgetDefinition {
+            name : self.name().into(),
+            input_size : InputSize::Variable,
+            output_size: OutputSize(1),
+         },
+     
      }
  }
 }
