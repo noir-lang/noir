@@ -4,7 +4,8 @@
 // The standard library on the other hand, is a mixture of foreign and compiled functions.
 use crate::{Environment, Evaluator, Object};
 mod sha256;
-
+mod merkle_root;
+use merkle_root::MerkleRootGadget;
 use noirc_frontend::hir::lower::HirCallExpression;
 pub use sha256::Sha256Gadget;
 use acir::OPCODE;
@@ -37,6 +38,7 @@ pub fn call_low_level(
     
     match func {
         OPCODE::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
+        OPCODE::MerkleRoot => MerkleRootGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
             return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
