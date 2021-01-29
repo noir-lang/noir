@@ -4,7 +4,8 @@ pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
 pub mod composer;
 mod crs;
 mod pippenger;
-mod pedersen;
+pub mod pedersen;
+pub mod blake2s;
 
 use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
 use wasmer_runtime::types::MemoryDescriptor;

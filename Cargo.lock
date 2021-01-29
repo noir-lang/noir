@@ -1654,7 +1654,9 @@ name = "pwg"
 version = "0.1.0"
 dependencies = [
  "acir",
+ "aztec_backend",
  "blake2",
+ "hex 0.4.2",
  "noir_field",
  "sha2",
 ]
