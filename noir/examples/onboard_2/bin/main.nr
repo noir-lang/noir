@@ -1,7 +1,6 @@
    
-   // Here is an example of using sha256
-   // Because the scalar field of sha256 is 254 bits, 
-   // We split the output into 2 128 bit field elements
+   // Here is an example of doing merkle tree stuff :)
+   // description to be added later
 
     // To create a smart contract for this Noir program, type `cargo run contract` 
    fn main(x : Witness,low : Public, _high: Public) {
