@@ -26,14 +26,14 @@ impl OPCODE{
          OPCODE::AES => "aes",
          OPCODE::SHA256 => "sha256",
          OPCODE::MerkleRoot => "merkle_root",
-         OPCODE::MerkleMembership => "merkle_member"
+         OPCODE::MerkleMembership => "merkle_membership"
      }
  }
  pub fn lookup(op_name : &str) -> Option<OPCODE> {
      match op_name {
          "sha256" => Some(OPCODE::SHA256), 
          "merkle_root" => Some(OPCODE::MerkleRoot), 
-         "merkle_member" => Some(OPCODE::MerkleMembership), 
+         "merkle_membership" => Some(OPCODE::MerkleMembership), 
          _=> None,
      }
  }
@@ -42,29 +42,29 @@ impl OPCODE{
  }
  pub fn definition(&self) -> GadgetDefinition {
      match self {
-         OPCODE::AES => unimplemented!(),
-         OPCODE::SHA256 => GadgetDefinition {
-            name : self.name().into(),
-            input_size : InputSize::Variable,
-            output_size: OutputSize(2),
-         },
-         OPCODE::MerkleRoot => GadgetDefinition {
-            name : self.name().into(),
-            input_size : InputSize::Variable,
-            output_size: OutputSize(1),
-         },
-         OPCODE::MerkleMembership => GadgetDefinition {
-            name : self.name().into(),
-            input_size : InputSize::Variable,
-            output_size: OutputSize(1),
-         },
-     
+        OPCODE::AES => unimplemented!(),
+        OPCODE::SHA256 => GadgetDefinition {
+           name : self.name().into(),
+           input_size : InputSize::Variable,
+           output_size: OutputSize(2),
+        },
+        OPCODE::MerkleRoot => GadgetDefinition {
+           name : self.name().into(),
+           input_size : InputSize::Variable,
+           output_size: OutputSize(1),
+        },
+        OPCODE::MerkleMembership => GadgetDefinition {
+           name : self.name().into(),
+           input_size : InputSize::Variable,
+           output_size: OutputSize(1),
+        },
      }
  }
 }
 
 // Descriptor as to whether the input/output is fixed or variable
-// Example: The input for Sha256 is Variable and the output is fixed at 2 witnesses, each holding 128 bits of the actual sha256 function
+// Example: The input for Sha256 is Variable and the output is fixed at 2 witnesses
+// each holding 128 bits of the actual sha256 function
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub enum InputSize {
     Variable,
