@@ -1,6 +1,11 @@
+use aztec_backend::barretenberg_rs::Barretenberg;
 use noir_field::FieldElement;
 
 pub type HashPath = Vec<(FieldElement, FieldElement)>;
+
+pub fn flatten_path(path : Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement> {
+    path.into_iter().flat_map(|(left, right)| std::iter::once(left).chain(std::iter::once(right))).collect()
+}
 
 pub struct MerkleTree{
     depth : u32,
@@ -8,10 +13,14 @@ pub struct MerkleTree{
     root : FieldElement,
     hashes : Vec<FieldElement>,
     pre_images : Vec<Vec<u8>>, 
+    barretenberg : Barretenberg,
 }
 
 impl MerkleTree {
     pub fn new(depth : u32) -> MerkleTree {
+
+        let mut barretenberg = Barretenberg::new();
+        
         assert!(depth >= 1 && depth <= 20); // Why can depth != 0 and depth not more than 20?
 
         let total_size = 1u32 << depth;
@@ -21,7 +30,7 @@ impl MerkleTree {
         let zero_message = [0u8;64];
         let pre_images : Vec<Vec<u8>>= (0..total_size).map(|_| zero_message.to_vec()).collect(); 
 
-        let mut current = hash(&zero_message);
+        let mut current = hash(&mut barretenberg, &zero_message);
         
         let mut offset = 0usize;
         let mut layer_size = total_size as usize; // XXX: On 32 bit architectures, this `as` cast may silently truncate, when total_size > 2^32? 
@@ -30,7 +39,7 @@ impl MerkleTree {
             for i in 0..layer_size {
                 hashes[offset + i] = current;
             }
-            current = compress_native(current, current);
+            current = compress_native(&mut barretenberg, &current, &current);
 
             offset += layer_size;
             layer_size = layer_size / 2;
@@ -42,7 +51,8 @@ impl MerkleTree {
             total_size,
             root,
             pre_images,
-            hashes
+            hashes,
+            barretenberg
         }
     }
 
@@ -61,8 +71,8 @@ impl MerkleTree {
         path
     }
     /// Updates the message at index and computes the new tree root
-    pub fn update_message(&mut self,mut index : usize, new_message : Vec<u8>) -> FieldElement {
-        let current = hash(&new_message);
+    pub fn update_message(&mut self, index : usize, new_message : Vec<u8>) -> FieldElement {
+        let current = hash(&mut self.barretenberg, &new_message);
         self.pre_images[index] = new_message;
         self.update_leaf(index, current)
 
@@ -78,7 +88,7 @@ impl MerkleTree {
         for _ in 0..self.depth {
             self.hashes[offset + index] = current;
             index &= (!0) - 1;
-            current = compress_native(self.hashes[offset + index], self.hashes[offset + index + 1]);
+            current = compress_native(&mut self.barretenberg,&self.hashes[offset + index], &self.hashes[offset + index + 1]);
             
             offset += layer_size as usize;
             layer_size /= 2;
@@ -92,11 +102,52 @@ impl MerkleTree {
     pub fn get_message_at_index(&self,index :usize ) -> Vec<u8> {
         self.pre_images[index].clone()
     }
+
+
+    pub fn check_membership(hash_path : Vec<&FieldElement>, root : &FieldElement, index : &FieldElement, leaf : &FieldElement) -> FieldElement {
+        assert!(hash_path.len() % 2 == 0);
+
+        let mut barretenberg = Barretenberg::new();
+
+        let mut index_bits = index.bits();
+        index_bits.reverse();
+
+        let mut current = leaf.clone();
+
+        let mut is_member = true;
+
+        let chunks = hash_path.chunks(2).enumerate();
+        for (i, path_pair) in chunks {
+            let path_bit = index_bits[i];
+
+            let hash_left = path_pair[0];
+            let hash_right = path_pair[1];
+
+            let is_left = (&current == hash_left) & !path_bit;
+            let is_right = (&current == hash_right) & path_bit;
+            is_member &= is_left ^ is_right;
+            current = compress_native(&mut barretenberg, hash_left, hash_right);
+        }
+        is_member &= (&current == root);
+
+        if is_member {
+            FieldElement::one()
+        } else {
+            FieldElement::zero()
+        }
+    }
 }
 
-fn hash(message : &[u8]) -> FieldElement {
-    aztec_backend::barretenberg_rs::blake2s::hash_to_field(message)
+
+fn hash(barretenberg : &mut Barretenberg, message : &[u8]) -> FieldElement {
+    barretenberg.hash_to_field(message)
 }
+// XXX(FIXME) : Currently, this is very aztec specific, because this PWG does not have
+// a way to deal with generic ECC operations
+fn compress_native(barretenberg : &mut Barretenberg, left : &FieldElement, right : &FieldElement) -> FieldElement {
+    barretenberg.compress_native(left, right)
+}
+
 
 // This is what the blake2s hash to function should look like
 // if it was all in  Rust. This function panics because `from_bytes` 
@@ -110,11 +161,6 @@ fn hash(message : &[u8]) -> FieldElement {
     // FieldElement::from_bytes(&res[..])
 // }
 
-// XXX(FIXME) : Currently, this is very aztec specific, because this PWG does not have
-// a way to deal with generic ECC operations
-fn compress_native(left : FieldElement, right : FieldElement) -> FieldElement {
-    aztec_backend::barretenberg_rs::pedersen::compress_native(left, right)
-}
 
 #[test]
 fn basic_interop_initial_root() {
@@ -142,9 +188,10 @@ fn basic_interop_hashpath() {
         assert_eq!(got.1.to_hex().as_str(), expected_segment.1)
     }
 }
+
 #[test]
 fn basic_interop_update() {
-    // Test that the hashpath is correct
+    // Test that computing the hashpath is correct
     let mut tree = MerkleTree::new(3);
 
     tree.update_message(0, vec![0;64]);
@@ -169,5 +216,77 @@ fn basic_interop_update() {
     for (got, expected_segment) in path.into_iter().zip(expected_hash_path) {
         assert_eq!(got.0.to_hex().as_str(), expected_segment.0);
         assert_eq!(got.1.to_hex().as_str(), expected_segment.1)
+    }
+}
+
+#[test]
+fn check_membership() {
+    struct Test<'a>{
+        // Index of the leaf in the merkle tree
+        index : &'a str,
+        // Returns true if the leaf is indeed a part of the merkle tree at the specified index
+        result : bool,
+        // The message is used to derive the leaf at `index` by using the specified hash
+        message : Vec<u8>,
+        // If this is true, then before checking for membership
+        // we update the tree with the message at that index
+        should_update_tree : bool,
+        
+        error_msg : &'a str,
+    }
+
+    // Note these test cases are not independent.
+    // ie. If you update index 0, then this will be saved for the next test
+    let tests = vec![
+        Test {
+            index : "0",
+            result : true,
+            message : vec![0;64],
+            should_update_tree: false,
+            error_msg : "this should always be true, since the tree is initialised with 64 zeroes"
+        },
+        Test {
+            index : "1",
+            result : true,
+            message : vec![1;64],
+            should_update_tree: true,
+            error_msg : "this should be true, since we are updating the tree"
+        },
+        Test {
+            index : "1",
+            result : false,
+            message : vec![10;64],
+            should_update_tree: false,
+            error_msg : "this should be false, since the tree was not updated, however the message which derives the leaf has changed"
+        },
+        Test {
+            index : "4",
+            result : true,
+            message : vec![0;64],
+            should_update_tree: false,
+            error_msg : "this should be true since the index at 4 has not been changed yet, so it would be [0;64]"
+        },
+    ];
+
+    let mut tree = MerkleTree::new(3);
+
+    for test_vector in tests {
+        let index = FieldElement::from_str(test_vector.index).unwrap();
+        let index_as_usize : usize = test_vector.index.parse().unwrap();
+
+        let leaf = hash(&mut tree.barretenberg, &test_vector.message);
+
+        let mut root = tree.root;
+        if test_vector.should_update_tree{
+            root = tree.update_message(index_as_usize,test_vector.message);
+        }
+        
+        let hash_path = flatten_path(tree.get_hash_path(index_as_usize));
+        let hash_path_ref = hash_path.iter().collect();
+     
+        let result = MerkleTree::check_membership(hash_path_ref, &root, &index, &leaf);
+        let is_leaf_in_true = result == FieldElement::one();
+
+        assert!(is_leaf_in_true == test_vector.result, test_vector.error_msg);
     }
 }
