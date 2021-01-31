@@ -1,14 +1,16 @@
-use acir::OPCODE;
+use acir::{OPCODE, circuit::gate::GadgetInput};
 use acir::native_types::{Witness};
 use acir::circuit::gate::GadgetCall;
 use noir_field::FieldElement;
 use sha2::{Digest, Sha256};
-use core::num;
 use std::collections::BTreeMap;
 
 use crate::merkle::MerkleTree;
 
-pub struct GadgetCaller {}
+// Note that the outputs for things like sha256 need to be computed
+// as they may be used in later arithmetic gates
+
+pub struct GadgetCaller;
 
 impl GadgetCaller {
     pub fn solve_gadget_call<'a>(
@@ -40,7 +42,7 @@ impl GadgetCaller {
 
                 // Now split the SHA256 result into two 128 bits
                 // and store lower and upper into two field elements
-                // This behaviour is only because the scalar field is 254 bits.
+                // This behavior is only because the scalar field is 254 bits.
                 // XXX: I guess for larger fields, we can make it one field element, but it would be a bit annoying to modify your code based on the field size.
                 let (low_128_bytes, high_128_bytes) = result.split_at(16);
                 assert_eq!(low_128_bytes.len(), 16);
@@ -69,7 +71,7 @@ impl GadgetCaller {
                 //Compute the root
                 let mut root = FieldElement::zero();
                 for (index, leaf_idx) in gadget_call.inputs.iter().enumerate() {
-
+                    
                     let leaf = match initial_witness.get(&leaf_idx.witness) {
                         None => panic!("Cannot find witness assignment for {:?}", leaf_idx),
                         Some(assignment) => assignment,
@@ -77,13 +79,39 @@ impl GadgetCaller {
                     
                     root = tree.update_leaf(index, *leaf);
                 }
-
+                
                 initial_witness.insert(gadget_call.outputs[0].clone(), root);
             }
-            OPCODE::MerkleMembership => todo!("witness generator for merkle membership is not implemented")
+            OPCODE::MerkleMembership => {
+
+                let mut inputs_iter = gadget_call.inputs.iter(); 
+
+                let _root = inputs_iter.next().expect("expected a root");
+                let root = input_to_value(initial_witness, _root);
+                
+                let _leaf = inputs_iter.next().expect("expected a leaf");
+                let leaf = input_to_value(initial_witness, _leaf);
+                
+                let _index = inputs_iter.next().expect("expected an index");
+                let index = input_to_value(initial_witness, _index);
+
+                let hash_path : Vec<_> = inputs_iter.map(|input| {
+                    input_to_value(initial_witness, input)
+                }).collect();
+                let result = MerkleTree::check_membership(hash_path, root, index, leaf);
+                
+                initial_witness.insert(gadget_call.outputs[0].clone(), result);
+            }
         }
         // Iterate through standard library functions
     }
+}
+
+fn input_to_value<'a>(witness_map : &'a BTreeMap<Witness, FieldElement>,input : &GadgetInput) -> &'a FieldElement {
+        match witness_map.get(&input.witness) {
+            None => panic!("Cannot find witness assignment for {:?}", input),
+            Some(assignment) => assignment,
+        }
 }
 
 fn log2(x : usize) -> u32 {
