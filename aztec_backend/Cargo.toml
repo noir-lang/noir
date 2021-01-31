@@ -13,7 +13,7 @@ acir = {path ="../acir"}
 wasmer-wasi = "1.0.1"
 
 wasmer = "1.0.1"
-wasmer-compiler-llvm = "1.0.1"
+# wasmer-compiler-llvm = "1.0.1"
 wasmer-engine-native = "1.0.1"
 wasmer-engine-jit = "1.0.1"
 wasmer-cache = "1.0.1"

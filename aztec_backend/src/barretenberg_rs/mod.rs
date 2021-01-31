@@ -10,7 +10,6 @@ pub mod blake2s;
 
 use wasmer::{ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value, imports};
 use wasmer::{Module, Store};
-use wasmer_compiler_llvm::LLVM;
 use wasmer_engine_jit::JIT;
 use wasmer_wasi::{WasiState};
 
