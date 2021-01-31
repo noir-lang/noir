@@ -5,9 +5,14 @@
 use crate::{Environment, Evaluator, Object};
 mod sha256;
 mod merkle_root;
+mod merkle_membership;
+
+use merkle_membership::MerkleMembershipGadget;
 use merkle_root::MerkleRootGadget;
+use sha256::Sha256Gadget;
+
 use noirc_frontend::hir::lower::HirCallExpression;
-pub use sha256::Sha256Gadget;
+
 use acir::OPCODE;
 use super::RuntimeErrorKind;
 
@@ -39,6 +44,7 @@ pub fn call_low_level(
     match func {
         OPCODE::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
         OPCODE::MerkleRoot => MerkleRootGadget::call(evaluator, env, call_expr),
+        OPCODE::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
             return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
