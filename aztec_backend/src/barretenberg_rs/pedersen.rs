@@ -3,16 +3,17 @@ use wasmer::Value;
 
 use super::Barretenberg;
 
-pub fn compress_native(left : FieldElement, right : FieldElement) -> FieldElement {
-    let mut barretenberg = Barretenberg::new();
-
-    let lhs_ptr = barretenberg.allocate(&left.to_bytes()); // 0..32
-    let rhs_ptr = barretenberg.allocate(&right.to_bytes()); // 32..64
-    let result_ptr = Value::I32(64);// 64..96
-    barretenberg.call_multiple("pedersen_compress_fields", vec![&lhs_ptr, &rhs_ptr, &result_ptr]);
-
-    let result_bytes = barretenberg.slice_memory(64, 96);
-    FieldElement::from_bytes(&result_bytes)
+impl Barretenberg {
+    pub fn compress_native(&mut self, left : &FieldElement, right : &FieldElement) -> FieldElement {
+    
+        let lhs_ptr = self.allocate(&left.to_bytes()); // 0..32
+        let rhs_ptr = self.allocate(&right.to_bytes()); // 32..64
+        let result_ptr = Value::I32(64);// 64..96
+        self.call_multiple("pedersen_compress_fields", vec![&lhs_ptr, &rhs_ptr, &result_ptr]);
+    
+        let result_bytes = self.slice_memory(64, 96);
+        FieldElement::from_bytes(&result_bytes)
+    }
 }
 
 
@@ -44,10 +45,11 @@ let tests = vec![
     },
 ];
 
-for test in tests {;
+let mut barretenberg = Barretenberg::new();
+for test in tests {
     let expected = FieldElement::from_hex(test.expected_hex).unwrap();
 
-    let got = compress_native(test.input_left,test.input_right);
+    let got = barretenberg.compress_native(&test.input_left,&test.input_right);
     assert_eq!(got, expected);
 
 }
