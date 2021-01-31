@@ -41,9 +41,20 @@ circuit_data get_circuit_data(std::string const& name,
                               F const& build_circuit)
 {
     circuit_data data;
-    auto circuit_key_path = key_path + "/" + name;
     Composer composer = Composer(srs);
 
+    auto circuit_key_path = key_path + "/" + name;
+    auto pk_path = circuit_key_path + "/proving_key/proving_key";
+    auto vk_path = circuit_key_path + "/verification_key";
+    auto padding_path = circuit_key_path + "/padding_proof";
+
+    // If we're missing required data, and compute is enabled, build the circuit.
+    if ((!exists(pk_path) || !exists(vk_path) || (!exists(padding_path) && padding)) && compute) {
+        std::cerr << "Building circuit..." << std::endl;
+        build_circuit(composer);
+    }
+
+    // If we're saving data, create the circuit data directory.
     if (save) {
         mkdir(key_path.c_str(), 0700);
         mkdir(circuit_key_path.c_str(), 0700);
@@ -52,7 +63,6 @@ circuit_data get_circuit_data(std::string const& name,
     {
         auto pk_dir = circuit_key_path + "/proving_key";
         mkdir(pk_dir.c_str(), 0700);
-        auto pk_path = circuit_key_path + "/proving_key/proving_key";
         if (exists(pk_path) && load) {
             std::cerr << "Loading proving key: " << pk_path << std::endl;
             auto pk_stream = std::ifstream(pk_path);
@@ -65,8 +75,6 @@ circuit_data get_circuit_data(std::string const& name,
         } else if (compute) {
             Timer timer;
             std::cerr << "Computing proving key..." << std::endl;
-
-            build_circuit(composer);
 
             data.num_gates = composer.get_num_gates();
             std::cerr << "Circuit size: " << data.num_gates << std::endl;
@@ -87,7 +95,6 @@ circuit_data get_circuit_data(std::string const& name,
         }
     }
     {
-        auto vk_path = circuit_key_path + "/verification_key";
         if (exists(vk_path) && load) {
             std::cerr << "Loading verification key from: " << vk_path << std::endl;
             auto vk_stream = std::ifstream(vk_path);
@@ -110,8 +117,8 @@ circuit_data get_circuit_data(std::string const& name,
             }
         }
     }
+
     if (padding) {
-        auto padding_path = circuit_key_path + "/padding_proof";
         if (exists(padding_path) && load) {
             std::cerr << "Loading padding proof from: " << padding_path << std::endl;
             std::ifstream is(padding_path);
@@ -120,8 +127,6 @@ circuit_data get_circuit_data(std::string const& name,
         } else if (data.proving_key) {
             std::cerr << "Computing padding proof..." << std::endl;
 
-            Composer composer = Composer(data.proving_key, data.verification_key);
-            build_circuit(composer);
             data.num_gates = composer.get_num_gates();
             std::cerr << "Circuit size: " << data.num_gates << std::endl;
 
