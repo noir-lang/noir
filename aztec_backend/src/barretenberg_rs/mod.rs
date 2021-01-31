@@ -7,20 +7,27 @@ mod pippenger;
 pub mod pedersen;
 pub mod blake2s;
 
-// use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
-// use wasmer_runtime::{Ctx, Module};
-// use wasmer_runtime::{Instance};
+
 use wasmer::{ChainableNamedResolver, Engine, Function, Instance, JITEngine, Value, imports};
 use wasmer::{Module, Store};
-use wasmer_compiler_cranelift::Cranelift;
-use wasmer_compiler_singlepass::Singlepass;
+use wasmer_compiler_llvm::LLVM;
 use wasmer_engine_jit::JIT;
 use wasmer_wasi::{WasiState};
+
 /// Barretenberg is the low level struct which calls the WASM file
 /// This is the bridge between Rust and the WASM which itself is a bridge to the C++ codebase.
 pub struct Barretenberg {
     instance: Instance,
 }
+
+// XXX: It may be better to use this global mutex, since we do not need to
+// keep state around. However, for this we need to make sure 
+// that mem_free is being called at appropriate times
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+pub static BARRETENBERG: Lazy<Mutex<Barretenberg>> = Lazy::new(|| {
+    Mutex::new(Barretenberg::new())
+});
 
 /// A wrapper around the return value from a WASM call
 /// Notice, Option<> is used because not every call returns a value
@@ -93,7 +100,7 @@ impl Barretenberg {
 fn load_module() -> (Module, Store) {
     use wasmer_cache::{Cache, FileSystemCache, Hash};
 
-    let compiler_config = Cranelift::default();
+    let compiler_config = LLVM::default();
     let engine = JIT::new(compiler_config).engine();
     let compile_store = Store::new(&engine);
     
@@ -113,7 +120,6 @@ fn load_module() -> (Module, Store) {
         Err(_) => {
 
             println!("Compiling WASM... This will take ~3 minutes for the first time, and cached on subsequent runs.");
-
 
             let module = Module::new(&compile_store, &WASM).unwrap();  
 
