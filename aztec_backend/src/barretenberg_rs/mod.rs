@@ -8,7 +8,7 @@ pub mod pedersen;
 pub mod blake2s;
 
 
-use wasmer::{ChainableNamedResolver, Engine, Function, Instance, JITEngine, Value, imports};
+use wasmer::{ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value, imports};
 use wasmer::{Module, Store};
 use wasmer_compiler_llvm::LLVM;
 use wasmer_engine_jit::JIT;
@@ -100,7 +100,7 @@ impl Barretenberg {
 fn load_module() -> (Module, Store) {
     use wasmer_cache::{Cache, FileSystemCache, Hash};
 
-    let compiler_config = LLVM::default();
+    let compiler_config = Cranelift::default();
     let engine = JIT::new(compiler_config).engine();
     let compile_store = Store::new(&engine);
     

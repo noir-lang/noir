@@ -35,11 +35,6 @@ jobs:
             asset_name: noir-macos
 
     steps:
-    - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@v1
-      with:
-        version: "10.0"
-        directory: ${{ runner.temp }}/llvm
     - uses: actions/checkout@v1
 
     - name: 'Get Previous tag'
