@@ -1,4 +1,4 @@
-use ff::{BitIterator, Field, PrimeField, PrimeFieldRepr};
+use ff::{BitIterator, Field, PrimeField};
 use pairing::bn256::Fr;
 
 // XXX: Switch out for a trait and proper implementations
@@ -138,6 +138,9 @@ impl FieldElement {
     pub fn mask_to_bytes(&self, num_bits: u32) -> Vec<u8> {
         let bit_iter = self.mask_to_bits(num_bits);
         pack_bits_into_bytes(bit_iter)
+    }
+    pub fn bits(&self) -> Vec<bool> {
+        BitIterator::new(self.0.into_repr()).collect()
     }
     fn mask_to_bits(&self, num_bits: u32) -> Vec<bool> {
         let max_bits = Fr::NUM_BITS + FieldElement::wasted_bits();
