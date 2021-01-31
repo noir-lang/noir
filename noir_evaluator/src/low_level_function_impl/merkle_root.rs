@@ -36,12 +36,7 @@ impl GadgetCaller for MerkleRootGadget {
 
         evaluator.gates.push(Gate::GadgetCall(merkle_root_gate));
 
-        let arr = Array {
-            length: 1,
-            contents: vec![merkle_root_object],
-        };
-
-        Ok(Object::Array(arr))
+        Ok(merkle_root_object)
     }
 }
 
