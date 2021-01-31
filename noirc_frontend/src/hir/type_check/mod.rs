@@ -99,7 +99,7 @@ mod test {
         let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
         
         // Create function to enclose the private statement
-        let mut func = HirFunction::unsafe_from_expr(expr_id);
+        let func = HirFunction::unsafe_from_expr(expr_id);
         let func_id = interner.push_fn(func);
         
         // Add function meta
