@@ -73,6 +73,13 @@ impl Position {
         }
     }
     pub fn to_byte_index(self) -> ByteIndex {
+        if self.idx == 0 {
+            // XXX:FIXME: Default span is being used where it should not be 
+            // for error reporting
+            dbg!("ice : Span::default() has been used to trigger an error report");
+            return ByteIndex((self.idx) as u32)
+
+        }
         ByteIndex((self.idx -1) as u32)
     }
 
