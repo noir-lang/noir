@@ -119,6 +119,12 @@ circuit_data get_circuit_data(std::string const& name,
             data.padding_proof = proof;
         } else if (data.proving_key) {
             std::cerr << "Computing padding proof..." << std::endl;
+
+            Composer composer = Composer(data.proving_key, data.verification_key);
+            build_circuit(composer);
+            data.num_gates = composer.get_num_gates();
+            std::cerr << "Circuit size: " << data.num_gates << std::endl;
+
             Timer timer;
             auto prover = composer.create_unrolled_prover();
             data.padding_proof = prover.construct_proof().proof_data;
