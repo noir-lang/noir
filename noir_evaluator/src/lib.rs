@@ -6,9 +6,10 @@ mod builtin;
 mod object;
 
 mod errors;
+use blake2::Blake2s;
 pub use errors::{RuntimeErrorKind, RuntimeError};
 
-use std::collections::{BTreeMap, HashMap};
+use std::{array, collections::{BTreeMap, HashMap}};
 
 use object::{Array, Integer, Object, Selector, RangedObject};
 use environment::Environment;
@@ -19,7 +20,7 @@ use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 
 // XXX: Remove this once, we have moved to HIR
-use noirc_frontend::{FunctionKind, Signedness, Type, hir::lower::{HirBinaryOpKind, HirBlockExpression}};
+use noirc_frontend::{ArraySize, FunctionKind, Signedness, Type, hir::lower::{HirBinaryOpKind, HirBlockExpression}};
 use noirc_frontend::{hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirConstrainStatement, HirLetStatement}}}; 
 
 use noirc_frontend::{hir::{lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
@@ -103,9 +104,9 @@ impl<'a> Evaluator<'a> {
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
         // which takes the IR as input
-        const WIdTH: usize = 3;
+        const WIDTH: usize = 3;
 
-        let optimiser = CSatOptimiser::new(WIdTH);
+        let optimiser = CSatOptimiser::new(WIDTH);
 
         let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
 
@@ -203,9 +204,7 @@ impl<'a> Evaluator<'a> {
     fn evaluate_identifier(&mut self, ident_id: &IdentId, env: &mut Environment) -> Object {
         
         let ident_name = self.context.def_interner.ident_name(ident_id);
-        let polynomial = env.get(&ident_name);
-
-        polynomial
+        env.get(&ident_name)
     }
 
 
@@ -213,6 +212,19 @@ impl<'a> Evaluator<'a> {
     pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind>{
         // Add the parameters from the main function into the evaluator as witness variables
         // XXX: We are only going to care about Public and Private witnesses for now
+
+        // The reason for this is because not all types can be added to the ABI
+        //
+        // XXX: Currently, we do not support arrays to be public
+        // One reason right now, is that there is no `full` supported syntax for it
+        // []Public is good for full field elements
+        // However for u8 we do not have the syntax for it to be Public
+        // This might require a slight re-write of the grammar
+        // Maybe `pub param_name : []u8
+        enum AbiType{
+            Witness(String),
+            Array(String, u128, Type),
+        }
 
         let mut pub_inputs = Vec::new();
         let mut witnesses = Vec::new();
@@ -225,26 +237,71 @@ impl<'a> Evaluator<'a> {
             
             match param_type {
                 Type::Public =>{
-                    pub_inputs.push(param_name);
+                    pub_inputs.push(AbiType::Witness(param_name));
                 },
                 Type::Witness => {
-                    witnesses.push(param_name)
+                    witnesses.push(AbiType::Witness(param_name))
                 },
-                _=> todo!("Currently we only have support for Private and Public inputs in the main function definition. It has not been decided as to whether we should allow other types")
+                Type::Array(length, typ) => {
+                    let len = match length {
+                        ArraySize::Variable => panic!("cannot have a variable sized array in the main function"),
+                        ArraySize::Fixed(num) => num,
+                    };
+                    witnesses.push(AbiType::Array(param_name,len, *typ));
+                }
+                k=> todo!("Currently we only have support for Private and Public inputs in the main function definition. {:?}", k)
             }
         }
 
         self.num_public_inputs = pub_inputs.len();
 
         // Add all of the public inputs first, then the witnesses
-        for param_name in pub_inputs.into_iter() {
-            let witness = self.add_witness_to_cs(param_name, Type::Public);
-            self.add_witness_to_env(witness, env);
+        // XXX: Ideally we want to get rid of this ordering that is needed.
+        for param_ in pub_inputs.into_iter() {
+            match param_ {
+                AbiType::Array(_,_,_) => unreachable!("currently there is no syntax to fully support arrays of public field elements"),
+                AbiType::Witness(param_name) =>{
+                    let witness = self.add_witness_to_cs(param_name, Type::Public);
+                    self.add_witness_to_env(witness, env);
+                }
+            }
         }
         
-        for param_name in witnesses.into_iter() {
-            let witness = self.add_witness_to_cs(param_name, Type::Witness);
-            self.add_witness_to_env(witness, env);
+        for param_ in witnesses.into_iter() {
+            match param_ {
+                AbiType::Array(param_name, len,typ) => {
+                    
+                    let mut elements = Vec::with_capacity(len as usize);
+                    for i in 0..len as usize {
+                        let mangled_name = mangle_array_element_name(&param_name, i);
+                        let witness = self.add_witness_to_cs(mangled_name, Type::Witness);
+                        
+                        // Constrain each element in the array to be equal to the type declared in the parameter
+                        let object = match typ {
+                            Type::Integer(sign, num_bits) => {
+                                // Currently we do not support signed integers
+                                assert!(sign != Signedness::Signed, "signed integers are currently not supported");
+                                
+                                let integer = Integer::from_witness(witness, num_bits);
+                                integer.constrain(self)?;
+                                Object::Integer(integer)
+                            },
+                            Type::Witness => {
+                                self.add_witness_to_env(witness, env)
+                            },
+                            _=> unimplemented!("currently we only support arrays of integer and witness types")
+                        };
+
+                        elements.push(object);
+                    }
+                    let arr = Array{ contents: elements, length: len};
+                    env.store(param_name, Object::Array(arr));
+                },
+                AbiType::Witness(param_name) => {
+                    let witness = self.add_witness_to_cs(param_name, Type::Witness);
+                    self.add_witness_to_env(witness, env);
+                }
+            }
         }
 
         // Now call the main function
@@ -577,4 +634,31 @@ impl<'a> Evaluator<'a> {
         let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
         (objects, errors)
     }
+}
+
+/// We allow users to input an array in the ABI
+/// Each element must be mapped to a unique identifier
+/// XXX: At the moment, the evaluator uses String, in particular the variable name
+/// This function ensures that each element in the array is assigned a unique identifier
+pub fn mangle_array_element_name(array_name : &str, element_index : usize) -> String {
+    use blake2::Digest;
+
+    let mut hasher = Blake2s::new();
+    hasher.update(array_name);
+
+    // use u128 so we do not get different hashes depending on the computer
+    // architecture
+    let index_u128 = element_index as u128;
+    hasher.update(index_u128.to_be_bytes());
+
+    let res = hasher.finalize();
+
+    // If a variable is named array_0_1f4a
+    // Then it will be certain, that the user 
+    // is trying to be malicious
+    // For regular users, they will never encounter a name conflict
+    // We could probably use MD5 here, as we do not need a crypto hash
+    let checksum = &res[0..4];
+
+    format!("{}__{}__{:x?}", array_name, element_index, checksum)
 }

@@ -13,3 +13,5 @@ noir_field = {path = "../noir_field"}
 nargo = {path = "../nargo"}
 acir = {path = "../acir"}
 thiserror = "1.0.21"
+
+blake2 = "0.9.1"
