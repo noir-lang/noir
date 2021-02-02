@@ -80,6 +80,29 @@ impl Type {
         }
     }
 
+    /// Computes the number of elements in a Type
+    /// Arrays and Structs will be the only data structures to return more than one
+
+    pub fn num_elements(&self) -> usize {
+        let arr_size = match self {
+            Type::Array(size, _) => size,
+            Type::FieldElement | 
+            Type::Constant |
+            Type::Public |
+            Type::Witness |
+            Type::Integer(_, _) |
+            Type::Bool |
+            Type::Error |
+            Type::Unspecified |
+            Type::Unknown |
+            Type::Unit => return 1
+        };
+
+        match arr_size {
+            ArraySize::Variable => unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the abi in main. The ABI should not have variable input. The program should be compiled before calling this"),
+            ArraySize::Fixed(fixed_size) => *fixed_size as usize
+        }
+    }
 
     pub fn is_fixed_sized_array(&self) -> bool {
         let (sized, _ ) = match self.array() {
