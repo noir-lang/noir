@@ -1,9 +1,10 @@
    
-   // Here is an example of doing merkle tree stuff :)
-   // description to be added later
+// Here is an example of doing merkle tree stuff :)
+// description to be added later
+// To create a smart contract for this Noir program, type `cargo run contract` 
 
-    // To create a smart contract for this Noir program, type `cargo run contract` 
 use dep::std;
+
 fn main(x : Witness,low : Public, _high: Public) {
 
     // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Witness
