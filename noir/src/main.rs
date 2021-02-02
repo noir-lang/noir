@@ -1,6 +1,7 @@
 use clap::{App, Arg};
 use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
 use clap::ArgMatches;
+use noir_evaluator::mangle_array_element_name;
 use noirc_frontend::ast::Type;
 use acir::native_types::Witness;
 use acir::circuit::Circuit;
@@ -97,7 +98,7 @@ impl Abi {
     }
 
     fn len(&self) -> usize {
-        self.parameters.len()
+        self.parameters.iter().map(|(_, param_type)| param_type.num_elements()).sum()
     }
 }
 
@@ -216,6 +217,8 @@ fn verify(args: ArgMatches) {
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: usize = 1;
 
+// XXX: This function has accrued technical debt due to the addition
+// of collections into the ABI. This debt shall be cleaned up in the next refactor. 
 fn prove(args: ArgMatches) {
     let proof_name = args
         .subcommand_matches("prove")
@@ -224,12 +227,13 @@ fn prove(args: ArgMatches) {
         .unwrap();
 
     // Parse the input.toml file
-    let witness_map = parse_input();
+    let (witness_map, collection_names) = parse_input();
 
     // Compile main
     let compiled_main = build_main();
 
     // Check that enough witness values were supplied
+    dbg!(&compiled_main.abi.len(), witness_map.len());
     if compiled_main.abi.len() != witness_map.len() {
         panic!(
             "Expected {} number of values, but got {} number of values",
@@ -242,14 +246,36 @@ fn prove(args: ArgMatches) {
 
     let sorted_abi = compiled_main.abi.sort_by_public_input();
     let param_names = sorted_abi.parameter_names();
-    for (index, param) in param_names.into_iter().enumerate() {
-        
-        let value = witness_map.get(param).expect(&format!("ABI expects the parameter `{}`, but this was not found in input.toml", param));
-        
-        solved_witness.insert(
-            Witness::new(param.to_owned(), index + WITNESS_OFFSET),
-            value.clone(),
-        );
+    let mut index = 0;
+    for param in param_names.into_iter() {
+
+        // XXX: This is undesirable as we are eagerly allocating, but it avoids duplication
+        let err_msg = &format!("ABI expects the parameter `{}`, but this was not found in input.toml", param);
+
+        // Note: the collection name will not be in the witness_map
+        // only mangled_names for it's elements
+        if let Some(collection) = collection_names.iter().find(|(name, _)| name == param) {
+            for i in 0..collection.1 {
+                let mangled_element_name = mangle_array_element_name(&collection.0, i);
+                let value = witness_map.get(&mangled_element_name).expect(err_msg);
+      
+                solved_witness.insert(
+                    Witness::new(param.to_owned(), index + WITNESS_OFFSET),
+                    value.clone(),
+                );
+                
+                index += 1
+            }
+        } else {
+            let value = witness_map.get(param).expect(err_msg);
+            
+            solved_witness.insert(
+                Witness::new(param.to_owned(), index + WITNESS_OFFSET),
+                value.clone(),
+            );
+
+            index += 1;
+        }
     }
 
     // Derive solution
@@ -277,7 +303,7 @@ fn prove(args: ArgMatches) {
     println!("Proof successfully created and located at {}", path)
 }
 
-fn parse_input() -> BTreeMap<String, FieldElement> {
+fn parse_input() -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
 
     // Get the path to the input file
     let mut input_file = std::env::current_dir().unwrap();
@@ -289,25 +315,87 @@ fn parse_input() -> BTreeMap<String, FieldElement> {
         input_file.display()
     );
 
-    // Closure to parse a string to a field element
-    let parse = |value : &str| -> FieldElement {
-        if value.starts_with("0x") {
-            FieldElement::from_hex(value).expect("Could not parse hex value")                   
-         } else {
-             let val : i128 = value
-             .parse()
-             .expect("Expected witness values to be integers");
-
-             FieldElement::from(val)
-         }
-    };
-
     // Get input.toml file as a string
     let input_as_string = std::fs::read_to_string(input_file).unwrap();
 
     // Parse input.toml into a BTreeMap, converting the argument to field elements 
-    let data : BTreeMap<String, String> = toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
-    data.into_iter().map(|(parameter, argument)| (parameter, parse(&argument))).collect()
+    let data : BTreeMap<String, TomlTypes> = toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
+
+    toml_map_to_field(data)
+}
+
+/// Flattens the toml map and maps each parameter to a Witness
+///
+/// Arrays are flattened and each element is given a unique parameter name
+/// We need to extract the collection types, since they are not in the FieldMap
+/// 
+/// Returns FieldMap and name of all collections
+fn toml_map_to_field(toml_map : BTreeMap<String, TomlTypes>) -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
+    let mut field_map = BTreeMap::new();
+
+    let mut collections = Vec::new();
+    
+    for (parameter, value) in toml_map {
+        match value {
+            TomlTypes::String(string) => {
+                let old_value = field_map.insert(parameter.clone(), parse_str(&string));
+                assert!(old_value.is_none(), "duplicate variable name {}", parameter);
+            },
+            TomlTypes::Integer(integer) => {
+                let old_value = field_map.insert(parameter.clone(), parse_str(&integer.to_string()));
+                assert!(old_value.is_none(), "duplicate variable name {}", parameter);
+            },
+            TomlTypes::ArrayNum(arr_num) => {
+                collections.push((parameter.clone(), arr_num.len()));
+                // We need the elements in the array to map to unique names
+                // For arrays we postfix the index to the name
+                // XXX: In the future, we can use the witness index to map these values
+                // This is the only reason why we could have a duplicate name
+                for (index, element) in arr_num.into_iter().enumerate() {
+                    let unique_param_name = mangle_array_element_name(&parameter, index);
+                    let old_value = field_map.insert(unique_param_name.clone(), parse_str(&element.to_string()));
+                    assert!(old_value.is_none(), "duplicate variable name {}", unique_param_name);
+                }
+            }
+            TomlTypes::ArrayString(arr_str) => {
+                collections.push((parameter.clone(), arr_str.len()));
+
+                for (index, element) in arr_str.into_iter().enumerate() {
+                    let unique_param_name = mangle_array_element_name(&parameter, index);
+                    let old_value = field_map.insert(unique_param_name.clone(), parse_str(&element.to_string()));
+                    assert!(old_value.is_none(), "duplicate variable name {}", unique_param_name);
+                }
+
+            }
+        }
+    }
+
+    (field_map, collections)
+}
+
+fn parse_str(value : &str) -> FieldElement {
+    if value.starts_with("0x") {
+        FieldElement::from_hex(value).expect(&format!("Could not parse hex value {}", value))                   
+     } else {
+         let val : i128 = value
+         .parse()
+         .expect("Expected witness values to be integers");
+         FieldElement::from(val)
+     }
+}
+use serde_derive::Deserialize;
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum TomlTypes {
+    // This is most likely going to be a hex string
+    // But it is possible to support utf8
+    String(String),
+    // Just a regular integer, that can fit in 128 bits
+    Integer(u64),
+    // Array of regular integers
+    ArrayNum(Vec<u64>),
+    // Array of hexadecimal integers
+    ArrayString(Vec<String>)
 }
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
