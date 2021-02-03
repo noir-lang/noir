@@ -6,6 +6,7 @@ mod crs;
 mod pippenger;
 pub mod pedersen;
 pub mod blake2s;
+pub mod schnorr;
 
 
 use wasmer::{ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value, imports};
@@ -32,11 +33,16 @@ pub static BARRETENBERG: Lazy<Mutex<Barretenberg>> = Lazy::new(|| {
 /// Notice, Option<> is used because not every call returns a value
 /// Some calls are simply made to free a pointer for example
 /// Or manipulate the heap
+#[derive(Debug)]
 pub struct WASMValue(Option<Value>);
 
 impl WASMValue {
     pub fn value(self) -> Value {
         self.0.unwrap()
+    }
+    pub fn to_i32(self) -> i32 {
+        use std::convert::TryFrom;
+        i32::try_from(self.0.unwrap()).expect("expected an i32 value")
     }
 }
 
