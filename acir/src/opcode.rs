@@ -4,6 +4,7 @@ pub enum OPCODE {
     SHA256,
     MerkleRoot,
     MerkleMembership,
+    SchnorrVerify,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -18,7 +19,8 @@ impl OPCODE{
         OPCODE::AES => 0,
         OPCODE::SHA256 => 1,
         OPCODE::MerkleRoot => 2, 
-        OPCODE::MerkleMembership => 3
+        OPCODE::MerkleMembership => 3,
+        OPCODE::SchnorrVerify => 4,
      }
  }   
  pub fn name(&self) -> &str {
@@ -26,7 +28,8 @@ impl OPCODE{
          OPCODE::AES => "aes",
          OPCODE::SHA256 => "sha256",
          OPCODE::MerkleRoot => "merkle_root",
-         OPCODE::MerkleMembership => "merkle_membership"
+         OPCODE::MerkleMembership => "merkle_membership",
+         OPCODE::SchnorrVerify => "schnorr_verify"
      }
  }
  pub fn lookup(op_name : &str) -> Option<OPCODE> {
@@ -34,6 +37,7 @@ impl OPCODE{
          "sha256" => Some(OPCODE::SHA256), 
          "merkle_root" => Some(OPCODE::MerkleRoot), 
          "merkle_membership" => Some(OPCODE::MerkleMembership), 
+         "schnorr_verify" => Some(OPCODE::SchnorrVerify), 
          _=> None,
      }
  }
@@ -56,6 +60,13 @@ impl OPCODE{
         OPCODE::MerkleMembership => GadgetDefinition {
            name : self.name().into(),
            input_size : InputSize::Variable,
+           output_size: OutputSize(1),
+        },
+        OPCODE::SchnorrVerify => GadgetDefinition {
+           name : self.name().into(),
+           // XXX: input_size can be changed to fixed, once we hash 
+           // the message before passing it to schnorr. 
+           input_size : InputSize::Variable,  
            output_size: OutputSize(1),
         },
      }
