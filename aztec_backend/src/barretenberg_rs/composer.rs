@@ -103,6 +103,45 @@ impl RangeConstraint {
     }
 }
 #[derive(Clone, Hash, Debug)]
+pub struct SchnorrConstraint {
+    pub message: Vec<i32>,
+    pub signature_s: [u8; 32],
+    pub signature_e: [u8; 32],
+    pub public_key_x: i32,
+    pub public_key_y: i32,
+    pub result: i32,
+}
+
+impl SchnorrConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let message_len = (self.message.len()) as u32;
+        buffer.extend_from_slice(&message_len.to_be_bytes());
+        for constraint in self.message.iter() {
+            buffer.extend_from_slice(&constraint.to_be_bytes());
+        }
+
+        let sig_s_len = (self.signature_s.len()) as u32;
+        buffer.extend_from_slice(&sig_s_len.to_be_bytes());
+        for sig_byte in self.signature_s.iter() {
+            buffer.extend_from_slice(&sig_byte.to_be_bytes());
+        }
+
+        let sig_e_len = (self.signature_e.len()) as u32;
+        buffer.extend_from_slice(&sig_e_len.to_be_bytes());
+        for sig_byte in self.signature_e.iter() {
+            buffer.extend_from_slice(&sig_byte.to_be_bytes());
+        }
+
+        buffer.extend_from_slice(&self.public_key_x.to_be_bytes());
+        buffer.extend_from_slice(&self.public_key_y.to_be_bytes());
+        buffer.extend_from_slice(&self.result.to_be_bytes());
+
+        buffer
+    }
+}
+#[derive(Clone, Hash, Debug)]
 pub struct MerkleMembershipConstraint {
     pub hash_path: Vec<(i32, i32)>,
     pub root: i32,
@@ -231,6 +270,7 @@ pub struct ConstraintSystem {
     pub sha256_constraints: Vec<Sha256Constraint>,
     pub merkle_membership_constraints: Vec<MerkleMembershipConstraint>,
     pub merkle_root_constraints: Vec<MerkleRootConstraint>,
+    pub schnorr_constraints: Vec<SchnorrConstraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -274,6 +314,13 @@ impl ConstraintSystem {
         let merkle_root_len = self.merkle_root_constraints.len() as u32;
         buffer.extend_from_slice(&merkle_root_len.to_be_bytes());
         for constraint in self.merkle_root_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each Schnorr constraint
+        let schnorr_len = self.schnorr_constraints.len() as u32;
+        buffer.extend_from_slice(&schnorr_len.to_be_bytes());
+        for constraint in self.schnorr_constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
         
@@ -468,6 +515,7 @@ mod test {
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
             merkle_root_constraints : vec![],
+            schnorr_constraints : vec![],
             constraints: vec![constraint.clone()],
         };
 
@@ -534,6 +582,7 @@ mod test {
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
             merkle_root_constraints : vec![],
+            schnorr_constraints : vec![],
             constraints: vec![constraint],
         };
 
@@ -585,6 +634,7 @@ mod test {
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
             merkle_root_constraints : vec![],
+            schnorr_constraints : vec![],
             constraints: vec![constraint, constraint2],
         };
 
