@@ -56,7 +56,7 @@ impl MerkleRootGadget {
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
         
         // XXX: Instead of panics, return a user error here
-        if arr.contents.len() < 1 {
+        if arr.contents.len() < 2 {
             panic!("computing the merkle root requires more than one element")
         }
         // XXX: Instead of panics, return a user error here
