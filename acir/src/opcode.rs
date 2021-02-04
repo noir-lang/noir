@@ -2,9 +2,11 @@
 pub enum OPCODE {
     AES,
     SHA256,
+    Blake2s,
     MerkleRoot,
     MerkleMembership,
     SchnorrVerify,
+    Pedersen,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -21,15 +23,19 @@ impl OPCODE{
         OPCODE::MerkleRoot => 2, 
         OPCODE::MerkleMembership => 3,
         OPCODE::SchnorrVerify => 4,
+        OPCODE::Blake2s => 5,
+        OPCODE::Pedersen => 6,
      }
  }   
  pub fn name(&self) -> &str {
      match self {
-         OPCODE::AES => "aes",
-         OPCODE::SHA256 => "sha256",
-         OPCODE::MerkleRoot => "merkle_root",
-         OPCODE::MerkleMembership => "merkle_membership",
-         OPCODE::SchnorrVerify => "schnorr_verify"
+        OPCODE::AES => "aes",
+        OPCODE::SHA256 => "sha256",
+        OPCODE::MerkleRoot => "merkle_root",
+        OPCODE::MerkleMembership => "merkle_membership",
+        OPCODE::SchnorrVerify => "schnorr_verify",
+        OPCODE::Blake2s => "blake2s",
+        OPCODE::Pedersen => "pedersen"
      }
  }
  pub fn lookup(op_name : &str) -> Option<OPCODE> {
@@ -38,6 +44,8 @@ impl OPCODE{
          "merkle_root" => Some(OPCODE::MerkleRoot), 
          "merkle_membership" => Some(OPCODE::MerkleMembership), 
          "schnorr_verify" => Some(OPCODE::SchnorrVerify), 
+         "blake2s" => Some(OPCODE::Blake2s), 
+         "pedersen" => Some(OPCODE::Pedersen), 
          _=> None,
      }
  }
@@ -48,6 +56,11 @@ impl OPCODE{
      match self {
         OPCODE::AES => unimplemented!(),
         OPCODE::SHA256 => GadgetDefinition {
+           name : self.name().into(),
+           input_size : InputSize::Variable,
+           output_size: OutputSize(2),
+        },
+        OPCODE::Blake2s => GadgetDefinition {
            name : self.name().into(),
            input_size : InputSize::Variable,
            output_size: OutputSize(2),
@@ -66,6 +79,11 @@ impl OPCODE{
            name : self.name().into(),
            // XXX: input_size can be changed to fixed, once we hash 
            // the message before passing it to schnorr. 
+           input_size : InputSize::Variable,  
+           output_size: OutputSize(1),
+        },
+        OPCODE::Pedersen => GadgetDefinition {
+           name : self.name().into(), 
            input_size : InputSize::Variable,  
            output_size: OutputSize(1),
         },
