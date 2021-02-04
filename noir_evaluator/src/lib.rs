@@ -9,6 +9,7 @@ mod errors;
 use blake2::Blake2s;
 pub use errors::{RuntimeErrorKind, RuntimeError};
 
+use core::panic;
 use std::{array, collections::{BTreeMap, HashMap}};
 
 use object::{Array, Integer, Object, Selector, RangedObject};
@@ -304,6 +305,7 @@ impl<'a> Evaluator<'a> {
             }
         }
 
+
         // Now call the main function
         // XXX: We should be able to replace this with call_function in the future, 
         // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
@@ -350,11 +352,11 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         x: HirPrivateStatement,
     ) -> Result<Object, RuntimeErrorKind> {
-        let variable_name = self.context.def_interner.ident_name(&x.identifier);
-        let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
         
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
-
+        
+        let variable_name = self.context.def_interner.ident_name(&x.identifier);
+        let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
 
         // There are two ways to add the variable to the environment. We can add the variable and link it to itself,
         // This is fine since we constrain the RHS to be equal to the LHS.
