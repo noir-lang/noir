@@ -35,11 +35,11 @@ fr_hash_path MemoryTree::get_hash_path(size_t index)
     size_t offset = 0;
     size_t layer_size = total_size_;
     for (size_t i = 0; i < depth_; ++i) {
-        index &= (~0ULL) - 1;
+        index -= index & 0x1;
         path[i] = std::make_pair(hashes_[offset + index], hashes_[offset + index + 1]);
         offset += layer_size;
-        layer_size /= 2;
-        index /= 2;
+        layer_size >>= 1;
+        index >>= 1;
     }
     return path;
 }

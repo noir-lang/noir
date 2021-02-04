@@ -12,7 +12,8 @@ using namespace plonk::stdlib::merkle_tree;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
-}
+auto& random_engine = numeric::random::get_engine();
+} // namespace
 
 static std::vector<LevelDbTree::value_t> VALUES = []() {
     std::vector<LevelDbTree::value_t> values(1024);
@@ -133,7 +134,7 @@ TEST(stdlib_merkle_tree, test_leveldb_get_hash_path_layers)
 }
 
 #ifndef __wasm__
-constexpr auto DB_PATH = "/tmp/leveldb_test";
+std::string DB_PATH = format("/tmp/leveldb_test_", random_engine.get_random_uint128());
 
 TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
 {
@@ -163,6 +164,8 @@ TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
     }
 
     EXPECT_EQ(db.root(), memdb.root());
+
+    LevelDbStore::destroy(DB_PATH);
 }
 
 TEST(stdlib_merkle_tree, test_leveldb_persistence)
@@ -189,5 +192,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
         EXPECT_EQ(db.get_element(1), VALUES[2]);
         EXPECT_EQ(db.get_element(2), VALUES[3]);
     }
+
+    LevelDbStore::destroy(DB_PATH);
 }
 #endif
