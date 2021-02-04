@@ -1,5 +1,5 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg_no_mem.wasm");
+pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
 
 pub mod composer;
 mod crs;
@@ -7,7 +7,6 @@ mod pippenger;
 pub mod pedersen;
 pub mod blake2s;
 pub mod schnorr;
-
 
 use wasmer::{ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value, imports};
 use wasmer::{Module, Store};
