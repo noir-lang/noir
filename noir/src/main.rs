@@ -128,6 +128,8 @@ fn build_main() -> CompiledMain {
 
     hash_constraint_system(&constraint_system);
 
+    println!("acir size: {}", constraint_system.size());
+    
     CompiledMain {
         standard_format_cs: constraint_system,
         circuit : compiled_program.circuit,
@@ -150,8 +152,6 @@ fn create_smart_contract() {
 
     let path = write_to_file(&smart_contract_string.as_bytes(), &proof_path);
     println!("Contract successfully created and located at {}", path)
-
-
 }
 
 fn new_package(args: ArgMatches) {
@@ -207,6 +207,7 @@ fn verify(args: ArgMatches) {
 
     let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
 
+    //XXX: Currently barretenberg appends the public inputs to the proof 
     let public_inputs = None;
     let verified = composer.verify(&compiled_main.standard_format_cs, &proof, public_inputs);
 
@@ -233,7 +234,6 @@ fn prove(args: ArgMatches) {
     let compiled_main = build_main();
 
     // Check that enough witness values were supplied
-    dbg!(&compiled_main.abi.len(), witness_map.len());
     if compiled_main.abi.len() != witness_map.len() {
         panic!(
             "Expected {} number of values, but got {} number of values",
@@ -258,21 +258,23 @@ fn prove(args: ArgMatches) {
             for i in 0..collection.1 {
                 let mangled_element_name = mangle_array_element_name(&collection.0, i);
                 let value = witness_map.get(&mangled_element_name).expect(err_msg);
-      
-                solved_witness.insert(
+                                
+                let old_value = solved_witness.insert(
                     Witness::new(param.to_owned(), index + WITNESS_OFFSET),
                     value.clone(),
                 );
+                assert!(old_value.is_none());
                 
                 index += 1
             }
         } else {
             let value = witness_map.get(param).expect(err_msg);
             
-            solved_witness.insert(
+            let old_value = solved_witness.insert(
                 Witness::new(param.to_owned(), index + WITNESS_OFFSET),
                 value.clone(),
             );
+            assert!(old_value.is_none());
 
             index += 1;
         }
