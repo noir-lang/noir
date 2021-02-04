@@ -1,7 +1,7 @@
 use noir_field::FieldElement;
 use wasmer::Value;
 
-use super::Barretenberg;
+use super::{Barretenberg, composer::Assignments};
 
 impl Barretenberg {
     pub fn compress_native(&mut self, left : &FieldElement, right : &FieldElement) -> FieldElement {
@@ -12,6 +12,16 @@ impl Barretenberg {
         self.call_multiple("pedersen_compress_fields", vec![&lhs_ptr, &rhs_ptr, &result_ptr]);
     
         let result_bytes = self.slice_memory(64, 96);
+        FieldElement::from_bytes(&result_bytes)
+    }
+    pub fn compress_many(&mut self, inputs : Vec<FieldElement>) -> FieldElement {
+        
+        let input_buf = Assignments(inputs).to_bytes();
+        let input_ptr = self.allocate(&input_buf);
+
+        self.call_multiple("pedersen_compress", vec![&input_ptr, &Value::I32(0)]);
+    
+        let result_bytes = self.slice_memory(0, 32);
         FieldElement::from_bytes(&result_bytes)
     }
 }
@@ -50,7 +60,9 @@ for test in tests {
     let expected = FieldElement::from_hex(test.expected_hex).unwrap();
 
     let got = barretenberg.compress_native(&test.input_left,&test.input_right);
+    let got_many = barretenberg.compress_many(vec![test.input_left.clone(),test.input_right.clone()]);
     assert_eq!(got, expected);
+    assert_eq!(got, got_many);
 
 }
 
