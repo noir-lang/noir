@@ -1,10 +1,15 @@
-// This is the sha256, but we are using slices instead of "0xbd"
+
+// Sha256 circuit where the input is 5 bytes
+// not five field elements since sha256 operates over
+// bytes.
+//
 
 use dep::std;
 
-fn main(x : [1]u8, low : Public, _high: Public) {
+fn main(x : [5]u8, low : Public, high: Public) {
 
      let digest = std::hash::sha256(x);
      
      constrain digest[0] == low;
+     constrain digest[1] == high;
 }
