@@ -227,6 +227,7 @@ pub struct FunctionDefinition {
     pub attribute : Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub parameters: Vec<(Ident, Type)>,
     pub body: BlockExpression,
+    pub span : Span,
     pub return_type : Type,
 }
 
