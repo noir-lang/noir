@@ -43,28 +43,26 @@ WASM_EXPORT void pedersen_buffer_to_field(uint8_t const* data, size_t length, ui
 WASM_EXPORT size_t pedersen_hash_to_tree(uint8_t const* data, size_t length, uint8_t** output)
 {
     auto num_leaves = length / 64;
-    std::vector<std::vector<uint8_t>> results;
+    std::vector<barretenberg::fr> results;
     results.reserve(num_leaves * 2 - 2);
 
     // First compute leaf hashes.
     for (size_t i = 0; i < length; i += 64) {
         std::vector<uint8_t> to_compress(data + i, data + i + 64);
-        std::vector<uint8_t> output = crypto::pedersen::compress_native(to_compress);
-        results.push_back(std::move(output));
+        const auto output = crypto::pedersen::compress_native_buffer_to_field(to_compress);
+        results.emplace_back(output);
     }
 
     // Then compute layers of tree node hashes.
     for (size_t i = 0; i < (num_leaves - 1) * 2; i += 2) {
-        auto lhs = from_buffer<barretenberg::fr>(results[i]);
-        auto rhs = from_buffer<barretenberg::fr>(results[i + 1]);
-        auto r = crypto::pedersen::compress_native({ lhs, rhs });
-        results.push_back(to_buffer(r));
+        auto r = crypto::pedersen::compress_native(results[i], results[i + 1]);
+        results.emplace_back(r);
     }
 
     size_t buf_size = results.size() * 32;
     uint8_t* buf = (uint8_t*)aligned_alloc(64, buf_size);
     for (size_t i = 0; i < results.size(); ++i) {
-        memcpy(&buf[i * 32], results[i].data(), 32);
+        memcpy(&buf[i * 32], to_buffer(results[i]).data(), 32);
     }
 
     *output = buf;
