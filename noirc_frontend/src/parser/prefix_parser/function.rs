@@ -8,7 +8,7 @@ impl FuncParser {
         parser: &mut Parser,
         attribute : Option<Attribute>,
     ) -> Result<NoirFunction, ParserError> {
-
+        
         // Check if we have an identifier.
         parser.peek_check_kind_advance(TokenKind::Ident)?;
         let func_name = parser.curr_token.token().to_string();
@@ -26,8 +26,9 @@ impl FuncParser {
 
         parser.peek_check_variant_advance(&Token::LeftBrace)?;
 
+        let start = parser.curr_token.into_span();
         let body = BlockParser::parse_block_expression(parser)?;
-
+        let end = parser.curr_token.into_span();
         // Currently, we only allow lowlevel, builtin and normal functions
         // In the future, we can add a test attribute. Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {
@@ -35,6 +36,7 @@ impl FuncParser {
             attribute : attribute,
             parameters,
             body,
+            span : start.merge(end),
             return_type,
         };
 
