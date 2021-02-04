@@ -166,7 +166,13 @@ impl<'a> Resolver<'a> {
     
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
-            FunctionKind::Normal => HirFunction::unsafe_from_expr(self.resolve_block(func.def.body)),
+            FunctionKind::Normal => {
+                let expr_id = self.resolve_block(func.def.body);
+
+                self.interner.push_expr_span(expr_id, func.def.span);
+
+                HirFunction::unsafe_from_expr(expr_id)
+            },
         };
 
         (hir_func, func_meta)
