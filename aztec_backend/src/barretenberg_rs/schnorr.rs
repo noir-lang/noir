@@ -51,7 +51,7 @@ impl Barretenberg {
             ],
         );
         match wasm_value.to_i32() {
-            0 => FieldElement::zero(), 
+            0 => FieldElement::zero(),
             1 => FieldElement::one(),
             _=> unreachable!("verify signature should return a boolean to indicate whether the signature + parameters were valid")
         }

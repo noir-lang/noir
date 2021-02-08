@@ -278,7 +278,7 @@ pub fn infix_operand_type_rules(
                 }
                 Ok(Type::Integer(*sign_x, *bit_width_x))
             }
-            (Type::Integer(_, _), Type::Witness) | ( Type::Witness, Type::Integer(_, _) ) => { 
+            (Type::Integer(_, _), Type::Witness) | ( Type::Witness, Type::Integer(_, _) ) => {
                 Err(format!("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer"))
             }
             (Type::Integer(sign_x, bit_width_x), Type::Constant)| (Type::Constant,Type::Integer(sign_x, bit_width_x)) => {
@@ -287,25 +287,24 @@ pub fn infix_operand_type_rules(
             (Type::Integer(_, _), typ) | (typ,Type::Integer(_, _)) => {
                 Err(format!("Integer cannot be used with type {}", typ))
             }
-
             // Currently, arrays are not supported in binary operations
             (Type::Array(_,_), _) | (_,Type::Array(_, _)) => Err(format!("Arrays cannot be used in an infix operation")),
-            
+            //
             // An error type on either side will always return an error
             (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
             (Type::Unspecified, _) | (_,Type::Unspecified) => Ok(Type::Unspecified),
             (Type::Unknown, _) | (_,Type::Unknown) => Ok(Type::Unknown),
             (Type::Unit, _) | (_,Type::Unit) => Ok(Type::Unit),
-
+            //
             // If no side contains an integer. Then we check if either side contains a witness
             // If either side contains a witness, then the final result will be a witness
             (Type::Witness, _) | (_,Type::Witness) => Ok(Type::Witness),
             // Public types are added as witnesses under the hood
             (Type::Public, _) | (_,Type::Public) => Ok(Type::Witness),
             (Type::Bool, _) | (_,Type::Bool) => Ok(Type::Bool),
-
+            //
             (Type::FieldElement, _) | (_,Type::FieldElement) => Ok(Type::FieldElement),
-            
+            //
             (Type::Constant, Type::Constant)  => Ok(Type::Constant),
         }
 }

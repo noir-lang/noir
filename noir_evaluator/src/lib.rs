@@ -615,21 +615,21 @@ impl<'a> Evaluator<'a> {
                 let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context.def_interner.ident_span(&indexed_expr.collection_name);
                 let arr = env.get_array(&arr_name)?;
-        
+                //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
                 let index_as_constant = match index_as_obj.constant() {
                     Ok(v) => v,
                     Err(_) => panic!("Indexed expression does not evaluate to a constant")
                 };
+                //
                 let index_as_u128 = index_as_constant.to_u128();
-                
                 arr.get(index_as_u128, ident_span)
             }
             HirExpression::Call(call_expr) => {
 
                 let func_meta = self.context.def_interner.function_meta(&call_expr.func_id);
-                        
+                //
                 // Choices are a low level func or an imported library function
                 // If low level, then we use it's func name to find out what function to call
                 // If not then we just call the library as usual with the function definition
@@ -646,7 +646,6 @@ impl<'a> Evaluator<'a> {
                         builtin::call_builtin(self, env, builtin_name, call_expr)
                     },
                 }
-                    
             }
             HirExpression::For(for_expr) => {
                 self.handle_for_expr(env,for_expr)
