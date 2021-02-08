@@ -1,5 +1,6 @@
 use crate::object::Object;
 use crate::{Environment, Evaluator};
+use noirc_errors::Span;
 use noirc_frontend::{hir::lower::{HirArrayLiteral, node_interner::ExprId}};
 use super::{RuntimeErrorKind};
 
@@ -24,9 +25,9 @@ impl Array {
             length: arr_lit.length,
         })
     }
-    pub fn get(&self, index: u128) -> Result<Object, RuntimeErrorKind> {
+    pub fn get(&self, index: u128, span : Span) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {
-            return Err(RuntimeErrorKind::ArrayOutOfBounds{index, bound : self.length});
+            return Err(RuntimeErrorKind::ArrayOutOfBounds{index, bound : self.length, span});
         };
 
         Ok(self.contents[index as usize].clone())
