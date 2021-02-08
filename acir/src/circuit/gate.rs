@@ -1,5 +1,5 @@
-use crate::OPCODE;
 use crate::native_types::{Arithmetic, Witness};
+use crate::OPCODE;
 
 #[derive(Clone, Debug)]
 pub struct AndGate {
@@ -26,7 +26,6 @@ pub enum Gate {
     Xor(XorGate),
     GadgetCall(GadgetCall),
 }
-
 
 // Note: Some gadgets will not use all of the witness
 // So we need to supply how many bits of the witness is needed

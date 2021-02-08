@@ -1,17 +1,17 @@
 // This has been taken and modified from the rust-analyzer codebase
-// For the most part, everything is the same, the differences are quite subtle, 
+// For the most part, everything is the same, the differences are quite subtle,
 // but still present. Moreover, since RA is uses incremental compilation, the usage of this component may differ.
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
 
-use smol_str::SmolStr;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smol_str::SmolStr;
 
 use fm::FileId;
 
 /// The local crate which is the crate being compiled
 /// should always have a CrateId of zero
-pub const LOCAL_CRATE : CrateId = CrateId(0);
+pub const LOCAL_CRATE: CrateId = CrateId(0);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CrateId(usize);
 
@@ -25,12 +25,12 @@ impl Default for CrateId {
 pub struct CrateName(SmolStr);
 
 impl CrateName {
-    /// Creates a new CrateName rejecting any crate name that 
+    /// Creates a new CrateName rejecting any crate name that
     /// has a character on the blacklist.
-    /// The difference between RA and this implementation is that 
-    /// characters on the blacklist are never allowed; there is no normalisation. 
+    /// The difference between RA and this implementation is that
+    /// characters on the blacklist are never allowed; there is no normalisation.
     pub fn new(name: &str) -> Result<CrateName, &str> {
-        let is_invalid =  name.chars().any(|n| CHARACTER_BLACK_LIST.contains(&n));
+        let is_invalid = name.chars().any(|n| CHARACTER_BLACK_LIST.contains(&n));
         if is_invalid {
             Err(name)
         } else {
@@ -46,24 +46,24 @@ impl CrateName {
 // XXX: Should enforce that Nothing can depend on a binary, only libraries can be depended on?
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
-    arena : FxHashMap<CrateId, CrateData>
+    arena: FxHashMap<CrateId, CrateData>,
 }
 
 /// List of characters that are not allowed in a crate name
 /// For example, Hyphen(-) is disallowed as it is similar to underscore(_)
 /// and we do not want names that differ by a hyphen
-pub const CHARACTER_BLACK_LIST :[char;1] = ['-'];
+pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CrateType {
-    Library, 
-    Binary
+    Library,
+    Binary,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
     pub root_file_id: FileId,
-    pub crate_type : CrateType,
+    pub crate_type: CrateType,
     pub dependencies: Vec<Dependency>,
 }
 
@@ -82,15 +82,16 @@ impl Dependency {
 }
 
 impl CrateGraph {
-
-    pub fn add_crate_root(
-        &mut self,
-        crate_type : CrateType,
-        file_id: FileId,
-    ) -> CrateId {
-
-        let roots_with_file_id : Vec<_> = self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id).collect();
-        assert!(roots_with_file_id.is_empty(), "you cannot add the same file id twice");
+    pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
+        let roots_with_file_id: Vec<_> = self
+            .arena
+            .iter()
+            .filter(|(_, crate_data)| crate_data.root_file_id == file_id)
+            .collect();
+        assert!(
+            roots_with_file_id.is_empty(),
+            "you cannot add the same file id twice"
+        );
 
         let data = CrateData {
             root_file_id: file_id,
@@ -103,7 +104,7 @@ impl CrateGraph {
         crate_id
     }
 
-    pub fn crate_type(&self, crate_id : CrateId) -> CrateType {
+    pub fn crate_type(&self, crate_id: CrateId) -> CrateType {
         self.arena.get(&crate_id).unwrap().crate_type.clone()
     }
 
@@ -120,7 +121,7 @@ impl CrateGraph {
         }
 
         return res;
-        
+
         fn go(
             graph: &CrateGraph,
             visited: &mut FxHashSet<CrateId>,
@@ -144,10 +145,7 @@ impl CrateGraph {
         to: CrateId,
     ) -> Result<(), CyclicDependenciesError> {
         if self.dfs_find(from, to, &mut FxHashSet::default()) {
-            return Err(CyclicDependenciesError {
-                from,
-                to,
-            });
+            return Err(CyclicDependenciesError { from, to });
         }
         self.arena.get_mut(&from).unwrap().add_dep(name, to);
         Ok(())
@@ -174,7 +172,6 @@ impl CrateGraph {
     pub fn number_of_crates(&self) -> usize {
         self.arena.len()
     }
-
 }
 impl CrateData {
     fn add_dep(&mut self, name: CrateName, crate_id: CrateId) {
@@ -201,12 +198,12 @@ pub struct CyclicDependenciesError {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{CrateGraph, CrateName, FileId, CrateType};
-    
-    fn dummy_file_ids(n : usize) -> Vec<FileId> {
+    use super::{CrateGraph, CrateName, CrateType, FileId};
+
+    fn dummy_file_ids(n: usize) -> Vec<FileId> {
         use fm::{FileMap, FILE_EXTENSION};
         let mut fm = FileMap::new();
-        
+
         let mut vec_ids = Vec::with_capacity(n);
         for i in 0..n {
             let mut pth = PathBuf::new();
@@ -220,19 +217,24 @@ mod tests {
 
     #[test]
     fn detect_cyclic_dependency_indirect() {
-
         let file_ids = dummy_file_ids(3);
-        
+
         let mut graph = CrateGraph::default();
         let crate1 = graph.add_crate_root(CrateType::Library, file_ids[0]);
-        let crate2 = graph.add_crate_root(CrateType::Library,file_ids[1]);
-        let crate3 = graph.add_crate_root(CrateType::Library,file_ids[2]);
-        
-        assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
-        assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
-        assert!(graph.add_dep(crate3, CrateName::new("crate1").unwrap(), crate1).is_err());
+        let crate2 = graph.add_crate_root(CrateType::Library, file_ids[1]);
+        let crate3 = graph.add_crate_root(CrateType::Library, file_ids[2]);
+
+        assert!(graph
+            .add_dep(crate1, CrateName::new("crate2").unwrap(), crate2)
+            .is_ok());
+        assert!(graph
+            .add_dep(crate2, CrateName::new("crate3").unwrap(), crate3)
+            .is_ok());
+        assert!(graph
+            .add_dep(crate3, CrateName::new("crate1").unwrap(), crate1)
+            .is_err());
     }
-    
+
     #[test]
     fn it_works() {
         let file_ids = dummy_file_ids(3);
@@ -240,12 +242,15 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(CrateType::Library,file_id_0);
-        let crate2 = graph.add_crate_root(CrateType::Library,file_id_1);
-        let crate3 = graph.add_crate_root(CrateType::Library,file_id_2);
-        assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
-        assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
-
+        let crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
+        let crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
+        let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
+        assert!(graph
+            .add_dep(crate1, CrateName::new("crate2").unwrap(), crate2)
+            .is_ok());
+        assert!(graph
+            .add_dep(crate2, CrateName::new("crate3").unwrap(), crate3)
+            .is_ok());
     }
     #[test]
     #[should_panic]
@@ -255,10 +260,9 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let _crate1 = graph.add_crate_root(CrateType::Library,file_id_0);
-        let _crate2 = graph.add_crate_root(CrateType::Library,file_id_1);
-        let _crate3 = graph.add_crate_root(CrateType::Library,file_id_2);
-        let _crate3 = graph.add_crate_root(CrateType::Library,file_id_2);
+        let _crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
+        let _crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
+        let _crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
+        let _crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
     }
-
 }

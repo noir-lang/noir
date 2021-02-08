@@ -1,7 +1,7 @@
 mod position;
 mod reporter;
 
-pub use position::{Span, Position, Spanned};
+pub use position::{Position, Span, Spanned};
 pub use reporter::*;
 
 pub trait DiagnosableError {

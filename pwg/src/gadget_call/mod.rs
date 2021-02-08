@@ -1,6 +1,6 @@
-use acir::{OPCODE, circuit::gate::GadgetInput};
-use acir::native_types::{Witness};
 use acir::circuit::gate::GadgetCall;
+use acir::native_types::Witness;
+use acir::{circuit::gate::GadgetInput, OPCODE};
 use aztec_backend::barretenberg_rs::Barretenberg;
 use blake2::Blake2s;
 use noir_field::FieldElement;
@@ -98,48 +98,45 @@ impl GadgetCaller {
             }
             OPCODE::AES => {
                 panic!("AES is not yet implemented")
-            } 
+            }
             OPCODE::MerkleRoot => {
-
                 assert!(gadget_call.inputs.len() > 1);
-                
+
                 let num_of_leaves = gadget_call.inputs.len();
                 let depth = log2(num_of_leaves);
 
                 let mut tree = MerkleTree::new(depth);
-                
+
                 //Compute the root
                 let mut root = FieldElement::zero();
                 for (index, leaf_idx) in gadget_call.inputs.iter().enumerate() {
-                    
                     let leaf = match initial_witness.get(&leaf_idx.witness) {
                         None => panic!("Cannot find witness assignment for {:?}", leaf_idx),
                         Some(assignment) => assignment,
                     };
-                    
+
                     root = tree.update_leaf(index, *leaf);
                 }
-                
+
                 initial_witness.insert(gadget_call.outputs[0].clone(), root);
             }
             OPCODE::MerkleMembership => {
-
-                let mut inputs_iter = gadget_call.inputs.iter(); 
+                let mut inputs_iter = gadget_call.inputs.iter();
 
                 let _root = inputs_iter.next().expect("expected a root");
                 let root = input_to_value(initial_witness, _root);
-                
+
                 let _leaf = inputs_iter.next().expect("expected a leaf");
                 let leaf = input_to_value(initial_witness, _leaf);
-                
+
                 let _index = inputs_iter.next().expect("expected an index");
                 let index = input_to_value(initial_witness, _index);
 
-                let hash_path : Vec<_> = inputs_iter.map(|input| {
-                    input_to_value(initial_witness, input)
-                }).collect();
+                let hash_path: Vec<_> = inputs_iter
+                    .map(|input| input_to_value(initial_witness, input))
+                    .collect();
                 let result = MerkleTree::check_membership(hash_path, root, index, leaf);
-                
+
                 initial_witness.insert(gadget_call.outputs[0].clone(), result);
             }
             OPCODE::SchnorrVerify => {
@@ -148,24 +145,35 @@ impl GadgetCaller {
                 use aztec_backend::barretenberg_rs::Barretenberg;
                 use std::convert::TryInto;
 
-                let mut inputs_iter = gadget_call.inputs.iter(); 
+                let mut inputs_iter = gadget_call.inputs.iter();
 
-                let _pub_key_x = inputs_iter.next().expect("expected `x` component for public key");
+                let _pub_key_x = inputs_iter
+                    .next()
+                    .expect("expected `x` component for public key");
                 let pub_key_x = input_to_value(initial_witness, _pub_key_x).to_bytes();
 
-                let _pub_key_y = inputs_iter.next().expect("expected `y` component for public key");
+                let _pub_key_y = inputs_iter
+                    .next()
+                    .expect("expected `y` component for public key");
                 let pub_key_y = input_to_value(initial_witness, _pub_key_y).to_bytes();
 
-                let pub_key_bytes : Vec<u8> = pub_key_x.to_vec().into_iter().chain(pub_key_y.to_vec()).collect();                
-                let pub_key : [u8; 64]= pub_key_bytes.try_into().unwrap();
+                let pub_key_bytes: Vec<u8> = pub_key_x
+                    .to_vec()
+                    .into_iter()
+                    .chain(pub_key_y.to_vec())
+                    .collect();
+                let pub_key: [u8; 64] = pub_key_bytes.try_into().unwrap();
 
                 let mut signature = [0u8; 64];
                 for i in 0..64 {
-                    let _sig_i = inputs_iter.next().expect(&format!("signature should be 64 bytes long, found only {} bytes", i));
+                    let _sig_i = inputs_iter.next().expect(&format!(
+                        "signature should be 64 bytes long, found only {} bytes",
+                        i
+                    ));
                     let sig_i = input_to_value(initial_witness, _sig_i);
                     signature[i] = *sig_i.to_bytes().last().unwrap()
                 }
-                
+
                 let mut message = Vec::new();
                 while let Some(msg) = inputs_iter.next() {
                     let msg_i_field = input_to_value(initial_witness, msg);
@@ -174,42 +182,45 @@ impl GadgetCaller {
                 }
 
                 let mut barretenberg = Barretenberg::new();
-                
-                let result = barretenberg.verify_signature(pub_key,signature, &message);
+
+                let result = barretenberg.verify_signature(pub_key, signature, &message);
                 if result != FieldElement::one() {
                     dbg!("signature has failed to verify");
                 }
-                
+
                 initial_witness.insert(gadget_call.outputs[0].clone(), result);
             }
             OPCODE::Pedersen => {
-                
-                let inputs_iter = gadget_call.inputs.iter(); 
-                
-                let scalars : Vec<_> = inputs_iter.map(|input| {
-                    // XXX: Clone is not desirable. Remove on next refactor.
-                    // Although it is just a memcpy
-                    input_to_value(initial_witness, input).clone() 
-                }).collect();
-                
+                let inputs_iter = gadget_call.inputs.iter();
+
+                let scalars: Vec<_> = inputs_iter
+                    .map(|input| {
+                        // XXX: Clone is not desirable. Remove on next refactor.
+                        // Although it is just a memcpy
+                        input_to_value(initial_witness, input).clone()
+                    })
+                    .collect();
+
                 let mut barretenberg = Barretenberg::new();
                 let result = barretenberg.compress_many(scalars);
                 initial_witness.insert(gadget_call.outputs[0].clone(), result);
-                
             }
         }
         // Iterate through standard library functions
     }
 }
 
-fn input_to_value<'a>(witness_map : &'a BTreeMap<Witness, FieldElement>,input : &GadgetInput) -> &'a FieldElement {
-        match witness_map.get(&input.witness) {
-            None => panic!("Cannot find witness assignment for {:?}", input),
-            Some(assignment) => assignment,
-        }
+fn input_to_value<'a>(
+    witness_map: &'a BTreeMap<Witness, FieldElement>,
+    input: &GadgetInput,
+) -> &'a FieldElement {
+    match witness_map.get(&input.witness) {
+        None => panic!("Cannot find witness assignment for {:?}", input),
+        Some(assignment) => assignment,
+    }
 }
 
-fn log2(x : usize) -> u32 {
+fn log2(x: usize) -> u32 {
     let x = x as u128;
     assert!(x.is_power_of_two());
     assert!(x > 0);

@@ -7,17 +7,17 @@ use arrayprod::ArrayProd;
 use noirc_frontend::hir::lower::HirCallExpression;
 
 #[derive(Debug)]
-enum BuiltInFunctions{
+enum BuiltInFunctions {
     ArraySum,
-    ArrayProd
-} 
+    ArrayProd,
+}
 
 impl BuiltInFunctions {
-    fn look_up_func_name(name : &str) -> Option<BuiltInFunctions> {
+    fn look_up_func_name(name: &str) -> Option<BuiltInFunctions> {
         match name {
-            "arraysum" => Some(BuiltInFunctions::ArraySum) ,
-            "arrayprod" => Some(BuiltInFunctions::ArrayProd) ,
-            _=> None
+            "arraysum" => Some(BuiltInFunctions::ArraySum),
+            "arrayprod" => Some(BuiltInFunctions::ArrayProd),
+            _ => None,
         }
     }
 }
@@ -30,21 +30,26 @@ pub trait BuiltInCaller {
     ) -> Result<Object, RuntimeErrorKind>;
 }
 
-pub fn call_builtin(        
+pub fn call_builtin(
     evaluator: &mut Evaluator,
     env: &mut Environment,
     builtin_name: &str,
-    call_expr: HirCallExpression) -> Result<Object, RuntimeErrorKind> 
-{
-   
+    call_expr: HirCallExpression,
+) -> Result<Object, RuntimeErrorKind> {
     let func = match BuiltInFunctions::look_up_func_name(builtin_name) {
         None => {
-            let message = format!("cannot find a builtin function with the attribute name {}", builtin_name);
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
+            let message = format!(
+                "cannot find a builtin function with the attribute name {}",
+                builtin_name
+            );
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
         }
-        Some(func) => func
+        Some(func) => func,
     };
-    
+
     match func {
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, call_expr),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, call_expr),

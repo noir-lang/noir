@@ -1,10 +1,10 @@
 use crate::lexer::errors::LexerError;
-use crate::lexer::token::{Token, TokenKind, SpannedToken};
+use crate::lexer::token::{SpannedToken, Token, TokenKind};
 
-use thiserror::Error;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ParserErrorKind {
@@ -15,21 +15,30 @@ pub enum ParserErrorKind {
     #[error(" `{:?}` cannot be used as a binary operator.", lexeme)]
     NoInfixFunction { span: Span, lexeme: String },
     #[error("Unexpected token found")]
-    UnexpectedToken { span: Span, expected: Token, found : Token },
+    UnexpectedToken {
+        span: Span,
+        expected: Token,
+        found: Token,
+    },
     #[error("Unexpected token kind found")]
-    UnexpectedTokenKind { span: Span, expected: TokenKind, found : TokenKind },
+    UnexpectedTokenKind {
+        span: Span,
+        expected: TokenKind,
+        found: TokenKind,
+    },
     #[error("Unstructured Error")]
-    UnstructuredError { span: Span, message : String},
+    UnstructuredError { span: Span, message: String },
     #[error("Token is not a unary operation")]
-    TokenNotUnaryOp { spanned_token: SpannedToken},
+    TokenNotUnaryOp { spanned_token: SpannedToken },
     #[error("Token is not a binary operation")]
-    TokenNotBinaryOp { spanned_token: SpannedToken},
-    #[error("Internal Compiler Error, unrecoverable")] // Actually lets separate these two types of errors
-    InternalError{message : String, span : Span},
+    TokenNotBinaryOp { spanned_token: SpannedToken },
+    #[error("Internal Compiler Error, unrecoverable")]
+    // Actually lets separate these two types of errors
+    InternalError { message: String, span: Span },
 }
 
 impl ParserErrorKind {
-    pub fn into_err(self, file_id : usize) -> ParserError {
+    pub fn into_err(self, file_id: usize) -> ParserError {
         ParserError {
             kind: self,
             file_id,
@@ -39,13 +48,12 @@ impl ParserErrorKind {
 
 #[derive(Debug)]
 pub struct ParserError {
-    pub(crate) kind : ParserErrorKind,
-    file_id : usize,
+    pub(crate) kind: ParserErrorKind,
+    file_id: usize,
 }
 
-
 impl DiagnosableError for ParserError {
-    fn to_diagnostic(&self) -> Diagnostic{
+    fn to_diagnostic(&self) -> Diagnostic {
         match &self.kind {
             ParserErrorKind::LexerError(lex_err) => lex_err.to_diagnostic(),
             ParserErrorKind::InternalError{message, span} => unreachable!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),

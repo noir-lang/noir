@@ -1,6 +1,5 @@
 use crate::{Environment, Evaluator, Linear, Object, RuntimeErrorKind};
 
-
 // Intentionally chose to write this out manually as it's not expected to change often or at all
 // We could expand again, so that ordering is preserved, but this does not seem necessary.
 pub fn handle_add_op(
@@ -18,19 +17,28 @@ pub fn handle_add_op(
         (Object::Array(_), _) | (_, Object::Array(_)) => Err(handle_cannot_add("Arrays")),
         //
         // Delegate logic for integer addition to the integer module
-        (Object::Integer(x), y) | (y,Object::Integer(x))=> Ok(Object::Integer(x.add(y, env, evaluator)?)),
+        (Object::Integer(x), y) | (y, Object::Integer(x)) => {
+            Ok(Object::Integer(x.add(y, env, evaluator)?))
+        }
         //
         // Arith + Arith = Arith
         (Object::Arithmetic(x), Object::Arithmetic(y)) => Ok(Object::Arithmetic(&x + &y)),
         //
         // Arith + Linear = Linear + Arith = Arith
-        (Object::Linear(x), Object::Arithmetic(y)) | (Object::Arithmetic(y), Object::Linear(x)) => Ok(Object::Arithmetic(&x + &y)),
+        (Object::Linear(x), Object::Arithmetic(y)) | (Object::Arithmetic(y), Object::Linear(x)) => {
+            Ok(Object::Arithmetic(&x + &y))
+        }
         //
         // Arith + Constant = Arith + Linear
-        (Object::Constants(x), Object::Arithmetic(y)) | (Object::Arithmetic(y), Object::Constants(x)) => Ok(Object::Arithmetic(&y + &Linear::from(x))),
+        (Object::Constants(x), Object::Arithmetic(y))
+        | (Object::Arithmetic(y), Object::Constants(x)) => {
+            Ok(Object::Arithmetic(&y + &Linear::from(x)))
+        }
         //
         // Linear + Constant = Constant + Linear = Linear
-        (Object::Constants(x), Object::Linear(y)) | (Object::Linear(y), Object::Constants(x)) => Ok(Object::Linear(&y + &x)),
+        (Object::Constants(x), Object::Linear(y)) | (Object::Linear(y), Object::Constants(x)) => {
+            Ok(Object::Linear(&y + &x))
+        }
         //
         // Linear + Linear = Arithmetic
         (Object::Linear(x), Object::Linear(y)) => Ok(Object::Arithmetic(x + y)),
@@ -40,6 +48,9 @@ pub fn handle_add_op(
     }
 }
 
-fn handle_cannot_add(typ : &'static str) -> RuntimeErrorKind {
-    RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("{} cannot be used in an addition", typ)}
+fn handle_cannot_add(typ: &'static str) -> RuntimeErrorKind {
+    RuntimeErrorKind::UnstructuredError {
+        span: Default::default(),
+        message: format!("{} cannot be used in an addition", typ),
+    }
 }

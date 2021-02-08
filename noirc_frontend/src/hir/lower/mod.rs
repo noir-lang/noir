@@ -3,11 +3,11 @@ use noir_field::FieldElement;
 use noirc_errors::Span;
 
 use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
-pub mod stmt;
-pub mod node_interner;
-pub mod function;
-pub mod resolver;
 mod errors;
+pub mod function;
+pub mod node_interner;
+pub mod resolver;
+pub mod stmt;
 
 use self::node_interner::{ExprId, FuncId, IdentId};
 
@@ -15,34 +15,31 @@ use self::node_interner::{ExprId, FuncId, IdentId};
 /// Each crate has exactly one.
 /// We pass this to the Evaluator and it uses this to evaluate the crate.
 /// We cannot give this to the type checker however, because the Type checker needs to check the types
-/// of all functions, even unused ones. The type checker instead iterates all interned functions after they are resolved. 
+/// of all functions, even unused ones. The type checker instead iterates all interned functions after they are resolved.
 /// This is used in the Evaluator and is populated in the resolution phase
 #[derive(Debug, Clone)]
 pub struct CrateItem {
     /// If a crate is a library this will be none
     /// If it is a binary, then this will be populated with the Id of the main function
-    entry : Option<FuncId>,
-
+    entry: Option<FuncId>,
     // This definition has no reference to it's children
-    // because at this stage, the module should be resolved 
+    // because at this stage, the module should be resolved
     // and functions point directly to other items
 
-    // This definition has non reference to parent, 
+    // This definition has non reference to parent,
     // because the root module has no parent
 
     // This method also has no reference to other functions because
-    // once we go to the entry point, we will follow it to see what 
+    // once we go to the entry point, we will follow it to see what
     // to execute next.
     //
-    // At this stage, the other functions which were in the module 
+    // At this stage, the other functions which were in the module
     // have been resolved and are no longer needed.
 }
 
-
-
 #[derive(Debug, Clone)]
 pub enum HirExpression {
-    Ident(IdentId), 
+    Ident(IdentId),
     Literal(HirLiteral),
     Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
@@ -63,7 +60,7 @@ impl HirExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirForExpression{
+pub struct HirForExpression {
     pub identifier: IdentId,
     pub start_range: ExprId,
     pub end_range: ExprId,
@@ -90,12 +87,12 @@ pub enum HirBinaryOpKind {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct HirBinaryOp {
-    pub span : Span,
-    pub kind : HirBinaryOpKind
+    pub span: Span,
+    pub kind: HirBinaryOpKind,
 }
 
 impl From<BinaryOpKind> for HirBinaryOpKind {
-    fn from(a : BinaryOpKind) -> HirBinaryOpKind {
+    fn from(a: BinaryOpKind) -> HirBinaryOpKind {
         match a {
             BinaryOpKind::Add => HirBinaryOpKind::Add,
             BinaryOpKind::Subtract => HirBinaryOpKind::Subtract,
@@ -115,12 +112,12 @@ impl From<BinaryOpKind> for HirBinaryOpKind {
     }
 }
 impl From<BinaryOp> for HirBinaryOp {
-    fn from(a : BinaryOp) -> HirBinaryOp {
-        let kind : HirBinaryOpKind = a.contents.into();
+    fn from(a: BinaryOp) -> HirBinaryOp {
+        let kind: HirBinaryOpKind = a.contents.into();
 
         HirBinaryOp {
-            span : a.span(),
-            kind
+            span: a.span(),
+            kind,
         }
     }
 }
@@ -131,13 +128,13 @@ impl HirBinaryOpKind {
     /// they transform the infix expression into a predicate expression
     pub fn is_comparator(&self) -> bool {
         match self {
-            HirBinaryOpKind::Equal |
-            HirBinaryOpKind::NotEqual |
-            HirBinaryOpKind::LessEqual |
-            HirBinaryOpKind::Less |
-            HirBinaryOpKind::Greater |
-            HirBinaryOpKind::GreaterEqual => true, 
-            _=> false
+            HirBinaryOpKind::Equal
+            | HirBinaryOpKind::NotEqual
+            | HirBinaryOpKind::LessEqual
+            | HirBinaryOpKind::Less
+            | HirBinaryOpKind::Greater
+            | HirBinaryOpKind::GreaterEqual => true,
+            _ => false,
         }
     }
 }
@@ -149,10 +146,10 @@ pub enum HirUnaryOp {
 }
 
 impl From<UnaryOp> for HirUnaryOp {
-    fn from(a : UnaryOp) -> HirUnaryOp {
+    fn from(a: UnaryOp) -> HirUnaryOp {
         match a {
             UnaryOp::Minus => HirUnaryOp::Minus,
-            UnaryOp::Not => HirUnaryOp::Not
+            UnaryOp::Not => HirUnaryOp::Not,
         }
     }
 }

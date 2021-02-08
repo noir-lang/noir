@@ -24,10 +24,14 @@ pub use neq::handle_neq_op;
 pub use sub::handle_sub_op;
 pub use xor::handle_xor_op;
 
-use crate::{Environment, Evaluator, FieldElement, Object, Type, RuntimeErrorKind};
+use crate::{Environment, Evaluator, FieldElement, Object, RuntimeErrorKind, Type};
 
 /// Creates a new witness and constrains it to be the inverse of the polynomial passed in
-pub fn invert(x: Object, env: &mut Environment, evaluator: &mut Evaluator) -> Result<Object, RuntimeErrorKind> {
+pub fn invert(
+    x: Object,
+    env: &mut Environment,
+    evaluator: &mut Evaluator,
+) -> Result<Object, RuntimeErrorKind> {
     // Create a fresh witness
     let inter_var_name = evaluator.make_unique("inverse_");
 

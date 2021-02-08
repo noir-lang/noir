@@ -1,4 +1,4 @@
-use crate::{parser::{errors::ParserErrorKind}};
+use crate::parser::errors::ParserErrorKind;
 
 use super::*;
 
@@ -10,7 +10,13 @@ impl CallParser {
 
         let func_path = match func_path.kind {
             ExpressionKind::Path(path) => path,
-            _ => return Err(ParserErrorKind::UnstructuredError{message: format!("expected a path for the function name"), span : func_path.span}.into_err(parser.file_id))
+            _ => {
+                return Err(ParserErrorKind::UnstructuredError {
+                    message: format!("expected a path for the function name"),
+                    span: func_path.span,
+                }
+                .into_err(parser.file_id))
+            }
         };
 
         let call_expr = CallExpression {
@@ -18,6 +24,6 @@ impl CallParser {
             arguments,
         };
 
-       Ok(ExpressionKind::Call(Box::new(call_expr)))
+        Ok(ExpressionKind::Call(Box::new(call_expr)))
     }
 }

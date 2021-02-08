@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path,PathBuf};
+use std::path::{Path, PathBuf};
 
 /// Expects that the given directory is an existing path
 fn rerun_if_stdlib_changes(directory: &Path) {
@@ -14,7 +14,6 @@ fn rerun_if_stdlib_changes(directory: &Path) {
         }
     }
 }
-
 
 pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::io::Error> {
     let mut stack = Vec::new();
@@ -45,7 +44,7 @@ pub fn copy<U: AsRef<Path>, V: AsRef<Path>>(from: U, to: V) -> Result<(), std::i
             let path = entry.path();
 
             if is_rs_file(&path) {
-                continue
+                continue;
             }
 
             if path.is_dir() {
@@ -73,7 +72,7 @@ fn is_rs_file(src: &Path) -> bool {
     // assert_eq!("rs", path.extension().unwrap());
     match src.extension() {
         Some(ext) => ext == "rs",
-        None => false
+        None => false,
     }
 }
 

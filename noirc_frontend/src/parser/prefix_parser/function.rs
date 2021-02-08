@@ -6,14 +6,13 @@ impl FuncParser {
     /// All functions are function definitions. Functions are not first class.
     pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
-        attribute : Option<Attribute>,
+        attribute: Option<Attribute>,
     ) -> Result<NoirFunction, ParserError> {
-        
         // Check if we have an identifier.
         parser.peek_check_kind_advance(TokenKind::Ident)?;
         let func_name = parser.curr_token.token().to_string();
         let spanned_func_name = Spanned::from(parser.curr_token.into_span(), func_name);
-        
+
         parser.peek_check_variant_advance(&Token::LeftParen)?;
         let parameters = FuncParser::parse_fn_parameters(parser)?;
         // Parse the type after the parameters have been parsed
@@ -33,10 +32,10 @@ impl FuncParser {
         // In the future, we can add a test attribute. Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {
             name: spanned_func_name.into(),
-            attribute : attribute,
+            attribute: attribute,
             parameters,
             body,
-            span : start.merge(end),
+            span: start.merge(end),
             return_type,
         };
 
@@ -54,9 +53,9 @@ impl FuncParser {
         let mut parameters: Vec<(Ident, Type)> = Vec::new();
 
         // next token should be identifier
-        let spanned_name : Ident = parser.curr_token.clone().into();
+        let spanned_name: Ident = parser.curr_token.clone().into();
         parameters.push((spanned_name, FuncParser::parse_fn_type(parser)?));
-        
+
         while parser.peek_token == Token::Comma {
             parser.advance_tokens(); // curr_token = comma
             parser.advance_tokens(); // curr_token == identifier

@@ -1,7 +1,8 @@
-
-use super::object::{Object, Array};
 use super::errors::RuntimeErrorKind;
-use noirc_frontend::hir::scope::{ScopeTree as GenericScopeTree, ScopeForest as GenericScopeForest};
+use super::object::{Array, Object};
+use noirc_frontend::hir::scope::{
+    ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
+};
 
 type ScopeTree = GenericScopeTree<String, Object>;
 type ScopeForest = GenericScopeForest<String, Object>;
@@ -29,9 +30,8 @@ impl Environment {
     }
 
     pub fn store(&mut self, name: String, object: Object) {
-
         let scope = self.0.get_mut_scope();
-        scope.add_key_value(name.clone(),object);
+        scope.add_key_value(name.clone(), object);
     }
 
     pub fn get(&mut self, name: &String) -> Object {
@@ -43,7 +43,10 @@ impl Environment {
 
         match poly {
             Object::Array(arr) => Ok(arr),
-            k => Err(RuntimeErrorKind::ArrayNotFound{name : name.to_owned(), found_type : k.r#type().to_owned()})
+            k => Err(RuntimeErrorKind::ArrayNotFound {
+                name: name.to_owned(),
+                found_type: k.r#type().to_owned(),
+            }),
         }
     }
 }

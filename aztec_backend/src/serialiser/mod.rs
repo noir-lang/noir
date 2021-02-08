@@ -1,9 +1,12 @@
-// Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++. 
+// Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++.
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 
-use crate::barretenberg_rs::composer::{Blake2sConstraint, Constraint, ConstraintSystem, LogicConstraint, MerkleMembershipConstraint, MerkleRootConstraint, PedersenConstraint, RangeConstraint, SchnorrConstraint, Sha256Constraint};
-use acir::native_types::Arithmetic;
+use crate::barretenberg_rs::composer::{
+    Blake2sConstraint, Constraint, ConstraintSystem, LogicConstraint, MerkleMembershipConstraint,
+    MerkleRootConstraint, PedersenConstraint, RangeConstraint, SchnorrConstraint, Sha256Constraint,
+};
 use acir::circuit::{Circuit, Gate};
+use acir::native_types::Arithmetic;
 use acir::OPCODE;
 use noir_field::FieldElement;
 
@@ -67,8 +70,10 @@ pub fn serialise_circuit(
 
                         assert_eq!(gadget_call.outputs.len(), 2);
 
-                        let result_low_128_witness_index = gadget_call.outputs[0].witness_index() as i32;
-                        let result_high_128_witness_index = gadget_call.outputs[1].witness_index() as i32;
+                        let result_low_128_witness_index =
+                            gadget_call.outputs[0].witness_index() as i32;
+                        let result_high_128_witness_index =
+                            gadget_call.outputs[1].witness_index() as i32;
 
                         let sha256_constraint = Sha256Constraint {
                             inputs: sha256_inputs,
@@ -77,7 +82,7 @@ pub fn serialise_circuit(
                         };
 
                         sha256_constraints.push(sha256_constraint);
-                    },
+                    }
                     OPCODE::Blake2s => {
                         let mut blake2s_inputs: Vec<(i32, i32)> = Vec::new();
                         for input in gadget_call.inputs.iter() {
@@ -88,8 +93,10 @@ pub fn serialise_circuit(
 
                         assert_eq!(gadget_call.outputs.len(), 2);
 
-                        let result_low_128_witness_index = gadget_call.outputs[0].witness_index() as i32;
-                        let result_high_128_witness_index = gadget_call.outputs[1].witness_index() as i32;
+                        let result_low_128_witness_index =
+                            gadget_call.outputs[0].witness_index() as i32;
+                        let result_high_128_witness_index =
+                            gadget_call.outputs[1].witness_index() as i32;
 
                         let blake2s_constraint = Blake2sConstraint {
                             inputs: blake2s_inputs,
@@ -98,16 +105,15 @@ pub fn serialise_circuit(
                         };
 
                         blake2s_constraints.push(blake2s_constraint);
-                    },
+                    }
                     OPCODE::MerkleRoot => {
-
                         let mut leaves = Vec::new();
                         for input in gadget_call.inputs.iter() {
                             let witness_index = input.witness.witness_index() as i32;
-                            
-                            // Ignore num_bits, it's only needed for 
+
+                            // Ignore num_bits, it's only needed for
                             // hash functions like sha2/blake
-                            
+
                             leaves.push(witness_index);
                         }
 
@@ -121,22 +127,23 @@ pub fn serialise_circuit(
                         };
 
                         merkle_root_constraints.push(constraint);
-                    },
+                    }
                     OPCODE::MerkleMembership => {
-                    
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
 
-                        // root 
+                        // root
                         let root = {
                             let root_input = inputs_iter.next().expect("missing merkle root");
                             root_input.witness.witness_index() as i32
                         };
-                        // leaf 
+                        // leaf
                         let leaf = {
-                            let leaf_input = inputs_iter.next().expect("missing leaf to check membership for");
+                            let leaf_input = inputs_iter
+                                .next()
+                                .expect("missing leaf to check membership for");
                             leaf_input.witness.witness_index() as i32
                         };
-                        // index 
+                        // index
                         let index = {
                             let index_input = inputs_iter.next().expect("missing index for leaf");
                             index_input.witness.witness_index() as i32
@@ -147,8 +154,11 @@ pub fn serialise_circuit(
                         }
 
                         let mut hash_path = Vec::new();
-                        while let (Some(path_left), path_right_option) = (inputs_iter.next(),inputs_iter.next()) {
-                            let path_right = path_right_option.expect("iterator contains an odd amount of items");
+                        while let (Some(path_left), path_right_option) =
+                            (inputs_iter.next(), inputs_iter.next())
+                        {
+                            let path_right = path_right_option
+                                .expect("iterator contains an odd amount of items");
 
                             let path_left_index = path_left.witness.witness_index() as i32;
                             let path_right_index = path_right.witness.witness_index() as i32;
@@ -158,7 +168,7 @@ pub fn serialise_circuit(
 
                         // result
                         let result = gadget_call.outputs[0].witness_index() as i32;
-   
+
                         let constraint = MerkleMembershipConstraint {
                             root,
                             leaf,
@@ -168,30 +178,35 @@ pub fn serialise_circuit(
                         };
 
                         merkle_membership_constraints.push(constraint);
-                    
-                    },
+                    }
                     OPCODE::SchnorrVerify => {
-
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
 
                         // pub_key_x
                         let public_key_x = {
-                            let pub_key_x = inputs_iter.next().expect("missing `x` component for public key");
+                            let pub_key_x = inputs_iter
+                                .next()
+                                .expect("missing `x` component for public key");
                             pub_key_x.witness.witness_index() as i32
                         };
                         // pub_key_y
                         let public_key_y = {
-                            let pub_key_y = inputs_iter.next().expect("missing `y` component for public key");
+                            let pub_key_y = inputs_iter
+                                .next()
+                                .expect("missing `y` component for public key");
                             pub_key_y.witness.witness_index() as i32
                         };
                         // signature
-                        let mut signature = [0i32;64];
+                        let mut signature = [0i32; 64];
                         for i in 0..64 {
-                            let sig_byte = inputs_iter.next().expect(&format!("missing rest of signature. tried to get byte {} but failed", i));
+                            let sig_byte = inputs_iter.next().expect(&format!(
+                                "missing rest of signature. tried to get byte {} but failed",
+                                i
+                            ));
                             let sig_byte_index = sig_byte.witness.witness_index() as i32;
                             signature[i] = sig_byte_index
                         }
-                        
+
                         // The rest of the input is the message
                         let mut message = Vec::new();
                         while let Some(msg) = inputs_iter.next() {
@@ -200,7 +215,7 @@ pub fn serialise_circuit(
                         }
 
                         assert!(inputs_iter.next().is_none());
-                        
+
                         // result
                         let result = gadget_call.outputs[0].witness_index() as i32;
 
@@ -213,25 +228,20 @@ pub fn serialise_circuit(
                         };
 
                         schnorr_constraints.push(constraint);
-                    },
+                    }
                     OPCODE::AES => panic!("AES has not yet been implemented"),
                     OPCODE::Pedersen => {
-                                                
                         let mut inputs = Vec::new();
                         for scalar in gadget_call.inputs.iter() {
                             let scalar_index = scalar.witness.witness_index() as i32;
                             inputs.push(scalar_index);
                         }
-                        
+
                         let result = gadget_call.outputs[0].witness_index() as i32;
-                        
-                        let constraint = PedersenConstraint {
-                            inputs,
-                            result,
-                        };
+
+                        let constraint = PedersenConstraint { inputs, result };
 
                         pedersen_constraints.push(constraint);
-
                     }
                 };
             }
@@ -246,11 +256,11 @@ pub fn serialise_circuit(
         logic_constraints: logic_constraints,
         range_constraints: range_constraints,
         sha256_constraints: sha256_constraints,
-        merkle_membership_constraints : merkle_membership_constraints,
-        merkle_root_constraints : merkle_root_constraints,
-        pedersen_constraints : pedersen_constraints,
-        schnorr_constraints : schnorr_constraints,
-        blake2s_constraints : blake2s_constraints,
+        merkle_membership_constraints: merkle_membership_constraints,
+        merkle_root_constraints: merkle_root_constraints,
+        pedersen_constraints: pedersen_constraints,
+        schnorr_constraints: schnorr_constraints,
+        blake2s_constraints: blake2s_constraints,
         constraints: constraints,
     };
 

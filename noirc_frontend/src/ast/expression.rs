@@ -1,7 +1,7 @@
+use crate::token::{Attribute, Token};
 use crate::{Ident, Path, Statement, Type};
-use crate::token::{Token, Attribute};
-use noirc_errors::{Spanned, Span};
 use noir_field::FieldElement;
+use noirc_errors::{Span, Spanned};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -23,7 +23,7 @@ impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
             ExpressionKind::Path(path) => Some(path),
-            _=> None
+            _ => None,
         }
     }
 
@@ -48,7 +48,7 @@ impl ExpressionKind {
 
         match literal {
             Literal::Integer(integer) => Some(*integer),
-            _=> None
+            _ => None,
         }
     }
 
@@ -66,17 +66,15 @@ impl ExpressionKind {
     fn as_identifier(&self) -> Option<String> {
         match self {
             ExpressionKind::Ident(x) => Some(x.clone()),
-            _=> None
+            _ => None,
         }
     }
-
-
 }
 
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
-    pub kind : ExpressionKind,
-    pub span : Span,
+    pub kind: ExpressionKind,
+    pub span: Span,
 }
 
 // This is important for tests. Two expressions are the same, iff their Kind is the same
@@ -91,16 +89,16 @@ impl Expression {
     pub fn into_ident(self) -> Option<Ident> {
         let identifier = match self.kind {
             ExpressionKind::Ident(x) => x,
-            _=>return None
+            _ => return None,
         };
 
         let ident = Ident(Spanned::from(self.span, identifier));
-        return Some(ident)
+        return Some(ident);
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ForExpression{
+pub struct ForExpression {
     pub identifier: Ident,
     pub start_range: Expression,
     pub end_range: Expression,
@@ -134,13 +132,13 @@ impl BinaryOpKind {
     /// they transform the infix expression into a predicate expression
     pub fn is_comparator(&self) -> bool {
         match self {
-            BinaryOpKind::Equal |
-            BinaryOpKind::NotEqual |
-            BinaryOpKind::LessEqual |
-            BinaryOpKind::Less |
-            BinaryOpKind::Greater |
-            BinaryOpKind::GreaterEqual => true, 
-            _=> false
+            BinaryOpKind::Equal
+            | BinaryOpKind::NotEqual
+            | BinaryOpKind::LessEqual
+            | BinaryOpKind::Less
+            | BinaryOpKind::Greater
+            | BinaryOpKind::GreaterEqual => true,
+            _ => false,
         }
     }
     pub fn as_string(&self) -> &str {
@@ -158,7 +156,7 @@ impl BinaryOpKind {
             BinaryOpKind::And => "&",
             BinaryOpKind::Or => "|",
             BinaryOpKind::Xor => "^",
-            BinaryOpKind::Assign => "="
+            BinaryOpKind::Assign => "=",
         }
     }
 }
@@ -180,9 +178,9 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::Greater => BinaryOpKind::Greater,
             Token::GreaterEqual => BinaryOpKind::GreaterEqual,
             Token::Assign => BinaryOpKind::Assign,
-            _ => return None
+            _ => return None,
         };
-        return Some(op)
+        return Some(op);
     }
 }
 
@@ -199,10 +197,9 @@ impl UnaryOp {
         match token {
             Token::Minus => Some(UnaryOp::Minus),
             Token::Bang => Some(UnaryOp::Not),
-            _ => None
+            _ => None,
         }
     }
-
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
@@ -242,11 +239,11 @@ pub struct IfExpression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FunctionDefinition {
     pub name: Ident,
-    pub attribute : Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+    pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub parameters: Vec<(Ident, Type)>,
     pub body: BlockExpression,
-    pub span : Span,
-    pub return_type : Type,
+    pub span: Span,
+    pub return_type: Type,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

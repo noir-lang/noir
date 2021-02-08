@@ -1,4 +1,3 @@
-
 // Each witness can be identified with an String
 // The string will be derived from the identifier name in the variable
 

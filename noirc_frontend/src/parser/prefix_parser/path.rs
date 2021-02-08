@@ -5,9 +5,8 @@ pub struct PathParser;
 
 impl PathParser {
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
-        
         let mut parsed_path = Vec::new();
-        
+
         loop {
             let segment = PrefixParser::Name.parse(parser)?.into_ident().unwrap();
             parsed_path.push(segment);
@@ -18,19 +17,23 @@ impl PathParser {
                 parser.advance_tokens(); // Advanced past the Identifier which is the current token
                 parser.advance_tokens(); // Advanced past the :: which we peeked and know is there
             } else {
-                break
+                break;
             }
         }
-        let path_kind = path_kind(parsed_path.first().expect("ice: this function triggers when there is at least one ident"));
+        let path_kind = path_kind(
+            parsed_path
+                .first()
+                .expect("ice: this function triggers when there is at least one ident"),
+        );
 
-        Ok(ExpressionKind::Path(Path{
-            segments : parsed_path,
+        Ok(ExpressionKind::Path(Path {
+            segments: parsed_path,
             kind: path_kind,
         }))
     }
 }
 
-fn path_kind(ident : &Ident) -> PathKind {
+fn path_kind(ident: &Ident) -> PathKind {
     let contents = &ident.0.contents;
     // XXX: modify the lexer and parser to have multiple conditions
     // for peek_check_kind_advance so we cna check for keyword and Ident

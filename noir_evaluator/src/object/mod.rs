@@ -4,11 +4,11 @@ mod integer;
 pub use array::Array;
 pub use integer::Integer;
 
-pub use acir::native_types::{Witness, Linear, Arithmetic};
 use acir::circuit::gate::Gate;
+pub use acir::native_types::{Arithmetic, Linear, Witness};
 use noir_field::FieldElement;
 
-use super::errors::{RuntimeErrorKind};
+use super::errors::RuntimeErrorKind;
 
 #[derive(Clone, Debug)]
 pub enum Object {
@@ -21,13 +21,12 @@ pub enum Object {
 }
 
 impl Object {
-
     pub fn r#type(&self) -> &'static str {
         match self {
             Object::Integer(_) | Object::Arithmetic(_) | Object::Linear(_) => "witness",
-            Object::Array(_)=> "collection",
+            Object::Array(_) => "collection",
             Object::Constants(_) => "constant",
-            Object::Null => "()"  
+            Object::Null => "()",
         }
     }
     // Converts a Object into an arithmetic object
@@ -38,7 +37,7 @@ impl Object {
             Object::Array(_) => None,
             Object::Arithmetic(arith) => Some(arith.clone()),
             Object::Constants(constant) => Some(constant.into()),
-            Object::Linear(linear) => Some(linear.into())
+            Object::Linear(linear) => Some(linear.into()),
         }
     }
     pub fn is_gate(&self) -> bool {
@@ -50,7 +49,7 @@ impl Object {
     pub fn constant(&self) -> Result<FieldElement, RuntimeErrorKind> {
         match self {
             Object::Constants(x) => Ok(*x),
-            _ => Err(RuntimeErrorKind::expected_type("constant",self.r#type())),
+            _ => Err(RuntimeErrorKind::expected_type("constant", self.r#type())),
         }
     }
     pub fn is_constant(&self) -> bool {
@@ -135,30 +134,29 @@ impl Object {
 
     // XXX: It is possible to make this into a Mul trait, but it seems to hurt readability
     // Could we move this into the Mul file itself?
-    pub fn mul_constant(&self, constant : FieldElement) -> Option<Object> {
+    pub fn mul_constant(&self, constant: FieldElement) -> Option<Object> {
         let obj = match self {
             Object::Null => return None,
             Object::Array(arr) => {
-
                 let mut result = Vec::with_capacity(arr.length as usize);
                 for element in arr.contents.iter() {
                     result.push(element.mul_constant(constant)?);
                 }
-                
-                Object::Array(Array{
+
+                Object::Array(Array {
                     contents: result,
                     length: arr.length,
                 })
-            },
+            }
             Object::Linear(lin) => Object::Linear(lin * &constant),
             Object::Integer(integer) => {
                 let result = &Linear::from_witness(integer.witness.clone()) * &constant;
                 Object::Linear(result)
-            },
+            }
             Object::Constants(lhs) => Object::Constants(*lhs * constant),
             Object::Arithmetic(lhs) => Object::Arithmetic(lhs * &constant),
         };
-        return Some(obj)
+        return Some(obj);
     }
 }
 
@@ -178,44 +176,50 @@ pub struct Selector(pub String, pub Object); //XXX(med) I guess we know it's goi
 
 impl Default for Selector {
     fn default() -> Selector {
-        Selector(
-            "zero".to_string(),
-            Object::Constants(FieldElement::zero()),
-        )
+        Selector("zero".to_string(), Object::Constants(FieldElement::zero()))
     }
 }
 
-pub struct RangedObject{
-    pub(crate) start : FieldElement,
-    pub(crate) end : FieldElement,
+pub struct RangedObject {
+    pub(crate) start: FieldElement,
+    pub(crate) end: FieldElement,
 }
 
 impl RangedObject {
-    pub fn new(start : FieldElement, end: FieldElement) -> Result<Self, RuntimeErrorKind> {
+    pub fn new(start: FieldElement, end: FieldElement) -> Result<Self, RuntimeErrorKind> {
         // We will move these checks into the analyser once
         // we have Private and Public integers, so they are only checked once
-        
+
         // For now, we allow start and end ranges to be in the range u252
         // 252 is arbitrary and holds no weight, I simply chose it to be close to bn254
         let start_bits = start.num_bits();
         if start_bits > 252 {
             let message = format!("Currently, we only allow integers to be represented by a u252, start range needs {} bits to be represented", start_bits);
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message })
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
         };
-        
+
         let end_bits = end.num_bits();
         if end_bits > 252 {
             let message = format!("Currently, we only allow integers to be represented by a u252, end range needs {} bits to be represented", end_bits);
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message })
-        };
-        
-        // We only allow ascending ranges
-        if (end-start).num_bits() > 252 {
-            let message = format!("We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not");
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message })
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
         };
 
-        Ok(RangedObject{start, end})
+        // We only allow ascending ranges
+        if (end - start).num_bits() > 252 {
+            let message = format!("We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not");
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
+        };
+
+        Ok(RangedObject { start, end })
     }
 }
 
@@ -228,6 +232,8 @@ impl Iterator for RangedObject {
             let return_val = self.start;
             self.start = self.start + FieldElement::one();
             Some(return_val)
-        } else { None }
+        } else {
+            None
+        }
     }
 }

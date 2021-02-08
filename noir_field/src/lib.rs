@@ -31,7 +31,6 @@ impl From<i128> for FieldElement {
 }
 
 impl FieldElement {
-
     pub fn one() -> FieldElement {
         FieldElement(Fr::one())
     }
@@ -43,20 +42,20 @@ impl FieldElement {
     pub fn max_num_bits() -> u32 {
         Fr::NUM_BITS
     }
-    /// Returns None, if the string is not a canonical 
+    /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.
     /// This method can be used for both hex and decimal representations.
-    pub fn from_str(input : &str) -> Option<FieldElement> {
+    pub fn from_str(input: &str) -> Option<FieldElement> {
         let fr = match Fr::from_str(input) {
             None => return None,
             Some(x) => x,
         };
         Some(FieldElement(fr))
     }
-    // This is the amount of bits that are always zero, 
+    // This is the amount of bits that are always zero,
     // In BN256, every element can be represented with 254 bits.
-    // However this representation uses 256 bits, hence 2 wasted bits  
+    // However this representation uses 256 bits, hence 2 wasted bits
     // Note: This has nothing to do with saturated field elements.
     fn wasted_bits() -> u32 {
         let vec: Vec<_> = BitIterator::new(Fr::one().into_repr()).collect();
@@ -171,11 +170,8 @@ impl FieldElement {
 
         let bit_iter: Vec<_> = BitIterator::new(self.0.into_repr())
             .enumerate()
-            .filter(|(i, _)| {
-                *i >= (max_bits - num_bits) as usize
-            }).map(|(_, bit)| {
-                bit
-            })
+            .filter(|(i, _)| *i >= (max_bits - num_bits) as usize)
+            .map(|(_, bit)| bit)
             .collect();
 
         bit_iter

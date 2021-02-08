@@ -1,22 +1,25 @@
 mod infix_parser;
-mod prefix_parser;
 mod parser;
+mod prefix_parser;
 
 mod errors;
 
 pub use errors::ParserError;
 
-pub use parser::{Parser, ParserExprResult,ParserExprKindResult};
+pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
-use crate::{Expression, FunctionKind, NoirFunction, ast::{FunctionDefinition, ImportStatement, Type}};
-use crate::token::{Keyword, Token, SpannedToken};
+use crate::token::{Keyword, SpannedToken, Token};
+use crate::{
+    ast::{FunctionDefinition, ImportStatement, Type},
+    Expression, FunctionKind, NoirFunction,
+};
 
 #[derive(Clone, Debug)]
 pub struct Program {
-    pub file_id : usize,
+    pub file_id: usize,
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
-    pub module_decls : Vec<String>,
+    pub module_decls: Vec<String>,
 }
 
 const MAIN_FUNCTION: &str = "main";
@@ -28,27 +31,26 @@ impl Program {
         let main_func = self.find_function(MAIN_FUNCTION)?;
         match main_func.kind {
             FunctionKind::Normal => Some(Program::func_to_abi(main_func.def())), // The main function should be normal and not a builtin/low level
-            _=> None 
+            _ => None,
         }
-        
     }
 
-    pub fn find_function(&self, name : &str) -> Option<&NoirFunction> {
+    pub fn find_function(&self, name: &str) -> Option<&NoirFunction> {
         for func in self.functions.iter() {
-            let func_name  = func.name();
-            if func_name == name  {
-                return Some(func)
+            let func_name = func.name();
+            if func_name == name {
+                return Some(func);
             }
         }
         None
     }
-        
-    fn with_capacity(cap: usize, file_id : usize) -> Self {
+
+    fn with_capacity(cap: usize, file_id: usize) -> Self {
         Program {
             file_id,
             imports: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
-            module_decls : Vec::new(),
+            module_decls: Vec::new(),
         }
     }
 
@@ -62,12 +64,11 @@ impl Program {
         self.module_decls.push(mod_name);
     }
 
-    fn func_to_abi(func : &FunctionDefinition) -> Vec<(String, Type)> {
-        func
-        .parameters
-        .iter()
-        .map(|(ident, typ)| (ident.0.contents.clone(), typ.clone()))
-        .collect()
+    fn func_to_abi(func: &FunctionDefinition) -> Vec<(String, Type)> {
+        func.parameters
+            .iter()
+            .map(|(ident, typ)| (ident.0.contents.clone(), typ.clone()))
+            .collect()
     }
 }
 
@@ -120,6 +121,6 @@ impl From<&SpannedToken> for Precedence {
 }
 
 #[cfg(test)]
-pub(crate) fn test_parse(src : &str) -> Parser {
+pub(crate) fn test_parse(src: &str) -> Parser {
     Parser::from_src(Default::default(), src)
 }

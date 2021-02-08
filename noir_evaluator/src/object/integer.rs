@@ -1,8 +1,8 @@
 use core::num;
 
 use crate::binary_op;
-use acir::native_types::{Arithmetic, Linear,Witness};
-use crate::{Object, Gate};
+use crate::{Gate, Object};
+use acir::native_types::{Arithmetic, Linear, Witness};
 
 use crate::{AndGate, Environment, Evaluator, FieldElement, Signedness, Type, XorGate};
 
@@ -22,7 +22,7 @@ impl Integer {
         Integer { witness, num_bits }
     }
 
-    pub fn constrain(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeErrorKind>{
+    pub fn constrain(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeErrorKind> {
         if self.num_bits == 1 {
             // Add a bool gate
             let x = Linear::from_witness(self.witness.clone());
@@ -34,8 +34,10 @@ impl Integer {
         } else if self.num_bits == FieldElement::max_num_bits() {
             // Don't apply any constraints if the range is for the maximum number of bits
             let message = format!("All Witnesses are by default u{}. Applying this type does not apply any constraints.",FieldElement::max_num_bits());
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
-
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
         } else {
             // Note if the number of bits is odd, then barretenberg will panic
             evaluator
@@ -74,13 +76,22 @@ impl Integer {
             Object::Arithmetic(arith) => {
                 Ok(Integer::from_arithmetic(arith, num_bits, env, evaluator))
             }
-            Object::Linear(linear) => {
-                Ok(Integer::from_arithmetic(linear.into(), num_bits, env, evaluator))
-            }
+            Object::Linear(linear) => Ok(Integer::from_arithmetic(
+                linear.into(),
+                num_bits,
+                env,
+                evaluator,
+            )),
             k => {
-                let message = format!("tried to convert a {} into an integer. This is not possible.",k.r#type());
-                return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
-            },
+                let message = format!(
+                    "tried to convert a {} into an integer. This is not possible.",
+                    k.r#type()
+                );
+                return Err(RuntimeErrorKind::UnstructuredError {
+                    span: Default::default(),
+                    message,
+                });
+            }
         }
     }
 
@@ -117,8 +128,11 @@ impl Integer {
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
         if self.num_bits != num_bits {
-            let err =  RuntimeErrorKind::Spanless(format!("Both integers must have the same integer type. Expected u{}, got u{}",self.num_bits, num_bits));
-            return Err(err)
+            let err = RuntimeErrorKind::Spanless(format!(
+                "Both integers must have the same integer type. Expected u{}, got u{}",
+                self.num_bits, num_bits
+            ));
+            return Err(err);
         }
 
         // Add a gate which subtracts both integers
@@ -173,10 +187,20 @@ impl Integer {
             num_bits: self.num_bits,
         })
     }
-    pub fn xor(&self, rhs: Integer, env: &mut Environment, evaluator: &mut Evaluator) -> Result<Integer, RuntimeErrorKind> {
+    pub fn xor(
+        &self,
+        rhs: Integer,
+        env: &mut Environment,
+        evaluator: &mut Evaluator,
+    ) -> Result<Integer, RuntimeErrorKind> {
         self.logic(rhs, env, true, evaluator)
     }
-    pub fn and(&self, rhs: Integer, env: &mut Environment, evaluator: &mut Evaluator) -> Result<Integer, RuntimeErrorKind> {
+    pub fn and(
+        &self,
+        rhs: Integer,
+        env: &mut Environment,
+        evaluator: &mut Evaluator,
+    ) -> Result<Integer, RuntimeErrorKind> {
         self.logic(rhs, env, false, evaluator)
     }
 
@@ -190,8 +214,14 @@ impl Integer {
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
         if self.num_bits != num_bits {
-            let message = format!("Both integers must have the same integer type. expected u{}, got u{}",self.num_bits, num_bits);
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
+            let message = format!(
+                "Both integers must have the same integer type. expected u{}, got u{}",
+                self.num_bits, num_bits
+            );
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
         }
 
         let res = binary_op::handle_mul_op(
@@ -201,11 +231,19 @@ impl Integer {
             evaluator,
         )?;
 
-        Ok(Integer::from_object(res, self.num_bits + num_bits, env, evaluator)?)
+        Ok(Integer::from_object(
+            res,
+            self.num_bits + num_bits,
+            env,
+            evaluator,
+        )?)
     }
 }
 
-fn extract_witness_and_num_bits(num_bits: u32, poly: Object) -> Result<(Object, u32), RuntimeErrorKind> {
+fn extract_witness_and_num_bits(
+    num_bits: u32,
+    poly: Object,
+) -> Result<(Object, u32), RuntimeErrorKind> {
     let (object, bits) = match &poly {
         Object::Integer(integer_rhs) => (
             Object::from_witness(integer_rhs.witness.clone()),
@@ -214,8 +252,14 @@ fn extract_witness_and_num_bits(num_bits: u32, poly: Object) -> Result<(Object, 
         Object::Linear(_) => (poly, num_bits),
         Object::Constants(c) => (Object::Constants(*c), num_bits), // XXX: Here since we know the value of constant, we could get how many bits it is and do static checks
         k => {
-            let message = format!("Woops expected an integer or a field element with known bit size, but got {:?}", k);
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message})
+            let message = format!(
+                "Woops expected an integer or a field element with known bit size, but got {:?}",
+                k
+            );
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Default::default(),
+                message,
+            });
         }
     };
     Ok((object, bits))

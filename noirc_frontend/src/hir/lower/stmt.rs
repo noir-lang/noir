@@ -1,6 +1,6 @@
 use crate::Type;
 
-use super::{ExprId, IdentId, HirInfixExpression, node_interner::StmtId};
+use super::{node_interner::StmtId, ExprId, HirInfixExpression, IdentId};
 
 #[derive(Debug, Clone)]
 pub struct HirLetStatement {
@@ -20,14 +20,14 @@ pub struct HirConstStatement {
 #[deprecated = "we will no longer support declaration of public variables"]
 pub struct HirPublicStatement {
     pub identifier: IdentId,
-    pub r#type: Type, 
+    pub r#type: Type,
     pub expression: ExprId,
 }
 
 #[derive(Debug, Clone)]
 pub struct HirPrivateStatement {
     pub identifier: IdentId,
-    pub r#type: Type, 
+    pub r#type: Type,
     pub expression: ExprId,
 }
 
@@ -36,10 +36,10 @@ pub struct HirConstrainStatement(pub HirInfixExpression);
 #[derive(Debug, Clone)]
 pub struct BinaryStatement {
     pub lhs: ExprId,
-    pub r#type: Type, 
+    pub r#type: Type,
     pub expression: ExprId,
 }
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum HirStatement {
     Let(HirLetStatement),
     Const(HirConstStatement),

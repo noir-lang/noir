@@ -33,28 +33,34 @@ fn bound_check(
             let x = &Linear::from_witness(y.witness) - &offset;
 
             // Convert lower bound to arithmetic struct
-            // This is done because, if the lower bound is a integer, 
+            // This is done because, if the lower bound is a integer,
             // the compiler will complain as we cannot subtract an integer from a linear polynomial
-            let lower_bound_as_arith = lower_bound.into_arithmetic().ok_or(RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("invalid lower bound being used in bound check")})?;
+            let lower_bound_as_arith =
+                lower_bound
+                    .into_arithmetic()
+                    .ok_or(RuntimeErrorKind::UnstructuredError {
+                        span: Default::default(),
+                        message: format!("invalid lower bound being used in bound check"),
+                    })?;
 
-            let k = handle_sub_op(Object::Linear(x), Object::Arithmetic(lower_bound_as_arith), env, evaluator)?;
+            let k = handle_sub_op(
+                Object::Linear(x),
+                Object::Arithmetic(lower_bound_as_arith),
+                env,
+                evaluator,
+            )?;
 
             Integer::from_object(k, max_bound_bits, env, evaluator)
         }
         (lower_bound, Object::Constants(y)) => {
             let max_bound_bits = y.num_bits();
 
-            let k = handle_sub_op(
-                Object::Constants(y - offset),
-                lower_bound,
-                env,
-                evaluator,
-            )?;
+            let k = handle_sub_op(Object::Constants(y - offset), lower_bound, env, evaluator)?;
             Integer::from_object(k, max_bound_bits, env, evaluator)
         }
         (_, y) => {
             let err = RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("You can only apply the < or > op, if the upper bound is not an integer or an constant. Found type {}", y.r#type())};
-            return Err(err)
+            return Err(err);
         }
     }?;
     integer.constrain(evaluator)?;
@@ -66,7 +72,7 @@ pub fn handle_less_than_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object,RuntimeErrorKind> {
+) -> Result<Object, RuntimeErrorKind> {
     bound_check(left, right, false, env, evaluator)
 }
 pub fn handle_less_than_equal_op(
@@ -74,7 +80,7 @@ pub fn handle_less_than_equal_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object,RuntimeErrorKind> {
+) -> Result<Object, RuntimeErrorKind> {
     bound_check(left, right, true, env, evaluator)
 }
 pub fn handle_greater_than_op(
@@ -82,7 +88,7 @@ pub fn handle_greater_than_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object,RuntimeErrorKind> {
+) -> Result<Object, RuntimeErrorKind> {
     bound_check(right, left, false, env, evaluator)
 }
 pub fn handle_greater_than_equal_op(
@@ -90,6 +96,6 @@ pub fn handle_greater_than_equal_op(
     right: Object,
     env: &mut Environment,
     evaluator: &mut Evaluator,
-) -> Result<Object,RuntimeErrorKind> {
+) -> Result<Object, RuntimeErrorKind> {
     bound_check(right, left, true, env, evaluator)
 }

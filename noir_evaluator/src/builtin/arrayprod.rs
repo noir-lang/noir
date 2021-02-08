@@ -1,8 +1,8 @@
 use noirc_frontend::hir::lower::HirCallExpression;
 
 use super::{BuiltInCaller, RuntimeErrorKind};
-use crate::object::{Array, Object};
 use crate::binary_op;
+use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 
 /// Takes the direct product of the elements in an array
@@ -14,9 +14,8 @@ impl BuiltInCaller for ArrayProd {
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Object, RuntimeErrorKind> {
-
         let arr_expr = {
-            assert_eq!(call_expr.arguments.len(),1);
+            assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()
         };
 
@@ -26,8 +25,8 @@ impl BuiltInCaller for ArrayProd {
         let span = evaluator.context.def_interner.expr_span(&arr_expr);
 
         let mut result = arr.get(0, span)?;
-        for i in 1..arr.contents.len(){
-            result = binary_op::handle_mul_op(result, arr.get(i as u128, span)?,env, evaluator)?;
+        for i in 1..arr.contents.len() {
+            result = binary_op::handle_mul_op(result, arr.get(i as u128, span)?, env, evaluator)?;
         }
 
         Ok(result)

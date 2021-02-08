@@ -11,6 +11,6 @@ pub fn handle_and_op(
         (x, y) => {
             let err=  RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("currently we only support bitwise operations on ranged operations, found types {} and {}", x.r#type(), y.r#type())};
             Err(err)
-        },
+        }
     }
 }

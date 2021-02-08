@@ -1,6 +1,6 @@
 use super::*;
+use crate::lexer::token::SpannedToken;
 use noirc_errors::Spanned;
-use crate::{lexer::token::SpannedToken};
 pub struct BinaryParser;
 
 impl BinaryParser {
@@ -19,15 +19,20 @@ impl BinaryParser {
             operator,
             rhs: rhs.clone(),
         });
-        
+
         if is_predicate_op {
             return Ok(ExpressionKind::Predicate(infix_expression));
         }
         return Ok(ExpressionKind::Infix(infix_expression));
     }
 }
-fn token_to_binary_op(spanned_tok : &SpannedToken, file_id : usize) -> Result<BinaryOp, ParserError> {
-    let bin_op_kind : Option<BinaryOpKind> = spanned_tok.token().into();
-    let bin_op_kind = bin_op_kind.ok_or(ParserErrorKind::TokenNotBinaryOp{spanned_token : spanned_tok.clone()}.into_err(file_id))?;
+fn token_to_binary_op(spanned_tok: &SpannedToken, file_id: usize) -> Result<BinaryOp, ParserError> {
+    let bin_op_kind: Option<BinaryOpKind> = spanned_tok.token().into();
+    let bin_op_kind = bin_op_kind.ok_or(
+        ParserErrorKind::TokenNotBinaryOp {
+            spanned_token: spanned_tok.clone(),
+        }
+        .into_err(file_id),
+    )?;
     Ok(Spanned::from(spanned_tok.into_span(), bin_op_kind))
 }

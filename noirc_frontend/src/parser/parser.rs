@@ -1,13 +1,13 @@
 use fm::FileId;
 
-use super::{Precedence, Program, errors::ParserErrorKind};
-use crate::ast::{Expression, Statement, Type, ArraySize, ExpressionKind};
-use crate::lexer::Lexer;
-use crate::token::{Keyword, Token, TokenKind, SpannedToken};
 use super::errors::ParserError;
+use super::{errors::ParserErrorKind, Precedence, Program};
+use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
+use crate::lexer::Lexer;
+use crate::token::{Keyword, SpannedToken, Token, TokenKind};
 
-use super::prefix_parser::PrefixParser;
 use super::infix_parser::InfixParser;
+use super::prefix_parser::PrefixParser;
 
 pub type ParserResult<T> = Result<T, ParserError>;
 pub type ParserExprKindResult = ParserResult<ExpressionKind>;
@@ -18,10 +18,10 @@ type ParserStmtResult = ParserResult<Statement>;
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
 pub struct Parser<'a> {
-    // XXX: Since a parser only parses a single file, 
+    // XXX: Since a parser only parses a single file,
     // this can be omitted until the parser has completed.
     // Then attached to the Error Reporter if there are any errors
-    pub(crate) file_id : usize, 
+    pub(crate) file_id: usize,
     pub(crate) lexer: Lexer<'a>,
     pub(crate) curr_token: SpannedToken,
     pub(crate) peek_token: SpannedToken,
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
     pub fn new(mut lexer: Lexer<'a>) -> Self {
         let curr_token = lexer.next_token().unwrap();
         let peek_token = lexer.next_token().unwrap();
-        
+
         Parser {
             file_id: lexer.file_id,
             lexer,
@@ -41,12 +41,12 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
         }
     }
-    pub fn from_src(file_id : FileId, src : &'a str) -> Self {
+    pub fn from_src(file_id: FileId, src: &'a str) -> Self {
         Parser::new(Lexer::new(file_id.as_usize(), src))
     }
 
     /// Note that this function does not alert the user of an EOF
-    /// calling this function repeatedly will repeatedly give you 
+    /// calling this function repeatedly will repeatedly give you
     /// an EOF token. EOF tokens are not errors
     pub(crate) fn advance_tokens(&mut self) {
         self.curr_token = self.peek_token.clone();
@@ -56,20 +56,20 @@ impl<'a> Parser<'a> {
                 Ok(spanned_token) => {
                     self.peek_token = spanned_token;
                     break;
-                },
-                Err(lex_err) => {
-                    self.errors.push(ParserErrorKind::LexerError(lex_err).into_err(self.file_id))
-                }        
+                }
+                Err(lex_err) => self
+                    .errors
+                    .push(ParserErrorKind::LexerError(lex_err).into_err(self.file_id)),
             }
         }
 
         // At this point, we could check for lexer errors
-        // and abort, however, if we do not we may be able to 
+        // and abort, however, if we do not we may be able to
         // recover if the next token is the correct one
         //
         // Its also usually bad UX to only show one error at a time.
     }
-    
+
     // peaks at the next token
     // asserts that it should be of a certain variant
     // If it is, the parser is advanced
@@ -80,7 +80,12 @@ impl<'a> Parser<'a> {
             let peeked_span = self.peek_token.into_span();
             let peeked_token = self.peek_token.token().clone();
             self.advance_tokens(); // We advance the token regardless, so the parser does not choke on a prefix function
-            return Err(ParserErrorKind::UnexpectedToken{span : peeked_span, expected : token.clone(),found : peeked_token }.into_err(self.file_id));
+            return Err(ParserErrorKind::UnexpectedToken {
+                span: peeked_span,
+                expected: token.clone(),
+                found: peeked_token,
+            }
+            .into_err(self.file_id));
         }
         self.advance_tokens();
         return Ok(());
@@ -89,13 +94,21 @@ impl<'a> Parser<'a> {
     // peaks at the next token
     // asserts that it should be of a certain kind
     // If it is, the parser is advanced
-    pub(crate) fn peek_check_kind_advance(&mut self, token_kind: TokenKind) -> Result<(), ParserError> {
+    pub(crate) fn peek_check_kind_advance(
+        &mut self,
+        token_kind: TokenKind,
+    ) -> Result<(), ParserError> {
         let peeked_kind = self.peek_token.kind();
         let same_kind = peeked_kind == token_kind;
         if !same_kind {
             let peeked_span = self.peek_token.into_span();
             self.advance_tokens();
-            return Err(ParserErrorKind::UnexpectedTokenKind{span : peeked_span, expected : token_kind,found : peeked_kind }.into_err(self.file_id))
+            return Err(ParserErrorKind::UnexpectedTokenKind {
+                span: peeked_span,
+                expected: token_kind,
+                found: peeked_kind,
+            }
+            .into_err(self.file_id));
         }
         self.advance_tokens();
         return Ok(());
@@ -103,7 +116,7 @@ impl<'a> Parser<'a> {
 
     /// A Program corresponds to a single module
     pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserError>> {
-        use super::prefix_parser::{FuncParser, UseParser, ModuleParser};
+        use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
 
         let mut program = Program::with_capacity(self.lexer.by_ref().approx_len(), self.file_id);
 
@@ -112,19 +125,21 @@ impl<'a> Parser<'a> {
                 Token::Attribute(attr) => {
                     self.advance_tokens(); // Skip the attribute
                     let func_def = FuncParser::parse_fn_definition(self, Some(attr));
-                    self.on_value(func_def, |value|program.push_function(value));
-                },
+                    self.on_value(func_def, |value| program.push_function(value));
+                }
                 Token::Keyword(Keyword::Fn) => {
                     let func_def = FuncParser::parse_fn_definition(self, None);
-                    self.on_value(func_def, |value|program.push_function(value));
+                    self.on_value(func_def, |value| program.push_function(value));
                 }
                 Token::Keyword(Keyword::Mod) => {
                     let parsed_mod = ModuleParser::parse_module_decl(self);
-                    self.on_value(parsed_mod, |module_identifier|program.push_module_decl(module_identifier));
+                    self.on_value(parsed_mod, |module_identifier| {
+                        program.push_module_decl(module_identifier)
+                    });
                 }
                 Token::Keyword(Keyword::Use) => {
                     let import_stmt = UseParser::parse(self);
-                    self.on_value(import_stmt, |value|program.push_import(value));
+                    self.on_value(import_stmt, |value| program.push_import(value));
                 }
                 Token::Comment(_) => {
                     // This is a comment outside of a function.
@@ -143,14 +158,15 @@ impl<'a> Parser<'a> {
         }
 
         if self.errors.len() > 0 {
-            return Err(&self.errors)
+            return Err(&self.errors);
         } else {
-            return Ok(program)
+            return Ok(program);
         }
     }
 
-    fn on_value<T, F>(&mut self, parser_res : ParserResult<T>, mut func : F) 
-            where F: FnMut(T) 
+    fn on_value<T, F>(&mut self, parser_res: ParserResult<T>, mut func: F)
+    where
+        F: FnMut(T),
     {
         match parser_res {
             Ok(value) => func(value),
@@ -164,38 +180,34 @@ impl<'a> Parser<'a> {
     // For now the synchonisation strategy is basic
     fn synchronise(&mut self) {
         loop {
-            
-            if self.peek_token ==  Token::EOF
-            {
-                break
-            } 
+            if self.peek_token == Token::EOF {
+                break;
+            }
 
             if self.choose_prefix_parser().is_some() {
                 self.advance_tokens();
-                break
+                break;
             }
 
-            if self.peek_token ==  Token::Keyword(Keyword::Private) || 
-            self.peek_token ==  Token::Keyword(Keyword::Let) || 
-            self.peek_token ==  Token::Keyword(Keyword::Fn) {
-                self.advance_tokens();
-                break
-            }
-            if self.peek_token ==  Token::RightBrace ||
-            self.peek_token ==  Token::Semicolon
-            
+            if self.peek_token == Token::Keyword(Keyword::Private)
+                || self.peek_token == Token::Keyword(Keyword::Let)
+                || self.peek_token == Token::Keyword(Keyword::Fn)
             {
                 self.advance_tokens();
+                break;
+            }
+            if self.peek_token == Token::RightBrace || self.peek_token == Token::Semicolon {
                 self.advance_tokens();
-                break
-            } 
-            
-            self.advance_tokens()    
+                self.advance_tokens();
+                break;
+            }
+
+            self.advance_tokens()
         }
     }
 
     pub fn parse_statement(&mut self) -> ParserStmtResult {
-        use crate::parser::prefix_parser::{DeclarationParser,ConstrainParser};
+        use crate::parser::prefix_parser::{ConstrainParser, DeclarationParser};
 
         // The first type of statement we could have is a variable declaration statement
         if self.curr_token.can_start_declaration() {
@@ -206,7 +218,7 @@ impl<'a> Parser<'a> {
             tk if tk.is_comment() => {
                 // Comments here are within a function
                 self.advance_tokens();
-                return self.parse_statement()
+                return self.parse_statement();
             }
             Token::Keyword(Keyword::Constrain) => {
                 Statement::Constrain(ConstrainParser::parse_statement(self)?)
@@ -228,13 +240,16 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParserExprResult {
-
         // Calling this method means that we are at the beginning of a local expression
         // We may be in the middle of a global expression, but this does not matter
         let mut left_exp = match self.choose_prefix_parser() {
             Some(prefix_parser) => prefix_parser.parse(self)?,
             None => {
-                return Err(ParserErrorKind::ExpectedExpression{span : self.curr_token.into_span(), lexeme: self.curr_token.token().to_string()}.into_err(self.file_id))
+                return Err(ParserErrorKind::ExpectedExpression {
+                    span: self.curr_token.into_span(),
+                    lexeme: self.curr_token.token().to_string(),
+                }
+                .into_err(self.file_id))
             }
         };
 
@@ -252,11 +267,10 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        
+
         return Ok(left_exp);
     }
     fn choose_prefix_parser(&self) -> Option<PrefixParser> {
-  
         match self.curr_token.token() {
             Token::Keyword(Keyword::If) => Some(PrefixParser::If),
             Token::Keyword(Keyword::For) => Some(PrefixParser::For),
@@ -295,25 +309,25 @@ impl<'a> Parser<'a> {
     /// Parse a comma separated list with a chosen delimiter
     ///
     /// This function is used to parse arrays and call expressions.
-    /// It is very similar to `parse_fn_parameters`, in the future 
+    /// It is very similar to `parse_fn_parameters`, in the future
     /// these methods may be unified.
     ///
     /// Cursor Start : `START_TOKEN`
-    /// 
+    ///
     /// Cursor End : `END_TOKEN`
     ///
     /// Importantly note that the cursor should be on the starting token
     /// and not the first element in the list.
-    /// 
-    /// Example : [a,b,c] 
+    ///
+    /// Example : [a,b,c]
     /// START_TOKEN = `[`
     /// END_TOKEN = `]`
     pub(crate) fn parse_comma_separated_argument_list(
         &mut self,
         closing_token: Token,
     ) -> Result<Vec<Expression>, ParserError> {
-        // An empty container. 
-        // Advance to the ending token and 
+        // An empty container.
+        // Advance to the ending token and
         // return an empty array
         if self.peek_token == closing_token {
             self.advance_tokens();
@@ -327,18 +341,15 @@ impl<'a> Parser<'a> {
         arguments.push(self.parse_expression(Precedence::Lowest)?);
 
         while self.peek_token == Token::Comma {
-
             self.advance_tokens();
 
             if (self.curr_token == Token::Comma) && (self.peek_token == closing_token) {
                 // Entering here means there is nothing else to parse;
                 // the list has a trailing comma
-                break
+                break;
             }
 
             self.advance_tokens();
-
-            
 
             arguments.push(self.parse_expression(Precedence::Lowest)?);
         }
@@ -361,47 +372,61 @@ impl<'a> Parser<'a> {
             Token::LeftBracket => self.parse_array_type(),
             k => {
                 let message = format!("Expected a type, found {}", k);
-                return Err(ParserErrorKind::UnstructuredError{message, span : self.curr_token.into_span()}.into_err(self.file_id));
-            },
+                return Err(ParserErrorKind::UnstructuredError {
+                    message,
+                    span: self.curr_token.into_span(),
+                }
+                .into_err(self.file_id));
+            }
         }
     }
-    
+
     fn parse_array_type(&mut self) -> Result<Type, ParserError> {
         // Expression is of the form [3]Type
-    
+
         // Current token is '['
         //
         // Next token should be an Integer or right brace
         let array_len = match self.peek_token.clone().into() {
             Token::Int(integer) => {
-                
                 if !integer.fits_in_u128() {
                     let message = format!("Array sizes must fit within a u128");
-                    return Err(ParserErrorKind::UnstructuredError{message, span: self.peek_token.into_span()}.into_err(self.file_id));
-
+                    return Err(ParserErrorKind::UnstructuredError {
+                        message,
+                        span: self.peek_token.into_span(),
+                    }
+                    .into_err(self.file_id));
                 }
                 self.advance_tokens();
                 ArraySize::Fixed(integer.to_u128())
-            },
+            }
             Token::RightBracket => ArraySize::Variable,
             _ => {
                 let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal");
-                return Err(ParserErrorKind::UnstructuredError{message, span: self.peek_token.into_span()}.into_err(self.file_id));
-            },
+                return Err(ParserErrorKind::UnstructuredError {
+                    message,
+                    span: self.peek_token.into_span(),
+                }
+                .into_err(self.file_id));
+            }
         };
 
         self.peek_check_variant_advance(&Token::RightBracket)?;
-    
+
         // Skip Right bracket
         self.advance_tokens();
-    
+
         // Disallow [4][3]Witness ie Matrices
         if self.peek_token == Token::LeftBracket {
-           return Err(ParserErrorKind::UnstructuredError{message  : format!("Currently Multi-dimensional arrays are not supported"), span : self.peek_token.into_span()}.into_err(self.file_id))
+            return Err(ParserErrorKind::UnstructuredError {
+                message: format!("Currently Multi-dimensional arrays are not supported"),
+                span: self.peek_token.into_span(),
+            }
+            .into_err(self.file_id));
         }
-    
+
         let array_type = self.parse_type()?;
-    
+
         Ok(Type::Array(array_len, Box::new(array_type)))
     }
 }

@@ -3,13 +3,13 @@ use super::*;
 pub struct ArrayParser;
 
 impl ArrayParser {
-    /// Parses Arrays of the form 
+    /// Parses Arrays of the form
     /// - [<EXPR>, <EXPR>, <EXPR>, <EXPR>]
-    /// 
+    ///
     /// The last expression can end with a comma, before the closing delimiter
-    /// 
+    ///
     /// Cursor Start : `[`
-    /// 
+    ///
     /// Cursor End : `]`
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
         // Current token is '['
@@ -31,37 +31,41 @@ impl ArrayParser {
 
 #[cfg(test)]
 mod test {
-    use crate::{ArrayLiteral, ExpressionKind, Literal, Type, parser::{errors::ParserErrorKind, test_parse}, token::Token};
+    use crate::{
+        parser::{errors::ParserErrorKind, test_parse},
+        token::Token,
+        ArrayLiteral, ExpressionKind, Literal, Type,
+    };
 
     use super::ArrayParser;
 
-    fn expr_to_array(expr : ExpressionKind) -> ArrayLiteral {
+    fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
         let lit = match expr {
             ExpressionKind::Literal(literal) => literal,
-            _=> unreachable!("expected a literal")
+            _ => unreachable!("expected a literal"),
         };
 
         match lit {
             Literal::Array(arr) => arr,
-            _=> unreachable!("expected an array") 
+            _ => unreachable!("expected an array"),
         }
     }
 
     /// This is the standard way to declare an array
     #[test]
     fn valid_syntax() {
-        const SRC : &'static str = r#"
+        const SRC: &'static str = r#"
             [0,1,2,3,4]
         "#;
-    
+
         let mut parser = test_parse(SRC);
-        
+
         let start = parser.curr_token.clone();
 
         let expr = ArrayParser::parse(&mut parser).unwrap();
-        
+
         let end = parser.curr_token.clone();
-        
+
         // First check that the cursor was in the right position at
         // the start and at the end
         assert_eq!(start.token(), &Token::LeftBracket);
@@ -80,13 +84,12 @@ mod test {
 
     #[test]
     fn valid_syntax_extra_comma() {
-
         // This is a valid user error. We return an unexpected token error.
         // We expect a `]` but instead we get an EOF
-        const MISSING_END : &'static str = r#"
+        const MISSING_END: &'static str = r#"
             [0,1,2,3,4,]
         "#;
-    
+
         ArrayParser::parse(&mut test_parse(MISSING_END)).unwrap();
     }
 
@@ -95,32 +98,32 @@ mod test {
         // Since this is a prefix parser, this should be impossible to arrive at
         // unless there is an off-by-one error. The exact error here is not important,
         // since arriving here would signal an ICE
-        const MISSING_START : &'static str = r#"
+        const MISSING_START: &'static str = r#"
             0,1,2,3,4]
         "#;
         ArrayParser::parse(&mut test_parse(MISSING_START)).unwrap_err();
     }
     #[test]
-    fn double_prefix() {    
-        const DOUBLE_PREFIX : &'static str = r#"
+    fn double_prefix() {
+        const DOUBLE_PREFIX: &'static str = r#"
             [[0,1,2,3,4]
         "#;
         ArrayParser::parse(&mut test_parse(DOUBLE_PREFIX)).unwrap_err();
     }
     #[test]
-    fn double_delimiter() {    
-        const DOUBLE_DELIMITER : &'static str = r#"
+    fn double_delimiter() {
+        const DOUBLE_DELIMITER: &'static str = r#"
             [0,1,2,,]
         "#;
         ArrayParser::parse(&mut test_parse(DOUBLE_DELIMITER)).unwrap_err();
     }
     #[test]
-    fn not_a_bug_double_postfix() {    
+    fn not_a_bug_double_postfix() {
         /// The following is invalid, however it is not a bug for the ArrayParser
         /// Note that the ArrayParser parses the first array which is [0,1,2,3,4]
-        /// Then whatever comes after that is no longer the responsibility of the 
+        /// Then whatever comes after that is no longer the responsibility of the
         /// Array Parser
-        const DOUBLE_POSTFIX : &'static str = r#"
+        const DOUBLE_POSTFIX: &'static str = r#"
             [0,1,2,3,4]]
         "#;
         ArrayParser::parse(&mut test_parse(DOUBLE_POSTFIX)).unwrap();
@@ -128,20 +131,23 @@ mod test {
 
     #[test]
     fn missing_closing_bracket() {
-
         // This is a valid user error. We return an unexpected token error.
         // We expect a `]` but instead we get an EOF
-        const MISSING_END : &'static str = r#"
+        const MISSING_END: &'static str = r#"
             [0,1,2,3,4
         "#;
-    
+
         let err = ArrayParser::parse(&mut test_parse(MISSING_END)).unwrap_err();
-        match err.kind{
-            ParserErrorKind::UnexpectedToken{span: _, expected, found} => {
-                assert_eq!(expected,Token::RightBracket);
-                assert_eq!(found,Token::EOF)
-            },
-            _=> unreachable!("expected an unexpected token error")
+        match err.kind {
+            ParserErrorKind::UnexpectedToken {
+                span: _,
+                expected,
+                found,
+            } => {
+                assert_eq!(expected, Token::RightBracket);
+                assert_eq!(found, Token::EOF)
+            }
+            _ => unreachable!("expected an unexpected token error"),
         }
     }
 }

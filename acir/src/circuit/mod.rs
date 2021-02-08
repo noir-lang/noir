@@ -1,7 +1,7 @@
 pub mod gate;
 
-use noir_field::FieldElement;
 pub use gate::Gate;
+use noir_field::FieldElement;
 
 #[derive(Clone)]
 pub struct Circuit(pub Vec<Gate>);
@@ -12,6 +12,6 @@ pub struct Selector(pub String, pub FieldElement); //XXX(med) I guess we know it
 
 impl Default for Selector {
     fn default() -> Selector {
-        Selector("zero".to_string(),FieldElement::zero())
+        Selector("zero".to_string(), FieldElement::zero())
     }
 }

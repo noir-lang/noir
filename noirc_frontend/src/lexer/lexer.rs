@@ -1,10 +1,13 @@
-use super::{errors::LexerErrorKind, token::{Attribute, IntType, Keyword, Token, SpannedToken}};
-use std::iter::Peekable;
-use std::str::Chars;
+use super::errors::LexerError;
+use super::{
+    errors::LexerErrorKind,
+    token::{Attribute, IntType, Keyword, SpannedToken, Token},
+};
+use fm::File;
 use noir_field::FieldElement;
 use noirc_errors::Position;
-use fm::File;
-use super::errors::LexerError;
+use std::iter::Peekable;
+use std::str::Chars;
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
 // XXX(low) : Currently the Lexer does not return Result. It would be more idiomatic to do this, instead of returning Token::Error
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
@@ -14,19 +17,19 @@ pub type SpannedTokenResult = Result<SpannedToken, LexerError>;
 
 pub struct Lexer<'a> {
     char_iter: Peekable<Chars<'a>>,
-    position  : Position,
-    pub file_id : usize, 
+    position: Position,
+    pub file_id: usize,
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file_id : usize, source: &'a str) -> Self {
+    pub fn new(file_id: usize, source: &'a str) -> Self {
         Lexer {
             char_iter: source.chars().peekable(),
-            position : Position::default_from(file_id),
+            position: Position::default_from(file_id),
             file_id,
         }
     }
-    pub fn from_file(file_id : usize, source: File<'a>) -> Self {
+    pub fn from_file(file_id: usize, source: File<'a>) -> Self {
         let source_file = source.get_source();
         Lexer::new(file_id, source_file)
     }
@@ -49,7 +52,7 @@ impl<'a> Lexer<'a> {
         match &next_char {
             Some('\n') => self.position.new_line(),
             Some(_) => self.position.right_shift(),
-            _=> return None
+            _ => return None,
         };
 
         next_char
@@ -99,24 +102,30 @@ impl<'a> Lexer<'a> {
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 let span = self.position.mark().into_span();
-                Err(LexerErrorKind::CharacterNotInLanguage{span, found : ch }.into_err(self.file_id))
-            },
+                Err(LexerErrorKind::CharacterNotInLanguage { span, found: ch }
+                    .into_err(self.file_id))
+            }
             None => Ok(Token::EOF.into_single_span(self.position.mark())),
         }
     }
 
-    fn single_char_token(&self, token : Token) -> SpannedTokenResult {
+    fn single_char_token(&self, token: Token) -> SpannedTokenResult {
         Ok(token.into_single_span(self.position.mark()))
     }
 
-    fn single_double_peek_token(&mut self, character : char, single : Token, double : Token) -> SpannedTokenResult {
+    fn single_double_peek_token(
+        &mut self,
+        character: char,
+        single: Token,
+        double: Token,
+    ) -> SpannedTokenResult {
         let start = self.position.mark();
 
         match self.peek_char_is(character) {
-            false => return Ok(single.into_single_span(start)), 
+            false => return Ok(single.into_single_span(start)),
             true => {
                 self.next_char();
-                return Ok(double.into_span(start, start.forward()))
+                return Ok(double.into_span(start, start.forward()));
             }
         }
     }
@@ -125,7 +134,6 @@ impl<'a> Lexer<'a> {
     /// Glue will take the first character of the token and check if it can be glued onto the next character
     /// forming a double token
     fn glue(&mut self, prev_token: Token) -> SpannedTokenResult {
-
         let spanned_prev_token = prev_token.clone().into_single_span(self.position.mark());
         match prev_token {
             Token::Dot => self.single_double_peek_token('.', prev_token, Token::DoubleDot),
@@ -138,31 +146,34 @@ impl<'a> Lexer<'a> {
             Token::Slash => {
                 if self.peek_char_is('/') {
                     self.next_char();
-                    return Ok(self.parse_comment())
+                    return Ok(self.parse_comment());
                 }
                 Ok(spanned_prev_token)
             }
             Token::Underscore => {
-        
                 let next_char = self.peek_char();
                 let peeked_char = match next_char {
                     Some(peek_char) => peek_char,
-                    None => return Ok(spanned_prev_token)
+                    None => return Ok(spanned_prev_token),
                 };
-        
+
                 if peeked_char.is_ascii_alphabetic() {
-                    // Okay to unwrap here because we already peeked to 
+                    // Okay to unwrap here because we already peeked to
                     // see that we have a character
                     let curr_char = self.next_char().unwrap();
-                    return Ok(self.eat_word(curr_char))
+                    return Ok(self.eat_word(curr_char));
                 }
-                
+
                 Ok(spanned_prev_token)
             }
             _ => {
                 let span = self.position.mark().into_span();
-                Err(LexerErrorKind::NotADoubleChar{span, found : prev_token}.into_err(self.file_id))
-            },
+                Err(LexerErrorKind::NotADoubleChar {
+                    span,
+                    found: prev_token,
+                }
+                .into_err(self.file_id))
+            }
         }
     }
 
@@ -202,16 +213,16 @@ impl<'a> Lexer<'a> {
 
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
-            'A'..='Z' | 'a'..='z' | '_' => {
-                Ok(self.eat_word(initial_char))
-            }
-            '0'..='9' => {
-                Ok(self.eat_digit(initial_char))
-            }
-            _ =>  {
+            'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)),
+            '0'..='9' => Ok(self.eat_digit(initial_char)),
+            _ => {
                 let span = self.position.mark().into_span();
-                Err(LexerErrorKind::UnexpectedCharacter{span, found : initial_char}.into_err(self.file_id))
-            },
+                Err(LexerErrorKind::UnexpectedCharacter {
+                    span,
+                    found: initial_char,
+                }
+                .into_err(self.file_id))
+            }
         }
     }
 
@@ -222,14 +233,15 @@ impl<'a> Lexer<'a> {
                 self.next_char().unwrap()
             );
             let err = Token::Error(err_msg.to_string());
-            return err.into_single_span(self.position.mark())
+            return err.into_single_span(self.position.mark());
         }
         self.next_char();
-        
+
         let (word, start_span, end_span) = self.eat_while(None, |ch| {
-            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '(' || ch == ')') && (ch != ']')
+            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '(' || ch == ')')
+                && (ch != ']')
         });
-        
+
         if !self.peek_char_is(']') {
             let err_msg = format!(
                 "Lexer expected a trailing ']' character instead got {}",
@@ -243,7 +255,7 @@ impl<'a> Lexer<'a> {
 
         // Move start position backwards to cover the left bracket
         // Move end position forwards to cover the right bracket
-        attribute.into_span(start_span.backward(),end_span.forward())
+        attribute.into_span(start_span.backward(), end_span.forward())
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
@@ -265,23 +277,26 @@ impl<'a> Lexer<'a> {
         return ident_token.into_span(start_span, end_span);
     }
     fn eat_digit(&mut self, initial_char: char) -> SpannedToken {
-        let (integer_str, start_span, end_span) = self.eat_while(Some(initial_char), |ch| ch.is_numeric());
+        let (integer_str, start_span, end_span) =
+            self.eat_while(Some(initial_char), |ch| ch.is_numeric());
         let integer = match FieldElement::from_str(&integer_str) {
-            None => panic!("Expected an integer in base10. Hex is not supported currently, coming soon."),
-            Some(integer) => integer 
+            None => panic!(
+                "Expected an integer in base10. Hex is not supported currently, coming soon."
+            ),
+            Some(integer) => integer,
         };
         let integer_token = Token::Int(integer.into());
-        integer_token.into_span(start_span, end_span,)
+        integer_token.into_span(start_span, end_span)
     }
     fn eat_string_literal(&mut self) -> SpannedToken {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
         let str_literal_token = Token::Str(str_literal);
-         str_literal_token.into_span(start_span, end_span)
+        str_literal_token.into_span(start_span, end_span)
     }
     fn parse_comment(&mut self) -> SpannedToken {
         let (comment_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '\n');
         let comment_literal_token = Token::Comment(comment_literal);
-         comment_literal_token.into_span(start_span, end_span)     
+        comment_literal_token.into_span(start_span, end_span)
     }
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self) {
@@ -332,7 +347,7 @@ fn test_single_double_char() {
         Token::EOF,
     ];
 
-    let mut lexer = Lexer::new(0,input);
+    let mut lexer = Lexer::new(0, input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -350,7 +365,7 @@ fn test_custom_gate_syntax() {
         Token::Attribute(Attribute::Builtin("sum".to_string())),
     ];
 
-    let mut lexer = Lexer::new(0,input);
+    let mut lexer = Lexer::new(0, input);
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
@@ -370,7 +385,7 @@ fn test_int_type() {
         Token::Int(5.into()),
     ];
 
-    let mut lexer = Lexer::new(0,input);
+    let mut lexer = Lexer::new(0, input);
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
@@ -390,12 +405,11 @@ fn test_comment() {
         Token::Int(FieldElement::from(5)),
     ];
 
-    let mut lexer = Lexer::new(0,input);
+    let mut lexer = Lexer::new(0, input);
     for token in expected.into_iter() {
         let first_lexer_output = lexer.next_token().unwrap();
         assert_eq!(first_lexer_output, token);
     }
-    
 }
 
 #[test]
@@ -408,7 +422,7 @@ fn test_eat_string_literal() {
         Token::Assign,
         Token::Str("hello".to_string()),
     ];
-    let mut lexer = Lexer::new(0,input);
+    let mut lexer = Lexer::new(0, input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -418,7 +432,7 @@ fn test_eat_string_literal() {
 #[test]
 fn test_span() {
     let input = "let x = 5";
-    
+
     // Let
     let start_position = Position::default().forward();
     let let_position = start_position.forward_by(2);
@@ -430,33 +444,28 @@ fn test_span() {
     // Identifier position
     let ident_position = whitespace_position.forward();
     let ident_token = Token::Ident("x".to_string()).into_single_span(ident_position);
-    
+
     // Skip whitespace
     let whitespace_position = ident_position.forward();
-    
+
     // Assign position
     let assign_position = whitespace_position.forward();
     let assign_token = Token::Assign.into_single_span(assign_position);
-    
+
     // Skip whitespace
     let whitespace_position = assign_position.forward();
-    
+
     // Int position
     let int_position = whitespace_position.forward();
     let int_token = Token::Int(5.into()).into_single_span(int_position);
 
-    let expected = vec![
-        let_token,
-        ident_token,
-        assign_token,
-        int_token,
-    ];
-    let mut lexer = Lexer::new(0,input);
+    let expected = vec![let_token, ident_token, assign_token, int_token];
+    let mut lexer = Lexer::new(0, input);
 
     for spanned_token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
-        assert_eq!(got.into_span(),spanned_token.into_span());
-        assert_eq!(got,spanned_token);
+        assert_eq!(got.into_span(), spanned_token.into_span());
+        assert_eq!(got, spanned_token);
     }
 }
 
@@ -514,7 +523,7 @@ fn test_basic_language_syntax() {
         Token::Semicolon,
         Token::EOF,
     ];
-    let mut lexer = Lexer::new(0,input);
+    let mut lexer = Lexer::new(0, input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();

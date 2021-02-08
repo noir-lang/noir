@@ -1,39 +1,53 @@
 mod binary_op;
 
+mod builtin;
 mod environment;
 mod low_level_function_impl;
-mod builtin;
 mod object;
 
 mod errors;
 use blake2::Blake2s;
-pub use errors::{RuntimeErrorKind, RuntimeError};
+pub use errors::{RuntimeError, RuntimeErrorKind};
 
 use core::panic;
-use std::{array, collections::{BTreeMap, HashMap}};
+use std::{
+    array,
+    collections::{BTreeMap, HashMap},
+};
 
-use object::{Array, Integer, Object, Selector, RangedObject};
-use environment::Environment;
 use acir::optimiser::CSatOptimiser;
+use environment::Environment;
+use object::{Array, Integer, Object, RangedObject, Selector};
 
-use acir::native_types::{Witness, Arithmetic, Linear};
 use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
+use acir::native_types::{Arithmetic, Linear, Witness};
 
 // XXX: Remove this once, we have moved to HIR
-use noirc_frontend::{ArraySize, FunctionKind, Signedness, Type, hir::lower::{HirBinaryOpKind, HirBlockExpression}};
-use noirc_frontend::{hir::lower::{HirBinaryOp, HirCallExpression, HirForExpression, node_interner::IdentId, stmt::{HirConstrainStatement, HirLetStatement}}}; 
+use noirc_frontend::hir::lower::{
+    node_interner::IdentId,
+    stmt::{HirConstrainStatement, HirLetStatement},
+    HirBinaryOp, HirCallExpression, HirForExpression,
+};
+use noirc_frontend::{
+    hir::lower::{HirBinaryOpKind, HirBlockExpression},
+    ArraySize, FunctionKind, Signedness, Type,
+};
 
-use noirc_frontend::{hir::{lower::{HirExpression, HirLiteral, node_interner::{ExprId, FuncId, StmtId}, stmt::{HirPrivateStatement, HirStatement}}}};
+use noirc_frontend::hir::lower::{
+    node_interner::{ExprId, FuncId, StmtId},
+    stmt::{HirPrivateStatement, HirStatement},
+    HirExpression, HirLiteral,
+};
 use noirc_frontend::hir::Context;
 
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
-    file_id : usize,
+    file_id: usize,
     num_witness: usize,                           // XXX: Can possibly remove
     num_selectors: usize,                         // XXX: Can possibly remove
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
-    selectors: Vec<Selector>, // XXX: Possibly move into environment
+    selectors: Vec<Selector>,                     // XXX: Possibly move into environment
     context: &'a Context,
     num_public_inputs: usize,
     main_function: FuncId,
@@ -42,10 +56,8 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-
     // XXX: Change from Option to Result
-    pub fn new(file_id : usize, main_function : FuncId, context : &Context) -> Evaluator {
-        
+    pub fn new(file_id: usize, main_function: FuncId, context: &Context) -> Evaluator {
         Evaluator {
             file_id,
             num_witness: 0,
@@ -95,12 +107,12 @@ impl<'a> Evaluator<'a> {
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
     pub fn compile(mut self) -> Result<(Circuit, usize, usize), RuntimeError> {
-
         // create a new environment
         let mut env = Environment::new();
 
         // First evaluate the main function
-        self.evaluate_main(&mut env).map_err(|err| err.into_err(self.file_id))?;
+        self.evaluate_main(&mut env)
+            .map_err(|err| err.into_err(self.file_id))?;
 
         // Then optimise for a width3 plonk program
         // XXX: We can move all of this stuff into a plonk-backend program
@@ -136,7 +148,6 @@ impl<'a> Evaluator<'a> {
             // XXX: We can additionally check that these arithmetic gates are done correctly via our optimiser -- It should have no effect if passed in twice
         }
 
-
         // Print all gates for debug purposes
         // for gate in optimised_arith_gates.iter() {
         //     // dbg!(gate);
@@ -162,8 +173,7 @@ impl<'a> Evaluator<'a> {
         arithmetic_gate: Arithmetic,
         typ: Type,
     ) -> (Object, Witness) {
-        
-        // Create a unique witness name and add witness to the constraint system        
+        // Create a unique witness name and add witness to the constraint system
         let inter_var_unique_name = self.make_unique("_inter");
         let inter_var_witness = self.add_witness_to_cs(inter_var_unique_name, Type::Witness);
         let inter_var_object = self.add_witness_to_env(inter_var_witness.clone(), env);
@@ -193,11 +203,16 @@ impl<'a> Evaluator<'a> {
             HirBinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
             HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
             HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
-            HirBinaryOpKind::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
+            HirBinaryOpKind::GreaterEqual => {
+                binary_op::handle_greater_than_equal_op(lhs, rhs, env, self)
+            }
             HirBinaryOpKind::Assign => {
-                let err = RuntimeErrorKind::Spanless("The Binary operation `=` can only be used in declaration statements".to_string());
-                return Err(err)
-            },
+                let err = RuntimeErrorKind::Spanless(
+                    "The Binary operation `=` can only be used in declaration statements"
+                        .to_string(),
+                );
+                return Err(err);
+            }
             HirBinaryOpKind::Or => {
                 let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
                 return Err(err);
@@ -210,14 +225,12 @@ impl<'a> Evaluator<'a> {
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
     fn evaluate_identifier(&mut self, ident_id: &IdentId, env: &mut Environment) -> Object {
-        
         let ident_name = self.context.def_interner.ident_name(ident_id);
         env.get(&ident_name)
     }
 
-
     /// Compiles the AST into the intermediate format by evaluating the main function
-    pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind>{
+    pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
         // Add the parameters from the main function into the evaluator as witness variables
         // XXX: We are only going to care about Public and Private witnesses for now
 
@@ -229,7 +242,7 @@ impl<'a> Evaluator<'a> {
         // However for u8 we do not have the syntax for it to be Public
         // This might require a slight re-write of the grammar
         // Maybe `pub param_name : []u8
-        enum AbiType{
+        enum AbiType {
             Witness(String),
             Integer(String, Signedness, u32),
             Array(String, u128, Type),
@@ -243,27 +256,30 @@ impl<'a> Evaluator<'a> {
             let param_id = param.0;
             let param_type = param.1;
             let param_name = self.context.def_interner.ident_name(&param_id);
-            
+
             match param_type {
-                Type::Public =>{
+                Type::Public => {
                     pub_inputs.push(AbiType::Witness(param_name));
-                },
-                Type::Witness => {
-                    witnesses.push(AbiType::Witness(param_name))
-                },
+                }
+                Type::Witness => witnesses.push(AbiType::Witness(param_name)),
                 Type::Array(length, typ) => {
                     let len = match length {
-                        ArraySize::Variable => panic!("cannot have a variable sized array in the main function"),
+                        ArraySize::Variable => {
+                            panic!("cannot have a variable sized array in the main function")
+                        }
                         ArraySize::Fixed(num) => num,
                     };
-                    witnesses.push(AbiType::Array(param_name,len, *typ));
+                    witnesses.push(AbiType::Array(param_name, len, *typ));
                 }
-                Type::Integer(signedness, length)=> {
+                Type::Integer(signedness, length) => {
                     witnesses.push(AbiType::Integer(param_name, signedness, length))
-                },
-                typ=> {
-                    let msg = format!("ABI support for {} in the parameter is unsupported", typ.to_string());
-                    return Err(RuntimeErrorKind::Spanless(msg))
+                }
+                typ => {
+                    let msg = format!(
+                        "ABI support for {} in the parameter is unsupported",
+                        typ.to_string()
+                    );
+                    return Err(RuntimeErrorKind::Spanless(msg));
                 }
             }
         }
@@ -274,45 +290,54 @@ impl<'a> Evaluator<'a> {
         // XXX: Ideally we want to get rid of this ordering that is needed.
         for param_ in pub_inputs.into_iter() {
             match param_ {
-                AbiType::Array(_,_,_) => unreachable!("currently there is no syntax to fully support arrays of public field elements"),
-                AbiType::Integer(_,_,_) => unreachable!("currently there is no syntax to fully support public integers"),
-                AbiType::Witness(param_name) =>{
+                AbiType::Array(_, _, _) => unreachable!(
+                    "currently there is no syntax to fully support arrays of public field elements"
+                ),
+                AbiType::Integer(_, _, _) => {
+                    unreachable!("currently there is no syntax to fully support public integers")
+                }
+                AbiType::Witness(param_name) => {
                     let witness = self.add_witness_to_cs(param_name, Type::Public);
                     self.add_witness_to_env(witness, env);
                 }
             }
         }
-        
+
         for param_ in witnesses.into_iter() {
             match param_ {
-                AbiType::Array(param_name, len,typ) => {
-                    
+                AbiType::Array(param_name, len, typ) => {
                     let mut elements = Vec::with_capacity(len as usize);
                     for i in 0..len as usize {
                         let mangled_name = mangle_array_element_name(&param_name, i);
                         let witness = self.add_witness_to_cs(mangled_name, Type::Witness);
-                        
+
                         // Constrain each element in the array to be equal to the type declared in the parameter
                         let object = match typ {
                             Type::Integer(sign, num_bits) => {
                                 // Currently we do not support signed integers
-                                assert!(sign != Signedness::Signed, "signed integers are currently not supported");
-                                
+                                assert!(
+                                    sign != Signedness::Signed,
+                                    "signed integers are currently not supported"
+                                );
+
                                 let integer = Integer::from_witness(witness, num_bits);
                                 integer.constrain(self)?;
                                 Object::Integer(integer)
-                            },
-                            Type::Witness => {
-                                self.add_witness_to_env(witness, env)
-                            },
-                            _=> unimplemented!("currently we only support arrays of integer and witness types")
+                            }
+                            Type::Witness => self.add_witness_to_env(witness, env),
+                            _ => unimplemented!(
+                                "currently we only support arrays of integer and witness types"
+                            ),
                         };
 
                         elements.push(object);
                     }
-                    let arr = Array{ contents: elements, length: len};
+                    let arr = Array {
+                        contents: elements,
+                        length: len,
+                    };
                     env.store(param_name, Object::Array(arr));
-                },
+                }
                 AbiType::Witness(param_name) => {
                     let witness = self.add_witness_to_cs(param_name, Type::Witness);
                     self.add_witness_to_env(witness, env);
@@ -321,20 +346,21 @@ impl<'a> Evaluator<'a> {
                     let witness = self.add_witness_to_cs(param_name.clone(), Type::Witness);
 
                     // Currently we do not support signed integers
-                    assert!(sign != Signedness::Signed, "signed integers are currently not supported");
-                           
+                    assert!(
+                        sign != Signedness::Signed,
+                        "signed integers are currently not supported"
+                    );
+
                     let integer = Integer::from_witness(witness, num_bits);
                     integer.constrain(self)?;
-                    
-                    env.store(param_name, Object::Integer(integer));
 
+                    env.store(param_name, Object::Integer(integer));
                 }
             }
         }
 
-
         // Now call the main function
-        // XXX: We should be able to replace this with call_function in the future, 
+        // XXX: We should be able to replace this with call_function in the future,
         // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
         let main_func_body = self.context.def_interner.function(&self.main_function);
         let block = main_func_body.block(&self.context.def_interner);
@@ -343,8 +369,12 @@ impl<'a> Evaluator<'a> {
         }
         Ok(())
     }
-    
-    fn evaluate_statement(&mut self, env: &mut Environment, stmt_id : &StmtId) -> Result<Object, RuntimeErrorKind> {
+
+    fn evaluate_statement(
+        &mut self,
+        env: &mut Environment,
+        stmt_id: &StmtId,
+    ) -> Result<Object, RuntimeErrorKind> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
@@ -379,9 +409,8 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         x: HirPrivateStatement,
     ) -> Result<Object, RuntimeErrorKind> {
-        
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
-        
+
         let variable_name = self.context.def_interner.ident_name(&x.identifier);
         let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
 
@@ -389,7 +418,7 @@ impl<'a> Evaluator<'a> {
         // This is fine since we constrain the RHS to be equal to the LHS.
         // The other way is to check if the RHS is a linear polynomial, and link the variable to the RHS instead
         // This second way is preferred because it allows for more optimisation options.
-        // If the RHS is not a linear polynomial, then we do the first option. 
+        // If the RHS is not a linear polynomial, then we do the first option.
         if rhs_poly.can_defer_constraint() {
             env.store(variable_name, rhs_poly.clone());
         } else {
@@ -397,24 +426,31 @@ impl<'a> Evaluator<'a> {
         }
 
         // This is a private statement, which is why we extract only a witness type from the object
-        let rhs_as_witness = rhs_poly.extract_private_witness().ok_or(RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("only witnesses can be used in a private statement")})?; 
-        self.gates.push(Gate::Arithmetic(&rhs_as_witness - &witness));
-        
+        let rhs_as_witness =
+            rhs_poly
+                .extract_private_witness()
+                .ok_or(RuntimeErrorKind::UnstructuredError {
+                    span: Default::default(),
+                    message: format!("only witnesses can be used in a private statement"),
+                })?;
+        self.gates
+            .push(Gate::Arithmetic(&rhs_as_witness - &witness));
+
         // Lets go through some possible scenarios to explain why the code is correct
         // 0: priv x = 5;
         //
-        // This is not possible since the RHS is not a Witness type. It is constant. 
+        // This is not possible since the RHS is not a Witness type. It is constant.
         //
         // 1: priv x = y + z;
         //
         // Here we apply one gate `y + z - x = 0`
         //
         // 2: priv x : u8 = y + z as u32;
-        // 
+        //
         // This is not allowed because the lhs says u8 and the rhs says u32
-        // 
+        //
         // 3: priv x : u32 = y + z as u32
-        // 
+        //
         // Since the lhs type is the same as the rhs, it will pass analysis.
         // When we constrain the rhs `y + z as u32` we are sure that the RHS is a u32 or it will fail
         // When we then add the constraint that x - y + z = 0
@@ -486,7 +522,9 @@ impl<'a> Evaluator<'a> {
             Object::Array(arr) => {
                 env.store(variable_name.into(), Object::Array(arr));
             }
-            _ => unimplemented!("logic for types that are not arrays in a let statement, not implemented yet!"),
+            _ => unimplemented!(
+                "logic for types that are not arrays in a let statement, not implemented yet!"
+            ),
         };
 
         Ok(Object::Null)
@@ -496,15 +534,18 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         for_expr: HirForExpression,
     ) -> Result<Object, RuntimeErrorKind> {
-        
         // First create an iterator over all of the for loop identifiers
-        // XXX: We preferably need to introduce public integers and private integers, so that we can 
-        // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest 
-        let start = self.expression_to_object(env, &for_expr.start_range)?.constant()?;
-        let end = self.expression_to_object(env, &for_expr.end_range)?.constant()?;
+        // XXX: We preferably need to introduce public integers and private integers, so that we can
+        // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest
+        let start = self
+            .expression_to_object(env, &for_expr.start_range)?
+            .constant()?;
+        let end = self
+            .expression_to_object(env, &for_expr.end_range)?
+            .constant()?;
         let ranged_object = RangedObject::new(start, end)?;
-        
-        let mut contents : Vec<Object> = Vec::new();
+
+        let mut contents: Vec<Object> = Vec::new();
 
         for indice in ranged_object {
             env.start_for_loop();
@@ -522,23 +563,30 @@ impl<'a> Evaluator<'a> {
         }
         let length = contents.len() as u128;
 
-        Ok(Object::Array(Array{contents, length}))
+        Ok(Object::Array(Array { contents, length }))
     }
 
-    fn expression_to_block(&mut self, expr_id : &ExprId) -> HirBlockExpression {
+    fn expression_to_block(&mut self, expr_id: &ExprId) -> HirBlockExpression {
         match self.context.def_interner.expression(expr_id) {
             HirExpression::Block(block_expr) => block_expr,
-            _=> panic!("ice: expected a block expression")
+            _ => panic!("ice: expected a block expression"),
         }
     }
 
-    pub fn evaluate_integer(&mut self, env: &mut Environment, expr_id: &ExprId) -> Result<Object, RuntimeErrorKind> {
+    pub fn evaluate_integer(
+        &mut self,
+        env: &mut Environment,
+        expr_id: &ExprId,
+    ) -> Result<Object, RuntimeErrorKind> {
         let polynomial = self.expression_to_object(env, expr_id)?;
 
         if polynomial.is_constant() {
-            return Ok(polynomial)
+            return Ok(polynomial);
         }
-        return Err(RuntimeErrorKind::expected_type("constant",polynomial.r#type()));
+        return Err(RuntimeErrorKind::expected_type(
+            "constant",
+            polynomial.r#type(),
+        ));
     }
 
     pub fn expression_to_object(
@@ -611,43 +659,53 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    fn call_function(&mut self, env: &mut Environment, call_expr : &HirCallExpression, func_id: FuncId) -> Result<Object, RuntimeErrorKind> {
-              // Create a new environment for this function
-                // This is okay because functions are not stored in the environment
-                // We need to add the arguments into the environment though
-                // Note: The arguments are evaluated in the old environment
-                let mut new_env = Environment::new();
-                let (arguments, mut errors) = self.expression_list_to_objects(env, &call_expr.arguments);
-                if !errors.is_empty() {
-                    // XXX: We could have an error variant to return multiple errors here
-                    // As long as we can guarantee that each expression does not affect the proceeding, this should be fine
-                    return Err(errors.pop().unwrap())
-                }
+    fn call_function(
+        &mut self,
+        env: &mut Environment,
+        call_expr: &HirCallExpression,
+        func_id: FuncId,
+    ) -> Result<Object, RuntimeErrorKind> {
+        // Create a new environment for this function
+        // This is okay because functions are not stored in the environment
+        // We need to add the arguments into the environment though
+        // Note: The arguments are evaluated in the old environment
+        let mut new_env = Environment::new();
+        let (arguments, mut errors) = self.expression_list_to_objects(env, &call_expr.arguments);
+        if !errors.is_empty() {
+            // XXX: We could have an error variant to return multiple errors here
+            // As long as we can guarantee that each expression does not affect the proceeding, this should be fine
+            return Err(errors.pop().unwrap());
+        }
 
-                let func_meta = self.context.def_interner.function_meta(&func_id);
+        let func_meta = self.context.def_interner.function_meta(&func_id);
 
-                for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter())
-                {
-                    let param_id = param.0;
-                    let param_name = self.context.def_interner.ident_name(&param_id);
-                    
-                    new_env.store(param_name, argument);
-                }
+        for (param, argument) in func_meta.parameters.iter().zip(arguments.into_iter()) {
+            let param_id = param.0;
+            let param_name = self.context.def_interner.ident_name(&param_id);
 
-                let return_val = self.apply_func(&mut new_env, &func_id)?;
+            new_env.store(param_name, argument);
+        }
 
-                Ok(return_val)
+        let return_val = self.apply_func(&mut new_env, &func_id)?;
+
+        Ok(return_val)
     }
 
-    fn apply_func(&mut self, env: &mut Environment, func_id: &FuncId) -> Result<Object, RuntimeErrorKind> {
-        
+    fn apply_func(
+        &mut self,
+        env: &mut Environment,
+        func_id: &FuncId,
+    ) -> Result<Object, RuntimeErrorKind> {
         let function = self.context.def_interner.function(func_id);
         let block = function.block(&self.context.def_interner);
         self.eval_block(env, block.statements())
     }
 
-    fn eval_block(&mut self, env: &mut Environment, block: &[StmtId]) -> Result<Object, RuntimeErrorKind> {
-        
+    fn eval_block(
+        &mut self,
+        env: &mut Environment,
+        block: &[StmtId],
+    ) -> Result<Object, RuntimeErrorKind> {
         let mut result = Object::Null;
         for stmt in block {
             result = self.evaluate_statement(env, stmt)?;
@@ -655,10 +713,15 @@ impl<'a> Evaluator<'a> {
         Ok(result)
     }
 
-    fn expression_list_to_objects(&mut self, env : &mut Environment, exprs : &[ExprId]) -> (Vec<Object>, Vec<RuntimeErrorKind>) {
-        let (objects, errors) : (Vec<_>, Vec<_>) = exprs.iter()
-        .map(|expr| self.expression_to_object(env, expr))
-        .partition(Result::is_ok);
+    fn expression_list_to_objects(
+        &mut self,
+        env: &mut Environment,
+        exprs: &[ExprId],
+    ) -> (Vec<Object>, Vec<RuntimeErrorKind>) {
+        let (objects, errors): (Vec<_>, Vec<_>) = exprs
+            .iter()
+            .map(|expr| self.expression_to_object(env, expr))
+            .partition(Result::is_ok);
 
         let objects: Vec<_> = objects.into_iter().map(Result::unwrap).collect();
         let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
@@ -670,7 +733,7 @@ impl<'a> Evaluator<'a> {
 /// Each element must be mapped to a unique identifier
 /// XXX: At the moment, the evaluator uses String, in particular the variable name
 /// This function ensures that each element in the array is assigned a unique identifier
-pub fn mangle_array_element_name(array_name : &str, element_index : usize) -> String {
+pub fn mangle_array_element_name(array_name: &str, element_index: usize) -> String {
     use blake2::Digest;
 
     let mut hasher = Blake2s::new();
@@ -684,7 +747,7 @@ pub fn mangle_array_element_name(array_name : &str, element_index : usize) -> St
     let res = hasher.finalize();
 
     // If a variable is named array_0_1f4a
-    // Then it will be certain, that the user 
+    // Then it will be certain, that the user
     // is trying to be malicious
     // For regular users, they will never encounter a name conflict
     // We could probably use MD5 here, as we do not need a crypto hash

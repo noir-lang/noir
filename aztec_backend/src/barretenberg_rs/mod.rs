@@ -1,17 +1,19 @@
 ///  Import the barretenberg WASM file
 pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
 
+pub mod blake2s;
 pub mod composer;
 mod crs;
-mod pippenger;
 pub mod pedersen;
-pub mod blake2s;
+mod pippenger;
 pub mod schnorr;
 
-use wasmer::{ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value, imports};
+use wasmer::{
+    imports, ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value,
+};
 use wasmer::{Module, Store};
 use wasmer_engine_jit::JIT;
-use wasmer_wasi::{WasiState};
+use wasmer_wasi::WasiState;
 
 /// Barretenberg is the low level struct which calls the WASM file
 /// This is the bridge between Rust and the WASM which itself is a bridge to the C++ codebase.
@@ -20,13 +22,11 @@ pub struct Barretenberg {
 }
 
 // XXX: It may be better to use this global mutex, since we do not need to
-// keep state around. However, for this we need to make sure 
+// keep state around. However, for this we need to make sure
 // that mem_free is being called at appropriate times
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
-pub static BARRETENBERG: Lazy<Mutex<Barretenberg>> = Lazy::new(|| {
-    Mutex::new(Barretenberg::new())
-});
+use std::sync::Mutex;
+pub static BARRETENBERG: Lazy<Mutex<Barretenberg>> = Lazy::new(|| Mutex::new(Barretenberg::new()));
 
 /// A wrapper around the return value from a WASM call
 /// Notice, Option<> is used because not every call returns a value
@@ -48,8 +48,8 @@ impl WASMValue {
 impl Barretenberg {
     /// Transfer bytes to WASM heap
     pub fn transfer_to_heap(&mut self, arr: &[u8], offset: usize) {
-        let memory = self.instance.exports.get_memory("memory").unwrap();       
-        
+        let memory = self.instance.exports.get_memory("memory").unwrap();
+
         for (byte_id, cell) in memory.view::<u8>()[offset as usize..(offset + arr.len())]
             .iter()
             .enumerate()
@@ -59,7 +59,7 @@ impl Barretenberg {
     }
     // XXX: change to read_mem
     pub fn slice_memory(&mut self, start: usize, end: usize) -> Vec<u8> {
-        let memory = self.instance.exports.get_memory("memory").unwrap();       
+        let memory = self.instance.exports.get_memory("memory").unwrap();
 
         let mut result = Vec::new();
 
@@ -107,7 +107,7 @@ fn load_module() -> (Module, Store) {
     let compiler_config = Cranelift::default();
     let engine = JIT::new(compiler_config).engine();
     let compile_store = Store::new(&engine);
-    
+
     let headless_engine = JIT::headless().engine();
     let headless_store = Store::new(&headless_engine);
 
@@ -115,17 +115,16 @@ fn load_module() -> (Module, Store) {
 
     // Load directory into cache
     let mut fs_cache = FileSystemCache::new(mod_cache_location()).unwrap();
-    
+
     // Load module; check if it is in the cache
     // If it is not then compile
     // If it is return it
-    let module = match unsafe{fs_cache.load(&headless_store, cache_key)} {
+    let module = match unsafe { fs_cache.load(&headless_store, cache_key) } {
         Ok(module) => module,
         Err(_) => {
-
             println!("Compiling WASM... This will take ~3 minutes for the first time, and cached on subsequent runs.");
 
-            let module = Module::new(&compile_store, &WASM).unwrap();  
+            let module = Module::new(&compile_store, &WASM).unwrap();
 
             // Store a module into the cache given a key
             fs_cache.store(cache_key, &module).unwrap();
@@ -136,7 +135,6 @@ fn load_module() -> (Module, Store) {
     (module, headless_store)
 }
 
-
 fn mod_cache_location() -> std::path::PathBuf {
     let mut mod_cache_dir = dirs::home_dir().unwrap();
     mod_cache_dir.push(std::path::Path::new("noir_cache"));
@@ -144,15 +142,13 @@ fn mod_cache_location() -> std::path::PathBuf {
     mod_cache_dir
 }
 
-
 fn instance_load() -> Instance {
-
     let (module, store) = load_module();
 
     let mut wasi_env = WasiState::new("barretenberg").finalize().unwrap();
     let import_object = wasi_env.import_object(&module).unwrap();
-    
-    let logstr_native = Function::new_native(&store, |_a : i32| {});
+
+    let logstr_native = Function::new_native(&store, |_a: i32| {});
 
     let custom_imports = imports! {
         "env" => {
@@ -166,6 +162,8 @@ fn instance_load() -> Instance {
 
 impl Barretenberg {
     pub fn new() -> Barretenberg {
-        Barretenberg { instance: instance_load() }
+        Barretenberg {
+            instance: instance_load(),
+        }
     }
 }

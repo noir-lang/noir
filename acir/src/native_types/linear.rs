@@ -1,4 +1,4 @@
-use crate::native_types::{Witness,Arithmetic};
+use crate::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
 
 use std::ops::{Add, Mul, Neg, Sub};
@@ -21,7 +21,7 @@ impl Linear {
             add_scale: FieldElement::zero(),
         }
     }
-    // XXX: This is true for the NPC languages that we use, are there any where this is not true? 
+    // XXX: This is true for the NPC languages that we use, are there any where this is not true?
     pub const fn can_defer_constraint(&self) -> bool {
         true
     }

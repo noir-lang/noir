@@ -1,9 +1,9 @@
 use super::GadgetCaller;
+use crate::object::{Array, Object};
+use crate::{Environment, Evaluator, Type};
 use acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acir::OPCODE;
 use noirc_frontend::hir::lower::HirCallExpression;
-use crate::object::{Array, Object};
-use crate::{Environment, Evaluator, Type};
 
 use super::RuntimeErrorKind;
 
@@ -12,7 +12,6 @@ use super::RuntimeErrorKind;
 pub struct Blake2sGadget;
 
 impl GadgetCaller for Blake2sGadget {
-
     fn name() -> OPCODE {
         OPCODE::Blake2s
     }
@@ -57,16 +56,15 @@ impl Blake2sGadget {
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
-
         let arr_expr = {
             // For Blake2s, we expect a single input which should be an array
-            assert_eq!(call_expr.arguments.len(),1);
+            assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()
         };
 
         // "Blake2s should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
-        
+
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(arr.contents.len());
 
         for element in arr.contents.into_iter() {

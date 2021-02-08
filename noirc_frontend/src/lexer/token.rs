@@ -1,7 +1,6 @@
-use std::fmt;
 use noir_field::FieldElement;
-use noirc_errors::{Position, Spanned, Span};
-
+use noirc_errors::{Position, Span, Spanned};
+use std::fmt;
 
 impl PartialEq<SpannedToken> for Token {
     fn eq(&self, other: &SpannedToken) -> bool {
@@ -24,17 +23,17 @@ impl Into<Token> for SpannedToken {
 }
 
 impl SpannedToken {
-    pub fn into_span(&self) -> Span{
+    pub fn into_span(&self) -> Span {
         self.0.span()
     }
-    pub fn token(&self) -> &Token{
+    pub fn token(&self) -> &Token {
         &self.0.contents
     }
     pub fn kind(&self) -> TokenKind {
         self.token().kind()
     }
     pub fn is_variant(&self, tok: &Token) -> bool {
-       self.token().is_variant(tok)
+        self.token().is_variant(tok)
     }
     pub fn is_comment(&self) -> bool {
         self.token().is_comment()
@@ -185,7 +184,7 @@ pub enum TokenKind {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TokenKind::Token(ref tok) =>write!(f, "{}", tok),
+            TokenKind::Token(ref tok) => write!(f, "{}", tok),
             TokenKind::Ident => write!(f, "identifier"),
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
@@ -195,7 +194,6 @@ impl fmt::Display for TokenKind {
 }
 
 impl Token {
-
     pub fn to_string(&self) -> String {
         format!("{}", self)
     }
@@ -203,9 +201,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_)
-            | Token::Bool(_)
-            | Token::Str(_) => TokenKind::Literal,
+            Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             ref tok => TokenKind::Token(tok.clone()),
         }
@@ -233,17 +229,16 @@ impl Token {
     pub fn is_comment(&self) -> bool {
         match self {
             Token::Comment(_) => true,
-            _=> false
+            _ => false,
         }
     }
 
-    pub(super) fn into_single_span(self,position: Position) -> SpannedToken {
-      self.into_span(position, position)
+    pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
+        self.into_span(position, position)
     }
-    pub(super) fn into_span(self,start: Position,end: Position) -> SpannedToken {
+    pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken {
         SpannedToken(Spanned::from_position(start, end, self))
     }
-
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -321,11 +316,10 @@ impl Attribute {
     /// If the string is a fixed attribute return that, else
     /// return the custom attribute
     pub(crate) fn lookup_attribute(word: &str) -> Token {
-
-        let word_segments : Vec<&str> = word
-        .split(|c| c == '(' || c == ')')
-        .filter(|string_segment| !string_segment.is_empty())
-        .collect();
+        let word_segments: Vec<&str> = word
+            .split(|c| c == '(' || c == ')')
+            .filter(|string_segment| !string_segment.is_empty())
+            .collect();
 
         if word_segments.len() != 2 {
             panic!("Malformed function attribute. An example of an attribute is #[foreign(sha256)]")
@@ -334,40 +328,37 @@ impl Attribute {
         let attribute_type = word_segments[0];
         let attribute_name = word_segments[1];
 
-
         match attribute_type {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            _=> panic!("unknown attribute type")
+            _ => panic!("unknown attribute type"),
         }
     }
 
-    pub fn builtin(&self) -> Option<&str>{
+    pub fn builtin(&self) -> Option<&str> {
         match self {
             Attribute::Foreign(_) => None,
             Attribute::Builtin(name) => Some(name),
         }
     }
-    pub fn foreign(&self) -> Option<&str>{
+    pub fn foreign(&self) -> Option<&str> {
         match self {
             Attribute::Foreign(name) => Some(name),
             Attribute::Builtin(_) => None,
         }
     }
 
-    pub fn is_foreign(&self) -> bool{
-        match self 
-        {
+    pub fn is_foreign(&self) -> bool {
+        match self {
             Attribute::Foreign(_) => true,
-            _ => false
+            _ => false,
         }
     }
-    pub fn is_low_level(&self) -> bool{
-        match self 
-        {
+    pub fn is_low_level(&self) -> bool {
+        match self {
             Attribute::Foreign(_) => true,
             Attribute::Builtin(_) => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -376,7 +367,7 @@ impl<'a> Into<&'a str> for &'a Attribute {
     fn into(self) -> &'a str {
         match self {
             Attribute::Foreign(string) => &string,
-            Attribute::Builtin(string) => &string
+            Attribute::Builtin(string) => &string,
         }
     }
 }
@@ -439,7 +430,7 @@ impl fmt::Display for Keyword {
 impl Keyword {
     /// If the string is a keyword, return the associated token
     /// else return None
-    /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function 
+    /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
     pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
         match word {
             "fn" => Some(Token::Keyword(Keyword::Fn)),

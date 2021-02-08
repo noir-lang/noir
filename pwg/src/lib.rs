@@ -1,7 +1,5 @@
 /// Partial Witness Generator
 /// This is the default partial witness generator for ACIR
-
-
 mod arithmetic;
 mod gadget_call;
 mod logic;
@@ -19,7 +17,7 @@ use std::collections::BTreeMap;
 // XXX: This can be changed considerably, if the Aztec backend could be made "interactive", so we could create witnesses on the fly and add variables on the fly
 // If that was the case, we would simply call a composer.sha256() method to compute the necessary values
 // We could get rid of the serialiser altogether furthermore, and simply implement a Solver in the aztec_backend
-// I further think, that we could get the aztec_backend to return the output values as field elements, so that we can add it into the witness map 
+// I further think, that we could get the aztec_backend to return the output values as field elements, so that we can add it into the witness map
 
 pub struct Solver;
 

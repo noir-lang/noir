@@ -1,8 +1,8 @@
+use super::RuntimeErrorKind;
 use crate::object::Object;
 use crate::{Environment, Evaluator};
 use noirc_errors::Span;
-use noirc_frontend::{hir::lower::{HirArrayLiteral, node_interner::ExprId}};
-use super::{RuntimeErrorKind};
+use noirc_frontend::hir::lower::{node_interner::ExprId, HirArrayLiteral};
 
 #[derive(Clone, Debug)]
 pub struct Array {
@@ -11,13 +11,17 @@ pub struct Array {
 }
 
 impl Array {
-    pub fn from(evaluator: &mut Evaluator, env: &mut Environment, arr_lit: HirArrayLiteral) -> Result<Array, RuntimeErrorKind> {
+    pub fn from(
+        evaluator: &mut Evaluator,
+        env: &mut Environment,
+        arr_lit: HirArrayLiteral,
+    ) -> Result<Array, RuntimeErrorKind> {
         // Take each element in the array and turn it into an object
         // We do not check that the array is homogenous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
         let (objects, mut errs) = evaluator.expression_list_to_objects(env, &arr_lit.contents);
         if !errs.is_empty() {
-            return Err(errs.pop().unwrap())
+            return Err(errs.pop().unwrap());
         }
 
         Ok(Array {
@@ -25,19 +29,27 @@ impl Array {
             length: arr_lit.length,
         })
     }
-    pub fn get(&self, index: u128, span : Span) -> Result<Object, RuntimeErrorKind> {
+    pub fn get(&self, index: u128, span: Span) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {
-            return Err(RuntimeErrorKind::ArrayOutOfBounds{index, bound : self.length, span});
+            return Err(RuntimeErrorKind::ArrayOutOfBounds {
+                index,
+                bound: self.length,
+                span,
+            });
         };
 
         Ok(self.contents[index as usize].clone())
     }
 
-    pub fn from_expression(evaluator : &mut Evaluator, env : &mut Environment, expr_id : &ExprId) -> Result<Array, RuntimeErrorKind> {
+    pub fn from_expression(
+        evaluator: &mut Evaluator,
+        env: &mut Environment,
+        expr_id: &ExprId,
+    ) -> Result<Array, RuntimeErrorKind> {
         let object = evaluator.expression_to_object(env, expr_id)?;
         match object {
             Object::Array(arr) => Ok(arr),
-            _=> Err(RuntimeErrorKind::expected_type("array", object.r#type()))
+            _ => Err(RuntimeErrorKind::expected_type("array", object.r#type())),
         }
     }
 }

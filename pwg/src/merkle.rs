@@ -3,39 +3,41 @@ use noir_field::FieldElement;
 
 pub type HashPath = Vec<(FieldElement, FieldElement)>;
 
-pub fn flatten_path(path : Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement> {
-    path.into_iter().flat_map(|(left, right)| std::iter::once(left).chain(std::iter::once(right))).collect()
+pub fn flatten_path(path: Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement> {
+    path.into_iter()
+        .flat_map(|(left, right)| std::iter::once(left).chain(std::iter::once(right)))
+        .collect()
 }
 
-pub struct MerkleTree{
-    depth : u32,
-    total_size : u32,
-    root : FieldElement,
-    hashes : Vec<FieldElement>,
-    pre_images : Vec<Vec<u8>>, 
-    barretenberg : Barretenberg,
+pub struct MerkleTree {
+    depth: u32,
+    total_size: u32,
+    root: FieldElement,
+    hashes: Vec<FieldElement>,
+    pre_images: Vec<Vec<u8>>,
+    barretenberg: Barretenberg,
 }
 
 impl MerkleTree {
-    pub fn new(depth : u32) -> MerkleTree {
-
+    pub fn new(depth: u32) -> MerkleTree {
         let mut barretenberg = Barretenberg::new();
-        
+
         assert!(depth >= 1 && depth <= 20); // Why can depth != 0 and depth not more than 20?
 
         let total_size = 1u32 << depth;
 
-        let mut hashes : Vec<_>= (0..total_size * 2 - 2).map(|_| FieldElement::zero()).collect();
+        let mut hashes: Vec<_> = (0..total_size * 2 - 2)
+            .map(|_| FieldElement::zero())
+            .collect();
 
-        let zero_message = [0u8;64];
-        let pre_images : Vec<Vec<u8>>= (0..total_size).map(|_| zero_message.to_vec()).collect(); 
+        let zero_message = [0u8; 64];
+        let pre_images: Vec<Vec<u8>> = (0..total_size).map(|_| zero_message.to_vec()).collect();
 
         let mut current = hash(&mut barretenberg, &zero_message);
-        
-        let mut offset = 0usize;
-        let mut layer_size = total_size as usize; // XXX: On 32 bit architectures, this `as` cast may silently truncate, when total_size > 2^32? 
-        while offset < hashes.len() {
 
+        let mut offset = 0usize;
+        let mut layer_size = total_size as usize; // XXX: On 32 bit architectures, this `as` cast may silently truncate, when total_size > 2^32?
+        while offset < hashes.len() {
             for i in 0..layer_size {
                 hashes[offset + i] = current;
             }
@@ -47,16 +49,16 @@ impl MerkleTree {
         let root = current;
 
         MerkleTree {
-            depth, 
+            depth,
             total_size,
             root,
             pre_images,
             hashes,
-            barretenberg
+            barretenberg,
         }
     }
 
-    pub fn get_hash_path(&self, mut index : usize) -> HashPath {
+    pub fn get_hash_path(&self, mut index: usize) -> HashPath {
         let mut path = HashPath::with_capacity(self.depth as usize);
 
         let mut offset = 0usize;
@@ -71,15 +73,13 @@ impl MerkleTree {
         path
     }
     /// Updates the message at index and computes the new tree root
-    pub fn update_message(&mut self, index : usize, new_message : Vec<u8>) -> FieldElement {
+    pub fn update_message(&mut self, index: usize, new_message: Vec<u8>) -> FieldElement {
         let current = hash(&mut self.barretenberg, &new_message);
         self.pre_images[index] = new_message;
         self.update_leaf(index, current)
-
     }
     /// Update the element at index and compute the new tree root
-    pub fn update_leaf(&mut self,mut index : usize, mut current : FieldElement) -> FieldElement {
-
+    pub fn update_leaf(&mut self, mut index: usize, mut current: FieldElement) -> FieldElement {
         // Note that this method does not update the list of messages [preimages]|
         // use `update_message` to do this
 
@@ -88,8 +88,12 @@ impl MerkleTree {
         for _ in 0..self.depth {
             self.hashes[offset + index] = current;
             index &= (!0) - 1;
-            current = compress_native(&mut self.barretenberg,&self.hashes[offset + index], &self.hashes[offset + index + 1]);
-            
+            current = compress_native(
+                &mut self.barretenberg,
+                &self.hashes[offset + index],
+                &self.hashes[offset + index + 1],
+            );
+
             offset += layer_size as usize;
             layer_size /= 2;
             index /= 2;
@@ -99,12 +103,16 @@ impl MerkleTree {
         self.root
     }
     /// Gets a message at `index`. This is not the leaf
-    pub fn get_message_at_index(&self,index :usize ) -> Vec<u8> {
+    pub fn get_message_at_index(&self, index: usize) -> Vec<u8> {
         self.pre_images[index].clone()
     }
 
-
-    pub fn check_membership(hash_path : Vec<&FieldElement>, root : &FieldElement, index : &FieldElement, leaf : &FieldElement) -> FieldElement {
+    pub fn check_membership(
+        hash_path: Vec<&FieldElement>,
+        root: &FieldElement,
+        index: &FieldElement,
+        leaf: &FieldElement,
+    ) -> FieldElement {
         assert!(hash_path.len() % 2 == 0);
 
         let mut barretenberg = Barretenberg::new();
@@ -138,29 +146,30 @@ impl MerkleTree {
     }
 }
 
-
-fn hash(barretenberg : &mut Barretenberg, message : &[u8]) -> FieldElement {
+fn hash(barretenberg: &mut Barretenberg, message: &[u8]) -> FieldElement {
     barretenberg.hash_to_field(message)
 }
 // XXX(FIXME) : Currently, this is very aztec specific, because this PWG does not have
 // a way to deal with generic ECC operations
-fn compress_native(barretenberg : &mut Barretenberg, left : &FieldElement, right : &FieldElement) -> FieldElement {
+fn compress_native(
+    barretenberg: &mut Barretenberg,
+    left: &FieldElement,
+    right: &FieldElement,
+) -> FieldElement {
     barretenberg.compress_native(left, right)
 }
 
-
 // This is what the blake2s hash to function should look like
-// if it was all in  Rust. This function panics because `from_bytes` 
+// if it was all in  Rust. This function panics because `from_bytes`
 // requires that the input is canonical and reduced.
-// blake2s will produce output that is 256 bits while 
+// blake2s will produce output that is 256 bits while
 // bn254 is 254 bits
 // fn hash(message : &[u8]) -> FieldElement {
-    // let mut hasher = Blake2s::new();
-    // hasher.update(message);
-    // let res = hasher.finalize();
-    // FieldElement::from_bytes(&res[..])
+// let mut hasher = Blake2s::new();
+// hasher.update(message);
+// let res = hasher.finalize();
+// FieldElement::from_bytes(&res[..])
 // }
-
 
 #[test]
 fn basic_interop_initial_root() {
@@ -178,9 +187,18 @@ fn basic_interop_hashpath() {
     let path = tree.get_hash_path(0);
 
     let expected_hash_path = vec![
-        ("1cdcf02431ba623767fe389337d011df1048dcc24b98ed81cec97627bab454a0","1cdcf02431ba623767fe389337d011df1048dcc24b98ed81cec97627bab454a0" ),
-        ("262e1ae3710241581182198b69a10601148ee1dd20ae638f99cde7b3ede59754","262e1ae3710241581182198b69a10601148ee1dd20ae638f99cde7b3ede59754" ),
-        ("0f88aa985f23258a12a78b35eab5d3d8d41d091a71113f2d4b2731d96ab78cfd","0f88aa985f23258a12a78b35eab5d3d8d41d091a71113f2d4b2731d96ab78cfd" ),
+        (
+            "1cdcf02431ba623767fe389337d011df1048dcc24b98ed81cec97627bab454a0",
+            "1cdcf02431ba623767fe389337d011df1048dcc24b98ed81cec97627bab454a0",
+        ),
+        (
+            "262e1ae3710241581182198b69a10601148ee1dd20ae638f99cde7b3ede59754",
+            "262e1ae3710241581182198b69a10601148ee1dd20ae638f99cde7b3ede59754",
+        ),
+        (
+            "0f88aa985f23258a12a78b35eab5d3d8d41d091a71113f2d4b2731d96ab78cfd",
+            "0f88aa985f23258a12a78b35eab5d3d8d41d091a71113f2d4b2731d96ab78cfd",
+        ),
     ];
 
     for (got, expected_segment) in path.into_iter().zip(expected_hash_path) {
@@ -194,23 +212,35 @@ fn basic_interop_update() {
     // Test that computing the hashpath is correct
     let mut tree = MerkleTree::new(3);
 
-    tree.update_message(0, vec![0;64]);
-    tree.update_message(1, vec![1;64]);
-    tree.update_message(2, vec![2;64]);
-    tree.update_message(3, vec![3;64]);
-    tree.update_message(4, vec![4;64]);
-    tree.update_message(5, vec![5;64]);
-    tree.update_message(6, vec![6;64]);
-    let root = tree.update_message(7, vec![7;64]);
+    tree.update_message(0, vec![0; 64]);
+    tree.update_message(1, vec![1; 64]);
+    tree.update_message(2, vec![2; 64]);
+    tree.update_message(3, vec![3; 64]);
+    tree.update_message(4, vec![4; 64]);
+    tree.update_message(5, vec![5; 64]);
+    tree.update_message(6, vec![6; 64]);
+    let root = tree.update_message(7, vec![7; 64]);
 
-    assert_eq!("241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e", root.to_hex());
+    assert_eq!(
+        "241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e",
+        root.to_hex()
+    );
 
     let path = tree.get_hash_path(2);
 
     let expected_hash_path = vec![
-        ("06c2335d6f7acb84bbc7d0892cefebb7ca31169a89024f24814d5785e0d05324","12dc36b01cbd8a6248b04e08f0ec91aa6d11a91f030b4a7b1460281859942185"),
-        ("2a57882283ba48c2e523fbf8142c0867e82cfaba2410793d3331a9c685f40790","145beb7dcd00d8eee922af3fee2b002c6e56b716630752b787acfbe685769040"),
-        ("20a7f69fa7eada3e900b803301074386ef2ea8be29f3aa943eefc3654c0a94e6","073b84f35922842dcf4c10596c3fe3eab7e61939120d2aca0a531e4e6fdce22b"),
+        (
+            "06c2335d6f7acb84bbc7d0892cefebb7ca31169a89024f24814d5785e0d05324",
+            "12dc36b01cbd8a6248b04e08f0ec91aa6d11a91f030b4a7b1460281859942185",
+        ),
+        (
+            "2a57882283ba48c2e523fbf8142c0867e82cfaba2410793d3331a9c685f40790",
+            "145beb7dcd00d8eee922af3fee2b002c6e56b716630752b787acfbe685769040",
+        ),
+        (
+            "20a7f69fa7eada3e900b803301074386ef2ea8be29f3aa943eefc3654c0a94e6",
+            "073b84f35922842dcf4c10596c3fe3eab7e61939120d2aca0a531e4e6fdce22b",
+        ),
     ];
 
     for (got, expected_segment) in path.into_iter().zip(expected_hash_path) {
@@ -221,18 +251,18 @@ fn basic_interop_update() {
 
 #[test]
 fn check_membership() {
-    struct Test<'a>{
+    struct Test<'a> {
         // Index of the leaf in the merkle tree
-        index : &'a str,
+        index: &'a str,
         // Returns true if the leaf is indeed a part of the merkle tree at the specified index
-        result : bool,
+        result: bool,
         // The message is used to derive the leaf at `index` by using the specified hash
-        message : Vec<u8>,
+        message: Vec<u8>,
         // If this is true, then before checking for membership
         // we update the tree with the message at that index
-        should_update_tree : bool,
-        
-        error_msg : &'a str,
+        should_update_tree: bool,
+
+        error_msg: &'a str,
     }
 
     // Note these test cases are not independent.
@@ -272,18 +302,18 @@ fn check_membership() {
 
     for test_vector in tests {
         let index = FieldElement::from_str(test_vector.index).unwrap();
-        let index_as_usize : usize = test_vector.index.parse().unwrap();
+        let index_as_usize: usize = test_vector.index.parse().unwrap();
 
         let leaf = hash(&mut tree.barretenberg, &test_vector.message);
 
         let mut root = tree.root;
-        if test_vector.should_update_tree{
-            root = tree.update_message(index_as_usize,test_vector.message);
+        if test_vector.should_update_tree {
+            root = tree.update_message(index_as_usize, test_vector.message);
         }
-        
+
         let hash_path = flatten_path(tree.get_hash_path(index_as_usize));
         let hash_path_ref = hash_path.iter().collect();
-     
+
         let result = MerkleTree::check_membership(hash_path_ref, &root, &index, &leaf);
         let is_leaf_in_true = result == FieldElement::one();
 

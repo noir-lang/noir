@@ -1,39 +1,32 @@
-
-
 use crate::contract::cryptography::*;
-use regex::{Regex, Captures};
+use regex::{Captures, Regex};
 
 /// Places the verification method which contains the verification key
 /// into the TurboVerifier contract
-// XXX: Regex seems to be really slow. We are also allocating when we call push_str, it is probably more efficient to write &str straight to file  
-pub fn create(vk_method : &str) -> String {
-  template_replace(TURBOVERIFIER, &[vk_method])
+// XXX: Regex seems to be really slow. We are also allocating when we call push_str, it is probably more efficient to write &str straight to file
+pub fn create(vk_method: &str) -> String {
+    template_replace(TURBOVERIFIER, &[vk_method])
 }
 
 // Regex code taken from: https://stackoverflow.com/questions/53974404/replacing-numbered-placeholders-with-elements-of-a-vector-in-rust
 fn template_replace(template: &str, values: &[&str]) -> String {
-  let regex = Regex::new(r#"\$(\d+)"#).unwrap();
-  let mut turbo_verifier_contract = regex.replace_all(template, |captures: &Captures| {
-      values
-          .get(index(captures))
-          .unwrap_or(&"")
-  }).to_string();
+    let regex = Regex::new(r#"\$(\d+)"#).unwrap();
+    let mut turbo_verifier_contract = regex
+        .replace_all(template, |captures: &Captures| {
+            values.get(index(captures)).unwrap_or(&"")
+        })
+        .to_string();
 
-  turbo_verifier_contract.push_str(cryptography_libraries());
+    turbo_verifier_contract.push_str(cryptography_libraries());
 
-  turbo_verifier_contract
+    turbo_verifier_contract
 }
 
 fn index(captures: &Captures) -> usize {
-  captures.get(1)
-      .unwrap()
-      .as_str()
-      .parse()
-      .unwrap()
+    captures.get(1).unwrap().as_str().parse().unwrap()
 }
 
-
-const TURBOVERIFIER : &str = r#"
+const TURBOVERIFIER: &str = r#"
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2020 Spilsbury Holdings Ltd
 

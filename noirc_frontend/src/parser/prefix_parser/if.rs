@@ -3,10 +3,9 @@ use super::*;
 pub struct IfParser;
 
 impl IfParser {
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult { 
-        
+    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
         parser.peek_check_variant_advance(&Token::LeftParen)?;
-        
+
         parser.advance_tokens();
         let condition = parser.parse_expression(Precedence::Lowest)?;
 
@@ -20,7 +19,7 @@ impl IfParser {
             parser.advance_tokens();
 
             parser.peek_check_variant_advance(&Token::LeftBrace)?;
-            
+
             alternative = Some(BlockParser::parse_block_expression(parser)?);
         }
 

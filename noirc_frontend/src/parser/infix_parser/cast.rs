@@ -8,6 +8,9 @@ impl CastParser {
 
         let typ = parser.parse_type()?;
 
-        Ok(ExpressionKind::Cast(Box::new(CastExpression { lhs: lhs, r#type: typ })))
+        Ok(ExpressionKind::Cast(Box::new(CastExpression {
+            lhs: lhs,
+            r#type: typ,
+        })))
     }
 }

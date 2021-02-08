@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Environment, Evaluator, Linear, Object, Type, RuntimeErrorKind, Array};
+use crate::{Arithmetic, Array, Environment, Evaluator, Linear, Object, RuntimeErrorKind, Type};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -10,28 +10,38 @@ pub fn handle_mul_op(
     env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-
     let general_err = err_cannot_mul(left.r#type(), right.r#type());
 
-
     match (left, right) {
-
         (Object::Null, _) | (_, Object::Null) => Err(general_err),
 
         (Object::Array(_), Object::Array(_)) => Err(general_err),
 
-        (Object::Arithmetic(x), y) | (y, Object::Arithmetic(x)) => handle_arithmetic_mul(x, y, env, evaluator),
+        (Object::Arithmetic(x), y) | (y, Object::Arithmetic(x)) => {
+            handle_arithmetic_mul(x, y, env, evaluator)
+        }
 
-        (Object::Constants(x), y) | (y, Object::Constants(x)) => y.mul_constant(x).ok_or(general_err),
+        (Object::Constants(x), y) | (y, Object::Constants(x)) => {
+            y.mul_constant(x).ok_or(general_err)
+        }
 
-        (Object::Linear(lin), y) | (y, Object::Linear(lin)) => handle_linear_mul(lin, y, env, evaluator),
-        
-        (Object::Integer(integer), y) | ( y,Object::Integer(integer)) => Ok(Object::Integer(integer.mul(y, env, evaluator)?)),
+        (Object::Linear(lin), y) | (y, Object::Linear(lin)) => {
+            handle_linear_mul(lin, y, env, evaluator)
+        }
+
+        (Object::Integer(integer), y) | (y, Object::Integer(integer)) => {
+            Ok(Object::Integer(integer.mul(y, env, evaluator)?))
+        }
     }
 }
 
-fn err_cannot_mul(first_type : &'static str,second_type : &'static str ) -> RuntimeErrorKind {
-    RuntimeErrorKind::UnsupportedOp{span : Default::default(), op : "mul".to_owned(), first_type : first_type.to_owned() , second_type : second_type.to_owned()}
+fn err_cannot_mul(first_type: &'static str, second_type: &'static str) -> RuntimeErrorKind {
+    RuntimeErrorKind::UnsupportedOp {
+        span: Default::default(),
+        op: "mul".to_owned(),
+        first_type: first_type.to_owned(),
+        second_type: second_type.to_owned(),
+    }
 }
 
 fn handle_arithmetic_mul(
@@ -41,7 +51,7 @@ fn handle_arithmetic_mul(
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     if let Ok(constant) = polynomial.constant() {
-         return Ok(Object::Arithmetic(&arith * &constant))
+        return Ok(Object::Arithmetic(&arith * &constant));
     };
 
     // Arriving here means that we do not have one of the operands as a constant
@@ -65,19 +75,18 @@ fn handle_linear_mul(
         Object::Integer(integer) => {
             let result = &Linear::from_witness(integer.witness.clone()) * &linear;
             Ok(Object::Arithmetic(result))
-        },
+        }
         Object::Array(arr) => {
-
             let mut result = Vec::with_capacity(arr.length as usize);
             for element in arr.contents.into_iter() {
                 result.push(handle_linear_mul(linear.clone(), element, env, evaluator)?);
             }
-            
-            Ok(Object::Array(Array{
+
+            Ok(Object::Array(Array {
                 contents: result,
                 length: arr.length,
             }))
-        },
-        Object::Null => Err(err_cannot_mul("()", "Witness")) 
+        }
+        Object::Null => Err(err_cannot_mul("()", "Witness")),
     }
 }

@@ -1,7 +1,9 @@
+use crate::{token::Attribute, FunctionKind, Type};
 
-use crate::{FunctionKind,Type, token::Attribute};
-
-use super::{HirBlockExpression, HirExpression, node_interner::{ExprId, IdentId, NodeInterner, StmtId}};
+use super::{
+    node_interner::{ExprId, IdentId, NodeInterner, StmtId},
+    HirBlockExpression, HirExpression,
+};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -13,53 +15,53 @@ impl HirFunction {
         HirFunction(ExprId::empty_block_id())
     }
 
-    // This function is marked as unsafe because 
+    // This function is marked as unsafe because
     // the expression kind is not being checked
-    pub const fn unsafe_from_expr(expr_id : ExprId) -> HirFunction {
+    pub const fn unsafe_from_expr(expr_id: ExprId) -> HirFunction {
         HirFunction(expr_id)
     }
 
-    // This function is marked as unsafe because 
+    // This function is marked as unsafe because
     // the expression kind is not being checked
     pub const fn as_expr(&self) -> &ExprId {
         &self.0
     }
 
-    pub fn block(&self, interner : &NodeInterner) -> HirBlockExpression {
+    pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
         match interner.expression(&self.0) {
             HirExpression::Block(block_expr) => block_expr,
-            _=> unreachable!("ice: functions can only be block expressions")
+            _ => unreachable!("ice: functions can only be block expressions"),
         }
     }
 }
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub IdentId,pub Type);
+pub struct Param(pub IdentId, pub Type);
 
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
-    pub name : String,
+    pub name: String,
 
-    pub kind : FunctionKind,
+    pub kind: FunctionKind,
 
-    pub attributes : Option<Attribute>,
-    pub parameters : Vec<Param>, 
-    pub return_type : Type,
+    pub attributes: Option<Attribute>,
+    pub parameters: Vec<Param>,
+    pub return_type: Type,
 
     // This flag is needed for the attribute check pass
-    pub has_body : bool,
+    pub has_body: bool,
 }
 
 impl FuncMeta {
     /// Builtin and LowLevel functions usually have the return type
     /// declared, however their function bodies will be empty
-    /// So this method tells the type checker to ignore the return 
+    /// So this method tells the type checker to ignore the return
     /// of the empty function, which is unit
     pub fn can_ignore_return_type(&self) -> bool {
         match self.kind {
-            FunctionKind::LowLevel | FunctionKind::Builtin => true, 
-            FunctionKind::Normal => false
+            FunctionKind::LowLevel | FunctionKind::Builtin => true,
+            FunctionKind::Normal => false,
         }
     }
 }

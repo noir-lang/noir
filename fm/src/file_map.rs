@@ -1,10 +1,10 @@
-use codespan_reporting::files::{SimpleFiles, SimpleFile};
+use codespan_reporting::files::{SimpleFile, SimpleFiles};
 use std::path::PathBuf;
 
 use crate::FileManager;
 
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
-// or worry about when we change the dep 
+// or worry about when we change the dep
 
 #[derive(Clone, Debug)]
 pub struct PathString(PathBuf);
@@ -16,17 +16,17 @@ impl std::fmt::Display for PathString {
 }
 
 impl PathString {
-    pub fn from_path(p : PathBuf) -> Self {
+    pub fn from_path(p: PathBuf) -> Self {
         PathString(p)
     }
 }
 impl From<PathBuf> for PathString {
-    fn from(pb : PathBuf) -> PathString {
+    fn from(pb: PathBuf) -> PathString {
         PathString::from_path(pb)
     }
 }
 impl From<&PathBuf> for PathString {
-    fn from(pb : &PathBuf) -> PathString {
+    fn from(pb: &PathBuf) -> PathString {
         PathString::from(pb.to_owned())
     }
 }
@@ -34,7 +34,7 @@ impl From<&PathBuf> for PathString {
 pub struct FileMap(SimpleFiles<PathString, String>);
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash)] 
+#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash)]
 pub struct FileId(usize);
 
 impl FileId {
@@ -57,19 +57,17 @@ impl FileMap {
         FileMap(SimpleFiles::new())
     }
 
-    pub fn add_file(&mut self, file_name : PathString, code: String) -> FileId {
+    pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
         let file_id = self.0.add(file_name, code);
         FileId(file_id)
     }
-    pub fn get_file(&self, file_id : FileId) -> Option<File> {
+    pub fn get_file(&self, file_id: FileId) -> Option<File> {
         match self.0.get(file_id.0) {
             Some(source) => Some(File(source)),
-            None => None
+            None => None,
         }
     }
-
 }
-
 
 impl FileManager {
     // Needed as code_span dep requires underlying SimpleFiles

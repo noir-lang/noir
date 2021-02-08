@@ -1,16 +1,15 @@
 use super::GadgetCaller;
+use crate::object::{Array, Object};
+use crate::{Environment, Evaluator, Type};
 use acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acir::OPCODE;
 use noirc_frontend::hir::lower::HirCallExpression;
-use crate::object::{Array, Object};
-use crate::{Environment, Evaluator, Type};
 
 use super::RuntimeErrorKind;
 
 pub struct PedersenGadget;
 
 impl GadgetCaller for PedersenGadget {
-
     fn name() -> OPCODE {
         OPCODE::Pedersen
     }
@@ -45,15 +44,14 @@ impl PedersenGadget {
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
-
         let arr_expr = {
             // For pedersen gadget, we expect a single input which should be an array
-            assert_eq!(call_expr.arguments.len(),1);
+            assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()
         };
 
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
-        
+
         // XXX: Instead of panics, return a user error here
         if arr.contents.len() < 1 {
             panic!("a pedersen hash requires at least one element to hash")
@@ -77,7 +75,7 @@ impl PedersenGadget {
 
             inputs.push(GadgetInput {
                 witness: witness,
-                num_bits : noir_field::FieldElement::max_num_bits(),
+                num_bits: noir_field::FieldElement::max_num_bits(),
             });
         }
 

@@ -1,4 +1,4 @@
-use crate::native_types::{Witness,Linear};
+use crate::native_types::{Linear, Witness};
 use noir_field::FieldElement;
 use std::collections::HashMap;
 use std::ops::{Add, Mul, Neg, Sub};
@@ -222,7 +222,7 @@ impl Sub<&Arithmetic> for &Arithmetic {
 }
 
 impl From<&FieldElement> for Arithmetic {
-    fn from(constant : &FieldElement) -> Arithmetic {
+    fn from(constant: &FieldElement) -> Arithmetic {
         Arithmetic {
             q_C: constant.clone(),
             fan_in: Vec::new(),
@@ -254,22 +254,22 @@ impl From<&Witness> for Arithmetic {
     }
 }
 
-impl Add<&Arithmetic> for &Linear{
+impl Add<&Arithmetic> for &Linear {
     type Output = Arithmetic;
     fn add(self, rhs: &Arithmetic) -> Arithmetic {
         &Arithmetic::from(self) + rhs
     }
 }
-impl Add<&Linear> for &Arithmetic{
+impl Add<&Linear> for &Arithmetic {
     type Output = Arithmetic;
     fn add(self, rhs: &Linear) -> Arithmetic {
         &Arithmetic::from(rhs) + self
     }
 }
-impl Sub<&Witness> for &Arithmetic{
+impl Sub<&Witness> for &Arithmetic {
     type Output = Arithmetic;
     fn sub(self, rhs: &Witness) -> Arithmetic {
-         self - &Arithmetic::from(rhs)
+        self - &Arithmetic::from(rhs)
     }
 }
 

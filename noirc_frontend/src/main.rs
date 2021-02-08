@@ -1,19 +1,22 @@
 use std::path::PathBuf;
 
-use hir::{Context, crate_def_map::CrateDefMap, crate_graph::{CrateGraph, CrateType}};
-use noirc_frontend::hir::{self, crate_def_map::ModuleDefId};
 use fm::FileManager;
+use hir::{
+    crate_def_map::CrateDefMap,
+    crate_graph::{CrateGraph, CrateType},
+    Context,
+};
+use noirc_frontend::hir::{self, crate_def_map::ModuleDefId};
 
 // XXX: This is another sandbox test
 fn main() {
-
     // File Manager
     let mut fm = FileManager::new();
     //
     // Add root file to file manager
-    let dir_path : PathBuf = PathBuf::from("example_project/lib.nr");
+    let dir_path: PathBuf = PathBuf::from("example_project/lib.nr");
     let root_file_id = fm.add_file(&dir_path).unwrap();
-    
+
     // CrateGraph
     let mut crate_graph = CrateGraph::default();
     // Initiate crate with root file
@@ -38,7 +41,7 @@ fn main() {
         println!("func name is {}", name);
         let func_id = match def_id {
             ModuleDefId::FunctionId(func_id) => func_id,
-            _=> unreachable!()
+            _ => unreachable!(),
         };
 
         // Get the HirFunction for that Id
@@ -46,7 +49,6 @@ fn main() {
 
         println!("func hir is {:?}", hir);
         println!("func vis is {:?}", vis);
-
     }
     //
 
@@ -67,5 +69,4 @@ fn main() {
     //     println!("-----------------------------End Data for module at position {}----------------------------", i);
     // }
     // println!("-----------------------------END MODULES DATA----------------------------");
-
 }

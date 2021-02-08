@@ -12,20 +12,20 @@ impl ForParser {
     ///```
     ///
     /// Cursor Start : `for`
-    /// 
-    /// Cursor End : `}` 
+    ///
+    /// Cursor End : `}`
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
         // Current token is the `for`
         //
-        // Peek ahead and check if the next token is an identifier 
-        parser.peek_check_kind_advance(TokenKind::Ident)?; 
-        let spanned_identifier : Ident = parser.curr_token.clone().into();
+        // Peek ahead and check if the next token is an identifier
+        parser.peek_check_kind_advance(TokenKind::Ident)?;
+        let spanned_identifier: Ident = parser.curr_token.clone().into();
 
         // Current token is the loop identifier
         //
         // Peek ahead and check if the next token is the `in` keyword
         parser.peek_check_variant_advance(&Token::Keyword(Keyword::In))?;
-        
+
         // Current token is now the `in` keyword
         //
         // Advance past the `in` keyword
@@ -39,7 +39,7 @@ impl ForParser {
         //
         // Peek ahead and check if the next token is `..`
         parser.peek_check_variant_advance(&Token::DoubleDot)?;
-        
+
         // Current Token is the `..`
         //
         //  Advance past the `..`
@@ -48,7 +48,7 @@ impl ForParser {
         // Current token should now be the token that starts the expression
         // for RANGE_END
         let end_range = parser.parse_expression(Precedence::Lowest)?;
-        
+
         // Current token is now the end of RANGE_END
         //
         // Peek ahead and check if the next token is `{`
@@ -71,10 +71,8 @@ impl ForParser {
         };
 
         Ok(ExpressionKind::For(Box::new(for_expr)))
-
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -84,52 +82,49 @@ mod test {
 
     #[test]
     fn valid_syntax() {
-
         /// Why is this allowed?
         ///
         /// The Parser does not check the types of the loops,
         /// it only checks for valid expressions in RANGE_START and
         /// RANGE_END
-        const SRC_EXPR_LOOP : &'static str = r#"
+        const SRC_EXPR_LOOP: &'static str = r#"
             for i in x+y..z {
 
             }
         "#;
-        const SRC_CONST_LOOP : &'static str = r#"
+        const SRC_CONST_LOOP: &'static str = r#"
             for i in 0..100 {
 
             }
         "#;
-    
+
         ForParser::parse(&mut test_parse(SRC_EXPR_LOOP)).unwrap();
         ForParser::parse(&mut test_parse(SRC_CONST_LOOP)).unwrap();
     }
 
     #[test]
     fn invalid_syntax() {
-
         /// Cannot have a literal as the loop identifier
-        const SRC_LITERAL_IDENT : &'static str = r#"
+        const SRC_LITERAL_IDENT: &'static str = r#"
             for 1 in x+y..z {
 
             }
         "#;
         /// Currently only the DoubleDot is supported
-        const SRC_INCLUSIVE_LOOP : &'static str = r#"
+        const SRC_INCLUSIVE_LOOP: &'static str = r#"
             for i in 0...100 {
 
             }
         "#;
         /// Currently only the DoubleDot is supported
-        const SRC_INCLUSIVE_EQUAL_LOOP : &'static str = r#"
+        const SRC_INCLUSIVE_EQUAL_LOOP: &'static str = r#"
             for i in 0..=100 {
 
             }
         "#;
-    
+
         ForParser::parse(&mut test_parse(SRC_LITERAL_IDENT)).unwrap_err();
         ForParser::parse(&mut test_parse(SRC_INCLUSIVE_LOOP)).unwrap_err();
         ForParser::parse(&mut test_parse(SRC_INCLUSIVE_EQUAL_LOOP)).unwrap_err();
     }
-
 }

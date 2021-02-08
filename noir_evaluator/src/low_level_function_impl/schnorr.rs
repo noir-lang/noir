@@ -1,16 +1,15 @@
 use super::GadgetCaller;
+use crate::object::{Array, Object};
+use crate::{Environment, Evaluator, Type};
 use acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acir::OPCODE;
 use noirc_frontend::hir::lower::HirCallExpression;
-use crate::object::{Array, Object};
-use crate::{Environment, Evaluator, Type};
 
 use super::RuntimeErrorKind;
 
 pub struct SchnorrVerifyGadget;
 
 impl GadgetCaller for SchnorrVerifyGadget {
-
     fn name() -> OPCODE {
         OPCODE::SchnorrVerify
     }
@@ -28,8 +27,10 @@ impl GadgetCaller for SchnorrVerifyGadget {
 
         let schnorr_verify_unique_name = evaluator.make_unique("schnorr_verify_");
 
-        let schnorr_verify_witness = evaluator.add_witness_to_cs(schnorr_verify_unique_name, Type::Witness); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let schnorr_verify_object = evaluator.add_witness_to_env(schnorr_verify_witness.clone(), env);
+        let schnorr_verify_witness =
+            evaluator.add_witness_to_cs(schnorr_verify_unique_name, Type::Witness); // XXX: usually the output of the function is public. To be conservative, lets make it private
+        let schnorr_verify_object =
+            evaluator.add_witness_to_env(schnorr_verify_witness.clone(), env);
 
         let schnorr_verify_gate = GadgetCall {
             name: SchnorrVerifyGadget::name(),
@@ -43,21 +44,19 @@ impl GadgetCaller for SchnorrVerifyGadget {
     }
 }
 
-
 impl SchnorrVerifyGadget {
     fn prepare_inputs(
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
-
-        assert_eq!(call_expr.arguments.len(),4);
+        assert_eq!(call_expr.arguments.len(), 4);
 
         let pub_key_y = call_expr.arguments.pop().unwrap();
         let pub_key_x = call_expr.arguments.pop().unwrap();
         let message = call_expr.arguments.pop().unwrap();
         let signature = call_expr.arguments.pop().unwrap();
-        
+
         let signature = Array::from_expression(evaluator, env, &signature)?;
         let message = Array::from_expression(evaluator, env, &message)?;
         let pub_key_x = evaluator.expression_to_object(env, &pub_key_x)?;
@@ -70,14 +69,14 @@ impl SchnorrVerifyGadget {
 
         inputs.push(GadgetInput {
             witness: pub_key_x_witness,
-            num_bits : noir_field::FieldElement::max_num_bits(),
+            num_bits: noir_field::FieldElement::max_num_bits(),
         });
         inputs.push(GadgetInput {
             witness: pub_key_y_witness,
-            num_bits : noir_field::FieldElement::max_num_bits(),
+            num_bits: noir_field::FieldElement::max_num_bits(),
         });
 
-        // XXX: Technical debt: refactor so this functionality, 
+        // XXX: Technical debt: refactor so this functionality,
         // is not repeated across many gadgets
         for element in signature.contents.into_iter() {
             let witness = match element {
@@ -95,7 +94,7 @@ impl SchnorrVerifyGadget {
 
             inputs.push(GadgetInput {
                 witness: witness,
-                num_bits : 8,
+                num_bits: 8,
             });
         }
         for element in message.contents.into_iter() {
@@ -114,7 +113,7 @@ impl SchnorrVerifyGadget {
 
             inputs.push(GadgetInput {
                 witness: witness,
-                num_bits : 8,
+                num_bits: 8,
             });
         }
 

@@ -1,45 +1,51 @@
-use crate::{Parser,parser::Program};
-use std::collections::HashMap;
-use super::{Context, crate_graph::{CrateId}, def_collector_crate::{CollectedErrors, DefCollector}, lower::node_interner::FuncId};
+use super::{
+    crate_graph::CrateId,
+    def_collector_crate::{CollectedErrors, DefCollector},
+    lower::node_interner::FuncId,
+    Context,
+};
+use crate::{parser::Program, Parser};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 pub struct LocalModuleId(pub Index);
 
-#[derive(Debug, Copy, Clone,PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ModuleId {
-    pub krate : CrateId,
-    pub local_id : LocalModuleId,
+    pub krate: CrateId,
+    pub local_id: LocalModuleId,
 }
 
 #[derive(Debug)]
 pub struct CrateDefMap {
-    
     pub(crate) root: LocalModuleId,
 
-    pub(crate) modules : Arena<ModuleData>,
+    pub(crate) modules: Arena<ModuleData>,
 
-    pub(crate) krate : CrateId,
+    pub(crate) krate: CrateId,
 
-    pub(crate) extern_prelude : HashMap<String, ModuleId>,
+    pub(crate) extern_prelude: HashMap<String, ModuleId>,
 }
 
 impl CrateDefMap {
     // XXX: We will need to pass in a CrateManager to give access to the other crates
     // Each crate gives itself a LocalModuleId, independently.
-    // 
-    pub fn collect_defs(crate_id : CrateId, context : &mut Context) -> Result<(), Vec<CollectedErrors>>{
+    //
+    pub fn collect_defs(
+        crate_id: CrateId,
+        context: &mut Context,
+    ) -> Result<(), Vec<CollectedErrors>> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
-        // Without this check, the compiler will panic as it does not 
+        // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It does not
         // make the implementation wrong, it just makes it slow.
         if context.def_map(crate_id).is_some() {
-            return Ok(())
+            return Ok(());
         }
 
         let root_file_id = context.crate_graph[crate_id].root_file_id;
@@ -48,14 +54,14 @@ impl CrateDefMap {
         let ast = parse_root_file(&mut context.file_manager(), root_file_id);
 
         // Allocate a default Module for the root
-        let mut modules : Arena<ModuleData> = Arena::default();
+        let mut modules: Arena<ModuleData> = Arena::default();
         let root = modules.insert(ModuleData::default());
 
         let def_map = CrateDefMap {
-            root : LocalModuleId(root),
-            modules, 
-            krate : crate_id, 
-            extern_prelude : HashMap::new()
+            root: LocalModuleId(root),
+            modules,
+            krate: crate_id,
+            extern_prelude: HashMap::new(),
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
@@ -77,7 +83,7 @@ impl CrateDefMap {
 
     // Find the main function for this module
     pub fn main_function(&self) -> Option<FuncId> {
-        const MAIN_FUNCTION : &str = "main";
+        const MAIN_FUNCTION: &str = "main";
 
         let root_module = &self.modules()[self.root.0];
 
@@ -88,13 +94,11 @@ impl CrateDefMap {
         let root_module = &self.modules()[self.root.0];
         root_module.origin.into()
     }
-
 }
 /// Fetch the crate root and parse the file
-pub fn parse_root_file(fm : &mut FileManager, root_file_id : FileId) -> Program {
-    
+pub fn parse_root_file(fm: &mut FileManager, root_file_id: FileId) -> Program {
     let file = fm.fetch_file(root_file_id);
-    let mut parser = Parser::from_src(root_file_id,file.get_source());
+    let mut parser = Parser::from_src(root_file_id, file.get_source());
     match parser.parse_program() {
         Ok(prog) => prog,
         Err(_) => {
@@ -132,9 +136,11 @@ pub struct PerNs {
 }
 
 impl PerNs {
-
     pub fn types(t: ModuleDefId) -> PerNs {
-        PerNs { types: Some((t, Visibility::Public)), values: None}
+        PerNs {
+            types: Some((t, Visibility::Public)),
+            values: None,
+        }
     }
 
     pub fn take_types(self) -> Option<ModuleDefId> {
@@ -149,14 +155,10 @@ impl PerNs {
         self.types
             .map(|it| it.0)
             .into_iter()
-            .chain(
-        self.values
-            .map(|it| it.0)
-            .into_iter()
-            )
+            .chain(self.values.map(|it| it.0).into_iter())
     }
 
-    pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility) > {
+    pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility)> {
         self.types
             .map(|it| it)
             .into_iter()
@@ -177,17 +179,23 @@ pub struct ItemScope {
 }
 
 impl ItemScope {
-
-    pub fn add_definition(&mut self, name: String, mod_def : ModuleDefId) {
+    pub fn add_definition(&mut self, name: String, mod_def: ModuleDefId) {
         self.add_item_to_namespace(name, mod_def).unwrap();
         self.defs.push(mod_def);
     }
 
-    pub fn add_item_to_namespace(&mut self, name: String, mod_def : ModuleDefId) -> Result<(), String> {
-        
+    pub fn add_item_to_namespace(
+        &mut self,
+        name: String,
+        mod_def: ModuleDefId,
+    ) -> Result<(), String> {
         let old_value = match &mod_def {
-            ModuleDefId::ModuleId(_) => self.types.insert(name.clone(), (mod_def, Visibility::Public)),
-            ModuleDefId::FunctionId(_) => self.values.insert(name.clone(), (mod_def, Visibility::Public)),
+            ModuleDefId::ModuleId(_) => self
+                .types
+                .insert(name.clone(), (mod_def, Visibility::Public)),
+            ModuleDefId::FunctionId(_) => self
+                .values
+                .insert(name.clone(), (mod_def, Visibility::Public)),
         };
         match old_value {
             None => Ok(()),
@@ -199,31 +207,31 @@ impl ItemScope {
         }
     }
 
-    pub fn define_module_def(&mut self, name: String, mod_id : ModuleId) {
+    pub fn define_module_def(&mut self, name: String, mod_id: ModuleId) {
         self.add_definition(name, mod_id.into())
     }
-    pub fn define_func_def(&mut self, name : String, local_id : FuncId) {
+    pub fn define_func_def(&mut self, name: String, local_id: FuncId) {
         self.add_definition(name, local_id.into())
     }
 
-    pub fn find_module_with_name(&self, mod_name : &str) -> Option<&ModuleId> {
-        let (module_def,_ ) = self.types.get(mod_name)?;
+    pub fn find_module_with_name(&self, mod_name: &str) -> Option<&ModuleId> {
+        let (module_def, _) = self.types.get(mod_name)?;
         match module_def {
-            ModuleDefId::ModuleId(id)  => Some(id),
+            ModuleDefId::ModuleId(id) => Some(id),
             _ => None,
-        }    
+        }
     }
-    pub fn find_func_with_name(&self, func_name : &str) -> Option<FuncId> {
-        let (module_def,_ ) = self.values.get(func_name)?;
+    pub fn find_func_with_name(&self, func_name: &str) -> Option<FuncId> {
+        let (module_def, _) = self.values.get(func_name)?;
         match module_def {
-            ModuleDefId::FunctionId(id)  => Some(*id),
+            ModuleDefId::FunctionId(id) => Some(*id),
             _ => None,
-        }    
+        }
     }
-    pub fn find_name(&self, name : &str) -> PerNs {
+    pub fn find_name(&self, name: &str) -> PerNs {
         PerNs {
-            types : self.types.get(name).cloned(),
-            values : self.values.get(name).cloned(), 
+            types: self.types.get(name).cloned(),
+            values: self.values.get(name).cloned(),
         }
     }
 
@@ -263,7 +271,7 @@ impl Default for ModuleOrigin {
         ModuleOrigin::CrateRoot(FileId::default())
     }
 }
-#[derive(Debug, Copy,Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
@@ -272,9 +280,9 @@ pub enum ModuleDefId {
 impl ModuleDefId {
     pub fn as_function(&self) -> Option<FuncId> {
         if let ModuleDefId::FunctionId(func_id) = self {
-            return Some(*func_id)
+            return Some(*func_id);
         }
-        return None
+        return None;
     }
     // XXX: We are still allocating fro error reporting even though strings are stored in binary
     // It is a minor performance issue, which can be addressed by having the error reporting, not allocate

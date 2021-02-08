@@ -1,14 +1,14 @@
-use clap::{App, Arg};
+use acir::circuit::Circuit;
+use acir::native_types::Witness;
 use aztec_backend::barretenberg_rs::composer::{Assignments, ConstraintSystem, StandardComposer};
 use clap::ArgMatches;
+use clap::{App, Arg};
 use noir_evaluator::mangle_array_element_name;
-use noirc_frontend::ast::Type;
-use acir::native_types::Witness;
-use acir::circuit::Circuit;
 use noir_field::FieldElement;
+use noirc_driver::Driver;
+use noirc_frontend::ast::Type;
 use pwg::Solver;
 use std::collections::BTreeMap;
-use noirc_driver::Driver;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
@@ -43,7 +43,7 @@ fn main() {
                     Arg::with_name("proof_name")
                         .help("The name of the proof")
                         .required(true),
-                )
+                ),
         )
         .get_matches();
 
@@ -61,20 +61,18 @@ fn main() {
     }
 }
 
-
-
 #[derive(Clone, Debug)]
 struct Abi {
-    parameters: Vec<(String,Type)>,
+    parameters: Vec<(String, Type)>,
 }
 
 impl Abi {
     // In barretenberg, we need to add public inputs first
     // currently there does not seem to be a way to add a witness and then a public input
-    // So we have this special function to sort for barretenberg. 
+    // So we have this special function to sort for barretenberg.
     // It will need to be abstracted away or hidden behind the aztec_backend
     fn sort_by_public_input(mut self) -> Self {
-        let comparator = |a: &(String,Type),b: &(String,Type)| {
+        let comparator = |a: &(String, Type), b: &(String, Type)| {
             let typ_a = &a.1;
             let typ_b = &b.1;
 
@@ -85,20 +83,21 @@ impl Abi {
             } else {
                 std::cmp::Ordering::Greater
             }
-            
         };
 
         self.parameters.sort_by(comparator);
         self
-
     }
 
     fn parameter_names(&self) -> Vec<&String> {
-        self.parameters.iter().map(|x|&x.0).collect()
+        self.parameters.iter().map(|x| &x.0).collect()
     }
 
     fn len(&self) -> usize {
-        self.parameters.iter().map(|(_, param_type)| param_type.num_elements()).sum()
+        self.parameters
+            .iter()
+            .map(|(_, param_type)| param_type.num_elements())
+            .sum()
     }
 }
 
@@ -123,22 +122,26 @@ fn build_main() -> CompiledMain {
     );
 
     let compiled_program = Driver::compile_file(main_file_path);
-    let constraint_system =
-        aztec_backend::serialise_circuit(&compiled_program.circuit, compiled_program.num_witnesses, compiled_program.num_public_inputs);
+    let constraint_system = aztec_backend::serialise_circuit(
+        &compiled_program.circuit,
+        compiled_program.num_witnesses,
+        compiled_program.num_public_inputs,
+    );
 
     hash_constraint_system(&constraint_system);
 
     println!("acir size: {}", constraint_system.size());
-    
+
     CompiledMain {
         standard_format_cs: constraint_system,
-        circuit : compiled_program.circuit,
-        abi : Abi{parameters: compiled_program.abi.unwrap()},
+        circuit: compiled_program.circuit,
+        abi: Abi {
+            parameters: compiled_program.abi.unwrap(),
+        },
     }
 }
 
 fn create_smart_contract() {
-
     let compiled_main = build_main();
 
     let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
@@ -178,8 +181,7 @@ fn new_package(args: ArgMatches) {
     }
     ";
 
-    let input = 
-    r#"
+    let input = r#"
         x = "5"
         y = "10"
     "#;
@@ -207,7 +209,7 @@ fn verify(args: ArgMatches) {
 
     let mut composer = StandardComposer::new(compiled_main.standard_format_cs.size());
 
-    //XXX: Currently barretenberg appends the public inputs to the proof 
+    //XXX: Currently barretenberg appends the public inputs to the proof
     let public_inputs = None;
     let verified = composer.verify(&compiled_main.standard_format_cs, &proof, public_inputs);
 
@@ -219,7 +221,7 @@ fn verify(args: ArgMatches) {
 const WITNESS_OFFSET: usize = 1;
 
 // XXX: This function has accrued technical debt due to the addition
-// of collections into the ABI. This debt shall be cleaned up in the next refactor. 
+// of collections into the ABI. This debt shall be cleaned up in the next refactor.
 fn prove(args: ArgMatches) {
     let proof_name = args
         .subcommand_matches("prove")
@@ -248,9 +250,11 @@ fn prove(args: ArgMatches) {
     let param_names = sorted_abi.parameter_names();
     let mut index = 0;
     for param in param_names.into_iter() {
-
         // XXX: This is undesirable as we are eagerly allocating, but it avoids duplication
-        let err_msg = &format!("ABI expects the parameter `{}`, but this was not found in input.toml", param);
+        let err_msg = &format!(
+            "ABI expects the parameter `{}`, but this was not found in input.toml",
+            param
+        );
 
         // Note: the collection name will not be in the witness_map
         // only mangled_names for it's elements
@@ -258,18 +262,18 @@ fn prove(args: ArgMatches) {
             for i in 0..collection.1 {
                 let mangled_element_name = mangle_array_element_name(&collection.0, i);
                 let value = witness_map.get(&mangled_element_name).expect(err_msg);
-                                
+
                 let old_value = solved_witness.insert(
                     Witness::new(param.to_owned(), index + WITNESS_OFFSET),
                     value.clone(),
                 );
                 assert!(old_value.is_none());
-                
+
                 index += 1
             }
         } else {
             let value = witness_map.get(param).expect(err_msg);
-            
+
             let old_value = solved_witness.insert(
                 Witness::new(param.to_owned(), index + WITNESS_OFFSET),
                 value.clone(),
@@ -306,7 +310,6 @@ fn prove(args: ArgMatches) {
 }
 
 fn parse_input() -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
-
     // Get the path to the input file
     let mut input_file = std::env::current_dir().unwrap();
     input_file.push(std::path::PathBuf::from("bin"));
@@ -320,8 +323,9 @@ fn parse_input() -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
     // Get input.toml file as a string
     let input_as_string = std::fs::read_to_string(input_file).unwrap();
 
-    // Parse input.toml into a BTreeMap, converting the argument to field elements 
-    let data : BTreeMap<String, TomlTypes> = toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
+    // Parse input.toml into a BTreeMap, converting the argument to field elements
+    let data: BTreeMap<String, TomlTypes> =
+        toml::from_str(&input_as_string).expect("input.toml file is badly formed, could not parse");
 
     toml_map_to_field(data)
 }
@@ -330,23 +334,26 @@ fn parse_input() -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
 ///
 /// Arrays are flattened and each element is given a unique parameter name
 /// We need to extract the collection types, since they are not in the FieldMap
-/// 
+///
 /// Returns FieldMap and name of all collections
-fn toml_map_to_field(toml_map : BTreeMap<String, TomlTypes>) -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
+fn toml_map_to_field(
+    toml_map: BTreeMap<String, TomlTypes>,
+) -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
     let mut field_map = BTreeMap::new();
 
     let mut collections = Vec::new();
-    
+
     for (parameter, value) in toml_map {
         match value {
             TomlTypes::String(string) => {
                 let old_value = field_map.insert(parameter.clone(), parse_str(&string));
                 assert!(old_value.is_none(), "duplicate variable name {}", parameter);
-            },
+            }
             TomlTypes::Integer(integer) => {
-                let old_value = field_map.insert(parameter.clone(), parse_str(&integer.to_string()));
+                let old_value =
+                    field_map.insert(parameter.clone(), parse_str(&integer.to_string()));
                 assert!(old_value.is_none(), "duplicate variable name {}", parameter);
-            },
+            }
             TomlTypes::ArrayNum(arr_num) => {
                 collections.push((parameter.clone(), arr_num.len()));
                 // We need the elements in the array to map to unique names
@@ -355,8 +362,13 @@ fn toml_map_to_field(toml_map : BTreeMap<String, TomlTypes>) -> (BTreeMap<String
                 // This is the only reason why we could have a duplicate name
                 for (index, element) in arr_num.into_iter().enumerate() {
                     let unique_param_name = mangle_array_element_name(&parameter, index);
-                    let old_value = field_map.insert(unique_param_name.clone(), parse_str(&element.to_string()));
-                    assert!(old_value.is_none(), "duplicate variable name {}", unique_param_name);
+                    let old_value = field_map
+                        .insert(unique_param_name.clone(), parse_str(&element.to_string()));
+                    assert!(
+                        old_value.is_none(),
+                        "duplicate variable name {}",
+                        unique_param_name
+                    );
                 }
             }
             TomlTypes::ArrayString(arr_str) => {
@@ -364,10 +376,14 @@ fn toml_map_to_field(toml_map : BTreeMap<String, TomlTypes>) -> (BTreeMap<String
 
                 for (index, element) in arr_str.into_iter().enumerate() {
                     let unique_param_name = mangle_array_element_name(&parameter, index);
-                    let old_value = field_map.insert(unique_param_name.clone(), parse_str(&element.to_string()));
-                    assert!(old_value.is_none(), "duplicate variable name {}", unique_param_name);
+                    let old_value = field_map
+                        .insert(unique_param_name.clone(), parse_str(&element.to_string()));
+                    assert!(
+                        old_value.is_none(),
+                        "duplicate variable name {}",
+                        unique_param_name
+                    );
                 }
-
             }
         }
     }
@@ -375,15 +391,15 @@ fn toml_map_to_field(toml_map : BTreeMap<String, TomlTypes>) -> (BTreeMap<String
     (field_map, collections)
 }
 
-fn parse_str(value : &str) -> FieldElement {
+fn parse_str(value: &str) -> FieldElement {
     if value.starts_with("0x") {
-        FieldElement::from_hex(value).expect(&format!("Could not parse hex value {}", value))                   
-     } else {
-         let val : i128 = value
-         .parse()
-         .expect("Expected witness values to be integers");
-         FieldElement::from(val)
-     }
+        FieldElement::from_hex(value).expect(&format!("Could not parse hex value {}", value))
+    } else {
+        let val: i128 = value
+            .parse()
+            .expect("Expected witness values to be integers");
+        FieldElement::from(val)
+    }
 }
 use serde_derive::Deserialize;
 #[derive(Debug, Deserialize)]
@@ -397,7 +413,7 @@ enum TomlTypes {
     // Array of regular integers
     ArrayNum(Vec<u64>),
     // Array of hexadecimal integers
-    ArrayString(Vec<String>)
+    ArrayString(Vec<String>),
 }
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
