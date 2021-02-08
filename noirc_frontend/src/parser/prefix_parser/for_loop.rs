@@ -3,7 +3,7 @@ use super::*;
 pub struct ForParser;
 
 impl ForParser {
-    /// Parses a for statement.
+    /// Parses a for expression.
     ///
     /// ```noir
     /// for IDENT in RANGE_START..RANGE_END {
@@ -75,3 +75,61 @@ impl ForParser {
     }
 }
 
+
+#[cfg(test)]
+mod test {
+    use crate::parser::test_parse;
+
+    use super::ForParser;
+
+    #[test]
+    fn valid_syntax() {
+
+        /// Why is this allowed?
+        ///
+        /// The Parser does not check the types of the loops,
+        /// it only checks for valid expressions in RANGE_START and
+        /// RANGE_END
+        const SRC_EXPR_LOOP : &'static str = r#"
+            for i in x+y..z {
+
+            }
+        "#;
+        const SRC_CONST_LOOP : &'static str = r#"
+            for i in 0..100 {
+
+            }
+        "#;
+    
+        ForParser::parse(&mut test_parse(SRC_EXPR_LOOP)).unwrap();
+        ForParser::parse(&mut test_parse(SRC_CONST_LOOP)).unwrap();
+    }
+
+    #[test]
+    fn invalid_syntax() {
+
+        /// Cannot have a literal as the loop identifier
+        const SRC_LITERAL_IDENT : &'static str = r#"
+            for 1 in x+y..z {
+
+            }
+        "#;
+        /// Currently only the DoubleDot is supported
+        const SRC_INCLUSIVE_LOOP : &'static str = r#"
+            for i in 0...100 {
+
+            }
+        "#;
+        /// Currently only the DoubleDot is supported
+        const SRC_INCLUSIVE_EQUAL_LOOP : &'static str = r#"
+            for i in 0..=100 {
+
+            }
+        "#;
+    
+        ForParser::parse(&mut test_parse(SRC_LITERAL_IDENT)).unwrap_err();
+        ForParser::parse(&mut test_parse(SRC_INCLUSIVE_LOOP)).unwrap_err();
+        ForParser::parse(&mut test_parse(SRC_INCLUSIVE_EQUAL_LOOP)).unwrap_err();
+    }
+
+}

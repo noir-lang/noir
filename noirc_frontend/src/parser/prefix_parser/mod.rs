@@ -8,7 +8,7 @@ mod name;
 mod unary;
 mod r#use;
 mod module;
-mod r#for;
+mod for_loop;
 mod constrain;
 mod path;
 mod block;
@@ -17,7 +17,7 @@ use unary::UnaryParser;
 use group::GroupParser;
 use literal::LiteralParser;
 pub(super) use name::NameParser;
-use r#for::ForParser;
+use for_loop::ForParser;
 use block::BlockParser;
 
 pub use array::ArrayParser;
