@@ -1,3 +1,5 @@
+use core::num;
+
 use crate::binary_op;
 use acir::native_types::{Arithmetic, Linear,Witness};
 use crate::{Object, Gate};
@@ -114,11 +116,10 @@ impl Integer {
     ) -> Result<Integer, RuntimeErrorKind> {
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
-        assert_eq!(
-            self.num_bits, num_bits,
-            "Both integers must have the same integer type. Expected u{}, got u{}",
-            self.num_bits, num_bits
-        );
+        if self.num_bits != num_bits {
+            let err =  RuntimeErrorKind::Spanless(format!("Both integers must have the same integer type. Expected u{}, got u{}",self.num_bits, num_bits));
+            return Err(err)
+        }
 
         // Add a gate which subtracts both integers
         let res = binary_op::handle_sub_op(
@@ -141,7 +142,7 @@ impl Integer {
     ) -> Result<Integer, RuntimeErrorKind> {
         if self.num_bits != rhs.num_bits {
             let message = format!("Expected a u{} got u{}", self.num_bits, rhs.num_bits);
-            return Err(RuntimeErrorKind::UnstructuredError{span : Default::default(), message});
+            return Err(RuntimeErrorKind::Spanless(message));
         }
 
         let op_str = if is_xor_gate { "xor" } else { "and" };
