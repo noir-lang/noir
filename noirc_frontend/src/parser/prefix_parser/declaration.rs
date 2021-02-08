@@ -13,7 +13,7 @@ struct GenericDeclStructure {
 pub struct DeclarationParser;
 
 impl DeclarationParser {
-    /// Parses a declaration statement. The token parameter determines what type of statement will be parsed
+    /// Parses a generic declaration statement. The token parameter determines what type of statement will be parsed
     ///
     /// XXX: We can make this clearer by further separating keywords into declaration keywords.
     /// This would ensure that the match statement will always be exhaustive on the list 
