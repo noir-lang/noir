@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
                 return self.parse_statement()
             }
             Token::Keyword(Keyword::Constrain) => {
-                Statement::Constrain(ConstrainParser::parse_constrain_statement(self)?)
+                Statement::Constrain(ConstrainParser::parse_statement(self)?)
             }
             _ => {
                 let expr = self.parse_expression_statement()?;
@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
         let mut left_exp = match self.choose_prefix_parser() {
             Some(prefix_parser) => prefix_parser.parse(self)?,
             None => {
-                return Err(ParserErrorKind::NoPrefixFunction{span : self.curr_token.into_span(), lexeme: self.curr_token.token().to_string()}.into_err(self.file_id))
+                return Err(ParserErrorKind::ExpectedExpression{span : self.curr_token.into_span(), lexeme: self.curr_token.token().to_string()}.into_err(self.file_id))
             }
         };
 
@@ -292,26 +292,58 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse a comma separated list with a chosen delimiter
+    ///
+    /// This function is used to parse arrays and call expressions.
+    /// It is very similar to `parse_fn_parameters`, in the future 
+    /// these methods may be unified.
+    ///
+    /// Cursor Start : `START_TOKEN`
+    /// 
+    /// Cursor End : `END_TOKEN`
+    ///
+    /// Importantly note that the cursor should be on the starting token
+    /// and not the first element in the list.
+    /// 
+    /// Example : [a,b,c] 
+    /// START_TOKEN = `[`
+    /// END_TOKEN = `]`
     pub(crate) fn parse_comma_separated_argument_list(
         &mut self,
-        delimeter: Token,
+        closing_token: Token,
     ) -> Result<Vec<Expression>, ParserError> {
-        if self.peek_token == delimeter {
+        // An empty container. 
+        // Advance to the ending token and 
+        // return an empty array
+        if self.peek_token == closing_token {
             self.advance_tokens();
             return Ok(Vec::new());
         }
         let mut arguments: Vec<Expression> = Vec::new();
 
+        // Parse the first element, implicitly assuming that `parse_expression`
+        // does not advance the token from what it has just parsed
         self.advance_tokens();
         arguments.push(self.parse_expression(Precedence::Lowest)?);
+
         while self.peek_token == Token::Comma {
+
             self.advance_tokens();
+
+            if (self.curr_token == Token::Comma) && (self.peek_token == closing_token) {
+                // Entering here means there is nothing else to parse;
+                // the list has a trailing comma
+                break
+            }
+
             self.advance_tokens();
+
+            
 
             arguments.push(self.parse_expression(Precedence::Lowest)?);
         }
 
-        self.peek_check_variant_advance(&delimeter)?;
+        self.peek_check_variant_advance(&closing_token)?;
 
         Ok(arguments)
     }
