@@ -212,10 +212,10 @@ pub(crate) fn type_check_expression(interner : &mut NodeInterner, expr_id : &Exp
 
             (Type::Integer(sign_x, bit_width_x), Type::Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
-                    return Err(format!("Integers must have the same Signedness lhs is {:?}, rhs is {:?} ", sign_x, sign_y))
+                    return Err(format!("Integers must have the same signedness lhs is {:?}, rhs is {:?} ", sign_x, sign_y))
                 }
                 if bit_width_x != bit_width_y {
-                    return Err(format!("Integers must have the same Bit width lhs is {}, rhs is {} ", bit_width_x, bit_width_y))
+                    return Err(format!("Integers must have the same bit width lhs is {}, rhs is {} ", bit_width_x, bit_width_y))
                 }
                 Ok(Type::Integer(*sign_x, *bit_width_x))
             }
