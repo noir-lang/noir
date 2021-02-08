@@ -1,0 +1,10 @@
+
+        # This leaf value is the blake2s hash of 64 zeroes (reduced)
+        # XXX: Could we simply take the lower 128 bits when passing it to the merkle 
+        # root, or do we need to do some sort of reduction?
+        leaf = "0x1cdcf02431ba623767fe389337d011df1048dcc24b98ed81cec97627bab454a0"
+        #  This is the root, given that all of the leaves are the same
+        #  and the merkle tree has a depth of 3
+        root_pub = "0x0620374242254671503abf57d13969d41bbae97e59fa97cd7777cd683beb9eb8"
+    
+      
