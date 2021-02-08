@@ -136,6 +136,7 @@ impl<'a> Evaluator<'a> {
             // XXX: We can additionally check that these arithmetic gates are done correctly via our optimiser -- It should have no effect if passed in twice
         }
 
+
         // Print all gates for debug purposes
         // for gate in optimised_arith_gates.iter() {
         //     // dbg!(gate);
@@ -193,8 +194,14 @@ impl<'a> Evaluator<'a> {
             HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
             HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
             HirBinaryOpKind::GreaterEqual => binary_op::handle_greater_than_equal_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Assign => unreachable!("The Binary operation `=` can only be used in declaration statements"),
-            HirBinaryOpKind::Or => todo!("The Or operation is currently not implemented. Coming soon.")
+            HirBinaryOpKind::Assign => {
+                let err = RuntimeErrorKind::Spanless("The Binary operation `=` can only be used in declaration statements".to_string());
+                return Err(err)
+            },
+            HirBinaryOpKind::Or => {
+                let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
+                return Err(err);
+            }
         }
     }
 
@@ -224,6 +231,7 @@ impl<'a> Evaluator<'a> {
         // Maybe `pub param_name : []u8
         enum AbiType{
             Witness(String),
+            Integer(String, Signedness, u32),
             Array(String, u128, Type),
         }
 
@@ -250,7 +258,13 @@ impl<'a> Evaluator<'a> {
                     };
                     witnesses.push(AbiType::Array(param_name,len, *typ));
                 }
-                k=> todo!("Currently we only have support for Private and Public inputs in the main function definition. {:?}", k)
+                Type::Integer(signedness, length)=> {
+                    witnesses.push(AbiType::Integer(param_name, signedness, length))
+                },
+                typ=> {
+                    let msg = format!("ABI support for {} in the parameter is unsupported", typ.to_string());
+                    return Err(RuntimeErrorKind::Spanless(msg))
+                }
             }
         }
 
@@ -261,6 +275,7 @@ impl<'a> Evaluator<'a> {
         for param_ in pub_inputs.into_iter() {
             match param_ {
                 AbiType::Array(_,_,_) => unreachable!("currently there is no syntax to fully support arrays of public field elements"),
+                AbiType::Integer(_,_,_) => unreachable!("currently there is no syntax to fully support public integers"),
                 AbiType::Witness(param_name) =>{
                     let witness = self.add_witness_to_cs(param_name, Type::Public);
                     self.add_witness_to_env(witness, env);
@@ -301,6 +316,18 @@ impl<'a> Evaluator<'a> {
                 AbiType::Witness(param_name) => {
                     let witness = self.add_witness_to_cs(param_name, Type::Witness);
                     self.add_witness_to_env(witness, env);
+                }
+                AbiType::Integer(param_name, sign, num_bits) => {
+                    let witness = self.add_witness_to_cs(param_name.clone(), Type::Witness);
+
+                    // Currently we do not support signed integers
+                    assert!(sign != Signedness::Signed, "signed integers are currently not supported");
+                           
+                    let integer = Integer::from_witness(witness, num_bits);
+                    integer.constrain(self)?;
+                    
+                    env.store(param_name, Object::Integer(integer));
+
                 }
             }
         }
@@ -417,7 +444,7 @@ impl<'a> Evaluator<'a> {
             lhs_poly.clone(),
             rhs_poly.clone(),
             constrain_stmt.0.operator,
-        );
+        )?;
 
         // XXX: We could probably move this into equal folder, as it is an optimisation that only applies to it
         if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
@@ -538,6 +565,7 @@ impl<'a> Evaluator<'a> {
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
+                let ident_span = self.context.def_interner.ident_span(&indexed_expr.collection_name);
                 let arr = env.get_array(&arr_name)?;
         
                 // Evaluate the index expression
@@ -548,7 +576,7 @@ impl<'a> Evaluator<'a> {
                 };
                 let index_as_u128 = index_as_constant.to_u128();
                 
-                arr.get(index_as_u128)
+                arr.get(index_as_u128, ident_span)
             }
             HirExpression::Call(call_expr) => {
 
