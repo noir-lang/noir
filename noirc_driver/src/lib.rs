@@ -1,9 +1,8 @@
 
 use std::path::{Path, PathBuf};
-use fm::FileManager;
 use noirc_errors::Reporter;
 use noirc_errors::DiagnosableError;
-use noirc_frontend::{hir::{crate_def_map::CrateDefMap, crate_graph::{CrateGraph, CrateId, CrateName, CrateType, LOCAL_CRATE}, lower::node_interner::FuncId}};
+use noirc_frontend::{hir::{crate_def_map::CrateDefMap, crate_graph::{CrateId, CrateName, CrateType, LOCAL_CRATE}, lower::node_interner::FuncId}};
 use noirc_frontend::hir::Context;
 use noir_evaluator::Evaluator;
 use noirc_frontend::ast::Type;
@@ -25,7 +24,8 @@ impl Driver{
         Driver {context : Context::default()}
     }
 
-    // This is here for backwards compatibility.
+    // This is here for backwards compatibility
+    // with the restricted version which only uses one file
     pub fn compile_file(root_file : PathBuf) -> CompiledProgram {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
@@ -35,7 +35,7 @@ impl Driver{
     /// Adds the File with the local crate root to the file system 
     /// and adds the local crate to the graph
     /// XXX: This may pose a problem with workspaces, where you can change the local crate and where 
-    /// we have multiple binaries
+    /// we have multiple binaries in one workspace
     /// A Fix would be for the driver instance to store the local crate id.
     // Granted that this is the only place which relies on the local crate being first
     pub fn create_local_crate<P: AsRef<Path>>(&mut self, root_file : P, crate_type : CrateType) {
@@ -73,6 +73,8 @@ impl Driver{
         self.context.crate_graph.add_dep(this_crate, crate_name, depends_on).expect("cyclic dependency triggered");
     }
 
+    /// Adds the standard library to the dep graph
+    /// and statically analyses the local crate
     pub fn build(&mut self) {
         self.add_std_lib();
 
