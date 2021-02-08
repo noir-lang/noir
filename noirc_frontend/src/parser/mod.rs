@@ -8,7 +8,7 @@ pub use errors::ParserError;
 
 pub use parser::{Parser, ParserExprResult,ParserExprKindResult};
 
-use crate::{FunctionKind, NoirFunction, ast::{FunctionDefinition, ImportStatement, Type}};
+use crate::{Expression, FunctionKind, NoirFunction, ast::{FunctionDefinition, ImportStatement, Type}};
 use crate::token::{Keyword, Token, SpannedToken};
 
 #[derive(Clone, Debug)]
@@ -27,7 +27,7 @@ impl Program {
     pub fn abi(&self) -> Option<Vec<(String, Type)>> {
         let main_func = self.find_function(MAIN_FUNCTION)?;
         match main_func.kind {
-            FunctionKind::Normal => Some(Program::func_to_abi(main_func.def())), // The main function should be normal and not a builtin/lowlevel
+            FunctionKind::Normal => Some(Program::func_to_abi(main_func.def())), // The main function should be normal and not a builtin/low level
             _=> None 
         }
         
@@ -117,4 +117,8 @@ impl From<&SpannedToken> for Precedence {
     fn from(t: &SpannedToken) -> Precedence {
         Precedence::token_precedence(t.token())
     }
+}
+
+pub(crate) fn test_parse(src : &str) -> Parser {
+    Parser::from_src(Default::default(), src)
 }

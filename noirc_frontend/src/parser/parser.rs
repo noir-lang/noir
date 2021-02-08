@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
 
         // The first type of statement we could have is a variable declaration statement
         if self.curr_token.can_start_declaration() {
-            return DeclarationParser::parse_declaration_statement(self);
+            return DeclarationParser::parse_statement(self);
         };
 
         let stmt = match self.curr_token.token() {
