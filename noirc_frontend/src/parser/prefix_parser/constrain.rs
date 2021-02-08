@@ -26,8 +26,12 @@ fn disallowed_operators() -> Vec<BinaryOpKind> {
     ]
 }
 
-// XXX: Change this to include the fact that we are parsing a stmt and not an expr
-// Also change method name to be cleaner
+/// Parses statements of the form 
+/// - constrain <EXPR> OP <EXPR>
+/// 
+/// Cursor Start : `constrain`
+/// 
+/// Cursor End : `;`
 impl ConstrainParser {
     // Since == is an infix operator
     // The pratt parser will do most of the job, we just need to check that everything was correct
