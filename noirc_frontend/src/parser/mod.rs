@@ -119,6 +119,7 @@ impl From<&SpannedToken> for Precedence {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn test_parse(src : &str) -> Parser {
     Parser::from_src(Default::default(), src)
 }
