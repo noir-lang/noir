@@ -143,6 +143,24 @@ impl BinaryOpKind {
             _=> false
         }
     }
+    pub fn as_string(&self) -> &str {
+        match self {
+            BinaryOpKind::Add => "+",
+            BinaryOpKind::Subtract => "-",
+            BinaryOpKind::Multiply => "*",
+            BinaryOpKind::Divide => "/",
+            BinaryOpKind::Equal => "==",
+            BinaryOpKind::NotEqual => "!=",
+            BinaryOpKind::Less => "<",
+            BinaryOpKind::LessEqual => "<=",
+            BinaryOpKind::Greater => ">",
+            BinaryOpKind::GreaterEqual => ">=",
+            BinaryOpKind::And => "&",
+            BinaryOpKind::Or => "|",
+            BinaryOpKind::Xor => "^",
+            BinaryOpKind::Assign => "="
+        }
+    }
 }
 
 impl From<&Token> for Option<BinaryOpKind> {
