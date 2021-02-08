@@ -176,7 +176,7 @@ impl GadgetCaller {
                 let mut barretenberg = Barretenberg::new();
                 
                 let result = barretenberg.verify_signature(pub_key,signature, &message);
-                if result == FieldElement::one() {
+                if result != FieldElement::one() {
                     dbg!("signature has failed to verify");
                 }
                 
@@ -187,7 +187,9 @@ impl GadgetCaller {
                 let inputs_iter = gadget_call.inputs.iter(); 
                 
                 let scalars : Vec<_> = inputs_iter.map(|input| {
-                    input_to_value(initial_witness, input).clone() // XXX: not desirable. Remove on next refactor.
+                    // XXX: Clone is not desirable. Remove on next refactor.
+                    // Although it is just a memcpy
+                    input_to_value(initial_witness, input).clone() 
                 }).collect();
                 
                 let mut barretenberg = Barretenberg::new();
