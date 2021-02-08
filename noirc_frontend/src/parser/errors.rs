@@ -10,8 +10,8 @@ use noirc_errors::Span;
 pub enum ParserErrorKind {
     #[error("Lexer error found")]
     LexerError(LexerError),
-    #[error(" `{:?}` cannot be used as a prefix operator.", lexeme)]
-    NoPrefixFunction { span: Span, lexeme: String },
+    #[error(" expected expression, found `{}`", lexeme)]
+    ExpectedExpression { span: Span, lexeme: String },
     #[error(" `{:?}` cannot be used as a binary operator.", lexeme)]
     NoInfixFunction { span: Span, lexeme: String },
     #[error("Unexpected token found")]
@@ -39,7 +39,7 @@ impl ParserErrorKind {
 
 #[derive(Debug)]
 pub struct ParserError {
-    kind : ParserErrorKind,
+    pub(crate) kind : ParserErrorKind,
     file_id : usize,
 }
 
@@ -49,7 +49,7 @@ impl DiagnosableError for ParserError {
         match &self.kind {
             ParserErrorKind::LexerError(lex_err) => lex_err.to_diagnostic(),
             ParserErrorKind::InternalError{message, span} => unreachable!("Internal Error. This is a bug in the compiler. Please report the following message :\n {} \n with the following span {:?}", message,span),
-            ParserErrorKind::NoPrefixFunction{span, lexeme} => {
+            ParserErrorKind::ExpectedExpression{span, lexeme} => {
                 let mut diag = Diagnostic::simple_error(format!("Unexpected start of an expression {}", lexeme), format!("did not expect this token"), *span);
                 diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimiter."));
                 diag
