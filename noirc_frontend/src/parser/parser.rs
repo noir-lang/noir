@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
                     self.on_value(func_def, |value| program.push_function(value));
                 }
                 Token::Keyword(Keyword::Mod) => {
-                    let parsed_mod = ModuleParser::parse_module_decl(self);
+                    let parsed_mod = ModuleParser::parse_decl(self);
                     self.on_value(parsed_mod, |module_identifier| {
                         program.push_module_decl(module_identifier)
                     });

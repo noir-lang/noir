@@ -10,7 +10,7 @@ impl ModuleParser {
     /// Cursor Start : `mod`
     ///
     /// Cursor End : `;`
-    pub(crate) fn parse_module_decl(parser: &mut Parser) -> Result<String, ParserError> {
+    pub(crate) fn parse_decl(parser: &mut Parser) -> Result<String, ParserError> {
         // Currently on the mod keyword
         //
         // Peek ahead and check if the next token is an identifier
