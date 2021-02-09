@@ -390,7 +390,7 @@ impl<'a> Evaluator<'a> {
                 env.store(variable_name, value);
                 Ok(Object::Null)
             }
-            HirStatement::Expression(expr) => self.expression_to_object(env, &expr),
+            HirStatement::Expression(expr) | HirStatement::Semi(expr) => self.expression_to_object(env, &expr),
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_let_statement(env, let_stmt)?;
