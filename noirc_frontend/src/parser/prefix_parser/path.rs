@@ -4,22 +4,37 @@ use super::*;
 pub struct PathParser;
 
 impl PathParser {
+    /// Parses a Path
+    ///
+    /// std::hash
+    /// std
+    /// core::foo::bar
+    ///
+    /// Cursor Start : `FIRST_PATH_SEGMENT`
+    ///
+    /// Cursor End : `LAST_PATH_SEGMENT`
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
         let mut parsed_path = Vec::new();
 
-        loop {
+        // Parse the first path segment
+        let segment = PrefixParser::Name.parse(parser)?.into_ident().unwrap();
+        parsed_path.push(segment);
+
+        while parser.peek_token == Token::DoubleColon {
+            // Current token is `IDENT`
+            //
+            // Bump Cursor.
+            parser.advance_tokens();
+            // Current token is `::` (peeked)
+            //
+            // Bump Cursor.
+            parser.advance_tokens();
+
+            // If the path is valid, we should now be on an Identifier token
             let segment = PrefixParser::Name.parse(parser)?.into_ident().unwrap();
             parsed_path.push(segment);
-
-            // Since NameParser does not advance past it's Identifier
-            // Current token should now be an identifier. Lets peek at the next token to check if the path is finished
-            if parser.peek_token == Token::DoubleColon {
-                parser.advance_tokens(); // Advanced past the Identifier which is the current token
-                parser.advance_tokens(); // Advanced past the :: which we peeked and know is there
-            } else {
-                break;
-            }
         }
+
         let path_kind = path_kind(
             parsed_path
                 .first()
@@ -46,5 +61,45 @@ fn path_kind(ident: &Ident) -> PathKind {
         PathKind::Dep
     } else {
         PathKind::Plain
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{parser::test_parse, ExpressionKind, Path};
+
+    use super::PathParser;
+
+    fn expr_to_path(expr: ExpressionKind) -> Path {
+        match expr {
+            ExpressionKind::Path(pth) => pth,
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn valid_syntax() {
+        let vectors = vec![
+            ("std", vec!["std"]),
+            ("std::hash", vec!["std", "hash"]),
+            ("std::hash::collections", vec!["std", "hash", "collections"]),
+            ("crate::std::hash", vec!["crate", "std", "hash"]),
+        ];
+
+        for (src, expected_seg) in vectors {
+            let expr = PathParser::parse(&mut test_parse(src)).unwrap();
+            let path = expr_to_path(expr);
+            for (got, expected) in path.segments.into_iter().zip(expected_seg) {
+                assert_eq!(&got.0.contents, expected)
+            }
+        }
+    }
+    #[test]
+    fn invalid_syntax() {
+        let vectors = vec!["std::", "::std", "std::hash::", "foo::1::"];
+
+        for src in vectors {
+            PathParser::parse(&mut test_parse(src)).unwrap_err();
+        }
     }
 }
