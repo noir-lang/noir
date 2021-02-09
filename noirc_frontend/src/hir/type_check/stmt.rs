@@ -16,8 +16,34 @@ pub(crate) fn type_check(
     stmt_id: &StmtId,
 ) -> Result<(), TypeCheckError> {
     match interner.statement(stmt_id) {
-        HirStatement::Expression(expr_id) | HirStatement::Semi(expr_id) => {
-            type_check_expression(interner, &expr_id)
+        // Lets lay out a convincing argument that the handling of
+        // SemiExpressions and Expressions below is correct.
+        //
+        // The only time you will get a Semi expression is if
+        // you have an expression by itself
+        //
+        // Example:
+        //
+        // 5; or x; or x+a;
+        //
+        // In these cases, you cannot even get the expr_id because
+        // it is not binded to anything. We could therefore.
+        //
+        // However since TypeChecking checks the return type of the last statement
+        // the type checker could in the future incorrectly return the type.
+        //
+        // As it stands, this is also impossible because the ret_type function
+        // does not use the interner to get the type. It returns Unit.
+        //
+        // The reason why we still modify the database, is to make sure it is future-proof
+        HirStatement::Expression(expr_id) => type_check_expression(interner, &expr_id),
+        HirStatement::Semi(expr_id) => {
+            type_check_expression(interner, &expr_id)?;
+
+            // Modify the type of the expression to be Unit
+            interner.modify_expr_type(&expr_id, Type::Unit);
+
+            Ok(())
         }
         HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt),
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt),
