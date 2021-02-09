@@ -16,7 +16,9 @@ pub(crate) fn type_check(
     stmt_id: &StmtId,
 ) -> Result<(), TypeCheckError> {
     match interner.statement(stmt_id) {
-        HirStatement::Expression(expr_id) => type_check_expression(interner, &expr_id),
+        HirStatement::Expression(expr_id) | HirStatement::Semi(expr_id) => {
+            type_check_expression(interner, &expr_id)
+        }
         HirStatement::Private(priv_stmt) => type_check_priv_stmt(interner, priv_stmt),
         HirStatement::Let(let_stmt) => type_check_let_stmt(interner, let_stmt),
         HirStatement::Const(const_stmt) => type_check_const_stmt(interner, const_stmt),

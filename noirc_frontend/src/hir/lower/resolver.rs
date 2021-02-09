@@ -278,6 +278,10 @@ impl<'a> Resolver<'a> {
                 let stmt = HirStatement::Expression(self.resolve_expression(expr));
                 self.interner.push_stmt(stmt)
             }
+            Statement::Semi(expr) => {
+                let stmt = HirStatement::Semi(self.resolve_expression(expr));
+                self.interner.push_stmt(stmt)
+            }
         }
     }
 

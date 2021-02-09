@@ -47,4 +47,5 @@ pub enum HirStatement {
     Public(HirPublicStatement),
     Private(HirPrivateStatement),
     Expression(ExprId),
+    Semi(ExprId),
 }
