@@ -4,6 +4,7 @@ pub struct GroupParser;
 
 impl GroupParser {
     /// The Group Parser is a precedent lifter.
+    ///
     /// Cursor Start : `(`
     ///
     /// Cursor End : `)`
