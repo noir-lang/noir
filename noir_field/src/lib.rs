@@ -47,6 +47,10 @@ impl FieldElement {
     /// or if the hex string is invalid.
     /// This method can be used for both hex and decimal representations.
     pub fn from_str(input: &str) -> Option<FieldElement> {
+        if input.contains('x') {
+            return Fr::from_hex(input).map(|fr| FieldElement(fr)).ok();
+        }
+
         let fr = match Fr::from_str(input) {
             None => return None,
             Some(x) => x,
