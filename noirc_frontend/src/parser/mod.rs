@@ -124,3 +124,13 @@ impl From<&SpannedToken> for Precedence {
 pub(crate) fn test_parse(src: &str) -> Parser {
     Parser::from_src(Default::default(), src)
 }
+
+#[cfg(test)]
+pub(crate) fn dummy_expr() -> Expression {
+    use crate::parser::prefix_parser::PrefixParser;
+    const SRC: &'static str = r#"
+        5;
+    "#;
+    let mut parser = test_parse(SRC);
+    PrefixParser::Literal.parse(&mut parser).unwrap()
+}

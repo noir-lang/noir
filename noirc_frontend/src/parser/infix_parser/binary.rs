@@ -50,16 +50,10 @@ fn token_to_binary_op(spanned_tok: &SpannedToken, file_id: usize) -> Result<Bina
 #[cfg(test)]
 mod test {
 
-    use crate::{parser::test_parse, token::Token, Expression};
-
-    fn dummy_expr() -> Expression {
-        use crate::parser::prefix_parser::PrefixParser;
-        const SRC: &'static str = r#"
-            5;
-        "#;
-        let mut parser = test_parse(SRC);
-        PrefixParser::Literal.parse(&mut parser).unwrap()
-    }
+    use crate::{
+        parser::{dummy_expr, test_parse},
+        Expression,
+    };
 
     use super::BinaryParser;
 
@@ -71,8 +65,22 @@ mod test {
             let mut parser = test_parse(src);
             let _ = BinaryParser::parse(&mut parser, dummy_expr()).unwrap();
         }
-        // let end = parser.curr_token.clone();
-        // let start = parser.curr_token.clone();
+    }
+
+    #[test]
+    fn start_end_cursor() {
+        const SRC: &'static str = " + 6";
+
+        let mut parser = test_parse(SRC);
+
+        let start = parser.curr_token.clone();
+
+        let _ = BinaryParser::parse(&mut parser, dummy_expr()).unwrap();
+
+        let end = parser.curr_token.clone();
+
+        assert_eq!(start, crate::token::Token::Plus);
+        assert_eq!(end, crate::token::Token::Int(6.into()));
     }
     #[test]
     fn invalid_syntax() {
