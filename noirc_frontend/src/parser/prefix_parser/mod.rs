@@ -11,7 +11,7 @@ mod module;
 mod name;
 mod path;
 mod unary;
-mod r#use;
+mod use_stmt;
 
 use block::BlockParser;
 use for_loop::ForParser;
@@ -27,7 +27,7 @@ pub use function::FuncParser;
 pub use module::ModuleParser;
 pub use path::PathParser;
 pub use if_expr::IfParser;
-pub use r#use::UseParser;
+pub use use_stmt::UseParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
