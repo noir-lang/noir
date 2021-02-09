@@ -160,6 +160,10 @@ impl NodeInterner {
     pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
     }
+    // This is used specifically for SemiExpressions
+    pub fn modify_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
+        self.id_to_type.insert(expr_id.into(), typ);
+    }
     pub fn push_ident_type(&mut self, ident_id: &IdentId, typ: Type) {
         self.id_to_type.insert(ident_id.into(), typ);
     }
