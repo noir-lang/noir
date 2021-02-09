@@ -5,7 +5,7 @@ mod declaration;
 mod for_loop;
 mod function;
 mod group;
-mod r#if;
+mod if_expr;
 mod literal;
 mod module;
 mod name;
@@ -26,7 +26,7 @@ pub use declaration::DeclarationParser;
 pub use function::FuncParser;
 pub use module::ModuleParser;
 pub use path::PathParser;
-pub use r#if::IfParser;
+pub use if_expr::IfParser;
 pub use r#use::UseParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
