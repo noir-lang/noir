@@ -16,6 +16,7 @@ impl FuncParser {
     /// Cursor Start : `fn`
     ///
     /// Cursor End : `}`
+    //
     /// All functions are function definitions. Functions are not first class citizens.
     pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
