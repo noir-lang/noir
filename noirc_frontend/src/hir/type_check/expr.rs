@@ -347,8 +347,11 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
         | HirStatement::Public(_)
         | HirStatement::Const(_)
         | HirStatement::Private(_)
+        // We could fetch the type here also for Semi
+        // It would return Unit, as we modify the 
+        // return type in the interner after type checking it
         | HirStatement::Semi(_)
-        | HirStatement::Constrain(_) => Type::Unit,
+        | HirStatement::Constrain(_) => Type::Unit, 
         HirStatement::Expression(expr_id) => interner.id_type(&expr_id),
     }
 }
