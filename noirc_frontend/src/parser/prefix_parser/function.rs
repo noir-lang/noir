@@ -3,23 +3,55 @@ use super::*;
 pub struct FuncParser;
 
 impl FuncParser {
-    /// All functions are function definitions. Functions are not first class.
+    /// Parses a function definition.
+    ///
+    /// fn IDENT(IDENT : Type,IDENT : Type,... ) (-> Type)? {
+    ///         <STMT> <STMT> ...   
+    /// }
+    ///
+    /// (->Type)? indicates that the return type is optional.
+    /// If not return type is supplied, the return type is
+    /// implied to be the unit type.
+    ///
+    /// Cursor Start : `fn`
+    ///
+    /// Cursor End : `}`
+    /// All functions are function definitions. Functions are not first class citizens.
     pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
         attribute: Option<Attribute>,
     ) -> Result<NoirFunction, ParserError> {
-        // Check if we have an identifier.
+        // Current token is `fn`
+        //
+        // Peek ahead and check if the next token is an identifier
         parser.peek_check_kind_advance(TokenKind::Ident)?;
-        let func_name = parser.curr_token.token().to_string();
-        let spanned_func_name = Spanned::from(parser.curr_token.into_span(), func_name);
+        let spanned_func_name: Ident = parser.curr_token.clone().into();
 
+        // Current token is the function name
+        //
+        // Peek ahead and check if the next token is the `(`
         parser.peek_check_variant_advance(&Token::LeftParen)?;
+
+        // Current token is `(`
+        //
+        // When parameters are successfully parsed, the current token will be
+        // `)`
         let parameters = FuncParser::parse_fn_parameters(parser)?;
-        // Parse the type after the parameters have been parsed
+
+        // Parse the return type
+        //
         let mut return_type = Type::Unit;
         if parser.peek_token == Token::Arrow {
-            parser.advance_tokens(); // Advance past the `)`
-            parser.advance_tokens(); // Advance past the `->`
+            // Advance past the `)`
+            parser.advance_tokens();
+            // Advance past the `->`
+            //
+            // Note we do not need to `peek_check`
+            // because of the if statement
+            parser.advance_tokens();
+
+            // Current token should now be
+            // the start of the type
             return_type = parser.parse_type()?
         }
 
@@ -28,8 +60,13 @@ impl FuncParser {
         let start = parser.curr_token.into_span();
         let body = BlockParser::parse_block_expression(parser)?;
         let end = parser.curr_token.into_span();
+
+        // The cursor position is inherited from the block expression
+        // parsing procedure which is `}`
+
         // Currently, we only allow lowlevel, builtin and normal functions
-        // In the future, we can add a test attribute. Arbitrary attributes will not be supported.
+        // In the future, we can add a test attribute.
+        // Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {
             name: spanned_func_name.into(),
             attribute: attribute,
@@ -42,23 +79,46 @@ impl FuncParser {
         Ok(func_def.into())
     }
 
+    /// Cursor Start : `(`
+    ///
+    /// Cursor End : `)`
     fn parse_fn_parameters(parser: &mut Parser) -> Result<Vec<(Ident, Type)>, ParserError> {
+        // Current token is `(`
+        //
+        // Check if we have an empty list
         if parser.peek_token == Token::RightParen {
             parser.advance_tokens();
             return Ok(Vec::new());
         }
 
-        parser.advance_tokens(); // Advance past the left parenthesis
+        // Current token is still the `(`
+        //
+        // Since the list is non-empty. We advance to the first
+        // parameter name
+        parser.advance_tokens();
 
         let mut parameters: Vec<(Ident, Type)> = Vec::new();
 
-        // next token should be identifier
+        // Push the first parameter and it's type
+        //
+        // Notice that parsing the type requires that the
+        // cursor starts on the parameter name, which is upheld
         let spanned_name: Ident = parser.curr_token.clone().into();
         parameters.push((spanned_name, FuncParser::parse_fn_type(parser)?));
 
         while parser.peek_token == Token::Comma {
-            parser.advance_tokens(); // curr_token = comma
-            parser.advance_tokens(); // curr_token == identifier
+            // Current token is Type
+            //
+            // Advance past the next token, which is a comma
+            parser.advance_tokens();
+
+            if (parser.curr_token == Token::Comma) && (parser.peek_token == Token::RightParen) {
+                // Entering here means there is nothing else to parse;
+                // the list has a trailing comma
+                break;
+            }
+
+            parser.peek_check_kind_advance(TokenKind::Ident)?;
 
             parameters.push((
                 parser.curr_token.clone().into(),
@@ -70,15 +130,54 @@ impl FuncParser {
 
         Ok(parameters)
     }
-
+    /// Cursor Start : `IDENT`
+    ///
+    /// Cursor End : `TYPE`
     fn parse_fn_type(parser: &mut Parser) -> Result<Type, ParserError> {
-        // We should have a colon in the next Token
+        // Current token is `IDENT`
+        //
+        // Peek ahead and check if the next token is `:`
         parser.peek_check_variant_advance(&Token::Colon)?;
 
-        // The current token is now a colon, lets advance the tokens again
+        // Current token is `:`
+        //
+        // Bum cursor. Next Token should be the Type
         parser.advance_tokens();
 
-        // We should now be on the Token which represents the Type
         parser.parse_type()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::parser::test_parse;
+
+    use super::FuncParser;
+
+    #[test]
+    fn valid_syntax() {
+        const SRC_RET_TYPE: &'static str = r#"
+            fn func_name( f: u8, y : Public) -> u8 {
+                x + a
+            }
+        "#;
+        const SRC_NO_RET_TYPE: &'static str = r#"
+            fn func_name( f: Witness, y : Public, z : [5]u8,)  {
+
+            }
+        "#;
+
+        FuncParser::parse_fn_definition(&mut test_parse(SRC_RET_TYPE), None).unwrap();
+        FuncParser::parse_fn_definition(&mut test_parse(SRC_NO_RET_TYPE), None).unwrap();
+    }
+    #[test]
+    fn double_comma() {
+        const SRC: &'static str = r#"
+            fn x2( f: []Witness,,) {
+
+            }
+        "#;
+
+        FuncParser::parse_fn_definition(&mut test_parse(SRC), None).unwrap_err();
     }
 }
