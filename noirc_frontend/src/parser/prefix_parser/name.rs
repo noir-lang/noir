@@ -3,19 +3,22 @@ use super::*;
 pub struct NameParser;
 
 impl NameParser {
+    /// NameParser is used to parse Identifiers which appear in the
+    /// AST as expressions.
+    ///
+    /// Cursor Start : `IDENT`
+    ///
+    /// Cursor End : `IDENT`
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
-        let ident_str = match parser.curr_token.token() {
-            Token::Ident(x) => x.clone(),
-            _ => {
-                let token_kind = parser.curr_token.kind();
-                return Err(ParserErrorKind::UnexpectedTokenKind {
-                    span: parser.curr_token.into_span(),
-                    expected: TokenKind::Ident,
-                    found: token_kind,
-                }
-                .into_err(parser.file_id));
-            }
-        };
-        Ok(ExpressionKind::Ident(ident_str))
+        if let Token::Ident(x) = parser.curr_token.token() {
+            return Ok(ExpressionKind::Ident(x.clone()));
+        }
+
+        return Err(ParserErrorKind::UnexpectedTokenKind {
+            span: parser.curr_token.into_span(),
+            expected: TokenKind::Ident,
+            found: parser.curr_token.kind(),
+        }
+        .into_err(parser.file_id));
     }
 }
