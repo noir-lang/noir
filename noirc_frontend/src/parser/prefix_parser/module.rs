@@ -44,7 +44,7 @@ mod test {
 
         let start = parser.curr_token.clone();
 
-        ModuleParser::parse_module_decl(&mut parser).unwrap();
+        ModuleParser::parse_decl(&mut parser).unwrap();
 
         let end = parser.curr_token.clone();
 
@@ -62,7 +62,7 @@ mod test {
             mod 1;
         "#;
 
-        ModuleParser::parse_module_decl(&mut test_parse(SRC_MISSING_SEMI_COLON)).unwrap_err();
-        ModuleParser::parse_module_decl(&mut test_parse(SRC_INT)).unwrap_err();
+        ModuleParser::parse_decl(&mut test_parse(SRC_MISSING_SEMI_COLON)).unwrap_err();
+        ModuleParser::parse_decl(&mut test_parse(SRC_INT)).unwrap_err();
     }
 }
