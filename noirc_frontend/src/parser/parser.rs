@@ -322,6 +322,8 @@ impl<'a> Parser<'a> {
     /// Example : [a,b,c]
     /// START_TOKEN = `[`
     /// END_TOKEN = `]`
+    ///
+    /// In general, the END_TOKEN will be closing_token
     pub(crate) fn parse_comma_separated_argument_list(
         &mut self,
         closing_token: Token,
