@@ -343,11 +343,12 @@ fn check_param_argument(
 fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
     let stmt = interner.statement(stmt_id);
     match stmt {
-        HirStatement::Let(_) => Type::Unit,
-        HirStatement::Const(_) => Type::Unit,
-        HirStatement::Constrain(_) => Type::Unit,
-        HirStatement::Public(_) => Type::Unit,
-        HirStatement::Private(_) => Type::Unit,
+        HirStatement::Let(_)
+        | HirStatement::Public(_)
+        | HirStatement::Const(_)
+        | HirStatement::Private(_)
+        | HirStatement::Semi(_)
+        | HirStatement::Constrain(_) => Type::Unit,
         HirStatement::Expression(expr_id) => interner.id_type(&expr_id),
     }
 }
