@@ -359,7 +359,11 @@ impl<'a> Parser<'a> {
         Ok(arguments)
     }
 
-    // Parse Types
+    /// Cursor Start : `TYPE`
+    ///
+    /// Cursor End : `TYPE`
+    /// The cursor starts on the first token which represents the type
+    /// It ends on the last token in the Type
     pub(crate) fn parse_type(&mut self) -> Result<Type, ParserError> {
         // Currently we only support the default types and integers.
         // If we get into this function, then the user is specifying a type
