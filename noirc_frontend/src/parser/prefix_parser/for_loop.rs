@@ -15,7 +15,7 @@ impl ForParser {
     ///
     /// Cursor End : `}`
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
-        // Current token is the `for`
+        // Current token is `for`
         //
         // Peek ahead and check if the next token is an identifier
         parser.peek_check_kind_advance(TokenKind::Ident)?;
@@ -76,7 +76,7 @@ impl ForParser {
 
 #[cfg(test)]
 mod test {
-    use crate::parser::test_parse;
+    use crate::{parser::test_parse, token::Token};
 
     use super::ForParser;
 
@@ -98,8 +98,15 @@ mod test {
             }
         "#;
 
-        ForParser::parse(&mut test_parse(SRC_EXPR_LOOP)).unwrap();
+        let mut parser = test_parse(SRC_EXPR_LOOP);
+        let start = parser.curr_token.clone();
+        ForParser::parse(&mut parser).unwrap();
+        let end = parser.curr_token;
+
         ForParser::parse(&mut test_parse(SRC_CONST_LOOP)).unwrap();
+
+        assert_eq!(start, Token::Keyword(crate::token::Keyword::For));
+        assert_eq!(end, Token::RightBrace);
     }
 
     #[test]
