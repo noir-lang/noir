@@ -13,20 +13,20 @@ mod path;
 mod unary;
 mod use_stmt;
 
+use array::ArrayParser;
 use block::BlockParser;
 use for_loop::ForParser;
 use group::GroupParser;
+use if_expr::IfParser;
 use literal::LiteralParser;
-pub(super) use name::NameParser;
+use name::NameParser;
+use path::PathParser;
 use unary::UnaryParser;
 
-pub use array::ArrayParser;
 pub use constrain::ConstrainParser;
 pub use declaration::DeclarationParser;
 pub use function::FuncParser;
 pub use module::ModuleParser;
-pub use path::PathParser;
-pub use if_expr::IfParser;
 pub use use_stmt::UseParser;
 
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
@@ -35,7 +35,7 @@ use crate::ast::{
     Ident, IfExpression, Literal, NoirFunction, PrefixExpression, Type,
 };
 use crate::token::{Attribute, Keyword, Token, TokenKind};
-use noirc_errors::{Span, Spanned};
+use noirc_errors::Span;
 
 use super::{Parser, ParserError, ParserExprKindResult, ParserExprResult, Precedence};
 use crate::parser::errors::ParserErrorKind;
