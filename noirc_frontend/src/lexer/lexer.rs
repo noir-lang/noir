@@ -277,14 +277,15 @@ impl<'a> Lexer<'a> {
         return ident_token.into_span(start_span, end_span);
     }
     fn eat_digit(&mut self, initial_char: char) -> SpannedToken {
-        let (integer_str, start_span, end_span) =
-            self.eat_while(Some(initial_char), |ch| ch.is_numeric());
+        let (integer_str, start_span, end_span) = self.eat_while(Some(initial_char), |ch| {
+            ch.is_digit(10) | ch.is_digit(16) | (ch == 'x')
+        });
+
         let integer = match FieldElement::from_str(&integer_str) {
-            None => panic!(
-                "Expected an integer in base10. Hex is not supported currently, coming soon."
-            ),
+            None => panic!("could not parse integer literal"),
             Some(integer) => integer,
         };
+
         let integer_token = Token::Int(integer.into());
         integer_token.into_span(start_span, end_span)
     }
@@ -422,6 +423,18 @@ fn test_eat_string_literal() {
         Token::Assign,
         Token::Str("hello".to_string()),
     ];
+    let mut lexer = Lexer::new(0, input);
+
+    for token in expected.into_iter() {
+        let got = lexer.next_token().unwrap();
+        assert_eq!(got, token);
+    }
+}
+#[test]
+fn test_eat_hex_int() {
+    let input = "0x05";
+
+    let expected = vec![Token::Int(5.into())];
     let mut lexer = Lexer::new(0, input);
 
     for token in expected.into_iter() {
