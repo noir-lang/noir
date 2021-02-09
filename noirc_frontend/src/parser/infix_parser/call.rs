@@ -46,10 +46,7 @@ impl CallParser {
 mod test {
 
     use super::CallParser;
-    use crate::{
-        parser::{dummy_expr, test_parse},
-        Expression,
-    };
+    use crate::{parser::test_parse, Expression};
 
     pub(crate) fn dummy_path_expr() -> Expression {
         use crate::parser::prefix_parser::PrefixParser;
