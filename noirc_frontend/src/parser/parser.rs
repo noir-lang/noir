@@ -209,12 +209,10 @@ impl<'a> Parser<'a> {
     pub fn parse_statement(&mut self) -> ParserStmtResult {
         use crate::parser::prefix_parser::{ConstrainParser, DeclarationParser};
 
-        // The first type of statement we could have is a variable declaration statement
-        if self.curr_token.can_start_declaration() {
-            return DeclarationParser::parse_statement(self);
-        };
-
         let stmt = match self.curr_token.token() {
+            tk if tk.can_start_declaration() => {
+                return DeclarationParser::parse_statement(self);
+            }
             tk if tk.is_comment() => {
                 // Comments here are within a function
                 self.advance_tokens();
@@ -225,12 +223,16 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 let expr = self.parse_expression_statement()?;
-                Statement::Expression(expr)
+
+                // Check if the next token is a semi-colon
+                // If it is, it is a SemiExpr
+                if self.peek_token == Token::Semicolon {
+                    self.advance_tokens();
+                    Statement::Semi(expr)
+                } else {
+                    Statement::Expression(expr)
+                }
             }
-        };
-        // Check if the next token is a semi-colon(optional)
-        if self.peek_token == Token::Semicolon {
-            self.advance_tokens();
         };
         return Ok(stmt);
     }
