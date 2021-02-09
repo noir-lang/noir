@@ -59,12 +59,9 @@ pub enum Statement {
     Public(PublicStatement),
     Private(PrivateStatement),
     Expression(Expression),
-}
-
-impl Into<Statement> for Expression {
-    fn into(self) -> Statement {
-        Statement::Expression(self)
-    }
+    // This is an expression with a trailing semi-colon
+    // terminology Taken from rustc
+    Semi(Expression),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
