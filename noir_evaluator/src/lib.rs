@@ -44,7 +44,6 @@ use noirc_frontend::hir::Context;
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
     file_id: usize,
-    num_witness: usize,                           // XXX: Can possibly remove
     num_selectors: usize,                         // XXX: Can possibly remove
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
     selectors: Vec<Selector>,                     // XXX: Possibly move into environment
@@ -60,7 +59,6 @@ impl<'a> Evaluator<'a> {
     pub fn new(file_id: usize, main_function: FuncId, context: &Context) -> Evaluator {
         Evaluator {
             file_id,
-            num_witness: 0,
             num_selectors: 0,
             num_public_inputs: 0,
             witnesses: HashMap::new(),
@@ -81,8 +79,7 @@ impl<'a> Evaluator<'a> {
 
     // Takes a String which will be the variables name and adds it to the list of known Witnesses
     fn add_witness_to_cs(&mut self, variable_name: String, typ: Type) -> Witness {
-        self.num_witness = self.num_witness + 1;
-        let witness = Witness(variable_name, self.num_witness);
+        let witness = Witness(variable_name, self.num_witnesses() + 1);
         self.witnesses.insert(witness.clone(), typ);
         witness
     }
@@ -98,7 +95,7 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn num_witnesses(&self) -> usize {
-        self.num_witness
+        self.witnesses.len()
     }
 
     /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -140,14 +137,12 @@ impl<'a> Evaluator<'a> {
         // The optimiser could have created intermediate variables/witnesses. We need to add these to the circuit
         for (witness, gate) in intermediate_variables {
             // Add intermediate variables as witnesses
-            self.num_witness += 1;
             self.witnesses.insert(witness, Type::Witness);
             // Add gate into the circuit
             optimised_arith_gates.push(Gate::Arithmetic(gate));
 
             // XXX: We can additionally check that these arithmetic gates are done correctly via our optimiser -- It should have no effect if passed in twice
         }
-
         // Print all gates for debug purposes
         // for gate in optimised_arith_gates.iter() {
         //     // dbg!(gate);
