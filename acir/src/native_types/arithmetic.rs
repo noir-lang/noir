@@ -18,9 +18,6 @@ pub struct Arithmetic {
     // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
     pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
 
-    // XXX(low) : Remove fan_in and fan_out and just have simplified_fan
-    pub fan_in: Vec<(FieldElement, Witness)>,
-    pub fan_out: Vec<(FieldElement, Witness)>,
     // Upon optimising, we simplify the gates by merging the like terms in the fan-in and fan-out
     // They are then stored in this gate
     pub simplified_fan: Vec<(FieldElement, Witness)>,
@@ -32,8 +29,6 @@ impl Default for Arithmetic {
     fn default() -> Arithmetic {
         Arithmetic {
             mul_terms: Vec::new(),
-            fan_in: Vec::new(),
-            fan_out: Vec::new(),
             simplified_fan: Vec::new(),
             q_C: FieldElement::zero(),
         }
@@ -43,29 +38,6 @@ impl Default for Arithmetic {
 impl Arithmetic {
     pub const fn can_defer_constraint(&self) -> bool {
         false
-    }
-    pub fn simplify_fan(&mut self) {
-        let max_terms = std::cmp::max(self.fan_in.len(), self.fan_out.len());
-        let mut hash_map: HashMap<Witness, FieldElement> = HashMap::with_capacity(max_terms);
-
-        // Add the fan-in terms
-        for (scale, witness) in self.fan_in.clone().into_iter() {
-            *hash_map.entry(witness).or_insert(FieldElement::zero()) += scale;
-        }
-        // Add the fan-out terms
-        for (scale, witness) in self.fan_out.clone().into_iter() {
-            *hash_map.entry(witness).or_insert(FieldElement::zero()) -= scale;
-        }
-
-        // Convert hashmap back to a vector
-        self.simplified_fan = hash_map
-            .into_iter()
-            .map(|(witness, scale)| (scale, witness))
-            .collect();
-
-        // Clear fan out and fan in
-        self.fan_in.clear();
-        self.fan_out.clear();
     }
 }
 
@@ -79,18 +51,11 @@ impl Mul<&FieldElement> for &Arithmetic {
             .map(|(qM, wL, wR)| (*qM * *rhs, wL.clone(), wR.clone()))
             .collect();
 
-        // Scale the fan-in terms
-        let fan_in: Vec<_> = self
-            .fan_in
+        // Scale the linear combinations terms
+        let lin_combinations: Vec<_> = self
+            .simplified_fan
             .iter()
             .map(|(qL, wL)| (*qL * *rhs, wL.clone()))
-            .collect();
-
-        // Scale the fan-out terms
-        let fan_out: Vec<_> = self
-            .fan_out
-            .iter()
-            .map(|(qO, wO)| (*qO * *rhs, wO.clone()))
             .collect();
 
         // Scale the constant
@@ -98,10 +63,8 @@ impl Mul<&FieldElement> for &Arithmetic {
 
         Arithmetic {
             mul_terms,
-            fan_in,
-            fan_out,
             q_C,
-            simplified_fan: Vec::new(),
+            simplified_fan: lin_combinations,
         }
     }
 }
@@ -113,8 +76,6 @@ impl Add<&FieldElement> for Arithmetic {
 
         Arithmetic {
             mul_terms: self.mul_terms,
-            fan_in: self.fan_in,
-            fan_out: self.fan_out,
             q_C,
             simplified_fan: self.simplified_fan,
         }
@@ -124,12 +85,10 @@ impl Sub<&FieldElement> for Arithmetic {
     type Output = Arithmetic;
     fn sub(self, rhs: &FieldElement) -> Self::Output {
         // Increase the constant
-        let q_C = *rhs - self.q_C;
+        let q_C = self.q_C - *rhs;
 
         Arithmetic {
             mul_terms: self.mul_terms,
-            fan_in: self.fan_in,
-            fan_out: self.fan_out,
             q_C,
             simplified_fan: self.simplified_fan,
         }
@@ -147,18 +106,7 @@ impl Add<&Arithmetic> for &Arithmetic {
             .cloned()
             .chain(rhs.mul_terms.iter().cloned())
             .collect();
-        let fan_in: Vec<_> = self
-            .fan_in
-            .iter()
-            .cloned()
-            .chain(rhs.fan_in.iter().cloned())
-            .collect();
-        let fan_out: Vec<_> = self
-            .fan_out
-            .iter()
-            .cloned()
-            .chain(rhs.fan_out.iter().cloned())
-            .collect();
+
         let simplified_fan: Vec<_> = self
             .simplified_fan
             .iter()
@@ -169,8 +117,6 @@ impl Add<&Arithmetic> for &Arithmetic {
 
         Arithmetic {
             mul_terms,
-            fan_in,
-            fan_out,
             simplified_fan,
             q_C,
         }
@@ -187,16 +133,7 @@ impl Neg for &Arithmetic {
             .iter()
             .map(|(qM, wL, wR)| (-*qM, wL.clone(), wR.clone()))
             .collect();
-        let fan_in: Vec<_> = self
-            .fan_in
-            .iter()
-            .map(|(qL, wL)| (-*qL, wL.clone()))
-            .collect();
-        let fan_out: Vec<_> = self
-            .fan_out
-            .iter()
-            .map(|(qO, wO)| (-*qO, wO.clone()))
-            .collect();
+
         let simplified_fan: Vec<_> = self
             .simplified_fan
             .iter()
@@ -206,8 +143,6 @@ impl Neg for &Arithmetic {
 
         Arithmetic {
             mul_terms,
-            fan_in,
-            fan_out,
             simplified_fan,
             q_C,
         }
@@ -225,8 +160,6 @@ impl From<&FieldElement> for Arithmetic {
     fn from(constant: &FieldElement) -> Arithmetic {
         Arithmetic {
             q_C: constant.clone(),
-            fan_in: Vec::new(),
-            fan_out: Vec::new(),
             simplified_fan: Vec::new(),
             mul_terms: Vec::new(),
         }
@@ -236,9 +169,7 @@ impl From<&Linear> for Arithmetic {
     fn from(lin: &Linear) -> Arithmetic {
         Arithmetic {
             q_C: lin.add_scale,
-            fan_in: vec![(lin.mul_scale, lin.witness.clone())],
-            fan_out: Vec::new(),
-            simplified_fan: Vec::new(),
+            simplified_fan: vec![(lin.mul_scale, lin.witness.clone())],
             mul_terms: Vec::new(),
         }
     }

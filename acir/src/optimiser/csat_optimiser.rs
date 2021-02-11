@@ -32,8 +32,6 @@ impl Optimiser {
         // Collect like terms in the fan-in and fan-out
         // XXX: Perhaps this optimisation can be done on the fly and we only have one vector
 
-        let gate = self.simplify_fan(gate);
-
         // Collect like terms in the mul terms array
         let gate = self.simplify_mul_terms(gate);
 
@@ -68,29 +66,13 @@ impl Optimiser {
             .filter(|(scale, _, _)| !scale.is_zero())
             .collect();
 
-        // Check the fan-in terms
-        gate.fan_in = gate
-            .fan_in
+        // Check the lin combination terms
+        gate.simplified_fan = gate
+            .simplified_fan
             .into_iter()
             .filter(|(scale, _)| !scale.is_zero())
             .collect();
 
-        // Check the fan-out terms
-        gate.fan_out = gate
-            .fan_out
-            .into_iter()
-            .filter(|(scale, _)| !scale.is_zero())
-            .collect();
-
-        gate
-    }
-
-    // Adds all terms in the fan-in/out
-    // We use a BTreeMap to do this instead of iterating over each element in time O(n^2)
-    // XXX: This is really inefficient, we could probably use a variety of methods, such as if the fan-out was small then just modify the fan-in in place
-    // or use BTreeMaps from the start
-    fn simplify_fan(&self, mut gate: Arithmetic) -> Arithmetic {
-        gate.simplify_fan();
         gate
     }
 
