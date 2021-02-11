@@ -732,6 +732,17 @@ mod test {
             result: result_indice,
         };
 
+        let arith_constraint = Constraint {
+            a: result_indice,
+            b: result_indice,
+            c: result_indice,
+            qm: Scalar::zero(),
+            ql: Scalar::zero(),
+            qr: Scalar::zero(),
+            qo: Scalar::one(),
+            qc: -Scalar::one(),
+        };
+
         let constraint_system = ConstraintSystem {
             var_num: 80,
             pub_var_num: 0,
@@ -743,7 +754,7 @@ mod test {
             schnorr_constraints: vec![constraint],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
-            constraints: vec![],
+            constraints: vec![arith_constraint],
         };
 
         let pub_x =
