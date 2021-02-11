@@ -142,7 +142,6 @@ impl GadgetCaller {
             OPCODE::SchnorrVerify => {
                 // In barretenberg, if the signature fails, then the whole thing fails.
                 //
-                use aztec_backend::barretenberg_rs::Barretenberg;
                 use std::convert::TryInto;
 
                 let mut inputs_iter = gadget_call.inputs.iter();
