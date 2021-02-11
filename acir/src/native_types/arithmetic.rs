@@ -18,9 +18,7 @@ pub struct Arithmetic {
     // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
     pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
 
-    // Upon optimising, we simplify the gates by merging the like terms in the fan-in and fan-out
-    // They are then stored in this gate
-    pub simplified_fan: Vec<(FieldElement, Witness)>,
+    pub linear_combinations: Vec<(FieldElement, Witness)>,
 
     pub q_C: FieldElement,
 }
@@ -29,7 +27,7 @@ impl Default for Arithmetic {
     fn default() -> Arithmetic {
         Arithmetic {
             mul_terms: Vec::new(),
-            simplified_fan: Vec::new(),
+            linear_combinations: Vec::new(),
             q_C: FieldElement::zero(),
         }
     }
@@ -53,7 +51,7 @@ impl Mul<&FieldElement> for &Arithmetic {
 
         // Scale the linear combinations terms
         let lin_combinations: Vec<_> = self
-            .simplified_fan
+            .linear_combinations
             .iter()
             .map(|(qL, wL)| (*qL * *rhs, wL.clone()))
             .collect();
@@ -64,7 +62,7 @@ impl Mul<&FieldElement> for &Arithmetic {
         Arithmetic {
             mul_terms,
             q_C,
-            simplified_fan: lin_combinations,
+            linear_combinations: lin_combinations,
         }
     }
 }
@@ -77,7 +75,7 @@ impl Add<&FieldElement> for Arithmetic {
         Arithmetic {
             mul_terms: self.mul_terms,
             q_C,
-            simplified_fan: self.simplified_fan,
+            linear_combinations: self.linear_combinations,
         }
     }
 }
@@ -90,7 +88,7 @@ impl Sub<&FieldElement> for Arithmetic {
         Arithmetic {
             mul_terms: self.mul_terms,
             q_C,
-            simplified_fan: self.simplified_fan,
+            linear_combinations: self.linear_combinations,
         }
     }
 }
@@ -107,17 +105,17 @@ impl Add<&Arithmetic> for &Arithmetic {
             .chain(rhs.mul_terms.iter().cloned())
             .collect();
 
-        let simplified_fan: Vec<_> = self
-            .simplified_fan
+        let linear_combinations: Vec<_> = self
+            .linear_combinations
             .iter()
             .cloned()
-            .chain(rhs.simplified_fan.iter().cloned())
+            .chain(rhs.linear_combinations.iter().cloned())
             .collect();
         let q_C = self.q_C + rhs.q_C;
 
         Arithmetic {
             mul_terms,
-            simplified_fan,
+            linear_combinations,
             q_C,
         }
     }
@@ -134,8 +132,8 @@ impl Neg for &Arithmetic {
             .map(|(qM, wL, wR)| (-*qM, wL.clone(), wR.clone()))
             .collect();
 
-        let simplified_fan: Vec<_> = self
-            .simplified_fan
+        let linear_combinations: Vec<_> = self
+            .linear_combinations
             .iter()
             .map(|(qK, wK)| (-*qK, wK.clone()))
             .collect();
@@ -143,7 +141,7 @@ impl Neg for &Arithmetic {
 
         Arithmetic {
             mul_terms,
-            simplified_fan,
+            linear_combinations,
             q_C,
         }
     }
@@ -160,7 +158,7 @@ impl From<&FieldElement> for Arithmetic {
     fn from(constant: &FieldElement) -> Arithmetic {
         Arithmetic {
             q_C: constant.clone(),
-            simplified_fan: Vec::new(),
+            linear_combinations: Vec::new(),
             mul_terms: Vec::new(),
         }
     }
@@ -169,7 +167,7 @@ impl From<&Linear> for Arithmetic {
     fn from(lin: &Linear) -> Arithmetic {
         Arithmetic {
             q_C: lin.add_scale,
-            simplified_fan: vec![(lin.mul_scale, lin.witness.clone())],
+            linear_combinations: vec![(lin.mul_scale, lin.witness.clone())],
             mul_terms: Vec::new(),
         }
     }
@@ -213,7 +211,7 @@ impl Arithmetic {
             return false;
         };
         // A Polynomial with more terms than fan-in cannot fit within a single gate
-        if self.simplified_fan.len() > width {
+        if self.linear_combinations.len() > width {
             return false;
         }
 
@@ -225,7 +223,7 @@ impl Arithmetic {
         // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one gate
         // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
         // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
-        if self.simplified_fan.len() <= (width - 2) {
+        if self.linear_combinations.len() <= (width - 2) {
             return true;
         }
 
@@ -243,7 +241,7 @@ impl Arithmetic {
         let mut found_x = false;
         let mut found_y = false;
 
-        for term in self.simplified_fan.iter() {
+        for term in self.linear_combinations.iter() {
             let witness = &term.1;
             let x = &mul_term.1;
             let y = &mul_term.2;

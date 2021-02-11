@@ -113,7 +113,7 @@ impl ArithmeticSolver {
         // This is the sum of all of the known variables
         let mut result = FieldElement::zero();
 
-        for term in arith_gate.simplified_fan.iter() {
+        for term in arith_gate.linear_combinations.iter() {
             let q_l = term.0;
             let w_l = &term.1;
 

@@ -49,7 +49,7 @@ impl Add<&Linear> for &Linear {
         // (Ax + B) + (Cy + D) = Ax + Cy + (B+D)
         Arithmetic {
             mul_terms: Vec::new(),
-            simplified_fan: vec![
+            linear_combinations: vec![
                 (self.mul_scale, self.witness.clone()),
                 (rhs.mul_scale, rhs.witness.clone()),
             ],
@@ -89,7 +89,7 @@ impl Mul<&Linear> for &Linear {
 
         Arithmetic {
             mul_terms: vec![(ac, x.clone(), y.clone())],
-            simplified_fan: vec![(ad, x), (bc, y)],
+            linear_combinations: vec![(ad, x), (bc, y)],
             q_C: bd,
         }
     }

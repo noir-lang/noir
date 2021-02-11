@@ -294,8 +294,8 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     // If there is only one simplified fan term,
     // then put it in qO * wO
     // This is incase, the qM term is non-zero
-    if gate.simplified_fan.len() == 1 {
-        let qO_wO_term = &gate.simplified_fan[0];
+    if gate.linear_combinations.len() == 1 {
+        let qO_wO_term = &gate.linear_combinations[0];
         qo = qO_wO_term.0;
 
         let wO = &qO_wO_term.1;
@@ -305,34 +305,34 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     // XXX: THis is a code smell. Refactor to be better. Maybe change barretenberg to take vectors
     // If there is more than one term,
     // Then add normally
-    if gate.simplified_fan.len() == 2 {
-        let qL_wL_term = &gate.simplified_fan[0];
+    if gate.linear_combinations.len() == 2 {
+        let qL_wL_term = &gate.linear_combinations[0];
         ql = qL_wL_term.0;
 
         let wL = &qL_wL_term.1;
         a = wL.witness_index() as i32;
 
-        let qR_wR_term = &gate.simplified_fan[1];
+        let qR_wR_term = &gate.linear_combinations[1];
         qr = qR_wR_term.0;
 
         let wR = &qR_wR_term.1;
         b = wR.witness_index() as i32;
     }
 
-    if gate.simplified_fan.len() == 3 {
-        let qL_wL_term = &gate.simplified_fan[0];
+    if gate.linear_combinations.len() == 3 {
+        let qL_wL_term = &gate.linear_combinations[0];
         ql = qL_wL_term.0;
 
         let wL = &qL_wL_term.1;
         a = wL.witness_index() as i32;
 
-        let qR_wR_term = &gate.simplified_fan[1];
+        let qR_wR_term = &gate.linear_combinations[1];
         qr = qR_wR_term.0;
 
         let wR = &qR_wR_term.1;
         b = wR.witness_index() as i32;
 
-        let qO_wO_term = &gate.simplified_fan[2];
+        let qO_wO_term = &gate.linear_combinations[2];
         qo = qO_wO_term.0;
 
         let wO = &qO_wO_term.1;

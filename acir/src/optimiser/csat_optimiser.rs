@@ -52,7 +52,7 @@ impl Optimiser {
     /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
     fn sort(&self, mut gate: Arithmetic) -> Arithmetic {
         gate.mul_terms.sort();
-        gate.simplified_fan.sort();
+        gate.linear_combinations.sort();
 
         gate
     }
@@ -67,8 +67,8 @@ impl Optimiser {
             .collect();
 
         // Check the lin combination terms
-        gate.simplified_fan = gate
-            .simplified_fan
+        gate.linear_combinations = gate
+            .linear_combinations
             .into_iter()
             .filter(|(scale, _)| !scale.is_zero())
             .collect();
@@ -157,11 +157,11 @@ impl Optimiser {
             // We are assuming that the fan-in/fan-out has been simplified.
             // Note this function is not public, and can only be called within the optimise method, so this guarantee will always hold
             let index_wl = gate
-                .simplified_fan
+                .linear_combinations
                 .iter()
                 .position(|(scale, witness)| *witness == pair.1);
             let index_wr = gate
-                .simplified_fan
+                .linear_combinations
                 .iter()
                 .position(|(scale, witness)| *witness == pair.2);
 
@@ -180,8 +180,8 @@ impl Optimiser {
                     // This means that we can form a full gate with this Qm term
 
                     // First fetch the left and right wires which match the mul term
-                    let left_wire_term = gate.simplified_fan[x].clone();
-                    let right_wire_term = gate.simplified_fan[y].clone();
+                    let left_wire_term = gate.linear_combinations[x].clone();
+                    let right_wire_term = gate.linear_combinations[y].clone();
 
                     // Lets create an intermediate gate to store this full gate
                     //
@@ -189,20 +189,20 @@ impl Optimiser {
                     intermediate_gate.mul_terms.push(pair);
 
                     // Add the left and right wires
-                    intermediate_gate.simplified_fan.push(left_wire_term);
-                    intermediate_gate.simplified_fan.push(right_wire_term);
+                    intermediate_gate.linear_combinations.push(left_wire_term);
+                    intermediate_gate.linear_combinations.push(right_wire_term);
                     // Remove the left and right wires so we do not re-add them
-                    gate.simplified_fan.remove(x);
-                    gate.simplified_fan.remove(y);
+                    gate.linear_combinations.remove(x);
+                    gate.linear_combinations.remove(y);
 
                     // Now we have used up 2 spaces in our arithmetic gate. The width now dictates, how many more we can add
                     let remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contrain the intermediate variable
                                                               // Keep adding terms until we have no more left, or we reach the width
                     for i in 0..remaining_space {
-                        match gate.simplified_fan.pop() {
+                        match gate.linear_combinations.pop() {
                             Some(wire_term) => {
                                 // Add this element into the new gate
-                                intermediate_gate.simplified_fan.push(wire_term);
+                                intermediate_gate.linear_combinations.push(wire_term);
                             }
                             None => {
                                 // Nomore elements left in the old gate, we could stop the whole function
@@ -227,14 +227,14 @@ impl Optimiser {
 
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
-                        .simplified_fan
+                        .linear_combinations
                         .push((-FieldElement::one(), inter_var.clone()));
                     // Add intermediate gate to the map
                     intermediate_variables.insert(inter_var.clone(), intermediate_gate);
 
                     // Add intermediate variable to the new gate instead of the full gate
                     new_gate
-                        .simplified_fan
+                        .linear_combinations
                         .push((FieldElement::one(), inter_var));
                 }
             };
@@ -244,7 +244,9 @@ impl Optimiser {
 
         // Add the rest of the elements back into the new_gate
         new_gate.mul_terms.extend(gate.mul_terms.clone());
-        new_gate.simplified_fan.extend(gate.simplified_fan.clone());
+        new_gate
+            .linear_combinations
+            .extend(gate.linear_combinations.clone());
         new_gate.q_C = gate.q_C;
 
         new_gate
@@ -317,14 +319,15 @@ impl Optimiser {
             intermediate_gate.mul_terms.push(mul_term);
             // Constrain it to be equal to the intermediate variable
             intermediate_gate
-                .simplified_fan
+                .linear_combinations
                 .push((-FieldElement::one(), inter_var.clone()));
 
             // Add intermediate gate and variable to map
             intermediate_variables.insert(inter_var.clone(), intermediate_gate);
 
             // Add intermediate variable as a part of the fan-in for the original gate
-            gate.simplified_fan.push((FieldElement::one(), inter_var));
+            gate.linear_combinations
+                .push((FieldElement::one(), inter_var));
         }
 
         // Remove all of the mul terms as we have intermediate variables to represent them now
@@ -334,18 +337,18 @@ impl Optimiser {
         // Lets create intermediate variables if all of them cannot fit into the width
         //
         // If the polynomial fits perfectly within the given width, we are finished
-        if gate.simplified_fan.len() <= self.width {
+        if gate.linear_combinations.len() <= self.width {
             return gate;
         }
 
-        while gate.simplified_fan.len() > self.width {
+        while gate.linear_combinations.len() > self.width {
             // Collect as many terms upto the given width-1 and constrain them to an intermediate variable
             let mut intermediate_gate = Arithmetic::default();
 
             for _ in 0..(self.width - 1) {
-                match gate.simplified_fan.pop() {
+                match gate.linear_combinations.pop() {
                     Some(term) => {
-                        intermediate_gate.simplified_fan.push(term);
+                        intermediate_gate.linear_combinations.push(term);
                     }
                     None => {
                         break; // We can also do nothing here
@@ -361,7 +364,7 @@ impl Optimiser {
             let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
 
             intermediate_gate
-                .simplified_fan
+                .linear_combinations
                 .push((-FieldElement::one(), inter_var.clone()));
 
             // Add intermediate gate and variable to map
