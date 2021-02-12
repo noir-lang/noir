@@ -88,6 +88,7 @@ int main(int argc, char** argv)
         auto proof_data = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
             std::cerr << prefix << "Sending..." << std::endl;
             write(std::cout, (uint32_t)0);
+            write(std::cout, (uint32_t)inner_rollup_size);
             write(std::cout, rollup);
             std::cerr << prefix << "Sent." << std::endl;
 
@@ -106,6 +107,8 @@ int main(int argc, char** argv)
 
     auto root_rollup = root_rollup::create_root_rollup_tx(0, rollups_data, data_tree, root_tree);
     write(std::cout, (uint32_t)1);
+    write(std::cout, (uint32_t)inner_rollup_size);
+    write(std::cout, (uint32_t)rollups_data.size());
     write(std::cout, root_rollup);
 
     if (args.size() > 3) {

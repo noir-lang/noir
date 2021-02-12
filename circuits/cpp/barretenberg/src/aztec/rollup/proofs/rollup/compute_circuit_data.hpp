@@ -29,7 +29,7 @@ inline circuit_data get_circuit_data(size_t rollup_size,
 {
     auto floor_max_txs = 1UL << numeric::get_msb(rollup_size);
     auto rollup_size_pow2 = rollup_size == floor_max_txs ? rollup_size : floor_max_txs << 1UL;
-    std::cerr << "Getting rollup circuit data: (txs: " << rollup_size << ", size: " << rollup_size_pow2 << ")"
+    std::cerr << "Getting tx rollup circuit data: (txs: " << rollup_size << ", size: " << rollup_size_pow2 << ")"
               << std::endl;
     auto name = "rollup_" + std::to_string(rollup_size);
     auto verification_keys = { join_split_circuit_data.verification_key, account_circuit_data.verification_key };

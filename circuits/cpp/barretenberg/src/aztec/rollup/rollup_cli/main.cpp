@@ -18,26 +18,42 @@ using namespace plonk::stdlib::merkle_tree;
 using namespace serialize;
 namespace tx_rollup = ::rollup::proofs::rollup;
 
-bool create_tx_rollup(tx_rollup::circuit_data const& circuit_data)
-{
-    auto rollup_size = circuit_data.rollup_size;
-    tx_rollup::rollup_tx rollup;
+namespace {
+std::string data_path;
+bool persist;
+std::shared_ptr<waffle::DynamicFileReferenceStringFactory> crs;
+join_split::circuit_data js_cd;
+account::circuit_data account_cd;
+tx_rollup::circuit_data tx_rollup_cd;
+root_rollup::circuit_data root_rollup_cd;
+} // namespace
 
+bool create_tx_rollup()
+{
+    uint32_t num_txs;
+    read(std::cin, num_txs);
+
+    if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
+        tx_rollup_cd.proving_key.reset();
+        tx_rollup_cd = tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, crs, data_path, true, persist, persist);
+    }
+
+    tx_rollup::rollup_tx rollup;
     std::cerr << "Reading tx rollup..." << std::endl;
     read(std::cin, rollup);
 
     std::cerr << "Received tx rollup with " << rollup.num_txs << " txs." << std::endl;
 
-    if (rollup.num_txs > rollup_size) {
+    if (rollup.num_txs > tx_rollup_cd.num_txs) {
         std::cerr << "Receieved rollup size too large: " << rollup.txs.size() << std::endl;
         return false;
     }
 
     Timer timer;
-    circuit_data.proving_key->reset();
+    tx_rollup_cd.proving_key->reset();
 
     std::cerr << "Creating tx rollup proof..." << std::endl;
-    auto result = verify_rollup(rollup, circuit_data);
+    auto result = verify_rollup(rollup, tx_rollup_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
@@ -49,16 +65,31 @@ bool create_tx_rollup(tx_rollup::circuit_data const& circuit_data)
     return result.verified;
 }
 
-bool create_root_rollup(root_rollup::circuit_data const& circuit_data)
+bool create_root_rollup()
 {
-    root_rollup::root_rollup_tx root_rollup;
+    uint32_t num_txs;
+    uint32_t num_proofs;
+    read(std::cin, num_txs);
+    read(std::cin, num_proofs);
 
+    if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
+        tx_rollup_cd.proving_key.reset();
+        tx_rollup_cd = tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, crs, data_path, true, persist, persist);
+    }
+
+    if (!root_rollup_cd.proving_key || root_rollup_cd.num_inner_rollups != num_proofs) {
+        root_rollup_cd.proving_key.reset();
+        root_rollup_cd =
+            root_rollup::get_circuit_data(num_proofs, tx_rollup_cd, crs, data_path, true, persist, persist);
+    }
+
+    root_rollup::root_rollup_tx root_rollup;
     std::cerr << "Reading root rollup..." << std::endl;
     read(std::cin, root_rollup);
 
     std::cerr << "Received root rollup with " << root_rollup.rollups.size() << " rollups." << std::endl;
 
-    if (root_rollup.rollups.size() > circuit_data.num_inner_rollups) {
+    if (root_rollup.rollups.size() > root_rollup_cd.num_inner_rollups) {
         std::cerr << "Receieved rollup size too large: " << root_rollup.rollups.size() << std::endl;
         return false;
     }
@@ -66,10 +97,10 @@ bool create_root_rollup(root_rollup::circuit_data const& circuit_data)
     auto gibberish_data_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
 
     Timer timer;
-    circuit_data.proving_key->reset();
+    root_rollup_cd.proving_key->reset();
 
     std::cerr << "Creating root rollup proof..." << std::endl;
-    auto result = verify(root_rollup, circuit_data);
+    auto result = verify(root_rollup, root_rollup_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
@@ -85,57 +116,15 @@ int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
 
-    size_t tx_rollup_size = (args.size() > 1) ? (size_t)atoi(args[1].c_str()) : 1;
-    size_t root_rollup_size = (args.size() > 2) ? (size_t)atoi(args[2].c_str()) : 1;
-    const std::string srs_path = (args.size() > 3) ? args[3] : "../srs_db/ignition";
-    const std::string data_path = (args.size() > 4) ? args[4] : "./data";
-    bool reduce_mem = (args.size() > 5) ? (bool)atoi(args[5].c_str()) : false;
-    auto persist = data_path != "-";
-    bool persist_rollup_keys = persist && ((args.size() > 6) ? (bool)atoi(args[6].c_str()) : true);
+    const std::string srs_path = (args.size() > 1) ? args[1] : "../srs_db/ignition";
+    data_path = (args.size() > 2) ? args[2] : "./data";
+    persist = data_path != "-";
 
     std::cerr << "Loading crs..." << std::endl;
-    auto crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
+    crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
 
-    auto account_circuit_data =
-        persist ? account::compute_or_load_circuit_data(crs, data_path) : account::compute_circuit_data(crs);
-    auto join_split_circuit_data =
-        persist ? join_split::compute_or_load_circuit_data(crs, data_path) : join_split::compute_circuit_data(crs);
-
-    tx_rollup::circuit_data tx_rollup_circuit_data;
-    root_rollup::circuit_data root_rollup_circuit_data;
-    if (reduce_mem) {
-        // Hacky, we have to immediately release the key because if we need to generate both keys it uses too much mem.
-        // This way we create both keys on startup, but free the memory, then reload them on demand...
-        tx_rollup_circuit_data = tx_rollup::get_circuit_data(tx_rollup_size,
-                                                             join_split_circuit_data,
-                                                             account_circuit_data,
-                                                             crs,
-                                                             data_path,
-                                                             true,
-                                                             persist_rollup_keys,
-                                                             persist_rollup_keys);
-        tx_rollup_circuit_data.proving_key.reset();
-
-        root_rollup_circuit_data = root_rollup::get_circuit_data(
-            root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, persist_rollup_keys, persist_rollup_keys);
-        root_rollup_circuit_data.proving_key.reset();
-
-        // We expect a tx rollup first, so reload it...
-        tx_rollup_circuit_data = tx_rollup::get_circuit_data(
-            tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, true, true);
-    } else {
-        // Assume we are not making massive circuits.
-        tx_rollup_circuit_data = tx_rollup::get_circuit_data(tx_rollup_size,
-                                                             join_split_circuit_data,
-                                                             account_circuit_data,
-                                                             crs,
-                                                             data_path,
-                                                             true,
-                                                             persist_rollup_keys,
-                                                             persist_rollup_keys);
-        root_rollup_circuit_data = root_rollup::get_circuit_data(
-            root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, persist_rollup_keys, persist_rollup_keys);
-    }
+    account_cd = persist ? account::compute_or_load_circuit_data(crs, data_path) : account::compute_circuit_data(crs);
+    js_cd = persist ? join_split::compute_or_load_circuit_data(crs, data_path) : join_split::compute_circuit_data(crs);
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
     serialize::write(std::cout, true);
@@ -150,21 +139,11 @@ int main(int argc, char** argv)
 
         switch (proof_id) {
         case 0: {
-            if (reduce_mem && !tx_rollup_circuit_data.proving_key) {
-                root_rollup_circuit_data.proving_key.reset();
-                tx_rollup_circuit_data = tx_rollup::get_circuit_data(
-                    tx_rollup_size, join_split_circuit_data, account_circuit_data, crs, data_path, true, false, true);
-            }
-            create_tx_rollup(tx_rollup_circuit_data);
+            create_tx_rollup();
             break;
         }
         case 1: {
-            if (reduce_mem && !root_rollup_circuit_data.proving_key) {
-                tx_rollup_circuit_data.proving_key.reset();
-                root_rollup_circuit_data = root_rollup::get_circuit_data(
-                    root_rollup_size, tx_rollup_circuit_data, crs, data_path, true, false, true);
-            }
-            create_root_rollup(root_rollup_circuit_data);
+            create_root_rollup();
             break;
         }
         }
