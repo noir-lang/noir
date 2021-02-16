@@ -53,7 +53,8 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
     }
 }
 
-// XXX: Below is the logic to download the CRS if it is not already present
+// XXX: Below is the logic to download the CRS if it is not already present (taken from the Rust cookbook)
+// This has not been optimised.
 
 use error_chain::error_chain;
 use reqwest::header::{HeaderValue, CONTENT_LENGTH, RANGE};
@@ -104,7 +105,8 @@ impl Iterator for PartialRangeIter {
     }
 }
 
-// XXX: Clean up to handle Errors better
+// XXX: Clean up to handle Errors better and remove the partial file incase we cannot
+// download the whole file
 pub fn download_crs(mut path: std::path::PathBuf) {
     if path.exists() {
         println!("File already exists");
@@ -136,16 +138,26 @@ pub fn download_crs(mut path: std::path::PathBuf) {
     let mut output_file = {
         let fname = "transcript00.dat";
 
-        println!("file to download: '{}'", fname);
+        println!("Downloading the Default SRS : Ignite!");
         let fname = path.join(fname);
-        println!("will be located under: '{:?}'", fname);
+        println!("\nSRS will be saved at location: '{:?}'", fname);
 
         File::create(fname).unwrap()
     };
 
-    println!("Downloading trancript00.dat file...");
+    // XXX: This progress bar redraws on macos after a minute. It's not
+    // a problem functionally, however it would be nice to fix.
+    let bar = indicatif::ProgressBar::new(length / (CHUNK_SIZE as u64));
+    bar.set_style(
+        indicatif::ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .progress_chars("##-"),
+    );
+
+    let started = std::time::Instant::now();
     for range in PartialRangeIter::new(0, length - 1, CHUNK_SIZE).unwrap() {
-        println!("Download CRS, progress {:?}", range);
+        bar.inc(1);
+
         let mut response = client.get(url).header(RANGE, range).send().unwrap();
 
         let status = response.status();
@@ -154,6 +166,12 @@ pub fn download_crs(mut path: std::path::PathBuf) {
         }
         std::io::copy(&mut response, &mut output_file).unwrap();
     }
+    bar.finish();
+
+    println!(
+        "Downloading the SRS took {}",
+        indicatif::HumanDuration(started.elapsed())
+    );
 
     let content = response.text().unwrap();
     std::io::copy(&mut content.as_bytes(), &mut output_file).unwrap();
@@ -183,4 +201,13 @@ fn does_not_panic() {
     let scalars = vec![0; num_points * 32];
     let mem = barretenberg.allocate(&scalars);
     barretenberg.free(mem);
+}
+#[test]
+#[ignore]
+fn downloading() {
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+
+    let file_path = dir.path().join("transcript00.dat");
+    download_crs(file_path);
 }
