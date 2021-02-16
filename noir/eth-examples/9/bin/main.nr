@@ -9,5 +9,5 @@ fn main(leaf : Witness, index : Witness, hashpath : [6]Witness, root : Witness) 
 
     priv is_member = std::merkle::check_membership(root, leaf, index, hashpath);
 
-    constrain is_member == one
+    constrain is_member == one;
 }

@@ -13,5 +13,5 @@ fn main(leaf : Witness,root_pub : Public) {
 
     priv root = std::merkle::compute_root([leaf,leaf,leaf,leaf,leaf,leaf,leaf,leaf]);
  
-    constrain root == root_pub
+    constrain root == root_pub;
 }

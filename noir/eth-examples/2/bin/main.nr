@@ -3,9 +3,9 @@
 //
 //
 fn main(x : Witness, y : Witness) {
-    priv x_as_u256 = x as u8;
+    priv x_as_u8 = x as u8;
     priv y_as_u8 = y as u8;
     
-    constrain (x_as_u8 ^ y_as_u8) == y;
+    constrain (x_as_u8 & y_as_u8) == y;
 }
     
