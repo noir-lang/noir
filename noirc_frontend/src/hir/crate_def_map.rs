@@ -51,7 +51,7 @@ impl CrateDefMap {
         let root_file_id = context.crate_graph[crate_id].root_file_id;
 
         // First parse the root file into an AST
-        let ast = parse_root_file(&mut context.file_manager(), root_file_id);
+        let ast = parse_root_file(&mut context.file_manager(), root_file_id)?;
 
         // Allocate a default Module for the root
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -96,13 +96,22 @@ impl CrateDefMap {
     }
 }
 /// Fetch the crate root and parse the file
-pub fn parse_root_file(fm: &mut FileManager, root_file_id: FileId) -> Program {
+pub fn parse_root_file(
+    fm: &mut FileManager,
+    root_file_id: FileId,
+) -> Result<Program, Vec<CollectedErrors>> {
     let file = fm.fetch_file(root_file_id);
     let mut parser = Parser::from_src(root_file_id, file.get_source());
     match parser.parse_program() {
-        Ok(prog) => prog,
-        Err(_) => {
-            panic!("There was a problem parsing the root file. Can we put this parsing procedure elsewhere?")
+        Ok(prog) => Ok(prog),
+        Err(errs) => {
+            use noirc_errors::DiagnosableError;
+            let root_file_errs = CollectedErrors {
+                file_id: root_file_id,
+                errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
+            };
+
+            Err(vec![root_file_errs])
         }
     }
 }

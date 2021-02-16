@@ -3,7 +3,8 @@ use fm::FileId;
 use crate::{NoirFunction, Program};
 
 use super::{
-    crate_def_map::ModuleId, def_collector_crate::UnresolvedFunctions,
+    crate_def_map::ModuleId,
+    def_collector_crate::{CollectedErrors, UnresolvedFunctions},
     resolution::import::ImportDirective,
 };
 
@@ -23,12 +24,12 @@ pub struct ModCollector<'a> {
 
 impl<'a> ModCollector<'a> {
     /// Walk a module and collect it's definitions
-    pub fn collect_defs(&mut self, context: &mut Context) {
+    pub fn collect_defs(&mut self, context: &mut Context) -> Result<(), Vec<CollectedErrors>> {
         // First resolve the module declarations
         // XXX: to avoid clone, possibly destructure the AST and pass in `self` for mod collector instead of `&mut self`
         // Alternatively, pass in the AST as a reference
         for decl in self.ast.module_decls.clone() {
-            self.parse_module_declaration(context, &decl)
+            self.parse_module_declaration(context, &decl)?
         }
 
         // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
@@ -69,18 +70,24 @@ impl<'a> ModCollector<'a> {
         self.def_collector
             .collected_functions
             .push(unresolved_functions);
+
+        Ok(())
     }
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
-    fn parse_module_declaration(&mut self, context: &mut Context, mod_name: &str) {
+    fn parse_module_declaration(
+        &mut self,
+        context: &mut Context,
+        mod_name: &str,
+    ) -> Result<(), Vec<CollectedErrors>> {
         let new_file_id = context
             .file_manager()
             .resolve_path(self.file_id, mod_name)
             .unwrap();
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_root_file(context.file_manager(), new_file_id);
+        let ast = parse_root_file(context.file_manager(), new_file_id)?;
 
         // Add module into def collector and get a ModuleId
         let new_mod_id = self.push_child_module(mod_name, new_file_id);
@@ -91,7 +98,7 @@ impl<'a> ModCollector<'a> {
             file_id: new_file_id,
             module_id: new_mod_id,
         }
-        .collect_defs(context);
+        .collect_defs(context)
     }
 
     pub fn push_child_module(&mut self, mod_name: &str, file_id: FileId) -> LocalModuleId {
