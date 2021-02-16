@@ -279,12 +279,12 @@ impl Optimiser {
     // t = qM1 * wL1 * wR2
     // The gate now looks like: t + qL1 * wL3 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
     // Still assuming width3, we still need to use width-1 terms for the intermediate variables, however we can stop at an earlier stage because
-    // the gate does not need the multipler term to match with any of the fan-in terms
+    // the gate does not need the multiplier term to match with any of the fan-in terms
     // t2 = t + qL1 * wL3
     // The gate now looks like: t2 + qR1 * wR4+ qR2 * wR5 + qO1 * wO5 + qC
     // t3 = t2 + qR1 * wR4
     // The gate now looks like: t3 + qR2 * wR5 + qO1 * wO5 + qC
-    // This took the same amount of gates, but which one is better when the width increases? Compute this and mayeb do both optimisations
+    // This took the same amount of gates, but which one is better when the width increases? Compute this and maybe do both optimisations
     // naming : partial_gate_mul_first_opt and partial_gate_fan_first_opt
     // Also remember that since we did full gate scan, there is no way we can have a non-zero mul term along with the wL and wR terms being non-zero
     //
