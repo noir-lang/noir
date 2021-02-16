@@ -181,7 +181,7 @@ impl Integer {
         }
 
         // Note: The result is not constrained to be `self.num_bits` because the underlying proof system will
-        // make force the result ot be equal to the correct result of a & b
+        // force the result to be equal to the correct result of a & b
         Ok(Integer {
             witness: result,
             num_bits: self.num_bits,

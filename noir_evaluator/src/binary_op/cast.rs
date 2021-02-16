@@ -19,7 +19,7 @@ pub fn handle_cast_op(
     let casted_integer = match left {
         Object::Arithmetic(arith) => {
             let casted_integer = Integer::from_arithmetic(arith, num_bits, env, evaluator);
-            casted_integer.constrain(evaluator);
+            casted_integer.constrain(evaluator)?;
             casted_integer
         }
         Object::Constants(_) => {
@@ -30,7 +30,7 @@ pub fn handle_cast_op(
         }
         Object::Linear(linear) => {
             let casted_integer = Integer::from_arithmetic(linear.into(), num_bits, env, evaluator);
-            casted_integer.constrain(evaluator);
+            casted_integer.constrain(evaluator)?;
             casted_integer
         }
         Object::Integer(integer) => {
@@ -47,7 +47,7 @@ pub fn handle_cast_op(
 
             let should_constrain = integer.num_bits > num_bits;
             if should_constrain {
-                casted_integer.constrain(evaluator);
+                casted_integer.constrain(evaluator)?;
             };
             casted_integer
         }

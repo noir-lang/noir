@@ -39,7 +39,7 @@ pub fn handle_equal_op(
                 .gates
                 .push(Gate::Arithmetic(witness_linear.into()))
         }
-        x => {
+        _x => {
             return Err(RuntimeErrorKind::UnsupportedOp {
                 span: Default::default(),
                 op: "equal".to_owned(),
