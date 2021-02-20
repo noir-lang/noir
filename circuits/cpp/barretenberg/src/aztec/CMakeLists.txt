@@ -48,6 +48,8 @@ if(WASM)
         barretenberg.wasm
         $<TARGET_OBJECTS:srs_objects>
         $<TARGET_OBJECTS:numeric_objects>
+        $<TARGET_OBJECTS:sha256_objects>
+        $<TARGET_OBJECTS:aes128_objects>
         $<TARGET_OBJECTS:blake2s_objects>
         $<TARGET_OBJECTS:keccak_objects>
         $<TARGET_OBJECTS:schnorr_objects>
@@ -70,4 +72,5 @@ if(WASM)
         PRIVATE
         -nostartfiles -Wl,--no-entry -Wl,--export-dynamic -Wl,--import-memory -Wl,--allow-undefined -Wl,--stack-first -Wl,-z,stack-size=8388608
     )
+
 endif()

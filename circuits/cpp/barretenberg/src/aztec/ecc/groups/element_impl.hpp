@@ -655,6 +655,175 @@ element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& exponent)
     return work_element;
 }
 
+template <class Fq, class Fr, class T>
+std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomorphism(
+    const std::vector<affine_element<Fq, Fr, T>>& points, const Fr& exponent) noexcept
+{
+    typedef affine_element<Fq, Fr, T> affine_element;
+    const size_t num_points = points.size();
+    std::vector<Fq> scratch_space(num_points);
+
+    // we can mutate rhs but NOT lhs!
+    // output is stored in rhs
+    const auto batch_affine_add = [num_points, &scratch_space](const affine_element* lhs, affine_element* rhs) {
+        Fq batch_inversion_accumulator = Fq::one();
+
+        for (size_t i = 0; i < num_points; i += 1) {
+            scratch_space[i] = lhs[i].x + rhs[i].x;  // x2 + x1
+            rhs[i].x -= lhs[i].x;                    // x2 - x1
+            rhs[i].y -= lhs[i].y;                    // y2 - y1
+            rhs[i].y *= batch_inversion_accumulator; // (y2 - y1)*accumulator_old
+            batch_inversion_accumulator *= (rhs[i].x);
+        }
+        batch_inversion_accumulator = batch_inversion_accumulator.invert();
+
+        for (size_t i = (num_points)-1; i < num_points; i -= 1) {
+            rhs[i].y *= batch_inversion_accumulator; // update accumulator
+            batch_inversion_accumulator *= rhs[i].x;
+            rhs[i].x = rhs[i].y.sqr();
+            rhs[i].x = rhs[i].x - (scratch_space[i]); // x3 = lambda_squared - x2
+                                                      // - x1
+            scratch_space[i] = lhs[i].x - rhs[i].x;
+            scratch_space[i] *= rhs[i].y;
+            rhs[i].y = scratch_space[i] - lhs[i].y;
+        }
+    };
+
+    // double the elements in lhs
+    const auto batch_affine_double = [num_points, &scratch_space](affine_element* lhs) {
+        Fq batch_inversion_accumulator = Fq::one();
+
+        for (size_t i = 0; i < num_points; i += 1) {
+
+            scratch_space[i] = lhs[i].x.sqr();
+            scratch_space[i] = scratch_space[i] + scratch_space[i] + scratch_space[i];
+
+            scratch_space[i] *= batch_inversion_accumulator;
+
+            batch_inversion_accumulator *= (lhs[i].y + lhs[i].y);
+        }
+        batch_inversion_accumulator = batch_inversion_accumulator.invert();
+
+        Fq temp;
+        for (size_t i = (num_points)-1; i < num_points; i -= 1) {
+
+            scratch_space[i] *= batch_inversion_accumulator;
+            batch_inversion_accumulator *= (lhs[i].y + lhs[i].y);
+
+            temp = lhs[i].x;
+            lhs[i].x = scratch_space[i].sqr() - (lhs[i].x + lhs[i].x);
+            lhs[i].y = scratch_space[i] * (temp - lhs[i].x) - lhs[i].y;
+        }
+    };
+
+    // Compute wnaf for scalar
+    const Fr converted_scalar = exponent.from_montgomery_form();
+
+    if (converted_scalar.is_zero()) {
+        affine_element result{ Fq::zero(), Fq::zero() };
+        result.self_set_infinity();
+        std::vector<affine_element> results;
+        for (size_t i = 0; i < num_points; ++i) {
+            results.emplace_back(result);
+        }
+        return results;
+    }
+
+    constexpr size_t lookup_size = 8;
+    constexpr size_t num_rounds = 32;
+    constexpr size_t num_wnaf_bits = 4;
+    std::array<std::vector<affine_element>, lookup_size> lookup_table;
+    for (auto& table : lookup_table) {
+        table.resize(num_points);
+    }
+    std::vector<affine_element> temp_point_vector(num_points);
+    for (size_t i = 0; i < num_points; ++i) {
+        temp_point_vector[i] = points[i];
+        lookup_table[0][i] = points[i];
+    }
+    batch_affine_double(&temp_point_vector[0]);
+    for (size_t j = 1; j < lookup_size; ++j) {
+
+        for (size_t i = 0; i < num_points; ++i) {
+            lookup_table[j][i] = lookup_table[j - 1][i];
+        }
+        batch_affine_add(&temp_point_vector[0], &lookup_table[j][0]);
+    }
+
+    uint64_t wnaf_table[num_rounds * 2];
+    Fr endo_scalar;
+    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]);
+
+    bool skew = false;
+    bool endo_skew = false;
+
+    wnaf::fixed_wnaf(&endo_scalar.data[0], &wnaf_table[0], skew, 0, 2, num_wnaf_bits);
+    wnaf::fixed_wnaf(&endo_scalar.data[2], &wnaf_table[1], endo_skew, 0, 2, num_wnaf_bits);
+
+    std::vector<affine_element> work_elements(num_points);
+
+    uint64_t wnaf_entry;
+    uint64_t index;
+    bool sign;
+    for (size_t i = 0; i < 2; ++i) {
+        for (size_t j = 0; j < num_points; ++j) {
+            wnaf_entry = wnaf_table[i];
+            index = wnaf_entry & 0x0fffffffU;
+            sign = static_cast<bool>((wnaf_entry >> 31) & 1);
+            const bool is_odd = ((i & 1) == 1);
+            auto to_add = lookup_table[static_cast<size_t>(index)][j];
+            to_add.y.self_conditional_negate(sign ^ is_odd);
+            if (is_odd) {
+                to_add.x *= Fq::beta();
+            }
+            if (i == 0) {
+                work_elements[j] = to_add;
+            } else {
+                temp_point_vector[j] = to_add;
+            }
+        }
+    }
+    batch_affine_add(&temp_point_vector[0], &work_elements[0]);
+
+    for (size_t i = 2; i < num_rounds * 2; ++i) {
+        wnaf_entry = wnaf_table[i];
+        index = wnaf_entry & 0x0fffffffU;
+        sign = static_cast<bool>((wnaf_entry >> 31) & 1);
+        const bool is_odd = ((i & 1) == 1);
+        if (!is_odd) {
+            for (size_t k = 0; k < 4; ++k) {
+                batch_affine_double(&work_elements[0]);
+            }
+        }
+        for (size_t j = 0; j < num_points; ++j) {
+            auto to_add = lookup_table[static_cast<size_t>(index)][j];
+            to_add.y.self_conditional_negate(sign ^ is_odd);
+            if (is_odd) {
+                to_add.x *= Fq::beta();
+            }
+            temp_point_vector[j] = to_add;
+        }
+        batch_affine_add(&temp_point_vector[0], &work_elements[0]);
+    }
+
+    if (skew) {
+        for (size_t j = 0; j < num_points; ++j) {
+            temp_point_vector[j] = -lookup_table[0][j];
+        }
+        batch_affine_add(&temp_point_vector[0], &work_elements[0]);
+    }
+
+    if (endo_skew) {
+        for (size_t j = 0; j < num_points; ++j) {
+            temp_point_vector[j] = lookup_table[0][j];
+            temp_point_vector[j].x *= Fq::beta();
+        }
+        batch_affine_add(&temp_point_vector[0], &work_elements[0]);
+    }
+
+    return work_elements;
+}
+
 template <typename Fq, typename Fr, typename T>
 void element<Fq, Fr, T>::conditional_negate_affine(const affine_element<Fq, Fr, T>& src,
                                                    affine_element<Fq, Fr, T>& dest,
