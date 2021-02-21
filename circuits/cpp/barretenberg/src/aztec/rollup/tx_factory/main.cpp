@@ -51,7 +51,8 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv, argv + argc);
 
     if (args.size() < 3) {
-        std::cerr << "usage:\n" << args[0] << " <num_txs> <inner_rollup_size> [output_file]" << std::endl;
+        std::cerr << "usage:\n"
+                  << args[0] << " <num_txs> <inner_rollup_size> <outer_rollup_size> [output_file]" << std::endl;
         return -1;
     }
 
@@ -68,6 +69,7 @@ int main(int argc, char** argv)
 
     uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t inner_rollup_size = static_cast<uint32_t>(std::stoul(args[2]));
+    const uint32_t outer_rollup_size = static_cast<uint32_t>(std::stoul(args[3]));
 
     std::vector<std::vector<uint8_t>> rollups_data;
     while (num_txs > 0) {
@@ -108,15 +110,15 @@ int main(int argc, char** argv)
     auto root_rollup = root_rollup::create_root_rollup_tx(0, rollups_data, data_tree, root_tree);
     write(std::cout, (uint32_t)1);
     write(std::cout, (uint32_t)inner_rollup_size);
-    write(std::cout, (uint32_t)rollups_data.size());
+    write(std::cout, (uint32_t)outer_rollup_size);
     write(std::cout, root_rollup);
 
-    if (args.size() > 3) {
+    if (args.size() > 4) {
         std::vector<uint8_t> proof_data;
         bool verified;
         read(std::cin, proof_data);
         read(std::cin, verified);
-        std::ofstream of(args[3]);
+        std::ofstream of(args[4]);
         write(of, proof_data);
         write(of, verified);
     }

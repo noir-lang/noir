@@ -7,17 +7,16 @@ namespace waffle {
  **/
 inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> const& key, std::string const& class_name)
 {
-    const auto print_fr = [&](const std::string& name, const barretenberg::fr& element) {
-        os << "    vk." << name << " = PairingsBn254.new_fr(" << std::endl;
-        os << "      " << element << std::endl;
-        os << "    );" << std::endl;
-    };
-    const auto print_g1 = [&](const std::string& name, const barretenberg::g1::affine_element& element) {
-        os << "    vk." << name << " = PairingsBn254.new_g1(" << std::endl;
-        os << "      " << element.x << "," << std::endl;
-        os << "      " << element.y << std::endl;
-        os << "    );" << std::endl;
-    };
+    const auto print_u256 =
+        [&](const std::string& name, const barretenberg::fr& element, const std::string& postlabel) {
+            os << "            " << name << element << postlabel << std::endl;
+        };
+
+    const auto print_g1 =
+        [&](const std::string& offset, const barretenberg::g1::affine_element& element, const std::string& postlabel) {
+            os << "            mstore(mload(add(vk, " << offset << ")), " << element.x << ")" << postlabel << std::endl;
+            os << "            mstore(add(mload(add(vk, " << offset << ")), 0x20), " << element.y << ")" << std::endl;
+        };
 
     // clang-format off
     os <<
@@ -28,56 +27,49 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
       "pragma experimental ABIEncoderV2;\n"
       "\n"
       "import {Types} from '../cryptography/Types.sol';\n"
-      "import {PairingsBn254} from '../cryptography/PairingsBn254.sol';\n"
+      "import {Bn254Crypto} from '../cryptography/Bn254Crypto.sol';\n"
       "\n"
       "library " << class_name << " {\n"
-      "  using PairingsBn254 for Types.G1Point;\n"
-      "  using PairingsBn254 for Types.G2Point;\n"
-      "  using PairingsBn254 for Types.Fr;\n"
+      "    using Bn254Crypto for Types.G1Point;\n"
+      "    using Bn254Crypto for Types.G2Point;\n"
       "\n"
-      "  function get_verification_key() internal pure returns (Types.VerificationKey memory) {\n"
-      "    Types.VerificationKey memory vk;\n"
+      "    function get_verification_key() internal pure returns (Types.VerificationKey memory) {\n"
+      "        Types.VerificationKey memory vk;\n"
       "\n"
-      "    vk.circuit_size = " << key->domain.size << ";\n"
-      "    vk.num_inputs = " << key->num_public_inputs << ";\n";
-    print_fr("work_root", key->domain.root);
-    print_fr("domain_inverse", key->domain.domain_inverse);
-    print_fr("work_root_inverse", key->domain.root_inverse);
-    print_g1("Q1", key->constraint_selectors.at("Q_1"));
-    print_g1("Q2", key->constraint_selectors.at("Q_2"));
-    print_g1("Q3", key->constraint_selectors.at("Q_3"));
-    print_g1("Q4", key->constraint_selectors.at("Q_4"));
-    print_g1("Q5", key->constraint_selectors.at("Q_5"));
-    print_g1("QM", key->constraint_selectors.at("Q_M"));
-    print_g1("QC", key->constraint_selectors.at("Q_C"));
-    print_g1("QARITH", key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"));
-    print_g1("QECC", key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"));
-    print_g1("QRANGE", key->constraint_selectors.at("Q_RANGE_SELECTOR"));
-    print_g1("QLOGIC", key->constraint_selectors.at("Q_LOGIC_SELECTOR"));
-    print_g1("sigma_commitments[0]", key->permutation_selectors.at("SIGMA_1"));
-    print_g1("sigma_commitments[1]", key->permutation_selectors.at("SIGMA_2"));
-    print_g1("sigma_commitments[2]", key->permutation_selectors.at("SIGMA_3"));
-    print_g1("sigma_commitments[3]", key->permutation_selectors.at("SIGMA_4"));
-    print_fr("permutation_non_residues[0]", 5);
-    print_fr("permutation_non_residues[1]", 6);
-    print_fr("permutation_non_residues[2]", 7);
+      "        assembly {\n"
+      "            mstore(add(vk, 0x00), " << key->domain.size << ") // vk.circuit_size\n"
+      "            mstore(add(vk, 0x20), " << key->num_public_inputs << ") // vk.num_inputs\n";
 
+    print_u256("mstore(add(vk, 0x40),", key->domain.root, ") // vk.work_root");
+    print_u256("mstore(add(vk, 0x60),", key->domain.domain_inverse, ") // vk.domain_inverse");
+    print_u256("mstore(add(vk, 0x80),", key->domain.root_inverse, ") // vk.work_root_inverse");
+    print_g1("0xa0", key->constraint_selectors.at("Q_1"), "//vk.Q1");
+    print_g1("0xc0", key->constraint_selectors.at("Q_2"), "//vk.Q2");
+    print_g1("0xe0", key->constraint_selectors.at("Q_3"), "//vk.Q3");
+    print_g1("0x100", key->constraint_selectors.at("Q_4"), "//vk.Q4");
+    print_g1("0x120", key->constraint_selectors.at("Q_5"), "//vk.Q5");
+    print_g1("0x140", key->constraint_selectors.at("Q_M"), "//vk.QM");
+    print_g1("0x160", key->constraint_selectors.at("Q_C"), "//vk.QC");
+    print_g1("0x180", key->constraint_selectors.at("Q_ARITHMETIC_SELECTOR"), "//vk.QARITH");
+    print_g1("0x1a0", key->constraint_selectors.at("Q_FIXED_BASE_SELECTOR"), "//vk.QECC");
+    print_g1("0x1c0", key->constraint_selectors.at("Q_RANGE_SELECTOR"), "//vk.QRANGE");
+    print_g1("0x1e0", key->constraint_selectors.at("Q_LOGIC_SELECTOR"), "//vk.QLOGIC");
+    print_g1("0x200", key->permutation_selectors.at("SIGMA_1"), "//vk.SIGMA1");
+    print_g1("0x220", key->permutation_selectors.at("SIGMA_2"), "//vk.SIGMA2");
+    print_g1("0x240", key->permutation_selectors.at("SIGMA_3"), "//vk.SIGMA3");
+    print_g1("0x260", key->permutation_selectors.at("SIGMA_4"), "//vk.SIGMA4");
     os <<
-      "    vk.contains_recursive_proof = " << (key->contains_recursive_proof ? "true" : "false") << ";\n" <<
-      "    vk.recursive_proof_indices = " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[0] : 0) << ";\n";
-    os <<
-      "    vk.g2_x = PairingsBn254.new_g2([\n"
-      "      " << key->reference_string->get_g2x().x.c1 << ",\n" <<
-      "      " << key->reference_string->get_g2x().x.c0 << "\n"
-      "    ],[\n"
-      "      " << key->reference_string->get_g2x().y.c1 << ",\n" <<
-      "      " << key->reference_string->get_g2x().y.c0 << "\n"
-      "    ]);\n"
-      "    return vk;\n"
-      "  }\n"
+      "            mstore(add(vk, 0x280), " << (key->contains_recursive_proof ? "0x01" : "0x00") << ") // vk.contains_recursive_proof\n"
+      "            mstore(add(vk, 0x2a0), " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[0] : 0) << ") // vk.recursive_proof_public_input_indices\n"
+      "            mstore(mload(add(vk, 0x2c0)), " << key->reference_string->get_g2x().x.c1 << ") // vk.g2_x.X.c1\n"
+      "            mstore(add(mload(add(vk, 0x2c0)), 0x20), " << key->reference_string->get_g2x().x.c0 << ") // vk.g2_x.X.c0\n"
+      "            mstore(add(mload(add(vk, 0x2c0)), 0x40), " << key->reference_string->get_g2x().y.c1 << ") // vk.g2_x.Y.c1\n"
+      "            mstore(add(mload(add(vk, 0x2c0)), 0x60), " << key->reference_string->get_g2x().y.c0 << ") // vk.g2_x.Y.c0\n"
+      "        }\n"
+      "        return vk;\n"
+      "    }\n"
       "}\n";
 
     os << std::flush;
 }
-
 } // namespace waffle
