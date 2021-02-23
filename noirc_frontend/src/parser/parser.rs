@@ -149,7 +149,14 @@ impl<'a> Parser<'a> {
                 }
                 tok => {
                     // XXX: We may allow global constants. We can use a subenum to remove the wildcard pattern
-                    unreachable!(tok)
+                    let expected_tokens = r#" expected "`mod`, `use`,`fn` `#`"#;
+                    let err = ParserErrorKind::UnstructuredError {
+                        span: self.curr_token.into_span(),
+                        message: format!("found `{}`. {}", tok, expected_tokens), // XXX: Fix in next refactor, avoid allocations with error messages
+                    }
+                    .into_err(self.file_id);
+                    self.errors.push(err);
+                    return Err(&self.errors);
                 }
             }
             // The current token will be the ending token for whichever branch was just picked
@@ -177,7 +184,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // For now the synchonisation strategy is basic
+    // XXX: For now the synchonisation strategy is basic.
+    // XXX: Revise this after error refactoring is completed
     fn synchronise(&mut self) {
         loop {
             if self.peek_token == Token::EOF {
