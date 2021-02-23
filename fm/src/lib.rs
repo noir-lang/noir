@@ -11,7 +11,7 @@ pub const BIN_FILE: &'static str = "main"; // XXX: This will be changed to be th
 pub const FILE_EXTENSION: &'static str = "nr";
 pub const MOD_FILE: &'static str = "mod";
 
-// XXX: Create aa trait for file io
+// XXX: Create a trait for file io
 
 #[derive(Debug)]
 pub struct FileManager {
@@ -28,6 +28,8 @@ impl FileManager {
     }
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
+    // XXX: Would it break any assumptions, if we returned the same FileId,
+    // given the same file_path?
     pub fn add_file(&mut self, path_to_file: &PathBuf) -> Option<FileId> {
         // We expect the caller to ensure that the file is a valid noir file
         let ext = path_to_file
