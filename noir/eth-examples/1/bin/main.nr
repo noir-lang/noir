@@ -1,4 +1,4 @@
-
+mod foo;
 // This is a comment.
 //
 // `main` is the entry point to a binary
@@ -11,6 +11,5 @@
 // To verify that proof, type `cargo run verify {proof_name}`
 
 fn main(x : Witness, y : Witness) {
-    constrain x != y;
+    constrain x != foo::hello(y);
 }
-    
