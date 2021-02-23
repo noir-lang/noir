@@ -13,5 +13,7 @@ members = [
     "std_lib",
     "nargo",
     "fm",
-    "arena"
+    "arena",
+    "acvm",
+    "noirc_abi"
 ]

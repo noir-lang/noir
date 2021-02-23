@@ -151,7 +151,6 @@ impl<'a> Evaluator<'a> {
         // for (i, witness) in self.witnesses.iter().enumerate() {
         //     // dbg!(i, witness);
         // }
-
         Ok((
             Circuit(optimised_arith_gates),
             self.witnesses.len(),
