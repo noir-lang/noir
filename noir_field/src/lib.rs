@@ -217,7 +217,16 @@ impl FieldElement {
 
 // Taken from matter-labs: https://github.com/matter-labs/zksync/blob/6bfe1c06f5c00519ce14adf9827086119a50fae2/core/models/src/primitives.rs#L243
 fn pack_bits_into_bytes(bits: Vec<bool>) -> Vec<u8> {
-    assert_eq!(bits.len() % 8, 0);
+    // XXX(FIXME): Passing in just a field element
+    // will trigger this panic for bn254.
+    // The evaluator will need to pad the number of bits
+    // accordingly.
+    assert_eq!(
+        bits.len() % 8,
+        0,
+        "input is not a multiple of 8, len is {}",
+        bits.len()
+    );
     let mut message_bytes: Vec<u8> = vec![];
 
     let byte_chunks = bits.chunks(8);
