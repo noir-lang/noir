@@ -7,6 +7,8 @@
 // the ordering of public inputs, is due to the barretenberg standard format API
 // where we need public inputs to be added initially
 
+pub mod input_parser;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// Types that are allowed in the (main function in binary)
 ///
