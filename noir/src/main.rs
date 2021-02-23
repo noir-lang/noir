@@ -203,7 +203,8 @@ fn verify(args: ArgMatches) {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension("proof");
 
-    let proof: Vec<_> = std::fs::read(proof_path).unwrap();
+    let proof_hex: Vec<_> = std::fs::read(proof_path).unwrap();
+    let proof = hex::decode(proof_hex).unwrap();
 
     let compiled_main = build_main();
 
@@ -305,7 +306,7 @@ fn prove(args: ArgMatches) {
 
     dbg!(hex::encode(&proof));
 
-    let path = write_to_file(&proof, &proof_path);
+    let path = write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
     println!("Proof successfully created and located at {}", path)
 }
 
