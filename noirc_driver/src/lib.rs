@@ -1,5 +1,6 @@
 use acir::circuit::Circuit;
 use noir_evaluator::Evaluator;
+use noirc_abi::AbiType;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
 use noirc_frontend::ast::Type;
@@ -19,7 +20,7 @@ pub struct CompiledProgram {
     pub circuit: Circuit,
     pub num_witnesses: usize,
     pub num_public_inputs: usize,
-    pub abi: Option<Vec<(String, Type)>>,
+    pub abi: Option<noirc_abi::Abi>,
 }
 
 impl Driver {
@@ -43,7 +44,11 @@ impl Driver {
     /// we have multiple binaries in one workspace
     /// A Fix would be for the driver instance to store the local crate id.
     // Granted that this is the only place which relies on the local crate being first
-    pub fn create_local_crate<P: AsRef<Path>>(&mut self, root_file: P, crate_type: CrateType) {
+    pub fn create_local_crate<P: AsRef<Path>>(
+        &mut self,
+        root_file: P,
+        crate_type: CrateType,
+    ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
         let root_file_id = self.context.file_manager().add_file(&dir_path).unwrap();
 
@@ -51,7 +56,10 @@ impl Driver {
             .context
             .crate_graph
             .add_crate_root(crate_type, root_file_id);
+
         assert!(crate_id == LOCAL_CRATE);
+
+        LOCAL_CRATE
     }
 
     /// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
@@ -191,18 +199,43 @@ impl Driver {
     }
 
     /// Creates an ABI from a function
-    fn func_to_abi(&self, func_id: &FuncId) -> Vec<(String, Type)> {
+    fn func_to_abi(&self, func_id: &FuncId) -> noirc_abi::Abi {
         let func_meta = self.context.def_interner.function_meta(func_id);
 
-        func_meta
+        let parameters: Vec<_> = func_meta
             .parameters
             .into_iter()
             .map(|param| {
                 let (param_id, param_type) = (param.0, param.1);
                 let param_name = self.context.def_interner.ident_name(&param_id);
-                (param_name, param_type)
+                (param_name, noir_type_to_abi_type(param_type))
             })
-            .collect()
+            .collect();
+        noirc_abi::Abi { parameters }
+    }
+}
+
+fn noir_type_to_abi_type(typ: Type) -> AbiType {
+    match typ {
+        Type::FieldElement => panic!("currently, cannot have a field in the entry point function"),
+        Type::Constant => panic!("cannot have a constant in the entry point function"),
+        Type::Public => AbiType::Public,
+        Type::Witness => AbiType::Private,
+        Type::Array(size, typ) => match size {
+            noirc_frontend::ArraySize::Variable => {
+                panic!("cannot have variable sized array in entry point")
+            }
+            noirc_frontend::ArraySize::Fixed(length) => AbiType::Array {
+                length: length,
+                typ: Box::new(noir_type_to_abi_type(*typ)),
+            },
+        },
+        Type::Integer(sign, bit_width) => todo!(),
+        Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
+        Type::Error => unreachable!(),
+        Type::Unspecified => unreachable!(),
+        Type::Unknown => unreachable!(),
+        Type::Unit => unreachable!(),
     }
 }
 

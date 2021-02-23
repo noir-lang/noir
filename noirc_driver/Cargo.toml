@@ -10,6 +10,7 @@ edition = "2018"
 noirc_errors = {path = "../noirc_errors"}
 noirc_frontend = {path = "../noirc_frontend"}
 noir_evaluator = {path = "../noir_evaluator"}
+noirc_abi = {path = "../noirc_abi"}
 acir = {path = "../acir"}
 std_lib = {path = "../std_lib"}
 fm = {path = "../fm"}
