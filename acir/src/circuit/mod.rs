@@ -3,7 +3,7 @@ pub mod gate;
 pub use gate::Gate;
 use noir_field::FieldElement;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Circuit(pub Vec<Gate>);
 
 // (selector_id, selector as an i128 , We don't have big int yet)

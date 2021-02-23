@@ -8,6 +8,3 @@ edition = "2018"
 
 [dependencies]
 noir_field = {path = "../noir_field"}
-
-# Dependencies for gadget calls
-sha2 = "0.9"
