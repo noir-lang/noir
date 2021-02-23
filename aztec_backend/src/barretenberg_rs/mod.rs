@@ -58,7 +58,7 @@ impl Barretenberg {
         }
     }
     // XXX: change to read_mem
-    pub fn slice_memory(&mut self, start: usize, end: usize) -> Vec<u8> {
+    pub fn slice_memory(&self, start: usize, end: usize) -> Vec<u8> {
         let memory = self.instance.exports.get_memory("memory").unwrap();
 
         let mut result = Vec::new();
@@ -148,11 +148,17 @@ fn instance_load() -> Instance {
     let mut wasi_env = WasiState::new("barretenberg").finalize().unwrap();
     let import_object = wasi_env.import_object(&module).unwrap();
 
-    let logstr_native = Function::new_native(&store, |_a: i32| {});
+    let log_env = Function::new_native_with_env(
+        &store,
+        Env {
+            memory: wasmer::LazyInit::new(),
+        },
+        logstr,
+    );
 
     let custom_imports = imports! {
         "env" => {
-            "logstr" => logstr_native,
+            "logstr" => log_env,
         },
     };
 
@@ -165,5 +171,42 @@ impl Barretenberg {
         Barretenberg {
             instance: instance_load(),
         }
+    }
+}
+
+fn logstr(my_env: &Env, ptr: i32) {
+    let memory = my_env.memory.get_ref().unwrap();
+
+    let mut ptr_end = 0;
+    for (i, cell) in memory.view::<u8>()[ptr as usize..].iter().enumerate() {
+        if cell.get() != 0 {
+            ptr_end = i;
+        } else {
+            break;
+        }
+    }
+
+    let str_vec: Vec<_> = memory.view()[ptr as usize..=(ptr + ptr_end as i32) as usize]
+        .iter()
+        .map(|cell| cell.get())
+        .collect();
+
+    // Convert the subslice to a `&str`.
+    let string = std::str::from_utf8(&str_vec).unwrap();
+
+    // Print it!
+    println!("[WASM LOG] {}", string);
+}
+
+#[derive(Clone)]
+pub struct Env {
+    memory: wasmer::LazyInit<wasmer::Memory>,
+}
+
+impl wasmer::WasmerEnv for Env {
+    fn init_with_instance(&mut self, instance: &Instance) -> Result<(), wasmer::HostEnvInitError> {
+        let memory = instance.exports.get_memory("memory").unwrap();
+        self.memory.initialize(memory.clone());
+        Ok(())
     }
 }
