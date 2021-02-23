@@ -54,7 +54,7 @@ pub struct CrateGraph {
 /// and we do not want names that differ by a hyphen
 pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CrateType {
     Library,
     Binary,
