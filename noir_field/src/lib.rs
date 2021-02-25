@@ -1,5 +1,5 @@
 use ark_bn254::Fr;
-use ark_ff::Field;
+use ark_ff::{to_bytes, Field};
 use ark_ff::{BitIteratorBE, PrimeField};
 use ark_ff::{One, Zero};
 use std::str::FromStr;
@@ -120,18 +120,19 @@ impl FieldElement {
     }
 
     pub fn to_hex(&self) -> String {
-        self.0.to_string()
+        let mut bytes = to_bytes!(self.0).unwrap();
+        bytes.reverse();
+        hex::encode(bytes)
     }
     pub fn from_hex(hex_str: &str) -> Option<FieldElement> {
         let dec_str = hex_to_decimal(hex_str);
         return Fr::from_str(&dec_str).map(|fr| FieldElement(fr)).ok();
     }
 
-    // XXX: 100% sure there is a better way to do this and other operations without hex. Check API for it.
+    // XXX: This is not portable, if the underlying field changes!
     pub fn to_bytes(&self) -> [u8; 32] {
-        let mut buf = [0; 32];
-        hex::decode_to_slice(self.to_hex(), &mut buf).unwrap();
-        buf
+        use std::convert::TryInto;
+        hex::decode(self.to_hex()).unwrap().try_into().unwrap()
     }
     /// Converts bytes into a FieldElement. Does not reduce.
     pub fn from_bytes(bytes: &[u8]) -> FieldElement {
