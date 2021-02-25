@@ -1,6 +1,8 @@
-use ff::{BitIterator, Field, PrimeField};
-use pairing::bn256::Fr;
-
+use ark_bn254::Fr;
+use ark_ff::Field;
+use ark_ff::{BitIteratorBE, PrimeField};
+use ark_ff::{One, Zero};
+use std::str::FromStr;
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -24,7 +26,7 @@ impl From<i128> for FieldElement {
             .expect("Cannot convert i128 as a string to a field element");
 
         if negative {
-            result.negate();
+            result = -result;
         }
         return FieldElement(result);
     }
@@ -40,7 +42,8 @@ impl FieldElement {
     /// But the representation uses 256 bits, so the top two bits are always zero
     /// This method would return 254
     pub fn max_num_bits() -> u32 {
-        Fr::NUM_BITS
+        // Fr::NUM_BITS
+        254
     }
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
@@ -48,12 +51,12 @@ impl FieldElement {
     /// This method can be used for both hex and decimal representations.
     pub fn from_str(input: &str) -> Option<FieldElement> {
         if input.contains('x') {
-            return Fr::from_hex(input).map(|fr| FieldElement(fr)).ok();
+            return FieldElement::from_hex(input);
         }
 
         let fr = match Fr::from_str(input) {
-            None => return None,
-            Some(x) => x,
+            Err(_) => return None,
+            Ok(x) => x,
         };
         Some(FieldElement(fr))
     }
@@ -62,15 +65,15 @@ impl FieldElement {
     // However this representation uses 256 bits, hence 2 wasted bits
     // Note: This has nothing to do with saturated field elements.
     fn wasted_bits() -> u32 {
-        let vec: Vec<_> = BitIterator::new(Fr::one().into_repr()).collect();
+        let vec: Vec<_> = BitIteratorBE::new(Fr::one().into_repr()).collect();
 
         let num_bits_used = vec.len() as u32;
-        let num_bits_needed = Fr::NUM_BITS;
+        let num_bits_needed = FieldElement::max_num_bits();
         num_bits_used - num_bits_needed
     }
     /// This is the number of bits required to represent this specific field element
     pub fn num_bits(&self) -> u32 {
-        let non_zero_index = BitIterator::new(self.0.into_repr()).position(|x| x != false);
+        let non_zero_index = BitIteratorBE::new(self.0.into_repr()).position(|x| x != false);
 
         match non_zero_index {
             None => return 0,
@@ -84,7 +87,7 @@ impl FieldElement {
                 // This is now the amount of significant elements that came before the most significant bit
                 let msb_index_offset = (index as u32) - offset;
 
-                return Fr::NUM_BITS - msb_index_offset;
+                return FieldElement::max_num_bits() - msb_index_offset;
             }
         }
     }
@@ -117,13 +120,11 @@ impl FieldElement {
     }
 
     pub fn to_hex(&self) -> String {
-        self.0.to_hex()
+        self.0.to_string()
     }
     pub fn from_hex(hex_str: &str) -> Option<FieldElement> {
-        match Fr::from_hex(hex_str) {
-            Ok(fr) => Some(FieldElement(fr)),
-            Err(_) => None,
-        }
+        let dec_str = hex_to_decimal(hex_str);
+        return Fr::from_str(&dec_str).map(|fr| FieldElement(fr)).ok();
     }
 
     // XXX: 100% sure there is a better way to do this and other operations without hex. Check API for it.
@@ -132,10 +133,15 @@ impl FieldElement {
         hex::decode_to_slice(self.to_hex(), &mut buf).unwrap();
         buf
     }
+    /// Converts bytes into a FieldElement. Does not reduce.
     pub fn from_bytes(bytes: &[u8]) -> FieldElement {
         let hex_str = hex::encode(bytes);
-        let fr = Fr::from_hex(&hex_str).unwrap();
-        FieldElement(fr)
+        FieldElement::from_hex(&hex_str).unwrap()
+    }
+    /// Converts bytes into a FieldElement and applies a
+    /// reduction if needed.
+    pub fn from_bytes_reduce(bytes: &[u8]) -> FieldElement {
+        FieldElement(Fr::from_be_bytes_mod_order(bytes))
     }
 
     // mask_to methods will not remove any bytes from the field
@@ -151,12 +157,12 @@ impl FieldElement {
         pack_bits_into_bytes(bit_iter)
     }
     pub fn bits(&self) -> Vec<bool> {
-        BitIterator::new(self.0.into_repr()).collect()
+        BitIteratorBE::new(self.0.into_repr()).collect()
     }
     fn mask_to_bits(&self, num_bits: u32) -> Vec<bool> {
-        let max_bits = Fr::NUM_BITS + FieldElement::wasted_bits();
+        let max_bits = FieldElement::max_num_bits() + FieldElement::wasted_bits();
 
-        let bit_iter: Vec<_> = BitIterator::new(self.0.into_repr())
+        let bit_iter: Vec<_> = BitIteratorBE::new(self.0.into_repr())
             .enumerate()
             .map(|(i, bit)| {
                 if i < (max_bits - num_bits) as usize {
@@ -170,9 +176,9 @@ impl FieldElement {
         bit_iter
     }
     fn truncate_to_bits(&self, num_bits: u32) -> Vec<bool> {
-        let max_bits = Fr::NUM_BITS + FieldElement::wasted_bits();
+        let max_bits = FieldElement::max_num_bits() + FieldElement::wasted_bits();
 
-        let bit_iter: Vec<_> = BitIterator::new(self.0.into_repr())
+        let bit_iter: Vec<_> = BitIteratorBE::new(self.0.into_repr())
             .enumerate()
             .filter(|(i, _)| *i >= (max_bits - num_bits) as usize)
             .map(|(_, bit)| bit)
@@ -187,9 +193,9 @@ impl FieldElement {
 
     fn and_xor(&self, rhs: &FieldElement, num_bits: u32, is_xor: bool) -> FieldElement {
         let lhs = self.mask_to_field(num_bits);
-        let lhs_bit_iter = BitIterator::new(lhs.0.into_repr());
+        let lhs_bit_iter = BitIteratorBE::new(lhs.0.into_repr());
         let rhs = rhs.mask_to_field(num_bits);
-        let rhs_bit_iter = BitIterator::new(rhs.0.into_repr());
+        let rhs_bit_iter = BitIteratorBE::new(rhs.0.into_repr());
 
         let and_iter: Vec<_> = lhs_bit_iter
             .zip(rhs_bit_iter)
@@ -242,21 +248,35 @@ fn pack_bits_into_bytes(bits: Vec<bool>) -> Vec<u8> {
 
     message_bytes
 }
+// This is needed because arkworks only accepts arbitrary sized
+// decimal strings and not hex strings
+pub fn hex_to_decimal(value: &str) -> String {
+    let value = if value.starts_with("0x") {
+        &value[2..]
+    } else {
+        value
+    };
+
+    use num_bigint::BigInt;
+    BigInt::parse_bytes(value.as_bytes(), 16)
+        .unwrap()
+        .to_str_radix(10)
+}
 
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 impl Neg for FieldElement {
     type Output = FieldElement;
 
-    fn neg(mut self) -> Self::Output {
-        self.0.negate();
-        FieldElement(self.0)
+    fn neg(self) -> Self::Output {
+        FieldElement(-self.0)
     }
 }
 
 impl Mul for FieldElement {
     type Output = FieldElement;
     fn mul(mut self, rhs: FieldElement) -> Self::Output {
+        use std::ops::MulAssign;
         self.0.mul_assign(&rhs.0);
         FieldElement(self.0)
     }
