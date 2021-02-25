@@ -14,6 +14,7 @@ enum Command {
     COMMIT,
     ROLLBACK,
     GETPATH,
+    BATCH_PUT,
 };
 
 class WorldStateDb {
@@ -76,6 +77,17 @@ class WorldStateDb {
         write(os, put_response);
     }
 
+    void batch_put(std::istream& is, std::ostream& os)
+    {
+        std::vector<PutRequest> put_requests;
+        read(is, put_requests);
+        for (auto& put_request : put_requests) {
+            trees_[put_request.tree_id]->update_element(put_request.index,
+                                                        { put_request.value.begin(), put_request.value.end() });
+        }
+        write_metadata(os);
+    }
+
     void commit(std::ostream& os)
     {
         // std::cerr << "COMMIT" << std::endl;
@@ -131,6 +143,9 @@ int main(int argc, char** argv)
             break;
         case PUT:
             world_state_db.put(std::cin, std::cout);
+            break;
+        case BATCH_PUT:
+            world_state_db.batch_put(std::cin, std::cout);
             break;
         case COMMIT:
             world_state_db.commit(std::cout);
