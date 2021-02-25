@@ -8,9 +8,7 @@ pub mod pedersen;
 mod pippenger;
 pub mod schnorr;
 
-use wasmer::{
-    imports, ChainableNamedResolver, Cranelift, Engine, Function, Instance, JITEngine, Value,
-};
+use wasmer::{imports, ChainableNamedResolver, Cranelift, Engine, Function, Instance, Value};
 use wasmer::{Module, Store};
 use wasmer_engine_jit::JIT;
 use wasmer_wasi::WasiState;

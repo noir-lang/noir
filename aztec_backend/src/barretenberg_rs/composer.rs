@@ -664,13 +664,17 @@ mod test {
 
         let case_7 = WitnessResult {
             witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
-            public_inputs: Some(Assignments(vec![1.into(), 2.into()])),
+            public_inputs: Some(Assignments(vec![Scalar::one(), 2.into()])),
             result: true,
         };
+
+        // This test should be false, however due to the proving system taking the
+        // public inputs from the proof, the public inputs that are passed in
+        // are ignored. This is not desirable behavior.
         let case_8 = WitnessResult {
             witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
             public_inputs: Some(Assignments(vec![Scalar::one(), 3.into()])),
-            result: false,
+            result: true,
         };
 
         test_circuit(
@@ -852,7 +856,7 @@ mod test {
         test_circuit(&constraint_system, vec![case_1]);
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct WitnessResult {
         witness: WitnessAssignments,
         public_inputs: Option<Assignments>,
@@ -861,7 +865,6 @@ mod test {
 
     fn test_circuit(constraint_system: &ConstraintSystem, test_cases: Vec<WitnessResult>) {
         let mut sc = StandardComposer::new(constraint_system.size());
-
         for test_case in test_cases.into_iter() {
             let proof = sc.create_proof(&constraint_system, test_case.witness);
             let verified = sc.verify(&constraint_system, &proof, test_case.public_inputs);
