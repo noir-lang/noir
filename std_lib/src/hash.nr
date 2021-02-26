@@ -6,3 +6,6 @@ fn blake2s(_input : []Witness) -> [2]Witness {}
 
 #[foreign(pedersen)]
 fn pedersen(_input : []Witness) -> Witness {}
+
+#[foreign(hash_to_field)]
+fn hash_to_field(_input : []Witness) -> Witness {}
