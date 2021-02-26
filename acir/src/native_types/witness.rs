@@ -4,7 +4,7 @@
 // Lets make this only usize, and have a map in the compiler to map Witness string to usize
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd)]
-pub struct Witness(pub String, pub usize);
+pub struct Witness(pub String, pub u32);
 
 use std::cmp::Ordering;
 impl Ord for Witness {
@@ -21,10 +21,10 @@ impl Default for Witness {
 }
 
 impl Witness {
-    pub fn new(variable_name: String, witness_index: usize) -> Witness {
+    pub fn new(variable_name: String, witness_index: u32) -> Witness {
         Witness(variable_name, witness_index)
     }
-    pub fn witness_index(&self) -> usize {
+    pub fn witness_index(&self) -> u32 {
         self.1
     }
     pub fn variable_name(&self) -> &str {

@@ -25,7 +25,7 @@ impl Optimiser {
         &self,
         gate: Arithmetic,
         mut intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
-        num_witness: usize,
+        num_witness: u32,
     ) -> Arithmetic {
         // Remove all terms where the co-efficient is zero
         let gate = self.remove_zero_coefficients(gate);
@@ -126,7 +126,7 @@ impl Optimiser {
         &self,
         mut gate: Arithmetic,
         intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
-        num_witness: usize,
+        num_witness: u32,
     ) -> Arithmetic {
         // We pass around this intermediate variable BTreeMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
@@ -222,8 +222,10 @@ impl Optimiser {
                         "optim_inter_full_gate_",
                         intermediate_variables.len(),
                     );
-                    let inter_var =
-                        Witness(inter_var_name, intermediate_variables.len() + num_witness);
+                    let inter_var = Witness(
+                        inter_var_name,
+                        intermediate_variables.len() as u32 + num_witness,
+                    );
 
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
@@ -293,7 +295,7 @@ impl Optimiser {
         &self,
         mut gate: Arithmetic,
         intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
-        num_witness: usize,
+        num_witness: u32,
     ) -> Arithmetic {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
@@ -312,7 +314,10 @@ impl Optimiser {
                 "optim_inter_squash_mul_",
                 intermediate_variables.len(),
             );
-            let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
+            let inter_var = Witness(
+                inter_var_name,
+                (intermediate_variables.len() as u32) + num_witness,
+            );
             let mut intermediate_gate = Arithmetic::default();
 
             // Push mul term into the gate
@@ -361,7 +366,10 @@ impl Optimiser {
                 "optim_inter_squash_fan_",
                 intermediate_variables.len(),
             );
-            let inter_var = Witness(inter_var_name, intermediate_variables.len() + num_witness);
+            let inter_var = Witness(
+                inter_var_name,
+                (intermediate_variables.len() as u32) + num_witness,
+            );
 
             intermediate_gate
                 .linear_combinations
