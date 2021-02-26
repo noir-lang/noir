@@ -24,7 +24,12 @@ pub enum AbiType {
     Private,
     Public,
     Array { length: u128, typ: Box<AbiType> },
-    Integer { length: u128, typ: Box<AbiType> },
+    Integer { sign: Sign, width: u32 },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sign {
+    Unsigned,
+    Signed,
 }
 
 impl AbiType {
