@@ -24,7 +24,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Result<(
     let declared_return_type = &meta.return_type;
     let can_ignore_ret = meta.can_ignore_return_type();
 
-    for param in meta.parameters {
+    for param in meta.parameters.into_iter() {
         interner.push_ident_type(&param.0, param.1);
     }
 
@@ -127,7 +127,7 @@ mod test {
             name: String::from("test_func"),
             kind: FunctionKind::Normal,
             attributes: None,
-            parameters: vec![Param(x_id, Type::Witness), Param(y_id, Type::Witness)],
+            parameters: vec![Param(x_id, Type::Witness), Param(y_id, Type::Witness)].into(),
             return_type: Type::Unit,
             has_body: true,
         };

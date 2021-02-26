@@ -223,7 +223,7 @@ impl<'a> Resolver<'a> {
             name,
             kind: func.kind,
             attributes,
-            parameters,
+            parameters: parameters.into(),
             return_type,
             has_body: func.def.body.len() > 0,
         };

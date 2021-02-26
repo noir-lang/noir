@@ -9,12 +9,13 @@ edition = "2018"
 [dependencies]
 noir_field = {path = "../noir_field"}
 acir = {path = "../acir"}
+noirc_abi = {path = "../noirc_abi"}
 noirc_errors = {path = "../noirc_errors"}
-thiserror = "1.0.21"
 std_lib = {path = "../std_lib"}
 fm = {path = "../fm"}
 arena = {path = "../arena"}
 
+thiserror = "1.0.21"
 pathdiff = "0.2"
 smol_str = "0.1.17"
 rustc-hash = "1.1.0"
