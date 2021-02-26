@@ -17,11 +17,7 @@ pub struct OptimiserCircuit {
     pub intermediate_variables: BTreeMap<Witness, Arithmetic>,
 }
 
-pub fn compile<T: ProofSystemCompiler>(
-    acir: Circuit,
-    num_witnesses: usize,
-    backend: T,
-) -> OptimiserCircuit {
+pub fn compile<T: ProofSystemCompiler>(acir: Circuit, backend: T) -> Circuit {
     //
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same
@@ -34,9 +30,9 @@ pub fn compile<T: ProofSystemCompiler>(
 
     // Optimise the arithmetic gates by reducing them into the correct width and
     // creating intermediate variables when necessary
-    let num_witness = num_witnesses + 1;
-    let optimised_arith_gates: Vec<_> = acir
-        .0
+    let num_witness = acir.num_witnesses + 1;
+    let mut optimised_arith_gates: Vec<_> = acir
+        .gates
         .into_iter()
         .map(|gate| match gate {
             Gate::Arithmetic(arith) => {
@@ -47,8 +43,13 @@ pub fn compile<T: ProofSystemCompiler>(
         })
         .collect();
 
-    OptimiserCircuit {
-        circuit: acir::circuit::Circuit(optimised_arith_gates),
-        intermediate_variables,
+    let num_witnesses = acir.num_witnesses + intermediate_variables.len() as u32;
+    for (_, gate) in intermediate_variables {
+        optimised_arith_gates.push(Gate::Arithmetic(gate));
+    }
+    Circuit {
+        num_witnesses,
+        gates: optimised_arith_gates,
+        public_inputs: acir.public_inputs, // The optimiser does not add public inputs
     }
 }

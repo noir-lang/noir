@@ -49,12 +49,7 @@ pub trait SmartContract {
     /// This deprecation may happen in two stages:
     /// The first stage will remove `num_witnesses` and `num_public_inputs` parameters.
     /// If we cannot avoid `num_witnesses`, it can be added into the Circuit struct.
-    fn eth_contract_from_cs(
-        &self,
-        circuit: Circuit,
-        num_witnesses: usize,
-        public_inputs: Vec<u32>,
-    ) -> String;
+    fn eth_contract_from_cs(&self, circuit: Circuit) -> String;
 }
 
 pub trait ProofSystemCompiler {
@@ -73,8 +68,6 @@ pub trait ProofSystemCompiler {
         &self,
         circuit: Circuit,
         witness_values: BTreeMap<Witness, FieldElement>,
-        num_witnesses: usize,
-        public_inputs: Vec<u32>,
     ) -> Vec<u8>;
 
     /// Verifies a Proof, given the circuit description.
@@ -84,13 +77,7 @@ pub trait ProofSystemCompiler {
     /// which is why this is here.
     ///
     /// See `SmartContract` regarding the removal of `num_witnesses` and `num_public_inputs`
-    fn verify_from_cs(
-        &self,
-        proof: &[u8],
-        circuit: Circuit,
-        num_witnesses: usize,
-        public_inputs: Vec<u32>,
-    ) -> bool;
+    fn verify_from_cs(&self, proof: &[u8], circuit: Circuit) -> bool;
 }
 
 /// Supported NP complete languages

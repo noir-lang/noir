@@ -14,11 +14,8 @@ impl ProofSystemCompiler for Plonk {
         &self,
         circuit: Circuit,
         witness_values: BTreeMap<Witness, FieldElement>,
-        num_witnesses: usize,
-        public_inputs: Vec<u32>,
     ) -> Vec<u8> {
-        let constraint_system =
-            aztec_backend::serialise_circuit(&circuit, num_witnesses, public_inputs);
+        let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
@@ -32,15 +29,8 @@ impl ProofSystemCompiler for Plonk {
         composer.create_proof(&constraint_system, sorted_witness)
     }
 
-    fn verify_from_cs(
-        &self,
-        proof: &[u8],
-        circuit: Circuit,
-        num_witnesses: usize,
-        public_inputs: Vec<u32>,
-    ) -> bool {
-        let constraint_system =
-            aztec_backend::serialise_circuit(&circuit, num_witnesses, public_inputs);
+    fn verify_from_cs(&self, proof: &[u8], circuit: Circuit) -> bool {
+        let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
@@ -55,14 +45,8 @@ impl ProofSystemCompiler for Plonk {
 }
 
 impl SmartContract for Plonk {
-    fn eth_contract_from_cs(
-        &self,
-        circuit: Circuit,
-        num_witnesses: usize,
-        public_inputs: Vec<u32>,
-    ) -> String {
-        let constraint_system =
-            aztec_backend::serialise_circuit(&circuit, num_witnesses, public_inputs);
+    fn eth_contract_from_cs(&self, circuit: Circuit) -> String {
+        let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
