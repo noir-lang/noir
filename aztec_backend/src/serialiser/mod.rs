@@ -12,11 +12,7 @@ use acir::OPCODE;
 use noir_field::FieldElement;
 
 /// Converts an `IR` into the `StandardFormat` constraint system
-pub fn serialise_circuit(
-    circuit: &Circuit,
-    num_vars: usize,
-    public_inputs: Vec<u32>,
-) -> ConstraintSystem {
+pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     // Create constraint system
     let mut constraints: Vec<Constraint> = Vec::new();
     let mut range_constraints: Vec<RangeConstraint> = Vec::new();
@@ -29,7 +25,7 @@ pub fn serialise_circuit(
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
     let mut hash_to_field_constraints: Vec<HashToFieldConstraint> = Vec::new();
 
-    for gate in circuit.0.iter() {
+    for gate in circuit.gates.iter() {
         match gate {
             Gate::Arithmetic(arithmetic) => {
                 let constraint = serialise_arithmetic_gates(arithmetic);
@@ -272,8 +268,8 @@ pub fn serialise_circuit(
 
     // Create constraint system
     let constraint_system = ConstraintSystem {
-        var_num: num_vars as u32,
-        public_inputs,
+        var_num: circuit.num_witnesses,
+        public_inputs: circuit.public_inputs.indices(),
         logic_constraints,
         range_constraints,
         sha256_constraints,
