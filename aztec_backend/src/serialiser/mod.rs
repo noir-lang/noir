@@ -2,8 +2,9 @@
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 
 use crate::barretenberg_rs::composer::{
-    Blake2sConstraint, Constraint, ConstraintSystem, LogicConstraint, MerkleMembershipConstraint,
-    MerkleRootConstraint, PedersenConstraint, RangeConstraint, SchnorrConstraint, Sha256Constraint,
+    Blake2sConstraint, Constraint, ConstraintSystem, HashToFieldConstraint, LogicConstraint,
+    MerkleMembershipConstraint, MerkleRootConstraint, PedersenConstraint, RangeConstraint,
+    SchnorrConstraint, Sha256Constraint,
 };
 use acir::circuit::{Circuit, Gate};
 use acir::native_types::Arithmetic;
@@ -14,7 +15,7 @@ use noir_field::FieldElement;
 pub fn serialise_circuit(
     circuit: &Circuit,
     num_vars: usize,
-    num_pub_inputs: usize,
+    public_inputs: Vec<u32>,
 ) -> ConstraintSystem {
     // Create constraint system
     let mut constraints: Vec<Constraint> = Vec::new();
@@ -26,6 +27,7 @@ pub fn serialise_circuit(
     let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
     let mut merkle_root_constraints: Vec<MerkleRootConstraint> = Vec::new();
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
+    let mut hash_to_field_constraints: Vec<HashToFieldConstraint> = Vec::new();
 
     for gate in circuit.0.iter() {
         match gate {
@@ -243,6 +245,25 @@ pub fn serialise_circuit(
 
                         pedersen_constraints.push(constraint);
                     }
+                    OPCODE::HashToField => {
+                        let mut hash_to_field_inputs: Vec<(i32, i32)> = Vec::new();
+                        for input in gadget_call.inputs.iter() {
+                            let witness_index = input.witness.witness_index() as i32;
+                            let num_bits = input.num_bits as i32;
+                            hash_to_field_inputs.push((witness_index, num_bits));
+                        }
+
+                        assert_eq!(gadget_call.outputs.len(), 1);
+
+                        let result = gadget_call.outputs[0].witness_index() as i32;
+
+                        let hash_to_field_constraint = HashToFieldConstraint {
+                            inputs: hash_to_field_inputs,
+                            result,
+                        };
+
+                        hash_to_field_constraints.push(hash_to_field_constraint);
+                    }
                 };
             }
             gate => panic!("Serialiser does not know how to serialise this gate"),
@@ -252,16 +273,17 @@ pub fn serialise_circuit(
     // Create constraint system
     let constraint_system = ConstraintSystem {
         var_num: num_vars as u32,
-        pub_var_num: num_pub_inputs as u32,
-        logic_constraints: logic_constraints,
-        range_constraints: range_constraints,
-        sha256_constraints: sha256_constraints,
-        merkle_membership_constraints: merkle_membership_constraints,
-        merkle_root_constraints: merkle_root_constraints,
-        pedersen_constraints: pedersen_constraints,
-        schnorr_constraints: schnorr_constraints,
-        blake2s_constraints: blake2s_constraints,
-        constraints: constraints,
+        public_inputs,
+        logic_constraints,
+        range_constraints,
+        sha256_constraints,
+        merkle_membership_constraints,
+        merkle_root_constraints,
+        pedersen_constraints,
+        schnorr_constraints,
+        blake2s_constraints,
+        hash_to_field_constraints,
+        constraints,
     };
 
     constraint_system
