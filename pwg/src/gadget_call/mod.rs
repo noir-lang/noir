@@ -204,8 +204,35 @@ impl GadgetCaller {
                 let result = barretenberg.compress_many(scalars);
                 initial_witness.insert(gadget_call.outputs[0].clone(), result);
             }
+            OPCODE::HashToField => {
+                // Deal with Blake2s -- XXX: It's not possible for pwg to know that it is blake2s
+                // We need to get this method from the backend
+                let mut hasher = Blake2s::new();
+
+                // 0. For each input in the vector of inputs, check if we have their witness assignments (Can do this outside of match, since they all have inputs)
+                for input_index in gadget_call.inputs.iter() {
+                    let witness = &input_index.witness;
+                    let num_bits = input_index.num_bits;
+
+                    let witness_assignment = initial_witness.get(witness);
+                    let assignment = match witness_assignment {
+                        None => panic!("cannot find witness assignment for {:?}", witness),
+                        Some(assignment) => assignment,
+                    };
+
+                    let bytes = assignment.fetch_nearest_bytes(num_bits as usize);
+
+                    hasher.update(bytes);
+                }
+                let result = hasher.finalize();
+
+                let reduced_res = FieldElement::from_bytes_reduce(&result);
+
+                assert_eq!(gadget_call.outputs.len(), 1);
+
+                initial_witness.insert(gadget_call.outputs[0].clone(), reduced_res);
+            }
         }
-        // Iterate through standard library functions
     }
 }
 
