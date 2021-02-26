@@ -194,7 +194,7 @@ fn prove_(proof_name: &str) {
         compiled_program.circuit,
         solved_witness,
         compiled_program.num_witnesses,
-        compiled_program.num_public_inputs,
+        compiled_program.public_inputs,
     );
 
     let mut proof_path = std::path::PathBuf::new();
@@ -225,7 +225,7 @@ fn verify_(proof_name: &str) -> bool {
         &proof,
         compiled_program.circuit,
         compiled_program.num_witnesses,
-        compiled_program.num_public_inputs,
+        compiled_program.public_inputs,
     )
 }
 
