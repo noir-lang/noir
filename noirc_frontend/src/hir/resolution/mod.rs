@@ -43,14 +43,14 @@ pub fn resolve_function_call_path(
     // lets package up the path into an ImportDirective and resolve it using that
     let import = ImportDirective {
         module_id: module_id.local_id,
-        path: path,
+        path,
         alias: None,
     };
 
     let def_map = &def_maps[&module_id.krate];
     let path_res = resolve_path_to_ns(&import, def_map, def_maps);
     let ns = match path_res {
-        PathResolution::Unresolved(seg) => panic!("could not resolve path at segment {}", seg),
+        PathResolution::Unresolved(seg) => panic!("could not resolve path at segment `{}`", seg),
         PathResolution::Resolved(ns) => ns,
     };
 
