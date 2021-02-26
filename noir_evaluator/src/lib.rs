@@ -16,8 +16,11 @@ use std::collections::HashMap;
 use environment::Environment;
 use object::{Array, Integer, Object, RangedObject, Selector};
 
-use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
+use acir::circuit::{
+    gate::{AndGate, Gate, XorGate},
+    PublicInputs,
+};
 use acir::native_types::{Arithmetic, Linear, Witness};
 
 use noirc_frontend::hir::lower::{
@@ -44,7 +47,7 @@ pub struct Evaluator<'a> {
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
     selectors: Vec<Selector>,                     // XXX: Possibly move into environment
     context: &'a Context,
-    public_inputs: Vec<u32>,
+    public_inputs: Vec<Witness>,
     main_function: FuncId,
     gates: Vec<Gate>, // Identifier, Object
     counter: usize,   // This is so that we can get a unique number
@@ -90,8 +93,8 @@ impl<'a> Evaluator<'a> {
         format!("{}{}", string, self.get_unique_value())
     }
 
-    pub fn num_witnesses(&self) -> usize {
-        self.witnesses.len()
+    pub fn num_witnesses(&self) -> u32 {
+        self.witnesses.len() as u32
     }
 
     /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -99,7 +102,7 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self) -> Result<(Circuit, usize, Vec<u32>), RuntimeError> {
+    pub fn compile(mut self) -> Result<Circuit, RuntimeError> {
         // create a new environment
         let mut env = Environment::new();
 
@@ -108,25 +111,16 @@ impl<'a> Evaluator<'a> {
             .map_err(|err| err.into_err(self.file_id))?;
 
         let num_witness = self.num_witnesses();
-        let optimised_gate = acvm::compiler::compile(
-            acir::circuit::Circuit(self.gates),
-            num_witness,
+        let optimised_circuit = acvm::compiler::compile(
+            Circuit {
+                num_witnesses: num_witness as u32,
+                gates: self.gates,
+                public_inputs: PublicInputs(self.public_inputs),
+            },
             acvm::compiler::default(),
         );
-        let OptimiserCircuit {
-            mut circuit,
-            intermediate_variables,
-        } = optimised_gate;
 
-        // The optimiser could have created intermediate variables/witnesses. We need to add these to the circuit
-        for (witness, gate) in intermediate_variables {
-            // Add intermediate variables as witnesses
-            self.witnesses.insert(witness, Type::Witness);
-            // Add gate into the circuit
-            circuit.0.push(Gate::Arithmetic(gate));
-        }
-
-        Ok((circuit, self.witnesses.len(), self.public_inputs))
+        Ok(optimised_circuit)
     }
 
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
@@ -227,15 +221,15 @@ impl<'a> Evaluator<'a> {
 
         for (param_name, param_type) in pub_inputs.into_iter() {
             match param_type {
-                noirc_abi::AbiType::Array { length, typ } => unreachable!(
+                noirc_abi::AbiType::Array { .. } => unreachable!(
                     "currently there is no syntax to fully support arrays of public field elements"
                 ),
-                noirc_abi::AbiType::Integer { sign, width } => {
+                noirc_abi::AbiType::Integer { .. } => {
                     unreachable!("currently there is no syntax to fully support public integers")
                 }
                 noirc_abi::AbiType::Public => {
                     let witness = self.add_witness_to_cs(param_name, Type::Public);
-                    self.public_inputs.push(witness.witness_index() as u32);
+                    self.public_inputs.push(witness.clone());
                     self.add_witness_to_env(witness, env);
                 }
                 noirc_abi::AbiType::Private => {
