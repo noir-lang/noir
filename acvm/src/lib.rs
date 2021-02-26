@@ -2,6 +2,7 @@
 // Org name is needed because more than one implementation of the same proof system may arise
 
 pub(crate) mod backends;
+pub mod compiler;
 mod tier_one;
 mod tier_three;
 mod tier_two;
@@ -52,7 +53,7 @@ pub trait SmartContract {
         &self,
         circuit: Circuit,
         num_witnesses: usize,
-        num_public_inputs: usize,
+        public_inputs: Vec<u32>,
     ) -> String;
 }
 
@@ -73,7 +74,7 @@ pub trait ProofSystemCompiler {
         circuit: Circuit,
         witness_values: BTreeMap<Witness, FieldElement>,
         num_witnesses: usize,
-        num_public_inputs: usize,
+        public_inputs: Vec<u32>,
     ) -> Vec<u8>;
 
     /// Verifies a Proof, given the circuit description.
@@ -88,7 +89,7 @@ pub trait ProofSystemCompiler {
         proof: &[u8],
         circuit: Circuit,
         num_witnesses: usize,
-        num_public_inputs: usize,
+        public_inputs: Vec<u32>,
     ) -> bool;
 }
 
