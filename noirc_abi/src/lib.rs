@@ -47,28 +47,6 @@ pub struct Abi {
 }
 
 impl Abi {
-    // In barretenberg, we need to add public inputs first
-    // currently there does not seem to be a way to add a witness and then a public input
-    // So we have this special function to sort for barretenberg.
-    // It will need to be abstracted away or hidden behind the aztec_backend
-    pub fn sort_by_public_input(mut self) -> Self {
-        let comparator = |a: &(String, AbiType), b: &(String, AbiType)| {
-            let typ_a = &a.1;
-            let typ_b = &b.1;
-
-            if typ_a == &AbiType::Public && typ_b == &AbiType::Public {
-                std::cmp::Ordering::Equal
-            } else if typ_a == &AbiType::Public {
-                std::cmp::Ordering::Less
-            } else {
-                std::cmp::Ordering::Greater
-            }
-        };
-
-        self.parameters.sort_by(comparator);
-        self
-    }
-
     pub fn parameter_names(&self) -> Vec<&String> {
         self.parameters.iter().map(|x| &x.0).collect()
     }
