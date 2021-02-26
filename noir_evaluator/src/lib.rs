@@ -191,54 +191,16 @@ impl<'a> Evaluator<'a> {
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
         // Add the parameters from the main function into the evaluator as witness variables
-        // XXX: We are only going to care about Public and Private witnesses for now
-
-        // The reason for this is because not all types can be added to the ABI
         //
-        // XXX: Currently, we do not support arrays to be public
-        // One reason right now, is that there is no `full` supported syntax for it
-        // []Public is good for full field elements
-        // However for u8 we do not have the syntax for it to be Public
-        // This might require a slight re-write of the grammar
-        // Maybe `pub param_name : []u8
+        //
+        // XXX: Currently, the syntax only supports public witnesses
+        // u8 and arrays are assumed to contain private content
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
 
         let abi = func_meta.parameters.to_abi(&self.context.def_interner);
 
-        // Split ABI so that public inputs come first
-        let mut pub_inputs = Vec::new();
-        let mut priv_inputs = Vec::new();
-        for param in abi.parameters.iter() {
-            let abi_type = &param.1;
-
-            if abi_type == &noirc_abi::AbiType::Public {
-                pub_inputs.push(param.clone())
-            } else {
-                priv_inputs.push(param.clone())
-            }
-        }
-
-        for (param_name, param_type) in pub_inputs.into_iter() {
-            match param_type {
-                noirc_abi::AbiType::Array { .. } => unreachable!(
-                    "currently there is no syntax to fully support arrays of public field elements"
-                ),
-                noirc_abi::AbiType::Integer { .. } => {
-                    unreachable!("currently there is no syntax to fully support public integers")
-                }
-                noirc_abi::AbiType::Public => {
-                    let witness = self.add_witness_to_cs(param_name, Type::Public);
-                    self.public_inputs.push(witness.clone());
-                    self.add_witness_to_env(witness, env);
-                }
-                noirc_abi::AbiType::Private => {
-                    unreachable!("ice: only public types should be accessible here")
-                }
-            }
-        }
-
-        for (param_name, param_type) in priv_inputs.into_iter() {
+        for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {
                 noirc_abi::AbiType::Array { length, typ } => {
                     let mut elements = Vec::with_capacity(length as usize);
@@ -292,7 +254,9 @@ impl<'a> Evaluator<'a> {
                     env.store(param_name, Object::Integer(integer));
                 }
                 noirc_abi::AbiType::Public => {
-                    unreachable!("ice: only private types should be accessible here")
+                    let witness = self.add_witness_to_cs(param_name, Type::Public);
+                    self.public_inputs.push(witness.clone());
+                    self.add_witness_to_env(witness, env);
                 }
             }
         }
