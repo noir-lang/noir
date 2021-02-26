@@ -6,16 +6,13 @@ mod low_level_function_impl;
 mod object;
 
 mod errors;
+use acvm::compiler::OptimiserCircuit;
 use blake2::Blake2s;
 pub use errors::{RuntimeError, RuntimeErrorKind};
 
 use core::panic;
-use std::{
-    array,
-    collections::{BTreeMap, HashMap},
-};
+use std::collections::HashMap;
 
-use acir::optimiser::CSatOptimiser;
 use environment::Environment;
 use object::{Array, Integer, Object, RangedObject, Selector};
 
@@ -23,7 +20,6 @@ use acir::circuit::gate::{AndGate, Gate, XorGate};
 use acir::circuit::Circuit;
 use acir::native_types::{Arithmetic, Linear, Witness};
 
-// XXX: Remove this once, we have moved to HIR
 use noirc_frontend::hir::lower::{
     node_interner::IdentId,
     stmt::{HirConstrainStatement, HirLetStatement},
@@ -48,7 +44,7 @@ pub struct Evaluator<'a> {
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
     selectors: Vec<Selector>,                     // XXX: Possibly move into environment
     context: &'a Context,
-    num_public_inputs: usize,
+    public_inputs: Vec<u32>,
     main_function: FuncId,
     gates: Vec<Gate>, // Identifier, Object
     counter: usize,   // This is so that we can get a unique number
@@ -60,7 +56,7 @@ impl<'a> Evaluator<'a> {
         Evaluator {
             file_id,
             num_selectors: 0,
-            num_public_inputs: 0,
+            public_inputs: Vec::new(),
             witnesses: HashMap::new(),
             selectors: Vec::new(),
             context,
@@ -103,7 +99,7 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self) -> Result<(Circuit, usize, usize), RuntimeError> {
+    pub fn compile(mut self) -> Result<(Circuit, usize, Vec<u32>), RuntimeError> {
         // create a new environment
         let mut env = Environment::new();
 
@@ -111,51 +107,26 @@ impl<'a> Evaluator<'a> {
         self.evaluate_main(&mut env)
             .map_err(|err| err.into_err(self.file_id))?;
 
-        // Then optimise for a width3 plonk program
-        // XXX: We can move all of this stuff into a plonk-backend program
-        // which takes the IR as input
-        const WIDTH: usize = 3;
-
-        let optimiser = CSatOptimiser::new(WIDTH);
-
-        let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
-
-        // Optimise the arithmetic gates by reducing them into the correct width and creating intermediate variables when necessary
-        let num_witness = self.num_witnesses() + 1;
-        let mut optimised_arith_gates: Vec<_> = self
-            .gates
-            .into_iter()
-            .map(|gate| match gate {
-                Gate::Arithmetic(arith) => {
-                    let arith = optimiser.optimise(arith, &mut intermediate_variables, num_witness);
-                    Gate::Arithmetic(arith)
-                }
-                other_gates => other_gates,
-            })
-            .collect();
+        let num_witness = self.num_witnesses();
+        let optimised_gate = acvm::compiler::compile(
+            acir::circuit::Circuit(self.gates),
+            num_witness,
+            acvm::compiler::default(),
+        );
+        let OptimiserCircuit {
+            mut circuit,
+            intermediate_variables,
+        } = optimised_gate;
 
         // The optimiser could have created intermediate variables/witnesses. We need to add these to the circuit
         for (witness, gate) in intermediate_variables {
             // Add intermediate variables as witnesses
             self.witnesses.insert(witness, Type::Witness);
             // Add gate into the circuit
-            optimised_arith_gates.push(Gate::Arithmetic(gate));
-
-            // XXX: We can additionally check that these arithmetic gates are done correctly via our optimiser -- It should have no effect if passed in twice
+            circuit.0.push(Gate::Arithmetic(gate));
         }
-        // Print all gates for debug purposes
-        // for gate in optimised_arith_gates.iter() {
-        //     // dbg!(gate);
-        // }
 
-        // for (i, witness) in self.witnesses.iter().enumerate() {
-        //     // dbg!(i, witness);
-        // }
-        Ok((
-            Circuit(optimised_arith_gates),
-            self.witnesses.len(),
-            self.num_public_inputs,
-        ))
+        Ok((circuit, self.witnesses.len(), self.public_inputs))
     }
 
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
@@ -236,89 +207,65 @@ impl<'a> Evaluator<'a> {
         // However for u8 we do not have the syntax for it to be Public
         // This might require a slight re-write of the grammar
         // Maybe `pub param_name : []u8
-        enum AbiType {
-            Witness(String),
-            Integer(String, Signedness, u32),
-            Array(String, u128, Type),
-        }
-
-        let mut pub_inputs = Vec::new();
-        let mut witnesses = Vec::new();
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
-        for param in func_meta.parameters {
-            let param_id = param.0;
-            let param_type = param.1;
-            let param_name = self.context.def_interner.ident_name(&param_id);
 
-            match param_type {
-                Type::Public => {
-                    pub_inputs.push(AbiType::Witness(param_name));
-                }
-                Type::Witness => witnesses.push(AbiType::Witness(param_name)),
-                Type::Array(length, typ) => {
-                    let len = match length {
-                        ArraySize::Variable => {
-                            panic!("cannot have a variable sized array in the main function")
-                        }
-                        ArraySize::Fixed(num) => num,
-                    };
-                    witnesses.push(AbiType::Array(param_name, len, *typ));
-                }
-                Type::Integer(signedness, length) => {
-                    witnesses.push(AbiType::Integer(param_name, signedness, length))
-                }
-                typ => {
-                    let msg = format!(
-                        "ABI support for {} in the parameter is unsupported",
-                        typ.to_string()
-                    );
-                    return Err(RuntimeErrorKind::Spanless(msg));
-                }
+        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
+
+        // Split ABI so that public inputs come first
+        let mut pub_inputs = Vec::new();
+        let mut priv_inputs = Vec::new();
+        for param in abi.parameters.iter() {
+            let abi_type = &param.1;
+
+            if abi_type == &noirc_abi::AbiType::Public {
+                pub_inputs.push(param.clone())
+            } else {
+                priv_inputs.push(param.clone())
             }
         }
 
-        self.num_public_inputs = pub_inputs.len();
-
-        // Add all of the public inputs first, then the witnesses
-        // XXX: Ideally we want to get rid of this ordering that is needed.
-        for param_ in pub_inputs.into_iter() {
-            match param_ {
-                AbiType::Array(_, _, _) => unreachable!(
+        for (param_name, param_type) in pub_inputs.into_iter() {
+            match param_type {
+                noirc_abi::AbiType::Array { length, typ } => unreachable!(
                     "currently there is no syntax to fully support arrays of public field elements"
                 ),
-                AbiType::Integer(_, _, _) => {
+                noirc_abi::AbiType::Integer { sign, width } => {
                     unreachable!("currently there is no syntax to fully support public integers")
                 }
-                AbiType::Witness(param_name) => {
+                noirc_abi::AbiType::Public => {
                     let witness = self.add_witness_to_cs(param_name, Type::Public);
+                    self.public_inputs.push(witness.witness_index() as u32);
                     self.add_witness_to_env(witness, env);
+                }
+                noirc_abi::AbiType::Private => {
+                    unreachable!("ice: only public types should be accessible here")
                 }
             }
         }
 
-        for param_ in witnesses.into_iter() {
-            match param_ {
-                AbiType::Array(param_name, len, typ) => {
-                    let mut elements = Vec::with_capacity(len as usize);
-                    for i in 0..len as usize {
+        for (param_name, param_type) in priv_inputs.into_iter() {
+            match param_type {
+                noirc_abi::AbiType::Array { length, typ } => {
+                    let mut elements = Vec::with_capacity(length as usize);
+                    for i in 0..length as usize {
                         let mangled_name = mangle_array_element_name(&param_name, i);
                         let witness = self.add_witness_to_cs(mangled_name, Type::Witness);
 
                         // Constrain each element in the array to be equal to the type declared in the parameter
-                        let object = match typ {
-                            Type::Integer(sign, num_bits) => {
+                        let object = match *typ {
+                            noirc_abi::AbiType::Integer { sign, width } => {
                                 // Currently we do not support signed integers
                                 assert!(
-                                    sign != Signedness::Signed,
+                                    sign != noirc_abi::Sign::Signed,
                                     "signed integers are currently not supported"
                                 );
 
-                                let integer = Integer::from_witness(witness, num_bits);
+                                let integer = Integer::from_witness(witness, width);
                                 integer.constrain(self)?;
                                 Object::Integer(integer)
                             }
-                            Type::Witness => self.add_witness_to_env(witness, env),
+                            noirc_abi::AbiType::Private => self.add_witness_to_env(witness, env),
                             _ => unimplemented!(
                                 "currently we only support arrays of integer and witness types"
                             ),
@@ -328,27 +275,30 @@ impl<'a> Evaluator<'a> {
                     }
                     let arr = Array {
                         contents: elements,
-                        length: len,
+                        length,
                     };
                     env.store(param_name, Object::Array(arr));
                 }
-                AbiType::Witness(param_name) => {
+                noirc_abi::AbiType::Private => {
                     let witness = self.add_witness_to_cs(param_name, Type::Witness);
                     self.add_witness_to_env(witness, env);
                 }
-                AbiType::Integer(param_name, sign, num_bits) => {
+                noirc_abi::AbiType::Integer { sign, width } => {
                     let witness = self.add_witness_to_cs(param_name.clone(), Type::Witness);
 
                     // Currently we do not support signed integers
                     assert!(
-                        sign != Signedness::Signed,
+                        sign != noirc_abi::Sign::Signed,
                         "signed integers are currently not supported"
                     );
 
-                    let integer = Integer::from_witness(witness, num_bits);
+                    let integer = Integer::from_witness(witness, width);
                     integer.constrain(self)?;
 
                     env.store(param_name, Object::Integer(integer));
+                }
+                noirc_abi::AbiType::Public => {
+                    unreachable!("ice: only private types should be accessible here")
                 }
             }
         }

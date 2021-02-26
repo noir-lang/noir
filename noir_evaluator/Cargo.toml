@@ -10,7 +10,9 @@ edition = "2018"
 noirc_frontend = {path = "../noirc_frontend"}
 noirc_errors = {path = "../noirc_errors"}
 noir_field = {path = "../noir_field"}
+noirc_abi = {path = "../noirc_abi"}
 acir = {path = "../acir"}
+acvm = {path = "../acvm"}
 thiserror = "1.0.21"
 
 blake2 = "0.9.1"
