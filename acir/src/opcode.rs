@@ -7,6 +7,7 @@ pub enum OPCODE {
     MerkleMembership,
     SchnorrVerify,
     Pedersen,
+    HashToField,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -25,6 +26,7 @@ impl OPCODE {
             OPCODE::SchnorrVerify => 4,
             OPCODE::Blake2s => 5,
             OPCODE::Pedersen => 6,
+            OPCODE::HashToField => 7,
         }
     }
     pub fn name(&self) -> &str {
@@ -36,6 +38,7 @@ impl OPCODE {
             OPCODE::SchnorrVerify => "schnorr_verify",
             OPCODE::Blake2s => "blake2s",
             OPCODE::Pedersen => "pedersen",
+            OPCODE::HashToField => "hash_to_field",
         }
     }
     pub fn lookup(op_name: &str) -> Option<OPCODE> {
@@ -46,6 +49,7 @@ impl OPCODE {
             "schnorr_verify" => Some(OPCODE::SchnorrVerify),
             "blake2s" => Some(OPCODE::Blake2s),
             "pedersen" => Some(OPCODE::Pedersen),
+            "hash_to_field" => Some(OPCODE::HashToField),
             _ => None,
         }
     }
@@ -64,6 +68,11 @@ impl OPCODE {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(2),
+            },
+            OPCODE::HashToField => GadgetDefinition {
+                name: self.name().into(),
+                input_size: InputSize::Variable,
+                output_size: OutputSize(1),
             },
             OPCODE::MerkleRoot => GadgetDefinition {
                 name: self.name().into(),
