@@ -15,10 +15,10 @@ impl ProofSystemCompiler for Plonk {
         circuit: Circuit,
         witness_values: BTreeMap<Witness, FieldElement>,
         num_witnesses: usize,
-        num_public_inputs: usize,
+        public_inputs: Vec<u32>,
     ) -> Vec<u8> {
         let constraint_system =
-            aztec_backend::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
+            aztec_backend::serialise_circuit(&circuit, num_witnesses, public_inputs);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
@@ -37,10 +37,10 @@ impl ProofSystemCompiler for Plonk {
         proof: &[u8],
         circuit: Circuit,
         num_witnesses: usize,
-        num_public_inputs: usize,
+        public_inputs: Vec<u32>,
     ) -> bool {
         let constraint_system =
-            aztec_backend::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
+            aztec_backend::serialise_circuit(&circuit, num_witnesses, public_inputs);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
@@ -59,10 +59,10 @@ impl SmartContract for Plonk {
         &self,
         circuit: Circuit,
         num_witnesses: usize,
-        num_public_inputs: usize,
+        public_inputs: Vec<u32>,
     ) -> String {
         let constraint_system =
-            aztec_backend::serialise_circuit(&circuit, num_witnesses, num_public_inputs);
+            aztec_backend::serialise_circuit(&circuit, num_witnesses, public_inputs);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
