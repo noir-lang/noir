@@ -2,6 +2,7 @@ use ark_bn254::Fr;
 use ark_ff::{to_bytes, Field};
 use ark_ff::{BitIteratorBE, PrimeField};
 use ark_ff::{One, Zero};
+use blake2::Blake2s;
 use std::str::FromStr;
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
@@ -70,6 +71,9 @@ impl FieldElement {
         let num_bits_used = vec.len() as u32;
         let num_bits_needed = FieldElement::max_num_bits();
         num_bits_used - num_bits_needed
+    }
+    pub fn debug_str(&self) -> String {
+        self.0.to_string()
     }
     /// This is the number of bits required to represent this specific field element
     pub fn num_bits(&self) -> u32 {
@@ -190,6 +194,20 @@ impl FieldElement {
     pub fn truncate_to_bytes(&self, num_bits: u32) -> Vec<u8> {
         let bit_iter = self.truncate_to_bits(num_bits);
         pack_bits_into_bytes(bit_iter)
+    }
+    /// Returns the closest number of bytes to the bits specified
+    pub fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
+        fn nearest_bytes(num_bits: usize) -> usize {
+            ((num_bits + 7) / 8) * 8
+        }
+
+        let num_bytes = nearest_bytes(num_bits);
+        let num_elements = num_bytes / 8;
+
+        let mut bytes = self.to_bytes();
+        bytes.reverse(); // put it in big endian format. XXX(next refactor): we should be explicit about endianess.
+
+        bytes[0..num_elements].to_vec()
     }
 
     fn and_xor(&self, rhs: &FieldElement, num_bits: u32, is_xor: bool) -> FieldElement {
