@@ -103,6 +103,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     point_ct signer = { account_public_key.x * zero_nonce + inputs.signing_pub_key.x * !zero_nonce,
                         account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
 
+    // alias hash must be 224 bits or fewer
+    composer.create_range_constraint(inputs.alias_hash.witness_index, 224);
     // Verify that the account exists if nonce > 0
     auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
     auto account_note_data = encrypt_account_note(account_alias_id, account_public_key, signer);

@@ -48,7 +48,7 @@ join_split_tx noop_tx()
     tx.account_path = gibberish_path;
     tx.signing_pub_key = pub_key;
     tx.account_private_key = priv_key;
-    tx.alias_hash = fr::random_element();
+    tx.alias_hash = 0;
     tx.nonce = 0;
 
     tx.input_owner = fr::random_element();

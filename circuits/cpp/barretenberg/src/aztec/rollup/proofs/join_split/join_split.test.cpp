@@ -121,7 +121,7 @@ class join_split_tests : public ::testing::Test {
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = tx_asset_id;
         tx.account_private_key = user.owner.private_key;
-        tx.alias_hash = !nonce ? fr::random_element() : user.alias_hash;
+        tx.alias_hash = !nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
         tx.nonce = nonce;
         return tx;
     }
@@ -170,7 +170,7 @@ class join_split_tests : public ::testing::Test {
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.asset_id = arbitrary_asset_id;
         tx.account_private_key = user.owner.private_key;
-        tx.alias_hash = fr::random_element();
+        tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
         return tx;
     }
@@ -489,7 +489,7 @@ TEST_F(join_split_tests, test_wrong_merkle_root_fails)
 TEST_F(join_split_tests, test_wrong_alias_hash_fails)
 {
     join_split_tx tx = simple_setup({ 2, 3 }, 4, 1);
-    tx.alias_hash = fr::random_element();
+    tx.alias_hash = rollup::fixtures::generate_alias_hash("chicken");
     EXPECT_FALSE(sign_and_verify_logic(tx, user.signing_keys[0].private_key));
 }
 

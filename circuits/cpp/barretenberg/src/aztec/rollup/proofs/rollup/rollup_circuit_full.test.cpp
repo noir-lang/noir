@@ -309,7 +309,7 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     update_root_tree_with_data_root(1);
     auto join_split_proof1 = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 50 }, 30, 60);
     auto join_split_proof2 = create_join_split_proof({ 6, 7 }, { 80, 60 }, { 70, 70 });
-    auto txs = std::vector{ join_split_proof1, join_split_proof2 };
+    auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof1, join_split_proof2 };
 
     auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
 
@@ -360,7 +360,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     update_root_tree_with_data_root(1);
     auto join_split_proof = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 50 }, 30, 60);
     auto account_proof = create_account_proof();
-    auto txs = std::vector{ join_split_proof, account_proof };
+    auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof, account_proof };
 
     auto rollup = create_rollup(txs, data_tree, null_tree, root_tree, rollup_size);
 
@@ -432,7 +432,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
     EXPECT_EQ(rollup_data.num_txs, 0UL);
-    EXPECT_EQ(rollup_data.inner_proofs.size(), 1UL);
+    EXPECT_EQ(rollup_data.inner_proofs.size(), 4UL);
 
     auto tx_data = inner_proof_data(join_split_proof);
 

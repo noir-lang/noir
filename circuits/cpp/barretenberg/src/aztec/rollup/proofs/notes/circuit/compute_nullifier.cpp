@@ -31,10 +31,10 @@ field_ct compute_nullifier(point_ct const& encrypted_note,
         modified_index,
     };
 
-    const auto result = pedersen::compress(hash_inputs, true, TX_NOTE_NULLIFIER_INDEX);
+    const auto result = pedersen::encrypt(hash_inputs, TX_NOTE_NULLIFIER_INDEX, true);
 
     // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen compression.
-    auto blake_input = byte_array_ct(result);
+    auto blake_input = byte_array_ct(result.x).write(byte_array_ct(result.y));
     auto blake_result = plonk::stdlib::blake2s(blake_input);
     return field_ct(blake_result);
 }

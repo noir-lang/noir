@@ -51,6 +51,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
     const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
 
+    // alias hash must be 224 bits or fewer
+    composer.create_range_constraint(alias_hash.witness_index, 224);
     const auto account_alias_id = alias_hash + nonce * pow(field_ct(2), uint32_ct(224));
     const auto output_nonce = nonce + migrate;
     const auto output_account_alias_id = alias_hash + (output_nonce * pow(field_ct(2), uint32_ct(224)));

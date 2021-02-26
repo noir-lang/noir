@@ -48,14 +48,14 @@ point_ct accumulate(const point_ct& accumulator, const point_ct& p_1)
  **/
 point_ct encrypt_note(const value_note& plaintext)
 {
-    point_ct accumulator = group_ct::fixed_base_scalar_mul<250>(plaintext.secret, TX_NOTE_HASH_INDEX + 1);
+    point_ct accumulator = group_ct::fixed_base_scalar_mul<254>(plaintext.secret, TX_NOTE_HASH_INDEX + 1);
 
     accumulator =
         conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(accumulator, plaintext.value, TX_NOTE_HASH_INDEX);
     accumulator = conditionally_hash_and_accumulate<32>(accumulator, plaintext.asset_id, TX_NOTE_HASH_INDEX + 2);
     accumulator = accumulate(accumulator,
                              pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y, TX_NOTE_HASH_INDEX + 3));
-
+    accumulator = conditionally_hash_and_accumulate<32>(accumulator, plaintext.nonce, TX_NOTE_HASH_INDEX + 5);
     return accumulator;
 }
 

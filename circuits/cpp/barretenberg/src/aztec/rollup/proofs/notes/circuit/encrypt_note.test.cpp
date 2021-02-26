@@ -21,15 +21,17 @@ TEST(encrypt_note, encrypts)
     note_value = note_value.to_montgomery_form();
 
     fr asset_id_value = 0xaabbccddULL;
-    fr nonce_value = 0x11223456ULL;
+    fr nonce_value = 1;
 
     grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note_value, 0);
     grumpkin::g1::element right = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
     grumpkin::g1::element top = crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
+    grumpkin::g1::element top3 = crypto::pedersen::fixed_base_scalar_mul<32>(nonce_value, 5);
 
     grumpkin::g1::element expected;
     expected = left + right;
     expected += top;
+    expected += top3;
     expected = expected.normalize();
 
     grumpkin::g1::affine_element hashed_pub_key =
@@ -74,7 +76,7 @@ TEST(encrypt_note, encrypts_with_0_value)
 
     fr note_value(0);
     fr asset_id_value = 0xaabbccddULL;
-    fr nonce_value = 0x11223456ULL;
+    fr nonce_value(0);
 
     grumpkin::g1::element expected = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
     expected += crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);

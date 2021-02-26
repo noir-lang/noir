@@ -24,8 +24,10 @@ fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note,
         hashed_pk.y,
         barretenberg::fr(uint256_t((uint64_t)tree_index) + (uint256_t(is_real_note) << 64)),
     };
-    uint256_t result = crypto::pedersen::compress_native(buf, TX_NOTE_NULLIFIER_INDEX);
-    auto blake_input = to_buffer(result);
+    auto result = crypto::pedersen::encrypt_native(buf, TX_NOTE_NULLIFIER_INDEX);
+    auto blake_input = to_buffer(result.x);
+    auto blake_input_b = to_buffer(result.y);
+    std::copy(blake_input_b.begin(), blake_input_b.end(), std::back_inserter(blake_input));
     auto blake_result = blake2::blake2s(blake_input);
     return from_buffer<fr>(blake_result);
 }
