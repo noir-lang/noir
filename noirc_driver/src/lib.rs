@@ -18,8 +18,6 @@ pub struct Driver {
 }
 pub struct CompiledProgram {
     pub circuit: Circuit,
-    pub num_witnesses: usize,
-    pub public_inputs: Vec<u32>,
     pub abi: Option<noirc_abi::Abi>,
 }
 
@@ -150,8 +148,8 @@ impl Driver {
         let evaluator = Evaluator::new(file_id, main_function, &self.context);
 
         // Compile Program
-        let (circuit, num_witnesses, public_inputs) = match evaluator.compile() {
-            Ok((circuit, num_witnesses, public_inputs)) => (circuit, num_witnesses, public_inputs),
+        let circuit = match evaluator.compile() {
+            Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
@@ -166,8 +164,6 @@ impl Driver {
 
         CompiledProgram {
             circuit,
-            num_witnesses,
-            public_inputs,
             abi: Some(abi),
         }
     }
