@@ -235,6 +235,28 @@ impl Blake2sConstraint {
     }
 }
 #[derive(Clone, Hash, Debug)]
+pub struct HashToFieldConstraint {
+    pub inputs: Vec<(i32, i32)>,
+    pub result: i32,
+}
+
+impl HashToFieldConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let inputs_len = self.inputs.len() as u32;
+        buffer.extend_from_slice(&inputs_len.to_be_bytes());
+        for constraint in self.inputs.iter() {
+            buffer.extend_from_slice(&constraint.0.to_be_bytes());
+            buffer.extend_from_slice(&constraint.1.to_be_bytes());
+        }
+
+        buffer.extend_from_slice(&self.result.to_be_bytes());
+
+        buffer
+    }
+}
+#[derive(Clone, Hash, Debug)]
 pub struct PedersenConstraint {
     pub inputs: Vec<i32>,
     pub result: i32,
@@ -287,7 +309,7 @@ impl LogicConstraint {
 
     fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
-        // Serialiasing Wires
+        // Serialising Wires
         buffer.extend_from_slice(&self.a.to_be_bytes());
         buffer.extend_from_slice(&self.b.to_be_bytes());
         buffer.extend_from_slice(&self.result.to_be_bytes());
@@ -301,7 +323,7 @@ impl LogicConstraint {
 #[derive(Clone, Hash, Debug)]
 pub struct ConstraintSystem {
     pub var_num: u32,
-    pub pub_var_num: u32,
+    pub public_inputs: Vec<u32>,
 
     pub logic_constraints: Vec<LogicConstraint>,
     pub range_constraints: Vec<RangeConstraint>,
@@ -311,6 +333,7 @@ pub struct ConstraintSystem {
     pub schnorr_constraints: Vec<SchnorrConstraint>,
     pub blake2s_constraints: Vec<Blake2sConstraint>,
     pub pedersen_constraints: Vec<PedersenConstraint>,
+    pub hash_to_field_constraints: Vec<HashToFieldConstraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -320,7 +343,12 @@ impl ConstraintSystem {
 
         // Push lengths onto the buffer
         buffer.extend_from_slice(&self.var_num.to_be_bytes());
-        buffer.extend_from_slice(&self.pub_var_num.to_be_bytes());
+
+        let pi_len = self.public_inputs.len() as u32;
+        buffer.extend_from_slice(&pi_len.to_be_bytes());
+        for pub_input in self.public_inputs.iter() {
+            buffer.extend_from_slice(&pub_input.to_be_bytes());
+        }
 
         // Serialise each Logic constraint
         let logic_constraints_len = self.logic_constraints.len() as u32;
@@ -375,6 +403,13 @@ impl ConstraintSystem {
         let pedersen_len = self.pedersen_constraints.len() as u32;
         buffer.extend_from_slice(&pedersen_len.to_be_bytes());
         for constraint in self.pedersen_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each HashToField constraint
+        let h2f_len = self.hash_to_field_constraints.len() as u32;
+        buffer.extend_from_slice(&h2f_len.to_be_bytes());
+        for constraint in self.hash_to_field_constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
 
@@ -581,7 +616,7 @@ mod test {
 
         let constraint_system = ConstraintSystem {
             var_num: 3,
-            pub_var_num: 0,
+            public_inputs: vec![],
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
@@ -590,6 +625,7 @@ mod test {
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
+            hash_to_field_constraints: vec![],
             constraints: vec![constraint.clone()],
         };
 
@@ -650,7 +686,7 @@ mod test {
         // It should also work, if we supply the correct public inputs
         let constraint_system = ConstraintSystem {
             var_num: 3,
-            pub_var_num: 2,
+            public_inputs: vec![1, 2],
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
@@ -659,6 +695,7 @@ mod test {
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
+            hash_to_field_constraints: vec![],
             constraints: vec![constraint],
         };
 
@@ -708,7 +745,7 @@ mod test {
 
         let constraint_system = ConstraintSystem {
             var_num: 4,
-            pub_var_num: 1,
+            public_inputs: vec![1],
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
@@ -717,6 +754,7 @@ mod test {
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
+            hash_to_field_constraints: vec![],
             constraints: vec![constraint, constraint2],
         };
 
@@ -762,7 +800,7 @@ mod test {
 
         let constraint_system = ConstraintSystem {
             var_num: 80,
-            pub_var_num: 0,
+            public_inputs: vec![],
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
@@ -771,6 +809,7 @@ mod test {
             schnorr_constraints: vec![constraint],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
+            hash_to_field_constraints: vec![],
             constraints: vec![arith_constraint],
         };
 
@@ -827,7 +866,7 @@ mod test {
 
         let constraint_system = ConstraintSystem {
             var_num: 80,
-            pub_var_num: 0,
+            public_inputs: vec![],
             logic_constraints: vec![],
             range_constraints: vec![],
             sha256_constraints: vec![],
@@ -836,6 +875,7 @@ mod test {
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![constraint],
+            hash_to_field_constraints: vec![],
             constraints: vec![],
         };
 
