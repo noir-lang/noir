@@ -1,6 +1,6 @@
 use acir::circuit::Circuit;
 use noir_evaluator::Evaluator;
-use noirc_abi::AbiType;
+use noirc_abi::{AbiType, Sign};
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
 use noirc_frontend::ast::Type;
@@ -19,7 +19,7 @@ pub struct Driver {
 pub struct CompiledProgram {
     pub circuit: Circuit,
     pub num_witnesses: usize,
-    pub num_public_inputs: usize,
+    pub public_inputs: Vec<u32>,
     pub abi: Option<noirc_abi::Abi>,
 }
 
@@ -144,15 +144,14 @@ impl Driver {
             .expect("cannot compile a program with no main function");
 
         // Create ABi for main function
-        let abi = self.func_to_abi(&main_function);
+        let func_meta = self.context.def_interner.function_meta(&main_function);
+        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
 
         let evaluator = Evaluator::new(file_id, main_function, &self.context);
 
         // Compile Program
-        let (circuit, num_witnesses, num_public_inputs) = match evaluator.compile() {
-            Ok((circuit, num_witnesses, num_public_inputs)) => {
-                (circuit, num_witnesses, num_public_inputs)
-            }
+        let (circuit, num_witnesses, public_inputs) = match evaluator.compile() {
+            Ok((circuit, num_witnesses, public_inputs)) => (circuit, num_witnesses, public_inputs),
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file
                 // Errors will be shown at the callsite without a stacktrace
@@ -168,7 +167,7 @@ impl Driver {
         CompiledProgram {
             circuit,
             num_witnesses,
-            num_public_inputs,
+            public_inputs,
             abi: Some(abi),
         }
     }
@@ -196,46 +195,6 @@ impl Driver {
                 .add_dep(crate_id, name.clone(), std_crate_id)
                 .expect("ice: cyclic error triggered with std library");
         }
-    }
-
-    /// Creates an ABI from a function
-    fn func_to_abi(&self, func_id: &FuncId) -> noirc_abi::Abi {
-        let func_meta = self.context.def_interner.function_meta(func_id);
-
-        let parameters: Vec<_> = func_meta
-            .parameters
-            .into_iter()
-            .map(|param| {
-                let (param_id, param_type) = (param.0, param.1);
-                let param_name = self.context.def_interner.ident_name(&param_id);
-                (param_name, noir_type_to_abi_type(param_type))
-            })
-            .collect();
-        noirc_abi::Abi { parameters }
-    }
-}
-
-fn noir_type_to_abi_type(typ: Type) -> AbiType {
-    match typ {
-        Type::FieldElement => panic!("currently, cannot have a field in the entry point function"),
-        Type::Constant => panic!("cannot have a constant in the entry point function"),
-        Type::Public => AbiType::Public,
-        Type::Witness => AbiType::Private,
-        Type::Array(size, typ) => match size {
-            noirc_frontend::ArraySize::Variable => {
-                panic!("cannot have variable sized array in entry point")
-            }
-            noirc_frontend::ArraySize::Fixed(length) => AbiType::Array {
-                length: length,
-                typ: Box::new(noir_type_to_abi_type(*typ)),
-            },
-        },
-        Type::Integer(sign, bit_width) => todo!(),
-        Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
-        Type::Error => unreachable!(),
-        Type::Unspecified => unreachable!(),
-        Type::Unknown => unreachable!(),
-        Type::Unit => unreachable!(),
     }
 }
 
