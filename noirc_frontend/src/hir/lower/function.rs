@@ -1,7 +1,9 @@
+use noirc_abi::Abi;
+
 use crate::{token::Attribute, FunctionKind, Type};
 
 use super::{
-    node_interner::{ExprId, IdentId, NodeInterner, StmtId},
+    node_interner::{ExprId, IdentId, NodeInterner},
     HirBlockExpression, HirExpression,
 };
 
@@ -40,13 +42,47 @@ impl HirFunction {
 pub struct Param(pub IdentId, pub Type);
 
 #[derive(Debug, Clone)]
+pub struct Parameters(Vec<Param>);
+
+impl Parameters {
+    pub fn to_abi(self, interner: &NodeInterner) -> Abi {
+        let parameters: Vec<_> = self
+            .0
+            .into_iter()
+            .map(|param| {
+                let (param_id, param_type) = (param.0, param.1);
+                let param_name = interner.ident_name(&param_id);
+                (param_name, param_type.as_abi_type())
+            })
+            .collect();
+        noirc_abi::Abi { parameters }
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Param> {
+        self.0.iter()
+    }
+    pub fn into_iter(self) -> impl Iterator<Item = Param> {
+        self.0.into_iter()
+    }
+}
+
+impl From<Vec<Param>> for Parameters {
+    fn from(vec: Vec<Param>) -> Parameters {
+        Parameters(vec)
+    }
+}
+#[derive(Debug, Clone)]
 pub struct FuncMeta {
     pub name: String,
 
     pub kind: FunctionKind,
 
     pub attributes: Option<Attribute>,
-    pub parameters: Vec<Param>,
+    pub parameters: Parameters,
     pub return_type: Type,
 
     // This flag is needed for the attribute check pass
