@@ -6,6 +6,7 @@ mod statement;
 
 pub use expression::*;
 pub use function::*;
+use noirc_abi::AbiType;
 pub use statement::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -45,6 +46,12 @@ pub enum Type {
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
     Unit,
+}
+
+impl Into<AbiType> for &Type {
+    fn into(self) -> AbiType {
+        self.as_abi_type()
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -154,6 +161,42 @@ impl Type {
     // Returns true, if both type can be used in an infix expression
     pub fn can_be_used_for_infix(&self, other: &Type) -> bool {
         self.is_base_type() && other.is_base_type()
+    }
+
+    pub fn as_abi_type(&self) -> AbiType {
+        match self {
+            Type::FieldElement => {
+                panic!("currently, cannot have a field in the entry point function")
+            }
+            Type::Constant => panic!("cannot have a constant in the entry point function"),
+            Type::Public => AbiType::Public,
+            Type::Witness => AbiType::Private,
+            Type::Array(size, typ) => match size {
+                crate::ArraySize::Variable => {
+                    panic!("cannot have variable sized array in entry point")
+                }
+                crate::ArraySize::Fixed(length) => AbiType::Array {
+                    length: *length,
+                    typ: Box::new(typ.as_abi_type()),
+                },
+            },
+            Type::Integer(sign, bit_width) => {
+                let sign = match sign {
+                    crate::Signedness::Unsigned => noirc_abi::Sign::Unsigned,
+                    crate::Signedness::Signed => noirc_abi::Sign::Signed,
+                };
+
+                AbiType::Integer {
+                    sign,
+                    width: *bit_width as u32,
+                }
+            }
+            Type::Bool => panic!("currently, cannot have a bool in the entry point function"),
+            Type::Error => unreachable!(),
+            Type::Unspecified => unreachable!(),
+            Type::Unknown => unreachable!(),
+            Type::Unit => unreachable!(),
+        }
     }
 }
 
