@@ -148,8 +148,8 @@ fn prove_(proof_name: &str) {
 
     let mut solved_witness = BTreeMap::new();
 
-    let sorted_abi = compiled_program.abi.unwrap().sort_by_public_input();
-    let param_names = sorted_abi.parameter_names();
+    let abi = compiled_program.abi.unwrap();
+    let param_names = abi.parameter_names();
     let mut index = 0;
 
     for param in param_names.into_iter() {
