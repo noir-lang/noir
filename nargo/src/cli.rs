@@ -124,7 +124,7 @@ fn build_package() {
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
-const WITNESS_OFFSET: usize = 1;
+const WITNESS_OFFSET: u32 = 1;
 
 fn prove_(proof_name: &str) {
     let curr_dir = std::env::current_dir().unwrap();
@@ -188,14 +188,9 @@ fn prove_(proof_name: &str) {
         }
     }
 
-    Solver::solve(&mut solved_witness, compiled_program.circuit.clone());
+    Solver::solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
-    let proof = backend.prove_with_meta(
-        compiled_program.circuit,
-        solved_witness,
-        compiled_program.num_witnesses,
-        compiled_program.public_inputs,
-    );
+    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push("proofs");
@@ -221,12 +216,7 @@ fn verify_(proof_name: &str) -> bool {
     let proof_hex: Vec<_> = std::fs::read(proof_path).unwrap();
     let proof = hex::decode(proof_hex).unwrap();
 
-    backend.verify_from_cs(
-        &proof,
-        compiled_program.circuit,
-        compiled_program.num_witnesses,
-        compiled_program.public_inputs,
-    )
+    backend.verify_from_cs(&proof, compiled_program.circuit)
 }
 
 fn create_directory(path: &std::path::Path) {
