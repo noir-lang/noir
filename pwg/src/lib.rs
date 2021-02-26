@@ -23,14 +23,14 @@ pub struct Solver;
 
 impl Solver {
     /// Derives most of the witness based on the initial low level variables
-    pub fn solve(initial_witness: &mut BTreeMap<Witness, FieldElement>, circuit: Circuit) {
-        if circuit.0.len() == 0 {
+    pub fn solve(initial_witness: &mut BTreeMap<Witness, FieldElement>, gates: Vec<Gate>) {
+        if gates.len() == 0 {
             return;
         }
 
-        let mut unsolved_gates = Circuit(Vec::new());
+        let mut unsolved_gates: Vec<Gate> = Vec::new();
 
-        for gate in circuit.0.into_iter() {
+        for gate in gates.into_iter() {
             let unsolved = match &gate {
                 Gate::Arithmetic(arith) => {
                     ArithmeticSolver::solve(initial_witness, &arith).is_some()
@@ -63,7 +63,7 @@ impl Solver {
                 ),
             };
             if unsolved {
-                unsolved_gates.0.push(gate);
+                unsolved_gates.push(gate);
             }
         }
         Solver::solve(initial_witness, unsolved_gates)
