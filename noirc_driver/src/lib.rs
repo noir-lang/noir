@@ -35,6 +35,16 @@ impl Driver {
         driver.into_compiled_program(backend)
     }
 
+    /// Compiles a file and returns true if compilation was successful
+    ///
+    /// This is used for tests.
+    pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
+        let mut driver = Driver::new();
+        driver.create_local_crate(root_file, CrateType::Binary);
+        driver.add_std_lib();
+        CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context).is_ok()
+    }
+
     /// Adds the File with the local crate root to the file system
     /// and adds the local crate to the graph
     /// XXX: This may pose a problem with workspaces, where you can change the local crate and where
