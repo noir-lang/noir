@@ -6,18 +6,15 @@ use acir::{
     optimiser::CSatOptimiser,
 };
 
-use crate::ProofSystemCompiler;
-
-pub fn default() -> impl ProofSystemCompiler {
-    super::backends::csat_3_plonk_aztec::Plonk
-}
+use crate::BackendPointer;
 
 pub struct OptimiserCircuit {
     pub circuit: acir::circuit::Circuit,
     pub intermediate_variables: BTreeMap<Witness, Arithmetic>,
 }
 
-pub fn compile<T: ProofSystemCompiler>(acir: Circuit, backend: T) -> Circuit {
+pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
+    let backend = backend.backend();
     //
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same

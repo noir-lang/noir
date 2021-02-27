@@ -2,6 +2,7 @@ use crate::Backend;
 
 // Listed below are backends with tier one support
 
+#[derive(Debug, Copy, Clone)]
 pub enum TierOne {}
 
 pub const TIER_ONE_MAP: [(&'static str, TierOne); 0] = [];
