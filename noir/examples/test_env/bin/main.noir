@@ -1,6 +1,0 @@
-   fn main(a : Witness, b : Witness, _out : Witness) {
-          const one = 1;
-          priv c : u8 = (a + one) as u32;
-          priv d = b + one;
-          constrain a + c == b + d;
-   }

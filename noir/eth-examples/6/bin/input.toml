@@ -1,6 +1,0 @@
-
-        # hello as bytes
-        # used : https://emn178.github.io/online-tools/sha256.html
-        x = [104, 101, 108, 108, 111]
-        low = "0x2cf24dba5fb0a30e26e83b2ac5b9e29e"
-        high = "0x1b161e5c1fa7425e73043362938b9824"

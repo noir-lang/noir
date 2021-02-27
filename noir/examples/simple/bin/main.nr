@@ -1,5 +1,0 @@
-
-    fn main(x : Witness, y : Witness) {
-        constrain x != y;
-    }
-    

@@ -1,5 +1,0 @@
-
-    fn main(x : Witness, _y : Witness, z : Public) {
-        constrain x != z;
-    }
-    

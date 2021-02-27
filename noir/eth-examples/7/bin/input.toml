@@ -1,8 +1,0 @@
-
-        # hello as bytes
-        # https://toolkitbay.com/tkb/tool/BLAKE2s_256
-        x = [104, 101, 108, 108, 111]
-        low = "0x19213bacc58dee6dbde3ceb9a47cbb33"
-        high = "0x0b3d86f8cca8997eb00be456f140ca25"
-        
-        

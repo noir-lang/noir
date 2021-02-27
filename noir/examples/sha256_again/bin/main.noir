@@ -1,6 +1,0 @@
-   fn main(x : Witness,low : Witness, high: Witness) {
-        let digest = std::hash::sha256([x as u8]);
-
-        constrain digest[0] == low;
-        constrain digest[1] == high;
-   }

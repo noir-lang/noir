@@ -1,9 +1,0 @@
-
-    fn main(x : Witness, y : Witness) {
-        priv z : u8= hello(x) as u8;
-        constrain z != ;
-    }
-    
-    fn hello(x : Witness) -> Witness {
-        x
-    }

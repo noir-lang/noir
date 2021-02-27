@@ -1,5 +1,0 @@
-
-    fn main(x : Witness, y : Witness) {
-        priv z = x + y;
-    }
-    
