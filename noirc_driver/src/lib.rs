@@ -1,7 +1,6 @@
 use acir::circuit::Circuit;
 use acvm::BackendPointer;
 use noir_evaluator::Evaluator;
-use noirc_abi::{AbiType, Sign};
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
 use noirc_frontend::hir::Context;
