@@ -8,11 +8,6 @@ use acir::{
 
 use crate::BackendPointer;
 
-pub struct OptimiserCircuit {
-    pub circuit: acir::circuit::Circuit,
-    pub intermediate_variables: BTreeMap<Witness, Arithmetic>,
-}
-
 pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
     let backend = backend.backend();
     //
