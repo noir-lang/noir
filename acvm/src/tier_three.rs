@@ -3,9 +3,8 @@
 pub use super::backends::csat_3_plonk_aztec::Plonk as CSAT_3_PLONK_AZTEC;
 
 use crate::Backend;
-use enum_iterator::IntoEnumIterator;
 
-#[derive(Debug, IntoEnumIterator, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum TierThree {
     Csat3PlonkAztec,
 }

@@ -15,8 +15,5 @@ acir = {path = "../acir"}
 aztec_backend = {path = "../aztec_backend"}
 noir_field = {path = "../noir_field"}
 sha2 = "0.9.3"
-# This is only needed for tests. Idealy it should be in dev-dependencies 
-# and we should conditionally compile it only for tests.
-enum-iterator = "0.6.0" 
 
 [dev-dependencies]
