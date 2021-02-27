@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::Backend;
+use acvm::BackendPointer;
 use noirc_driver::Driver;
 use noirc_frontend::hir::crate_graph::{CrateId, CrateType};
 
@@ -48,11 +48,11 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn default_backend() -> Box<dyn Backend> {
+    fn default_backend() -> BackendPointer {
         acvm::fetch_by_name("csat_3_plonk_aztec").unwrap()
     }
 
-    fn resolve_backend(name: Option<&str>) -> Box<dyn Backend> {
+    fn resolve_backend(name: Option<&str>) -> BackendPointer {
         match name {
             None => Resolver::default_backend(),
             Some(name) => {
@@ -69,7 +69,7 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver, Box<dyn Backend>) {
+    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver, BackendPointer) {
         let mut driver = Driver::new();
 
         let (entry_path, crate_type) = super::lib_or_bin(&dir_path);

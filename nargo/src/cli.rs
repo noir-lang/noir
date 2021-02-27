@@ -128,8 +128,8 @@ const WITNESS_OFFSET: u32 = 1;
 
 fn prove_(proof_name: &str) {
     let curr_dir = std::env::current_dir().unwrap();
-    let (mut driver, backend) = Resolver::resolve_root_config(&curr_dir);
-    let compiled_program = driver.into_compiled_program();
+    let (mut driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
+    let compiled_program = driver.into_compiled_program(backend_ptr);
 
     // Parse the initial witness values
     let mut path_to_toml = std::env::current_dir().unwrap();
@@ -190,7 +190,9 @@ fn prove_(proof_name: &str) {
 
     Solver::solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
-    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
+    let proof = backend_ptr
+        .backend()
+        .prove_with_meta(compiled_program.circuit, solved_witness);
 
     let mut proof_path = std::path::PathBuf::new();
     proof_path.push("proofs");
@@ -205,8 +207,8 @@ fn prove_(proof_name: &str) {
 
 fn verify_(proof_name: &str) -> bool {
     let curr_dir = std::env::current_dir().unwrap();
-    let (mut driver, backend) = Resolver::resolve_root_config(&curr_dir);
-    let compiled_program = driver.into_compiled_program();
+    let (mut driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
+    let compiled_program = driver.into_compiled_program(backend_ptr);
 
     let mut proof_path = curr_dir;
     proof_path.push(Path::new("proofs"));
@@ -216,7 +218,9 @@ fn verify_(proof_name: &str) -> bool {
     let proof_hex: Vec<_> = std::fs::read(proof_path).unwrap();
     let proof = hex::decode(proof_hex).unwrap();
 
-    backend.verify_from_cs(&proof, compiled_program.circuit)
+    backend_ptr
+        .backend()
+        .verify_from_cs(&proof, compiled_program.circuit)
 }
 
 fn create_directory(path: &std::path::Path) {

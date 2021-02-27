@@ -1,14 +1,13 @@
 use acir::circuit::Circuit;
+use acvm::BackendPointer;
 use noir_evaluator::Evaluator;
 use noirc_abi::{AbiType, Sign};
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
-use noirc_frontend::ast::Type;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::{
     crate_def_map::CrateDefMap,
     crate_graph::{CrateId, CrateName, CrateType, LOCAL_CRATE},
-    lower::node_interner::FuncId,
 };
 use std::path::{Path, PathBuf};
 
@@ -30,10 +29,10 @@ impl Driver {
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(root_file: PathBuf) -> CompiledProgram {
+    pub fn compile_file(root_file: PathBuf, backend: BackendPointer) -> CompiledProgram {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.into_compiled_program()
+        driver.into_compiled_program(backend)
     }
 
     /// Adds the File with the local crate root to the file system
@@ -121,7 +120,7 @@ impl Driver {
         }
     }
 
-    pub fn into_compiled_program(&mut self) -> CompiledProgram {
+    pub fn into_compiled_program(&mut self, backend: BackendPointer) -> CompiledProgram {
         self.build();
         // First find the local crate
         // There is always a local crate
@@ -148,7 +147,7 @@ impl Driver {
         let evaluator = Evaluator::new(file_id, main_function, &self.context);
 
         // Compile Program
-        let circuit = match evaluator.compile() {
+        let circuit = match evaluator.compile(backend) {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

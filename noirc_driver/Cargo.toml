@@ -12,6 +12,7 @@ noirc_frontend = {path = "../noirc_frontend"}
 noir_evaluator = {path = "../noir_evaluator"}
 noirc_abi = {path = "../noirc_abi"}
 acir = {path = "../acir"}
+acvm = {path = "../acvm"}
 std_lib = {path = "../std_lib"}
 fm = {path = "../fm"}
 

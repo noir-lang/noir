@@ -6,7 +6,7 @@ mod low_level_function_impl;
 mod object;
 
 mod errors;
-use acvm::compiler::OptimiserCircuit;
+use acvm::BackendPointer;
 use blake2::Blake2s;
 pub use errors::{RuntimeError, RuntimeErrorKind};
 
@@ -102,7 +102,7 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self) -> Result<Circuit, RuntimeError> {
+    pub fn compile(mut self, backend: BackendPointer) -> Result<Circuit, RuntimeError> {
         // create a new environment
         let mut env = Environment::new();
 
@@ -117,7 +117,7 @@ impl<'a> Evaluator<'a> {
                 gates: self.gates,
                 public_inputs: PublicInputs(self.public_inputs),
             },
-            acvm::compiler::default(),
+            backend,
         );
 
         Ok(optimised_circuit)
