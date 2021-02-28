@@ -1,4 +1,3 @@
-use super::errors::LexerError;
 use super::{
     errors::LexerErrorKind,
     token::{Attribute, IntType, Keyword, SpannedToken, Token},
@@ -13,25 +12,23 @@ use std::str::Chars;
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
 // XXX(low) : Possibly use &str instead of String when applicable
 
-pub type SpannedTokenResult = Result<SpannedToken, LexerError>;
+pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
 pub struct Lexer<'a> {
     char_iter: Peekable<Chars<'a>>,
     position: Position,
-    pub file_id: usize,
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(file_id: usize, source: &'a str) -> Self {
+    pub fn new(source: &'a str) -> Self {
         Lexer {
             char_iter: source.chars().peekable(),
-            position: Position::default_from(file_id),
-            file_id,
+            position: Position::default(),
         }
     }
-    pub fn from_file(file_id: usize, source: File<'a>) -> Self {
+    pub fn from_file(source: File<'a>) -> Self {
         let source_file = source.get_source();
-        Lexer::new(file_id, source_file)
+        Lexer::new(source_file)
     }
 
     // This method uses size_hint and therefore should not be trusted 100%
@@ -102,8 +99,7 @@ impl<'a> Lexer<'a> {
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 let span = self.position.mark().into_span();
-                Err(LexerErrorKind::CharacterNotInLanguage { span, found: ch }
-                    .into_err(self.file_id))
+                Err(LexerErrorKind::CharacterNotInLanguage { span, found: ch })
             }
             None => Ok(Token::EOF.into_single_span(self.position.mark())),
         }
@@ -171,8 +167,7 @@ impl<'a> Lexer<'a> {
                 Err(LexerErrorKind::NotADoubleChar {
                     span,
                     found: prev_token,
-                }
-                .into_err(self.file_id))
+                })
             }
         }
     }
@@ -220,8 +215,7 @@ impl<'a> Lexer<'a> {
                 Err(LexerErrorKind::UnexpectedCharacter {
                     span,
                     found: initial_char,
-                }
-                .into_err(self.file_id))
+                })
             }
         }
     }
@@ -348,7 +342,7 @@ fn test_single_double_char() {
         Token::EOF,
     ];
 
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -366,7 +360,7 @@ fn test_custom_gate_syntax() {
         Token::Attribute(Attribute::Builtin("sum".to_string())),
     ];
 
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
@@ -386,7 +380,7 @@ fn test_int_type() {
         Token::Int(5.into()),
     ];
 
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
@@ -406,7 +400,7 @@ fn test_comment() {
         Token::Int(FieldElement::from(5)),
     ];
 
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
     for token in expected.into_iter() {
         let first_lexer_output = lexer.next_token().unwrap();
         assert_eq!(first_lexer_output, token);
@@ -423,7 +417,7 @@ fn test_eat_string_literal() {
         Token::Assign,
         Token::Str("hello".to_string()),
     ];
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -435,7 +429,7 @@ fn test_eat_hex_int() {
     let input = "0x05";
 
     let expected = vec![Token::Int(5.into())];
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -473,7 +467,7 @@ fn test_span() {
     let int_token = Token::Int(5.into()).into_single_span(int_position);
 
     let expected = vec![let_token, ident_token, assign_token, int_token];
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
 
     for spanned_token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
@@ -536,7 +530,7 @@ fn test_basic_language_syntax() {
         Token::Semicolon,
         Token::EOF,
     ];
-    let mut lexer = Lexer::new(0, input);
+    let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
         let got = lexer.next_token().unwrap();

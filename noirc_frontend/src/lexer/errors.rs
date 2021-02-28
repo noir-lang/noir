@@ -13,24 +13,9 @@ pub enum LexerErrorKind {
     NotADoubleChar { span: Span, found: Token },
 }
 
-impl LexerErrorKind {
-    pub fn into_err(self, file_id: usize) -> LexerError {
-        LexerError {
-            kind: self,
-            file_id,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct LexerError {
-    kind: LexerErrorKind,
-    file_id: usize,
-}
-
-impl DiagnosableError for LexerError {
+impl DiagnosableError for LexerErrorKind {
     fn to_diagnostic(&self) -> Diagnostic {
-        match &self.kind {
+        match self {
             LexerErrorKind::UnexpectedCharacter { span, found } => Diagnostic::simple_error(
                 format!("an unexpected character was found"),
                 format!(" {:?} is unexpected", found),
