@@ -1,1 +1,0 @@
-fn world_foo() {}
