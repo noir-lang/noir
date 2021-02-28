@@ -387,24 +387,33 @@ impl<'a> Evaluator<'a> {
             constrain_stmt.0.operator,
         )?;
 
+        // The code below is an optimisation strategy for when either side is of the form
+        //
+        // constrain x == 4
+        // constrain y == 4t + m
+        //
+        // In the above extracts, we can use interpret x as a constant and y as a constant.
+        //
+        // We should also check for unused witnesses and transform the circuit, so
+        // that you do not need to compute them.
+        //
         // XXX: We could probably move this into equal folder, as it is an optimisation that only applies to it
+        // Moreover: This could be moved to ACVM.
         if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
             // Check if we have any lone variables and then if the other side is a linear/constant
-            let (witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
+            let (lhs_unit_witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
                 (true, _) => (lhs_poly.witness(), rhs_poly),
                 (_, true) => (rhs_poly.witness(), lhs_poly),
                 (_, _) => (None, Object::Null),
             };
-
-            match witness {
-                Some(wit) => {
-                    // Check if the RHS is linear or constant
-                    if rhs.is_linear() | rhs.is_constant() {
-                        env.store(wit.0, rhs)
-                    }
+            
+            if let Some(unit_wit) = lhs_unit_witness {
+                // Check if the RHS is linear or constant
+                if rhs.is_linear() | rhs.is_constant() {
+                    let var_name = env.find_with_value(&unit_wit).expect("ice: could not find corresponding variable name");
+                    env.store(var_name, rhs)
                 }
-                None => {}
-            };
+            }
         };
         Ok(Object::Null)
     }
