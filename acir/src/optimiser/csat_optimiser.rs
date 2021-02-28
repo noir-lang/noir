@@ -217,15 +217,7 @@ impl Optimiser {
                     // XXX: Another optimisation, which could be applied in another algorithm
                     // If two gates have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
                     // Do some sort of subset matching algorithm for this on the terms of the polynomial
-                    let inter_var_name = format!(
-                        "{}{}",
-                        "optim_inter_full_gate_",
-                        intermediate_variables.len(),
-                    );
-                    let inter_var = Witness(
-                        inter_var_name,
-                        intermediate_variables.len() as u32 + num_witness,
-                    );
+                    let inter_var = Witness(intermediate_variables.len() as u32 + num_witness);
 
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
@@ -309,15 +301,7 @@ impl Optimiser {
         // 2. Create Intermediate variables for the multiplication gates
         for mul_term in gate.mul_terms.clone().into_iter() {
             // Create intermediate variable to squash the multiplication term
-            let inter_var_name = format!(
-                "{}{}",
-                "optim_inter_squash_mul_",
-                intermediate_variables.len(),
-            );
-            let inter_var = Witness(
-                inter_var_name,
-                (intermediate_variables.len() as u32) + num_witness,
-            );
+            let inter_var = Witness((intermediate_variables.len() as u32) + num_witness);
             let mut intermediate_gate = Arithmetic::default();
 
             // Push mul term into the gate
@@ -361,15 +345,7 @@ impl Optimiser {
                 };
             }
             // Constrain the intermediate gate to be equal to the intermediate variable
-            let inter_var_name = format!(
-                "{}{}",
-                "optim_inter_squash_fan_",
-                intermediate_variables.len(),
-            );
-            let inter_var = Witness(
-                inter_var_name,
-                (intermediate_variables.len() as u32) + num_witness,
-            );
+            let inter_var = Witness((intermediate_variables.len() as u32) + num_witness);
 
             intermediate_gate
                 .linear_combinations
