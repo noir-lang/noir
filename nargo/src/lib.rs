@@ -42,7 +42,6 @@ pub fn lib_or_bin(current_path: &Path) -> (PathBuf, CrateType) {
             current_path.display()
         )),
     };
-    dbg!(&src_path);
     let lib_nr_path = fm::find_file(&src_path, "lib", "nr");
     let bin_nr_path = fm::find_file(&src_path, "main", "nr");
     match (lib_nr_path, bin_nr_path) {
