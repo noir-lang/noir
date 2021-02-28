@@ -75,8 +75,7 @@ pub fn resolve_path_to_ns(
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
             // Resolve from the root of the crate
-            let path = &import_path[1..]; // We do not need the `crate` segment. XXX: Maybe we can get rid of this in the Parser?
-            resolve_path_from_crate_root(def_map, path, def_maps)
+            resolve_path_from_crate_root(def_map, &import_path, def_maps)
         }
         crate::ast::PathKind::Dep => resolve_external_dep(def_map, &import_directive, def_maps),
         crate::ast::PathKind::Plain => {
@@ -167,20 +166,17 @@ fn resolve_external_dep(
 ) -> PathResolution {
     // Use extern_prelude to get the dep
     //
-    // Remove the first segment, it is the "dep" symbol
-    //
     let path = &directive.path.segments;
-    let path_without_dep_seg = &path[1..];
-
+    //
     // Fetch the root module from the prelude
-    let crate_name = path_without_dep_seg.first().unwrap().0.contents.clone();
+    let crate_name = path.first().unwrap().0.contents.clone();
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name)
         .expect("error reporter: could not find crate");
 
     // Create an import directive for the dependency crate
-    let path_without_crate_name = &path[2..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
+    let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
 
     let path = Path {
         segments: path_without_crate_name.to_vec(),
@@ -188,7 +184,7 @@ fn resolve_external_dep(
     };
     let dep_directive = ImportDirective {
         module_id: directive.module_id,
-        path: path,
+        path,
         alias: directive.alias.clone(),
     };
 
