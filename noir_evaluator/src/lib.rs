@@ -43,9 +43,7 @@ use noirc_frontend::hir::Context;
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
     file_id: usize,
-    num_selectors: usize,                         // XXX: Can possibly remove
     pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
-    selectors: Vec<Selector>,                     // XXX: Possibly move into environment
     context: &'a Context,
     public_inputs: Vec<Witness>,
     main_function: FuncId,
@@ -58,10 +56,8 @@ impl<'a> Evaluator<'a> {
     pub fn new(file_id: usize, main_function: FuncId, context: &Context) -> Evaluator {
         Evaluator {
             file_id,
-            num_selectors: 0,
             public_inputs: Vec::new(),
             witnesses: HashMap::new(),
-            selectors: Vec::new(),
             context,
             main_function,
             gates: Vec::new(),
@@ -281,14 +277,13 @@ impl<'a> Evaluator<'a> {
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
             HirStatement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, constrain_stmt),
-            // constant statements do not create constraints
             HirStatement::Const(x) => {
-                self.num_selectors = self.num_selectors + 1;
 
                 let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
-                let value = self.evaluate_integer(env, &x.expression)?; // const can only be integers/Field elements, cannot involve the witness, so we can eval at compile
-                self.selectors
-                    .push(Selector(variable_name.clone(), value.clone()));
+                // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
+                // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
+                let value = self.evaluate_integer(env, &x.expression)?; 
+
                 env.store(variable_name, value);
                 Ok(Object::Null)
             }
