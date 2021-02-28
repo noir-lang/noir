@@ -1,4 +1,9 @@
-use std::{collections::BTreeMap, fs::File, io::Write, path::Path};
+use std::{
+    collections::BTreeMap,
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use acvm::acir::native_types::Witness;
 use clap::ArgMatches;
@@ -6,6 +11,11 @@ use clap::{App, Arg};
 use pwg::Solver;
 
 use crate::resolver::Resolver;
+
+const CONTRACT_DIR: &str = "contract";
+const PROOFS_DIR: &str = "proofs";
+const SRC_DIR: &str = "src";
+const PKG_FILE: &str = "Nargo.toml";
 
 pub fn start_cli() {
     let matches = App::new("nargo")
@@ -15,11 +25,18 @@ pub fn start_cli() {
         .subcommand(App::new("build").about("Builds the constraint system"))
         .subcommand(App::new("contract").about("Creates the smart contract code for circuit"))
         .subcommand(
-            App::new("new").about("Create a new binary project").arg(
-                Arg::with_name("package_name")
-                    .help("Name of the package")
-                    .required(true),
-            ),
+            App::new("new")
+                .about("Create a new binary project")
+                .arg(
+                    Arg::with_name("package_name")
+                        .help("Name of the package")
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("path")
+                        .help("The path to save the new project")
+                        .required(false),
+                ),
         )
         .subcommand(
             App::new("verify")
@@ -44,14 +61,14 @@ pub fn start_cli() {
     match matches.subcommand_name() {
         Some("new") => new_package(matches),
         Some("build") => {
-            let _ = build_package();
+            build_package();
             println!("Constraint system successfully built!")
         }
-        // Some("contract") => create_smart_contract(),
+        Some("contract") => create_smart_contract(matches),
         Some("prove") => prove(matches),
         Some("verify") => verify(matches),
         None => println!("No subcommand was used"),
-        _ => unreachable!(), // Assuming you've listed all direct children above, this is unreachable
+        Some(x) => println!("unknown command : {}", x),
     }
 }
 
@@ -72,7 +89,8 @@ fn verify(args: ArgMatches) {
         .value_of("proof")
         .unwrap();
     let mut proof_path = std::path::PathBuf::new();
-    proof_path.push(Path::new("proofs"));
+    proof_path.push(Path::new(PROOFS_DIR));
+
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension("proof");
 
@@ -81,22 +99,25 @@ fn verify(args: ArgMatches) {
 }
 
 fn new_package(args: ArgMatches) {
-    let package_name = args
-        .subcommand_matches("new")
-        .unwrap()
-        .value_of("package_name")
-        .unwrap();
+    let cmd = args.subcommand_matches("new").unwrap();
 
-    let mut package_dir = std::env::current_dir().unwrap();
+    let package_name = cmd.value_of("package_name").unwrap();
+
+    let mut package_dir = match cmd.value_of("path") {
+        Some(path) => std::path::PathBuf::from(path),
+        None => std::env::current_dir().unwrap(),
+    };
     package_dir.push(Path::new(package_name));
+    if package_dir.exists() {
+        println!(
+            "error: destination {} already exists",
+            package_dir.display()
+        );
+        std::process::exit(1)
+    }
 
-    const SRC_DIR: &str = "src";
-    const PROOFS_DIR: &str = "proofs";
-    const CONTRACT_DIR: &str = "contract";
-
-    create_directory(&package_dir.join(Path::new(SRC_DIR)));
-    create_directory(&package_dir.join(Path::new(PROOFS_DIR)));
-    create_directory(&package_dir.join(Path::new(CONTRACT_DIR)));
+    let src_dir = package_dir.join(Path::new(SRC_DIR));
+    create_src_dir(&src_dir);
 
     const EXAMPLE: &'static str = "
         fn main(x : Witness, y : Witness) {
@@ -109,16 +130,49 @@ fn new_package(args: ArgMatches) {
         y = "10"
     "#;
 
-    let src_dir = package_dir.join(Path::new(SRC_DIR));
+    const SETTINGS: &'static str = r#"
+        [package]
+        authors = [""]
+        compiler_version = "0.1"
+    
+        [dependencies]
+    "#;
 
-    let _ = write_to_file(INPUT.as_bytes(), &src_dir.join(Path::new("input.toml")));
+    write_to_file(INPUT.as_bytes(), &src_dir.join(Path::new("input.toml")));
+    write_to_file(SETTINGS.as_bytes(), &package_dir.join(Path::new(PKG_FILE)));
     let path = write_to_file(EXAMPLE.as_bytes(), &src_dir.join(Path::new("main.nr")));
     println!("Project successfully created! Binary located at {}", path);
 }
 
+fn create_smart_contract(args: ArgMatches) {
+    let cmd = args.subcommand_matches("contract").unwrap();
+
+    let package_dir = match cmd.value_of("path") {
+        Some(path) => std::path::PathBuf::from(path),
+        None => std::env::current_dir().unwrap(),
+    };
+    let (mut driver, backend_ptr) = Resolver::resolve_root_config(&package_dir);
+    let compiled_program = driver.into_compiled_program(backend_ptr);
+
+    let smart_contract_string = backend_ptr
+        .backend()
+        .eth_contract_from_cs(compiled_program.circuit);
+
+    let mut contract_path = create_contract_dir();
+    contract_path.push("plonk_vk");
+    contract_path.set_extension("sol");
+
+    let path = write_to_file(&smart_contract_string.as_bytes(), &contract_path);
+    println!("Contract successfully created and located at {}", path)
+}
+
 fn build_package() {
-    let curr_dir = std::env::current_dir().unwrap();
-    let (mut driver, _) = Resolver::resolve_root_config(&curr_dir);
+    let package_dir = std::env::current_dir().unwrap();
+    build(package_dir)
+}
+// This is exposed so that we can run the examples and verify that they pass
+pub fn build<P: AsRef<Path>>(p: P) {
+    let (mut driver, _) = Resolver::resolve_root_config(p.as_ref());
     driver.build();
 }
 
@@ -167,10 +221,8 @@ fn prove_(proof_name: &str) {
                     noirc_abi::input_parser::mangle_array_element_name(&collection.0, i);
                 let value = witness_map.get(&mangled_element_name).expect(err_msg);
 
-                let old_value = solved_witness.insert(
-                    Witness::new(param.to_owned(), index + WITNESS_OFFSET),
-                    value.clone(),
-                );
+                let old_value =
+                    solved_witness.insert(Witness::new(index + WITNESS_OFFSET), value.clone());
                 assert!(old_value.is_none());
 
                 index += 1
@@ -178,10 +230,8 @@ fn prove_(proof_name: &str) {
         } else {
             let value = witness_map.get(param).expect(err_msg);
 
-            let old_value = solved_witness.insert(
-                Witness::new(param.to_owned(), index + WITNESS_OFFSET),
-                value.clone(),
-            );
+            let old_value =
+                solved_witness.insert(Witness::new(index + WITNESS_OFFSET), value.clone());
             assert!(old_value.is_none());
 
             index += 1;
@@ -194,8 +244,7 @@ fn prove_(proof_name: &str) {
         .backend()
         .prove_with_meta(compiled_program.circuit, solved_witness);
 
-    let mut proof_path = std::path::PathBuf::new();
-    proof_path.push("proofs");
+    let mut proof_path = create_proof_dir();
     proof_path.push(proof_name);
     proof_path.set_extension("proof");
 
@@ -223,12 +272,21 @@ fn verify_(proof_name: &str) -> bool {
         .verify_from_cs(&proof, compiled_program.circuit)
 }
 
-fn create_directory(path: &std::path::Path) {
-    if path.exists() {
-        println!("This directory {} already exists", path.display());
-        return;
-    }
-    std::fs::create_dir_all(path).unwrap();
+fn create_contract_dir() -> PathBuf {
+    create_dir(CONTRACT_DIR).expect("could not create the `contract` directory")
+}
+fn create_proof_dir() -> PathBuf {
+    create_dir(PROOFS_DIR).expect("could not create the `contract` directory")
+}
+fn create_src_dir<P: AsRef<Path>>(p: P) -> PathBuf {
+    create_dir(p).expect("could not create `src` directory")
+}
+
+fn create_dir<P: AsRef<Path>>(dir_path: P) -> Result<PathBuf, std::io::Error> {
+    let mut dir = std::path::PathBuf::new();
+    dir.push(dir_path);
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
 }
 
 fn write_to_file(bytes: &[u8], path: &Path) -> String {
