@@ -204,7 +204,6 @@ impl Sub<&Witness> for &Arithmetic {
 
 impl Arithmetic {
     // Checks if this polynomial can fit into one arithmetic identity
-    // Should I put this on Arithmetic struct as method?
     pub fn fits_in_one_identity(&self, width: usize) -> bool {
         // A Polynomial with more than one mul term cannot fit into one gate
         if self.mul_terms.len() > 1 {
