@@ -14,7 +14,7 @@ use core::panic;
 use std::collections::HashMap;
 
 use environment::Environment;
-use object::{Array, Integer, Object, RangedObject, Selector};
+use object::{Array, Integer, Object, RangedObject};
 
 use acir::circuit::Circuit;
 use acir::circuit::{
@@ -30,7 +30,7 @@ use noirc_frontend::hir::lower::{
 };
 use noirc_frontend::{
     hir::lower::{HirBinaryOpKind, HirBlockExpression},
-    ArraySize, FunctionKind, Signedness, Type,
+    FunctionKind, Signedness, Type,
 };
 
 use noirc_frontend::hir::lower::{
@@ -43,16 +43,19 @@ use noirc_frontend::hir::Context;
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
     file_id: usize,
-    pub(crate) witnesses: HashMap<Witness, Type>, //XXX: Move into symbol table/environment -- Check if typing is needed here
+    // XXX: This is doing two things. We should split it up so that Witnesses
+    // are local to their execution context and not the global context.
+    // Also there should be a separate map to map variable names to witness indices.
+    // This will allow us to remove the `String` component from Witness in ACIR 
+    pub(crate) witnesses: HashMap<Witness, Type>,
     context: &'a Context,
     public_inputs: Vec<Witness>,
     main_function: FuncId,
-    gates: Vec<Gate>, // Identifier, Object
+    gates: Vec<Gate>,
     counter: usize,   // This is so that we can get a unique number
 }
 
 impl<'a> Evaluator<'a> {
-    // XXX: Change from Option to Result
     pub fn new(file_id: usize, main_function: FuncId, context: &Context) -> Evaluator {
         Evaluator {
             file_id,
@@ -122,6 +125,9 @@ impl<'a> Evaluator<'a> {
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
     // It is better to create an intermediate variable which links to the gate and then multiply by that intermediate variable
     // instead
+    //
+    // XXX: Check logic for when we create intermediate variables 
+    // for Integer objects
     pub fn create_intermediate_variable(
         &mut self,
         env: &mut Environment,
