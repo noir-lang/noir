@@ -41,7 +41,13 @@ impl Driver {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.add_std_lib();
-        CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context).is_ok()
+        if let Err(errs) = CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context) {
+            for errors in errs {
+                dbg!(errors);
+            }
+            return false;
+        }
+        return true;
     }
 
     /// Adds the File with the local crate root to the file system
