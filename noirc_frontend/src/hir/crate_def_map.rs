@@ -101,7 +101,7 @@ pub fn parse_root_file(
     root_file_id: FileId,
 ) -> Result<Program, Vec<CollectedErrors>> {
     let file = fm.fetch_file(root_file_id);
-    let mut parser = Parser::from_src(root_file_id, file.get_source());
+    let mut parser = Parser::from_src(file.get_source());
     match parser.parse_program() {
         Ok(prog) => Ok(prog),
         Err(errs) => {

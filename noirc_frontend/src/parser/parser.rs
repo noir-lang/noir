@@ -17,10 +17,6 @@ type ParserStmtResult = ParserResult<Statement>;
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
 pub struct Parser<'a> {
-    // XXX: Since a parser only parses a single file,
-    // this can be omitted until the parser has completed.
-    // Then attached to the Error Reporter if there are any errors
-    pub(crate) file_id: usize,
     pub(crate) lexer: Lexer<'a>,
     pub(crate) curr_token: SpannedToken,
     pub(crate) peek_token: SpannedToken,
@@ -33,15 +29,14 @@ impl<'a> Parser<'a> {
         let peek_token = lexer.next_token().unwrap();
 
         Parser {
-            file_id: lexer.file_id,
             lexer,
             curr_token,
             peek_token,
             errors: Vec::new(),
         }
     }
-    pub fn from_src(file_id: FileId, src: &'a str) -> Self {
-        Parser::new(Lexer::new(file_id.as_usize(), src))
+    pub fn from_src(src: &'a str) -> Self {
+        Parser::new(Lexer::new(src))
     }
 
     /// Note that this function does not alert the user of an EOF
@@ -116,7 +111,7 @@ impl<'a> Parser<'a> {
     pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserErrorKind>> {
         use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
 
-        let mut program = Program::with_capacity(self.lexer.by_ref().approx_len(), self.file_id);
+        let mut program = Program::with_capacity(self.lexer.by_ref().approx_len());
 
         while self.curr_token != Token::EOF {
             match self.curr_token.clone().into() {

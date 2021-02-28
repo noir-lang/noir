@@ -12,7 +12,7 @@ impl BinaryParser {
     ///
     /// Cursor End : `EXPR_RHS`
     pub fn parse(parser: &mut Parser, lhs: Expression) -> ParserExprKindResult {
-        let operator = token_to_binary_op(&parser.curr_token, parser.file_id)?;
+        let operator = token_to_binary_op(&parser.curr_token)?;
 
         // Check if the operator is a predicate
         // so that we can eagerly wrap it as a Predicate expression
@@ -36,10 +36,7 @@ impl BinaryParser {
         return Ok(ExpressionKind::Infix(infix_expression));
     }
 }
-fn token_to_binary_op(
-    spanned_tok: &SpannedToken,
-    file_id: usize,
-) -> Result<BinaryOp, ParserErrorKind> {
+fn token_to_binary_op(spanned_tok: &SpannedToken) -> Result<BinaryOp, ParserErrorKind> {
     let bin_op_kind: Option<BinaryOpKind> = spanned_tok.token().into();
     let bin_op_kind = bin_op_kind.ok_or(ParserErrorKind::TokenNotBinaryOp {
         spanned_token: spanned_tok.clone(),

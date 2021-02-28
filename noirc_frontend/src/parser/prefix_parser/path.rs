@@ -18,7 +18,7 @@ impl PathParser {
 
         // Parse the first path segment as a keyword or an identifier
         let span_first_segment = parser.curr_token.into_span();
-        let (ident, path_kind) = path_identifer(parser.file_id, &parser.curr_token)?;
+        let (ident, path_kind) = path_identifer(&parser.curr_token)?;
         if let PathKind::Plain = path_kind {
             parsed_path.push(ident.expect("plain paths should contain their identifiers"));
         }
@@ -57,7 +57,6 @@ impl PathParser {
 /// only plain paths return identifiers, as the other path kinds implicitly
 /// contain the keyword used.
 fn path_identifer(
-    file_id: usize,
     tok: &crate::token::SpannedToken,
 ) -> Result<(Option<Ident>, PathKind), ParserErrorKind> {
     match tok.token() {

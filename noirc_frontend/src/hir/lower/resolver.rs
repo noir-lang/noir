@@ -478,7 +478,7 @@ mod test {
         src: &str,
         func_namespace: Vec<String>,
     ) -> (NodeInterner, Vec<ResolverError>) {
-        let mut parser = Parser::from_src(Default::default(), src);
+        let mut parser = Parser::from_src(src);
         let program = parser.parse_program().unwrap();
         let mut interner = NodeInterner::default();
 

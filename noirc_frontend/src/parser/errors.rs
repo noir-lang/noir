@@ -1,5 +1,5 @@
 use crate::lexer::token::{SpannedToken, Token, TokenKind};
-use crate::{lexer::errors::LexerError, PathKind};
+use crate::{lexer::errors::LexerErrorKind, PathKind};
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
@@ -9,7 +9,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ParserErrorKind {
     #[error("Lexer error found")]
-    LexerError(LexerError),
+    LexerError(LexerErrorKind),
     #[error(" expected expression, found `{}`", lexeme)]
     ExpectedExpression { span: Span, lexeme: String },
     #[error("Unexpected token found")]

@@ -225,7 +225,7 @@ mod test {
     // This function assumes that there is only one function and this is the
     // func id that is returned
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        let mut parser = Parser::from_src(Default::default(), src);
+        let mut parser = Parser::from_src(src);
         let program = parser.parse_program().unwrap();
         let mut interner = NodeInterner::default();
 

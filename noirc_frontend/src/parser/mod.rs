@@ -16,7 +16,6 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct Program {
-    pub file_id: usize,
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub module_decls: Vec<String>,
@@ -45,9 +44,8 @@ impl Program {
         None
     }
 
-    fn with_capacity(cap: usize, file_id: usize) -> Self {
+    fn with_capacity(cap: usize) -> Self {
         Program {
-            file_id,
             imports: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
             module_decls: Vec::new(),
@@ -122,7 +120,7 @@ impl From<&SpannedToken> for Precedence {
 
 #[cfg(test)]
 pub(crate) fn test_parse(src: &str) -> Parser {
-    Parser::from_src(Default::default(), src)
+    Parser::from_src(src)
 }
 
 #[cfg(test)]
