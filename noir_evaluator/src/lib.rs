@@ -79,7 +79,7 @@ impl<'a> Evaluator<'a> {
 
     // Creates a new Witness index
     fn add_witness_to_cs(&mut self) -> Witness {
-        let witness = Witness(String::default(), self.num_witnesses() + 1);
+        let witness = Witness(self.num_witnesses() + 1);
         self.witnesses.insert(witness.clone(), Type::Witness);
         witness
     }
@@ -370,9 +370,7 @@ impl<'a> Evaluator<'a> {
         Ok(Object::Null)
     }
 
-    // The LHS of a private statement is always a new witness
-    // Cannot do `private x + k = z`
-    // It is also a new variable, since private is used to derive variables
+    // Add a constraint to constrain two expression together 
     fn handle_constrain_statement(
         &mut self,
         env: &mut Environment,
