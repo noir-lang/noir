@@ -21,7 +21,7 @@ impl FuncParser {
     pub(crate) fn parse_fn_definition(
         parser: &mut Parser,
         attribute: Option<Attribute>,
-    ) -> Result<NoirFunction, ParserError> {
+    ) -> Result<NoirFunction, ParserErrorKind> {
         // Current token is `fn`
         //
         // Peek ahead and check if the next token is an identifier
@@ -83,7 +83,7 @@ impl FuncParser {
     /// Cursor Start : `(`
     ///
     /// Cursor End : `)`
-    fn parse_fn_parameters(parser: &mut Parser) -> Result<Vec<(Ident, Type)>, ParserError> {
+    fn parse_fn_parameters(parser: &mut Parser) -> Result<Vec<(Ident, Type)>, ParserErrorKind> {
         // Current token is `(`
         //
         // Check if we have an empty list
@@ -134,7 +134,7 @@ impl FuncParser {
     /// Cursor Start : `IDENT`
     ///
     /// Cursor End : `TYPE`
-    fn parse_fn_type(parser: &mut Parser) -> Result<Type, ParserError> {
+    fn parse_fn_type(parser: &mut Parser) -> Result<Type, ParserErrorKind> {
         // Current token is `IDENT`
         //
         // Peek ahead and check if the next token is `:`

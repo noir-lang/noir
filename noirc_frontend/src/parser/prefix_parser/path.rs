@@ -43,8 +43,7 @@ impl PathParser {
             return Err(ParserErrorKind::SingleKeywordSegmentNotAllowed {
                 span: span_first_segment,
                 path_kind,
-            }
-            .into_err(parser.file_id));
+            });
         }
 
         Ok(ExpressionKind::Path(Path {
@@ -60,7 +59,7 @@ impl PathParser {
 fn path_identifer(
     file_id: usize,
     tok: &crate::token::SpannedToken,
-) -> Result<(Option<Ident>, PathKind), ParserError> {
+) -> Result<(Option<Ident>, PathKind), ParserErrorKind> {
     match tok.token() {
         Token::Ident(x) => Ok((Some(Ident::from(x.clone())), PathKind::Plain)),
         Token::Keyword(Keyword::Crate) => Ok((None, PathKind::Crate)),
@@ -72,8 +71,7 @@ fn path_identifer(
                     "expected an identifier, `dep` or `crate`. found {} ",
                     tok.token().to_string()
                 ),
-            }
-            .into_err(file_id))
+            })
         }
     }
 }

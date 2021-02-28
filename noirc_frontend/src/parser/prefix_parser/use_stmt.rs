@@ -6,7 +6,7 @@ pub struct UseParser;
 
 impl UseParser {
     // Import statements of the form use std::hash::sha256;
-    pub fn parse(parser: &mut Parser) -> Result<ImportStatement, ParserError> {
+    pub fn parse(parser: &mut Parser) -> Result<ImportStatement, ParserErrorKind> {
         let file_id = parser.file_id;
 
         // Current token is 'use'
@@ -27,8 +27,7 @@ impl UseParser {
             return Err(ParserErrorKind::UnstructuredError {
                 message: format!("please append the dependency you want to import after `use dep`"),
                 span: path.segments.first().unwrap().0.span(),
-            }
-            .into_err(file_id));
+            });
         }
 
         // Current token is the last identifier in the path

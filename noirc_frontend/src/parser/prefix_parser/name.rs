@@ -18,7 +18,6 @@ impl NameParser {
             span: parser.curr_token.into_span(),
             expected: TokenKind::Ident,
             found: parser.curr_token.kind(),
-        }
-        .into_err(parser.file_id));
+        });
     }
 }

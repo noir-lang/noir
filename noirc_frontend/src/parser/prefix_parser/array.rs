@@ -138,7 +138,7 @@ mod test {
         "#;
 
         let err = ArrayParser::parse(&mut test_parse(MISSING_END)).unwrap_err();
-        match err.kind {
+        match err {
             ParserErrorKind::UnexpectedToken {
                 span: _,
                 expected,

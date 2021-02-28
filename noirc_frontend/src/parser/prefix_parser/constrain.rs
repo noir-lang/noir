@@ -35,7 +35,9 @@ fn disallowed_operators() -> Vec<BinaryOpKind> {
 impl ConstrainParser {
     // Since == is an infix operator
     // The pratt parser will do most of the job, we just need to check that everything was correct
-    pub(crate) fn parse_statement(parser: &mut Parser) -> Result<ConstrainStatement, ParserError> {
+    pub(crate) fn parse_statement(
+        parser: &mut Parser,
+    ) -> Result<ConstrainStatement, ParserErrorKind> {
         parser.advance_tokens();
 
         let expr = parser.parse_expression(Precedence::Lowest)?;
@@ -51,8 +53,7 @@ impl ConstrainParser {
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: expr.span,
-                }
-                .into_err(parser.file_id));
+                });
             }
         };
 
@@ -61,8 +62,7 @@ impl ConstrainParser {
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: infix.operator.span(),
-            }
-            .into_err(parser.file_id));
+            });
         }
 
         if disallowed_operators().contains(&infix.operator.contents) {
@@ -73,8 +73,7 @@ impl ConstrainParser {
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: expr.span,
-            }
-            .into_err(parser.file_id));
+            });
         }
 
         // XXX: Add a `help` note to tell the user to add a semi colon here

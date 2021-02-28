@@ -16,8 +16,7 @@ impl IndexParser {
         let err = ParserErrorKind::UnstructuredError {
             message: msg,
             span: collection_name.span,
-        }
-        .into_err(parser.file_id);
+        };
 
         let collection_name = match collection_name.kind {
             ExpressionKind::Path(path) => path.into_ident().ok_or(err)?,

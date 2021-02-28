@@ -17,8 +17,7 @@ use crate::token::Token;
 
 use super::parser::{ParserExprKindResult, ParserExprResult};
 use super::Parser;
-use super::ParserError;
-use crate::parser::errors::ParserErrorKind;
+use super::ParserErrorKind;
 
 /// Strictly speaking, this is not needed as we could import choose_prefix_parser
 /// and choose based on the token. This is a bit more modularised and cleaner to read however

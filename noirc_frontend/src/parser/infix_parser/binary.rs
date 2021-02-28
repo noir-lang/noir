@@ -36,14 +36,14 @@ impl BinaryParser {
         return Ok(ExpressionKind::Infix(infix_expression));
     }
 }
-fn token_to_binary_op(spanned_tok: &SpannedToken, file_id: usize) -> Result<BinaryOp, ParserError> {
+fn token_to_binary_op(
+    spanned_tok: &SpannedToken,
+    file_id: usize,
+) -> Result<BinaryOp, ParserErrorKind> {
     let bin_op_kind: Option<BinaryOpKind> = spanned_tok.token().into();
-    let bin_op_kind = bin_op_kind.ok_or(
-        ParserErrorKind::TokenNotBinaryOp {
-            spanned_token: spanned_tok.clone(),
-        }
-        .into_err(file_id),
-    )?;
+    let bin_op_kind = bin_op_kind.ok_or(ParserErrorKind::TokenNotBinaryOp {
+        spanned_token: spanned_tok.clone(),
+    })?;
     Ok(Spanned::from(spanned_tok.into_span(), bin_op_kind))
 }
 

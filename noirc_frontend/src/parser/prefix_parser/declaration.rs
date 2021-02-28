@@ -18,20 +18,13 @@ impl DeclarationParser {
     /// XXX: We can make this clearer by further separating keywords into declaration keywords.
     /// This would ensure that the match statement will always be exhaustive on the list
     /// of declaration keywords.
-    pub fn parse_statement(parser: &mut Parser) -> Result<Statement, ParserError> {
+    pub fn parse_statement(parser: &mut Parser) -> Result<Statement, ParserErrorKind> {
         match parser.curr_token.token().to_declaration_keyword() {
             Keyword::Let => Ok(Statement::Let(parse_let_statement(parser)?)),
             Keyword::Const => Ok(Statement::Const(parse_const_statement(parser)?)),
             Keyword::Pub => Ok(Statement::Public(parse_public_statement(parser)?)),
             Keyword::Private => Ok(Statement::Private(parse_private_statement(parser)?)),
-            kw => {
-                let message = format!("All declaration keywords should have a method to parser their structure, the keyword {} does not have this", kw);
-                return Err(ParserErrorKind::InternalError {
-                    message,
-                    span: parser.curr_token.into_span(),
-                }
-                .into_err(parser.file_id));
-            }
+            kw => unreachable!("All declaration keywords should have a method to parser their structure, the keyword {} does not have this", kw)
         }
     }
 }
@@ -44,7 +37,9 @@ impl DeclarationParser {
 /// Cursor Start : `DECL_KEYWORD`
 ///
 /// Cursor End : `;`
-fn parse_generic_decl_statement(parser: &mut Parser) -> Result<GenericDeclStructure, ParserError> {
+fn parse_generic_decl_statement(
+    parser: &mut Parser,
+) -> Result<GenericDeclStructure, ParserErrorKind> {
     // The next token should be an identifier
     parser.peek_check_kind_advance(TokenKind::Ident)?;
 
@@ -84,7 +79,7 @@ fn parse_generic_decl_statement(parser: &mut Parser) -> Result<GenericDeclStruct
     })
 }
 
-fn parse_let_statement(parser: &mut Parser) -> Result<LetStatement, ParserError> {
+fn parse_let_statement(parser: &mut Parser) -> Result<LetStatement, ParserErrorKind> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     let stmt = LetStatement {
@@ -94,7 +89,7 @@ fn parse_let_statement(parser: &mut Parser) -> Result<LetStatement, ParserError>
     };
     Ok(stmt)
 }
-fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserError> {
+fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserErrorKind> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a const statement, it can only be a Field element/Constant
@@ -104,8 +99,7 @@ fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserEr
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: Span::default(),
-            }
-            .into_err(parser.file_id)); // XXX: We don't have spanning for types yet
+            }); // XXX: We don't have spanning for types yet
         }
     }
 
@@ -116,7 +110,7 @@ fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserEr
     };
     Ok(stmt)
 }
-fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, ParserError> {
+fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, ParserErrorKind> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     let stmt = PrivateStatement {
@@ -130,7 +124,7 @@ fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, Pars
 //
 // XXX: More research is required to determine whether this can be fully deprecated.
 // In place for something like : `witness.to_public()`
-fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatement, ParserError> {
+fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatement, ParserErrorKind> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a public statement, it can only be Public for now.
@@ -141,8 +135,7 @@ fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatement, Parser
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: Span::default(),
-            }
-            .into_err(parser.file_id));
+            });
         }
     }
 

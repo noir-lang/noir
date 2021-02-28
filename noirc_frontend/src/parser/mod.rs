@@ -4,14 +4,14 @@ mod prefix_parser;
 
 mod errors;
 
-pub use errors::ParserError;
+pub use errors::ParserErrorKind;
 
 pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
 use crate::token::{Keyword, SpannedToken, Token};
 use crate::{
     ast::{FunctionDefinition, ImportStatement, Type},
-    Expression, FunctionKind, NoirFunction,
+    FunctionKind, NoirFunction,
 };
 
 #[derive(Clone, Debug)]
@@ -126,7 +126,7 @@ pub(crate) fn test_parse(src: &str) -> Parser {
 }
 
 #[cfg(test)]
-pub(crate) fn dummy_expr() -> Expression {
+pub(crate) fn dummy_expr() -> crate::Expression {
     use crate::parser::prefix_parser::PrefixParser;
     const SRC: &'static str = r#"
         foo;

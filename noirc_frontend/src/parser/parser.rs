@@ -1,6 +1,5 @@
 use fm::FileId;
 
-use super::errors::ParserError;
 use super::{errors::ParserErrorKind, Precedence, Program};
 use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::lexer::Lexer;
@@ -9,7 +8,7 @@ use crate::token::{Keyword, SpannedToken, Token, TokenKind};
 use super::infix_parser::InfixParser;
 use super::prefix_parser::PrefixParser;
 
-pub type ParserResult<T> = Result<T, ParserError>;
+pub type ParserResult<T> = Result<T, ParserErrorKind>;
 pub type ParserExprKindResult = ParserResult<ExpressionKind>;
 pub type ParserExprResult = ParserResult<Expression>;
 type ParserStmtResult = ParserResult<Statement>;
@@ -25,7 +24,7 @@ pub struct Parser<'a> {
     pub(crate) lexer: Lexer<'a>,
     pub(crate) curr_token: SpannedToken,
     pub(crate) peek_token: SpannedToken,
-    pub(crate) errors: Vec<ParserError>,
+    pub(crate) errors: Vec<ParserErrorKind>,
 }
 
 impl<'a> Parser<'a> {
@@ -57,9 +56,7 @@ impl<'a> Parser<'a> {
                     self.peek_token = spanned_token;
                     break;
                 }
-                Err(lex_err) => self
-                    .errors
-                    .push(ParserErrorKind::LexerError(lex_err).into_err(self.file_id)),
+                Err(lex_err) => self.errors.push(ParserErrorKind::LexerError(lex_err)),
             }
         }
 
@@ -73,7 +70,10 @@ impl<'a> Parser<'a> {
     // peaks at the next token
     // asserts that it should be of a certain variant
     // If it is, the parser is advanced
-    pub(crate) fn peek_check_variant_advance(&mut self, token: &Token) -> Result<(), ParserError> {
+    pub(crate) fn peek_check_variant_advance(
+        &mut self,
+        token: &Token,
+    ) -> Result<(), ParserErrorKind> {
         let same_variant = self.peek_token.is_variant(token);
 
         if !same_variant {
@@ -84,8 +84,7 @@ impl<'a> Parser<'a> {
                 span: peeked_span,
                 expected: token.clone(),
                 found: peeked_token,
-            }
-            .into_err(self.file_id));
+            });
         }
         self.advance_tokens();
         return Ok(());
@@ -97,7 +96,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn peek_check_kind_advance(
         &mut self,
         token_kind: TokenKind,
-    ) -> Result<(), ParserError> {
+    ) -> Result<(), ParserErrorKind> {
         let peeked_kind = self.peek_token.kind();
         let same_kind = peeked_kind == token_kind;
         if !same_kind {
@@ -107,15 +106,14 @@ impl<'a> Parser<'a> {
                 span: peeked_span,
                 expected: token_kind,
                 found: peeked_kind,
-            }
-            .into_err(self.file_id));
+            });
         }
         self.advance_tokens();
         return Ok(());
     }
 
     /// A Program corresponds to a single module
-    pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserError>> {
+    pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserErrorKind>> {
         use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
 
         let mut program = Program::with_capacity(self.lexer.by_ref().approx_len(), self.file_id);
@@ -153,8 +151,7 @@ impl<'a> Parser<'a> {
                     let err = ParserErrorKind::UnstructuredError {
                         span: self.curr_token.into_span(),
                         message: format!("found `{}`. {}", tok, expected_tokens), // XXX: Fix in next refactor, avoid allocations with error messages
-                    }
-                    .into_err(self.file_id);
+                    };
                     self.errors.push(err);
                     return Err(&self.errors);
                 }
@@ -258,8 +255,7 @@ impl<'a> Parser<'a> {
                 return Err(ParserErrorKind::ExpectedExpression {
                     span: self.curr_token.into_span(),
                     lexeme: self.curr_token.token().to_string(),
-                }
-                .into_err(self.file_id))
+                })
             }
         };
 
@@ -337,7 +333,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_comma_separated_argument_list(
         &mut self,
         closing_token: Token,
-    ) -> Result<Vec<Expression>, ParserError> {
+    ) -> Result<Vec<Expression>, ParserErrorKind> {
         // An empty container.
         // Advance to the ending token and
         // return an empty array
@@ -376,7 +372,7 @@ impl<'a> Parser<'a> {
     /// Cursor End : `TYPE`
     /// The cursor starts on the first token which represents the type
     /// It ends on the last token in the Type
-    pub(crate) fn parse_type(&mut self) -> Result<Type, ParserError> {
+    pub(crate) fn parse_type(&mut self) -> Result<Type, ParserErrorKind> {
         // Currently we only support the default types and integers.
         // If we get into this function, then the user is specifying a type
         match self.curr_token.token() {
@@ -391,13 +387,12 @@ impl<'a> Parser<'a> {
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: self.curr_token.into_span(),
-                }
-                .into_err(self.file_id));
+                });
             }
         }
     }
 
-    fn parse_array_type(&mut self) -> Result<Type, ParserError> {
+    fn parse_array_type(&mut self) -> Result<Type, ParserErrorKind> {
         // Expression is of the form [3]Type
 
         // Current token is '['
@@ -410,8 +405,7 @@ impl<'a> Parser<'a> {
                     return Err(ParserErrorKind::UnstructuredError {
                         message,
                         span: self.peek_token.into_span(),
-                    }
-                    .into_err(self.file_id));
+                    });
                 }
                 self.advance_tokens();
                 ArraySize::Fixed(integer.to_u128())
@@ -422,8 +416,7 @@ impl<'a> Parser<'a> {
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: self.peek_token.into_span(),
-                }
-                .into_err(self.file_id));
+                });
             }
         };
 
@@ -437,8 +430,7 @@ impl<'a> Parser<'a> {
             return Err(ParserErrorKind::UnstructuredError {
                 message: format!("Currently Multi-dimensional arrays are not supported"),
                 span: self.peek_token.into_span(),
-            }
-            .into_err(self.file_id));
+            });
         }
 
         let array_type = self.parse_type()?;

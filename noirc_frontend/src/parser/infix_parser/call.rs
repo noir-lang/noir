@@ -25,8 +25,7 @@ impl CallParser {
                 return Err(ParserErrorKind::UnstructuredError {
                     message: format!("expected a path for the function name"),
                     span: func_path.span,
-                }
-                .into_err(parser.file_id))
+                })
             }
         };
 

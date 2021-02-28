@@ -16,8 +16,7 @@ impl LiteralParser {
                     span: parser.curr_token.into_span(),
                     expected: TokenKind::Literal,
                     found: x.kind(),
-                }
-                .into_err(parser.file_id))
+                })
             }
         };
         Ok(expr)

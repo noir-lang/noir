@@ -20,7 +20,7 @@ impl BlockParser {
     /// which returns an ExpressionKind is redundant.
     pub(crate) fn parse_block_expression(
         parser: &mut Parser,
-    ) -> Result<BlockExpression, ParserError> {
+    ) -> Result<BlockExpression, ParserErrorKind> {
         let mut statements: Vec<Statement> = Vec::new();
 
         // XXX: Check consistency with for parser, if parser and func parser
@@ -28,8 +28,7 @@ impl BlockParser {
             return Err(ParserErrorKind::UnstructuredError {
                 message: format!("Expected a {{ to start the block expression"),
                 span: parser.curr_token.into_span(),
-            }
-            .into_err(parser.file_id));
+            });
         }
         parser.advance_tokens();
 
@@ -42,8 +41,7 @@ impl BlockParser {
             return Err(ParserErrorKind::UnstructuredError {
                 message: format!("Expected a }} to end the block expression"),
                 span: parser.curr_token.into_span(),
-            }
-            .into_err(parser.file_id));
+            });
         }
 
         Ok(BlockExpression(statements))

@@ -12,12 +12,10 @@ impl UnaryParser {
     ///
     /// Cursor End : `EXPR`
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
-        let operator = UnaryOp::from(parser.curr_token.token()).ok_or(
-            ParserErrorKind::TokenNotUnaryOp {
+        let operator =
+            UnaryOp::from(parser.curr_token.token()).ok_or(ParserErrorKind::TokenNotUnaryOp {
                 spanned_token: parser.curr_token.clone(),
-            }
-            .into_err(parser.file_id),
-        )?;
+            })?;
 
         // Advance past the unary op
         //
