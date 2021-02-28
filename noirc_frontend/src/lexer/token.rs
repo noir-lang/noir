@@ -43,7 +43,6 @@ impl SpannedToken {
     }
 }
 
-// XXX(low): Need to Add functionality to parse all types of numbers including hex. This would be in the lexer
 // XXX(low): Add a Comment Token to force users to have documentation on public functions
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -375,6 +374,8 @@ impl<'a> Into<&'a str> for &'a Attribute {
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
 // Special Keywords allowed in the target language
 pub enum Keyword {
+    Dep,
+    Crate,
     Fn,
     Struct,
     If,
@@ -404,6 +405,8 @@ pub enum Keyword {
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Keyword::Dep => write!(f, "dep"),
+            Keyword::Crate => write!(f, "crate"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::If => write!(f, "if"),
@@ -435,6 +438,8 @@ impl Keyword {
         match word {
             "fn" => Some(Token::Keyword(Keyword::Fn)),
             "struct" => Some(Token::Keyword(Keyword::Struct)),
+            "dep" => Some(Token::Keyword(Keyword::Dep)),
+            "crate" => Some(Token::Keyword(Keyword::Crate)),
             "if" => Some(Token::Keyword(Keyword::If)),
             "mod" => Some(Token::Keyword(Keyword::Mod)),
             "for" => Some(Token::Keyword(Keyword::For)),
