@@ -94,7 +94,7 @@ impl<'a> ModCollector<'a> {
 
         ModCollector {
             def_collector: self.def_collector,
-            ast: ast,
+            ast,
             file_id: new_file_id,
             module_id: new_mod_id,
         }

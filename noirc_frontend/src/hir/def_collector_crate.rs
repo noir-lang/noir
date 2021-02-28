@@ -12,7 +12,7 @@ use super::{
         node_interner::{FuncId, NodeInterner},
         resolver::Resolver,
     },
-    resolution::{import::ImportDirective, resolve_function_call_path, FunctionPathResolver},
+    resolution::{import::ImportDirective, FunctionPathResolver},
     Context,
 };
 
@@ -30,6 +30,7 @@ impl UnresolvedFunctions {
 
 /// Errors collected while resolving or type checking functions
 /// lexically
+#[derive(Debug)]
 pub struct CollectedErrors {
     pub file_id: FileId,
     pub errors: Vec<CustomDiagnostic>,
@@ -94,9 +95,9 @@ impl DefCollector {
             def_collector: &mut def_collector,
             ast,
             file_id: root_file_id,
-            module_id: module_id,
+            module_id,
         }
-        .collect_defs(context);
+        .collect_defs(context)?;
 
         // Add the current crate to the collection of DefMaps
         let old_value = context.def_maps.insert(crate_id, def_collector.def_map);
