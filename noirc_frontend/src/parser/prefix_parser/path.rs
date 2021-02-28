@@ -16,9 +16,12 @@ impl PathParser {
     pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
         let mut parsed_path = Vec::new();
 
-        // Parse the first path segment
-        let segment = PrefixParser::Name.parse(parser)?.into_ident().unwrap();
-        parsed_path.push(segment);
+        // Parse the first path segment as a keyword or an identifier
+        let span_first_segment = parser.curr_token.into_span();
+        let (ident, path_kind) = path_identifer(parser.file_id, &parser.curr_token)?;
+        if let PathKind::Plain = path_kind {
+            parsed_path.push(ident.expect("plain paths should contain their identifiers"));
+        }
 
         while parser.peek_token == Token::DoubleColon {
             // Current token is `IDENT`
@@ -35,11 +38,14 @@ impl PathParser {
             parsed_path.push(segment);
         }
 
-        let path_kind = path_kind(
-            parsed_path
-                .first()
-                .expect("ice: this function triggers when there is at least one ident"),
-        );
+        // This only happens in cases such as `use dep;` or `use crate`
+        if parsed_path.is_empty() {
+            return Err(ParserErrorKind::SingleKeywordSegmentNotAllowed {
+                span: span_first_segment,
+                path_kind,
+            }
+            .into_err(parser.file_id));
+        }
 
         Ok(ExpressionKind::Path(Path {
             segments: parsed_path,
@@ -48,25 +54,33 @@ impl PathParser {
     }
 }
 
-fn path_kind(ident: &Ident) -> PathKind {
-    let contents = &ident.0.contents;
-    // XXX: modify the lexer and parser to have multiple conditions
-    // for peek_check_kind_advance so we cna check for keyword and Ident
-    // then make "crate" a keyword
-    // Still undecided about "dep"
-    // We could just use double colon like rust and have absolute paths
-    if contents == "crate" {
-        PathKind::Crate
-    } else if contents == "dep" {
-        PathKind::Dep
-    } else {
-        PathKind::Plain
+/// Checks the token and returns the identifier along with the path kind
+/// only plain paths return identifiers, as the other path kinds implicitly
+/// contain the keyword used.
+fn path_identifer(
+    file_id: usize,
+    tok: &crate::token::SpannedToken,
+) -> Result<(Option<Ident>, PathKind), ParserError> {
+    match tok.token() {
+        Token::Ident(x) => Ok((Some(Ident::from(x.clone())), PathKind::Plain)),
+        Token::Keyword(Keyword::Crate) => Ok((None, PathKind::Crate)),
+        Token::Keyword(Keyword::Dep) => Ok((None, PathKind::Dep)),
+        _ => {
+            return Err(ParserErrorKind::UnstructuredError {
+                span: tok.into_span(),
+                message: format!(
+                    "expected an identifier, `dep` or `crate`. found {} ",
+                    tok.token().to_string()
+                ),
+            }
+            .into_err(file_id))
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{parser::test_parse, ExpressionKind, Path};
+    use crate::{parser::test_parse, ExpressionKind, Path, PathKind};
 
     use super::PathParser;
 
@@ -83,7 +97,7 @@ mod test {
             ("std", vec!["std"]),
             ("std::hash", vec!["std", "hash"]),
             ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("crate::std::hash", vec!["crate", "std", "hash"]),
+            ("crate::std::hash", vec!["std", "hash"]),
         ];
 
         for (src, expected_seg) in vectors {
@@ -92,6 +106,34 @@ mod test {
             for (got, expected) in path.segments.into_iter().zip(expected_seg) {
                 assert_eq!(&got.0.contents, expected)
             }
+        }
+    }
+    #[test]
+    fn valid_path_kinds() {
+        let vectors = vec![
+            ("std", PathKind::Plain),
+            ("dep::hash::collections", PathKind::Dep),
+            ("crate::std::hash", PathKind::Crate),
+        ];
+
+        for (src, expected_path_kind) in vectors {
+            let expr = PathParser::parse(&mut test_parse(src)).unwrap();
+            let path = expr_to_path(expr);
+            assert_eq!(path.kind, expected_path_kind)
+        }
+    }
+    #[test]
+    fn invalid_path_kinds() {
+        let vectors = vec![
+            "dep",
+            "crate",
+            "crate::std::crate",
+            "foo::bar::crate",
+            "foo::dep",
+        ];
+
+        for path in vectors {
+            assert!(PathParser::parse(&mut test_parse(path)).is_err());
         }
     }
     #[test]
