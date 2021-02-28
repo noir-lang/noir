@@ -3,7 +3,7 @@ use noir_field::FieldElement;
 
 use std::ops::{Add, Mul, Neg, Sub};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Linear {
     pub mul_scale: FieldElement,
     pub witness: Witness,
@@ -17,7 +17,7 @@ impl Linear {
     pub fn from_witness(witness: Witness) -> Linear {
         Linear {
             mul_scale: FieldElement::one(),
-            witness: witness,
+            witness,
             add_scale: FieldElement::zero(),
         }
     }
