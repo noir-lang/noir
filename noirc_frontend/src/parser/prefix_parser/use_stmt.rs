@@ -1,5 +1,3 @@
-use crate::ast::PathKind;
-
 use super::*;
 
 pub struct UseParser;
@@ -7,12 +5,12 @@ pub struct UseParser;
 impl UseParser {
     // Import statements of the form use std::hash::sha256;
     pub fn parse(parser: &mut Parser) -> Result<ImportStatement, ParserErrorKind> {
-        let file_id = parser.file_id;
-
         // Current token is 'use'
         //
         // Next token should be the first segment for the Path
-        parser.peek_check_kind_advance(TokenKind::Ident)?;
+        // The PathParser expects the cursor to be on the first segment
+        // so we advance the parser.
+        parser.advance_tokens();
 
         // Current token is the first path segment
         // Which is the correct condition to call the Path parser
@@ -20,15 +18,6 @@ impl UseParser {
         let path = PathParser::parse(parser)?
             .into_path()
             .expect("ice : path parser did not produce a path");
-
-        // We do not allow `use dep` by itself as it does
-        // not unambiguously mean anything semantically
-        if path.kind == PathKind::Dep && path.segments.len() == 1 {
-            return Err(ParserErrorKind::UnstructuredError {
-                message: format!("please append the dependency you want to import after `use dep`"),
-                span: path.segments.first().unwrap().0.span(),
-            });
-        }
 
         // Current token is the last identifier in the path
         //
