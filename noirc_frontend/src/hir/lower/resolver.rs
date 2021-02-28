@@ -11,6 +11,7 @@
 // XXX: Change mentions of intern to resolve. In regards to the above comment
 //
 // XXX: Resolver does not check for unused functions
+#[derive(Debug, PartialEq, Eq)]
 struct ResolverMeta {
     num_times_used: usize,
     id: IdentId,
@@ -170,7 +171,7 @@ impl<'a> Resolver<'a> {
 
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
-        let variable = scope_tree.find_key(&name.0.contents);
+        let variable = scope_tree.find(&name.0.contents);
 
         if let Some(variable_found) = variable {
             variable_found.num_times_used = variable_found.num_times_used + 1;
