@@ -26,16 +26,18 @@ impl GadgetCaller for Blake2sGadget {
         // Create two fresh variables that will link to the Blake2s output
 
         let low_128_unique_name = evaluator.make_unique("low_128_Blake2s_");
-        let low_128_witness = evaluator.add_witness_to_cs(low_128_unique_name, Type::Witness); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let low_128_object = evaluator.add_witness_to_env(low_128_witness.clone(), env);
+        let low_128_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
+        let low_128_object =
+            evaluator.add_witness_to_env(low_128_unique_name, low_128_witness.clone(), env);
 
         let high_128_unique_name = evaluator.make_unique("high_128_Blake2s_");
-        let high_128_witness = evaluator.add_witness_to_cs(high_128_unique_name, Type::Witness); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let high_128_object = evaluator.add_witness_to_env(high_128_witness.clone(), env);
+        let high_128_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
+        let high_128_object =
+            evaluator.add_witness_to_env(high_128_unique_name, high_128_witness.clone(), env);
 
         let Blake2s_gate = GadgetCall {
             name: Blake2sGadget::name(),
-            inputs: inputs,
+            inputs,
             outputs: vec![low_128_witness, high_128_witness],
         };
 

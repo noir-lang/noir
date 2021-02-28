@@ -161,8 +161,7 @@ impl Integer {
 
         let op_str = if is_xor_gate { "xor" } else { "and" };
 
-        let result_str = evaluator.make_unique(op_str);
-        let result = evaluator.add_witness_to_cs(result_str.clone(), Type::Witness);
+        let result = evaluator.add_witness_to_cs();
 
         if is_xor_gate {
             evaluator.gates.push(Gate::Xor(XorGate {

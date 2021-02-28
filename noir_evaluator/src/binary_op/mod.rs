@@ -24,7 +24,7 @@ pub use neq::handle_neq_op;
 pub use sub::handle_sub_op;
 pub use xor::handle_xor_op;
 
-use crate::{Environment, Evaluator, FieldElement, Object, RuntimeErrorKind, Type};
+use crate::{Environment, Evaluator, FieldElement, Object, RuntimeErrorKind};
 
 /// Creates a new witness and constrains it to be the inverse of the polynomial passed in
 pub fn invert(
@@ -35,8 +35,8 @@ pub fn invert(
     // Create a fresh witness
     let inter_var_name = evaluator.make_unique("inverse_");
 
-    let inverse_witness = evaluator.add_witness_to_cs(inter_var_name, Type::Witness);
-    let inverse_obj = evaluator.add_witness_to_env(inverse_witness, env);
+    let inverse_witness = evaluator.add_witness_to_cs();
+    let inverse_obj = evaluator.add_witness_to_env(inter_var_name, inverse_witness, env);
 
     // Multiply inverse by original value
     let should_be_one = handle_mul_op(x, inverse_obj.clone(), env, evaluator)?;

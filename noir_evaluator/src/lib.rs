@@ -10,7 +10,6 @@ use acvm::BackendPointer;
 use blake2::Blake2s;
 pub use errors::{RuntimeError, RuntimeErrorKind};
 
-use core::panic;
 use std::collections::HashMap;
 
 use environment::Environment;
@@ -47,6 +46,9 @@ pub struct Evaluator<'a> {
     // are local to their execution context and not the global context.
     // Also there should be a separate map to map variable names to witness indices.
     // This will allow us to remove the `String` component from Witness in ACIR 
+    //
+    // XXX: The Type is here from the lang4 refactor, where we were going to allow noir to optimise public inputs
+    // We may be able to remove, Kobi and Ariel mentioned that this was too restrictive.
     pub(crate) witnesses: HashMap<Witness, Type>,
     context: &'a Context,
     public_inputs: Vec<Witness>,
@@ -75,16 +77,17 @@ impl<'a> Evaluator<'a> {
         self.counter
     }
 
-    // Takes a String which will be the variables name and adds it to the list of known Witnesses
-    fn add_witness_to_cs(&mut self, variable_name: String, typ: Type) -> Witness {
-        let witness = Witness(variable_name, self.num_witnesses() + 1);
-        self.witnesses.insert(witness.clone(), typ);
+    // Creates a new Witness index
+    fn add_witness_to_cs(&mut self) -> Witness {
+        let witness = Witness(String::default(), self.num_witnesses() + 1);
+        self.witnesses.insert(witness.clone(), Type::Witness);
         witness
     }
 
-    fn add_witness_to_env(&mut self, witness: Witness, env: &mut Environment) -> Object {
+    // Maps a variable name to a witness index
+    fn add_witness_to_env(&mut self, variable_name : String, witness: Witness, env: &mut Environment) -> Object {
         let value = Object::from_witness(witness.clone());
-        env.store(witness.0, value.clone());
+        env.store(variable_name, value.clone());
         value
     }
 
@@ -127,7 +130,7 @@ impl<'a> Evaluator<'a> {
     // instead
     //
     // XXX: Check logic for when we create intermediate variables 
-    // for Integer objects
+    // for Integer objects, the type passed in, is not witness
     pub fn create_intermediate_variable(
         &mut self,
         env: &mut Environment,
@@ -136,8 +139,8 @@ impl<'a> Evaluator<'a> {
     ) -> (Object, Witness) {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_unique_name = self.make_unique("_inter");
-        let inter_var_witness = self.add_witness_to_cs(inter_var_unique_name, Type::Witness);
-        let inter_var_object = self.add_witness_to_env(inter_var_witness.clone(), env);
+        let inter_var_witness = self.add_witness_to_cs();
+        let inter_var_object = self.add_witness_to_env(inter_var_unique_name,inter_var_witness.clone(), env);
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
@@ -208,7 +211,7 @@ impl<'a> Evaluator<'a> {
                     let mut elements = Vec::with_capacity(length as usize);
                     for i in 0..length as usize {
                         let mangled_name = mangle_array_element_name(&param_name, i);
-                        let witness = self.add_witness_to_cs(mangled_name, Type::Witness);
+                        let witness = self.add_witness_to_cs();
 
                         // Constrain each element in the array to be equal to the type declared in the parameter
                         let object = match *typ {
@@ -223,7 +226,7 @@ impl<'a> Evaluator<'a> {
                                 integer.constrain(self)?;
                                 Object::Integer(integer)
                             }
-                            noirc_abi::AbiType::Private => self.add_witness_to_env(witness, env),
+                            noirc_abi::AbiType::Private => self.add_witness_to_env(mangled_name,witness, env),
                             _ => unimplemented!(
                                 "currently we only support arrays of integer and witness types"
                             ),
@@ -238,11 +241,11 @@ impl<'a> Evaluator<'a> {
                     env.store(param_name, Object::Array(arr));
                 }
                 noirc_abi::AbiType::Private => {
-                    let witness = self.add_witness_to_cs(param_name, Type::Witness);
-                    self.add_witness_to_env(witness, env);
+                    let witness = self.add_witness_to_cs();
+                    self.add_witness_to_env(param_name, witness, env);
                 }
                 noirc_abi::AbiType::Integer { sign, width } => {
-                    let witness = self.add_witness_to_cs(param_name.clone(), Type::Witness);
+                    let witness = self.add_witness_to_cs();
 
                     // Currently we do not support signed integers
                     assert!(
@@ -256,9 +259,9 @@ impl<'a> Evaluator<'a> {
                     env.store(param_name, Object::Integer(integer));
                 }
                 noirc_abi::AbiType::Public => {
-                    let witness = self.add_witness_to_cs(param_name, Type::Public);
+                    let witness = self.add_witness_to_cs();
                     self.public_inputs.push(witness.clone());
-                    self.add_witness_to_env(witness, env);
+                    self.add_witness_to_env(param_name,witness, env);
                 }
             }
         }
@@ -315,7 +318,8 @@ impl<'a> Evaluator<'a> {
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
 
         let variable_name = self.context.def_interner.ident_name(&x.identifier);
-        let witness = self.add_witness_to_cs(variable_name.clone(), x.r#type.clone()); // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
+        // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
+        let witness = self.add_witness_to_cs();
 
         // There are two ways to add the variable to the environment. We can add the variable and link it to itself,
         // This is fine since we constrain the RHS to be equal to the LHS.
@@ -325,7 +329,7 @@ impl<'a> Evaluator<'a> {
         if rhs_poly.can_defer_constraint() {
             env.store(variable_name, rhs_poly.clone());
         } else {
-            self.add_witness_to_env(witness.clone(), env);
+            self.add_witness_to_env(variable_name,witness.clone(), env);
         }
 
         // This is a private statement, which is why we extract only a witness type from the object

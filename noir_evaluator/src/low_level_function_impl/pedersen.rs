@@ -23,8 +23,9 @@ impl GadgetCaller for PedersenGadget {
 
         // Prepare output
         let pedersen_unique_name = evaluator.make_unique("pedersen_");
-        let pedersen_witness = evaluator.add_witness_to_cs(pedersen_unique_name, Type::Witness); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let pedersen_object = evaluator.add_witness_to_env(pedersen_witness.clone(), env);
+        let pedersen_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
+        let pedersen_object =
+            evaluator.add_witness_to_env(pedersen_unique_name, pedersen_witness.clone(), env);
 
         let pedersen_gate = GadgetCall {
             name: PedersenGadget::name(),

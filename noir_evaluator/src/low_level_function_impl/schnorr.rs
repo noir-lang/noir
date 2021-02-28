@@ -27,10 +27,12 @@ impl GadgetCaller for SchnorrVerifyGadget {
 
         let schnorr_verify_unique_name = evaluator.make_unique("schnorr_verify_");
 
-        let schnorr_verify_witness =
-            evaluator.add_witness_to_cs(schnorr_verify_unique_name, Type::Witness); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let schnorr_verify_object =
-            evaluator.add_witness_to_env(schnorr_verify_witness.clone(), env);
+        let schnorr_verify_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
+        let schnorr_verify_object = evaluator.add_witness_to_env(
+            schnorr_verify_unique_name,
+            schnorr_verify_witness.clone(),
+            env,
+        );
 
         let schnorr_verify_gate = GadgetCall {
             name: SchnorrVerifyGadget::name(),
