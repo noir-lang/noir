@@ -1,5 +1,3 @@
-use core::num;
-
 use crate::binary_op;
 use crate::{Gate, Object};
 use acir::native_types::{Arithmetic, Linear, Witness};
@@ -8,7 +6,7 @@ use crate::{AndGate, Environment, Evaluator, FieldElement, Signedness, Type, Xor
 
 use super::RuntimeErrorKind;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Integer {
     pub(crate) witness: Witness,
     pub(crate) num_bits: u32,
