@@ -81,7 +81,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
     }
 
     // Recursively search for a key in the scope tree
-    pub fn find_key(&mut self, key: &K) -> Option<&mut V> {
+    pub fn find(&mut self, key: &K) -> Option<&mut V> {
         for scope in self.0.iter_mut().rev() {
             if let Some(value_found) = scope.find(key) {
                 return Some(value_found);
