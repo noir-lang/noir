@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{NoirFunction, Program};
 use fm::FileId;
-use noirc_errors::CustomDiagnostic;
+use noirc_errors::{CollectedErrors, CustomDiagnostic};
 
 use super::{
     crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin},
@@ -26,14 +26,6 @@ impl UnresolvedFunctions {
     pub fn push_fn(&mut self, mod_id: LocalModuleId, func_id: FuncId, func: NoirFunction) {
         self.functions.push((mod_id, func_id, func))
     }
-}
-
-/// Errors collected while resolving or type checking functions
-/// lexically
-#[derive(Debug)]
-pub struct CollectedErrors {
-    pub file_id: FileId,
-    pub errors: Vec<CustomDiagnostic>,
 }
 
 /// Given a Crate root, collect all definitions in that crate

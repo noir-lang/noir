@@ -1,10 +1,10 @@
 use fm::FileId;
+use noirc_errors::CollectedErrors;
 
 use crate::{NoirFunction, Program};
 
 use super::{
-    crate_def_map::ModuleId,
-    def_collector_crate::{CollectedErrors, UnresolvedFunctions},
+    crate_def_map::ModuleId, def_collector_crate::UnresolvedFunctions,
     resolution::import::ImportDirective,
 };
 

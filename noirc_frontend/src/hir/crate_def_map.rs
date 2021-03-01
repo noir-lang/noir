@@ -1,12 +1,11 @@
 use super::{
-    crate_graph::CrateId,
-    def_collector_crate::{CollectedErrors, DefCollector},
-    lower::node_interner::FuncId,
-    Context,
+    crate_graph::CrateId, def_collector_crate::DefCollector, lower::node_interner::FuncId, Context,
 };
+
 use crate::{parser::Program, Parser};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
+use noirc_errors::{CollectedErrors, DiagnosableError};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -105,7 +104,6 @@ pub fn parse_root_file(
     match parser.parse_program() {
         Ok(prog) => Ok(prog),
         Err(errs) => {
-            use noirc_errors::DiagnosableError;
             let root_file_errs = CollectedErrors {
                 file_id: root_file_id,
                 errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
