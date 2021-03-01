@@ -9,32 +9,6 @@ pub mod stmt;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId};
 
-/// A CrateItem is just a root level module
-/// Each crate has exactly one.
-/// We pass this to the Evaluator and it uses this to evaluate the crate.
-/// We cannot give this to the type checker however, because the Type checker needs to check the types
-/// of all functions, even unused ones. The type checker instead iterates all interned functions after they are resolved.
-/// This is used in the Evaluator and is populated in the resolution phase
-#[derive(Debug, Clone)]
-pub struct CrateItem {
-    /// If a crate is a library this will be none
-    /// If it is a binary, then this will be populated with the Id of the main function
-    entry: Option<FuncId>,
-    // This definition has no reference to it's children
-    // because at this stage, the module should be resolved
-    // and functions point directly to other items
-
-    // This definition has non reference to parent,
-    // because the root module has no parent
-
-    // This method also has no reference to other functions because
-    // once we go to the entry point, we will follow it to see what
-    // to execute next.
-    //
-    // At this stage, the other functions which were in the module
-    // have been resolved and are no longer needed.
-}
-
 #[derive(Debug, Clone)]
 pub enum HirExpression {
     Ident(IdentId),
