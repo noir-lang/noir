@@ -3,10 +3,6 @@
 //
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
-// XXX: Unfortunately this is still linked to Aztec's protocol
-// the ordering of public inputs, is due to the barretenberg standard format API
-// where we need public inputs to be added initially
-
 pub mod input_parser;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,10 +47,7 @@ impl Abi {
         self.parameters.iter().map(|x| &x.0).collect()
     }
 
-    pub fn len(&self) -> usize {
-        self.parameters
-            .iter()
-            .map(|(_, param_type)| param_type.num_elements())
-            .sum()
+    pub fn num_parameters(&self) -> usize {
+        self.parameters.len()
     }
 }
