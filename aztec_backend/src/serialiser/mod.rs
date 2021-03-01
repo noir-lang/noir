@@ -357,7 +357,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     }
 
     // Add the qc term
-    qc = gate.q_C;
+    qc = gate.q_c;
 
     Constraint {
         a,
