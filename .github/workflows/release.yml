@@ -23,16 +23,16 @@ jobs:
         include:
           - name: linux
             os: ubuntu-latest
-            artifact_name: noir
-            asset_name: noir-linux
+            artifact_name: nargo
+            asset_name: nargo-linux
           - name: windows
             os: windows-latest
-            artifact_name: noir.exe
-            asset_name: noir-windows
+            artifact_name: nargo.exe
+            asset_name: nargo-windows
           - name: macos
             os: macos-latest
-            artifact_name: noir
-            asset_name: noir-macos
+            artifact_name: nargo
+            asset_name: nargo-macos
 
     steps:
     - uses: actions/checkout@v1
