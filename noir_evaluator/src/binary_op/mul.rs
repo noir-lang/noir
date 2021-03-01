@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Array, Environment, Evaluator, Linear, Object, RuntimeErrorKind, Type};
+use crate::{Arithmetic, Array, Environment, Evaluator, Linear, Object, RuntimeErrorKind};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -56,7 +56,7 @@ fn handle_arithmetic_mul(
 
     // Arriving here means that we do not have one of the operands as a constant
     // Create an intermediate variable for the arithmetic gate
-    let (intermediate_var, _) = evaluator.create_intermediate_variable(env, arith, Type::Witness);
+    let (intermediate_var, _) = evaluator.create_intermediate_variable(env, arith);
     return handle_mul_op(intermediate_var, polynomial, env, evaluator);
 }
 

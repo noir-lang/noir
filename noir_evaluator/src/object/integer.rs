@@ -2,7 +2,7 @@ use crate::binary_op;
 use crate::{Gate, Object};
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 
-use crate::{AndGate, Environment, Evaluator, FieldElement, Signedness, Type, XorGate};
+use crate::{AndGate, Environment, Evaluator, FieldElement, XorGate};
 
 use super::RuntimeErrorKind;
 
@@ -53,11 +53,7 @@ impl Integer {
     ) -> Integer {
         // We can only range constrain witness variables, so create an intermediate variable, constraint it to the arithmetic gate
         // then cast it as an integer
-        let (intermediate, witness) = evaluator.create_intermediate_variable(
-            env,
-            arith.clone(),
-            Type::Integer(Signedness::Unsigned, num_bits),
-        );
+        let (intermediate, witness) = evaluator.create_intermediate_variable(env, arith.clone());
 
         let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
         evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
@@ -156,8 +152,6 @@ impl Integer {
             let message = format!("Expected a u{} got u{}", self.num_bits, rhs.num_bits);
             return Err(RuntimeErrorKind::Spanless(message));
         }
-
-        let op_str = if is_xor_gate { "xor" } else { "and" };
 
         let result = evaluator.add_witness_to_cs();
 
