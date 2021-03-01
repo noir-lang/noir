@@ -39,12 +39,16 @@ use noirc_frontend::hir::Context;
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
     file_id: usize,
-    witnesses: Vec<Witness>,
+    // Why is this not u64?
+    //
+    // At the moment, wasm32 is being used in the default backend
+    // so it is safer to use a u64, at least until clang is changed
+    // to compile wasm64.
+    witnesses: u32,
     context: &'a Context,
     public_inputs: Vec<Witness>,
     main_function: FuncId,
     gates: Vec<Gate>,
-    counter: usize,   // This is so that we can get a unique number
 }
 
 impl<'a> Evaluator<'a> {
@@ -52,25 +56,17 @@ impl<'a> Evaluator<'a> {
         Evaluator {
             file_id,
             public_inputs: Vec::new(),
-            witnesses: Vec::new(),
+            witnesses: 0,
             context,
             main_function,
             gates: Vec::new(),
-            counter: 0,
         }
-    }
-
-    // Returns the current counter value and then increments the counter
-    // This is so that we can have unique variable names when the same function is called multiple times
-    fn get_unique_value(&mut self) -> usize {
-        self.counter += 1;
-        self.counter
     }
 
     // Creates a new Witness index
     fn add_witness_to_cs(&mut self) -> Witness {
-        let witness = Witness(self.num_witnesses() + 1);
-        self.witnesses.push(witness);
+        self.witnesses += 1;
+        let witness = Witness(self.witnesses);
         witness
     }
 
@@ -81,12 +77,8 @@ impl<'a> Evaluator<'a> {
         value
     }
 
-    fn make_unique(&mut self, string: &str) -> String {
-        format!("{}{}", string, self.get_unique_value())
-    }
-
     pub fn num_witnesses(&self) -> u32 {
-        self.witnesses.len() as u32
+        self.witnesses
     }
 
     /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates

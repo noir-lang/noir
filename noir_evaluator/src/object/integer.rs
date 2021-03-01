@@ -2,7 +2,7 @@ use crate::binary_op;
 use crate::{Gate, Object};
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 
-use crate::{AndGate, Environment, Evaluator, FieldElement, XorGate};
+use crate::{AndGate, Evaluator, FieldElement, XorGate};
 
 use super::RuntimeErrorKind;
 
