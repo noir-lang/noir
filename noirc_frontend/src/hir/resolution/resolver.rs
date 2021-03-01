@@ -570,7 +570,7 @@ mod test {
 
         // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
         match err {
-            ResolverError::VariableNotDeclared { name, span } => assert_eq!(name, "z"),
+            ResolverError::VariableNotDeclared { name, span: _ } => assert_eq!(name, "z"),
             _ => unimplemented!("we should only have an unresolved variable"),
         }
     }
@@ -676,7 +676,7 @@ mod test {
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
-            ResolverError::PathUnresolved { span, name } => {
+            ResolverError::PathUnresolved { span: _, name } => {
                 assert_eq!(name, expected_unresolved_path)
             }
             _ => unimplemented!("expected an unresolved path"),
