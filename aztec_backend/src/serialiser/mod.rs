@@ -1,6 +1,5 @@
 // Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++.
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
-
 use crate::barretenberg_rs::composer::{
     Blake2sConstraint, Constraint, ConstraintSystem, HashToFieldConstraint, LogicConstraint,
     MerkleMembershipConstraint, MerkleRootConstraint, PedersenConstraint, RangeConstraint,
@@ -120,7 +119,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let root_index = gadget_call.outputs[0].witness_index() as i32;
 
                         let constraint = MerkleRootConstraint {
-                            leaves: leaves,
+                            leaves,
                             root: root_index,
                         };
 
@@ -262,7 +261,6 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                     }
                 };
             }
-            gate => panic!("Serialiser does not know how to serialise this gate"),
         }
     }
 
@@ -285,6 +283,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     constraint_system
 }
 
+#[allow(non_snake_case)]
 fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let mut a: i32 = 0;
     let mut b: i32 = 0;
@@ -293,7 +292,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let mut ql: FieldElement = 0.into();
     let mut qr: FieldElement = 0.into();
     let mut qo: FieldElement = 0.into();
-    let mut qc: FieldElement = 0.into();
+    let qc: FieldElement;
 
     // check mul gate
     if gate.mul_terms.len() != 0 {
