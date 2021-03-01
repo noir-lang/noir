@@ -357,7 +357,6 @@ impl Attribute {
         match self {
             Attribute::Foreign(_) => true,
             Attribute::Builtin(_) => true,
-            _ => false,
         }
     }
 }
