@@ -9,7 +9,6 @@ mod errors;
 use acvm::BackendPointer;
 use errors::{RuntimeError, RuntimeErrorKind};
 
-
 use environment::Environment;
 use object::{Array, Integer, Object, RangedObject};
 
@@ -20,19 +19,19 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 
-use noirc_frontend::node_interner::{IdentId,ExprId, FuncId, StmtId};
 use noirc_frontend::hir::lower::{
+    expr::{HirBinaryOp, HirCallExpression, HirForExpression},
     stmt::{HirConstrainStatement, HirLetStatement},
-    expr::{HirBinaryOp, HirCallExpression, HirForExpression,}
 };
+use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::{
     hir::lower::expr::{HirBinaryOpKind, HirBlockExpression},
     FunctionKind, Type,
 };
 
 use noirc_frontend::hir::lower::{
+    expr::{HirExpression, HirLiteral},
     stmt::{HirPrivateStatement, HirStatement},
-    expr::{HirExpression, HirLiteral,}
 };
 use noirc_frontend::hir::Context;
 
@@ -71,7 +70,12 @@ impl<'a> Evaluator<'a> {
     }
 
     // Maps a variable name to a witness index
-    fn add_witness_to_env(&mut self, variable_name : String, witness: Witness, env: &mut Environment) -> Object {
+    fn add_witness_to_env(
+        &mut self,
+        variable_name: String,
+        witness: Witness,
+        env: &mut Environment,
+    ) -> Object {
         let value = Object::from_witness(witness);
         env.store(variable_name, value.clone());
         value
@@ -132,19 +136,19 @@ impl<'a> Evaluator<'a> {
         op: HirBinaryOp,
     ) -> Result<Object, RuntimeErrorKind> {
         match op.kind {
-            HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs,  self),
+            HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
             HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
             HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
-            HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs,  self),
-            HirBinaryOpKind::NotEqual => binary_op::handle_neq_op(lhs, rhs,  self),
-            HirBinaryOpKind::Equal => binary_op::handle_equal_op(lhs, rhs,  self),
-            HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs,  self),
-            HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs,  self),
-            HirBinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs,  self),
-            HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs,  self),
-            HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs,  self),
+            HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, self),
+            HirBinaryOpKind::NotEqual => binary_op::handle_neq_op(lhs, rhs, self),
+            HirBinaryOpKind::Equal => binary_op::handle_equal_op(lhs, rhs, self),
+            HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, self),
+            HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, self),
+            HirBinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs, self),
+            HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, self),
+            HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, self),
             HirBinaryOpKind::GreaterEqual => {
-                binary_op::handle_greater_than_equal_op(lhs, rhs,  self)
+                binary_op::handle_greater_than_equal_op(lhs, rhs, self)
             }
             HirBinaryOpKind::Assign => {
                 let err = RuntimeErrorKind::Spanless(
@@ -171,7 +175,6 @@ impl<'a> Evaluator<'a> {
 
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
-  
         self.parse_abi(env)?;
 
         // Now call the main function
@@ -187,9 +190,9 @@ impl<'a> Evaluator<'a> {
 
     /// The ABI is the intermediate representation between Noir and types like Toml
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
-    /// However, this intermediate representation is useful as it allows us to have 
-    /// intermediate Types which the core type system does not know about like Strings. 
-    fn parse_abi(&mut self, env : &mut Environment) -> Result<(), RuntimeErrorKind>{
+    /// However, this intermediate representation is useful as it allows us to have
+    /// intermediate Types which the core type system does not know about like Strings.
+    fn parse_abi(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
@@ -254,7 +257,7 @@ impl<'a> Evaluator<'a> {
                 noirc_abi::AbiType::Public => {
                     let witness = self.add_witness_to_cs();
                     self.public_inputs.push(witness.clone());
-                    self.add_witness_to_env(param_name,witness, env);
+                    self.add_witness_to_env(param_name, witness, env);
                 }
             }
         }
@@ -276,7 +279,7 @@ impl<'a> Evaluator<'a> {
                 let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let value = self.evaluate_integer(env, &x.expression)?; 
+                let value = self.evaluate_integer(env, &x.expression)?;
 
                 env.store(variable_name, value);
                 Ok(Object::Null)
@@ -303,7 +306,7 @@ impl<'a> Evaluator<'a> {
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
 
         let variable_name = self.context.def_interner.ident_name(&x.identifier);
-        // XXX: We do not store it in the environment yet, because it may need to be casted to an integer
+        // We do not store it in the environment yet, because it may need to be casted to an integer
         let witness = self.add_witness_to_cs();
 
         // There are two ways to add the variable to the environment. We can add the variable and link it to itself,
@@ -314,7 +317,7 @@ impl<'a> Evaluator<'a> {
         if rhs_poly.can_defer_constraint() {
             env.store(variable_name, rhs_poly.clone());
         } else {
-            self.add_witness_to_env(variable_name,witness.clone(), env);
+            self.add_witness_to_env(variable_name, witness.clone(), env);
         }
 
         // This is a private statement, which is why we extract only a witness type from the object
@@ -355,7 +358,7 @@ impl<'a> Evaluator<'a> {
         Ok(Object::Null)
     }
 
-    // Add a constraint to constrain two expression together 
+    // Add a constraint to constrain two expression together
     fn handle_constrain_statement(
         &mut self,
         env: &mut Environment,
@@ -385,16 +388,19 @@ impl<'a> Evaluator<'a> {
         // Moreover: This could be moved to ACVM.
         if constrain_stmt.0.operator.kind == HirBinaryOpKind::Equal {
             // Check if we have any lone variables and then if the other side is a linear/constant
-            let (lhs_unit_witness, rhs) = match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
-                (true, _) => (lhs_poly.witness(), rhs_poly),
-                (_, true) => (rhs_poly.witness(), lhs_poly),
-                (_, _) => (None, Object::Null),
-            };
-            
+            let (lhs_unit_witness, rhs) =
+                match (lhs_poly.is_unit_witness(), rhs_poly.is_unit_witness()) {
+                    (true, _) => (lhs_poly.witness(), rhs_poly),
+                    (_, true) => (rhs_poly.witness(), lhs_poly),
+                    (_, _) => (None, Object::Null),
+                };
+
             if let Some(unit_wit) = lhs_unit_witness {
                 // Check if the RHS is linear or constant
                 if rhs.is_linear() | rhs.is_constant() {
-                    let var_name = env.find_with_value(&unit_wit).expect("ice: could not find corresponding variable name");
+                    let var_name = env
+                        .find_with_value(&unit_wit)
+                        .expect("ice: could not find corresponding variable name");
                     env.store(var_name, rhs)
                 }
             }
@@ -489,7 +495,7 @@ impl<'a> Evaluator<'a> {
 
     pub fn expression_to_object(
         &mut self,
-        env : &mut Environment,
+        env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeErrorKind> {
         let expr = self.context.def_interner.expression(expr_id);
