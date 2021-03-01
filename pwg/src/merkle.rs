@@ -1,7 +1,7 @@
 use aztec_backend::barretenberg_rs::Barretenberg;
 use noir_field::FieldElement;
 
-pub type HashPath = Vec<(FieldElement, FieldElement)>;
+type HashPath = Vec<(FieldElement, FieldElement)>;
 
 pub fn flatten_path(path: Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement> {
     path.into_iter()
@@ -33,7 +33,7 @@ impl MerkleTree {
         let zero_message = [0u8; 64];
         let pre_images: Vec<Vec<u8>> = (0..total_size).map(|_| zero_message.to_vec()).collect();
 
-        let mut current = hash(&mut barretenberg, &zero_message);
+        let mut current = hash(&zero_message);
 
         let mut offset = 0usize;
         let mut layer_size = total_size as usize; // XXX: On 32 bit architectures, this `as` cast may silently truncate, when total_size > 2^32?
@@ -74,7 +74,7 @@ impl MerkleTree {
     }
     /// Updates the message at index and computes the new tree root
     pub fn update_message(&mut self, index: usize, new_message: Vec<u8>) -> FieldElement {
-        let current = hash(&mut self.barretenberg, &new_message);
+        let current = hash(&new_message);
         self.pre_images[index] = new_message;
         self.update_leaf(index, current)
     }
@@ -146,8 +146,13 @@ impl MerkleTree {
     }
 }
 
-fn hash(barretenberg: &mut Barretenberg, message: &[u8]) -> FieldElement {
-    barretenberg.hash_to_field(message)
+fn hash(message: &[u8]) -> FieldElement {
+    use blake2::Digest;
+
+    let mut hasher = blake2::Blake2s::new();
+    hasher.update(message);
+    let res = hasher.finalize();
+    FieldElement::from_bytes_reduce(&res[..])
 }
 // XXX(FIXME) : Currently, this is very aztec specific, because this PWG does not have
 // a way to deal with generic ECC operations
@@ -158,18 +163,6 @@ fn compress_native(
 ) -> FieldElement {
     barretenberg.compress_native(left, right)
 }
-
-// This is what the blake2s hash to function should look like
-// if it was all in  Rust. This function panics because `from_bytes`
-// requires that the input is canonical and reduced.
-// blake2s will produce output that is 256 bits while
-// bn254 is 254 bits
-// fn hash(message : &[u8]) -> FieldElement {
-// let mut hasher = Blake2s::new();
-// hasher.update(message);
-// let res = hasher.finalize();
-// FieldElement::from_bytes(&res[..])
-// }
 
 #[test]
 fn basic_interop_initial_root() {
@@ -304,7 +297,7 @@ fn check_membership() {
         let index = FieldElement::from_str(test_vector.index).unwrap();
         let index_as_usize: usize = test_vector.index.parse().unwrap();
 
-        let leaf = hash(&mut tree.barretenberg, &test_vector.message);
+        let leaf = hash(&test_vector.message);
 
         let mut root = tree.root;
         if test_vector.should_update_tree {
