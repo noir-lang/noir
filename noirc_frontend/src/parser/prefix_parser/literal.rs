@@ -25,11 +25,10 @@ impl LiteralParser {
 
 #[cfg(test)]
 mod test {
-    use noir_field::FieldElement;
 
     use crate::{parser::test_parse, ExpressionKind, Literal};
 
-    use super::{IfParser, LiteralParser};
+    use super::LiteralParser;
 
     fn expr_to_lit(expr: ExpressionKind) -> Literal {
         match expr {

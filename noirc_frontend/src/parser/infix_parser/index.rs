@@ -50,11 +50,8 @@ impl IndexParser {
 #[cfg(test)]
 mod test {
 
-    use super::{CallParser, CastParser, IndexParser};
-    use crate::{
-        parser::{dummy_expr, test_parse},
-        Expression,
-    };
+    use super::IndexParser;
+    use crate::parser::{dummy_expr, test_parse};
 
     #[test]
     fn valid_syntax() {

@@ -47,10 +47,7 @@ fn token_to_binary_op(spanned_tok: &SpannedToken) -> Result<BinaryOp, ParserErro
 #[cfg(test)]
 mod test {
 
-    use crate::{
-        parser::{dummy_expr, test_parse},
-        Expression,
-    };
+    use crate::parser::{dummy_expr, test_parse};
 
     use super::BinaryParser;
 

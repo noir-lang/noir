@@ -48,9 +48,9 @@ impl UseParser {
 
 #[cfg(test)]
 mod test {
-    use crate::{parser::test_parse, token::Token};
+    use crate::parser::test_parse;
 
-    use super::{ModuleParser, UseParser};
+    use super::UseParser;
 
     #[test]
     fn valid_syntax() {

@@ -26,11 +26,8 @@ impl CastParser {
 #[cfg(test)]
 mod test {
 
-    use super::{CallParser, CastParser};
-    use crate::{
-        parser::{dummy_expr, test_parse},
-        Expression,
-    };
+    use super::CastParser;
+    use crate::parser::{dummy_expr, test_parse};
 
     #[test]
     fn valid_syntax() {
