@@ -1,6 +1,5 @@
 use crate::native_types::{Linear, Witness};
 use noir_field::FieldElement;
-use std::collections::HashMap;
 use std::ops::{Add, Mul, Neg, Sub};
 
 // In the addition polynomial

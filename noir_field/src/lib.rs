@@ -2,7 +2,6 @@ use ark_bn254::Fr;
 use ark_ff::{to_bytes, Field};
 use ark_ff::{BitIteratorBE, PrimeField};
 use ark_ff::{One, Zero};
-use blake2::Blake2s;
 use std::str::FromStr;
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality

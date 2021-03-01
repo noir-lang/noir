@@ -6,9 +6,6 @@ use codespan_reporting::term::termcolor::{
 };
 use std::io::Write;
 
-use codespan::Span as ByteSpan;
-use codespan::{ByteIndex, ByteOffset, RawOffset};
-
 #[derive(Debug)]
 pub struct CustomDiagnostic {
     message: String,
