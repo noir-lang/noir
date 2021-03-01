@@ -195,11 +195,29 @@ impl<'a> Evaluator<'a> {
 
     /// Compiles the AST into the intermediate format by evaluating the main function
     pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
-        // Add the parameters from the main function into the evaluator as witness variables
-        //
-        //
+  
+        self.parse_abi(env)?;
+
+        // Now call the main function
+        // XXX: We should be able to replace this with call_function in the future,
+        // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
+        let main_func_body = self.context.def_interner.function(&self.main_function);
+        let block = main_func_body.block(&self.context.def_interner);
+        for stmt_id in block.statements() {
+            self.evaluate_statement(env, stmt_id)?;
+        }
+        Ok(())
+    }
+
+    /// The ABI is the intermediate representation between Noir and types like Toml
+    /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
+    /// However, this intermediate representation is useful as it allows us to have 
+    /// intermediate Types which the core type system does not know about like Strings. 
+    fn parse_abi(&mut self, env : &mut Environment) -> Result<(), RuntimeErrorKind>{
         // XXX: Currently, the syntax only supports public witnesses
-        // u8 and arrays are assumed to contain private content
+        // u8 and arrays are assumed to be private
+        // This is not a short-coming of the ABI, but of the grammar
+        // The new grammar has been conceived, adn will be implemented.
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
 
@@ -266,14 +284,6 @@ impl<'a> Evaluator<'a> {
             }
         }
 
-        // Now call the main function
-        // XXX: We should be able to replace this with call_function in the future,
-        // It is not possible now due to the aztec standard format requiring a particular ordering of inputs in the ABI
-        let main_func_body = self.context.def_interner.function(&self.main_function);
-        let block = main_func_body.block(&self.context.def_interner);
-        for stmt_id in block.statements() {
-            self.evaluate_statement(env, stmt_id)?;
-        }
         Ok(())
     }
 
