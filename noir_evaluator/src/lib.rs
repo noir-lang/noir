@@ -9,7 +9,6 @@ mod errors;
 use acvm::BackendPointer;
 use errors::{RuntimeError, RuntimeErrorKind};
 
-use std::collections::HashMap;
 
 use environment::Environment;
 use object::{Array, Integer, Object, RangedObject};
@@ -40,14 +39,7 @@ use noirc_frontend::hir::Context;
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
     file_id: usize,
-    // XXX: This is doing two things. We should split it up so that Witnesses
-    // are local to their execution context and not the global context.
-    // Also there should be a separate map to map variable names to witness indices.
-    // This will allow us to remove the `String` component from Witness in ACIR 
-    //
-    // XXX: The Type is here from the lang4 refactor, where we were going to allow noir to optimise public inputs
-    // We may be able to remove, Kobi and Ariel mentioned that this was too restrictive.
-    pub(crate) witnesses: HashMap<Witness, Type>,
+    witnesses: Vec<Witness>,
     context: &'a Context,
     public_inputs: Vec<Witness>,
     main_function: FuncId,
@@ -60,7 +52,7 @@ impl<'a> Evaluator<'a> {
         Evaluator {
             file_id,
             public_inputs: Vec::new(),
-            witnesses: HashMap::new(),
+            witnesses: Vec::new(),
             context,
             main_function,
             gates: Vec::new(),
@@ -78,7 +70,7 @@ impl<'a> Evaluator<'a> {
     // Creates a new Witness index
     fn add_witness_to_cs(&mut self) -> Witness {
         let witness = Witness(self.num_witnesses() + 1);
-        self.witnesses.insert(witness, Type::Witness);
+        self.witnesses.push(witness);
         witness
     }
 
