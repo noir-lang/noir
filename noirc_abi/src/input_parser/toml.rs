@@ -2,9 +2,9 @@ use noir_field::FieldElement;
 use serde_derive::Deserialize;
 use std::{collections::BTreeMap, path::Path};
 
-pub(crate) fn parse<P: AsRef<Path>>(
-    path_to_toml: P,
-) -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
+use super::InputValue;
+
+pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> BTreeMap<String, InputValue> {
     let path_to_toml = path_to_toml.as_ref();
     assert!(
         path_to_toml.exists(),
@@ -22,65 +22,49 @@ pub(crate) fn parse<P: AsRef<Path>>(
     toml_map_to_field(data)
 }
 
-/// Flattens the toml map and maps each parameter to a Witness
-///
-/// Arrays are flattened and each element is given a unique parameter name
-/// We need to extract the collection types, since they are not in the FieldMap
-///
-/// Returns FieldMap and name of all collections
-fn toml_map_to_field(
-    toml_map: BTreeMap<String, TomlTypes>,
-) -> (BTreeMap<String, FieldElement>, Vec<(String, usize)>) {
+/// Converts the Toml mapping to the native representation that the compiler
+/// understands for Inputs
+fn toml_map_to_field(toml_map: BTreeMap<String, TomlTypes>) -> BTreeMap<String, InputValue> {
     let mut field_map = BTreeMap::new();
-
-    let mut collections = Vec::new();
 
     for (parameter, value) in toml_map {
         match value {
             TomlTypes::String(string) => {
-                let old_value = field_map.insert(parameter.clone(), parse_str(&string));
+                let old_value =
+                    field_map.insert(parameter.clone(), InputValue::Field(parse_str(&string)));
                 assert!(old_value.is_none(), "duplicate variable name {}", parameter);
             }
             TomlTypes::Integer(integer) => {
-                let old_value =
-                    field_map.insert(parameter.clone(), parse_str(&integer.to_string()));
+                let old_value = field_map.insert(
+                    parameter.clone(),
+                    InputValue::Field(parse_str(&integer.to_string())),
+                );
                 assert!(old_value.is_none(), "duplicate variable name {}", parameter);
             }
             TomlTypes::ArrayNum(arr_num) => {
-                collections.push((parameter.clone(), arr_num.len()));
-                // We need the elements in the array to map to unique names
-                // For arrays we postfix the index to the name
-                // XXX: In the future, we can use the witness index to map these values
-                // This is the only reason why we could have a duplicate name
-                for (index, element) in arr_num.into_iter().enumerate() {
-                    let unique_param_name = super::mangle_array_element_name(&parameter, index);
-                    let old_value = field_map
-                        .insert(unique_param_name.clone(), parse_str(&element.to_string()));
-                    assert!(
-                        old_value.is_none(),
-                        "duplicate variable name {}",
-                        unique_param_name
-                    );
-                }
+                let array_elements: Vec<_> = arr_num
+                    .into_iter()
+                    .map(|elem_num| parse_str(&elem_num.to_string()))
+                    .collect();
+
+                let old_value =
+                    field_map.insert(parameter.clone(), InputValue::Vec(array_elements));
+                assert!(old_value.is_none(), "duplicate variable name {}", parameter);
             }
             TomlTypes::ArrayString(arr_str) => {
-                collections.push((parameter.clone(), arr_str.len()));
+                let array_elements: Vec<_> = arr_str
+                    .into_iter()
+                    .map(|elem_str| parse_str(&elem_str))
+                    .collect();
 
-                for (index, element) in arr_str.into_iter().enumerate() {
-                    let unique_param_name = super::mangle_array_element_name(&parameter, index);
-                    let old_value = field_map
-                        .insert(unique_param_name.clone(), parse_str(&element.to_string()));
-                    assert!(
-                        old_value.is_none(),
-                        "duplicate variable name {}",
-                        unique_param_name
-                    );
-                }
+                let old_value =
+                    field_map.insert(parameter.clone(), InputValue::Vec(array_elements));
+                assert!(old_value.is_none(), "duplicate variable name {}", parameter);
             }
         }
     }
 
-    (field_map, collections)
+    field_map
 }
 
 #[derive(Debug, Deserialize)]
