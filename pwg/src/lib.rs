@@ -56,10 +56,6 @@ impl Solver {
 
                     false
                 }
-                gate => panic!(
-                    "Solver does not know how to deal with this Gate: {:?}",
-                    gate
-                ),
             };
             if unsolved {
                 unsolved_gates.push(gate);
