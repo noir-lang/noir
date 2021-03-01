@@ -26,7 +26,7 @@ impl BuiltInCaller for ArrayProd {
 
         let mut result = arr.get(0, span)?;
         for i in 1..arr.contents.len() {
-            result = binary_op::handle_mul_op(result, arr.get(i as u128, span)?, env, evaluator)?;
+            result = binary_op::handle_mul_op(result, arr.get(i as u128, span)?, evaluator)?;
         }
 
         Ok(result)

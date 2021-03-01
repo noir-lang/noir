@@ -25,7 +25,7 @@ impl BuiltInCaller for ArraySum {
         let span = evaluator.context.def_interner.expr_span(&arr_expr);
         let mut result = arr.get(0, span)?;
         for i in 1..arr.contents.len() {
-            result = binary_op::handle_add_op(result, arr.get(i as u128, span)?, env, evaluator)?;
+            result = binary_op::handle_add_op(result, arr.get(i as u128, span)?, evaluator)?;
         }
 
         Ok(result)
