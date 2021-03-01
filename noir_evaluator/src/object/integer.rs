@@ -45,15 +45,10 @@ impl Integer {
         Ok(())
     }
 
-    pub fn from_arithmetic(
-        arith: Arithmetic,
-        num_bits: u32,
-        env: &mut Environment,
-        evaluator: &mut Evaluator,
-    ) -> Integer {
+    pub fn from_arithmetic(arith: Arithmetic, num_bits: u32, evaluator: &mut Evaluator) -> Integer {
         // We can only range constrain witness variables, so create an intermediate variable, constraint it to the arithmetic gate
         // then cast it as an integer
-        let (intermediate, witness) = evaluator.create_intermediate_variable(env, arith.clone());
+        let (intermediate, witness) = evaluator.create_intermediate_variable(arith.clone());
 
         let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
         evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
@@ -63,19 +58,13 @@ impl Integer {
     pub fn from_object(
         poly: Object,
         num_bits: u32,
-        env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
         match poly {
-            Object::Arithmetic(arith) => {
-                Ok(Integer::from_arithmetic(arith, num_bits, env, evaluator))
+            Object::Arithmetic(arith) => Ok(Integer::from_arithmetic(arith, num_bits, evaluator)),
+            Object::Linear(linear) => {
+                Ok(Integer::from_arithmetic(linear.into(), num_bits, evaluator))
             }
-            Object::Linear(linear) => Ok(Integer::from_arithmetic(
-                linear.into(),
-                num_bits,
-                env,
-                evaluator,
-            )),
             k => {
                 let message = format!(
                     "tried to convert a {} into an integer. This is not possible.",
@@ -92,7 +81,6 @@ impl Integer {
     pub fn add(
         &self,
         poly: Object,
-        env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
         // You can only sub an integer from an integer and they must have the same number of bits
@@ -107,16 +95,14 @@ impl Integer {
         let res = binary_op::handle_add_op(
             Object::from_witness(self.witness.clone()),
             witness_rhs,
-            env,
             evaluator,
         )?;
 
-        Ok(Integer::from_object(res, self.num_bits, env, evaluator)?)
+        Ok(Integer::from_object(res, self.num_bits, evaluator)?)
     }
     pub fn sub(
         &self,
         poly: Object,
-        env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
@@ -133,18 +119,16 @@ impl Integer {
         let res = binary_op::handle_sub_op(
             Object::from_witness(self.witness.clone()),
             witness_rhs,
-            env,
             evaluator,
         )?;
 
         // Constrain the result to be equal to an integer in range of 2^num_bits
-        Ok(Integer::from_object(res, self.num_bits, env, evaluator)?)
+        Ok(Integer::from_object(res, self.num_bits, evaluator)?)
     }
 
     pub fn logic(
         &self,
         rhs: Integer,
-        _env: &mut Environment,
         is_xor_gate: bool,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
@@ -181,24 +165,21 @@ impl Integer {
     pub fn xor(
         &self,
         rhs: Integer,
-        env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
-        self.logic(rhs, env, true, evaluator)
+        self.logic(rhs, true, evaluator)
     }
     pub fn and(
         &self,
         rhs: Integer,
-        env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
-        self.logic(rhs, env, false, evaluator)
+        self.logic(rhs, false, evaluator)
     }
 
     pub fn mul(
         &self,
         poly: Object,
-        env: &mut Environment,
         evaluator: &mut Evaluator,
     ) -> Result<Integer, RuntimeErrorKind> {
         // You can only mul an integer with another integer and they must have the same number of bits
@@ -218,14 +199,12 @@ impl Integer {
         let res = binary_op::handle_mul_op(
             Object::from_witness(self.witness.clone()),
             witness_rhs,
-            env,
             evaluator,
         )?;
 
         Ok(Integer::from_object(
             res,
             self.num_bits + num_bits,
-            env,
             evaluator,
         )?)
     }
