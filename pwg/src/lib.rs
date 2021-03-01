@@ -3,7 +3,7 @@
 mod arithmetic;
 mod gadget_call;
 mod logic;
-mod merkle;
+pub mod merkle;
 
 use acvm::acir::circuit::Gate;
 use acvm::acir::native_types::Witness;

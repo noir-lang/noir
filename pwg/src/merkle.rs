@@ -136,7 +136,7 @@ impl MerkleTree {
             is_member &= is_left ^ is_right;
             current = compress_native(&mut barretenberg, hash_left, hash_right);
         }
-        is_member &= (&current == root);
+        is_member &= &current == root;
 
         if is_member {
             FieldElement::one()
