@@ -2,10 +2,8 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::{
-    hir::lower::{node_interner::NodeInterner, HirBinaryOp},
-    Type,
-};
+use crate::node_interner::NodeInterner;
+use crate::{hir::lower::HirBinaryOp, Type};
 
 #[derive(Error, Debug, Clone)]
 pub enum TypeCheckError {

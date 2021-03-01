@@ -2,19 +2,17 @@ use std::collections::HashMap;
 
 use crate::{NoirFunction, Program};
 use fm::FileId;
-use noirc_errors::{CollectedErrors, CustomDiagnostic};
+use noirc_errors::CollectedErrors;
 
 use super::{
     crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin},
     crate_graph::CrateId,
     def_collector_mod::ModCollector,
-    lower::{
-        node_interner::{FuncId, NodeInterner},
-        resolver::Resolver,
-    },
+    lower::resolver::Resolver,
     resolution::{import::ImportDirective, FunctionPathResolver},
     Context,
 };
+use crate::node_interner::{FuncId, NodeInterner};
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {

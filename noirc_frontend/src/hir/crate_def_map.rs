@@ -1,6 +1,5 @@
-use super::{
-    crate_graph::CrateId, def_collector_crate::DefCollector, lower::node_interner::FuncId, Context,
-};
+use super::{crate_graph::CrateId, def_collector_crate::DefCollector, Context};
+use crate::node_interner::FuncId;
 
 use crate::{parser::Program, Parser};
 use arena::{Arena, Index};

@@ -20,6 +20,7 @@ use std::collections::HashMap;
 
 use noirc_errors::Spanned;
 
+use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
 use crate::{
     hir::{crate_def_map::CrateDefMap, crate_graph::CrateId, resolution::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
@@ -28,7 +29,6 @@ use crate::{
 
 use super::{
     function::{FuncMeta, HirFunction, Param},
-    node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId},
     stmt::{
         HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
         HirStatement,
@@ -458,6 +458,7 @@ mod test {
 
     use errors::ResolverError;
 
+    use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::{
             crate_def_map::{CrateDefMap, ModuleDefId},
@@ -465,7 +466,6 @@ mod test {
             lower::{
                 errors::{self},
                 function::HirFunction,
-                node_interner::{FuncId, NodeInterner},
             },
         },
         Parser, Path,

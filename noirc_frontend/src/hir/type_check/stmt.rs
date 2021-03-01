@@ -1,10 +1,8 @@
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::{
-    hir::lower::{
-        node_interner::{ExprId, NodeInterner, StmtId},
-        stmt::{
-            HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
-            HirStatement,
-        },
+    hir::lower::stmt::{
+        HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
+        HirStatement,
     },
     Type,
 };

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
+use crate::node_interner::NodeInterner;
 use crate_def_map::CrateDefMap;
 use crate_graph::{CrateGraph, CrateId};
 use fm::FileManager;
-use lower::node_interner::NodeInterner;
 
 pub mod crate_def_map;
 pub mod crate_graph;

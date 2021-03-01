@@ -2,7 +2,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
-use super::node_interner::{IdentId, NodeInterner};
+use crate::node_interner::{IdentId, NodeInterner};
 
 #[derive(Error, Debug, Clone)]
 pub enum ResolverError {

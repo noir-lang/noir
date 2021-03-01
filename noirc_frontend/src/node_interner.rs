@@ -5,7 +5,7 @@ use noirc_errors::Span;
 
 use crate::{Ident, Type};
 
-use super::{
+use crate::hir::lower::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
     HirExpression,

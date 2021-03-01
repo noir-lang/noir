@@ -1,11 +1,8 @@
 use noirc_abi::Abi;
 
+use super::{HirBlockExpression, HirExpression};
+use crate::node_interner::{ExprId, IdentId, NodeInterner};
 use crate::{token::Attribute, FunctionKind, Type};
-
-use super::{
-    node_interner::{ExprId, IdentId, NodeInterner},
-    HirBlockExpression, HirExpression,
-};
 
 /// A Hir function is a block expression
 /// with a list of statements

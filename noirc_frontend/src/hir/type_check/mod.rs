@@ -9,10 +9,7 @@ mod stmt;
 use errors::TypeCheckError;
 use expr::type_check_expression;
 
-use super::lower::{
-    function::HirFunction,
-    node_interner::{FuncId, NodeInterner},
-};
+use crate::node_interner::{FuncId, NodeInterner};
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
@@ -58,13 +55,13 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::{
             crate_def_map::{CrateDefMap, ModuleDefId},
             crate_graph::CrateId,
             lower::{
                 function::{FuncMeta, HirFunction, Param},
-                node_interner::{FuncId, NodeInterner},
                 resolver::Resolver,
                 stmt::{HirPrivateStatement, HirStatement},
                 HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression,

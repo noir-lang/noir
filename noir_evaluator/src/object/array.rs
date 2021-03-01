@@ -2,7 +2,8 @@ use super::RuntimeErrorKind;
 use crate::object::Object;
 use crate::{Environment, Evaluator};
 use noirc_errors::Span;
-use noirc_frontend::hir::lower::{node_interner::ExprId, HirArrayLiteral};
+use noirc_frontend::hir::lower::HirArrayLiteral;
+use noirc_frontend::node_interner::ExprId;
 
 #[derive(Clone, Debug)]
 pub struct Array {

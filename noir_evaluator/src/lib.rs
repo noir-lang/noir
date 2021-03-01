@@ -22,8 +22,8 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 
+use noirc_frontend::node_interner::{IdentId,ExprId, FuncId, StmtId};
 use noirc_frontend::hir::lower::{
-    node_interner::IdentId,
     stmt::{HirConstrainStatement, HirLetStatement},
     HirBinaryOp, HirCallExpression, HirForExpression,
 };
@@ -33,7 +33,6 @@ use noirc_frontend::{
 };
 
 use noirc_frontend::hir::lower::{
-    node_interner::{ExprId, FuncId, StmtId},
     stmt::{HirPrivateStatement, HirStatement},
     HirExpression, HirLiteral,
 };
