@@ -6,9 +6,9 @@ use noirc_errors::Span;
 use crate::{Ident, Type};
 
 use crate::hir::lower::{
+    expr::HirExpression,
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
-    HirExpression,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]

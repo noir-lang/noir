@@ -1,6 +1,6 @@
 use noirc_abi::Abi;
 
-use super::{HirBlockExpression, HirExpression};
+use super::expr::{HirBlockExpression, HirExpression};
 use crate::node_interner::{ExprId, IdentId, NodeInterner};
 use crate::{token::Attribute, FunctionKind, Type};
 

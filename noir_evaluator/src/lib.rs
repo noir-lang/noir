@@ -25,16 +25,16 @@ use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use noirc_frontend::node_interner::{IdentId,ExprId, FuncId, StmtId};
 use noirc_frontend::hir::lower::{
     stmt::{HirConstrainStatement, HirLetStatement},
-    HirBinaryOp, HirCallExpression, HirForExpression,
+    expr::{HirBinaryOp, HirCallExpression, HirForExpression,}
 };
 use noirc_frontend::{
-    hir::lower::{HirBinaryOpKind, HirBlockExpression},
+    hir::lower::expr::{HirBinaryOpKind, HirBlockExpression},
     FunctionKind, Signedness, Type,
 };
 
 use noirc_frontend::hir::lower::{
     stmt::{HirPrivateStatement, HirStatement},
-    HirExpression, HirLiteral,
+    expr::{HirExpression, HirLiteral,}
 };
 use noirc_frontend::hir::Context;
 

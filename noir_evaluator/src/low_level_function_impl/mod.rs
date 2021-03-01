@@ -19,7 +19,7 @@ use pedersen::PedersenGadget;
 use schnorr::SchnorrVerifyGadget;
 use sha256::Sha256Gadget;
 
-use noirc_frontend::hir::lower::HirCallExpression;
+use noirc_frontend::hir::lower::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 use acvm::acir::OPCODE;

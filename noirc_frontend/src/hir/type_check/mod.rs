@@ -61,11 +61,13 @@ mod test {
             crate_def_map::{CrateDefMap, ModuleDefId},
             crate_graph::CrateId,
             lower::{
+                expr::{
+                    HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression,
+                    HirInfixExpression,
+                },
                 function::{FuncMeta, HirFunction, Param},
                 resolver::Resolver,
                 stmt::{HirPrivateStatement, HirStatement},
-                HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression,
-                HirInfixExpression,
             },
             resolution::PathResolver,
         },

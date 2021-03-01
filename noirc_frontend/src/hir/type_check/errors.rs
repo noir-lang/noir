@@ -3,7 +3,7 @@ pub use noirc_errors::Span;
 use thiserror::Error;
 
 use crate::node_interner::NodeInterner;
-use crate::{hir::lower::HirBinaryOp, Type};
+use crate::{hir::lower::expr::HirBinaryOp, Type};
 
 #[derive(Error, Debug, Clone)]
 pub enum TypeCheckError {

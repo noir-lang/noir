@@ -1,6 +1,10 @@
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::{
-    hir::lower::{function::Param, stmt::HirStatement, HirBinaryOp, HirExpression, HirLiteral},
+    hir::lower::{
+        expr::{HirBinaryOp, HirExpression, HirLiteral},
+        function::Param,
+        stmt::HirStatement,
+    },
     ArraySize, Type,
 };
 

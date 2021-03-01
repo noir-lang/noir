@@ -28,14 +28,16 @@ use crate::{
 };
 
 use super::{
+    expr::{
+        HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
+        HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral,
+        HirPrefixExpression, HirUnaryOp,
+    },
     function::{FuncMeta, HirFunction, Param},
     stmt::{
         HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
         HirStatement,
     },
-    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral,
-    HirPrefixExpression, HirUnaryOp,
 };
 use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
@@ -463,10 +465,7 @@ mod test {
         hir::{
             crate_def_map::{CrateDefMap, ModuleDefId},
             crate_graph::CrateId,
-            lower::{
-                errors::{self},
-                function::HirFunction,
-            },
+            lower::{errors, function::HirFunction},
         },
         Parser, Path,
     };

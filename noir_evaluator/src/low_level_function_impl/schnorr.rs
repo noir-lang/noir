@@ -1,9 +1,9 @@
 use super::GadgetCaller;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator, Type};
+use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
-use noirc_frontend::hir::lower::HirCallExpression;
+use noirc_frontend::hir::lower::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 
