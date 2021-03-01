@@ -28,10 +28,10 @@ fn prove(proof_name: &str) {
     let compiled_program = driver.into_compiled_program(backend_ptr);
 
     // Parse the initial witness values
-    let mut path_to_toml = std::env::current_dir().unwrap();
-    path_to_toml.push(std::path::PathBuf::from("src"));
-    path_to_toml.push(std::path::PathBuf::from("input.toml"));
-    let (witness_map, collection_names) = noirc_abi::input_parser::Format::Toml.parse(path_to_toml);
+    let mut path_to_src_dir = std::env::current_dir().unwrap();
+    path_to_src_dir.push(std::path::PathBuf::from("src"));
+    let (witness_map, collection_names) =
+        noirc_abi::input_parser::Format::Toml.parse(path_to_src_dir);
 
     // Check that enough witness values were supplied
     if compiled_program.abi.as_ref().unwrap().len() != witness_map.len() {
@@ -51,7 +51,7 @@ fn prove(proof_name: &str) {
     for param in param_names.into_iter() {
         // XXX: This is undesirable as we are eagerly allocating, but it avoids duplication
         let err_msg = &format!(
-            "ABI expects the parameter `{}`, but this was not found in input.toml",
+            "ABI expects the parameter `{}`, but this was not found",
             param
         );
 
