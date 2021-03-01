@@ -38,7 +38,7 @@ impl ArithmeticSolver {
                 // Hence the equation is solveable, since there is a single unknown
                 // The equation is: partial_prod * unknown_var + sum + qC = 0
 
-                let total_sum = sum + gate.q_C;
+                let total_sum = sum + gate.q_c;
                 let assignment = -(total_sum / partial_prod);
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
@@ -56,7 +56,7 @@ impl ArithmeticSolver {
                 // Hence the equation is solveable, since we have one unknown
                 // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
 
-                let total_sum = total_prod + partial_sum + gate.q_C;
+                let total_sum = total_prod + partial_sum + gate.q_c;
                 let assignment = -(total_sum / coeff);
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
