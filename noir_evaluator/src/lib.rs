@@ -119,17 +119,13 @@ impl<'a> Evaluator<'a> {
     // It is better to create an intermediate variable which links to the gate and then multiply by that intermediate variable
     // instead
     //
-    // XXX: Check logic for when we create intermediate variables 
-    // for Integer objects, the type passed in, is not witness
     pub fn create_intermediate_variable(
         &mut self,
-        env: &mut Environment,
         arithmetic_gate: Arithmetic,
     ) -> (Object, Witness) {
         // Create a unique witness name and add witness to the constraint system
-        let inter_var_unique_name = self.make_unique("_inter");
         let inter_var_witness = self.add_witness_to_cs();
-        let inter_var_object = self.add_witness_to_env(inter_var_unique_name,inter_var_witness.clone(), env);
+        let inter_var_object = Object::from_witness(inter_var_witness);
 
         // Link that witness to the arithmetic gate
         let constraint = &arithmetic_gate - &inter_var_witness;
@@ -139,25 +135,24 @@ impl<'a> Evaluator<'a> {
 
     pub fn evaluate_infix_expression(
         &mut self,
-        env: &mut Environment,
         lhs: Object,
         rhs: Object,
         op: HirBinaryOp,
     ) -> Result<Object, RuntimeErrorKind> {
         match op.kind {
-            HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs, env, self),
-            HirBinaryOpKind::NotEqual => binary_op::handle_neq_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Equal => binary_op::handle_equal_op(lhs, rhs, env, self),
-            HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs, env, self),
-            HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs, env, self),
-            HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs, env, self),
+            HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs,  self),
+            HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
+            HirBinaryOpKind::Multiply => binary_op::handle_mul_op(lhs, rhs, self),
+            HirBinaryOpKind::Divide => binary_op::handle_div_op(lhs, rhs,  self),
+            HirBinaryOpKind::NotEqual => binary_op::handle_neq_op(lhs, rhs,  self),
+            HirBinaryOpKind::Equal => binary_op::handle_equal_op(lhs, rhs,  self),
+            HirBinaryOpKind::And => binary_op::handle_and_op(lhs, rhs,  self),
+            HirBinaryOpKind::Xor => binary_op::handle_xor_op(lhs, rhs,  self),
+            HirBinaryOpKind::Less => binary_op::handle_less_than_op(lhs, rhs,  self),
+            HirBinaryOpKind::LessEqual => binary_op::handle_less_than_equal_op(lhs, rhs,  self),
+            HirBinaryOpKind::Greater => binary_op::handle_greater_than_op(lhs, rhs,  self),
             HirBinaryOpKind::GreaterEqual => {
-                binary_op::handle_greater_than_equal_op(lhs, rhs, env, self)
+                binary_op::handle_greater_than_equal_op(lhs, rhs,  self)
             }
             HirBinaryOpKind::Assign => {
                 let err = RuntimeErrorKind::Spanless(
@@ -379,7 +374,6 @@ impl<'a> Evaluator<'a> {
 
         // Evaluate the constrain infix statement
         let _ = self.evaluate_infix_expression(
-            env,
             lhs_poly.clone(),
             rhs_poly.clone(),
             constrain_stmt.0.operator,
@@ -503,7 +497,7 @@ impl<'a> Evaluator<'a> {
 
     pub fn expression_to_object(
         &mut self,
-        env: &mut Environment,
+        env : &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeErrorKind> {
         let expr = self.context.def_interner.expression(expr_id);
@@ -516,11 +510,11 @@ impl<'a> Evaluator<'a> {
             HirExpression::Infix(infx) => {
                 let lhs = self.expression_to_object(env, &infx.lhs)?;
                 let rhs = self.expression_to_object(env, &infx.rhs)?;
-                self.evaluate_infix_expression(env, lhs, rhs, infx.operator)
+                self.evaluate_infix_expression(lhs, rhs, infx.operator)
             }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                binary_op::handle_cast_op(lhs, cast_expr.r#type, env, self)
+                binary_op::handle_cast_op(self,lhs, cast_expr.r#type)
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
