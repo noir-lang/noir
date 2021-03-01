@@ -1,10 +1,9 @@
-use crate::{Environment, Evaluator, Integer, Linear, Object, RuntimeErrorKind, Type};
+use crate::{Evaluator, Integer, Linear, Object, RuntimeErrorKind, Type};
 
 pub fn handle_cast_op(
+    evaluator: &mut Evaluator,
     left: Object,
     right: Type,
-    env: &mut Environment,
-    evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
         Type::Integer(_sign, num_bits) => num_bits,
@@ -18,7 +17,7 @@ pub fn handle_cast_op(
 
     let casted_integer = match left {
         Object::Arithmetic(arith) => {
-            let casted_integer = Integer::from_arithmetic(arith, num_bits, env, evaluator);
+            let casted_integer = Integer::from_arithmetic(arith, num_bits, evaluator);
             casted_integer.constrain(evaluator)?;
             casted_integer
         }
@@ -29,7 +28,7 @@ pub fn handle_cast_op(
             })
         }
         Object::Linear(linear) => {
-            let casted_integer = Integer::from_arithmetic(linear.into(), num_bits, env, evaluator);
+            let casted_integer = Integer::from_arithmetic(linear.into(), num_bits, evaluator);
             casted_integer.constrain(evaluator)?;
             casted_integer
         }
@@ -41,7 +40,6 @@ pub fn handle_cast_op(
             let casted_integer = Integer::from_arithmetic(
                 Linear::from(integer.witness.clone()).into(),
                 num_bits,
-                env,
                 evaluator,
             );
 

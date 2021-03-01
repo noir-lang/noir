@@ -1,11 +1,10 @@
-use crate::{Environment, Evaluator, Linear, Object, RuntimeErrorKind};
+use crate::{Evaluator, Linear, Object, RuntimeErrorKind};
 
 // Intentionally chose to write this out manually as it's not expected to change often or at all
 // We could expand again, so that ordering is preserved, but this does not seem necessary.
 pub fn handle_add_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     match (left, right) {
@@ -18,7 +17,7 @@ pub fn handle_add_op(
         //
         // Delegate logic for integer addition to the integer module
         (Object::Integer(x), y) | (y, Object::Integer(x)) => {
-            Ok(Object::Integer(x.add(y, env, evaluator)?))
+            Ok(Object::Integer(x.add(y, evaluator)?))
         }
         //
         // Arith + Arith = Arith

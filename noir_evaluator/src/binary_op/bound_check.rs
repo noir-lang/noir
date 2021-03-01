@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Environment, Evaluator, FieldElement, Integer, Linear, Object, RuntimeErrorKind};
+use crate::{Evaluator, FieldElement, Integer, Linear, Object, RuntimeErrorKind};
 
 // There are three cases:
 // a < b
@@ -17,7 +17,6 @@ fn bound_check(
     lower_bound: Object,
     upper_bound: Object,
     upper_bound_included: bool,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     let offset = if upper_bound_included {
@@ -46,17 +45,16 @@ fn bound_check(
             let k = handle_sub_op(
                 Object::Linear(x),
                 Object::Arithmetic(lower_bound_as_arith),
-                env,
                 evaluator,
             )?;
 
-            Integer::from_object(k, max_bound_bits, env, evaluator)
+            Integer::from_object(k, max_bound_bits, evaluator)
         }
         (lower_bound, Object::Constants(y)) => {
             let max_bound_bits = y.num_bits();
 
-            let k = handle_sub_op(Object::Constants(y - offset), lower_bound, env, evaluator)?;
-            Integer::from_object(k, max_bound_bits, env, evaluator)
+            let k = handle_sub_op(Object::Constants(y - offset), lower_bound, evaluator)?;
+            Integer::from_object(k, max_bound_bits, evaluator)
         }
         (_, y) => {
             let err = RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("You can only apply the < or > op, if the upper bound is not an integer or an constant. Found type {}", y.r#type())};
@@ -70,32 +68,28 @@ fn bound_check(
 pub fn handle_less_than_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    bound_check(left, right, false, env, evaluator)
+    bound_check(left, right, false, evaluator)
 }
 pub fn handle_less_than_equal_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    bound_check(left, right, true, env, evaluator)
+    bound_check(left, right, true, evaluator)
 }
 pub fn handle_greater_than_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    bound_check(right, left, false, env, evaluator)
+    bound_check(right, left, false, evaluator)
 }
 pub fn handle_greater_than_equal_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    bound_check(right, left, true, env, evaluator)
+    bound_check(right, left, true, evaluator)
 }

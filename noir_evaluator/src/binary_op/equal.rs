@@ -1,5 +1,5 @@
 use super::sub::handle_sub_op;
-use crate::{Environment, Evaluator, Gate, Linear, Object, RuntimeErrorKind};
+use crate::{Evaluator, Gate, Linear, Object, RuntimeErrorKind};
 
 /// XXX(med) : So at the moment, Equals is the same as SUB
 /// Most likely we will need to check if it is a predicate equal or infix equal
@@ -9,13 +9,12 @@ use crate::{Environment, Evaluator, Gate, Linear, Object, RuntimeErrorKind};
 pub fn handle_equal_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     let left_type = left.r#type();
     let right_type = right.r#type();
 
-    let result = handle_sub_op(left, right, env, evaluator)?;
+    let result = handle_sub_op(left, right, evaluator)?;
 
     match result {
         Object::Null => {

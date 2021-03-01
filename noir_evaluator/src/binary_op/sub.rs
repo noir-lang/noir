@@ -1,12 +1,11 @@
 use super::add::handle_add_op;
-use crate::{Environment, Evaluator, Object, RuntimeErrorKind};
+use crate::{Evaluator, Object, RuntimeErrorKind};
 
 /// This calls the add op under the hood
 /// We negate the RHS and send it to the add op
 pub fn handle_sub_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     let negated_right = match &right {
@@ -27,9 +26,7 @@ pub fn handle_sub_op(
                     message: format!("rhs is an integer, however the lhs is not"),
                 });
             } else {
-                return Ok(Object::Integer(
-                    left_int.unwrap().sub(right, env, evaluator)?,
-                ));
+                return Ok(Object::Integer(left_int.unwrap().sub(right, evaluator)?));
             }
         }
         _ => {
@@ -42,5 +39,5 @@ pub fn handle_sub_op(
         }
     };
 
-    handle_add_op(left, negated_right, env, evaluator)
+    handle_add_op(left, negated_right, evaluator)
 }

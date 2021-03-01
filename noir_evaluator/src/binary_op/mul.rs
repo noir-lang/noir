@@ -1,4 +1,4 @@
-use crate::{Arithmetic, Array, Environment, Evaluator, Linear, Object, RuntimeErrorKind};
+use crate::{Arithmetic, Array, Evaluator, Linear, Object, RuntimeErrorKind};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
@@ -7,7 +7,6 @@ use crate::{Arithmetic, Array, Environment, Evaluator, Linear, Object, RuntimeEr
 pub fn handle_mul_op(
     left: Object,
     right: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     let general_err = err_cannot_mul(left.r#type(), right.r#type());
@@ -18,19 +17,17 @@ pub fn handle_mul_op(
         (Object::Array(_), Object::Array(_)) => Err(general_err),
 
         (Object::Arithmetic(x), y) | (y, Object::Arithmetic(x)) => {
-            handle_arithmetic_mul(x, y, env, evaluator)
+            handle_arithmetic_mul(x, y, evaluator)
         }
 
         (Object::Constants(x), y) | (y, Object::Constants(x)) => {
             y.mul_constant(x).ok_or(general_err)
         }
 
-        (Object::Linear(lin), y) | (y, Object::Linear(lin)) => {
-            handle_linear_mul(lin, y, env, evaluator)
-        }
+        (Object::Linear(lin), y) | (y, Object::Linear(lin)) => handle_linear_mul(lin, y, evaluator),
 
         (Object::Integer(integer), y) | (y, Object::Integer(integer)) => {
-            Ok(Object::Integer(integer.mul(y, env, evaluator)?))
+            Ok(Object::Integer(integer.mul(y, evaluator)?))
         }
     }
 }
@@ -47,7 +44,6 @@ fn err_cannot_mul(first_type: &'static str, second_type: &'static str) -> Runtim
 fn handle_arithmetic_mul(
     arith: Arithmetic,
     polynomial: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     if let Ok(constant) = polynomial.constant() {
@@ -56,19 +52,18 @@ fn handle_arithmetic_mul(
 
     // Arriving here means that we do not have one of the operands as a constant
     // Create an intermediate variable for the arithmetic gate
-    let (intermediate_var, _) = evaluator.create_intermediate_variable(env, arith);
-    return handle_mul_op(intermediate_var, polynomial, env, evaluator);
+    let (intermediate_var, _) = evaluator.create_intermediate_variable(arith);
+    return handle_mul_op(intermediate_var, polynomial, evaluator);
 }
 
 fn handle_linear_mul(
     linear: Linear,
     polynomial: Object,
-    env: &mut Environment,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     match polynomial {
         Object::Arithmetic(arith) => {
-            return handle_arithmetic_mul(arith, Object::Linear(linear), env, evaluator);
+            return handle_arithmetic_mul(arith, Object::Linear(linear), evaluator);
         }
         Object::Linear(linear_rhs) => Ok(Object::Arithmetic(&linear * &linear_rhs)),
         Object::Constants(constant) => Ok(Object::Linear(&linear * &constant)),
@@ -79,7 +74,7 @@ fn handle_linear_mul(
         Object::Array(arr) => {
             let mut result = Vec::with_capacity(arr.length as usize);
             for element in arr.contents.into_iter() {
-                result.push(handle_linear_mul(linear.clone(), element, env, evaluator)?);
+                result.push(handle_linear_mul(linear.clone(), element, evaluator)?);
             }
 
             Ok(Object::Array(Array {
