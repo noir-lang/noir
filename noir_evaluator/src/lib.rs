@@ -7,7 +7,6 @@ mod object;
 
 mod errors;
 use acvm::BackendPointer;
-use blake2::Blake2s;
 use errors::{RuntimeError, RuntimeErrorKind};
 
 use std::collections::HashMap;
@@ -79,13 +78,13 @@ impl<'a> Evaluator<'a> {
     // Creates a new Witness index
     fn add_witness_to_cs(&mut self) -> Witness {
         let witness = Witness(self.num_witnesses() + 1);
-        self.witnesses.insert(witness.clone(), Type::Witness);
+        self.witnesses.insert(witness, Type::Witness);
         witness
     }
 
     // Maps a variable name to a witness index
     fn add_witness_to_env(&mut self, variable_name : String, witness: Witness, env: &mut Environment) -> Object {
-        let value = Object::from_witness(witness.clone());
+        let value = Object::from_witness(witness);
         env.store(variable_name, value.clone());
         value
     }
@@ -225,8 +224,7 @@ impl<'a> Evaluator<'a> {
             match param_type {
                 noirc_abi::AbiType::Array { length, typ } => {
                     let mut elements = Vec::with_capacity(length as usize);
-                    for i in 0..length as usize {
-                        let mangled_name = mangle_array_element_name(&param_name, i);
+                    for _ in 0..length as usize {
                         let witness = self.add_witness_to_cs();
 
                         // Constrain each element in the array to be equal to the type declared in the parameter
@@ -242,7 +240,7 @@ impl<'a> Evaluator<'a> {
                                 integer.constrain(self)?;
                                 Object::Integer(integer)
                             }
-                            noirc_abi::AbiType::Private => self.add_witness_to_env(mangled_name,witness, env),
+                            noirc_abi::AbiType::Private => Object::from_witness(witness),
                             _ => unimplemented!(
                                 "currently we only support arrays of integer and witness types"
                             ),
@@ -646,31 +644,4 @@ impl<'a> Evaluator<'a> {
         let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
         (objects, errors)
     }
-}
-
-/// We allow users to input an array in the ABI
-/// Each element must be mapped to a unique identifier
-/// XXX: At the moment, the evaluator uses String, in particular the variable name
-/// This function ensures that each element in the array is assigned a unique identifier
-pub fn mangle_array_element_name(array_name: &str, element_index: usize) -> String {
-    use blake2::Digest;
-
-    let mut hasher = Blake2s::new();
-    hasher.update(array_name);
-
-    // use u128 so we do not get different hashes depending on the computer
-    // architecture
-    let index_u128 = element_index as u128;
-    hasher.update(index_u128.to_be_bytes());
-
-    let res = hasher.finalize();
-
-    // If a variable is named array_0_1f4a
-    // Then it will be certain, that the user
-    // is trying to be malicious
-    // For regular users, they will never encounter a name conflict
-    // We could probably use MD5 here, as we do not need a crypto hash
-    let checksum = &res[0..4];
-
-    format!("{}__{}__{:x?}", array_name, element_index, checksum)
 }
