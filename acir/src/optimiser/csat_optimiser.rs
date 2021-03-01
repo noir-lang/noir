@@ -241,7 +241,7 @@ impl Optimiser {
         new_gate
             .linear_combinations
             .extend(gate.linear_combinations.clone());
-        new_gate.q_C = gate.q_C;
+        new_gate.q_c = gate.q_c;
 
         new_gate
     }

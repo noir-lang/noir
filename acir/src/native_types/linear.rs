@@ -53,7 +53,7 @@ impl Add<&Linear> for &Linear {
                 (self.mul_scale, self.witness.clone()),
                 (rhs.mul_scale, rhs.witness.clone()),
             ],
-            q_C: self.add_scale + rhs.add_scale,
+            q_c: self.add_scale + rhs.add_scale,
         }
     }
 }
@@ -90,7 +90,7 @@ impl Mul<&Linear> for &Linear {
         Arithmetic {
             mul_terms: vec![(ac, x.clone(), y.clone())],
             linear_combinations: vec![(ad, x), (bc, y)],
-            q_C: bd,
+            q_c: bd,
         }
     }
 }

@@ -18,8 +18,7 @@ pub struct Arithmetic {
     pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
 
     pub linear_combinations: Vec<(FieldElement, Witness)>,
-
-    pub q_C: FieldElement,
+    pub q_c: FieldElement,
 }
 
 impl Default for Arithmetic {
@@ -27,7 +26,7 @@ impl Default for Arithmetic {
         Arithmetic {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_C: FieldElement::zero(),
+            q_c: FieldElement::zero(),
         }
     }
 }
@@ -56,11 +55,11 @@ impl Mul<&FieldElement> for &Arithmetic {
             .collect();
 
         // Scale the constant
-        let q_C = self.q_C * *rhs;
+        let q_c = self.q_c * *rhs;
 
         Arithmetic {
             mul_terms,
-            q_C,
+            q_c,
             linear_combinations: lin_combinations,
         }
     }
@@ -69,11 +68,11 @@ impl Add<&FieldElement> for Arithmetic {
     type Output = Arithmetic;
     fn add(self, rhs: &FieldElement) -> Self::Output {
         // Increase the constant
-        let q_C = self.q_C + *rhs;
+        let q_c = self.q_c + *rhs;
 
         Arithmetic {
             mul_terms: self.mul_terms,
-            q_C,
+            q_c,
             linear_combinations: self.linear_combinations,
         }
     }
@@ -82,11 +81,11 @@ impl Sub<&FieldElement> for Arithmetic {
     type Output = Arithmetic;
     fn sub(self, rhs: &FieldElement) -> Self::Output {
         // Increase the constant
-        let q_C = self.q_C - *rhs;
+        let q_c = self.q_c - *rhs;
 
         Arithmetic {
             mul_terms: self.mul_terms,
-            q_C,
+            q_c,
             linear_combinations: self.linear_combinations,
         }
     }
@@ -110,12 +109,12 @@ impl Add<&Arithmetic> for &Arithmetic {
             .cloned()
             .chain(rhs.linear_combinations.iter().cloned())
             .collect();
-        let q_C = self.q_C + rhs.q_C;
+        let q_c = self.q_c + rhs.q_c;
 
         Arithmetic {
             mul_terms,
             linear_combinations,
-            q_C,
+            q_c,
         }
     }
 }
@@ -136,12 +135,12 @@ impl Neg for &Arithmetic {
             .iter()
             .map(|(qK, wK)| (-*qK, wK.clone()))
             .collect();
-        let q_C = -self.q_C;
+        let q_c = -self.q_c;
 
         Arithmetic {
             mul_terms,
             linear_combinations,
-            q_C,
+            q_c,
         }
     }
 }
@@ -156,7 +155,7 @@ impl Sub<&Arithmetic> for &Arithmetic {
 impl From<&FieldElement> for Arithmetic {
     fn from(constant: &FieldElement) -> Arithmetic {
         Arithmetic {
-            q_C: constant.clone(),
+            q_c: constant.clone(),
             linear_combinations: Vec::new(),
             mul_terms: Vec::new(),
         }
@@ -165,7 +164,7 @@ impl From<&FieldElement> for Arithmetic {
 impl From<&Linear> for Arithmetic {
     fn from(lin: &Linear) -> Arithmetic {
         Arithmetic {
-            q_C: lin.add_scale,
+            q_c: lin.add_scale,
             linear_combinations: vec![(lin.mul_scale, lin.witness.clone())],
             mul_terms: Vec::new(),
         }
