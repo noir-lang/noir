@@ -1,5 +1,3 @@
-use fm::FileId;
-
 use super::{errors::ParserErrorKind, Precedence, Program};
 use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::lexer::Lexer;
