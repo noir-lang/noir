@@ -82,7 +82,6 @@ partialeq!(StmtId);
 /// We use one Arena for all types that can be interned as that has better cache locality
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
-/// XXX: Possibly rename this to Node and `NodeInterner` to `NodeInterner`
 #[derive(Debug, Clone)]
 enum Node {
     Function(HirFunction),
@@ -140,37 +139,53 @@ impl Default for NodeInterner {
 }
 
 // XXX: Add check that insertions are not overwrites for maps
+// XXX: Maybe change push to intern, and remove comments
 impl NodeInterner {
+    /// Interns a HIR statement.
     pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
         StmtId(self.nodes.insert(Node::Statement(stmt)))
     }
-
+    /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
     }
+    /// Stores the span for an interned expression.
     pub fn push_expr_span(&mut self, expr_id: ExprId, span: Span) {
         self.id_to_span.insert(expr_id.into(), span);
     }
-
+    /// Interns a HIR Function.
     pub fn push_fn(&mut self, func: HirFunction) -> FuncId {
         FuncId(self.nodes.insert(Node::Function(func)))
     }
 
-    // Type Checker
+    /// Store the type for an interned expression
     pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
     }
-    // This is used specifically for SemiExpressions
-    pub fn modify_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
-        self.id_to_type.insert(expr_id.into(), typ);
+
+    /// Modify the type of an expression.
+    ///
+    /// This is used specifically for SemiExpressions.
+    /// We type check them as regular expressions which implicitly interns
+    /// the type of the expression. This function is then used to change
+    /// it's type to Unit for the type checker.
+    pub fn make_expr_type_unit(&mut self, expr_id: &ExprId) {
+        self.id_to_type.insert(expr_id.into(), Type::Unit);
     }
+    /// Store the type for an interned Identifier
     pub fn push_ident_type(&mut self, ident_id: &IdentId, typ: Type) {
         self.id_to_type.insert(ident_id.into(), typ);
     }
 
+    /// Intern an empty function.
     pub fn push_empty_fn(&mut self) -> FuncId {
         self.push_fn(HirFunction::empty())
     }
+    /// Updates the underlying interned Function.
+    ///
+    /// This method is used as we eagerly intern empty functions to
+    /// generate function identifiers and then we update at a later point in
+    /// time.
     pub fn update_fn(&mut self, func_id: FuncId, hir_func: HirFunction) {
         let def = self
             .nodes
@@ -184,10 +199,15 @@ impl NodeInterner {
         *func = hir_func;
     }
 
+    ///Interns a function's metadata.
+    ///
+    /// Note that the FuncId has been created already.
+    /// See ModCollector for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
     }
 
+    /// Interns an Identifier
     pub fn push_ident(&mut self, ident: Ident) -> IdentId {
         let span = ident.0.span();
         let name = ident.0.contents.clone();
@@ -205,14 +225,26 @@ impl NodeInterner {
 
         id
     }
+    /// Links the Identifier to the Identifier which defined it.
     pub fn linked_ident_to_def(&mut self, ident: IdentId, def: IdentId) {
         self.ident_to_defs.insert(ident, def);
     }
-    /// Find the IdentifierId which declared/defined this IdentifierId
+    /// Finds the IdentifierId which declared/defined this IdentifierId
+    ///
+    /// Example:
+    ///
+    /// priv z = x + a;
+    /// priv k = z + b;
+    ///
+    /// Notice z is used twice. Each `z` has a unique IdentId
+    /// However, the first `z` is the one that defines it.
+    /// This function would return the Identifier of the first `z`
     pub fn ident_def(&self, ident: &IdentId) -> Option<IdentId> {
         self.ident_to_defs.get(ident).copied()
     }
 
+    /// Returns the interned HIR function corresponding to `func_id`
+    //
     // Cloning Hir structures is cheap, so we return owned structures
     pub fn function(&self, func_id: &FuncId) -> HirFunction {
         let def = self
@@ -225,12 +257,15 @@ impl NodeInterner {
             _ => panic!("ice: all function ids should correspond to a function in the interner"),
         }
     }
+    /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
         self.func_meta
             .get(func_id)
             .cloned()
             .expect("ice: all function ids should have metadata")
     }
+
+    /// Returns the interned statement corresponding to `stmt_id`
     pub fn statement(&self, stmt_id: &StmtId) -> HirStatement {
         let def = self
             .nodes
@@ -242,7 +277,7 @@ impl NodeInterner {
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
-
+    /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
         let def = self
             .nodes
@@ -256,6 +291,7 @@ impl NodeInterner {
             }
         }
     }
+    /// Returns the interned identifier corresponding to `ident_id`
     pub fn ident(&self, ident_id: &IdentId) -> Ident {
         let def = self
             .nodes
@@ -268,22 +304,27 @@ impl NodeInterner {
         }
     }
 
-    // XXX: This is needed as Witnesses in Evaluator require a name at the moment
-    // normally, this would only be needed for error reporting
+    /// Returns the Identifier as a String
+    ///
+    /// This is needed as the Environment needs to map variable names to witness indices
     pub fn ident_name(&self, ident_id: &IdentId) -> String {
         self.ident_to_name
             .get(ident_id)
-            .expect("ice: all ident ids should have names")
+            .expect("ice: all ident ids should have names. This indicates a bug in the Resolver.")
             .clone()
     }
 
+    /// Returns the span of an identifier
     pub fn ident_span(&self, ident_id: &IdentId) -> Span {
         self.id_span(ident_id)
     }
+    /// Returns the span of an expression
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
         self.id_span(expr_id)
     }
 
+    /// Returns the type of an item stored in the Interner.
+    //
     // Why can we unwrap here?
     // If the compiler is correct, it will not ask for a an Id of an object
     // which does not have a type. This will cause a panic.
@@ -293,6 +334,7 @@ impl NodeInterner {
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
         self.id_to_type.get(&index.into()).cloned().unwrap()
     }
+    /// Returns the span of an item stored in the Interner
     pub fn id_span(&self, index: impl Into<Index>) -> Span {
         self.id_to_span.get(&index.into()).copied().unwrap()
     }
