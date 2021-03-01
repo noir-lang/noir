@@ -11,6 +11,7 @@ dirs = "3.0.1"
 url = "2.2.0"
 noirc_driver = {path = "../noirc_driver"}
 noirc_frontend = {path = "../noirc_frontend"}
+noir_field = {path = "../noir_field"}
 noirc_abi = {path = "../noirc_abi"} 
 fm = {path = "../fm"}
 acvm = {path = "../acvm"}

@@ -1172,6 +1172,7 @@ dependencies = [
  "dirs",
  "fm",
  "hex",
+ "noir_field",
  "noirc_abi",
  "noirc_driver",
  "noirc_frontend",
@@ -1206,7 +1207,6 @@ name = "noir_evaluator"
 version = "0.1.0"
 dependencies = [
  "acvm",
- "blake2",
  "noir_field",
  "noirc_abi",
  "noirc_errors",
