@@ -16,6 +16,7 @@ const CONTRACT_DIR: &str = "contract";
 const PROOFS_DIR: &str = "proofs";
 const SRC_DIR: &str = "src";
 const PKG_FILE: &str = "Nargo.toml";
+const PROOF_EXT: &str = "proof";
 
 pub fn start_cli() {
     let matches = App::new("nargo")
