@@ -17,6 +17,6 @@ fn main() {
         if !path.is_dir() {
             continue;
         }
-        nargo::cli::build(path);
+        nargo::cli::build_from_path(path);
     }
 }
