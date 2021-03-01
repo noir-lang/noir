@@ -21,9 +21,8 @@ impl GadgetCaller for HashToFieldGadget {
     ) -> Result<Object, RuntimeErrorKind> {
         let inputs = HashToFieldGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        let res_name = evaluator.make_unique("hash_to_field_res");
-        let res_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let res_object = evaluator.add_witness_to_env(res_name, res_witness.clone(), env);
+        let res_witness = evaluator.add_witness_to_cs();
+        let res_object = Object::from_witness(res_witness);
 
         let hash_to_field_gate = GadgetCall {
             name: HashToFieldGadget::name(),

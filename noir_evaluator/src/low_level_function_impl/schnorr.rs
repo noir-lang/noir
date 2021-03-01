@@ -25,18 +25,12 @@ impl GadgetCaller for SchnorrVerifyGadget {
 
         // Create a fresh variable which will be the root
 
-        let schnorr_verify_unique_name = evaluator.make_unique("schnorr_verify_");
-
-        let schnorr_verify_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let schnorr_verify_object = evaluator.add_witness_to_env(
-            schnorr_verify_unique_name,
-            schnorr_verify_witness.clone(),
-            env,
-        );
+        let schnorr_verify_witness = evaluator.add_witness_to_cs();
+        let schnorr_verify_object = Object::from_witness(schnorr_verify_witness);
 
         let schnorr_verify_gate = GadgetCall {
             name: SchnorrVerifyGadget::name(),
-            inputs: inputs,
+            inputs,
             outputs: vec![schnorr_verify_witness],
         };
 

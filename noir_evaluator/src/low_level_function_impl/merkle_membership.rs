@@ -22,10 +22,8 @@ impl GadgetCaller for MerkleMembershipGadget {
 
         // Create a fresh variable which will be the root
 
-        let merkle_mem_unique_name = evaluator.make_unique("merkle_mem_bool_");
-        let merkle_mem_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let merkle_mem_object =
-            evaluator.add_witness_to_env(merkle_mem_unique_name, merkle_mem_witness.clone(), env);
+        let merkle_mem_witness = evaluator.add_witness_to_cs();
+        let merkle_mem_object = Object::from_witness(merkle_mem_witness);
 
         let merkle_mem_gate = GadgetCall {
             name: MerkleMembershipGadget::name(),

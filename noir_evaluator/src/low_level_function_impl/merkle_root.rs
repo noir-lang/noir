@@ -23,10 +23,8 @@ impl GadgetCaller for MerkleRootGadget {
 
         // Create a fresh variable which will be the root
 
-        let merkle_root_unique_name = evaluator.make_unique("merkle_root_");
-        let merkle_root_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let merkle_root_object =
-            evaluator.add_witness_to_env(merkle_root_unique_name, merkle_root_witness.clone(), env);
+        let merkle_root_witness = evaluator.add_witness_to_cs();
+        let merkle_root_object = Object::from_witness(merkle_root_witness);
 
         let merkle_root_gate = GadgetCall {
             name: MerkleRootGadget::name(),

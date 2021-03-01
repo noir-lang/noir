@@ -21,15 +21,13 @@ impl GadgetCaller for PedersenGadget {
     ) -> Result<Object, RuntimeErrorKind> {
         let inputs = PedersenGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        // Prepare output
-        let pedersen_unique_name = evaluator.make_unique("pedersen_");
-        let pedersen_witness = evaluator.add_witness_to_cs(); // XXX: usually the output of the function is public. To be conservative, lets make it private
-        let pedersen_object =
-            evaluator.add_witness_to_env(pedersen_unique_name, pedersen_witness.clone(), env);
+        // Create a Witness which will be the output of the pedersen hash
+        let pedersen_witness = evaluator.add_witness_to_cs();
+        let pedersen_object = Object::from_witness(pedersen_witness);
 
         let pedersen_gate = GadgetCall {
             name: PedersenGadget::name(),
-            inputs: inputs,
+            inputs,
             outputs: vec![pedersen_witness],
         };
 
