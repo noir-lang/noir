@@ -8,7 +8,7 @@ pub mod pedersen;
 mod pippenger;
 pub mod schnorr;
 
-use wasmer::{imports, ChainableNamedResolver, Cranelift, Engine, Function, Instance, Value};
+use wasmer::{imports, ChainableNamedResolver, Cranelift, Function, Instance, Value};
 use wasmer::{Module, Store};
 use wasmer_engine_jit::JIT;
 use wasmer_wasi::WasiState;
@@ -173,6 +173,7 @@ impl Barretenberg {
 }
 
 fn logstr(my_env: &Env, ptr: i32) {
+    use std::cell::Cell;
     let memory = my_env.memory.get_ref().unwrap();
 
     let mut ptr_end = 0;
@@ -186,7 +187,7 @@ fn logstr(my_env: &Env, ptr: i32) {
 
     let str_vec: Vec<_> = memory.view()[ptr as usize..=(ptr + ptr_end as i32) as usize]
         .iter()
-        .map(|cell| cell.get())
+        .map(|cell: &Cell<u8>| cell.get())
         .collect();
 
     // Convert the subslice to a `&str`.
