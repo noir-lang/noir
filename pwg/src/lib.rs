@@ -5,12 +5,11 @@ mod gadget_call;
 mod logic;
 mod merkle;
 
+use acvm::acir::circuit::Gate;
+use acvm::acir::native_types::Witness;
 pub use arithmetic::ArithmeticSolver;
 pub use gadget_call::GadgetCaller;
 pub use logic::LogicSolver;
-
-use acir::circuit::{Circuit, Gate};
-use acir::native_types::Witness;
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 

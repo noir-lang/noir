@@ -4,8 +4,8 @@ mod integer;
 pub use array::Array;
 pub use integer::Integer;
 
-use acir::circuit::gate::Gate;
-pub use acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::circuit::gate::Gate;
+use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use noir_field::FieldElement;
 
 use super::errors::RuntimeErrorKind;

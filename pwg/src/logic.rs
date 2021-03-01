@@ -1,5 +1,5 @@
-use acir::circuit::gate::{AndGate, XorGate};
-use acir::native_types::Witness;
+use acvm::acir::circuit::gate::{AndGate, XorGate};
+use acvm::acir::native_types::Witness;
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 

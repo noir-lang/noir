@@ -1,6 +1,6 @@
-use acir::circuit::gate::GadgetCall;
-use acir::native_types::Witness;
-use acir::{circuit::gate::GadgetInput, OPCODE};
+use acvm::acir::circuit::gate::GadgetCall;
+use acvm::acir::native_types::Witness;
+use acvm::acir::{circuit::gate::GadgetInput, OPCODE};
 use aztec_backend::barretenberg_rs::Barretenberg;
 use blake2::Blake2s;
 use noir_field::FieldElement;

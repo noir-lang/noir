@@ -1,6 +1,6 @@
 use super::errors::RuntimeErrorKind;
 use super::object::{Array, Object};
-use acir::native_types::Witness;
+use acvm::acir::native_types::Witness;
 use noirc_frontend::hir::scope::{
     ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
 };

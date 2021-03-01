@@ -8,19 +8,19 @@ mod object;
 mod errors;
 use acvm::BackendPointer;
 use blake2::Blake2s;
-pub use errors::{RuntimeError, RuntimeErrorKind};
+use errors::{RuntimeError, RuntimeErrorKind};
 
 use std::collections::HashMap;
 
 use environment::Environment;
 use object::{Array, Integer, Object, RangedObject};
 
-use acir::circuit::Circuit;
-use acir::circuit::{
+use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::{
     gate::{AndGate, Gate, XorGate},
     PublicInputs,
 };
-use acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 
 use noirc_frontend::hir::lower::{
     node_interner::IdentId,

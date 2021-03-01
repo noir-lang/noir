@@ -1,9 +1,9 @@
 use super::GadgetCaller;
 use super::RuntimeErrorKind;
 use crate::object::{Array, Object};
-use crate::{Environment, Evaluator, Type};
-use acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
-use acir::OPCODE;
+use crate::{Environment, Evaluator};
+use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
+use acvm::acir::OPCODE;
 use noirc_frontend::hir::lower::HirCallExpression;
 
 pub struct MerkleMembershipGadget;

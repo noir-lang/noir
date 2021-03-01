@@ -29,7 +29,7 @@ fn main() {
     // This is preamble for analysis
     // With a CrateDefMap, we are sure that the imports are correct, and the modules declared are located
     // The modules are resolved and type checked!
-    CrateDefMap::collect_defs(crate_id, &mut context);
+    CrateDefMap::collect_defs(crate_id, &mut context).unwrap();
     let def_map = context.def_map(crate_id).unwrap();
 
     //

@@ -1,4 +1,4 @@
-use acir::circuit::Circuit;
+use acvm::acir::circuit::Circuit;
 use acvm::BackendPointer;
 use noir_evaluator::Evaluator;
 use noirc_errors::DiagnosableError;

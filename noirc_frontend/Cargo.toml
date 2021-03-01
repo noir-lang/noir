@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 noir_field = {path = "../noir_field"}
-acir = {path = "../acir"}
+acvm = {path = "../acvm"}
 noirc_abi = {path = "../noirc_abi"}
 noirc_errors = {path = "../noirc_errors"}
 std_lib = {path = "../std_lib"}

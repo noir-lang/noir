@@ -1,4 +1,4 @@
-use acir::native_types::{Arithmetic, Witness};
+use acvm::acir::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 

@@ -22,10 +22,10 @@ use sha256::Sha256Gadget;
 use noirc_frontend::hir::lower::HirCallExpression;
 
 use super::RuntimeErrorKind;
-use acir::OPCODE;
+use acvm::acir::OPCODE;
 
 pub trait GadgetCaller {
-    fn name() -> acir::OPCODE;
+    fn name() -> acvm::acir::OPCODE;
     fn call(
         evaluator: &mut Evaluator,
         env: &mut Environment,

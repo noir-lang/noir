@@ -1205,7 +1205,6 @@ dependencies = [
 name = "noir_evaluator"
 version = "0.1.0"
 dependencies = [
- "acir",
  "acvm",
  "blake2",
  "noir_field",
@@ -1242,7 +1241,6 @@ dependencies = [
 name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
- "acir",
  "acvm",
  "dirs",
  "fm",
@@ -1269,7 +1267,7 @@ dependencies = [
 name = "noirc_frontend"
 version = "0.1.0"
 dependencies = [
- "acir",
+ "acvm",
  "arena",
  "fm",
  "noir_field",
@@ -1514,7 +1512,7 @@ dependencies = [
 name = "pwg"
 version = "0.1.0"
 dependencies = [
- "acir",
+ "acvm",
  "aztec_backend",
  "blake2",
  "hex",
