@@ -40,8 +40,7 @@ pub(crate) fn type_check(
         HirStatement::Semi(expr_id) => {
             type_check_expression(interner, &expr_id)?;
 
-            // Modify the type of the expression to be Unit
-            interner.modify_expr_type(&expr_id, Type::Unit);
+            interner.make_expr_type_unit(&expr_id);
 
             Ok(())
         }
