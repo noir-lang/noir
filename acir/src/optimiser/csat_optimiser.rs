@@ -81,8 +81,8 @@ impl Optimiser {
         let mut hash_map: BTreeMap<(Witness, Witness), FieldElement> = BTreeMap::new();
 
         // Canonicalise the ordering of the multiplication, lets just order by variable name
-        for (scale, wL, wR) in gate.mul_terms.clone().into_iter() {
-            let mut pair = vec![wL, wR];
+        for (scale, w_l, w_r) in gate.mul_terms.clone().into_iter() {
+            let mut pair = vec![w_l, w_r];
             // Sort using rust sort algorithm
             pair.sort();
 
@@ -93,7 +93,7 @@ impl Optimiser {
 
         gate.mul_terms = hash_map
             .into_iter()
-            .map(|((wL, wR), scale)| (scale, wL, wR))
+            .map(|((w_l, w_r), scale)| (scale, w_l, w_r))
             .collect();
 
         gate
@@ -159,11 +159,11 @@ impl Optimiser {
             let index_wl = gate
                 .linear_combinations
                 .iter()
-                .position(|(scale, witness)| *witness == pair.1);
+                .position(|(_scale, witness)| *witness == pair.1);
             let index_wr = gate
                 .linear_combinations
                 .iter()
-                .position(|(scale, witness)| *witness == pair.2);
+                .position(|(_scale, witness)| *witness == pair.2);
 
             match (index_wl, index_wr) {
                 (None, _) => {
@@ -198,7 +198,7 @@ impl Optimiser {
                     // Now we have used up 2 spaces in our arithmetic gate. The width now dictates, how many more we can add
                     let remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contrain the intermediate variable
                                                               // Keep adding terms until we have no more left, or we reach the width
-                    for i in 0..remaining_space {
+                    for _ in 0..remaining_space {
                         match gate.linear_combinations.pop() {
                             Some(wire_term) => {
                                 // Add this element into the new gate
