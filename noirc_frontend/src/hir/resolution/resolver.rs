@@ -29,7 +29,7 @@ use crate::{
     Statement,
 };
 
-use super::{
+use crate::hir::lower::{
     expr::{
         HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
         HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral,
@@ -460,14 +460,14 @@ mod test {
 
     use std::collections::HashMap;
 
-    use errors::ResolverError;
+    use crate::hir::resolution::errors::ResolverError;
 
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::{
             crate_def_map::{CrateDefMap, ModuleDefId},
             crate_graph::CrateId,
-            lower::{errors, function::HirFunction},
+            lower::function::HirFunction,
         },
         Parser, Path,
     };
@@ -547,7 +547,7 @@ mod test {
         let err = errors.pop().unwrap();
         // It should be regarding the unused variable
         match err {
-            errors::ResolverError::UnusedVariable { ident_id } => {
+            ResolverError::UnusedVariable { ident_id } => {
                 assert_eq!(interner.ident_name(&ident_id), "y".to_owned());
             }
             _ => unimplemented!("we should only have an unused var error"),
@@ -570,7 +570,7 @@ mod test {
 
         // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
         match err {
-            errors::ResolverError::VariableNotDeclared { name, span } => assert_eq!(name, "z"),
+            ResolverError::VariableNotDeclared { name, span } => assert_eq!(name, "z"),
             _ => unimplemented!("we should only have an unresolved variable"),
         }
     }
