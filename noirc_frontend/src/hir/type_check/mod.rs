@@ -69,7 +69,7 @@ mod test {
                 resolver::Resolver,
                 stmt::{HirPrivateStatement, HirStatement},
             },
-            resolution::PathResolver,
+            resolution::path_resolver::PathResolver,
         },
         FunctionKind, Parser, Path, Type,
     };

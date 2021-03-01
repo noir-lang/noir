@@ -9,7 +9,7 @@ use super::{
     crate_graph::CrateId,
     def_collector_mod::ModCollector,
     lower::resolver::Resolver,
-    resolution::{import::ImportDirective, FunctionPathResolver},
+    resolution::{import::ImportDirective, path_resolver::FunctionPathResolver},
     Context,
 };
 use crate::node_interner::{FuncId, NodeInterner};

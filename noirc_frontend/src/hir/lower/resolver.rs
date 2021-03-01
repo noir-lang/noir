@@ -22,7 +22,9 @@ use noirc_errors::Spanned;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
 use crate::{
-    hir::{crate_def_map::CrateDefMap, crate_graph::CrateId, resolution::PathResolver},
+    hir::{
+        crate_def_map::CrateDefMap, crate_graph::CrateId, resolution::path_resolver::PathResolver,
+    },
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
