@@ -66,10 +66,9 @@ mod test {
                     HirInfixExpression,
                 },
                 function::{FuncMeta, HirFunction, Param},
-                resolver::Resolver,
                 stmt::{HirPrivateStatement, HirStatement},
             },
-            resolution::path_resolver::PathResolver,
+            resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         FunctionKind, Parser, Path, Type,
     };

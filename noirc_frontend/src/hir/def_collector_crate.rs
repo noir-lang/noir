@@ -8,7 +8,7 @@ use super::{
     crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin},
     crate_graph::CrateId,
     def_collector_mod::ModCollector,
-    lower::resolver::Resolver,
+    resolution::resolver::Resolver,
     resolution::{import::ImportDirective, path_resolver::FunctionPathResolver},
     Context,
 };
