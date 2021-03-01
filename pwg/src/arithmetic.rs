@@ -7,9 +7,9 @@ use std::collections::BTreeMap;
 pub struct ArithmeticSolver;
 
 enum GateStatus {
-    GateSatisifed(FieldElement),
-    GateSolveable(FieldElement, (FieldElement, Witness)),
-    GateUnsolveable,
+    GateSatisfied(FieldElement),
+    GateSolvable(FieldElement, (FieldElement, Witness)),
+    GateUnsolvable,
 }
 
 enum MulTerm {
@@ -31,11 +31,11 @@ impl ArithmeticSolver {
 
         match (mul_result, gate_status) {
             (MulTerm::TooManyUnknowns, _) => return Some(gate),
-            (_, GateStatus::GateUnsolveable) => return Some(gate),
-            (MulTerm::OneUnknown(_, _), GateStatus::GateSolveable(_, _)) => return Some(gate),
-            (MulTerm::OneUnknown(partial_prod, unknown_var), GateStatus::GateSatisifed(sum)) => {
+            (_, GateStatus::GateUnsolvable) => return Some(gate),
+            (MulTerm::OneUnknown(_, _), GateStatus::GateSolvable(_, _)) => return Some(gate),
+            (MulTerm::OneUnknown(partial_prod, unknown_var), GateStatus::GateSatisfied(sum)) => {
                 // We have one unknown in the mul term and the fan-in terms are solved.
-                // Hence the equation is solveable, since there is a single unknown
+                // Hence the equation is solvable, since there is a single unknown
                 // The equation is: partial_prod * unknown_var + sum + qC = 0
 
                 let total_sum = sum + gate.q_c;
@@ -43,17 +43,17 @@ impl ArithmeticSolver {
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
             }
-            (MulTerm::Solved(_), GateStatus::GateSatisifed(_)) => {
+            (MulTerm::Solved(_), GateStatus::GateSatisfied(_)) => {
                 // All the variables in the MulTerm are solved and the Fan-in is also solved
                 // There is nothing to solve
                 return None;
             }
             (
                 MulTerm::Solved(total_prod),
-                GateStatus::GateSolveable(partial_sum, (coeff, unknown_var)),
+                GateStatus::GateSolvable(partial_sum, (coeff, unknown_var)),
             ) => {
                 // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
-                // Hence the equation is solveable, since we have one unknown
+                // Hence the equation is solvable, since we have one unknown
                 // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
 
                 let total_sum = total_prod + partial_sum + gate.q_c;
@@ -130,14 +130,14 @@ impl ArithmeticSolver {
 
             // If we have more than 1 unknown, then we cannot solve this equation
             if num_unknowns > 1 {
-                return GateStatus::GateUnsolveable;
+                return GateStatus::GateUnsolvable;
             }
         }
 
         if num_unknowns == 0 {
-            return GateStatus::GateSatisifed(result);
+            return GateStatus::GateSatisfied(result);
         }
 
-        GateStatus::GateSolveable(result, unknown_variable)
+        GateStatus::GateSolvable(result, unknown_variable)
     }
 }
