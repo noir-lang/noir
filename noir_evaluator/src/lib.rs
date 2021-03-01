@@ -134,7 +134,6 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         arithmetic_gate: Arithmetic,
-        typ: Type,
     ) -> (Object, Witness) {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_unique_name = self.make_unique("_inter");
