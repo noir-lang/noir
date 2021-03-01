@@ -7,7 +7,7 @@ pub fn handle_cast_op(
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
-        Type::Integer(sign, num_bits) => num_bits,
+        Type::Integer(_sign, num_bits) => num_bits,
         _ => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),

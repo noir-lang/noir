@@ -35,13 +35,13 @@ impl GadgetCaller for Blake2sGadget {
         let high_128_object =
             evaluator.add_witness_to_env(high_128_unique_name, high_128_witness.clone(), env);
 
-        let Blake2s_gate = GadgetCall {
+        let blake2s_gate = GadgetCall {
             name: Blake2sGadget::name(),
             inputs,
             outputs: vec![low_128_witness, high_128_witness],
         };
 
-        evaluator.gates.push(Gate::GadgetCall(Blake2s_gate));
+        evaluator.gates.push(Gate::GadgetCall(blake2s_gate));
 
         let arr = Array {
             length: 2,

@@ -29,7 +29,7 @@ use noirc_frontend::hir::lower::{
 };
 use noirc_frontend::{
     hir::lower::expr::{HirBinaryOpKind, HirBlockExpression},
-    FunctionKind, Signedness, Type,
+    FunctionKind, Type,
 };
 
 use noirc_frontend::hir::lower::{
@@ -569,14 +569,12 @@ impl<'a> Evaluator<'a> {
                     },
                 }
             }
-            HirExpression::For(for_expr) => {
-                self.handle_for_expr(env,for_expr)
-            }
+            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr),
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Predicate(_) => todo!(),
             HirExpression::Literal(_) => todo!(),
-            HirExpression::Block(block) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here")
+            HirExpression::Block(_) => todo!("currently block expressions not in for/if branches are not being evaluated. In the future, we should be able to unify the eval_block and all places which require block_expr here")
         }
     }
 

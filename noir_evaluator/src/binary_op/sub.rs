@@ -32,7 +32,7 @@ pub fn handle_sub_op(
                 ));
             }
         }
-        x => {
+        _ => {
             return Err(RuntimeErrorKind::UnsupportedOp {
                 span: Default::default(),
                 op: "sub".to_owned(),
