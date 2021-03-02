@@ -37,11 +37,8 @@ pub fn handle_cast_op(
             // Since all u8s can fit into u32
             // If we are casting a u32 to a u8, then this would require constraints
 
-            let casted_integer = Integer::from_arithmetic(
-                Linear::from(integer.witness.clone()).into(),
-                num_bits,
-                evaluator,
-            );
+            let casted_integer =
+                Integer::from_arithmetic(Linear::from(integer.witness).into(), num_bits, evaluator);
 
             let should_constrain = integer.num_bits > num_bits;
             if should_constrain {

@@ -68,13 +68,13 @@ fn handle_linear_mul(
         Object::Linear(linear_rhs) => Ok(Object::Arithmetic(&linear * &linear_rhs)),
         Object::Constants(constant) => Ok(Object::Linear(&linear * &constant)),
         Object::Integer(integer) => {
-            let result = &Linear::from_witness(integer.witness.clone()) * &linear;
+            let result = &Linear::from_witness(integer.witness) * &linear;
             Ok(Object::Arithmetic(result))
         }
         Object::Array(arr) => {
             let mut result = Vec::with_capacity(arr.length as usize);
             for element in arr.contents.into_iter() {
-                result.push(handle_linear_mul(linear.clone(), element, evaluator)?);
+                result.push(handle_linear_mul(linear, element, evaluator)?);
             }
 
             Ok(Object::Array(Array {

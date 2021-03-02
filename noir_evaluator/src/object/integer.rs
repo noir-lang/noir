@@ -23,8 +23,8 @@ impl Integer {
     pub fn constrain(&self, evaluator: &mut Evaluator) -> Result<(), RuntimeErrorKind> {
         if self.num_bits == 1 {
             // Add a bool gate
-            let x = Linear::from_witness(self.witness.clone());
-            let mut x_minus_one = Linear::from_witness(self.witness.clone());
+            let x = Linear::from_witness(self.witness);
+            let mut x_minus_one = Linear::from_witness(self.witness);
             x_minus_one.add_scale = -noir_field::FieldElement::one();
             let bool_constraint = &x_minus_one * &x;
 
@@ -40,7 +40,7 @@ impl Integer {
             // Note if the number of bits is odd, then barretenberg will panic
             evaluator
                 .gates
-                .push(Gate::Range(self.witness.clone(), self.num_bits));
+                .push(Gate::Range(self.witness, self.num_bits));
         }
         Ok(())
     }
@@ -92,11 +92,8 @@ impl Integer {
             self.num_bits, num_bits
         );
 
-        let res = binary_op::handle_add_op(
-            Object::from_witness(self.witness.clone()),
-            witness_rhs,
-            evaluator,
-        )?;
+        let res =
+            binary_op::handle_add_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
         Ok(Integer::from_object(res, self.num_bits, evaluator)?)
     }
@@ -116,11 +113,8 @@ impl Integer {
         }
 
         // Add a gate which subtracts both integers
-        let res = binary_op::handle_sub_op(
-            Object::from_witness(self.witness.clone()),
-            witness_rhs,
-            evaluator,
-        )?;
+        let res =
+            binary_op::handle_sub_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
         // Constrain the result to be equal to an integer in range of 2^num_bits
         Ok(Integer::from_object(res, self.num_bits, evaluator)?)
@@ -141,16 +135,16 @@ impl Integer {
 
         if is_xor_gate {
             evaluator.gates.push(Gate::Xor(XorGate {
-                a: self.witness.clone(),
+                a: self.witness,
                 b: rhs.witness,
-                result: result.clone(),
+                result,
                 num_bits: self.num_bits,
             }));
         } else {
             evaluator.gates.push(Gate::And(AndGate {
-                a: self.witness.clone(),
+                a: self.witness,
                 b: rhs.witness,
-                result: result.clone(),
+                result,
                 num_bits: self.num_bits,
             }));
         }
@@ -196,11 +190,8 @@ impl Integer {
             });
         }
 
-        let res = binary_op::handle_mul_op(
-            Object::from_witness(self.witness.clone()),
-            witness_rhs,
-            evaluator,
-        )?;
+        let res =
+            binary_op::handle_mul_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
         Ok(Integer::from_object(
             res,
@@ -216,7 +207,7 @@ fn extract_witness_and_num_bits(
 ) -> Result<(Object, u32), RuntimeErrorKind> {
     let (object, bits) = match &poly {
         Object::Integer(integer_rhs) => (
-            Object::from_witness(integer_rhs.witness.clone()),
+            Object::from_witness(integer_rhs.witness),
             integer_rhs.num_bits,
         ),
         Object::Linear(_) => (poly, num_bits),

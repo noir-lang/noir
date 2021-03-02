@@ -33,7 +33,7 @@ impl Object {
     pub fn into_arithmetic(&self) -> Option<Arithmetic> {
         match self {
             Object::Null => None,
-            Object::Integer(integer) => Some(Linear::from_witness(integer.witness.clone()).into()),
+            Object::Integer(integer) => Some(Linear::from_witness(integer.witness).into()),
             Object::Array(_) => None,
             Object::Arithmetic(arith) => Some(arith.clone()),
             Object::Constants(constant) => Some(constant.into()),
@@ -94,21 +94,21 @@ impl Object {
             Object::Linear(linear) => {
                 assert!(linear.mul_scale == FieldElement::one());
                 assert!(linear.add_scale == FieldElement::zero());
-                Some(linear.witness.clone())
+                Some(linear.witness)
             }
             _ => None,
         }
     }
     pub fn linear(&self) -> Option<Linear> {
         match self {
-            Object::Linear(linear) => Some(linear.clone()),
-            Object::Integer(integer) => Some(Linear::from(integer.witness.clone())),
+            Object::Linear(linear) => Some(*linear),
+            Object::Integer(integer) => Some(Linear::from(integer.witness)),
             _ => None,
         }
     }
     pub fn integer(&self) -> Option<Integer> {
         match self {
-            Object::Integer(integer) => Some(integer.clone()),
+            Object::Integer(integer) => Some(*integer),
             _ => None,
         }
     }
@@ -150,7 +150,7 @@ impl Object {
             }
             Object::Linear(lin) => Object::Linear(lin * &constant),
             Object::Integer(integer) => {
-                let result = &Linear::from_witness(integer.witness.clone()) * &constant;
+                let result = &Linear::from_witness(integer.witness) * &constant;
                 Object::Linear(result)
             }
             Object::Constants(lhs) => Object::Constants(*lhs * constant),

@@ -155,7 +155,7 @@ impl Sub<&Arithmetic> for &Arithmetic {
 impl From<&FieldElement> for Arithmetic {
     fn from(constant: &FieldElement) -> Arithmetic {
         Arithmetic {
-            q_c: constant.clone(),
+            q_c: *constant,
             linear_combinations: Vec::new(),
             mul_terms: Vec::new(),
         }
@@ -165,7 +165,7 @@ impl From<&Linear> for Arithmetic {
     fn from(lin: &Linear) -> Arithmetic {
         Arithmetic {
             q_c: lin.add_scale,
-            linear_combinations: vec![(lin.mul_scale, lin.witness.clone())],
+            linear_combinations: vec![(lin.mul_scale, lin.witness)],
             mul_terms: Vec::new(),
         }
     }
@@ -177,7 +177,7 @@ impl From<Linear> for Arithmetic {
 }
 impl From<&Witness> for Arithmetic {
     fn from(wit: &Witness) -> Arithmetic {
-        Linear::from_witness(wit.clone()).into()
+        Linear::from_witness(*wit).into()
     }
 }
 

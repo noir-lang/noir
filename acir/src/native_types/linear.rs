@@ -49,10 +49,7 @@ impl Add<&Linear> for &Linear {
         // (Ax + B) + (Cy + D) = Ax + Cy + (B+D)
         Arithmetic {
             mul_terms: Vec::new(),
-            linear_combinations: vec![
-                (self.mul_scale, self.witness.clone()),
-                (rhs.mul_scale, rhs.witness.clone()),
-            ],
+            linear_combinations: vec![(self.mul_scale, self.witness), (rhs.mul_scale, rhs.witness)],
             q_c: self.add_scale + rhs.add_scale,
         }
     }
@@ -64,7 +61,7 @@ impl Neg for &Linear {
         // -(Ax + B) = -Ax - B
         Linear {
             add_scale: -self.add_scale,
-            witness: self.witness.clone(),
+            witness: self.witness,
             mul_scale: -self.mul_scale,
         }
     }
@@ -76,11 +73,11 @@ impl Mul<&Linear> for &Linear {
         // (Ax+B)(Cy+D) = ACxy + ADx + BCy + BD
         let a = self.mul_scale;
         let b = self.add_scale;
-        let x = self.witness.clone();
+        let x = self.witness;
 
         let c = rhs.mul_scale;
         let d = rhs.add_scale;
-        let y = rhs.witness.clone();
+        let y = rhs.witness;
 
         let ac = a * c;
         let ad = a * d;
@@ -88,7 +85,7 @@ impl Mul<&Linear> for &Linear {
         let bd = b * d;
 
         Arithmetic {
-            mul_terms: vec![(ac, x.clone(), y.clone())],
+            mul_terms: vec![(ac, x, y)],
             linear_combinations: vec![(ad, x), (bc, y)],
             q_c: bd,
         }
@@ -99,7 +96,7 @@ impl Mul<&FieldElement> for &Linear {
     fn mul(self, rhs: &FieldElement) -> Self::Output {
         Linear {
             mul_scale: self.mul_scale * *rhs,
-            witness: self.witness.clone(),
+            witness: self.witness,
             add_scale: self.add_scale * *rhs,
         }
     }
@@ -109,7 +106,7 @@ impl Add<&FieldElement> for &Linear {
     fn add(self, rhs: &FieldElement) -> Self::Output {
         Linear {
             mul_scale: self.mul_scale,
-            witness: self.witness.clone(),
+            witness: self.witness,
             add_scale: self.add_scale + *rhs,
         }
     }
@@ -149,6 +146,6 @@ impl Sub<&Linear> for &Linear {
 impl Sub<&FieldElement> for &Linear {
     type Output = Linear;
     fn sub(self, rhs: &FieldElement) -> Self::Output {
-        self + &-rhs.clone()
+        self + &-*rhs
     }
 }

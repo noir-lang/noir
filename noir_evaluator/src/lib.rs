@@ -256,7 +256,7 @@ impl<'a> Evaluator<'a> {
                 }
                 noirc_abi::AbiType::Public => {
                     let witness = self.add_witness_to_cs();
-                    self.public_inputs.push(witness.clone());
+                    self.public_inputs.push(witness);
                     self.add_witness_to_env(param_name, witness, env);
                 }
             }
@@ -317,7 +317,7 @@ impl<'a> Evaluator<'a> {
         if rhs_poly.can_defer_constraint() {
             env.store(variable_name, rhs_poly.clone());
         } else {
-            self.add_witness_to_env(variable_name, witness.clone(), env);
+            self.add_witness_to_env(variable_name, witness, env);
         }
 
         // This is a private statement, which is why we extract only a witness type from the object
