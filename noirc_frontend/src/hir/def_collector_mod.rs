@@ -9,7 +9,7 @@ use super::{
 };
 
 use super::{
-    crate_def_map::{parse_root_file, LocalModuleId, ModuleData, ModuleOrigin},
+    crate_def_map::{parse_file, LocalModuleId, ModuleData, ModuleOrigin},
     def_collector_crate::DefCollector,
     Context,
 };
@@ -87,7 +87,7 @@ impl<'a> ModCollector<'a> {
             .unwrap();
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_root_file(context.file_manager(), new_file_id)?;
+        let ast = parse_file(context.file_manager(), new_file_id)?;
 
         // Add module into def collector and get a ModuleId
         let new_mod_id = self.push_child_module(mod_name, new_file_id);

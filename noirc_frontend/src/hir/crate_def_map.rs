@@ -1,6 +1,5 @@
 use super::{crate_graph::CrateId, def_collector_crate::DefCollector, Context};
 use crate::node_interner::FuncId;
-
 use crate::{parser::Program, Parser};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
@@ -10,6 +9,7 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
+/// XXX: RA has made this a crate on crates.io
 pub struct LocalModuleId(pub Index);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -40,8 +40,8 @@ impl CrateDefMap {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
-        // expect the same crate to be processed twice. It does not
-        // make the implementation wrong, it just makes it slow.
+        // expect the same crate to be processed twice. It would not
+        // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
         if context.def_map(crate_id).is_some() {
             return Ok(());
         }
@@ -49,7 +49,7 @@ impl CrateDefMap {
         let root_file_id = context.crate_graph[crate_id].root_file_id;
 
         // First parse the root file into an AST
-        let ast = parse_root_file(&mut context.file_manager(), root_file_id)?;
+        let ast = parse_file(&mut context.file_manager(), root_file_id)?;
 
         // Allocate a default Module for the root
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -70,16 +70,14 @@ impl CrateDefMap {
     pub fn root(&self) -> LocalModuleId {
         self.root
     }
-
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
     }
-
     pub fn krate(&self) -> CrateId {
         self.krate
     }
 
-    // Find the main function for this module
+    /// Find the main function for this crate
     pub fn main_function(&self) -> Option<FuncId> {
         const MAIN_FUNCTION: &str = "main";
 
@@ -93,22 +91,20 @@ impl CrateDefMap {
         root_module.origin.into()
     }
 }
-/// Fetch the crate root and parse the file
-pub fn parse_root_file(
-    fm: &mut FileManager,
-    root_file_id: FileId,
-) -> Result<Program, Vec<CollectedErrors>> {
-    let file = fm.fetch_file(root_file_id);
+
+/// Given a FileId, fetch the File, from the FileManager and parse it's content
+pub fn parse_file(fm: &mut FileManager, file_id: FileId) -> Result<Program, Vec<CollectedErrors>> {
+    let file = fm.fetch_file(file_id);
     let mut parser = Parser::from_src(file.get_source());
     match parser.parse_program() {
         Ok(prog) => Ok(prog),
         Err(errs) => {
-            let root_file_errs = CollectedErrors {
-                file_id: root_file_id,
+            let file_errs = CollectedErrors {
+                file_id,
                 errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
             };
 
-            Err(vec![root_file_errs])
+            Err(vec![file_errs])
         }
     }
 }
