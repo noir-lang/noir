@@ -4,10 +4,9 @@
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
 
+use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
-
-use fm::FileId;
 
 /// The local crate is the crate being compiled.
 /// The caller should ensure that this crate has a CrateId(0).
@@ -37,7 +36,6 @@ impl CrateName {
     }
 }
 
-// XXX: Should enforce that Nothing can depend on a binary, only libraries can be depended on?
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
