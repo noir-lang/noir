@@ -1,18 +1,12 @@
+mod errors;
 mod infix_parser;
 mod parser;
 mod prefix_parser;
 
-mod errors;
-
-pub use errors::ParserErrorKind;
-
-pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
-
 use crate::token::{Keyword, SpannedToken, Token};
-use crate::{
-    ast::{FunctionDefinition, ImportStatement, Type},
-    FunctionKind, NoirFunction,
-};
+use crate::{ast::ImportStatement, NoirFunction};
+pub use errors::ParserErrorKind;
+pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
 #[derive(Clone, Debug)]
 pub struct Program {
@@ -21,29 +15,7 @@ pub struct Program {
     pub module_decls: Vec<String>,
 }
 
-const MAIN_FUNCTION: &str = "main";
-
 impl Program {
-    /// Returns the program abi which is only present for executables and not libraries
-    /// Note: That a library can have a main method, so you should only call this, if you are sure the crate is a binary
-    pub fn abi(&self) -> Option<Vec<(String, Type)>> {
-        let main_func = self.find_function(MAIN_FUNCTION)?;
-        match main_func.kind {
-            FunctionKind::Normal => Some(Program::func_to_abi(main_func.def())), // The main function should be normal and not a builtin/low level
-            _ => None,
-        }
-    }
-
-    pub fn find_function(&self, name: &str) -> Option<&NoirFunction> {
-        for func in self.functions.iter() {
-            let func_name = func.name();
-            if func_name == name {
-                return Some(func);
-            }
-        }
-        None
-    }
-
     fn with_capacity(cap: usize) -> Self {
         Program {
             imports: Vec::with_capacity(cap),
@@ -60,13 +32,6 @@ impl Program {
     }
     fn push_module_decl(&mut self, mod_name: String) {
         self.module_decls.push(mod_name);
-    }
-
-    fn func_to_abi(func: &FunctionDefinition) -> Vec<(String, Type)> {
-        func.parameters
-            .iter()
-            .map(|(ident, typ)| (ident.0.contents.clone(), typ.clone()))
-            .collect()
     }
 }
 
