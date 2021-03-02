@@ -1,19 +1,16 @@
-use std::collections::HashMap;
+pub mod def_collector;
+pub mod def_map;
+pub mod resolution;
+pub mod scope;
+pub mod type_check;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::node_interner::NodeInterner;
 use def_map::CrateDefMap;
 use fm::FileManager;
-
-pub mod def_collector;
-pub mod def_map;
-pub mod resolution;
-pub mod scope;
-
-pub mod type_check;
+use std::collections::HashMap;
 
 /// Global context that is accessible during each stage
-/// XXX: It's possible to have sub-contexts, however it's better to benchmark first.
 #[derive(Debug)]
 pub struct Context {
     pub def_interner: NodeInterner,
@@ -22,7 +19,7 @@ pub struct Context {
 
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
 
-    file_manager: FileManager,
+    pub file_manager: FileManager,
 }
 
 impl Default for Context {
@@ -45,19 +42,17 @@ impl Context {
             file_manager,
         }
     }
-
-    pub fn file_manager(&mut self) -> &mut FileManager {
-        &mut self.file_manager
-    }
-    pub fn crate_graph(&self) -> &CrateGraph {
-        &self.crate_graph
-    }
+    /// Returns the CrateDefMap for a given CrateId.
+    /// It is perfectly valid for the compiler to look
+    /// up a CrateDefMap and it is not available.
+    /// This is how the compiler knows to compile a Crate.
     pub fn def_map(&self, crate_id: CrateId) -> Option<&CrateDefMap> {
         self.def_maps.get(&crate_id)
     }
 
-    /// Return the CrateId of all of the Crates that have been compiled
+    /// Return the CrateId for each crate that has been compiled
+    /// successfully
     pub fn crates(&self) -> impl Iterator<Item = CrateId> + '_ {
-        self.crate_graph().iter_keys()
+        self.crate_graph.iter_keys()
     }
 }
