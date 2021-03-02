@@ -46,12 +46,11 @@ impl CrateDefMap {
             return Ok(());
         }
 
+        // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-
-        // First parse the root file into an AST
         let ast = parse_file(&mut context.file_manager(), root_file_id)?;
 
-        // Allocate a default Module for the root
+        // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let root = modules.insert(ModuleData::default());
 
