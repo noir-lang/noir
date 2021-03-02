@@ -1,4 +1,5 @@
-use super::{crate_graph::CrateId, def_collector_crate::DefCollector, Context};
+use super::{def_collector_crate::DefCollector, Context};
+use crate::graph::CrateId;
 use crate::node_interner::FuncId;
 use crate::{parser::Program, Parser};
 use arena::{Arena, Index};
@@ -6,10 +7,10 @@ use fm::{FileId, FileManager};
 use noirc_errors::{CollectedErrors, DiagnosableError};
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct LocalModuleId(pub Index);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -30,9 +31,7 @@ pub struct CrateDefMap {
 }
 
 impl CrateDefMap {
-    // XXX: We will need to pass in a CrateManager to give access to the other crates
-    // Each crate gives itself a LocalModuleId, independently.
-    //
+    /// Collect all definitions in the crate
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
@@ -53,6 +52,9 @@ impl CrateDefMap {
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
         let root = modules.insert(ModuleData::default());
+
+        // Set the origin of the root module
+        modules[root].origin = ModuleOrigin::CrateRoot(root_file_id);
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
