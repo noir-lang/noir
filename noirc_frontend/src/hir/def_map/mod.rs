@@ -8,6 +8,14 @@ use fm::{FileId, FileManager};
 use noirc_errors::{CollectedErrors, DiagnosableError};
 use std::collections::HashMap;
 
+mod module_def;
+pub use module_def::*;
+mod item_scope;
+pub use item_scope::*;
+mod module_data;
+pub use module_data::*;
+mod namespace;
+pub use namespace::*;
 // XXX: Ultimately, we want to constrain an index to be of a certain type just like in RA
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
@@ -120,191 +128,5 @@ impl std::ops::Index<LocalModuleId> for CrateDefMap {
 impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
         &mut self.modules[local_module_id.0]
-    }
-}
-
-#[derive(Default, Debug, PartialEq, Eq)]
-pub struct ModuleData {
-    pub parent: Option<LocalModuleId>,
-    pub children: HashMap<String, LocalModuleId>,
-    pub scope: ItemScope,
-
-    pub origin: ModuleOrigin,
-}
-
-// This works exactly the same as in r-a, just simplified
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct PerNs {
-    pub types: Option<(ModuleDefId, Visibility)>,
-    pub values: Option<(ModuleDefId, Visibility)>,
-}
-
-impl PerNs {
-    pub fn types(t: ModuleDefId) -> PerNs {
-        PerNs {
-            types: Some((t, Visibility::Public)),
-            values: None,
-        }
-    }
-
-    pub fn take_types(self) -> Option<ModuleDefId> {
-        self.types.map(|it| it.0)
-    }
-
-    pub fn take_values(self) -> Option<ModuleDefId> {
-        self.values.map(|it| it.0)
-    }
-
-    pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
-        self.types
-            .map(|it| it.0)
-            .into_iter()
-            .chain(self.values.map(|it| it.0).into_iter())
-    }
-
-    pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility)> {
-        self.types
-            .map(|it| it)
-            .into_iter()
-            .chain(self.values.map(|it| it).into_iter())
-    }
-
-    pub fn is_none(&self) -> bool {
-        self.types.is_none() && self.values.is_none()
-    }
-}
-
-#[derive(Default, Debug, PartialEq, Eq)]
-pub struct ItemScope {
-    types: HashMap<String, (ModuleDefId, Visibility)>,
-    values: HashMap<String, (ModuleDefId, Visibility)>,
-
-    defs: Vec<ModuleDefId>,
-}
-
-impl ItemScope {
-    pub fn add_definition(&mut self, name: String, mod_def: ModuleDefId) {
-        self.add_item_to_namespace(name, mod_def).unwrap();
-        self.defs.push(mod_def);
-    }
-
-    pub fn add_item_to_namespace(
-        &mut self,
-        name: String,
-        mod_def: ModuleDefId,
-    ) -> Result<(), String> {
-        let old_value = match &mod_def {
-            ModuleDefId::ModuleId(_) => self
-                .types
-                .insert(name.clone(), (mod_def, Visibility::Public)),
-            ModuleDefId::FunctionId(_) => self
-                .values
-                .insert(name.clone(), (mod_def, Visibility::Public)),
-        };
-        match old_value {
-            None => Ok(()),
-            Some(_) => {
-                // XXX: If a module has the same function name twice, this error will trigger or module def.
-                // Not an ice, but a user defined error
-                Err(name)
-            }
-        }
-    }
-
-    pub fn define_module_def(&mut self, name: String, mod_id: ModuleId) {
-        self.add_definition(name, mod_id.into())
-    }
-    pub fn define_func_def(&mut self, name: String, local_id: FuncId) {
-        self.add_definition(name, local_id.into())
-    }
-
-    pub fn find_module_with_name(&self, mod_name: &str) -> Option<&ModuleId> {
-        let (module_def, _) = self.types.get(mod_name)?;
-        match module_def {
-            ModuleDefId::ModuleId(id) => Some(id),
-            _ => None,
-        }
-    }
-    pub fn find_func_with_name(&self, func_name: &str) -> Option<FuncId> {
-        let (module_def, _) = self.values.get(func_name)?;
-        match module_def {
-            ModuleDefId::FunctionId(id) => Some(*id),
-            _ => None,
-        }
-    }
-    pub fn find_name(&self, name: &str) -> PerNs {
-        PerNs {
-            types: self.types.get(name).cloned(),
-            values: self.values.get(name).cloned(),
-        }
-    }
-
-    pub fn definitions(&self) -> Vec<ModuleDefId> {
-        self.defs.clone()
-    }
-    pub fn types(&self) -> &HashMap<String, (ModuleDefId, Visibility)> {
-        &self.types
-    }
-    pub fn values(&self) -> &HashMap<String, (ModuleDefId, Visibility)> {
-        &self.values
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Visibility {
-    Public,
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum ModuleOrigin {
-    CrateRoot(FileId),
-    File(FileId),
-}
-
-impl Into<FileId> for ModuleOrigin {
-    fn into(self) -> FileId {
-        match self {
-            ModuleOrigin::CrateRoot(file_id) => file_id,
-            ModuleOrigin::File(file_id) => file_id,
-        }
-    }
-}
-
-impl Default for ModuleOrigin {
-    fn default() -> Self {
-        ModuleOrigin::CrateRoot(FileId::default())
-    }
-}
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ModuleDefId {
-    ModuleId(ModuleId),
-    FunctionId(FuncId),
-}
-
-impl ModuleDefId {
-    pub fn as_function(&self) -> Option<FuncId> {
-        if let ModuleDefId::FunctionId(func_id) = self {
-            return Some(*func_id);
-        }
-        return None;
-    }
-    // XXX: We are still allocating fro error reporting even though strings are stored in binary
-    // It is a minor performance issue, which can be addressed by having the error reporting, not allocate
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ModuleDefId::FunctionId(_) => "function",
-            ModuleDefId::ModuleId(_) => "module",
-        }
-    }
-}
-
-impl Into<ModuleDefId> for ModuleId {
-    fn into(self) -> ModuleDefId {
-        ModuleDefId::ModuleId(self)
-    }
-}
-impl Into<ModuleDefId> for FuncId {
-    fn into(self) -> ModuleDefId {
-        ModuleDefId::FunctionId(self)
     }
 }
