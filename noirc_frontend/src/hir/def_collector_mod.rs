@@ -81,22 +81,22 @@ impl<'a> ModCollector<'a> {
         context: &mut Context,
         mod_name: &str,
     ) -> Result<(), Vec<CollectedErrors>> {
-        let new_file_id = context
+        let child_file_id = context
             .file_manager()
             .resolve_path(self.file_id, mod_name)
             .unwrap();
 
         // Parse the AST for the module we just found and then recursively look for it's defs
-        let ast = parse_file(context.file_manager(), new_file_id)?;
+        let ast = parse_file(context.file_manager(), child_file_id)?;
 
         // Add module into def collector and get a ModuleId
-        let new_mod_id = self.push_child_module(mod_name, new_file_id);
+        let child_mod_id = self.push_child_module(mod_name, child_file_id);
 
         ModCollector {
             def_collector: self.def_collector,
             ast,
-            file_id: new_file_id,
-            module_id: new_mod_id,
+            file_id: child_file_id,
+            module_id: child_mod_id,
         }
         .collect_defs(context)
     }
