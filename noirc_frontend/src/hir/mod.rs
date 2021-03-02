@@ -5,15 +5,13 @@ use crate::node_interner::NodeInterner;
 use def_map::CrateDefMap;
 use fm::FileManager;
 
-pub mod def_collector_crate;
-pub mod def_collector_mod;
+pub mod def_collector;
 pub mod def_map;
 pub mod resolution;
 pub mod scope;
 
-pub mod type_check;
-
 pub mod lower;
+pub mod type_check;
 
 /// Global context that is accessible during each stage
 /// XXX: It's possible to have sub-contexts, however it's better to benchmark first.
