@@ -3,16 +3,11 @@ use noirc_errors::CollectedErrors;
 
 use crate::{NoirFunction, Program};
 
-use super::{
-    def_collector_crate::UnresolvedFunctions, def_map::ModuleId,
-    resolution::import::ImportDirective,
-};
-
-use super::{
-    def_collector_crate::DefCollector,
-    def_map::{parse_file, LocalModuleId, ModuleData, ModuleOrigin},
-    Context,
-};
+use super::dc_crate::{DefCollector, UnresolvedFunctions};
+use crate::hir::def_map::ModuleId;
+use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleOrigin};
+use crate::hir::resolution::import::ImportDirective;
+use crate::hir::Context;
 
 /// Given a module collect all definitions into ModuleData
 pub struct ModCollector<'a> {

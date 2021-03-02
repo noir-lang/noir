@@ -1,11 +1,12 @@
-use super::{
-    def_collector_mod::ModCollector,
-    def_map::{CrateDefMap, LocalModuleId, ModuleId},
-    resolution::resolver::Resolver,
-    resolution::{import::ImportDirective, path_resolver::FunctionPathResolver},
-    Context,
-};
+use super::dc_mod::ModCollector;
 use crate::graph::CrateId;
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
+use crate::hir::resolution::resolver::Resolver;
+use crate::hir::resolution::{
+    import::{resolve_imports, ImportDirective},
+    path_resolver::FunctionPathResolver,
+};
+use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::{NoirFunction, Program};
 use fm::FileId;
@@ -90,11 +91,8 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
-        let (unresolved, resolved) = super::resolution::import::resolve_imports(
-            crate_id,
-            def_collector.collected_imports,
-            &context.def_maps,
-        );
+        let (unresolved, resolved) =
+            resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
         if !unresolved.is_empty() {
             panic!("could not resolve the following imports: {:?}", unresolved)
         }
@@ -175,12 +173,13 @@ fn resolve_functions(
     return Err(errors);
 }
 
+use crate::hir::type_check::type_check_func;
 fn type_check_functions(
     interner: &mut NodeInterner,
     file_func_ids: Vec<(FileId, FuncId)>,
 ) -> Result<(), Vec<CollectedErrors>> {
     for (file_id, func_id) in file_func_ids {
-        if let Err(type_err) = super::type_check::type_check_func(interner, func_id) {
+        if let Err(type_err) = type_check_func(interner, func_id) {
             let diag = type_err.into_diagnostics(interner);
             let errs = vec![CollectedErrors {
                 file_id,
