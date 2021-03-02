@@ -1,5 +1,5 @@
 // This has been taken and modified from the rust-analyzer codebase
-// For the most part, everything is the same, the differences are quite subtle,
+// For the most part, everything is the same, the differences are quite subtle
 // but still present. Moreover, since RA is uses incremental compilation, the usage of this component may differ.
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
@@ -9,17 +9,11 @@ use smol_str::SmolStr;
 
 use fm::FileId;
 
-/// The local crate which is the crate being compiled
-/// should always have a CrateId of zero
+/// The local crate is the crate being compiled.
+/// The caller should ensure that this crate has a CrateId(0).
 pub const LOCAL_CRATE: CrateId = CrateId(0);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CrateId(usize);
-
-impl Default for CrateId {
-    fn default() -> CrateId {
-        CrateId(0)
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateName(SmolStr);
