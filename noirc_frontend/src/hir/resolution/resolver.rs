@@ -18,16 +18,14 @@ struct ResolverMeta {
 }
 use std::collections::HashMap;
 
-use noirc_errors::Spanned;
-
+use crate::graph::CrateId;
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
 use crate::{
-    hir::{
-        crate_def_map::CrateDefMap, crate_graph::CrateId, resolution::path_resolver::PathResolver,
-    },
+    hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
+use noirc_errors::Spanned;
 
 use crate::hir::lower::{
     expr::{
@@ -462,11 +460,11 @@ mod test {
 
     use crate::hir::resolution::errors::ResolverError;
 
+    use crate::graph::CrateId;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::{
-            crate_def_map::{CrateDefMap, ModuleDefId},
-            crate_graph::CrateId,
+            def_map::{CrateDefMap, ModuleDefId},
             lower::function::HirFunction,
         },
         Parser, Path,

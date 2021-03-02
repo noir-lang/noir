@@ -3,11 +3,9 @@ use acvm::BackendPointer;
 use noir_evaluator::Evaluator;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
+use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
+use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir::{
-    crate_def_map::CrateDefMap,
-    crate_graph::{CrateId, CrateName, CrateType, LOCAL_CRATE},
-};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]

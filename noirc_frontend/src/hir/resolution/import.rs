@@ -1,11 +1,8 @@
+use crate::graph::CrateId;
 use std::collections::HashMap;
 
-use crate::{
-    hir::{crate_def_map::ModuleId, crate_graph::CrateId},
-    Ident, Path, PathKind,
-};
-
-use crate::hir::crate_def_map::{CrateDefMap, LocalModuleId, ModuleDefId, PerNs};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
+use crate::{Ident, Path, PathKind};
 
 #[derive(Debug)]
 pub struct ImportDirective {

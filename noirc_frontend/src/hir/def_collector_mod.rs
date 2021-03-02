@@ -4,13 +4,13 @@ use noirc_errors::CollectedErrors;
 use crate::{NoirFunction, Program};
 
 use super::{
-    crate_def_map::ModuleId, def_collector_crate::UnresolvedFunctions,
+    def_collector_crate::UnresolvedFunctions, def_map::ModuleId,
     resolution::import::ImportDirective,
 };
 
 use super::{
-    crate_def_map::{parse_file, LocalModuleId, ModuleData, ModuleOrigin},
     def_collector_crate::DefCollector,
+    def_map::{parse_file, LocalModuleId, ModuleData, ModuleOrigin},
     Context,
 };
 

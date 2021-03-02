@@ -5,7 +5,7 @@ use std::{
 
 use acvm::BackendPointer;
 use noirc_driver::Driver;
-use noirc_frontend::hir::crate_graph::{CrateId, CrateType};
+use noirc_frontend::graph::{CrateId, CrateType};
 
 use crate::{
     toml::{Config, Dependency},

@@ -1,4 +1,4 @@
-use noirc_frontend::hir::crate_graph::CrateType;
+use noirc_frontend::graph::CrateType;
 use std::{
     io::Write,
     path::{Path, PathBuf},

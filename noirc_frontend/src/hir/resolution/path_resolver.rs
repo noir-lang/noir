@@ -2,10 +2,8 @@ use super::import::{resolve_path_to_ns, ImportDirective, PathResolution};
 use crate::Path;
 use std::collections::HashMap;
 
-use crate::hir::{
-    crate_def_map::{CrateDefMap, ModuleDefId, ModuleId},
-    crate_graph::CrateId,
-};
+use crate::graph::CrateId;
+use crate::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 
 pub trait PathResolver {
     fn resolve(&self, def_maps: &HashMap<CrateId, CrateDefMap>, path: Path) -> Option<ModuleDefId>;

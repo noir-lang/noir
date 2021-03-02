@@ -1,12 +1,9 @@
 use std::path::PathBuf;
 
 use fm::FileManager;
-use hir::{
-    crate_def_map::CrateDefMap,
-    crate_graph::{CrateGraph, CrateType},
-    Context,
-};
-use noirc_frontend::hir::{self, crate_def_map::ModuleDefId};
+use hir::{def_map::CrateDefMap, Context};
+use noirc_frontend::graph::{CrateGraph, CrateType};
+use noirc_frontend::hir::{self, def_map::ModuleDefId};
 
 // XXX: This is another sandbox test
 fn main() {

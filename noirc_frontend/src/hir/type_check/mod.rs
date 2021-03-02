@@ -55,11 +55,11 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
+    use crate::graph::CrateId;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::{
-            crate_def_map::{CrateDefMap, ModuleDefId},
-            crate_graph::CrateId,
+            def_map::{CrateDefMap, ModuleDefId},
             lower::{
                 expr::{
                     HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression,

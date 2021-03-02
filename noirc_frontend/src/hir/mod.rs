@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
+use crate::graph::{CrateGraph, CrateId};
 use crate::node_interner::NodeInterner;
-use crate_def_map::CrateDefMap;
-use crate_graph::{CrateGraph, CrateId};
+use def_map::CrateDefMap;
 use fm::FileManager;
 
-pub mod crate_def_map;
-pub mod crate_graph;
 pub mod def_collector_crate;
 pub mod def_collector_mod;
+pub mod def_map;
 pub mod resolution;
 pub mod scope;
 

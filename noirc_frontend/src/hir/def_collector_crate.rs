@@ -1,11 +1,11 @@
 use super::{
-    crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin},
-    crate_graph::CrateId,
     def_collector_mod::ModCollector,
+    def_map::{CrateDefMap, LocalModuleId, ModuleId},
     resolution::resolver::Resolver,
     resolution::{import::ImportDirective, path_resolver::FunctionPathResolver},
     Context,
 };
+use crate::graph::CrateId;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::{NoirFunction, Program};
 use fm::FileId;
@@ -33,49 +33,48 @@ pub struct DefCollector {
 
 impl DefCollector {
     /// Collect all of the definitions in a given crate into a CrateDefMap
-    /// Modules which are not a part of the module hierarchy will be ignored.
+    /// Modules which are not a part of the module hierarchy starting with
+    /// the root module, will be ignored.
     pub fn collect(
         mut def_map: CrateDefMap,
-        mut context: &mut Context,
+        context: &mut Context,
         ast: Program,
         root_file_id: FileId,
     ) -> Result<(), Vec<CollectedErrors>> {
         let crate_id = def_map.krate;
 
-        // First collect all of the definitions from the crate dependencies into CrateDefMaps
+        // Recursively resolve the dependencies
+        //
         // Dependencies are fetched from the crate graph
-        // Then add these to the context of DefMaps
+        // Then added these to the context of DefMaps once they are resolved
+        //
         let crate_graph = &context.crate_graph()[crate_id];
         for dep in crate_graph.dependencies.clone() {
-            CrateDefMap::collect_defs(dep.crate_id, &mut context)?;
+            CrateDefMap::collect_defs(dep.crate_id, context)?;
+
             let dep_def_root = context
                 .def_map(dep.crate_id)
                 .expect("ice: def map was just created")
                 .root;
-            def_map.extern_prelude.insert(
-                dep.as_name(),
-                ModuleId {
-                    krate: dep.crate_id,
-                    local_id: dep_def_root,
-                },
-            );
+            let module_id = ModuleId {
+                krate: dep.crate_id,
+                local_id: dep_def_root,
+            };
+            // Add this crate as a dependency by linking it's root module
+            def_map.extern_prelude.insert(dep.as_name(), module_id);
         }
-        // Get the module associated with the root of the crate
-        // Since Macros are not being used (like Rust), this will have a one to one mapping
-        // to file Id
-        let module_id = def_map.root;
 
-        // Populate the Preallocated ModuleId to be the origin
-        // Note this rests on the fact that the root file already has a module allocated
-        def_map[module_id].origin = ModuleOrigin::CrateRoot(root_file_id);
-
+        // At this point, all dependencies are resolved and type checked.
+        //
+        // It is now possible to collect all of the definitions of this crate.
+        let crate_root = def_map.root;
         let mut def_collector = DefCollector {
             def_map,
             collected_imports: Vec::new(),
             collected_functions: Vec::new(),
         };
 
-        // Resolving module declarations with ModCollector
+        // Collecting module declarations with ModCollector
         // and lowering the functions
         // ie Use a mod collector to collect the nodes at the root module
         // and process them
@@ -83,13 +82,12 @@ impl DefCollector {
             def_collector: &mut def_collector,
             ast,
             file_id: root_file_id,
-            module_id,
+            module_id: crate_root,
         }
         .collect_defs(context)?;
 
         // Add the current crate to the collection of DefMaps
-        let old_value = context.def_maps.insert(crate_id, def_collector.def_map);
-        assert!(old_value.is_none(), "value : {:?}", old_value);
+        context.def_maps.insert(crate_id, def_collector.def_map);
 
         // Resolve unresolved imports collected from the crate
         let (unresolved, resolved) = super::resolution::import::resolve_imports(
