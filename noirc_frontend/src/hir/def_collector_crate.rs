@@ -1,9 +1,3 @@
-use std::collections::HashMap;
-
-use crate::{NoirFunction, Program};
-use fm::FileId;
-use noirc_errors::CollectedErrors;
-
 use super::{
     crate_def_map::{CrateDefMap, LocalModuleId, ModuleId, ModuleOrigin},
     crate_graph::CrateId,
@@ -13,6 +7,10 @@ use super::{
     Context,
 };
 use crate::node_interner::{FuncId, NodeInterner};
+use crate::{NoirFunction, Program};
+use fm::FileId;
+use noirc_errors::CollectedErrors;
+use std::collections::HashMap;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -100,10 +98,7 @@ impl DefCollector {
             &context.def_maps,
         );
         if !unresolved.is_empty() {
-            panic!(format!(
-                "could not resolve the following imports: {:?}",
-                unresolved
-            ))
+            panic!("could not resolve the following imports: {:?}", unresolved)
         }
 
         // Populate module namespaces according to the imports used

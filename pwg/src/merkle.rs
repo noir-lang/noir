@@ -310,6 +310,10 @@ fn check_membership() {
         let result = MerkleTree::check_membership(hash_path_ref, &root, &index, &leaf);
         let is_leaf_in_true = result == FieldElement::one();
 
-        assert!(is_leaf_in_true == test_vector.result, test_vector.error_msg);
+        assert!(
+            is_leaf_in_true == test_vector.result,
+            "{}",
+            test_vector.error_msg
+        );
     }
 }
