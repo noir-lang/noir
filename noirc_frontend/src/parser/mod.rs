@@ -9,15 +9,15 @@ pub use errors::ParserErrorKind;
 pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
 #[derive(Clone, Debug)]
-pub struct Program {
+pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub module_decls: Vec<String>,
 }
 
-impl Program {
+impl ParsedModule {
     fn with_capacity(cap: usize) -> Self {
-        Program {
+        ParsedModule {
             imports: Vec::with_capacity(cap),
             functions: Vec::with_capacity(cap),
             module_decls: Vec::new(),
