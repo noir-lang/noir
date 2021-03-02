@@ -1,6 +1,6 @@
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::{
-    hir::lower::{
+    hir_def::{
         expr::{HirBinaryOp, HirExpression, HirLiteral},
         function::Param,
         stmt::HirStatement,

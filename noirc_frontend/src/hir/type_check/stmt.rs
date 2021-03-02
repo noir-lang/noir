@@ -1,11 +1,8 @@
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
-use crate::{
-    hir::lower::stmt::{
-        HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
-        HirStatement,
-    },
-    Type,
+use crate::hir_def::stmt::{
+    HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement,
 };
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
+use crate::Type;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 

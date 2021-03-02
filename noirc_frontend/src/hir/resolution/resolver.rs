@@ -27,7 +27,10 @@ use crate::{
 };
 use noirc_errors::Spanned;
 
-use crate::hir::lower::{
+use crate::hir::scope::{
+    Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
+};
+use crate::hir_def::{
     expr::{
         HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
         HirExpression, HirForExpression, HirIndexExpression, HirInfixExpression, HirLiteral,
@@ -38,9 +41,6 @@ use crate::hir::lower::{
         HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
         HirStatement,
     },
-};
-use crate::hir::scope::{
-    Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
 };
 
 use super::errors::ResolverError;
@@ -461,12 +461,10 @@ mod test {
     use crate::hir::resolution::errors::ResolverError;
 
     use crate::graph::CrateId;
+    use crate::hir_def::function::HirFunction;
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
-        hir::{
-            def_map::{CrateDefMap, ModuleDefId},
-            lower::function::HirFunction,
-        },
+        hir::def_map::{CrateDefMap, ModuleDefId},
         Parser, Path,
     };
 

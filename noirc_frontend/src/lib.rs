@@ -5,6 +5,7 @@ pub mod node_interner;
 pub mod parser;
 
 pub mod hir;
+pub mod hir_def;
 
 // Lexer API
 pub use lexer::token;

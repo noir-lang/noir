@@ -10,7 +10,6 @@ pub mod def_map;
 pub mod resolution;
 pub mod scope;
 
-pub mod lower;
 pub mod type_check;
 
 /// Global context that is accessible during each stage

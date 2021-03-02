@@ -56,18 +56,17 @@ mod test {
     use noirc_errors::{Span, Spanned};
 
     use crate::graph::CrateId;
+    use crate::hir_def::{
+        expr::{
+            HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
+        },
+        function::{FuncMeta, HirFunction, Param},
+        stmt::{HirPrivateStatement, HirStatement},
+    };
     use crate::node_interner::{FuncId, NodeInterner};
     use crate::{
         hir::{
             def_map::{CrateDefMap, ModuleDefId},
-            lower::{
-                expr::{
-                    HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression,
-                    HirInfixExpression,
-                },
-                function::{FuncMeta, HirFunction, Param},
-                stmt::{HirPrivateStatement, HirStatement},
-            },
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
         FunctionKind, Parser, Path, Type,

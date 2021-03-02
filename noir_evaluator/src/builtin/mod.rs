@@ -4,7 +4,7 @@ mod arraysum;
 use arraysum::ArraySum;
 mod arrayprod;
 use arrayprod::ArrayProd;
-use noirc_frontend::hir::lower::expr::HirCallExpression;
+use noirc_frontend::hir_def::expr::HirCallExpression;
 
 #[derive(Debug)]
 enum BuiltInFunctions {

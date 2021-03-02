@@ -1,4 +1,4 @@
-use noirc_frontend::hir::lower::expr::HirCallExpression;
+use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
 use crate::binary_op;

@@ -19,20 +19,16 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 
-use noirc_frontend::hir::lower::{
-    expr::{HirBinaryOp, HirCallExpression, HirForExpression},
-    stmt::{HirConstrainStatement, HirLetStatement},
+use noirc_frontend::hir_def::{
+    expr::{
+        HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
+        HirForExpression, HirLiteral,
+    },
+    stmt::{HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement},
 };
 use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
-use noirc_frontend::{
-    hir::lower::expr::{HirBinaryOpKind, HirBlockExpression},
-    FunctionKind, Type,
-};
+use noirc_frontend::{FunctionKind, Type};
 
-use noirc_frontend::hir::lower::{
-    expr::{HirExpression, HirLiteral},
-    stmt::{HirPrivateStatement, HirStatement},
-};
 use noirc_frontend::hir::Context;
 
 use noir_field::FieldElement;
