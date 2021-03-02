@@ -1,4 +1,4 @@
-use super::{errors::ParserErrorKind, Precedence, Program};
+use super::{errors::ParserErrorKind, ParsedModule, Precedence};
 use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, SpannedToken, Token, TokenKind};
@@ -106,10 +106,10 @@ impl<'a> Parser<'a> {
     }
 
     /// A Program corresponds to a single module
-    pub fn parse_program(&mut self) -> Result<Program, &Vec<ParserErrorKind>> {
+    pub fn parse_program(&mut self) -> Result<ParsedModule, &Vec<ParserErrorKind>> {
         use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
 
-        let mut program = Program::with_capacity(self.lexer.by_ref().approx_len());
+        let mut program = ParsedModule::with_capacity(self.lexer.by_ref().approx_len());
 
         while self.curr_token != Token::EOF {
             match self.curr_token.clone().into() {

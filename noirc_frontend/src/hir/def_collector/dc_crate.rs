@@ -8,7 +8,7 @@ use crate::hir::resolution::{
 };
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
-use crate::{NoirFunction, Program};
+use crate::{NoirFunction, ParsedModule};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 use std::collections::HashMap;
@@ -39,7 +39,7 @@ impl DefCollector {
     pub fn collect(
         mut def_map: CrateDefMap,
         context: &mut Context,
-        ast: Program,
+        ast: ParsedModule,
         root_file_id: FileId,
     ) -> Result<(), Vec<CollectedErrors>> {
         let crate_id = def_map.krate;

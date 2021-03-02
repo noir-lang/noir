@@ -1,18 +1,17 @@
 use fm::FileId;
 use noirc_errors::CollectedErrors;
 
-use crate::{NoirFunction, Program};
+use crate::{NoirFunction, ParsedModule};
 
 use super::dc_crate::{DefCollector, UnresolvedFunctions};
-use crate::hir::def_map::ModuleId;
-use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleOrigin};
+use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
 /// Given a module collect all definitions into ModuleData
 pub struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
-    pub(crate) ast: Program,
+    pub(crate) ast: ParsedModule,
     pub(crate) file_id: FileId,
     pub(crate) module_id: LocalModuleId,
 }

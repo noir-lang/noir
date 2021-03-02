@@ -2,7 +2,7 @@ use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::FuncId;
-use crate::{parser::Program, Parser};
+use crate::{parser::ParsedModule, Parser};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{CollectedErrors, DiagnosableError};
@@ -103,7 +103,10 @@ impl CrateDefMap {
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(fm: &mut FileManager, file_id: FileId) -> Result<Program, Vec<CollectedErrors>> {
+pub fn parse_file(
+    fm: &mut FileManager,
+    file_id: FileId,
+) -> Result<ParsedModule, Vec<CollectedErrors>> {
     let file = fm.fetch_file(file_id);
     let mut parser = Parser::from_src(file.get_source());
     match parser.parse_program() {
