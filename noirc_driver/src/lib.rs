@@ -60,7 +60,7 @@ impl Driver {
         crate_type: CrateType,
     ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self.context.file_manager().add_file(&dir_path).unwrap();
+        let root_file_id = self.context.file_manager.add_file(&dir_path).unwrap();
 
         let crate_id = self
             .context
@@ -80,7 +80,7 @@ impl Driver {
         crate_type: CrateType,
     ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self.context.file_manager().add_file(&dir_path).unwrap();
+        let root_file_id = self.context.file_manager.add_file(&dir_path).unwrap();
 
         // The first crate is always the local crate
         assert!(self.context.crate_graph.number_of_crates() != 0);
@@ -124,7 +124,7 @@ impl Driver {
             for errors in errs {
                 Reporter::with_diagnostics(
                     errors.file_id.as_usize(),
-                    &self.context.file_manager(),
+                    &self.context.file_manager,
                     &errors.errors,
                 );
             }
@@ -143,7 +143,7 @@ impl Driver {
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries
         // which will do nothing
-        if self.context.crate_graph()[LOCAL_CRATE].crate_type != CrateType::Binary {
+        if self.context.crate_graph[LOCAL_CRATE].crate_type != CrateType::Binary {
             println!("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the build command");
             std::process::exit(1);
         };
@@ -167,7 +167,7 @@ impl Driver {
                 // Errors will be shown at the callsite without a stacktrace
                 Reporter::with_diagnostics(
                     file_id,
-                    &self.context.file_manager(),
+                    &self.context.file_manager,
                     &vec![err.to_diagnostic()],
                 );
                 std::process::exit(1);
