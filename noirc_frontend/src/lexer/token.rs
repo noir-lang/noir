@@ -282,7 +282,7 @@ impl IntType {
             );
         }
         if (str_as_u32 % 2 == 1) && (str_as_u32 > 1) {
-            todo!("Barretenberg currently panics on odd integered bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
+            todo!("Barretenberg currently panics on odd integers bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
         }
 
         if is_signed {
