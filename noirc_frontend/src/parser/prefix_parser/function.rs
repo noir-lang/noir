@@ -53,7 +53,7 @@ impl FuncParser {
 
             // Current token should now be
             // the start of the type
-            return_type = parser.parse_type()?
+            return_type = parser.parse_type(true)?
         }
 
         parser.peek_check_variant_advance(&Token::LeftBrace)?;
@@ -70,7 +70,7 @@ impl FuncParser {
         // Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {
             name: spanned_func_name.into(),
-            attribute: attribute,
+            attribute,
             parameters,
             body,
             span: start.merge(end),
@@ -145,7 +145,7 @@ impl FuncParser {
         // Bum cursor. Next Token should be the Type
         parser.advance_tokens();
 
-        parser.parse_type()
+        parser.parse_type(true)
     }
 }
 
@@ -157,24 +157,42 @@ mod test {
 
     #[test]
     fn valid_syntax() {
-        const SRC_RET_TYPE: &'static str = r#"
-            fn func_name( f: u8, y : Public) -> u8 {
-                x + a
-            }
-        "#;
-        const SRC_NO_RET_TYPE: &'static str = r#"
-            fn func_name( f: Witness, y : Public, z : [5]u8,)  {
+        let valid_src = vec![
+            "
+        fn func_name( f: u8, y : pub Field) -> u8 {
+            x + a
+        }
+        ",
+            "
+        fn f(foo: pub u8, y : pub Field) -> u8 {
+            x + a
+        }
+        ",
+            "
+        fn f(f: pub Field, y : Field, z : const Field) -> u8 {
+            x + a
+        }
+        ",
+            "
+        fn func_name(f: Field, y : pub Field, z : pub [5]u8)  {
 
-            }
-        "#;
+        }
+        ",
+            "
+        fn func_name(x: []Field, y : [2]Field,y : pub [2]Field, z : pub [5]u8)  {
 
-        FuncParser::parse_fn_definition(&mut test_parse(SRC_RET_TYPE), None).unwrap();
-        FuncParser::parse_fn_definition(&mut test_parse(SRC_NO_RET_TYPE), None).unwrap();
+        }
+        ",
+        ];
+
+        for src in valid_src {
+            FuncParser::parse_fn_definition(&mut test_parse(src), None).unwrap();
+        }
     }
     #[test]
     fn double_comma() {
         const SRC: &'static str = r#"
-            fn x2( f: []Witness,,) {
+            fn x2( f: []Field,,) {
 
             }
         "#;
