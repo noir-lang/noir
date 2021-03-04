@@ -481,7 +481,7 @@ fn test_basic_language_syntax() {
     let input = "
     
     const five = 5;
-    pub ten : Witness = 10;
+    pub ten : Field = 10;
     let mul = fn(x, y) {
          x * y;
     };
@@ -498,7 +498,7 @@ fn test_basic_language_syntax() {
         Token::Keyword(Keyword::Pub),
         Token::Ident("ten".to_string()),
         Token::Colon,
-        Token::Keyword(Keyword::Witness),
+        Token::Keyword(Keyword::Field),
         Token::Assign,
         Token::Int(10.into()),
         Token::Semicolon,
@@ -518,7 +518,7 @@ fn test_basic_language_syntax() {
         Token::Semicolon,
         Token::RightBrace,
         Token::Semicolon,
-        Token::Keyword(Keyword::Private),
+        Token::Keyword(Keyword::Priv),
         Token::Ident("result".to_string()),
         Token::Assign,
         Token::Ident("mul".to_string()),
