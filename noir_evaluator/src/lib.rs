@@ -7,7 +7,7 @@ mod object;
 
 mod errors;
 use acvm::BackendPointer;
-use errors::{RuntimeError, RuntimeErrorKind};
+use errors::RuntimeErrorKind;
 
 use environment::Environment;
 use object::{Array, Integer, Object, RangedObject};
@@ -33,7 +33,6 @@ use noirc_frontend::hir::Context;
 
 use noir_field::FieldElement;
 pub struct Evaluator<'a> {
-    file_id: usize,
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
@@ -47,9 +46,8 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(file_id: usize, main_function: FuncId, context: &Context) -> Evaluator {
+    pub fn new(main_function: FuncId, context: &Context) -> Evaluator {
         Evaluator {
-            file_id,
             public_inputs: Vec::new(),
             witnesses: 0,
             context,
@@ -86,13 +84,12 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self, backend: BackendPointer) -> Result<Circuit, RuntimeError> {
+    pub fn compile(mut self, backend: BackendPointer) -> Result<Circuit, RuntimeErrorKind> {
         // create a new environment
         let mut env = Environment::new();
 
         // First evaluate the main function
-        self.evaluate_main(&mut env)
-            .map_err(|err| err.into_err(self.file_id))?;
+        self.evaluate_main(&mut env)?;
 
         let num_witness = self.num_witnesses();
         let optimised_circuit = acvm::compiler::compile(

@@ -35,19 +35,6 @@ pub enum RuntimeErrorKind {
         second_type: String,
     },
 }
-impl RuntimeErrorKind {
-    pub fn into_err(self, file_id: usize) -> RuntimeError {
-        RuntimeError {
-            kind: self,
-            file_id,
-        }
-    }
-}
-#[derive(Debug)]
-pub struct RuntimeError {
-    kind: RuntimeErrorKind,
-    file_id: usize,
-}
 
 impl RuntimeErrorKind {
     pub fn expected_type(expected_type: &'static str, found_type: &str) -> RuntimeErrorKind {
@@ -58,9 +45,9 @@ impl RuntimeErrorKind {
     }
 }
 
-impl DiagnosableError for RuntimeError {
+impl DiagnosableError for RuntimeErrorKind {
     fn to_diagnostic(&self) -> Diagnostic {
-        match &self.kind {
+        match self {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound, span } => Diagnostic::simple_error(
                 format!("index out of bounds"),
                 format!(
