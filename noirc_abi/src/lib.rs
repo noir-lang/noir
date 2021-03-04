@@ -17,10 +17,23 @@ pub mod input_parser;
 /// in programs, however it is possible to support, with many complications like encoding character set
 /// support.
 pub enum AbiType {
-    Private,
-    Public,
+    Field(AbiFEType),
     Array { length: u128, typ: Box<AbiType> },
     Integer { sign: Sign, width: u32 },
+}
+/// This is the same as the FieldElementType in AST, without constants.
+/// We don't want the ABI to depend on Noir, so types are not shared between the two
+/// Note: At the moment, it is not even possible since the ABI is in another crate and Noir depends on it
+/// This can be easily fixed by making the ABI a module.
+///
+/// In the future, maybe it will be decided that the AST will hold esoteric types and the HIR will transform them
+/// This method is a bit cleaner as we would not need to dig into the resolver, to lower from a esoteric AST type to a HIR type.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AbiFEType {
+    Public,
+    // Constants are not allowed in the ABI for main at the moment.
+    // Constant,
+    Private,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sign {
@@ -31,7 +44,7 @@ pub enum Sign {
 impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
-            AbiType::Private | AbiType::Public | AbiType::Integer { .. } => 1,
+            AbiType::Field(_) | AbiType::Integer { .. } => 1,
             AbiType::Array { length, typ: _ } => *length as usize,
         }
     }
