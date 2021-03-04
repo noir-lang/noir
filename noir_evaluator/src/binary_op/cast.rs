@@ -6,7 +6,7 @@ pub fn handle_cast_op(
     right: Type,
 ) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
-        Type::Integer(_sign, num_bits) => num_bits,
+        Type::Integer(_, _sign, num_bits) => num_bits,
         _ => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),

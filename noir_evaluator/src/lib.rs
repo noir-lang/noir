@@ -218,7 +218,9 @@ impl<'a> Evaluator<'a> {
                                 integer.constrain(self)?;
                                 Object::Integer(integer)
                             }
-                            noirc_abi::AbiType::Private => Object::from_witness(witness),
+                            noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
+                                Object::from_witness(witness)
+                            }
                             _ => unimplemented!(
                                 "currently we only support arrays of integer and witness types"
                             ),
@@ -232,7 +234,7 @@ impl<'a> Evaluator<'a> {
                     };
                     env.store(param_name, Object::Array(arr));
                 }
-                noirc_abi::AbiType::Private => {
+                noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
                     let witness = self.add_witness_to_cs();
                     self.add_witness_to_env(param_name, witness, env);
                 }
@@ -250,7 +252,7 @@ impl<'a> Evaluator<'a> {
 
                     env.store(param_name, Object::Integer(integer));
                 }
-                noirc_abi::AbiType::Public => {
+                noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Public) => {
                     let witness = self.add_witness_to_cs();
                     self.public_inputs.push(witness);
                     self.add_witness_to_env(param_name, witness, env);
