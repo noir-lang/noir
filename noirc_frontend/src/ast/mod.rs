@@ -33,19 +33,43 @@ impl std::fmt::Display for ArraySize {
     }
 }
 
+/// FieldElementType refers to how the Compiler type is interpreted by the proof system
+/// Example: FieldElementType::Private means that the Compiler type is seen as a witness/witnesses
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FieldElementType {
+    Private,
+    Public,
+    Constant,
+}
+
+impl std::fmt::Display for FieldElementType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FieldElementType::Private => write!(f, "priv"),
+            FieldElementType::Constant => write!(f, "const"),
+            FieldElementType::Public => write!(f, "pub"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    FieldElement, // This type was introduced for directives.
-    Constant,
-    Public,
-    Witness,
-    Array(ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
-    Integer(Signedness, u32),    // u32 = Integer(unsigned, 32)
+    FieldElement(FieldElementType),
+    Array(FieldElementType, ArraySize, Box<Type>), // [4]Witness = Array(4, Witness)
+    Integer(FieldElementType, Signedness, u32),    // u32 = Integer(unsigned, 32)
     Bool,
     Error,       // XXX: Currently have not implemented structs, so this type is a stub
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Unknown, // This is mainly used for array literals, where the parser cannot figure out the type for the literal
     Unit,
+}
+
+impl Type {
+    // These are here so that the code is more readable.
+    // Type::WITNESS vs Type::FieldElement(FieldElementType::Private)
+    pub const WITNESS: Type = Type::FieldElement(FieldElementType::Private);
+    pub const CONSTANT: Type = Type::FieldElement(FieldElementType::Constant);
+    pub const PUBLIC: Type = Type::FieldElement(FieldElementType::Public);
 }
 
 impl Into<AbiType> for &Type {
@@ -57,14 +81,11 @@ impl Into<AbiType> for &Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement => write!(f, "Field"),
-            Type::Constant => write!(f, "Constant"),
-            Type::Public => write!(f, "Public"),
-            Type::Witness => write!(f, "Witness"),
-            Type::Array(size, typ) => write!(f, "{}{}", size, typ),
-            Type::Integer(sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "i{}", num_bits),
-                Signedness::Unsigned => write!(f, "u{}", num_bits),
+            Type::FieldElement(fe_type) => write!(f, " {} Field", fe_type),
+            Type::Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
+            Type::Integer(fe_type, sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
+                Signedness::Unsigned => write!(f, "{} u{}", fe_type, num_bits),
             },
             Type::Bool => write!(f, "bool"),
             Type::Error => write!(f, "Error"),
@@ -79,8 +100,8 @@ impl Type {
     // Returns true if the Type can be used in a Private statement
     pub fn can_be_used_in_priv(&self) -> bool {
         match self {
-            Type::Witness => true,
-            Type::Integer(_, _) => true,
+            Type::FieldElement(FieldElementType::Private) => true,
+            Type::Integer(field_type, _, _) => field_type == &FieldElementType::Private,
             _ => false,
         }
     }
@@ -90,12 +111,9 @@ impl Type {
 
     pub fn num_elements(&self) -> usize {
         let arr_size = match self {
-            Type::Array(size, _) => size,
-            Type::FieldElement
-            | Type::Constant
-            | Type::Public
-            | Type::Witness
-            | Type::Integer(_, _)
+            Type::Array(_, size, _) => size,
+            Type::FieldElement(_)
+            | Type::Integer(_, _, _)
             | Type::Bool
             | Type::Error
             | Type::Unspecified
@@ -126,7 +144,7 @@ impl Type {
 
     fn array(&self) -> Option<(&ArraySize, &Type)> {
         match self {
-            Type::Array(sized, typ) => Some((sized, typ)),
+            Type::Array(_, sized, typ) => Some((sized, typ)),
             _ => None,
         }
     }
@@ -138,10 +156,7 @@ impl Type {
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {
         match self {
-            Type::Witness => true,
-            Type::Public => true,
-            Type::Integer(_, _) => true,
-            Type::Constant => true,
+            Type::FieldElement(_) | Type::Integer(_, _, _) => true,
             _ => false,
         }
     }
@@ -150,10 +165,24 @@ impl Type {
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
         match self {
-            Type::Constant => true,
-            Type::Public => true,
-            Type::Witness => true,
-            Type::Integer(_, _) => true,
+            Type::FieldElement(_) | Type::Integer(_, _, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        match self {
+            Type::FieldElement(FieldElementType::Constant) => true,
+            Type::Integer(FieldElementType::Constant, _, _) => true,
+            // XXX: Currently no such thing as a const array
+            _ => false,
+        }
+    }
+
+    pub fn is_public(&self) -> bool {
+        match self {
+            Type::FieldElement(FieldElementType::Public) => true,
+            Type::Integer(FieldElementType::Public, _, _) => true,
             _ => false,
         }
     }
@@ -165,22 +194,31 @@ impl Type {
 
     pub fn as_abi_type(&self) -> AbiType {
         match self {
-            Type::FieldElement => {
-                panic!("currently, cannot have a field in the entry point function")
-            }
-            Type::Constant => panic!("cannot have a constant in the entry point function"),
-            Type::Public => AbiType::Public,
-            Type::Witness => AbiType::Private,
-            Type::Array(size, typ) => match size {
-                crate::ArraySize::Variable => {
-                    panic!("cannot have variable sized array in entry point")
-                }
-                crate::ArraySize::Fixed(length) => AbiType::Array {
-                    length: *length,
-                    typ: Box::new(typ.as_abi_type()),
-                },
+            Type::FieldElement(fe_type) => match fe_type {
+                FieldElementType::Private => AbiType::Field(noirc_abi::AbiFEType::Private),
+                FieldElementType::Public => AbiType::Field(noirc_abi::AbiFEType::Public),
+                FieldElementType::Constant => panic!("this is not allowed!"),
             },
-            Type::Integer(sign, bit_width) => {
+            Type::Array(field_type, size, typ) => {
+                if field_type != &FieldElementType::Private {
+                    panic!("AbiType does not yet have support for non private arrays")
+                }
+
+                match size {
+                    crate::ArraySize::Variable => {
+                        panic!("cannot have variable sized array in entry point")
+                    }
+                    crate::ArraySize::Fixed(length) => AbiType::Array {
+                        length: *length,
+                        typ: Box::new(typ.as_abi_type()),
+                    },
+                }
+            }
+            Type::Integer(field_type, sign, bit_width) => {
+                if field_type != &FieldElementType::Private {
+                    panic!("AbiType does not yet have support for non private integers")
+                }
+
                 let sign = match sign {
                     crate::Signedness::Unsigned => noirc_abi::Sign::Unsigned,
                     crate::Signedness::Signed => noirc_abi::Sign::Signed,
@@ -202,11 +240,13 @@ impl Type {
 
 use crate::token::IntType;
 
-impl From<&IntType> for Type {
-    fn from(it: &IntType) -> Type {
-        match it {
-            IntType::Signed(num_bits) => Type::Integer(Signedness::Signed, *num_bits),
-            IntType::Unsigned(num_bits) => Type::Integer(Signedness::Unsigned, *num_bits),
+impl Type {
+    pub fn from_int_tok(field_type: FieldElementType, int_tok: &IntType) -> Type {
+        match int_tok {
+            IntType::Signed(num_bits) => Type::Integer(field_type, Signedness::Signed, *num_bits),
+            IntType::Unsigned(num_bits) => {
+                Type::Integer(field_type, Signedness::Unsigned, *num_bits)
+            }
         }
     }
 }
