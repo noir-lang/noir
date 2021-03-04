@@ -1,8 +1,12 @@
-use crate::hir_def::stmt::{
-    HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement,
-};
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::Type;
+use crate::{
+    hir_def::stmt::{
+        HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
+        HirStatement,
+    },
+    FieldElementType,
+};
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
@@ -108,7 +112,7 @@ fn type_check_const_stmt(
     // Unless we later want to have u32 constants and check those at compile time.
     let resolved_type = type_check_declaration(interner, const_stmt.expression, const_stmt.r#type)?;
 
-    if resolved_type != Type::Constant {
+    if resolved_type != Type::CONSTANT {
         let span = interner.expr_span(&const_stmt.expression);
         let mut err = TypeCheckError::TypeCannotBeUsed {
             typ: resolved_type,

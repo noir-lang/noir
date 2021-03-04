@@ -1,4 +1,3 @@
-use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::{
     hir_def::{
         expr::{HirBinaryOp, HirExpression, HirLiteral},
@@ -6,6 +5,10 @@ use crate::{
         stmt::HirStatement,
     },
     ArraySize, Type,
+};
+use crate::{
+    node_interner::{ExprId, NodeInterner, StmtId},
+    FieldElementType,
 };
 
 use super::errors::TypeCheckError;
@@ -42,6 +45,9 @@ pub(crate) fn type_check_expression(
                     // Specify the type of the Array
                     // Note: This assumes that the array is homogenous, which will be checked next
                     let arr_type = Type::Array(
+                        // The FieldElement type is assumed to be private unless the user
+                        // adds type annotations that say otherwise.
+                        FieldElementType::Private,
                         ArraySize::Fixed(arr_types.len() as u128),
                         Box::new(arr_types[0].clone()),
                     );
@@ -91,7 +97,7 @@ pub(crate) fn type_check_expression(
                 }
                 HirLiteral::Integer(_) => {
                     // Literal integers will always be a constant, since the lexer was able to parse the integer
-                    interner.push_expr_type(expr_id, Type::Constant);
+                    interner.push_expr_type(expr_id, Type::FieldElement(FieldElementType::Constant));
                 }
                 HirLiteral::Str(_) => unimplemented!(
                     "[Coming Soon] : Currently string literal types have not been implemented"
@@ -129,7 +135,7 @@ pub(crate) fn type_check_expression(
             match collection_type {
                 // XXX: We can check the array bounds here also, but it may be better to constant fold first
                 // and have ConstId instead of ExprId for constants
-                Type::Array(_, base_type) => interner.push_expr_type(expr_id, *base_type),
+                Type::Array(_, _, base_type) => interner.push_expr_type(expr_id, *base_type),
                 typ => {
                     let span = interner.id_span(&index_expr.collection_name);
                     return Err(TypeCheckError::TypeMismatch {
@@ -189,7 +195,7 @@ pub(crate) fn type_check_expression(
             let start_range_type = interner.id_type(&for_expr.start_range);
             let end_range_type = interner.id_type(&for_expr.end_range);
 
-            if start_range_type != Type::Constant {
+            if start_range_type != Type::FieldElement(FieldElementType::Constant) {
                 let span = interner.expr_span(&for_expr.start_range);
                 let mut err = TypeCheckError::TypeCannotBeUsed {
                     typ: start_range_type,
@@ -201,7 +207,7 @@ pub(crate) fn type_check_expression(
                     .unwrap();
                 return Err(err);
             }
-            if end_range_type != Type::Constant {
+            if end_range_type != Type::FieldElement(FieldElementType::Constant) {
                 let span = interner.expr_span(&for_expr.end_range);
                 let mut err = TypeCheckError::TypeCannotBeUsed {
                     typ: end_range_type,
@@ -228,7 +234,13 @@ pub(crate) fn type_check_expression(
             // It may be possible to do this properly again, once we do constant folding. Since the range will always be const expr
             interner.push_expr_type(
                 expr_id,
-                Type::Array(ArraySize::Variable, Box::new(last_type)),
+                Type::Array(
+                    // The type is assumed to be private unless the user specifies
+                    // that they want to make it public on the lhs with type annotations
+                    FieldElementType::Private,
+                    ArraySize::Variable,
+                    Box::new(last_type),
+                ),
             );
         }
         HirExpression::Block(block_expr) => {
@@ -256,6 +268,7 @@ pub(crate) fn type_check_expression(
 
 // Given a binary operator and another type. This method will produce the
 // output type
+// XXX: Review these rules. In particular, the interaction between integers, constants and private/public variables
 pub fn infix_operand_type_rules(
     lhs_type: &Type,
     op: &HirBinaryOp,
@@ -267,26 +280,32 @@ pub fn infix_operand_type_rules(
 
     match (lhs_type, other)  {
 
-            (Type::Integer(sign_x, bit_width_x), Type::Integer(sign_y, bit_width_y)) => {
+            (Type::Integer(lhs_field_type,sign_x, bit_width_x), Type::Integer(rhs_field_type,sign_y, bit_width_y)) => {
+                let field_type = field_type_rules(lhs_field_type, rhs_field_type);
                 if sign_x != sign_y {
                     return Err(format!("Integers must have the same signedness lhs is {:?}, rhs is {:?} ", sign_x, sign_y))
                 }
                 if bit_width_x != bit_width_y {
                     return Err(format!("Integers must have the same bit width lhs is {}, rhs is {} ", bit_width_x, bit_width_y))
                 }
-                Ok(Type::Integer(*sign_x, *bit_width_x))
+                Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
             }
-            (Type::Integer(_, _), Type::Witness) | ( Type::Witness, Type::Integer(_, _) ) => {
+            (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Private)) | ( Type::FieldElement(FieldElementType::Private), Type::Integer(_,_, _) ) => {
                 Err(format!("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer"))
             }
-            (Type::Integer(sign_x, bit_width_x), Type::Constant)| (Type::Constant,Type::Integer(sign_x, bit_width_x)) => {
-                Ok(Type::Integer(*sign_x, *bit_width_x))
+            (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Public)) | ( Type::FieldElement(FieldElementType::Public), Type::Integer(_,_, _) ) => {
+                Err(format!("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer"))
             }
-            (Type::Integer(_, _), typ) | (typ,Type::Integer(_, _)) => {
+            (Type::Integer(int_field_type,sign_x, bit_width_x), Type::FieldElement(FieldElementType::Constant))| (Type::FieldElement(FieldElementType::Constant),Type::Integer(int_field_type,sign_x, bit_width_x)) => {
+                
+                let field_type = field_type_rules(int_field_type, &FieldElementType::Constant);
+                Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
+            }
+            (Type::Integer(_,_, _), typ) | (typ,Type::Integer(_,_, _)) => {
                 Err(format!("Integer cannot be used with type {}", typ))
             }
             // Currently, arrays are not supported in binary operations
-            (Type::Array(_,_), _) | (_,Type::Array(_, _)) => Err(format!("Arrays cannot be used in an infix operation")),
+            (Type::Array(_,_,_), _) | (_,Type::Array(_,_, _)) => Err(format!("Arrays cannot be used in an infix operation")),
             //
             // An error type on either side will always return an error
             (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
@@ -296,15 +315,27 @@ pub fn infix_operand_type_rules(
             //
             // If no side contains an integer. Then we check if either side contains a witness
             // If either side contains a witness, then the final result will be a witness
-            (Type::Witness, _) | (_,Type::Witness) => Ok(Type::Witness),
+            (Type::FieldElement(FieldElementType::Private), _) | (_,Type::FieldElement(FieldElementType::Private)) => Ok(Type::FieldElement(FieldElementType::Private)),
             // Public types are added as witnesses under the hood
-            (Type::Public, _) | (_,Type::Public) => Ok(Type::Witness),
+            (Type::FieldElement(FieldElementType::Public), _) | (_,Type::FieldElement(FieldElementType::Public)) => Ok(Type::FieldElement(FieldElementType::Private)),
             (Type::Bool, _) | (_,Type::Bool) => Ok(Type::Bool),
             //
-            (Type::FieldElement, _) | (_,Type::FieldElement) => Ok(Type::FieldElement),
-            //
-            (Type::Constant, Type::Constant)  => Ok(Type::Constant),
+            (Type::FieldElement(FieldElementType::Constant), Type::FieldElement(FieldElementType::Constant))  => Ok(Type::FieldElement(FieldElementType::Constant)),
         }
+}
+
+fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElementType {
+    match (lhs, rhs) {
+        (FieldElementType::Private, FieldElementType::Private) => FieldElementType::Private,
+        (FieldElementType::Private, FieldElementType::Public) => FieldElementType::Private,
+        (FieldElementType::Private, FieldElementType::Constant) => FieldElementType::Private,
+        (FieldElementType::Public, FieldElementType::Private) => FieldElementType::Private,
+        (FieldElementType::Public, FieldElementType::Public) => FieldElementType::Public,
+        (FieldElementType::Public, FieldElementType::Constant) => FieldElementType::Public,
+        (FieldElementType::Constant, FieldElementType::Private) => FieldElementType::Private,
+        (FieldElementType::Constant, FieldElementType::Public) => FieldElementType::Public,
+        (FieldElementType::Constant, FieldElementType::Constant) => FieldElementType::Constant,
+    }
 }
 
 fn check_param_argument(
