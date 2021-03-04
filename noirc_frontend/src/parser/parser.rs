@@ -1,7 +1,10 @@
 use super::{errors::ParserErrorKind, ParsedModule, Precedence};
-use crate::ast::{ArraySize, Expression, ExpressionKind, Statement, Type};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, SpannedToken, Token, TokenKind};
+use crate::{
+    ast::{ArraySize, Expression, ExpressionKind, Statement, Type},
+    FieldElementType,
+};
 
 use super::infix_parser::InfixParser;
 use super::prefix_parser::PrefixParser;
@@ -187,7 +190,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if self.peek_token == Token::Keyword(Keyword::Private)
+            if self.peek_token == Token::Keyword(Keyword::Priv)
                 || self.peek_token == Token::Keyword(Keyword::Let)
                 || self.peek_token == Token::Keyword(Keyword::Fn)
             {
@@ -360,21 +363,51 @@ impl<'a> Parser<'a> {
         Ok(arguments)
     }
 
-    /// Cursor Start : `TYPE`
+    /// Cursor Start : `FIELD_TYPE`?
     ///
     /// Cursor End : `TYPE`
     /// The cursor starts on the first token which represents the type
     /// It ends on the last token in the Type
-    pub(crate) fn parse_type(&mut self) -> Result<Type, ParserErrorKind> {
+    pub(crate) fn parse_type(
+        &mut self,
+        can_have_field_type: bool,
+    ) -> Result<Type, ParserErrorKind> {
+        let mut field_type = FieldElementType::Private;
+
+        // This implicitly assumes that the tokens used to declare field types
+        // are not also used to declare Types
+        let tok_is_fe_type = self.curr_token.token().can_be_field_element_type();
+
+        match (tok_is_fe_type, can_have_field_type) {
+            (true, true) => {
+                field_type = self.parse_field_type()?;
+                // Advance past the FieldType
+                self.advance_tokens();
+            }
+            (true, false) => {
+                let message = format!("unexpected field element type keyword found. \"pub, priv or const\" is not valid here");
+                return Err(ParserErrorKind::UnstructuredError {
+                    message,
+                    span: self.curr_token.into_span(),
+                });
+            }
+            (false, false) => {
+                // This is valid. As the token is not a field element type
+                // and the caller does not expect a field element
+            }
+            (false, true) => {
+                // This is also valid. The token is not a field element type and the
+                // caller states that it is possible to have field element types
+                // If no type is written, then we assume it is private by default.
+            }
+        }
+
         // Currently we only support the default types and integers.
         // If we get into this function, then the user is specifying a type
         match self.curr_token.token() {
-            Token::Keyword(Keyword::Witness) => Ok(Type::Witness),
-            Token::Keyword(Keyword::Public) => Ok(Type::Public),
-            Token::Keyword(Keyword::Constant) => Ok(Type::Constant),
-            Token::Keyword(Keyword::Field) => Ok(Type::FieldElement),
-            Token::IntType(int_type) => Ok(int_type.into()),
-            Token::LeftBracket => self.parse_array_type(),
+            Token::Keyword(Keyword::Field) => Ok(Type::FieldElement(field_type)),
+            Token::IntType(int_type) => Ok(Type::from_int_tok(field_type, int_type)),
+            Token::LeftBracket => self.parse_array_type(field_type),
             k => {
                 let message = format!("Expected a type, found {}", k);
                 return Err(ParserErrorKind::UnstructuredError {
@@ -384,8 +417,28 @@ impl<'a> Parser<'a> {
             }
         }
     }
+    /// Cursor Start : `FIELD_ELEMENT_TYPE`
+    ///
+    /// Cursor End : `FIELD_ELEMENT_TYPE`
+    fn parse_field_type(&mut self) -> Result<FieldElementType, ParserErrorKind> {
+        match self.curr_token.token() {
+            Token::Keyword(Keyword::Priv) => Ok(FieldElementType::Private),
+            Token::Keyword(Keyword::Pub) => Ok(FieldElementType::Public),
+            Token::Keyword(Keyword::Const) => Ok(FieldElementType::Constant),
+            tok => {
+                let message = format!(
+                    "unexpected keyword. Expected \"pub, const or priv\". found {}",
+                    tok
+                );
+                return Err(ParserErrorKind::UnstructuredError {
+                    message,
+                    span: self.curr_token.into_span(),
+                });
+            }
+        }
+    }
 
-    fn parse_array_type(&mut self) -> Result<Type, ParserErrorKind> {
+    fn parse_array_type(&mut self, field_type: FieldElementType) -> Result<Type, ParserErrorKind> {
         // Expression is of the form [3]Type
 
         // Current token is '['
@@ -426,8 +479,9 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let array_type = self.parse_type()?;
+        // set this to false as we do not allow something like `[4] pub Witness`
+        let array_type = self.parse_type(false)?;
 
-        Ok(Type::Array(array_len, Box::new(array_type)))
+        Ok(Type::Array(field_type, array_len, Box::new(array_type)))
     }
 }
