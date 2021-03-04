@@ -23,7 +23,7 @@ impl DeclarationParser {
             Keyword::Let => Ok(Statement::Let(parse_let_statement(parser)?)),
             Keyword::Const => Ok(Statement::Const(parse_const_statement(parser)?)),
             Keyword::Pub => Ok(Statement::Public(parse_public_statement(parser)?)),
-            Keyword::Private => Ok(Statement::Private(parse_private_statement(parser)?)),
+            Keyword::Priv => Ok(Statement::Private(parse_private_statement(parser)?)),
             kw => unreachable!("All declaration keywords should have a method to parser their structure, the keyword {} does not have this", kw)
         }
     }
@@ -54,7 +54,7 @@ fn parse_generic_decl_statement(
         // Current token is now the Type
         parser.advance_tokens(); // Advance to the type token
 
-        declared_typ = Some(parser.parse_type()?);
+        declared_typ = Some(parser.parse_type(true)?);
     };
 
     // Current token is the Type
@@ -93,25 +93,33 @@ fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserEr
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a const statement, it can only be a Field element/Constant
+    let mut default_type = Type::CONSTANT;
     if let Some(declared_type) = generic_stmt.typ {
-        if declared_type != Type::Constant {
+        if !declared_type.is_constant() {
             let message = format!("Const statements can only have constant type, you supplied a {:?}. Suggestion: Remove the type and the compiler will default to Constant ",declared_type);
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: Span::default(),
             }); // XXX: We don't have spanning for types yet
+        } else {
+            default_type = declared_type;
         }
     }
 
     let stmt = ConstStatement {
         identifier: generic_stmt.identifier,
-        r#type: Type::Constant,
+        r#type: default_type,
         expression: generic_stmt.rhs,
     };
     Ok(stmt)
 }
 fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, ParserErrorKind> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
+
+    // XXX: As of FieldElement refactor, we can catch basic type errors for private statements,
+    // similar to the code for pub and const.
+    //
+    // This change may wait until, it is decided whether `let` will be the only declaration keyword.
 
     let stmt = PrivateStatement {
         identifier: generic_stmt.identifier,
@@ -128,20 +136,23 @@ fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatement, Parser
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a public statement, it can only be Public for now.
+    let mut default_type = Type::PUBLIC;
     if let Some(declared_type) = generic_stmt.typ {
-        if declared_type != Type::Public {
+        if !declared_type.is_public() {
             let message = format!("Public statements can only have public type, you supplied a {}. Suggestion: Remove the type and the compiler will default to Public ",declared_type);
             // XXX: We don't have spanning for types yet
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: Span::default(),
             });
+        } else {
+            default_type = declared_type;
         }
     }
 
     let stmt = PublicStatement {
         identifier: generic_stmt.identifier,
-        r#type: Type::Public,
+        r#type: default_type,
         expression: generic_stmt.rhs,
     };
     Ok(stmt)
@@ -193,7 +204,7 @@ mod test {
                 priv x = y;
             "#,
             r#"
-                priv x : Public = y;
+                priv x : pub Field = y;
             "#,
         ];
 
@@ -205,10 +216,7 @@ mod test {
 
             // First check that the cursor was in the right position at
             // the start and at the end
-            assert_eq!(
-                start.token(),
-                &Token::Keyword(crate::token::Keyword::Private)
-            );
+            assert_eq!(start.token(), &Token::Keyword(crate::token::Keyword::Priv));
             assert_eq!(end.token(), &Token::Semicolon);
         }
     }
@@ -219,7 +227,7 @@ mod test {
                 pub x = y;
             "#,
             r#"
-                pub x : Public = y;
+                pub x : pub Field = y;
             "#,
         ];
 
@@ -244,7 +252,7 @@ mod test {
                 const x = y;
             "#,
             r#"
-                const x : Constant = y;
+                const x : const Field = y;
             "#,
         ];
 
