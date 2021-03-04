@@ -1,12 +1,8 @@
+use crate::hir_def::stmt::{
+    HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement,
+};
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::Type;
-use crate::{
-    hir_def::stmt::{
-        HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement,
-        HirStatement,
-    },
-    FieldElementType,
-};
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
