@@ -157,7 +157,7 @@ impl Driver {
         let func_meta = self.context.def_interner.function_meta(&main_function);
         let abi = func_meta.parameters.to_abi(&self.context.def_interner);
 
-        let evaluator = Evaluator::new(file_id, main_function, &self.context);
+        let evaluator = Evaluator::new(main_function, &self.context);
 
         // Compile Program
         let circuit = match evaluator.compile(backend) {
