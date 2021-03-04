@@ -238,6 +238,21 @@ impl Token {
     pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken {
         SpannedToken(Spanned::from_position(start, end, self))
     }
+
+    pub fn can_start_type(&self) -> bool {
+        match self {
+            Token::Keyword(Keyword::Field) | Token::IntType(_) | Token::LeftBracket => true,
+            _ => false,
+        }
+    }
+    pub fn can_be_field_element_type(&self) -> bool {
+        match self {
+            Token::Keyword(Keyword::Pub)
+            | Token::Keyword(Keyword::Const)
+            | Token::Keyword(Keyword::Priv) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -386,15 +401,11 @@ pub enum Keyword {
     In,
     Use,
     Constrain,
-    // You can declare a variable using pub which will give it the Public type
+    // Field types
     Pub,
-    Public,
-    // You can declare a variable using private, which will give it the Witness type
-    Private,
-    Witness,
-    // You can declare a variable using Const which will give it the Constant type
+    Priv,
     Const,
-    Constant,
+    //
     // Let declarations will be for Structures and possibly closures, if they are added
     Let,
     // Field type can only be used in Directive functions. They are explicitly for doing Field operations without applying constraints
@@ -419,10 +430,7 @@ impl fmt::Display for Keyword {
             Keyword::As => write!(f, "as"),
             Keyword::Use => write!(f, "use"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::Public => write!(f, "Public"),
-            Keyword::Private => write!(f, "priv"),
-            Keyword::Witness => write!(f, "Witness"),
-            Keyword::Constant => write!(f, "Constant"),
+            Keyword::Priv => write!(f, "priv"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Const => write!(f, "const"),
         }
@@ -452,13 +460,10 @@ impl Keyword {
             "true" => Some(Token::Bool(true)),
             "false" => Some(Token::Bool(false)),
 
-            "priv" => Some(Token::Keyword(Keyword::Private)),
+            "priv" => Some(Token::Keyword(Keyword::Priv)),
             "pub" => Some(Token::Keyword(Keyword::Pub)),
             "const" => Some(Token::Keyword(Keyword::Const)),
             // Native Types
-            "Witness" => Some(Token::Keyword(Keyword::Witness)),
-            "Public" => Some(Token::Keyword(Keyword::Public)),
-            "Constant" => Some(Token::Keyword(Keyword::Constant)),
             "Field" => Some(Token::Keyword(Keyword::Field)),
 
             "_" => Some(Token::Underscore),
@@ -470,7 +475,7 @@ impl Keyword {
 // The list of keyword tokens which can start "variable" declarations. "fn" is for function declarations
 // XXX(low) : It might make sense to create a Keyword::Declarations Variant
 const fn declaration_keywords() -> [Keyword; 4] {
-    [Keyword::Let, Keyword::Const, Keyword::Pub, Keyword::Private]
+    [Keyword::Let, Keyword::Const, Keyword::Pub, Keyword::Priv]
 }
 
 impl Token {
