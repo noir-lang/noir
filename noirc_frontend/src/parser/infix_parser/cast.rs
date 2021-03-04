@@ -43,8 +43,8 @@ mod test {
     fn valid_syntax() {
         let vectors = vec![
             " as u8", //
-            " as Witness",
-            " as [8]Witness",
+            " as Field",
+            " as [8]Field",
         ];
 
         for src in vectors {

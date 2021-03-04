@@ -136,7 +136,7 @@ mod test {
     fn basic_priv_simplified() {
         let src = r#"
 
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 priv k = x;
                 priv _z = x + k;
             }
@@ -149,7 +149,7 @@ mod test {
     #[should_panic]
     fn basic_let_stmt() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let k = [x,x];
                 priv _z = x + k;
             }
@@ -160,7 +160,7 @@ mod test {
     #[test]
     fn basic_index_expr() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let k = [x,x];
                 priv _z = x + k[0];
             }
@@ -171,11 +171,11 @@ mod test {
     #[test]
     fn basic_call_expr() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 priv _z = x + foo(x);
             }
 
-            fn foo(x : Witness) -> Witness {
+            fn foo(x : Field) -> Field {
                 x
             }
         "#;
@@ -185,7 +185,7 @@ mod test {
     #[test]
     fn basic_for_expr() {
         let src = r#"
-            fn main(_x : Witness) {
+            fn main(_x : Field) {
                 let _j = for _i in 0..10 {
                     for _k in 0..100 {
 

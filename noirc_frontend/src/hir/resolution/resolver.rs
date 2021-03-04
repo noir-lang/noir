@@ -518,7 +518,7 @@ mod test {
     #[test]
     fn resolve_basic_function() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let y = x + x;
                 constrain y == x;
             }
@@ -530,7 +530,7 @@ mod test {
     #[test]
     fn resolve_unused_var() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let y = x + x;
                 constrain x == x;
             }
@@ -552,7 +552,7 @@ mod test {
     #[test]
     fn resolve_unresolved_var() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let y = x + x;
                 constrain y == z;
             }
@@ -574,7 +574,7 @@ mod test {
     #[test]
     fn unresolved_path() {
         let src = "
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let _z = some::path::to::a::func(x);
             }
         ";
@@ -590,7 +590,7 @@ mod test {
     #[test]
     fn resolve_literal_expr() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let y = 5;
                 constrain y == x;
             }
@@ -603,7 +603,7 @@ mod test {
     #[test]
     fn multiple_resolution_errors() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                let y = foo::bar(x);
                let z = y + a;
             }
@@ -633,7 +633,7 @@ mod test {
     #[test]
     fn resolve_prefix_expr() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let _y = -x;
             }
         "#;
@@ -644,7 +644,7 @@ mod test {
     #[test]
     fn resolve_for_expr() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 for i in 1..20 {
                     priv _z = x + i;
                 };
@@ -657,11 +657,11 @@ mod test {
     #[test]
     fn resolve_call_expr() {
         let src = r#"
-            fn main(x : Witness) {
+            fn main(x : Field) {
                 let _z = foo(x);
             }
 
-            fn foo(x : Witness) -> Witness {
+            fn foo(x : Field) -> Field {
                 x
             }
         "#;
