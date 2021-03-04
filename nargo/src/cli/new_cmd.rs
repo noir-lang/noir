@@ -24,7 +24,7 @@ pub(crate) fn run(args: ArgMatches) {
     create_src_dir(&src_dir);
 
     const EXAMPLE: &'static str = "
-        fn main(x : Witness, y : Witness) {
+        fn main(x : Field, y : Field) {
             constrain x != y;
         }
     ";
