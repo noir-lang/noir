@@ -1,4 +1,4 @@
 
-fn main(x : Witness, y : Witness) {
+fn main(x : Field, y : Field) {
     constrain x != y;
 }

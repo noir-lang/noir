@@ -1,4 +1,4 @@
 
-fn hello(x : Witness) -> Witness {
+fn hello(x : Field) -> Field {
     x
 }
