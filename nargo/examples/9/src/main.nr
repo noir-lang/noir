@@ -3,7 +3,7 @@
 
 use dep::std;
 
-fn main(leaf : Witness, index : Witness, hashpath : [6]Witness, root : Witness) {
+fn main(leaf : Field, index : Field, hashpath : [6]Field, root : Field) {
 
     const one = 1;
 

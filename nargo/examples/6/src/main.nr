@@ -7,7 +7,7 @@
 
 use dep::std;
 
-fn main(x : [5]u8, low : Public, high: Public) {
+fn main(x : [5]u8, low : pub Field, high: pub Field) {
 
      let digest = std::hash::sha256(x);
      

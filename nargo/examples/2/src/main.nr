@@ -2,7 +2,7 @@
 // (Kobi/Daira/Circom/#37) https://github.com/iden3/circom/issues/37
 //
 //
-fn main(x : Witness, y : Witness) {
+fn main(x : Field, y : Field) {
     priv x_as_u8 = x as u8;
     priv y_as_u8 = y as u8;
     

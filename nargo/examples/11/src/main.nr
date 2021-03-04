@@ -2,7 +2,7 @@
 
 use dep::std;
 
-fn main(x : Witness, b : Witness, _output: Witness) {
+fn main(x : Field, b : Field, _output: Field) {
 
      priv _result = std::hash::pedersen([x,b]);
 

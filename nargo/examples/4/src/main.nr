@@ -3,7 +3,7 @@
 // Avoids mutability
 //
 // XXX(Dankrad): For loop is not clear
-fn main(x : Witness, y : Witness) {
+fn main(x : Field, y : Field) {
     const _a = 1;
     priv k = x + y;
 

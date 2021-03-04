@@ -14,7 +14,7 @@ use dep::std;
 // XXX(Justin): Constrain array to be equal to a byte array
 // implicitly constrain low and high 128 bits 
 
-fn main(x : [5]u8, low : Public, high: Public) {
+fn main(x : [5]u8, low : pub Field, high: pub Field) {
 
      let digest = std::hash::blake2s(x);
      

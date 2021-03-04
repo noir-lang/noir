@@ -10,6 +10,6 @@ mod foo;
 //
 // To verify that proof, type `cargo run verify {proof_name}`
 
-fn main(x : Witness, y : Witness) {
+fn main(x : Field, y : Field) {
     constrain x != foo::hello(y);
 }

@@ -9,7 +9,7 @@
  
 use dep::std;
 
-fn main(leaf : Witness,root_pub : Public) {
+fn main(leaf : Field,root_pub : pub Field) {
 
     priv root = std::merkle::compute_root([leaf,leaf,leaf,leaf,leaf,leaf,leaf,leaf]);
  

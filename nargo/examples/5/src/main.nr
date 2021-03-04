@@ -12,9 +12,9 @@
 // This can be done in ACIR!
 use dep::std;
 
-fn main(x : Witness,low : Public, high: Public) {
+fn main(x : Field,low : pub Field, high: pub Field) {
 
-    // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Witness
+    // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
     // The padding is taken care of by the program
     let digest = std::hash::sha256([x as u8]);
      
