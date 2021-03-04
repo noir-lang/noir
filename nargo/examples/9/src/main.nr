@@ -3,11 +3,11 @@
 
 use dep::std;
 
-fn main(leaf : Field, index : Field, hashpath : [6]Field, root : Field) {
+fn main(message : [64]u8, index : Field, hashpath : [6]Field, root : Field) {
 
-    const one = 1;
+    priv leaf = std::hash::hash_to_field(message);
 
     priv is_member = std::merkle::check_membership(root, leaf, index, hashpath);
 
-    constrain is_member == one;
+    constrain is_member == 1;
 }

@@ -1,7 +1,7 @@
 
         # Manually copied from merkle.rs (test::basic_interop_update) 
         # Which was tested to be consistent with barretenberg C++ 
-        leaf = "0x06c2335d6f7acb84bbc7d0892cefebb7ca31169a89024f24814d5785e0d05324"
+        message = [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         index = "2"
         root = "0x241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e"
         hashpath = [
