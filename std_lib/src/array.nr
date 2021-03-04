@@ -1,5 +1,5 @@
 #[builtin(arraysum)]
-fn sum(_input : []Witness) -> Witness {}
+fn sum(_input : []Field) -> Field {}
 
 #[builtin(arrayprod)]
-fn prod(_input : []Witness) -> Witness {}
+fn prod(_input : []Field) -> Field {}
