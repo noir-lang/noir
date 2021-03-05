@@ -14,12 +14,12 @@ pub struct ImportDirective {
 #[derive(Debug)]
 pub enum PathResolution {
     Resolved(PerNs),
-    Unresolved(String),
+    Unresolved(Ident),
 }
 #[derive(Debug)]
 pub struct ResolvedImport {
     // name of the namespace, either last path segment or an alias
-    pub name: String,
+    pub name: Ident,
     // The symbol which we have resolved to
     pub resolved_namespace: PerNs,
     // The module which we must add the resolved namespace to
@@ -112,15 +112,15 @@ fn resolve_name_in_module(
     let mut import_path = import_path.into_iter();
 
     let mut current_ns = match import_path.next() {
-        Some(segment) => current_mod.scope.find_name(&segment.0.contents),
+        Some(segment) => current_mod.scope.find_name(&segment),
         None => {
-            return PathResolution::Unresolved(String::from("ice: could not fetch first segment"))
+            unreachable!("ice: could not fetch first segment")
         }
     };
 
     for segment in import_path {
         let typ = match current_ns.take_types() {
-            None => return PathResolution::Unresolved(segment.0.contents.clone()),
+            None => return PathResolution::Unresolved(segment.clone()),
             Some(typ) => typ,
         };
 
@@ -132,9 +132,9 @@ fn resolve_name_in_module(
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
 
         // Check if namespace
-        let found_ns = current_mod.scope.find_name(&segment.0.contents);
+        let found_ns = current_mod.scope.find_name(&segment);
         if found_ns.is_none() {
-            return PathResolution::Unresolved(segment.0.contents.clone());
+            return PathResolution::Unresolved(segment.clone());
         }
         current_ns = found_ns
     }
@@ -142,17 +142,10 @@ fn resolve_name_in_module(
     PathResolution::Resolved(current_ns)
 }
 
-fn resolve_path_name(import_directive: &ImportDirective) -> String {
+fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
     match &import_directive.alias {
-        None => import_directive
-            .path
-            .segments
-            .last()
-            .unwrap()
-            .0
-            .contents
-            .clone(),
-        Some(ident) => ident.0.contents.clone(),
+        None => import_directive.path.segments.last().unwrap().clone(),
+        Some(ident) => ident.clone(),
     }
 }
 
