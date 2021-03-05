@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 pub use util::*;
 
 const FILE_EXTENSION: &'static str = "nr";
-const MOD_FILE: &'static str = "mod";
 
 // XXX: Create a trait for file io
 /// An enum to differentiate between the root file
@@ -74,10 +73,6 @@ impl FileManager {
         candidate_files.push(
             dir.to_path_buf()
                 .join(&format!("{}.{}", mod_name, FILE_EXTENSION)),
-        );
-        candidate_files.push(
-            dir.to_path_buf()
-                .join(&format!("{}/{}.{}", mod_name, MOD_FILE, FILE_EXTENSION)),
         );
 
         for candidate in candidate_files.iter() {
