@@ -2,12 +2,14 @@ use std::collections::HashMap;
 
 use fm::FileId;
 
+use crate::Ident;
+
 use super::{ItemScope, LocalModuleId};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ModuleData {
     pub parent: Option<LocalModuleId>,
-    pub children: HashMap<String, LocalModuleId>,
+    pub children: HashMap<Ident, LocalModuleId>,
     pub scope: ItemScope,
 
     pub origin: ModuleOrigin,
