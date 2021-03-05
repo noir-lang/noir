@@ -28,6 +28,11 @@ impl From<String> for Ident {
         Spanned::from_position(Default::default(), Default::default(), a).into()
     }
 }
+impl From<&str> for Ident {
+    fn from(a: &str) -> Ident {
+        Ident::from(a.to_owned())
+    }
+}
 
 impl From<SpannedToken> for Ident {
     fn from(st: SpannedToken) -> Ident {
