@@ -59,8 +59,12 @@ impl PathParser {
 fn path_identifer(
     tok: &crate::token::SpannedToken,
 ) -> Result<(Option<Ident>, PathKind), ParserErrorKind> {
+    use noirc_errors::Spanned;
     match tok.token() {
-        Token::Ident(x) => Ok((Some(Ident::from(x.clone())), PathKind::Plain)),
+        Token::Ident(x) => Ok((
+            Some(Spanned::from(tok.into_span(), x.to_owned()).into()),
+            PathKind::Plain,
+        )),
         Token::Keyword(Keyword::Crate) => Ok((None, PathKind::Crate)),
         Token::Keyword(Keyword::Dep) => Ok((None, PathKind::Dep)),
         _ => {
