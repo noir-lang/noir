@@ -2,7 +2,10 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
 
-use crate::node_interner::{IdentId, NodeInterner};
+use crate::{
+    node_interner::{IdentId, NodeInterner},
+    Ident,
+};
 
 #[derive(Error, Debug, Clone)]
 pub enum ResolverError {
@@ -18,7 +21,11 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathUnresolved { span: Span, name: String },
+    PathUnresolved {
+        span: Span,
+        name: String,
+        segment: Ident,
+    },
     #[error("could not resolve path")]
     Expected {
         span: Span,
@@ -73,11 +80,26 @@ impl ResolverError {
                 String::new(),
                 span,
             ),
-            ResolverError::PathUnresolved { span, name } => Diagnostic::simple_error(
-                format!("could not resolve path : {}", name),
-                String::new(),
+            ResolverError::PathUnresolved {
                 span,
-            ),
+                name,
+                segment,
+            } => {
+                let mut diag = Diagnostic::simple_error(
+                    format!("could not resolve path : {}", name),
+                    String::new(),
+                    span,
+                );
+                // XXX: When the secondary and primary labels have spans that
+                // overlap, you cannot differentiate between them.
+                // This error is an example of this.
+                diag.add_secondary(
+                    format!("could not resolve `{}` in path", &segment.0.contents),
+                    segment.0.span(),
+                );
+
+                diag
+            }
             ResolverError::Expected {
                 span,
                 expected,
