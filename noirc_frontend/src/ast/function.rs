@@ -47,7 +47,10 @@ impl NoirFunction {
         self.def.return_type.clone()
     }
     pub fn name(&self) -> &str {
-        &self.def.name.0.contents
+        &self.name_ident().0.contents
+    }
+    pub fn name_ident(&self) -> &Ident {
+        &self.def.name
     }
     pub fn parameters(&self) -> &Vec<(Ident, Type)> {
         &self.def.parameters
