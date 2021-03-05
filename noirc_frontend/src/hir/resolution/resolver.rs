@@ -337,20 +337,25 @@ impl<'a> Resolver<'a> {
                 let span = call_expr.func_name.span();
                 let func_name = call_expr.func_name.as_string();
 
-                let func_id = match self
+                let mod_def_id = match self
                     .path_resolver
                     .resolve(self.def_maps, call_expr.func_name)
                 {
-                    None => {
-                        // Could not resolve this symbol, log the error and return a dummy function id
+                    Ok(mod_def_id) => mod_def_id,
+                    Err(segment) => {
                         let err = ResolverError::PathUnresolved {
                             span,
                             name: func_name,
+                            segment,
                         };
                         self.push_err(err);
-
-                        FuncId::dummy_id()
+                        None
                     }
+                };
+
+                let func_id = match mod_def_id {
+                    // Could not resolve this symbol, the error is already logged, return a dummy function id
+                    None => FuncId::dummy_id(),
                     Some(def_id) => {
                         // A symbol was found. Check if it is a function
                         if let Some(func_id) = def_id.as_function() {
@@ -672,7 +677,11 @@ mod test {
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
-            ResolverError::PathUnresolved { span: _, name } => {
+            ResolverError::PathUnresolved {
+                span: _,
+                name,
+                segment: _,
+            } => {
                 assert_eq!(name, expected_unresolved_path)
             }
             _ => unimplemented!("expected an unresolved path"),
