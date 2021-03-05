@@ -1,21 +1,7 @@
-use crate::{BIN_FILE, FILE_EXTENSION, LIB_FILE, MOD_FILE};
 use std::fs::ReadDir;
 use std::path::{Path, PathBuf};
 
-pub fn find_mod_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-    file_path(MOD_FILE, path)
-}
-pub fn find_lib_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-    file_path(LIB_FILE, path)
-}
-pub fn find_bin_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-    file_path(BIN_FILE, path)
-}
-
-/// Return None, if the file with extension is not present and Some if it is
-pub fn file_path<P: AsRef<Path>>(file_name: &str, path: P) -> Option<PathBuf> {
-    find_file(path, file_name, FILE_EXTENSION)
-}
+// XXX: These public files are only used in Nargo
 
 // Looks for file named `file_name` in path
 pub fn find_file<P: AsRef<Path>>(path: P, file_name: &str, extension: &str) -> Option<PathBuf> {
