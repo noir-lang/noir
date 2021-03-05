@@ -3,8 +3,11 @@ mod infix_parser;
 mod parser;
 mod prefix_parser;
 
-use crate::token::{Keyword, SpannedToken, Token};
 use crate::{ast::ImportStatement, NoirFunction};
+use crate::{
+    token::{Keyword, SpannedToken, Token},
+    Ident,
+};
 pub use errors::ParserErrorKind;
 pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
@@ -12,7 +15,7 @@ pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
-    pub module_decls: Vec<String>,
+    pub module_decls: Vec<Ident>,
 }
 
 impl ParsedModule {
@@ -30,7 +33,7 @@ impl ParsedModule {
     fn push_import(&mut self, import_stmt: ImportStatement) {
         self.imports.push(import_stmt);
     }
-    fn push_module_decl(&mut self, mod_name: String) {
+    fn push_module_decl(&mut self, mod_name: Ident) {
         self.module_decls.push(mod_name);
     }
 }

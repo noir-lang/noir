@@ -85,13 +85,13 @@ impl<T: std::cmp::PartialEq> PartialEq<Spanned<T>> for Spanned<T> {
 }
 
 impl<T> Spanned<T> {
-    pub fn from_position(start: Position, end: Position, contents: T) -> Spanned<T> {
+    pub const fn from_position(start: Position, end: Position, contents: T) -> Spanned<T> {
         Spanned {
             span: Span { start, end },
             contents,
         }
     }
-    pub fn from(t_span: Span, contents: T) -> Spanned<T> {
+    pub const fn from(t_span: Span, contents: T) -> Spanned<T> {
         Spanned {
             span: t_span,
             contents,
