@@ -1,4 +1,5 @@
 use super::dc_mod::ModCollector;
+use super::errors::DefCollectorErrorKind;
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::resolver::Resolver;
@@ -11,6 +12,7 @@ use crate::node_interner::{FuncId, NodeInterner};
 use crate::{NoirFunction, ParsedModule};
 use fm::FileId;
 use noirc_errors::CollectedErrors;
+use noirc_errors::DiagnosableError;
 use std::collections::HashMap;
 
 /// Stores all of the unresolved functions in a particular file/mod
@@ -105,7 +107,17 @@ impl DefCollector {
                 current_def_map.modules[resolved_import.module_scope.0]
                     .scope
                     .add_item_to_namespace(name.clone(), ns)
-                    .expect("could not add item to namespace");
+                    .map_err(|(first_def, second_def)| {
+                        let err = DefCollectorErrorKind::DuplicateImport {
+                            first_def,
+                            second_def,
+                        };
+
+                        vec![CollectedErrors {
+                            file_id: root_file_id,
+                            errors: vec![err.to_diagnostic()],
+                        }]
+                    })?;
             }
         }
 
