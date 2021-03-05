@@ -1,5 +1,6 @@
 use acvm::acir::circuit::Circuit;
 use acvm::BackendPointer;
+use fm::FileType;
 use noir_evaluator::Evaluator;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
@@ -60,7 +61,11 @@ impl Driver {
         crate_type: CrateType,
     ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self.context.file_manager.add_file(&dir_path).unwrap();
+        let root_file_id = self
+            .context
+            .file_manager
+            .add_file(&dir_path, FileType::Root)
+            .unwrap();
 
         let crate_id = self
             .context
@@ -80,7 +85,11 @@ impl Driver {
         crate_type: CrateType,
     ) -> CrateId {
         let dir_path = root_file.as_ref().to_path_buf();
-        let root_file_id = self.context.file_manager.add_file(&dir_path).unwrap();
+        let root_file_id = self
+            .context
+            .file_manager
+            .add_file(&dir_path, FileType::Root)
+            .unwrap();
 
         // The first crate is always the local crate
         assert!(self.context.crate_graph.number_of_crates() != 0);
