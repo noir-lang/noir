@@ -42,7 +42,8 @@ pub fn resolve_function_call_path(
     let def_map = &def_maps[&module_id.krate];
     let path_res = resolve_path_to_ns(&import, def_map, def_maps);
     let ns = match path_res {
-        PathResolution::Unresolved(seg) => panic!("could not resolve path at segment `{}`", seg),
+        // XXX: It is possible to propagate the actual segment of the resolver which failed
+        PathResolution::Unresolved(seg) => return None,
         PathResolution::Resolved(ns) => ns,
     };
 
