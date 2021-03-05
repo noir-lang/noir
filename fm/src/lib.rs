@@ -5,7 +5,7 @@ pub mod util;
 use std::path::{Path, PathBuf};
 pub use util::*;
 
-const FILE_EXTENSION: &'static str = "nr";
+pub const FILE_EXTENSION: &'static str = "nr";
 
 // XXX: Create a trait for file io
 /// An enum to differentiate between the root file
@@ -130,7 +130,7 @@ mod tests {
 
         let mut fm = FileManager::new();
 
-        let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
+        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
 
         let _foo_file_path = dummy_file_path(&dir, "foo.nr");
         fm.resolve_path(file_id, "foo").unwrap();
@@ -140,15 +140,37 @@ mod tests {
         let mut fm = FileManager::new();
 
         let dir = tempdir().unwrap();
-        let file_path = dummy_file_path(&dir, "my_dummy_file.nr");
+        // Create a lib.nr file at the root.
+        // we now have dir/lib.nr
+        let file_path = dummy_file_path(&dir, "lib.nr");
 
-        let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
+        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
 
-        let sub_dir = TempDir::new_in(dir).unwrap();
+        // Create a sub directory
+        // we now have:
+        // - dir/lib.nr
+        // - dir/sub_dir
+        let sub_dir = TempDir::new_in(&dir).unwrap();
         std::fs::create_dir_all(sub_dir.path()).unwrap();
-        let tmp_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
+        let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
 
-        let _foo_file_path = dummy_file_path(&sub_dir, "mod.nr");
-        fm.resolve_path(file_id, tmp_dir_name).unwrap();
+        // Add foo.nr to the subdirectory
+        // we no have:
+        // - dir/lib.nr
+        // - dir/sub_dir/foo.nr
+        let _foo_file_path = dummy_file_path(&sub_dir, "foo.nr");
+
+        // Add a parent module for the sub_dir
+        // we no have:
+        // - dir/lib.nr
+        // - dir/sub_dir.nr
+        // - dir/sub_dir/foo.nr
+        let _sub_dir_root_file_path = dummy_file_path(&dir, &format!("{}.nr", sub_dir_name));
+
+        // First check for the sub_dir.nr file and add it to the FileManager
+        let sub_dir_file_id = fm.resolve_path(file_id, sub_dir_name).unwrap();
+
+        // Now check for files in it's subdirectory
+        fm.resolve_path(sub_dir_file_id, "foo").unwrap();
     }
 }
