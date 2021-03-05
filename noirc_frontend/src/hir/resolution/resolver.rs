@@ -463,7 +463,7 @@ mod test {
 
     use std::collections::HashMap;
 
-    use crate::hir::resolution::errors::ResolverError;
+    use crate::{hir::resolution::errors::ResolverError, Ident};
 
     use crate::graph::CrateId;
     use crate::hir_def::function::HirFunction;
@@ -586,7 +586,7 @@ mod test {
 
         let (_, mut errors) =
             resolve_src_code(src, vec![String::from("main"), String::from("foo")]);
-        assert!(errors.len() == 1);
+        assert_eq!(errors.len(), 1);
         let err = errors.pop().unwrap();
 
         path_unresolved_error(err, "some::path::to::a::func");
@@ -695,10 +695,14 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Option<ModuleDefId> {
+        ) -> Result<Option<ModuleDefId>, Ident> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
-            self.0.get(&name.0.contents).cloned()
+            let mod_def = self.0.get(&name.0.contents).cloned();
+            match mod_def {
+                None => Err(name.clone()),
+                Some(_) => Ok(mod_def),
+            }
         }
     }
 

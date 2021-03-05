@@ -55,7 +55,6 @@ mod test {
 
     use noirc_errors::{Span, Spanned};
 
-    use crate::graph::CrateId;
     use crate::hir_def::{
         expr::{
             HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirExpression, HirInfixExpression,
@@ -64,6 +63,7 @@ mod test {
         stmt::{HirPrivateStatement, HirStatement},
     };
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::{graph::CrateId, Ident};
     use crate::{
         hir::{
             def_map::{CrateDefMap, ModuleDefId},
@@ -206,10 +206,14 @@ mod test {
             &self,
             _def_maps: &HashMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Option<ModuleDefId> {
+        ) -> Result<Option<ModuleDefId>, Ident> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
-            self.0.get(&name.0.contents).cloned()
+            let mod_def = self.0.get(&name.0.contents).cloned();
+            match mod_def {
+                None => Err(name.clone()),
+                Some(_) => Ok(mod_def),
+            }
         }
     }
 
