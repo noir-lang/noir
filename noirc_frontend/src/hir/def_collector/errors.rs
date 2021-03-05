@@ -1,4 +1,4 @@
-use crate::Ident;
+use crate::{hir::resolution::import::ImportDirective, Ident};
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
@@ -12,8 +12,10 @@ pub enum DefCollectorErrorKind {
     DuplicateModuleDecl { first_def: Ident, second_def: Ident },
     #[error("duplicate import")]
     DuplicateImport { first_def: Ident, second_def: Ident },
-    #[error("duplicate import")]
+    #[error("unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident },
+    #[error("unresolved import")]
+    UnresolvedImport { import: ImportDirective },
 }
 
 impl DiagnosableError for DefCollectorErrorKind {
@@ -73,6 +75,19 @@ impl DiagnosableError for DefCollectorErrorKind {
 
                 let diag = Diagnostic::simple_error(
                     format!("could not resolve module `{}` ", mod_name),
+                    format!(""),
+                    span,
+                );
+                diag
+            }
+            DefCollectorErrorKind::UnresolvedImport { import } => {
+                let mut span = import.path.span();
+                if let Some(alias) = &import.alias {
+                    span = span.merge(alias.0.span())
+                }
+
+                let diag = Diagnostic::simple_error(
+                    format!("could not resolve import"),
                     format!(""),
                     span,
                 );

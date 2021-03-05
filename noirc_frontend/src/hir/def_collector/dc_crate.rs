@@ -95,8 +95,16 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate
         let (unresolved, resolved) =
             resolve_imports(crate_id, def_collector.collected_imports, &context.def_maps);
-        if !unresolved.is_empty() {
-            panic!("could not resolve the following imports: {:?}", unresolved)
+
+        let unresolved_errs: Vec<_> = unresolved
+            .into_iter()
+            .map(|import| DefCollectorErrorKind::UnresolvedImport { import }.to_diagnostic())
+            .collect();
+        if !unresolved_errs.is_empty() {
+            return Err(vec![CollectedErrors {
+                file_id: root_file_id,
+                errors: unresolved_errs,
+            }]);
         }
 
         // Populate module namespaces according to the imports used
