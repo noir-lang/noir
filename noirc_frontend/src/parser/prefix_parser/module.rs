@@ -1,3 +1,5 @@
+use noirc_errors::Spanned;
+
 use super::*;
 
 pub struct ModuleParser;
@@ -10,15 +12,15 @@ impl ModuleParser {
     /// Cursor Start : `mod`
     ///
     /// Cursor End : `;`
-    pub(crate) fn parse_decl(parser: &mut Parser) -> Result<String, ParserErrorKind> {
+    pub(crate) fn parse_decl(parser: &mut Parser) -> Result<Ident, ParserErrorKind> {
         // Currently on the mod keyword
         //
         // Peek ahead and check if the next token is an identifier
         parser.peek_check_kind_advance(TokenKind::Ident)?;
 
         // XXX: It may be helpful to have a token to Ident function
-        let module_identifier = match parser.curr_token.token() {
-            Token::Ident(x) => x.to_string(),
+        let module_identifier: Ident = match parser.curr_token.token() {
+            Token::Ident(x) => Spanned::from(parser.curr_token.into_span(), x.to_owned()).into(),
             _ => unreachable!("ice: next token was peeked to be an Ident"),
         };
 
