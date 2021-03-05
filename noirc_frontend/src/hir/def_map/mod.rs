@@ -93,7 +93,9 @@ impl CrateDefMap {
 
         let root_module = &self.modules()[self.root.0];
 
-        root_module.scope.find_func_with_name(MAIN_FUNCTION)
+        // This function accepts an Ident, so we attach a dummy span to
+        // "main". Equality is implemented only on the contents.
+        root_module.scope.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
     pub fn root_file_id(&self) -> FileId {
