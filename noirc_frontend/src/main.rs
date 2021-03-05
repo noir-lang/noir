@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use fm::FileManager;
+use fm::{FileManager, FileType};
 use hir::{def_map::CrateDefMap, Context};
 use noirc_frontend::graph::{CrateGraph, CrateType};
 use noirc_frontend::hir::{self, def_map::ModuleDefId};
@@ -12,7 +12,7 @@ fn main() {
     //
     // Add root file to file manager
     let dir_path: PathBuf = PathBuf::from("example_project/lib.nr");
-    let root_file_id = fm.add_file(&dir_path).unwrap();
+    let root_file_id = fm.add_file(&dir_path, FileType::Root).unwrap();
 
     // CrateGraph
     let mut crate_graph = CrateGraph::default();
@@ -35,7 +35,7 @@ fn main() {
     let root = def_map.root();
     let module = def_map.modules().get(root.0).unwrap();
     for (name, (def_id, vis)) in module.scope.values() {
-        println!("func name is {}", name);
+        println!("func name is {:?}", name);
         let func_id = match def_id {
             ModuleDefId::FunctionId(func_id) => func_id,
             _ => unreachable!(),
