@@ -38,7 +38,7 @@ pub struct Evaluator<'a> {
     // At the moment, wasm32 is being used in the default backend
     // so it is safer to use a u64, at least until clang is changed
     // to compile wasm64.
-    witnesses: u32,
+    current_witness_index: u32,
     context: &'a Context,
     public_inputs: Vec<Witness>,
     main_function: FuncId,
@@ -49,7 +49,15 @@ impl<'a> Evaluator<'a> {
     pub fn new(main_function: FuncId, context: &Context) -> Evaluator {
         Evaluator {
             public_inputs: Vec::new(),
-            witnesses: 0,
+            // XXX: Barretenberg, reserves the first index to have value 0.
+            // When we increment, we do not use this index at all.
+            // This means that every constraint system at the moment, will either need
+            // to decrease each index by 1, or create a dummy witness.
+            //
+            // We ideally want to not have this and have barretenberg apply the
+            // following transformation to the witness index : f(i) = i + 1
+            //
+            current_witness_index: 0,
             context,
             main_function,
             gates: Vec::new(),
@@ -58,8 +66,8 @@ impl<'a> Evaluator<'a> {
 
     // Creates a new Witness index
     fn add_witness_to_cs(&mut self) -> Witness {
-        self.witnesses += 1;
-        let witness = Witness(self.witnesses);
+        self.current_witness_index += 1;
+        let witness = Witness(self.current_witness_index);
         witness
     }
 
@@ -75,8 +83,8 @@ impl<'a> Evaluator<'a> {
         value
     }
 
-    pub fn num_witnesses(&self) -> u32 {
-        self.witnesses
+    pub fn current_witness_index(&self) -> u32 {
+        self.current_witness_index
     }
 
     /// Compiles the Program into ACIR and applies optimisations to the arithmetic gates
@@ -91,10 +99,10 @@ impl<'a> Evaluator<'a> {
         // First evaluate the main function
         self.evaluate_main(&mut env)?;
 
-        let num_witness = self.num_witnesses();
+        let witness_index = self.current_witness_index();
         let optimised_circuit = acvm::compiler::compile(
             Circuit {
-                num_witnesses: num_witness as u32,
+                current_witness_index: witness_index,
                 gates: self.gates,
                 public_inputs: PublicInputs(self.public_inputs),
             },
