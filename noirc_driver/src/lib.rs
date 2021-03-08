@@ -2,6 +2,7 @@ use acvm::acir::circuit::Circuit;
 use acvm::BackendPointer;
 use fm::FileType;
 use noir_evaluator::Evaluator;
+use noirc_abi::Abi;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
@@ -140,6 +141,17 @@ impl Driver {
 
             std::process::exit(1);
         }
+    }
+
+    pub fn compute_abi(&self) -> Option<Abi> {
+        let local_crate = self.context.def_map(LOCAL_CRATE).unwrap();
+
+        let main_function = local_crate.main_function()?;
+
+        let func_meta = self.context.def_interner.function_meta(&main_function);
+        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
+
+        Some(abi)
     }
 
     pub fn into_compiled_program(&mut self, backend: BackendPointer) -> CompiledProgram {
