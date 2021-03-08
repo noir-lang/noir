@@ -24,15 +24,10 @@ pub(crate) fn run(args: ArgMatches) {
     create_src_dir(&src_dir);
 
     const EXAMPLE: &'static str = "
-        fn main(x : Field, y : Field) {
+        fn main(x : Field, y : pub Field) {
             constrain x != y;
         }
     ";
-
-    const INPUT: &'static str = r#"
-        x = "5"
-        y = "10"
-    "#;
 
     const SETTINGS: &'static str = r#"
         [package]
@@ -42,10 +37,12 @@ pub(crate) fn run(args: ArgMatches) {
         [dependencies]
     "#;
 
-    write_to_file(INPUT.as_bytes(), &src_dir.join(Path::new("input.toml")));
     write_to_file(SETTINGS.as_bytes(), &package_dir.join(Path::new(PKG_FILE)));
-    let path = write_to_file(EXAMPLE.as_bytes(), &src_dir.join(Path::new("main.nr")));
-    println!("Project successfully created! Binary located at {}", path);
+    write_to_file(EXAMPLE.as_bytes(), &src_dir.join(Path::new("main.nr")));
+    println!(
+        "Project successfully created! Binary located at {}",
+        package_dir.display()
+    );
 }
 
 fn create_src_dir<P: AsRef<Path>>(p: P) -> PathBuf {
