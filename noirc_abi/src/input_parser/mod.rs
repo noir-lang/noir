@@ -26,22 +26,20 @@ pub enum Format {
 }
 
 impl Format {
-    /// The name of the file that this Formatter can parse
-    /// Eg. The Toml parser will look for an `input.toml`
-    /// file in the directory.
-    pub fn file_name(&self) -> &'static str {
+    pub fn ext(&self) -> &'static str {
         match self {
-            Format::Toml => "input.toml",
+            Format::Toml => "toml",
         }
     }
 }
 
 impl Format {
-    pub fn parse<P: AsRef<Path>>(&self, path: P) -> BTreeMap<String, InputValue> {
+    pub fn parse<P: AsRef<Path>>(&self, path: P, file_name: &str) -> BTreeMap<String, InputValue> {
         match self {
             Format::Toml => {
                 let mut dir_path = path.as_ref().to_path_buf();
-                dir_path.push(self.file_name());
+                dir_path.push(file_name);
+                dir_path.set_extension(self.ext());
                 toml::parse(dir_path)
             }
         }
