@@ -1,7 +1,9 @@
 use clap::ArgMatches;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::resolver::Resolver;
+
+use super::{write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 pub(crate) fn run(_args: ArgMatches) {
     let package_dir = std::env::current_dir().unwrap();
@@ -12,4 +14,30 @@ pub(crate) fn run(_args: ArgMatches) {
 pub fn build_from_path<P: AsRef<Path>>(p: P) {
     let (mut driver, _) = Resolver::resolve_root_config(p.as_ref());
     driver.build();
+    // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
+    match driver.compute_abi() {
+        Some(x) => {
+            // XXX: The root config should return an enum to determine if we are looking for .json or .toml
+            // For now it is hardcoded to be toml.
+            //
+            // Check for input.toml and verifier.toml
+            let path_to_root = PathBuf::from(p.as_ref());
+            let path_to_prover_input = path_to_root.join(format!("{}.toml", PROVER_INPUT_FILE));
+            let path_to_verifier_input = path_to_root.join(format!("{}.toml", VERIFIER_INPUT_FILE));
+
+            // If they are not available, then create them and
+            // populate them based on the ABI
+            if !path_to_prover_input.exists() {
+                let toml = toml::to_string(&x).unwrap();
+                write_to_file(toml.as_bytes(), &path_to_prover_input);
+            }
+            if !path_to_verifier_input.exists() {
+                let toml = toml::to_string(&x.public_abi()).unwrap();
+                write_to_file(toml.as_bytes(), &path_to_verifier_input);
+            }
+        }
+        None => {
+            // This means that this is a library. Libraries do not have ABIs.
+        }
+    }
 }
