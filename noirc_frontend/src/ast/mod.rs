@@ -197,7 +197,9 @@ impl Type {
             Type::FieldElement(fe_type) => match fe_type {
                 FieldElementType::Private => AbiType::Field(noirc_abi::AbiFEType::Private),
                 FieldElementType::Public => AbiType::Field(noirc_abi::AbiFEType::Public),
-                FieldElementType::Constant => panic!("this is not allowed!"),
+                FieldElementType::Constant => {
+                    panic!("constant field in the abi, this is not allowed!")
+                }
             },
             Type::Array(field_type, size, typ) => {
                 if field_type != &FieldElementType::Private {
