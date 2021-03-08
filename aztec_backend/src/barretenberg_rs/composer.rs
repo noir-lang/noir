@@ -806,7 +806,7 @@ mod test {
         };
 
         let constraint_system = ConstraintSystem {
-            var_num: 4,
+            var_num: 5,
             public_inputs: vec![1],
             logic_constraints: vec![],
             range_constraints: vec![],
@@ -822,12 +822,12 @@ mod test {
 
         let case_1 = WitnessResult {
             witness: Assignments(vec![1.into(), 1.into(), 2.into(), 3.into()]),
-            public_inputs: None,
+            public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: true,
         };
         let case_2 = WitnessResult {
             witness: Assignments(vec![1.into(), 1.into(), 2.into(), 13.into()]),
-            public_inputs: None,
+            public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: false,
         };
 
