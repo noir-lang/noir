@@ -8,7 +8,7 @@ use pwg::Solver;
 
 use crate::resolver::Resolver;
 
-use super::{create_dir, write_to_file, PROOFS_DIR, PROOF_EXT};
+use super::{create_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE};
 
 pub(crate) fn run(args: ArgMatches) {
     let proof_name = args
@@ -30,9 +30,8 @@ fn prove(proof_name: &str) {
     let compiled_program = driver.into_compiled_program(backend_ptr);
 
     // Parse the initial witness values
-    let mut path_to_src_dir = std::env::current_dir().unwrap();
-    path_to_src_dir.push(std::path::PathBuf::from("src"));
-    let witness_map = noirc_abi::input_parser::Format::Toml.parse(path_to_src_dir);
+    let curr_dir = std::env::current_dir().unwrap();
+    let witness_map = noirc_abi::input_parser::Format::Toml.parse(curr_dir, PROVER_INPUT_FILE);
 
     // Check that enough witness values were supplied
     let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
@@ -79,13 +78,14 @@ fn process_abi_with_input(
     let mut index = 0;
 
     for param in param_names.into_iter() {
-        // XXX: This is undesirable as we are eagerly allocating, but it avoids duplication
-        let err_msg = &format!(
-            "ABI expects the parameter `{}`, but this was not found",
-            param
-        );
+        let value = witness_map
+            .get(param)
+            .expect(&format!(
+                "ABI expects the parameter `{}`, but this was not found",
+                param
+            ))
+            .clone();
 
-        let value = witness_map.get(param).expect(err_msg).clone();
         match value {
             InputValue::Field(element) => {
                 let old_value =
