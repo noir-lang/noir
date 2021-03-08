@@ -1,3 +1,3 @@
-fn hello(x : Field) -> Field {
+fn hello(x : pub Field) -> Field {
     x
 }
