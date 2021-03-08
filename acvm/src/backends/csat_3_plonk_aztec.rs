@@ -29,14 +29,21 @@ impl ProofSystemCompiler for Plonk {
         composer.create_proof(&constraint_system, sorted_witness)
     }
 
-    fn verify_from_cs(&self, proof: &[u8], circuit: Circuit) -> bool {
+    fn verify_from_cs(
+        &self,
+        proof: &[u8],
+        public_inputs: Vec<FieldElement>,
+        circuit: Circuit,
+    ) -> bool {
         let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
         let mut composer = StandardComposer::new(constraint_system.size());
 
-        //XXX: Currently barretenberg appends the public inputs to the proof
-        let public_inputs = None;
-        composer.verify(&constraint_system, &proof, public_inputs)
+        composer.verify(
+            &constraint_system,
+            &proof,
+            Some(Assignments::from_vec(public_inputs)),
+        )
     }
 
     fn np_language(&self) -> Language {
