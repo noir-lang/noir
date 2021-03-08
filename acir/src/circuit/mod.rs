@@ -7,7 +7,7 @@ use crate::native_types::Witness;
 
 #[derive(Clone, Debug)]
 pub struct Circuit {
-    pub num_witnesses: u32,
+    pub current_witness_index: u32,
     pub gates: Vec<Gate>,
     pub public_inputs: PublicInputs,
 }
