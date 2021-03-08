@@ -2,7 +2,10 @@ mod file_map;
 pub use file_map::{File, FileId, FileMap};
 
 pub mod util;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 pub use util::*;
 
 pub const FILE_EXTENSION: &'static str = "nr";
@@ -17,26 +20,26 @@ pub enum FileType {
     Normal,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
 #[derive(Debug)]
 pub struct FileManager {
     file_map: file_map::FileMap,
-    paths: Vec<VirtualPath>,
+    id_to_path: HashMap<FileId, VirtualPath>,
+    path_to_id: HashMap<VirtualPath, FileId>,
 }
 
 impl FileManager {
     pub fn new() -> Self {
         Self {
             file_map: file_map::FileMap::new(),
-            paths: Vec::new(),
+            id_to_path: HashMap::new(),
+            path_to_id: HashMap::new(),
         }
     }
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
-    // XXX: Would it break any assumptions, if we returned the same FileId,
-    // given the same file_path?
     pub fn add_file(&mut self, path_to_file: &PathBuf, file_type: FileType) -> Option<FileId> {
         // We expect the caller to ensure that the file is a valid noir file
         let ext = path_to_file
@@ -50,9 +53,22 @@ impl FileManager {
 
         let file_id = self.file_map.add_file(path_to_file.clone().into(), source);
         let path_to_file = virtualise_path(path_to_file, file_type);
-        self.paths.push(path_to_file);
+        self.register_path(file_id, path_to_file);
 
         Some(file_id)
+    }
+
+    fn register_path(&mut self, file_id: FileId, path: VirtualPath) {
+        let old_value = self.id_to_path.insert(file_id, path.clone());
+        assert!(
+            old_value.is_none(),
+            "ice: the same file id was inserted into the file manager twice"
+        );
+        let old_value = self.path_to_id.insert(path, file_id);
+        assert!(
+            old_value.is_none(),
+            "ice: the same path was inserted into the file manager twice"
+        );
     }
 
     pub fn fetch_file(&mut self, file_id: FileId) -> File {
@@ -60,9 +76,9 @@ impl FileManager {
         self.file_map.get_file(file_id).unwrap()
     }
     fn path(&mut self, file_id: FileId) -> &Path {
-        // Unchecked as we ensure that all file_ids are created by the file manager
+        // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
-        self.paths[file_id.as_usize()].0.as_path()
+        self.id_to_path.get(&file_id).unwrap().0.as_path()
     }
 
     pub fn resolve_path(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
