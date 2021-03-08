@@ -266,7 +266,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
     // Create constraint system
     let constraint_system = ConstraintSystem {
-        var_num: circuit.num_witnesses,
+        var_num: circuit.current_witness_index + 1, // number of witnesses is the witness index + 1;
         public_inputs: circuit.public_inputs.indices(),
         logic_constraints,
         range_constraints,
