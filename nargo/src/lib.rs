@@ -8,21 +8,21 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 // This name was used because it sounds like `cargo` and
 // Noir Package Manager abbreviated is npm, which is already taken.
 
-pub fn nargo_crates() -> PathBuf {
+fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")
 }
 
 pub mod cli;
-pub(crate) mod git;
-pub mod resolver;
-pub mod toml;
+mod git;
+mod resolver;
+mod toml;
 /// Searches for the Nargo.toml file
 ///
 /// XXX: In the end, this should find the root of the project and check
 /// for the Nargo.toml file there
 /// However, it should only do this after checking the current path
 /// This allows the use of workspace settings in the future.
-pub fn find_package_config(current_path: &Path) -> PathBuf {
+fn find_package_config(current_path: &Path) -> PathBuf {
     match fm::find_file(current_path, "Nargo", "toml") {
         Some(p) => p,
         None => write_stderr(&format!(
@@ -32,7 +32,7 @@ pub fn find_package_config(current_path: &Path) -> PathBuf {
     }
 }
 
-pub fn lib_or_bin(current_path: &Path) -> (PathBuf, CrateType) {
+fn lib_or_bin(current_path: &Path) -> (PathBuf, CrateType) {
     // A library has a lib.nr and a binary has a main.nr
     // You cannot have both.
     let src_path = match fm::find_dir(current_path, "src") {

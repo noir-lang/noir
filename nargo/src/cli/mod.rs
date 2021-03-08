@@ -14,6 +14,8 @@ mod verify_cmd;
 
 const CONTRACT_DIR: &str = "contract";
 const PROOFS_DIR: &str = "proofs";
+const PROVER_INPUT_FILE: &str = "Prover";
+const VERIFIER_INPUT_FILE: &str = "Verifier";
 const SRC_DIR: &str = "src";
 const PKG_FILE: &str = "Nargo.toml";
 const PROOF_EXT: &str = "proof";
