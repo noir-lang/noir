@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, thread::current};
+use std::collections::BTreeMap;
 
 use acir::{
     circuit::{Circuit, Gate},
