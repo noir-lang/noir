@@ -103,7 +103,12 @@ pub trait ProofSystemCompiler {
     /// which is why this is here.
     ///
     /// See `SmartContract` regarding the removal of `num_witnesses` and `num_public_inputs`
-    fn verify_from_cs(&self, proof: &[u8], circuit: Circuit) -> bool;
+    fn verify_from_cs(
+        &self,
+        proof: &[u8],
+        public_input: Vec<FieldElement>,
+        circuit: Circuit,
+    ) -> bool;
 }
 
 /// Supported NP complete languages
