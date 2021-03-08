@@ -1,3 +1,5 @@
+use serde::{ser::SerializeMap, Serialize, Serializer};
+
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
 //
@@ -48,6 +50,14 @@ impl AbiType {
             AbiType::Array { length, typ: _ } => *length as usize,
         }
     }
+
+    pub fn is_public(&self) -> bool {
+        match self {
+            AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
+            AbiType::Array { length: _, typ: _ } => false,
+            AbiType::Integer { sign: _, width: _ } => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -62,5 +72,32 @@ impl Abi {
 
     pub fn num_parameters(&self) -> usize {
         self.parameters.len()
+    }
+    /// Abi with only the public parameters
+    pub fn public_abi(self) -> Abi {
+        let parameters: Vec<_> = self
+            .parameters
+            .into_iter()
+            .filter(|(_, param_type)| param_type.is_public())
+            .collect();
+        Abi { parameters }
+    }
+}
+
+impl Serialize for Abi {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let vec: Vec<u8> = Vec::new();
+        let mut map = serializer.serialize_map(Some(self.parameters.len()))?;
+        for (param_name, param_type) in &self.parameters {
+            match param_type {
+                AbiType::Field(_) => map.serialize_entry(&param_name, "")?,
+                AbiType::Array { length: _, typ: _ } => map.serialize_entry(&param_name, &vec)?,
+                AbiType::Integer { sign: _, width: _ } => map.serialize_entry(&param_name, "")?,
+            };
+        }
+        map.end()
     }
 }
