@@ -44,6 +44,10 @@ impl Assignments {
         buffer
     }
 
+    pub fn from_vec(vec: Vec<Scalar>) -> Assignments {
+        Assignments(vec)
+    }
+
     pub fn push_i32(&mut self, value: i32) {
         self.0.push(Scalar::from(value as i128));
     }
@@ -70,7 +74,7 @@ pub struct Constraint {
 impl Constraint {
     fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
-        // Serialiasing Wires
+        // serialise Wires
         buffer.extend_from_slice(&self.a.to_be_bytes());
         buffer.extend_from_slice(&self.b.to_be_bytes());
         buffer.extend_from_slice(&self.c.to_be_bytes());
@@ -520,21 +524,38 @@ impl StandardComposer {
             now.elapsed().as_nanos(),
             now.elapsed().as_secs(),
         );
-        return proof;
+        return remove_public_inputs(constraint_system.public_inputs.len(), proof);
     }
 
     pub fn verify(
         &mut self,
         constraint_system: &ConstraintSystem,
+        // XXX: Important: This assumes that the proof does not have the public inputs pre-pended to it
+        // This is not the case, if you take the proof directly from Barretenberg
         proof: &[u8],
         public_inputs: Option<Assignments>,
     ) -> bool {
+        // Prepend the public inputs to the proof.
+        // This is how Barretenberg expects it to be.
+        // This is non-standard however, so this Rust wrapper will strip the public inputs
+        // from proofs created by Barretenberg. Then in Verify we prepend them again.
+        //
+
+        let mut proof = proof.to_vec();
+        if let Some(pi) = &public_inputs {
+            let mut proof_with_pi = Vec::new();
+            for assignment in pi.0.iter() {
+                proof_with_pi.extend(&assignment.to_bytes());
+            }
+            proof_with_pi.extend(proof);
+            proof = proof_with_pi;
+        }
         let now = std::time::Instant::now();
 
         let cs_buf = constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
-        let proof_ptr = self.barretenberg.allocate(proof);
+        let proof_ptr = self.barretenberg.allocate(&proof);
 
         let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
 
@@ -597,12 +618,20 @@ impl StandardComposer {
     }
 }
 
+fn remove_public_inputs(num_pub_inputs: usize, proof: Vec<u8>) -> Vec<u8> {
+    // This is only for public inputs and for Barretenberg.
+    // Barretenberg only used bn254, so each element is 32 bytes.
+    // To remove the public inputs, we need to remove (num_pub_inputs * 32) bytes
+    let num_bytes_to_remove = 32 * num_pub_inputs;
+    proof[num_bytes_to_remove..].to_vec()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn test_a_single_constraint() {
+    fn test_a_single_constraint_no_pub_inputs() {
         let constraint = Constraint {
             a: 1,
             b: 2,
@@ -615,7 +644,7 @@ mod test {
         };
 
         let constraint_system = ConstraintSystem {
-            var_num: 3,
+            var_num: 4,
             public_inputs: vec![],
             logic_constraints: vec![],
             range_constraints: vec![],
@@ -679,13 +708,22 @@ mod test {
                 case_6b,
             ],
         );
+    }
+    #[test]
+    fn test_a_single_constraint_with_pub_inputs() {
+        let constraint = Constraint {
+            a: 1,
+            b: 2,
+            c: 3,
+            qm: Scalar::zero(),
+            ql: Scalar::one(),
+            qr: Scalar::one(),
+            qo: -Scalar::one(),
+            qc: Scalar::zero(),
+        };
 
-        // Now lets create the same constraint system
-        // However, we specify that we want to reserve space for 2 public inputs.
-        // Test cases should work the same, even though we supply no public inputs
-        // It should also work, if we supply the correct public inputs
         let constraint_system = ConstraintSystem {
-            var_num: 3,
+            var_num: 4,
             public_inputs: vec![1, 2],
             logic_constraints: vec![],
             range_constraints: vec![],
@@ -699,24 +737,48 @@ mod test {
             constraints: vec![constraint],
         };
 
-        let case_7 = WitnessResult {
+        // This fails because the constraint system requires public inputs,
+        // but none are supplied in public_inputs. So the verifier will not
+        // supply anything.
+        let case_1 = WitnessResult {
+            witness: Assignments(vec![(-1).into(), 2.into(), 1.into()]),
+            public_inputs: None,
+            result: false,
+        };
+        let case_2 = WitnessResult {
+            witness: Assignments(vec![Scalar::zero(), Scalar::zero(), Scalar::zero()]),
+            public_inputs: Some(Assignments(vec![Scalar::zero(), Scalar::zero()])),
+            result: true,
+        };
+
+        let case_3 = WitnessResult {
+            witness: Assignments(vec![Scalar::one(), 2.into(), 6.into()]),
+            public_inputs: Some(Assignments(vec![Scalar::one(), 3.into()])),
+            result: false,
+        };
+
+        // Not enough public inputs
+        let case_4 = WitnessResult {
+            witness: Assignments(vec![Scalar::one(), Scalar::from(2), Scalar::from(6)]),
+            public_inputs: Some(Assignments(vec![Scalar::one()])),
+            result: false,
+        };
+
+        let case_5 = WitnessResult {
             witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
             public_inputs: Some(Assignments(vec![Scalar::one(), 2.into()])),
             result: true,
         };
 
-        // This test should be false, however due to the proving system taking the
-        // public inputs from the proof, the public inputs that are passed in
-        // are ignored. This is not desirable behavior.
-        let case_8 = WitnessResult {
+        let case_6 = WitnessResult {
             witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
             public_inputs: Some(Assignments(vec![Scalar::one(), 3.into()])),
-            result: true,
+            result: false,
         };
 
         test_circuit(
             &constraint_system,
-            vec![case_1, case_2, case_3, case_4, case_5, case_7, case_8],
+            vec![case_1, case_2, case_3, case_4, case_5, case_6],
         );
     }
 
