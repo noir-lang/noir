@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
-use crate::{Backend, Language, ProofSystemCompiler, SmartContract};
 use acir::{circuit::Circuit, native_types::Witness};
 use aztec_backend::barretenberg_rs::composer::{Assignments, StandardComposer};
 use noir_field::FieldElement;
 
-pub struct Plonk;
+use crate::{Language, ProofSystemCompiler};
 
-impl Backend for Plonk {}
+use super::Plonk;
 
 impl ProofSystemCompiler for Plonk {
     fn prove_with_meta(
@@ -48,15 +47,5 @@ impl ProofSystemCompiler for Plonk {
 
     fn np_language(&self) -> Language {
         Language::PLONKCSat { width: 3 }
-    }
-}
-
-impl SmartContract for Plonk {
-    fn eth_contract_from_cs(&self, circuit: Circuit) -> String {
-        let constraint_system = aztec_backend::serialise_circuit(&circuit);
-
-        let mut composer = StandardComposer::new(constraint_system.size());
-
-        composer.smart_contract(&constraint_system)
     }
 }

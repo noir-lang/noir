@@ -15,5 +15,7 @@ acir = {path = "../acir"}
 aztec_backend = {path = "../aztec_backend"}
 noir_field = {path = "../noir_field"}
 sha2 = "0.9.3"
+blake2 = "0.9.1"
+hex = "0.4.2"
 
 [dev-dependencies]
