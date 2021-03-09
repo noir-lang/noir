@@ -138,7 +138,7 @@ pub fn download_crs(mut path: std::path::PathBuf) {
     let mut output_file = {
         let fname = "transcript00.dat";
 
-        println!("Downloading the Default SRS : Ignite!");
+        println!("Downloading the Default SRS (340MB) : Ignite!");
         let fname = path.join(fname);
         println!("\nSRS will be saved at location: '{:?}'", fname);
 
