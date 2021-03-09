@@ -1,5 +1,5 @@
 [package]
-name = "noir_evaluator"
+name = "noirc_evaluator"
 version = "0.1.0"
 authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
 edition = "2018"
