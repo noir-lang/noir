@@ -1,17 +1,17 @@
 [workspace]
 
 members = [
-    "noir_field",
-    "noir_evaluator",
-    "aztec_backend",
-    "noirc_frontend",
-    "noirc_errors",
-    "noirc_driver",
-    "acir",
-    "std_lib",
-    "nargo",
-    "fm",
-    "arena",
-    "acvm",
-    "noirc_abi"
+    "crates/noir_field",
+    "crates/noir_evaluator",
+    "crates/aztec_backend",
+    "crates/noirc_frontend",
+    "crates/noirc_errors",
+    "crates/noirc_driver",
+    "crates/acir",
+    "crates/std_lib",
+    "crates/nargo",
+    "crates/fm",
+    "crates/arena",
+    "crates/acvm",
+    "crates/noirc_abi"
 ]
