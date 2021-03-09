@@ -15,7 +15,6 @@ noir_field = {path = "../noir_field"}
 noirc_abi = {path = "../noirc_abi"} 
 fm = {path = "../fm"}
 acvm = {path = "../acvm"}
-pwg = {path = "../pwg"}
 
 toml = "0.5"
 serde_derive = "1.0.123"
