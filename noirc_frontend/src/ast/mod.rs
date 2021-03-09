@@ -35,11 +35,29 @@ impl std::fmt::Display for ArraySize {
 
 /// FieldElementType refers to how the Compiler type is interpreted by the proof system
 /// Example: FieldElementType::Private means that the Compiler type is seen as a witness/witnesses
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub enum FieldElementType {
     Private,
     Public,
     Constant,
+}
+
+impl PartialEq for FieldElementType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (FieldElementType::Private, FieldElementType::Private) => true,
+            (FieldElementType::Public, FieldElementType::Public) => true,
+            (FieldElementType::Constant, FieldElementType::Constant) => true,
+            // The reason we manually implement this, is so that Private and Public
+            // are seen as equal
+            (FieldElementType::Private, FieldElementType::Public) => true,
+            (FieldElementType::Public, FieldElementType::Private) => true,
+            (FieldElementType::Private, FieldElementType::Constant) => false,
+            (FieldElementType::Public, FieldElementType::Constant) => false,
+            (FieldElementType::Constant, FieldElementType::Private) => false,
+            (FieldElementType::Constant, FieldElementType::Public) => false,
+        }
+    }
 }
 
 impl std::fmt::Display for FieldElementType {
@@ -183,6 +201,7 @@ impl Type {
         match self {
             Type::FieldElement(FieldElementType::Public) => true,
             Type::Integer(FieldElementType::Public, _, _) => true,
+            Type::Array(FieldElementType::Public, _, _) => true,
             _ => false,
         }
     }
