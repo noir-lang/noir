@@ -14,9 +14,9 @@ Once you have read through the documentation, you can also run the examples loca
 
 Backends:
 
- - Barretenberg via WASM. (Due to the usage of FFTs in WASM, proving times are magnitudes slower than native)
+ - Barretenberg via WASM. (Due to the usage of FFTs in WASM. This backend is slow.)
 
-Compiler
+Compiler:
 
  - Module System
  - For expressions
