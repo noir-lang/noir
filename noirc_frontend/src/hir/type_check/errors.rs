@@ -31,6 +31,8 @@ pub enum TypeCheckError {
         found: u16,
         span: Span,
     },
+    #[error("return type in a function cannot be public")]
+    PublicReturnType { typ: Type, span: Span },
     // XXX: unstructured errors are not ideal for testing.
     // They will be removed in a later iteration
     #[error("unstructured msg: {msg:?}")]
@@ -132,6 +134,13 @@ impl TypeCheckError {
             TypeCheckError::Unstructured { msg, span } => {
                 vec![Diagnostic::simple_error(msg, format!(""), span)]
             }
+            TypeCheckError::PublicReturnType { typ, span } => {
+                vec![Diagnostic::simple_error(
+                    format!("functions cannot declare a public return type"),
+                    format!("return type is {}", typ),
+                    span,
+                )]
+            }
         }
     }
 
@@ -141,6 +150,7 @@ impl TypeCheckError {
             | TypeCheckError::Unstructured { .. }
             | TypeCheckError::TypeMismatch { .. }
             | TypeCheckError::NonHomogenousArray { .. }
+            | TypeCheckError::PublicReturnType { .. }
             | TypeCheckError::ArityMisMatch { .. }
             | TypeCheckError::TypeCannotBeUsed { .. } => Some(TypeCheckError::Context {
                 err: Box::new(self),
