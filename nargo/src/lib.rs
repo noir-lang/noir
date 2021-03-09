@@ -56,7 +56,7 @@ fn lib_or_bin(current_path: &Path) -> (PathBuf, CrateType) {
     }
 }
 
-fn write_stderr(message: &str) -> ! {
+pub(crate) fn write_stderr(message: &str) -> ! {
     let mut stderr = StandardStream::stderr(ColorChoice::Always);
     stderr
         .set_color(ColorSpec::new().set_fg(Some(Color::Red)))

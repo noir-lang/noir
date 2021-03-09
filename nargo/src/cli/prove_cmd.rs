@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
+use crate::write_stderr;
 use acvm::acir::native_types::Witness;
 use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
-use pwg::Solver;
 
 use crate::resolver::Resolver;
 
@@ -46,7 +46,16 @@ fn prove(proof_name: &str) {
     let abi = compiled_program.abi.unwrap();
     let mut solved_witness = process_abi_with_input(abi, witness_map);
 
-    Solver::solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+    let solver_res = backend_ptr
+        .backend()
+        .solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+    match solver_res {
+        Ok(_) => {}
+        Err(opcode) => write_stderr(&format!(
+            "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
+            opcode
+        )),
+    }
 
     let proof = backend_ptr
         .backend()
