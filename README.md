@@ -43,7 +43,7 @@ Concretely the following items are on the road map:
 - If statements
 - OR operator
 - General code sanitisation and documentation
-- Prover and Verifier Key logic. (Preprocessing is not handled)
+- Prover and Verifier Key logic. (Prover and Verifier preprocess per compile)
 - Structures
 - Visibility modifiers
 - Signed integers
