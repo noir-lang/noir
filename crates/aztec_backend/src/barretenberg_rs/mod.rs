@@ -8,7 +8,7 @@ pub mod pedersen;
 mod pippenger;
 pub mod schnorr;
 
-use wasmer::{imports, ChainableNamedResolver, Cranelift, Function, Instance, Value};
+use wasmer::{imports, ChainableNamedResolver, Cranelift, Function, Instance, NativeFunc, Value};
 use wasmer::{Module, Store};
 use wasmer_engine_jit::JIT;
 use wasmer_wasi::WasiState;
@@ -47,8 +47,7 @@ impl Barretenberg {
     /// Transfer bytes to WASM heap
     pub fn transfer_to_heap(&mut self, arr: &[u8], offset: usize) {
         let memory = self.instance.exports.get_memory("memory").unwrap();
-
-        for (byte_id, cell) in memory.view::<u8>()[offset as usize..(offset + arr.len())]
+        for (byte_id, cell) in memory.view::<u8>()[offset..(offset + arr.len())]
             .iter()
             .enumerate()
         {
@@ -87,7 +86,11 @@ impl Barretenberg {
         let ptr = self
             .call("bbmalloc", &Value::I32(bytes.len() as i32))
             .value();
-        self.transfer_to_heap(bytes, ptr.unwrap_i32() as usize);
+
+        let i32_bytes = ptr.unwrap_i32().to_be_bytes();
+        let u32_bytes = u32::from_be_bytes(i32_bytes);
+
+        self.transfer_to_heap(bytes, u32_bytes as usize);
         ptr
     }
 

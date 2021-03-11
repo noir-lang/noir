@@ -1,9 +1,9 @@
 // Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++.
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 use crate::barretenberg_rs::composer::{
-    Blake2sConstraint, Constraint, ConstraintSystem, HashToFieldConstraint, LogicConstraint,
-    MerkleMembershipConstraint, MerkleRootConstraint, PedersenConstraint, RangeConstraint,
-    SchnorrConstraint, Sha256Constraint,
+    Blake2sConstraint, Constraint, ConstraintSystem, EcdsaConstraint, HashToFieldConstraint,
+    LogicConstraint, MerkleMembershipConstraint, MerkleRootConstraint, PedersenConstraint,
+    RangeConstraint, SchnorrConstraint, Sha256Constraint,
 };
 use acir::circuit::{Circuit, Gate};
 use acir::native_types::Arithmetic;
@@ -22,6 +22,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
     let mut merkle_root_constraints: Vec<MerkleRootConstraint> = Vec::new();
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
+    let mut ecdsa_secp256k1_constraints: Vec<EcdsaConstraint> = Vec::new();
     let mut hash_to_field_constraints: Vec<HashToFieldConstraint> = Vec::new();
 
     for gate in circuit.gates.iter() {
@@ -259,6 +260,63 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         hash_to_field_constraints.push(hash_to_field_constraint);
                     }
+                    OPCODE::EcdsaSecp256k1 => {
+                        let mut inputs_iter = gadget_call.inputs.iter().peekable();
+
+                        // public key x
+                        let mut public_key_x = [0i32; 32];
+                        for i in 0..32 {
+                            let x_byte = inputs_iter.next().expect(&format!(
+                                "missing rest of x component for public key. tried to get byte {} but failed",
+                                i
+                            ));
+                            let x_byte_index = x_byte.witness.witness_index() as i32;
+                            public_key_x[i] = x_byte_index
+                        }
+                        // public key y
+                        let mut public_key_y = [0i32; 32];
+                        for i in 0..32 {
+                            let y_byte = inputs_iter.next().expect(&format!(
+                                          "missing rest of y component for public key. tried to get byte {} but failed",
+                                          i
+                                      ));
+                            let y_byte_index = y_byte.witness.witness_index() as i32;
+                            public_key_y[i] = y_byte_index
+                        }
+
+                        // signature
+                        let mut signature = [0i32; 64];
+                        for i in 0..64 {
+                            let sig_byte = inputs_iter.next().expect(&format!(
+                                "missing rest of signature. tried to get byte {} but failed",
+                                i
+                            ));
+                            let sig_byte_index = sig_byte.witness.witness_index() as i32;
+                            signature[i] = sig_byte_index
+                        }
+
+                        // The rest of the input is the message
+                        let mut hashed_message = Vec::new();
+                        while let Some(msg) = inputs_iter.next() {
+                            let msg_byte_index = msg.witness.witness_index() as i32;
+                            hashed_message.push(msg_byte_index);
+                        }
+
+                        assert!(inputs_iter.next().is_none());
+
+                        // result
+                        let result = gadget_call.outputs[0].witness_index() as i32;
+
+                        let constraint = EcdsaConstraint {
+                            hashed_message,
+                            signature,
+                            public_key_x,
+                            public_key_y,
+                            result,
+                        };
+
+                        ecdsa_secp256k1_constraints.push(constraint);
+                    }
                 };
             }
         }
@@ -275,6 +333,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         merkle_root_constraints,
         pedersen_constraints,
         schnorr_constraints,
+        ecdsa_secp256k1_constraints,
         blake2s_constraints,
         hash_to_field_constraints,
         constraints,

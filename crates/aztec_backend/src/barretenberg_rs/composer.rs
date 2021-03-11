@@ -8,13 +8,17 @@ pub struct StandardComposer {
     barretenberg: Barretenberg,
     pippenger: Pippenger,
     crs: CRS,
+    constraint_system: ConstraintSystem,
 }
 
 impl StandardComposer {
-    pub fn new(circuit_size: usize) -> StandardComposer {
+    pub fn new(constraint_system: ConstraintSystem) -> StandardComposer {
         let mut barretenberg = Barretenberg::new();
 
-        let crs = CRS::new(circuit_size);
+        let circuit_size =
+            StandardComposer::get_circuit_size(&mut barretenberg, &constraint_system);
+
+        let crs = CRS::new(circuit_size as usize);
 
         let pippenger = Pippenger::new(&crs.g1_data, &mut barretenberg);
 
@@ -22,6 +26,7 @@ impl StandardComposer {
             crs,
             barretenberg,
             pippenger,
+            constraint_system,
         }
     }
 }
@@ -102,6 +107,48 @@ impl RangeConstraint {
         // Serialiasing Wires
         buffer.extend_from_slice(&self.a.to_be_bytes());
         buffer.extend_from_slice(&self.num_bits.to_be_bytes());
+
+        buffer
+    }
+}
+#[derive(Clone, Hash, Debug)]
+pub struct EcdsaConstraint {
+    pub hashed_message: Vec<i32>,
+    pub signature: [i32; 64],
+    pub public_key_x: [i32; 32],
+    pub public_key_y: [i32; 32],
+    pub result: i32,
+}
+
+impl EcdsaConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let message_len = (self.hashed_message.len()) as u32;
+        buffer.extend_from_slice(&message_len.to_be_bytes());
+        for constraint in self.hashed_message.iter() {
+            buffer.extend_from_slice(&constraint.to_be_bytes());
+        }
+
+        let sig_len = (self.signature.len()) as u32;
+        buffer.extend_from_slice(&sig_len.to_be_bytes());
+        for sig_byte in self.signature.iter() {
+            buffer.extend_from_slice(&sig_byte.to_be_bytes());
+        }
+
+        let pub_key_x_len = (self.public_key_x.len()) as u32;
+        buffer.extend_from_slice(&pub_key_x_len.to_be_bytes());
+        for x_byte in self.public_key_x.iter() {
+            buffer.extend_from_slice(&x_byte.to_be_bytes());
+        }
+
+        let pub_key_y_len = (self.public_key_y.len()) as u32;
+        buffer.extend_from_slice(&pub_key_y_len.to_be_bytes());
+        for y_byte in self.public_key_y.iter() {
+            buffer.extend_from_slice(&y_byte.to_be_bytes());
+        }
+
+        buffer.extend_from_slice(&self.result.to_be_bytes());
 
         buffer
     }
@@ -335,6 +382,7 @@ pub struct ConstraintSystem {
     pub merkle_membership_constraints: Vec<MerkleMembershipConstraint>,
     pub merkle_root_constraints: Vec<MerkleRootConstraint>,
     pub schnorr_constraints: Vec<SchnorrConstraint>,
+    pub ecdsa_secp256k1_constraints: Vec<EcdsaConstraint>,
     pub blake2s_constraints: Vec<Blake2sConstraint>,
     pub pedersen_constraints: Vec<PedersenConstraint>,
     pub hash_to_field_constraints: Vec<HashToFieldConstraint>,
@@ -396,6 +444,13 @@ impl ConstraintSystem {
             buffer.extend(&constraint.to_bytes());
         }
 
+        // Serialise each ECDSA constraint
+        let ecdsa_len = self.ecdsa_secp256k1_constraints.len() as u32;
+        buffer.extend_from_slice(&ecdsa_len.to_be_bytes());
+        for constraint in self.ecdsa_secp256k1_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
         // Serialise each Blake2s constraint
         let blake2s_len = self.blake2s_constraints.len() as u32;
         buffer.extend_from_slice(&blake2s_len.to_be_bytes());
@@ -426,22 +481,14 @@ impl ConstraintSystem {
 
         buffer
     }
-
-    pub fn size(&self) -> usize {
-        // XXX: We do not want the user to need to enter the circuit size for a circuit
-        // as this is prone to error. For now, we will create a dummy standard composer, which will
-        // call get_circuit_size and then we drop it
-        let mut dummy_composer = StandardComposer::new(2);
-        dummy_composer.get_circuit_size(&self) as usize
-    }
 }
 
 impl StandardComposer {
     // XXX: This does not belong here. Ideally, the Rust code should generate the SC code
     // Since it's already done in C++, we are just re-exporting for now
-    pub fn smart_contract(&mut self, constraint_system: &ConstraintSystem) -> String {
+    pub fn smart_contract(&mut self) -> String {
         use std::convert::TryInto;
-        let cs_buf = constraint_system.to_bytes();
+        let cs_buf = self.constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
         let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
@@ -468,29 +515,49 @@ impl StandardComposer {
         crate::contract::turbo_verifier::create(&verification_method)
     }
 
-    pub fn get_circuit_size(&mut self, constraint_system: &ConstraintSystem) -> u128 {
+    // XXX: There seems to be a bug in the C++ code
+    // where it causes a `HeapAccessOutOfBound` error
+    // for certain circuit sizes.
+    //
+    // This method calls the WASM for the circuit size
+    // if an error is returned, then the circuit size is defaulted to 2^19.
+    //
+    // This method is primarily used to determine how many group
+    // elements we need from the CRS. So using 2^19 on an error
+    // should be an overestimation.
+    pub fn get_circuit_size(
+        barretenberg: &mut Barretenberg,
+        constraint_system: &ConstraintSystem,
+    ) -> u32 {
         let cs_buf = constraint_system.to_bytes();
-        let cs_ptr = self.barretenberg.allocate(&cs_buf);
+        let cs_ptr = barretenberg.allocate(&cs_buf);
 
-        let circuit_size = self
-            .barretenberg
-            .call("composer__get_circuit_size", &cs_ptr)
-            .value();
+        let func = barretenberg
+            .instance
+            .exports
+            .get_function("composer__get_circuit_size")
+            .unwrap();
 
-        self.barretenberg.free(cs_ptr);
-
-        circuit_size.unwrap_i32() as u128
+        let params: Vec<_> = vec![cs_ptr.clone()];
+        match func.call(&params) {
+            Ok(vals) => {
+                let i32_bytes = vals.first().cloned().unwrap().unwrap_i32().to_be_bytes();
+                let u32_val = u32::from_be_bytes(i32_bytes);
+                barretenberg.free(cs_ptr);
+                u32_val
+            }
+            Err(_) => {
+                // Default to 2^19
+                2u32.pow(19)
+            }
+        }
     }
 
-    pub fn create_proof(
-        &mut self,
-        constraint_system: &ConstraintSystem,
-        witness: WitnessAssignments,
-    ) -> Vec<u8> {
+    pub fn create_proof(&mut self, witness: WitnessAssignments) -> Vec<u8> {
         use core::convert::TryInto;
         let now = std::time::Instant::now();
 
-        let cs_buf = constraint_system.to_bytes();
+        let cs_buf = self.constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
         let witness_buf = witness.to_bytes();
@@ -524,12 +591,11 @@ impl StandardComposer {
             now.elapsed().as_nanos(),
             now.elapsed().as_secs(),
         );
-        return remove_public_inputs(constraint_system.public_inputs.len(), proof);
+        return remove_public_inputs(self.constraint_system.public_inputs.len(), proof);
     }
 
     pub fn verify(
         &mut self,
-        constraint_system: &ConstraintSystem,
         // XXX: Important: This assumes that the proof does not have the public inputs pre-pended to it
         // This is not the case, if you take the proof directly from Barretenberg
         proof: &[u8],
@@ -552,7 +618,7 @@ impl StandardComposer {
         }
         let now = std::time::Instant::now();
 
-        let cs_buf = constraint_system.to_bytes();
+        let cs_buf = self.constraint_system.to_bytes();
         let cs_ptr = self.barretenberg.allocate(&cs_buf);
 
         let proof_ptr = self.barretenberg.allocate(&proof);
@@ -656,6 +722,7 @@ mod test {
             pedersen_constraints: vec![],
             hash_to_field_constraints: vec![],
             constraints: vec![constraint.clone()],
+            ecdsa_secp256k1_constraints: vec![],
         };
 
         let case_1 = WitnessResult {
@@ -735,6 +802,7 @@ mod test {
             pedersen_constraints: vec![],
             hash_to_field_constraints: vec![],
             constraints: vec![constraint],
+            ecdsa_secp256k1_constraints: vec![],
         };
 
         // This fails because the constraint system requires public inputs,
@@ -818,6 +886,7 @@ mod test {
             pedersen_constraints: vec![],
             hash_to_field_constraints: vec![],
             constraints: vec![constraint, constraint2],
+            ecdsa_secp256k1_constraints: vec![],
         };
 
         let case_1 = WitnessResult {
@@ -873,6 +942,7 @@ mod test {
             pedersen_constraints: vec![],
             hash_to_field_constraints: vec![],
             constraints: vec![arith_constraint],
+            ecdsa_secp256k1_constraints: vec![],
         };
 
         let pub_x =
@@ -939,6 +1009,7 @@ mod test {
             pedersen_constraints: vec![constraint],
             hash_to_field_constraints: vec![],
             constraints: vec![],
+            ecdsa_secp256k1_constraints: vec![],
         };
 
         let scalar_0 = Scalar::from_hex("0x00").unwrap();
@@ -966,7 +1037,7 @@ mod test {
     }
 
     fn test_circuit(constraint_system: &ConstraintSystem, test_cases: Vec<WitnessResult>) {
-        let mut sc = StandardComposer::new(constraint_system.size());
+        let mut sc = StandardComposer::new(constraint_system);
         for test_case in test_cases.into_iter() {
             let proof = sc.create_proof(&constraint_system, test_case.witness);
             let verified = sc.verify(&constraint_system, &proof, test_case.public_inputs);
