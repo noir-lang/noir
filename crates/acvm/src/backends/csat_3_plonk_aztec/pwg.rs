@@ -11,7 +11,7 @@ mod gadget_call;
 mod merkle;
 
 use self::gadget_call::GadgetCaller;
-
+use super::ecdsa_secp256k1;
 use super::Plonk;
 
 impl PartialWitnessGenerator for Plonk {
