@@ -16,7 +16,7 @@ impl ProofSystemCompiler for Plonk {
     ) -> Vec<u8> {
         let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
-        let mut composer = StandardComposer::new(constraint_system.size());
+        let mut composer = StandardComposer::new(constraint_system);
 
         // Add witnesses in the correct order
         // Note: The witnesses are sorted via their witness index, since we implement Ord on Witness and use a BTreeMap
@@ -25,7 +25,7 @@ impl ProofSystemCompiler for Plonk {
             sorted_witness.push(*value);
         }
 
-        composer.create_proof(&constraint_system, sorted_witness)
+        composer.create_proof(sorted_witness)
     }
 
     fn verify_from_cs(
@@ -36,13 +36,9 @@ impl ProofSystemCompiler for Plonk {
     ) -> bool {
         let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
-        let mut composer = StandardComposer::new(constraint_system.size());
+        let mut composer = StandardComposer::new(constraint_system);
 
-        composer.verify(
-            &constraint_system,
-            &proof,
-            Some(Assignments::from_vec(public_inputs)),
-        )
+        composer.verify(&proof, Some(Assignments::from_vec(public_inputs)))
     }
 
     fn np_language(&self) -> Language {
