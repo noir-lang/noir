@@ -8,6 +8,7 @@ pub enum OPCODE {
     SchnorrVerify,
     Pedersen,
     HashToField,
+    EcdsaSecp256k1,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -27,6 +28,7 @@ impl OPCODE {
             OPCODE::Blake2s => 5,
             OPCODE::Pedersen => 6,
             OPCODE::HashToField => 7,
+            OPCODE::EcdsaSecp256k1 => 8,
         }
     }
     pub fn name(&self) -> &str {
@@ -39,6 +41,7 @@ impl OPCODE {
             OPCODE::Blake2s => "blake2s",
             OPCODE::Pedersen => "pedersen",
             OPCODE::HashToField => "hash_to_field",
+            OPCODE::EcdsaSecp256k1 => "ecdsa_secp256k1",
         }
     }
     pub fn lookup(op_name: &str) -> Option<OPCODE> {
@@ -50,6 +53,7 @@ impl OPCODE {
             "blake2s" => Some(OPCODE::Blake2s),
             "pedersen" => Some(OPCODE::Pedersen),
             "hash_to_field" => Some(OPCODE::HashToField),
+            "ecdsa_secp256k1" => Some(OPCODE::EcdsaSecp256k1),
             _ => None,
         }
     }
@@ -88,10 +92,16 @@ impl OPCODE {
                 name: self.name().into(),
                 // XXX: input_size can be changed to fixed, once we hash
                 // the message before passing it to schnorr.
+                // This is assuming all hashes will be 256 bits. Reasonable?
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
             },
             OPCODE::Pedersen => GadgetDefinition {
+                name: self.name().into(),
+                input_size: InputSize::Variable,
+                output_size: OutputSize(1),
+            },
+            OPCODE::EcdsaSecp256k1 => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
