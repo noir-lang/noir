@@ -230,6 +230,61 @@ impl GadgetCaller {
 
                 initial_witness.insert(gadget_call.outputs[0].clone(), reduced_res);
             }
+            OPCODE::EcdsaSecp256k1 => {
+                let mut inputs_iter = gadget_call.inputs.iter();
+
+                let mut pub_key_x = [0u8; 32];
+                for i in 0..32 {
+                    let _x_i = inputs_iter.next().expect(&format!(
+                        "pub_key_x should be 32 bytes long, found only {} bytes",
+                        i
+                    ));
+                    let x_i = input_to_value(initial_witness, _x_i);
+                    pub_key_x[i] = *x_i.to_bytes().last().unwrap()
+                }
+
+                let mut pub_key_y = [0u8; 32];
+                for i in 0..32 {
+                    let _y_i = inputs_iter.next().expect(&format!(
+                        "pub_key_y should be 32 bytes long, found only {} bytes",
+                        i
+                    ));
+                    let y_i = input_to_value(initial_witness, _y_i);
+                    pub_key_y[i] = *y_i.to_bytes().last().unwrap()
+                }
+
+                let mut signature = [0u8; 64];
+                for i in 0..64 {
+                    let _sig_i = inputs_iter.next().expect(&format!(
+                        "signature should be 64 bytes long, found only {} bytes",
+                        i
+                    ));
+                    let sig_i = input_to_value(initial_witness, _sig_i);
+                    signature[i] = *sig_i.to_bytes().last().unwrap()
+                }
+
+                let mut message = Vec::new();
+                while let Some(msg) = inputs_iter.next() {
+                    let msg_i_field = input_to_value(initial_witness, msg);
+                    let msg_i = *msg_i_field.to_bytes().last().unwrap();
+                    message.push(msg_i);
+                }
+
+                let result = super::ecdsa_secp256k1::verify_prehashed(
+                    &message, &pub_key_x, &pub_key_y, &signature,
+                )
+                .is_ok();
+
+                let result = match result {
+                    true => FieldElement::one(),
+                    false => {
+                        dbg!("signature has failed to verify");
+                        FieldElement::zero()
+                    }
+                };
+
+                initial_witness.insert(gadget_call.outputs[0].clone(), result);
+            }
         }
         Ok(())
     }
