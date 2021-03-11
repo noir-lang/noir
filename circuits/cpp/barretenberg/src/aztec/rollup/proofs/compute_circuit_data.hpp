@@ -49,7 +49,8 @@ circuit_data get_circuit_data(std::string const& name,
     auto padding_path = circuit_key_path + "/padding_proof";
 
     // If we're missing required data, and compute is enabled, build the circuit.
-    if ((!exists(pk_path) || !exists(vk_path) || (!exists(padding_path) && padding)) && compute) {
+    if (((!exists(pk_path) || !exists(vk_path) || (!exists(padding_path) && padding)) && compute) ||
+        (compute && !load)) {
         std::cerr << "Building circuit..." << std::endl;
         build_circuit(composer);
     }

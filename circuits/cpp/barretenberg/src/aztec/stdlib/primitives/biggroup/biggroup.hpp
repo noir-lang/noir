@@ -21,16 +21,17 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
     {
         Fq x = Fq::from_witness(ctx, input.x);
         Fq y = Fq::from_witness(ctx, input.y);
-        return element(x, y);
+        element out(x, y);
+        out.validate_on_curve();
+        return out;
     }
 
     void validate_on_curve()
     {
         Fq xx = x.sqr();
-        Fq lhs = xx * x;
         Fq rhs = y.sqr();
         Fq b(get_context(), uint256_t(NativeGroup::curve_b));
-        lhs = lhs + b;
+        Fq lhs = xx.madd(x, { b });
         if constexpr (NativeGroup::has_a) {
             Fq a(get_context(), uint256_t(NativeGroup::curve_a));
             lhs = lhs + (a * x);

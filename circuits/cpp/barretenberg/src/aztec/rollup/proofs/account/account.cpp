@@ -6,7 +6,7 @@
 #include <stdlib/primitives/field/pow.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
-
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
@@ -44,8 +44,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
     const auto account_public_key = stdlib::create_point_witness(composer, tx.account_public_key);
     const auto new_account_public_key = stdlib::create_point_witness(composer, tx.new_account_public_key);
-    const auto spending_public_key_1 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_1);
-    const auto spending_public_key_2 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_2);
+    const auto spending_public_key_1 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_1, false);
+    const auto spending_public_key_2 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_2, false);
     const auto account_note_index = field_ct(witness_ct(&composer, tx.account_index));
     const auto account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_path);
     const auto signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
@@ -124,6 +124,10 @@ void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs
 {
     // Junk data required just to create proving key.
     account_tx tx;
+    tx.account_public_key = grumpkin::g1::affine_one;
+    tx.new_account_public_key = grumpkin::g1::affine_one;
+    tx.new_signing_pub_key_1 = grumpkin::g1::affine_one;
+    tx.new_signing_pub_key_2 = grumpkin::g1::affine_one;
     tx.account_path.resize(32);
 
     Composer composer(crs_factory);
