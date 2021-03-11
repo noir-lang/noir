@@ -49,6 +49,7 @@ Concretely the following items are on the road map:
 - Signed integers
 - Backend integration: (Marlin, Bulletproofs)
 - Recursion
+- Deprecate WASM32 in Barretenberg backend. WASM32 puts an upper bound on the linear memory, which puts an upper bound on the circuit size.
 
 ## License
 
