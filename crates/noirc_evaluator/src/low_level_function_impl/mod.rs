@@ -4,6 +4,7 @@
 // The standard library on the other hand, is a mixture of foreign and compiled functions.
 use crate::{Environment, Evaluator, Object};
 mod blake2s;
+mod ecdsa_secp256k1;
 mod hash_to_field;
 mod merkle_membership;
 mod merkle_root;
@@ -12,6 +13,7 @@ mod schnorr;
 mod sha256;
 
 use blake2s::Blake2sGadget;
+use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use hash_to_field::HashToFieldGadget;
 use merkle_membership::MerkleMembershipGadget;
 use merkle_root::MerkleRootGadget;
@@ -61,6 +63,7 @@ pub fn call_low_level(
         OPCODE::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
         OPCODE::Blake2s => Blake2sGadget::call(evaluator, env, call_expr),
         OPCODE::Pedersen => PedersenGadget::call(evaluator, env, call_expr),
+        OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
         OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
