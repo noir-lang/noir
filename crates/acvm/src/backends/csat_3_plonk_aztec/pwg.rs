@@ -53,11 +53,26 @@ impl PartialWitnessGenerator for Plonk {
 
                     false
                 }
+                Gate::Directive(directive) => match directive {
+                    acir::circuit::gate::Directive::Invert { x, result } => {
+                        match initial_witness.get(x) {
+                            None => true,
+                            Some(val) => {
+                                let inverse = val.inverse();
+                                initial_witness.insert(*result, inverse);
+                                false
+                            }
+                        }
+                    }
+                },
             };
             if unsolved {
+                dbg!(&gate);
+                panic!("");
                 unsolved_gates.push(gate);
             }
         }
+
         self.solve(initial_witness, unsolved_gates)
     }
 }

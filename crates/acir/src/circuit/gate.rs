@@ -25,6 +25,13 @@ pub enum Gate {
     And(AndGate),
     Xor(XorGate),
     GadgetCall(GadgetCall),
+    Directive(Directive),
+}
+
+#[derive(Clone, Debug)]
+/// Directives do not apply any constraints.
+pub enum Directive {
+    Invert { x: Witness, result: Witness },
 }
 
 // Note: Some gadgets will not use all of the witness
