@@ -55,6 +55,16 @@ impl Integer {
 
         Integer::from_witness(witness, num_bits)
     }
+
+    /// Constrains the integer to be equal to zero
+    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+        let witness_linear = Linear::from_witness(self.witness);
+
+        evaluator
+            .gates
+            .push(Gate::Arithmetic(witness_linear.into()))
+    }
+
     pub fn from_object(
         poly: Object,
         num_bits: u32,

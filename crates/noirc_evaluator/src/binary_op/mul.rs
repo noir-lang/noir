@@ -49,7 +49,6 @@ fn handle_arithmetic_mul(
     if let Ok(constant) = polynomial.constant() {
         return Ok(Object::Arithmetic(&arith * &constant));
     };
-
     // Arriving here means that we do not have one of the operands as a constant
     // Create an intermediate variable for the arithmetic gate
     let (intermediate_var, _) = evaluator.create_intermediate_variable(arith);

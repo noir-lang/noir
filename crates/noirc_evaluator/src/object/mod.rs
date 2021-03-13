@@ -8,6 +8,8 @@ use acvm::acir::circuit::gate::Gate;
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use noir_field::FieldElement;
 
+use crate::Evaluator;
+
 use super::errors::RuntimeErrorKind;
 
 #[derive(Clone, Debug)]
@@ -16,7 +18,7 @@ pub enum Object {
     Integer(Integer),
     Array(Array),
     Arithmetic(Arithmetic),
-    Constants(FieldElement), // These will mostly be the selectors
+    Constants(FieldElement),
     Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate Eg `5x+6` does not apply a gate
 }
 
@@ -27,6 +29,50 @@ impl Object {
             Object::Array(_) => "collection",
             Object::Constants(_) => "constant",
             Object::Null => "()",
+        }
+    }
+
+    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+        match self {
+            Object::Null => unreachable!(),
+            Object::Constants(_) => unreachable!("cannot constrain a constant to be zero"),
+            Object::Integer(integer) => integer.constrain_zero(evaluator),
+            Object::Array(arr) => arr.constrain_zero(evaluator),
+            Object::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith.clone())),
+            Object::Linear(linear) => evaluator
+                .gates
+                .push(Gate::Arithmetic(linear.clone().into())),
+        }
+    }
+    pub fn negate(self) -> Self {
+        match self {
+            Object::Null => {
+                unreachable!("ice: before calling negate, you should check if the object is null")
+            }
+            Object::Integer(integer) => {
+                // When negating the integer, we do not need
+                // to maintain the range invariant.
+                //
+                // This behavior is not uniform. If you use the subtract method on Integer
+                // it will apply a range constraint.
+                let linear = -&Linear::from_witness(integer.witness);
+                Object::Linear(linear)
+            }
+            Object::Array(arr) => {
+                let negated_contents: Vec<_> = arr
+                    .contents
+                    .into_iter()
+                    .map(|element| element.negate())
+                    .collect();
+
+                Object::Array(Array {
+                    contents: negated_contents,
+                    length: arr.length,
+                })
+            }
+            Object::Arithmetic(arith) => Object::Arithmetic(-&arith),
+            Object::Constants(constant) => Object::Constants(-constant),
+            Object::Linear(linear) => Object::Linear(-&linear),
         }
     }
     // Converts a Object into an arithmetic object
@@ -109,6 +155,12 @@ impl Object {
     pub fn integer(&self) -> Option<Integer> {
         match self {
             Object::Integer(integer) => Some(*integer),
+            _ => None,
+        }
+    }
+    pub fn array(&self) -> Option<Array> {
+        match self {
+            Object::Array(arr) => Some(arr.clone()),
             _ => None,
         }
     }

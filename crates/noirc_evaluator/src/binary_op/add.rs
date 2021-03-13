@@ -1,4 +1,4 @@
-use crate::{Evaluator, Linear, Object, RuntimeErrorKind};
+use crate::{object::Array, Evaluator, Linear, Object, RuntimeErrorKind};
 
 // Intentionally chose to write this out manually as it's not expected to change often or at all
 // We could expand again, so that ordering is preserved, but this does not seem necessary.
@@ -12,7 +12,11 @@ pub fn handle_add_op(
         // You cannot add Null objects with anything else
         (Object::Null, _) | (_, Object::Null) => Err(handle_cannot_add("()")),
         //
-        // You cannot add array objects with anything else, currently
+        (Object::Array(lhs), Object::Array(rhs)) => {
+            Ok(Object::Array(Array::add(lhs, rhs, evaluator)?))
+        }
+        //
+        // You cannot add array objects to anything that is not an array
         (Object::Array(_), _) | (_, Object::Array(_)) => Err(handle_cannot_add("Arrays")),
         //
         // Delegate logic for integer addition to the integer module

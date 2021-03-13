@@ -174,7 +174,7 @@ impl Type {
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {
         match self {
-            Type::FieldElement(_) | Type::Integer(_, _, _) => true,
+            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _) => true,
             _ => false,
         }
     }

@@ -11,9 +11,6 @@ pub fn handle_equal_op(
     right: Object,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    let left_type = left.r#type();
-    let right_type = right.r#type();
-
     let result = handle_sub_op(left, right, evaluator)?;
 
     match result {
@@ -38,14 +35,7 @@ pub fn handle_equal_op(
                 .gates
                 .push(Gate::Arithmetic(witness_linear.into()))
         }
-        _x => {
-            return Err(RuntimeErrorKind::UnsupportedOp {
-                span: Default::default(),
-                op: "equal".to_owned(),
-                first_type: left_type.to_owned(),
-                second_type: right_type.to_owned(),
-            });
-        }
+        Object::Array(arr) => arr.constrain_zero(evaluator),
     }
     Ok(Object::Null)
 }
