@@ -84,9 +84,29 @@ impl Mul<&Linear> for &Linear {
         let bc = b * c;
         let bd = b * d;
 
+        let mul_terms = {
+            let mut mt = Vec::with_capacity(1);
+            if ac != FieldElement::zero() {
+                mt.push((ac, x, y))
+            }
+            mt
+        };
+
+        let linear_combinations = {
+            let mut lc = Vec::with_capacity(2);
+
+            if ad != FieldElement::zero() {
+                lc.push((ad, x));
+            }
+            if bc != FieldElement::zero() {
+                lc.push((bc, y));
+            }
+            lc
+        };
+
         Arithmetic {
-            mul_terms: vec![(ac, x, y)],
-            linear_combinations: vec![(ad, x), (bc, y)],
+            mul_terms,
+            linear_combinations,
             q_c: bd,
         }
     }
