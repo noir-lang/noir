@@ -764,7 +764,7 @@ mod test {
         };
 
         test_circuit(
-            &constraint_system,
+            constraint_system,
             vec![
                 case_1.clone(),
                 case_2.clone(),
@@ -845,7 +845,7 @@ mod test {
         };
 
         test_circuit(
-            &constraint_system,
+            constraint_system,
             vec![case_1, case_2, case_3, case_4, case_5, case_6],
         );
     }
@@ -900,7 +900,7 @@ mod test {
             result: false,
         };
 
-        test_circuit(&constraint_system, vec![case_1, case_2]);
+        test_circuit(constraint_system, vec![case_1, case_2]);
     }
     #[test]
     fn test_schnorr_constraints() {
@@ -987,7 +987,7 @@ mod test {
             result: true,
         };
 
-        test_circuit(&constraint_system, vec![case_1]);
+        test_circuit(constraint_system, vec![case_1]);
     }
     #[test]
     fn test_ped_constraints() {
@@ -1026,7 +1026,7 @@ mod test {
             result: true,
         };
 
-        test_circuit(&constraint_system, vec![case_1]);
+        test_circuit(constraint_system, vec![case_1]);
     }
 
     #[derive(Clone, Debug)]
@@ -1036,11 +1036,11 @@ mod test {
         result: bool,
     }
 
-    fn test_circuit(constraint_system: &ConstraintSystem, test_cases: Vec<WitnessResult>) {
+    fn test_circuit(constraint_system: ConstraintSystem, test_cases: Vec<WitnessResult>) {
         let mut sc = StandardComposer::new(constraint_system);
         for test_case in test_cases.into_iter() {
-            let proof = sc.create_proof(&constraint_system, test_case.witness);
-            let verified = sc.verify(&constraint_system, &proof, test_case.public_inputs);
+            let proof = sc.create_proof(test_case.witness);
+            let verified = sc.verify(&proof, test_case.public_inputs);
             assert_eq!(verified, test_case.result);
         }
     }

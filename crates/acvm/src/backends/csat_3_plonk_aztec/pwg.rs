@@ -67,8 +67,6 @@ impl PartialWitnessGenerator for Plonk {
                 },
             };
             if unsolved {
-                dbg!(&gate);
-                panic!("");
                 unsolved_gates.push(gate);
             }
         }
