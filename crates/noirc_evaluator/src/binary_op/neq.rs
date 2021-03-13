@@ -1,5 +1,5 @@
 use super::{invert, sub::handle_sub_op};
-use crate::{Evaluator, Object, RuntimeErrorKind};
+use crate::{object::Array, Evaluator, Object, RuntimeErrorKind};
 
 /// This calls the sub op under the hood
 /// Then asserts that the result has an inverse
@@ -9,8 +9,15 @@ pub fn handle_neq_op(
     right: Object,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    let result = handle_sub_op(left, right, evaluator)?;
-    // Add an inversion to ensure that the inverse exists
-    let _ = invert(result, evaluator);
+    match (left, right) {
+        (Object::Array(left_arr), Object::Array(right_arr)) => {
+            Array::not_equal(left_arr, right_arr, evaluator)?;
+        }
+        (left, right) => {
+            let result = handle_sub_op(left, right, evaluator)?;
+            // Add an inversion to ensure that the inverse exists
+            let _ = invert(result, evaluator);
+        }
+    }
     Ok(Object::Null)
 }
