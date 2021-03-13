@@ -1,6 +1,8 @@
 use super::RuntimeErrorKind;
-use crate::object::Object;
+use crate::{binary_op::maybe_equal, object::Object};
 use crate::{Environment, Evaluator};
+use acvm::acir::native_types::Witness;
+use noir_field::FieldElement;
 use noirc_errors::Span;
 use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
@@ -98,6 +100,14 @@ impl Array {
                 ),
             });
         }
+
+        if lhs_len == 0 {
+            return Err(RuntimeErrorKind::UnstructuredError {
+                span: Span::default(),
+                message: format!("arrays must contain at least one element"),
+            });
+        }
+
         Ok(lhs_len)
     }
     /// Given two arrays A, B
@@ -107,13 +117,51 @@ impl Array {
         rhs: Array,
         evaluator: &mut Evaluator,
     ) -> Result<(), RuntimeErrorKind> {
-        let length = Array::check_arr_len(&lhs, &rhs)?;
-        let mut contents = Vec::with_capacity(length);
+        let _ = Array::check_arr_len(&lhs, &rhs)?;
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
-            let out_element =
-                crate::binary_op::handle_equal_op(lhs_element, rhs_element, evaluator)?;
-            contents.push(out_element);
+            let _ = crate::binary_op::handle_equal_op(lhs_element, rhs_element, evaluator)?;
         }
+        Ok(())
+    }
+    /// Given two arrays A, B
+    /// This method checks that A[i] != B[i] for some i.
+    pub fn not_equal(
+        lhs: Array,
+        rhs: Array,
+        evaluator: &mut Evaluator,
+    ) -> Result<(), RuntimeErrorKind> {
+        let length = Array::check_arr_len(&lhs, &rhs)?;
+
+        let mut predicates: Vec<Witness> = Vec::with_capacity(length);
+        for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
+            let pred_i = maybe_equal(lhs_element, rhs_element, evaluator)?;
+            predicates.push(pred_i.witness);
+        }
+
+        // We now have a predicates vector, where 1 represents the elements were the same
+        // and zero represents a difference.
+        // We want the constraint to pass if there is at least 1 zero.
+        // To accomplish this, we simply multiply all of the predicates
+        // Then constrain the product to be equal to 0
+
+        let mut predicates_iter = predicates.into_iter();
+        let mut result = Object::from_witness(
+            predicates_iter
+                .next()
+                .expect("ice: arrays must have at least one element in them"),
+        );
+
+        for pred in predicates_iter.next() {
+            result =
+                crate::binary_op::handle_mul_op(result, Object::from_witness(pred), evaluator)?;
+        }
+
+        crate::binary_op::handle_equal_op(
+            result,
+            Object::Constants(FieldElement::zero()),
+            evaluator,
+        )?;
+
         Ok(())
     }
 
