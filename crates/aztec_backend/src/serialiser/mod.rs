@@ -2,8 +2,8 @@
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 use crate::barretenberg_rs::composer::{
     Blake2sConstraint, Constraint, ConstraintSystem, EcdsaConstraint, HashToFieldConstraint,
-    LogicConstraint, MerkleMembershipConstraint, MerkleRootConstraint, PedersenConstraint,
-    RangeConstraint, SchnorrConstraint, Sha256Constraint,
+    LogicConstraint, MerkleMembershipConstraint, PedersenConstraint, RangeConstraint,
+    SchnorrConstraint, Sha256Constraint,
 };
 use acir::circuit::{Circuit, Gate};
 use acir::native_types::Arithmetic;
@@ -20,7 +20,6 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     let mut blake2s_constraints: Vec<Blake2sConstraint> = Vec::new();
     let mut pedersen_constraints: Vec<PedersenConstraint> = Vec::new();
     let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
-    let mut merkle_root_constraints: Vec<MerkleRootConstraint> = Vec::new();
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
     let mut ecdsa_secp256k1_constraints: Vec<EcdsaConstraint> = Vec::new();
     let mut hash_to_field_constraints: Vec<HashToFieldConstraint> = Vec::new();
@@ -103,28 +102,6 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         };
 
                         blake2s_constraints.push(blake2s_constraint);
-                    }
-                    OPCODE::MerkleRoot => {
-                        let mut leaves = Vec::new();
-                        for input in gadget_call.inputs.iter() {
-                            let witness_index = input.witness.witness_index() as i32;
-
-                            // Ignore num_bits, it's only needed for
-                            // hash functions like sha2/blake
-
-                            leaves.push(witness_index);
-                        }
-
-                        assert_eq!(gadget_call.outputs.len(), 1);
-
-                        let root_index = gadget_call.outputs[0].witness_index() as i32;
-
-                        let constraint = MerkleRootConstraint {
-                            leaves,
-                            root: root_index,
-                        };
-
-                        merkle_root_constraints.push(constraint);
                     }
                     OPCODE::MerkleMembership => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
@@ -333,7 +310,6 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         range_constraints,
         sha256_constraints,
         merkle_membership_constraints,
-        merkle_root_constraints,
         pedersen_constraints,
         schnorr_constraints,
         ecdsa_secp256k1_constraints,

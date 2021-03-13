@@ -1,7 +1,7 @@
 use crate::Backend;
 
 mod proof_system;
-mod pwg;
+pub mod pwg;
 mod smart_contract;
 pub struct Plonk;
 

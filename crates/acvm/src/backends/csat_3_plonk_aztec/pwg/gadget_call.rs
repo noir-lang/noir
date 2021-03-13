@@ -97,27 +97,6 @@ impl GadgetCaller {
                 initial_witness.insert(gadget_call.outputs[1].clone(), high_128_field);
             }
             OPCODE::AES => return Err(gadget_call.name),
-            OPCODE::MerkleRoot => {
-                assert!(gadget_call.inputs.len() > 1);
-
-                let num_of_leaves = gadget_call.inputs.len();
-                let depth = log2(num_of_leaves);
-
-                let mut tree = MerkleTree::new(depth);
-
-                //Compute the root
-                let mut root = FieldElement::zero();
-                for (index, leaf_idx) in gadget_call.inputs.iter().enumerate() {
-                    let leaf = match initial_witness.get(&leaf_idx.witness) {
-                        None => panic!("Cannot find witness assignment for {:?}", leaf_idx),
-                        Some(assignment) => assignment,
-                    };
-
-                    root = tree.update_leaf(index, *leaf);
-                }
-
-                initial_witness.insert(gadget_call.outputs[0].clone(), root);
-            }
             OPCODE::MerkleMembership => {
                 let mut inputs_iter = gadget_call.inputs.iter();
 

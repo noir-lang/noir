@@ -3,7 +3,6 @@ pub enum OPCODE {
     AES,
     SHA256,
     Blake2s,
-    MerkleRoot,
     MerkleMembership,
     SchnorrVerify,
     Pedersen,
@@ -22,20 +21,18 @@ impl OPCODE {
         match self {
             OPCODE::AES => 0,
             OPCODE::SHA256 => 1,
-            OPCODE::MerkleRoot => 2,
-            OPCODE::MerkleMembership => 3,
-            OPCODE::SchnorrVerify => 4,
-            OPCODE::Blake2s => 5,
-            OPCODE::Pedersen => 6,
-            OPCODE::HashToField => 7,
-            OPCODE::EcdsaSecp256k1 => 8,
+            OPCODE::MerkleMembership => 2,
+            OPCODE::SchnorrVerify => 3,
+            OPCODE::Blake2s => 4,
+            OPCODE::Pedersen => 5,
+            OPCODE::HashToField => 6,
+            OPCODE::EcdsaSecp256k1 => 7,
         }
     }
     pub fn name(&self) -> &str {
         match self {
             OPCODE::AES => "aes",
             OPCODE::SHA256 => "sha256",
-            OPCODE::MerkleRoot => "merkle_root",
             OPCODE::MerkleMembership => "merkle_membership",
             OPCODE::SchnorrVerify => "schnorr_verify",
             OPCODE::Blake2s => "blake2s",
@@ -47,7 +44,6 @@ impl OPCODE {
     pub fn lookup(op_name: &str) -> Option<OPCODE> {
         match op_name {
             "sha256" => Some(OPCODE::SHA256),
-            "merkle_root" => Some(OPCODE::MerkleRoot),
             "merkle_membership" => Some(OPCODE::MerkleMembership),
             "schnorr_verify" => Some(OPCODE::SchnorrVerify),
             "blake2s" => Some(OPCODE::Blake2s),
@@ -74,11 +70,6 @@ impl OPCODE {
                 output_size: OutputSize(2),
             },
             OPCODE::HashToField => GadgetDefinition {
-                name: self.name().into(),
-                input_size: InputSize::Variable,
-                output_size: OutputSize(1),
-            },
-            OPCODE::MerkleRoot => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),

@@ -7,7 +7,6 @@ mod blake2s;
 mod ecdsa_secp256k1;
 mod hash_to_field;
 mod merkle_membership;
-mod merkle_root;
 mod pedersen;
 mod schnorr;
 mod sha256;
@@ -16,7 +15,6 @@ use blake2s::Blake2sGadget;
 use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use hash_to_field::HashToFieldGadget;
 use merkle_membership::MerkleMembershipGadget;
-use merkle_root::MerkleRootGadget;
 use pedersen::PedersenGadget;
 use schnorr::SchnorrVerifyGadget;
 use sha256::Sha256Gadget;
@@ -58,7 +56,6 @@ pub fn call_low_level(
 
     match func {
         OPCODE::SHA256 => Sha256Gadget::call(evaluator, env, call_expr),
-        OPCODE::MerkleRoot => MerkleRootGadget::call(evaluator, env, call_expr),
         OPCODE::MerkleMembership => MerkleMembershipGadget::call(evaluator, env, call_expr),
         OPCODE::SchnorrVerify => SchnorrVerifyGadget::call(evaluator, env, call_expr),
         OPCODE::Blake2s => Blake2sGadget::call(evaluator, env, call_expr),

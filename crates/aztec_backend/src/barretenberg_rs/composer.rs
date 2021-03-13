@@ -216,27 +216,7 @@ impl MerkleMembershipConstraint {
         buffer
     }
 }
-#[derive(Clone, Hash, Debug)]
-pub struct MerkleRootConstraint {
-    pub leaves: Vec<i32>,
-    pub root: i32,
-}
 
-impl MerkleRootConstraint {
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut buffer = Vec::new();
-
-        let num_leaves = (self.leaves.len()) as u32;
-
-        buffer.extend_from_slice(&num_leaves.to_be_bytes());
-        for leaf in self.leaves.iter() {
-            buffer.extend_from_slice(&leaf.to_be_bytes());
-        }
-        buffer.extend_from_slice(&self.root.to_be_bytes());
-
-        buffer
-    }
-}
 #[derive(Clone, Hash, Debug)]
 pub struct Sha256Constraint {
     pub inputs: Vec<(i32, i32)>,
@@ -380,7 +360,6 @@ pub struct ConstraintSystem {
     pub range_constraints: Vec<RangeConstraint>,
     pub sha256_constraints: Vec<Sha256Constraint>,
     pub merkle_membership_constraints: Vec<MerkleMembershipConstraint>,
-    pub merkle_root_constraints: Vec<MerkleRootConstraint>,
     pub schnorr_constraints: Vec<SchnorrConstraint>,
     pub ecdsa_secp256k1_constraints: Vec<EcdsaConstraint>,
     pub blake2s_constraints: Vec<Blake2sConstraint>,
@@ -427,13 +406,6 @@ impl ConstraintSystem {
         let merkle_membership_constraints_len = self.merkle_membership_constraints.len() as u32;
         buffer.extend_from_slice(&merkle_membership_constraints_len.to_be_bytes());
         for constraint in self.merkle_membership_constraints.iter() {
-            buffer.extend(&constraint.to_bytes());
-        }
-
-        // Serialise each Merkle Root constraint
-        let merkle_root_len = self.merkle_root_constraints.len() as u32;
-        buffer.extend_from_slice(&merkle_root_len.to_be_bytes());
-        for constraint in self.merkle_root_constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
 
@@ -716,7 +688,6 @@ mod test {
             range_constraints: vec![],
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
-            merkle_root_constraints: vec![],
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
@@ -796,7 +767,6 @@ mod test {
             range_constraints: vec![],
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
-            merkle_root_constraints: vec![],
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
@@ -880,7 +850,6 @@ mod test {
             range_constraints: vec![],
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
-            merkle_root_constraints: vec![],
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
@@ -936,7 +905,6 @@ mod test {
             range_constraints: vec![],
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
-            merkle_root_constraints: vec![],
             schnorr_constraints: vec![constraint],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
@@ -1003,7 +971,6 @@ mod test {
             range_constraints: vec![],
             sha256_constraints: vec![],
             merkle_membership_constraints: vec![],
-            merkle_root_constraints: vec![],
             schnorr_constraints: vec![],
             blake2s_constraints: vec![],
             pedersen_constraints: vec![constraint],
