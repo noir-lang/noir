@@ -319,6 +319,9 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                     }
                 };
             }
+            Gate::Directive(_) => {
+                // Directives are only needed by the pwg
+            }
         }
     }
 
