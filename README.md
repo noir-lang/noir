@@ -56,3 +56,7 @@ Concretely the following items are on the road map:
 Noir is free and open source. It is distributed under a dual license. (MIT/APACHE)
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+
+## Barretenberg License
+
+Barretenberg is currently the only backend that Noir has integrated. It is licensed under GPL V2.0.
