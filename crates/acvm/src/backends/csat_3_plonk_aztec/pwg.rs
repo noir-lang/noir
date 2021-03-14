@@ -1,17 +1,15 @@
-use std::collections::BTreeMap;
-
-use acir::{circuit::Gate, native_types::Witness};
-use noir_field::FieldElement;
-
 use crate::{
     pwg::{arithmetic::ArithmeticSolver, logic::LogicSolver},
     PartialWitnessGenerator,
 };
+use acir::{circuit::Gate, native_types::Witness};
+use noir_field::FieldElement;
+use std::collections::BTreeMap;
+
 mod gadget_call;
-mod merkle;
+pub mod merkle;
 
 use self::gadget_call::GadgetCaller;
-use super::ecdsa_secp256k1;
 use super::Plonk;
 
 impl PartialWitnessGenerator for Plonk {

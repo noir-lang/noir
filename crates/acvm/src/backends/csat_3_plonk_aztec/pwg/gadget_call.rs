@@ -1,13 +1,13 @@
+use super::merkle::MerkleTree;
+use crate::pwg::{self, input_to_value};
 use acir::circuit::gate::GadgetCall;
 use acir::native_types::Witness;
-use acir::{circuit::gate::GadgetInput, OPCODE};
+use acir::OPCODE;
 use aztec_backend::barretenberg_rs::Barretenberg;
 use blake2::Blake2s;
 use noir_field::FieldElement;
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use std::collections::BTreeMap;
-
-use super::merkle::MerkleTree;
 
 // Note that the outputs for things like sha256 need to be computed
 // as they may be used in later arithmetic gates
@@ -20,81 +20,10 @@ impl GadgetCaller {
         gadget_call: &GadgetCall,
     ) -> Result<(), acir::OPCODE> {
         match gadget_call.name {
-            OPCODE::SHA256 => {
-                // Deal with SHA256
-                let mut hasher = Sha256::new();
-
-                // 0. For each input in the vector of inputs, check if we have their witness assignments (Can do this outside of match, since they all have inputs)
-                for input_index in gadget_call.inputs.iter() {
-                    let witness = &input_index.witness;
-                    let num_bits = input_index.num_bits;
-
-                    let witness_assignment = initial_witness.get(witness);
-                    let assignment = match witness_assignment {
-                        None => panic!("Cannot find witness assignment for {:?}", witness),
-                        Some(assignment) => assignment,
-                    };
-
-                    // Although we have bits, we need to truncate to bytes as this is the smallest atomic unit
-                    // for SHA256. Consequence: u4 is seem as u8
-                    let bytes = assignment.truncate_to_bytes(num_bits);
-                    hasher.update(bytes);
-                }
-                let result = hasher.finalize();
-
-                // Now split the SHA256 result into two 128 bits
-                // and store lower and upper into two field elements
-                // This behavior is only because the scalar field is 254 bits.
-                // XXX: I guess for larger fields, we can make it one field element, but it would be a bit annoying to modify your code based on the field size.
-                let (low_128_bytes, high_128_bytes) = result.split_at(16);
-                assert_eq!(low_128_bytes.len(), 16);
-                assert_eq!(high_128_bytes.len(), 16);
-
-                let low_128_field = FieldElement::from_bytes(low_128_bytes);
-                let high_128_field = FieldElement::from_bytes(high_128_bytes);
-
-                assert_eq!(gadget_call.outputs.len(), 2);
-
-                initial_witness.insert(gadget_call.outputs[0].clone(), low_128_field);
-                initial_witness.insert(gadget_call.outputs[1].clone(), high_128_field);
-            }
-            OPCODE::Blake2s => {
-                // Deal with Blake2s
-                let mut hasher = Blake2s::new();
-
-                // 0. For each input in the vector of inputs, check if we have their witness assignments (Can do this outside of match, since they all have inputs)
-                for input_index in gadget_call.inputs.iter() {
-                    let witness = &input_index.witness;
-                    let num_bits = input_index.num_bits;
-
-                    let witness_assignment = initial_witness.get(witness);
-                    let assignment = match witness_assignment {
-                        None => panic!("Cannot find witness assignment for {:?}", witness),
-                        Some(assignment) => assignment,
-                    };
-
-                    // Although we have bits, we need to truncate to bytes as this is the smallest atomic unit
-                    // for blake2s. Consequence: u4 is seem as u8
-                    let bytes = assignment.truncate_to_bytes(num_bits);
-                    hasher.update(bytes);
-                }
-                let result = hasher.finalize();
-
-                // Now split the SHA256 result into two 128 bits
-                // and store lower and upper into two field elements
-                // This behavior is only because the scalar field is 254 bits.
-                // XXX: I guess for larger fields, we can make it one field element, but it would be a bit annoying to modify your code based on the field size.
-                let (low_128_bytes, high_128_bytes) = result.split_at(16);
-                assert_eq!(low_128_bytes.len(), 16);
-                assert_eq!(high_128_bytes.len(), 16);
-
-                let low_128_field = FieldElement::from_bytes(low_128_bytes);
-                let high_128_field = FieldElement::from_bytes(high_128_bytes);
-
-                assert_eq!(gadget_call.outputs.len(), 2);
-
-                initial_witness.insert(gadget_call.outputs[0].clone(), low_128_field);
-                initial_witness.insert(gadget_call.outputs[1].clone(), high_128_field);
+            OPCODE::SHA256 => pwg::hash::sha256(initial_witness, gadget_call),
+            OPCODE::Blake2s => pwg::hash::blake2s(initial_witness, gadget_call),
+            OPCODE::EcdsaSecp256k1 => {
+                pwg::signature::ecdsa::secp256k1_prehashed(initial_witness, gadget_call)
             }
             OPCODE::AES => return Err(gadget_call.name),
             OPCODE::MerkleMembership => {
@@ -209,73 +138,8 @@ impl GadgetCaller {
 
                 initial_witness.insert(gadget_call.outputs[0].clone(), reduced_res);
             }
-            OPCODE::EcdsaSecp256k1 => {
-                let mut inputs_iter = gadget_call.inputs.iter();
-
-                let mut pub_key_x = [0u8; 32];
-                for i in 0..32 {
-                    let _x_i = inputs_iter.next().expect(&format!(
-                        "pub_key_x should be 32 bytes long, found only {} bytes",
-                        i
-                    ));
-                    let x_i = input_to_value(initial_witness, _x_i);
-                    pub_key_x[i] = *x_i.to_bytes().last().unwrap()
-                }
-
-                let mut pub_key_y = [0u8; 32];
-                for i in 0..32 {
-                    let _y_i = inputs_iter.next().expect(&format!(
-                        "pub_key_y should be 32 bytes long, found only {} bytes",
-                        i
-                    ));
-                    let y_i = input_to_value(initial_witness, _y_i);
-                    pub_key_y[i] = *y_i.to_bytes().last().unwrap()
-                }
-
-                let mut signature = [0u8; 64];
-                for i in 0..64 {
-                    let _sig_i = inputs_iter.next().expect(&format!(
-                        "signature should be 64 bytes long, found only {} bytes",
-                        i
-                    ));
-                    let sig_i = input_to_value(initial_witness, _sig_i);
-                    signature[i] = *sig_i.to_bytes().last().unwrap()
-                }
-
-                let mut message = Vec::new();
-                while let Some(msg) = inputs_iter.next() {
-                    let msg_i_field = input_to_value(initial_witness, msg);
-                    let msg_i = *msg_i_field.to_bytes().last().unwrap();
-                    message.push(msg_i);
-                }
-
-                let result = super::ecdsa_secp256k1::verify_prehashed(
-                    &message, &pub_key_x, &pub_key_y, &signature,
-                )
-                .is_ok();
-
-                let result = match result {
-                    true => FieldElement::one(),
-                    false => {
-                        dbg!("signature has failed to verify");
-                        FieldElement::zero()
-                    }
-                };
-
-                initial_witness.insert(gadget_call.outputs[0].clone(), result);
-            }
         }
         Ok(())
-    }
-}
-
-fn input_to_value<'a>(
-    witness_map: &'a BTreeMap<Witness, FieldElement>,
-    input: &GadgetInput,
-) -> &'a FieldElement {
-    match witness_map.get(&input.witness) {
-        None => panic!("Cannot find witness assignment for {:?}", input),
-        Some(assignment) => assignment,
     }
 }
 
