@@ -22,9 +22,14 @@ impl DeclarationParser {
         match parser.curr_token.token().to_declaration_keyword() {
             Keyword::Let => Ok(Statement::Let(parse_let_statement(parser)?)),
             Keyword::Const => Ok(Statement::Const(parse_const_statement(parser)?)),
-            Keyword::Pub => Ok(Statement::Public(parse_public_statement(parser)?)),
             Keyword::Priv => Ok(Statement::Private(parse_private_statement(parser)?)),
-            kw => unreachable!("All declaration keywords should have a method to parser their structure, the keyword {} does not have this", kw)
+            kw => {
+                let msg = format!("the keyword {} cannot be used to declare a statement. Please use `let`, `const` or `priv`", kw);
+                return Err(ParserErrorKind::UnstructuredError {
+                    span: parser.curr_token.into_span(),
+                    message: msg,
+                });
+            }
         }
     }
 }
@@ -128,35 +133,6 @@ fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, Pars
     };
     Ok(stmt)
 }
-// XXX : Currently Public statements, can only be specified in the ABi parameters.
-//
-// XXX: More research is required to determine whether this can be fully deprecated.
-// In place for something like : `witness.to_public()`
-fn parse_public_statement(parser: &mut Parser) -> Result<PublicStatement, ParserErrorKind> {
-    let generic_stmt = parse_generic_decl_statement(parser)?;
-
-    // Note: If a Type is supplied for some reason in a public statement, it can only be Public for now.
-    let mut default_type = Type::PUBLIC;
-    if let Some(declared_type) = generic_stmt.typ {
-        if !declared_type.is_public() {
-            let message = format!("Public statements can only have public type, you supplied a {}. Suggestion: Remove the type and the compiler will default to Public ",declared_type);
-            // XXX: We don't have spanning for types yet
-            return Err(ParserErrorKind::UnstructuredError {
-                message,
-                span: Span::default(),
-            });
-        } else {
-            default_type = declared_type;
-        }
-    }
-
-    let stmt = PublicStatement {
-        identifier: generic_stmt.identifier,
-        r#type: default_type,
-        expression: generic_stmt.rhs,
-    };
-    Ok(stmt)
-}
 
 //XXX: Maybe do a second pass for invalid?
 #[cfg(test)]
@@ -221,8 +197,9 @@ mod test {
         }
     }
     #[test]
-    fn valid_pub_syntax() {
-        const VALID: &'static [&str] = &[
+    fn invalid_pub_syntax() {
+        // pub cannot be used to declare a statement
+        const INVALID: &'static [&str] = &[
             r#"
                 pub x = y;
             "#,
@@ -231,16 +208,10 @@ mod test {
             "#,
         ];
 
-        for valid in VALID {
-            let mut parser = test_parse(valid);
+        for invalid in INVALID {
+            let mut parser = test_parse(invalid);
             let start = parser.curr_token.clone();
-            DeclarationParser::parse_statement(&mut parser).unwrap();
-            let end = parser.curr_token.clone();
-
-            // First check that the cursor was in the right position at
-            // the start and at the end
-            assert_eq!(start.token(), &Token::Keyword(crate::token::Keyword::Pub));
-            assert_eq!(end.token(), &Token::Semicolon);
+            assert!(DeclarationParser::parse_statement(&mut parser).is_err());
         }
     }
     #[test]

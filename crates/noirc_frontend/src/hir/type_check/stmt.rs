@@ -45,15 +45,6 @@ pub(crate) fn type_check(
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt)
         }
-        HirStatement::Public(_) => {
-            // XXX: Initially, we were going to give the ability to declare public variables inside of functions.
-            // Now it seems more plausible to only have Public variables be declared as function types,
-            // So that we can keep track of linear transformations between public variables which may leak a witness
-            //
-            // although it is syntax sugaring, it allows users to keep track of public variables, we don't necessarily want them
-            // to be limited to this in the main function parameters
-            panic!("[Deprecated] : Declaring public variables in block statements is being deprecated. You will still be able to state them as Types in function parameters ")
-        }
     }
 }
 

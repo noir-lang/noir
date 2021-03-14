@@ -44,7 +44,6 @@ pub enum HirStatement {
     Let(HirLetStatement),
     Const(HirConstStatement),
     Constrain(HirConstrainStatement),
-    Public(HirPublicStatement),
     Private(HirPrivateStatement),
     Expression(ExprId),
     Semi(ExprId),

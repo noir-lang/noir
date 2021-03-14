@@ -276,9 +276,10 @@ impl<'a> Evaluator<'a> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
-            HirStatement::Constrain(constrain_stmt) => self.handle_constrain_statement(env, constrain_stmt),
+            HirStatement::Constrain(constrain_stmt) => {
+                self.handle_constrain_statement(env, constrain_stmt)
+            }
             HirStatement::Const(x) => {
-
                 let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
@@ -287,14 +288,15 @@ impl<'a> Evaluator<'a> {
                 env.store(variable_name, value);
                 Ok(Object::Null)
             }
-            HirStatement::Expression(expr) | HirStatement::Semi(expr) => self.expression_to_object(env, &expr),
+            HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
+                self.expression_to_object(env, &expr)
+            }
             HirStatement::Let(let_stmt) => {
                 // let statements are used to declare a higher level object
                 self.handle_let_statement(env, let_stmt)?;
 
                 Ok(Object::Null)
             }
-            HirStatement::Public(_) => todo!("This may be deprecated. We do however want a way to keep track of linear transformations between private variable and public/constants"),
         }
     }
 

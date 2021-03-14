@@ -266,7 +266,6 @@ impl<'a> Resolver<'a> {
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
             }
-            Statement::Public(_) => todo!(),
             Statement::Private(priv_stmt) => {
                 let identifier = self.add_variable_decl(priv_stmt.identifier);
                 let expression = self.resolve_expression(priv_stmt.expression);

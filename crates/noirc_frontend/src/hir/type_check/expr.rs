@@ -373,7 +373,6 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
     let stmt = interner.statement(stmt_id);
     match stmt {
         HirStatement::Let(_)
-        | HirStatement::Public(_)
         | HirStatement::Const(_)
         | HirStatement::Private(_)
         // We could fetch the type here also for Semi

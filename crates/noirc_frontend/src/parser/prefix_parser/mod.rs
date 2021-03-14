@@ -39,9 +39,7 @@ use noirc_errors::Span;
 
 use super::{Parser, ParserErrorKind, ParserExprKindResult, ParserExprResult, Precedence};
 
-use crate::ast::{
-    ConstStatement, ImportStatement, LetStatement, PrivateStatement, PublicStatement, Statement,
-};
+use crate::ast::{ConstStatement, ImportStatement, LetStatement, PrivateStatement, Statement};
 
 /// Strictly speaking, this is not needed as we could import choose_prefix_parser
 /// and choose based on the token. This is a bit more modularised and cleaner to read however

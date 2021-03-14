@@ -61,7 +61,6 @@ pub enum Statement {
     Let(LetStatement),
     Const(ConstStatement),
     Constrain(ConstrainStatement),
-    Public(PublicStatement),
     Private(PrivateStatement),
     Expression(Expression),
     // This is an expression with a trailing semi-colon
@@ -152,13 +151,6 @@ pub struct LetStatement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstStatement {
-    pub identifier: Ident,
-    pub r#type: Type, // This will always be a Literal FieldElement
-    pub expression: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PublicStatement {
     pub identifier: Ident,
     pub r#type: Type, // This will always be a Literal FieldElement
     pub expression: Expression,
