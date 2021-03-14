@@ -401,10 +401,12 @@ impl<'a> Evaluator<'a> {
             if let Some(unit_wit) = lhs_unit_witness {
                 // Check if the RHS is linear or constant
                 if rhs.is_linear() | rhs.is_constant() {
-                    let var_name = env
-                        .find_with_value(&unit_wit)
-                        .expect("ice: could not find corresponding variable name");
-                    env.store(var_name, rhs)
+                    match env.find_with_value(&unit_wit) {
+                        Some(var_name) => env.store(var_name, rhs),
+                        None => {
+                            // This can happen if the element is from an array
+                        }
+                    }
                 }
             }
         };
