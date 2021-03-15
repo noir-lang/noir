@@ -7,10 +7,9 @@
 
 use dep::std;
 
-fn main(x : [5]u8, low : pub Field, high: pub Field) {
+fn main(x : [5]u8, _result : [32]u8) {
 
-     let digest = std::hash::sha256(x);
+     let _digest = std::hash::sha256(x);
      
-     constrain digest[0] == low;
-     constrain digest[1] == high;
+     constrain _digest == _result;
 }

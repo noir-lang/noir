@@ -31,11 +31,15 @@ fn verify(proof_name: &str) -> bool {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
-    let curr_dir = std::env::current_dir().unwrap();
-    let public_inputs = noirc_abi::input_parser::Format::Toml.parse(curr_dir, VERIFIER_INPUT_FILE);
-
     let public_abi = compiled_program.abi.clone().unwrap().public_abi();
     let num_params = public_abi.num_parameters();
+
+    let mut public_inputs = BTreeMap::new();
+    if num_params != 0 {
+        let curr_dir = std::env::current_dir().unwrap();
+        public_inputs = noirc_abi::input_parser::Format::Toml.parse(curr_dir, VERIFIER_INPUT_FILE);
+    }
+
     if num_params != public_inputs.len() {
         panic!(
             "Expected {} number of values, but got {} number of values",

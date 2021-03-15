@@ -62,12 +62,12 @@ impl OPCODE {
             OPCODE::SHA256 => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
-                output_size: OutputSize(2),
+                output_size: OutputSize(32),
             },
             OPCODE::Blake2s => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
-                output_size: OutputSize(2),
+                output_size: OutputSize(32),
             },
             OPCODE::HashToField => GadgetDefinition {
                 name: self.name().into(),

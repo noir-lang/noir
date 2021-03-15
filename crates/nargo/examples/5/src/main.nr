@@ -12,12 +12,11 @@
 // This can be done in ACIR!
 use dep::std;
 
-fn main(x : Field,low : pub Field, high: pub Field) {
+fn main(x : Field, result : [32]Field) {
 
     // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
     // The padding is taken care of by the program
     let digest = std::hash::sha256([x as u8]);
      
-    constrain digest[0] == low;
-    constrain digest[1] == high;
+    constrain digest == result;
 }

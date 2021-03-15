@@ -65,17 +65,22 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                             sha256_inputs.push((witness_index, num_bits));
                         }
 
-                        assert_eq!(gadget_call.outputs.len(), 2);
+                        assert_eq!(gadget_call.outputs.len(), 32);
 
-                        let result_low_128_witness_index =
-                            gadget_call.outputs[0].witness_index() as i32;
-                        let result_high_128_witness_index =
-                            gadget_call.outputs[1].witness_index() as i32;
+                        let mut outputs_iter = gadget_call.outputs.iter();
+                        let mut result = [0i32; 32];
+                        for i in 0..32 {
+                            let out_byte = outputs_iter.next().expect(&format!(
+                                "missing rest of output. tried to get byte {} but failed",
+                                i
+                            ));
 
+                            let out_byte_index = out_byte.witness_index() as i32;
+                            result[i] = out_byte_index
+                        }
                         let sha256_constraint = Sha256Constraint {
                             inputs: sha256_inputs,
-                            result_low_128: result_low_128_witness_index,
-                            result_high_128: result_high_128_witness_index,
+                            result,
                         };
 
                         sha256_constraints.push(sha256_constraint);
@@ -88,17 +93,22 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                             blake2s_inputs.push((witness_index, num_bits));
                         }
 
-                        assert_eq!(gadget_call.outputs.len(), 2);
+                        assert_eq!(gadget_call.outputs.len(), 32);
 
-                        let result_low_128_witness_index =
-                            gadget_call.outputs[0].witness_index() as i32;
-                        let result_high_128_witness_index =
-                            gadget_call.outputs[1].witness_index() as i32;
+                        let mut outputs_iter = gadget_call.outputs.iter();
+                        let mut result = [0i32; 32];
+                        for i in 0..32 {
+                            let out_byte = outputs_iter.next().expect(&format!(
+                                "missing rest of output. tried to get byte {} but failed",
+                                i
+                            ));
 
+                            let out_byte_index = out_byte.witness_index() as i32;
+                            result[i] = out_byte_index
+                        }
                         let blake2s_constraint = Blake2sConstraint {
                             inputs: blake2s_inputs,
-                            result_low_128: result_low_128_witness_index,
-                            result_high_128: result_high_128_witness_index,
+                            result,
                         };
 
                         blake2s_constraints.push(blake2s_constraint);
