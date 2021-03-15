@@ -1,5 +1,6 @@
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 use crate::resolver::Resolver;
+use crate::write_stderr;
 use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
@@ -66,15 +67,18 @@ fn process_abi_with_verifier_input(
 ) -> Vec<FieldElement> {
     let mut public_inputs = Vec::with_capacity(pi_map.len());
 
-    let param_names = abi.parameter_names();
-    for param in param_names.into_iter() {
+    for (param_name, param_type) in abi.parameters.into_iter() {
         let value = pi_map
-            .get(param)
+            .get(&param_name)
             .expect(&format!(
                 "ABI expects the parameter `{}`, but this was not found",
-                param
+                param_name
             ))
             .clone();
+
+        if !value.matches_abi(param_type) {
+            write_stderr(&format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter. ", VERIFIER_INPUT_FILE,param_name))
+        }
 
         match value {
             InputValue::Field(elem) => public_inputs.push(elem),
