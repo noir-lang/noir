@@ -1,5 +1,5 @@
 use super::GadgetCaller;
-use crate::object::{Array, Object};
+use crate::object::{Array, Integer, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
@@ -23,25 +23,27 @@ impl GadgetCaller for Blake2sGadget {
     ) -> Result<Object, RuntimeErrorKind> {
         let inputs = Blake2sGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        // Create two fresh variables that will link to the Blake2s output
-
-        let low_128_witness = evaluator.add_witness_to_cs();
-        let low_128_object = Object::from_witness(low_128_witness);
-
-        let high_128_witness = evaluator.add_witness_to_cs();
-        let high_128_object = Object::from_witness(high_128_witness);
+        // Create 32 fresh variables that will link to the Blake2s output
+        let mut outputs = Vec::with_capacity(32);
+        let mut contents = Vec::with_capacity(32);
+        for _ in 0..32 {
+            let witness = evaluator.add_witness_to_cs();
+            let object = Object::Integer(Integer::from_witness(witness, 8));
+            outputs.push(witness);
+            contents.push(object);
+        }
 
         let blake2s_gate = GadgetCall {
             name: Blake2sGadget::name(),
             inputs,
-            outputs: vec![low_128_witness, high_128_witness],
+            outputs,
         };
 
         evaluator.gates.push(Gate::GadgetCall(blake2s_gate));
 
         let arr = Array {
             length: 2,
-            contents: vec![low_128_object, high_128_object],
+            contents,
         };
 
         Ok(Object::Array(arr))
