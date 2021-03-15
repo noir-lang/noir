@@ -83,17 +83,20 @@ fn process_abi_with_input(
 ) -> BTreeMap<Witness, FieldElement> {
     let mut solved_witness = BTreeMap::new();
 
-    let param_names = abi.parameter_names();
     let mut index = 0;
 
-    for param in param_names.into_iter() {
+    for (param_name, param_type) in abi.parameters.into_iter() {
         let value = witness_map
-            .get(param)
+            .get(&param_name)
             .expect(&format!(
                 "ABI expects the parameter `{}`, but this was not found",
-                param
+                param_name
             ))
             .clone();
+
+        if !value.matches_abi(param_type) {
+            write_stderr(&format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name))
+        }
 
         match value {
             InputValue::Field(element) => {
