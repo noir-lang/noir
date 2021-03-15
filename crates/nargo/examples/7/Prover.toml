@@ -1,8 +1,38 @@
 
-        # hello as bytes
-        # https://toolkitbay.com/tkb/tool/BLAKE2s_256
-        x = [104, 101, 108, 108, 111]
-        low = "0x19213bacc58dee6dbde3ceb9a47cbb33"
-        high = "0x0b3d86f8cca8997eb00be456f140ca25"
-        
-        
+# hello as bytes
+# https://toolkitbay.com/tkb/tool/BLAKE2s_256
+x = [104, 101, 108, 108, 111]
+result = [
+        0x19,
+        0x21,
+        0x3b,
+        0xac,
+        0xc5,
+        0x8d,
+        0xee,
+        0x6d,
+        0xbd,
+        0xe3,
+        0xce,
+        0xb9,
+        0xa4,
+        0x7c,
+        0xbb,
+        0x33,
+        0x0b,
+        0x3d,
+        0x86,
+        0xf8,
+        0xcc,
+        0xa8,
+        0x99,
+        0x7e,
+        0xb0,
+        0x0b,
+        0xe4,
+        0x56,
+        0xf1,
+        0x40,
+        0xca,
+        0x25,
+]
