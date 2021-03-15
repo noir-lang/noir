@@ -220,8 +220,7 @@ impl MerkleMembershipConstraint {
 #[derive(Clone, Hash, Debug)]
 pub struct Sha256Constraint {
     pub inputs: Vec<(i32, i32)>,
-    pub result_low_128: i32,
-    pub result_high_128: i32,
+    pub result: [i32; 32],
 }
 
 impl Sha256Constraint {
@@ -235,8 +234,11 @@ impl Sha256Constraint {
             buffer.extend_from_slice(&constraint.1.to_be_bytes());
         }
 
-        buffer.extend_from_slice(&self.result_low_128.to_be_bytes());
-        buffer.extend_from_slice(&self.result_high_128.to_be_bytes());
+        let result_len = self.result.len() as u32;
+        buffer.extend_from_slice(&result_len.to_be_bytes());
+        for constraint in self.result.iter() {
+            buffer.extend_from_slice(&constraint.to_be_bytes());
+        }
 
         buffer
     }
@@ -244,8 +246,7 @@ impl Sha256Constraint {
 #[derive(Clone, Hash, Debug)]
 pub struct Blake2sConstraint {
     pub inputs: Vec<(i32, i32)>,
-    pub result_low_128: i32,
-    pub result_high_128: i32,
+    pub result: [i32; 32],
 }
 
 impl Blake2sConstraint {
@@ -259,8 +260,11 @@ impl Blake2sConstraint {
             buffer.extend_from_slice(&constraint.1.to_be_bytes());
         }
 
-        buffer.extend_from_slice(&self.result_low_128.to_be_bytes());
-        buffer.extend_from_slice(&self.result_high_128.to_be_bytes());
+        let result_len = self.result.len() as u32;
+        buffer.extend_from_slice(&result_len.to_be_bytes());
+        for constraint in self.result.iter() {
+            buffer.extend_from_slice(&constraint.to_be_bytes());
+        }
 
         buffer
     }
