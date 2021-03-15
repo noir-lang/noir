@@ -7,9 +7,9 @@
 
 use dep::std;
 
-fn main(x : [5]u8, _result : [32]u8) {
+fn main(x : [5]u8, result : pub [32]u8) {
 
-     let _digest = std::hash::sha256(x);
+     let digest = std::hash::sha256(x);
      
-     constrain _digest == _result;
+     constrain digest == result;
 }
