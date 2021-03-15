@@ -205,14 +205,30 @@ impl<'a> Evaluator<'a> {
 
         for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {
-                noirc_abi::AbiType::Array { length, typ } => {
+                noirc_abi::AbiType::Array {
+                    visibility,
+                    length,
+                    typ,
+                } => {
                     let mut elements = Vec::with_capacity(length as usize);
                     for _ in 0..length as usize {
                         let witness = self.add_witness_to_cs();
+                        if visibility == noirc_abi::AbiFEType::Public {
+                            self.public_inputs.push(witness);
+                        }
 
                         // Constrain each element in the array to be equal to the type declared in the parameter
                         let object = match *typ {
-                            noirc_abi::AbiType::Integer { sign, width } => {
+                            noirc_abi::AbiType::Integer {
+                                visibility: _,
+                                sign,
+                                width,
+                            } => {
+                                // XXX: Since this is in an array, the visibility
+                                // XXX: should not be settable. By default, it will be Private
+                                // since if the user does not supply a visibility,
+                                // then it is by default Private
+
                                 // Currently we do not support signed integers
                                 assert!(
                                     sign != noirc_abi::Sign::Signed,
@@ -243,9 +259,15 @@ impl<'a> Evaluator<'a> {
                     let witness = self.add_witness_to_cs();
                     self.add_witness_to_env(param_name, witness, env);
                 }
-                noirc_abi::AbiType::Integer { sign, width } => {
+                noirc_abi::AbiType::Integer {
+                    visibility,
+                    sign,
+                    width,
+                } => {
                     let witness = self.add_witness_to_cs();
-
+                    if visibility == noirc_abi::AbiFEType::Public {
+                        self.public_inputs.push(witness);
+                    }
                     // Currently we do not support signed integers
                     assert!(
                         sign != noirc_abi::Sign::Signed,

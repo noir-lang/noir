@@ -6,7 +6,7 @@ mod statement;
 
 pub use expression::*;
 pub use function::*;
-use noirc_abi::AbiType;
+use noirc_abi::{AbiFEType, AbiType};
 pub use statement::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -57,6 +57,16 @@ impl PartialEq for FieldElementType {
             (FieldElementType::Constant, FieldElementType::Private) => false,
             (FieldElementType::Constant, FieldElementType::Public) => false,
         }
+    }
+}
+
+impl FieldElementType {
+    // In the majority of places, public and private are
+    // interchangeable. The place where the difference does matter is
+    // when witnesses are being added to the constraint system.
+    // For the compiler, the appropriate place would be in the ABI
+    pub fn strict_eq(&self, other: &FieldElementType) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
     }
 }
 
@@ -211,35 +221,33 @@ impl Type {
         self.is_base_type() && other.is_base_type()
     }
 
+    // Note; use strict_eq instead of partial_eq when comparing field types
+    // in this method, you most likely want to distinguish between public and privtae
     pub fn as_abi_type(&self) -> AbiType {
-        match self {
-            Type::FieldElement(fe_type) => match fe_type {
-                FieldElementType::Private => AbiType::Field(noirc_abi::AbiFEType::Private),
-                FieldElementType::Public => AbiType::Field(noirc_abi::AbiFEType::Public),
+        // converts a field element type
+        fn fet_to_abi(fe: &FieldElementType) -> AbiFEType {
+            match fe {
+                FieldElementType::Private => noirc_abi::AbiFEType::Private,
+                FieldElementType::Public => noirc_abi::AbiFEType::Public,
                 FieldElementType::Constant => {
                     panic!("constant field in the abi, this is not allowed!")
                 }
-            },
-            Type::Array(field_type, size, typ) => {
-                if field_type != &FieldElementType::Private {
-                    panic!("AbiType does not yet have support for non private arrays")
-                }
-
-                match size {
-                    crate::ArraySize::Variable => {
-                        panic!("cannot have variable sized array in entry point")
-                    }
-                    crate::ArraySize::Fixed(length) => AbiType::Array {
-                        length: *length,
-                        typ: Box::new(typ.as_abi_type()),
-                    },
-                }
             }
-            Type::Integer(field_type, sign, bit_width) => {
-                if field_type != &FieldElementType::Private {
-                    panic!("AbiType does not yet have support for non private integers")
-                }
+        }
 
+        match self {
+            Type::FieldElement(fe_type) => AbiType::Field(fet_to_abi(fe_type)),
+            Type::Array(fe_type, size, typ) => match size {
+                crate::ArraySize::Variable => {
+                    panic!("cannot have variable sized array in entry point")
+                }
+                crate::ArraySize::Fixed(length) => AbiType::Array {
+                    visibility: fet_to_abi(fe_type),
+                    length: *length,
+                    typ: Box::new(typ.as_abi_type()),
+                },
+            },
+            Type::Integer(fe_type, sign, bit_width) => {
                 let sign = match sign {
                     crate::Signedness::Unsigned => noirc_abi::Sign::Unsigned,
                     crate::Signedness::Signed => noirc_abi::Sign::Signed,
@@ -248,6 +256,7 @@ impl Type {
                 AbiType::Integer {
                     sign,
                     width: *bit_width as u32,
+                    visibility: fet_to_abi(fe_type),
                 }
             }
             Type::Bool => panic!("currently, cannot have a bool in the entry point function"),

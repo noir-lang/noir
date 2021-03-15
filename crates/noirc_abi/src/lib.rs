@@ -20,8 +20,16 @@ pub mod input_parser;
 /// support.
 pub enum AbiType {
     Field(AbiFEType),
-    Array { length: u128, typ: Box<AbiType> },
-    Integer { sign: Sign, width: u32 },
+    Array {
+        visibility: AbiFEType,
+        length: u128,
+        typ: Box<AbiType>,
+    },
+    Integer {
+        visibility: AbiFEType,
+        sign: Sign,
+        width: u32,
+    },
 }
 /// This is the same as the FieldElementType in AST, without constants.
 /// We don't want the ABI to depend on Noir, so types are not shared between the two
@@ -47,15 +55,27 @@ impl AbiType {
     pub fn num_elements(&self) -> usize {
         match self {
             AbiType::Field(_) | AbiType::Integer { .. } => 1,
-            AbiType::Array { length, typ: _ } => *length as usize,
+            AbiType::Array {
+                visibility: _,
+                length,
+                typ: _,
+            } => *length as usize,
         }
     }
 
     pub fn is_public(&self) -> bool {
         match self {
             AbiType::Field(fe_type) => fe_type == &AbiFEType::Public,
-            AbiType::Array { length: _, typ: _ } => false,
-            AbiType::Integer { sign: _, width: _ } => false,
+            AbiType::Array {
+                visibility,
+                length: _,
+                typ: _,
+            } => visibility == &AbiFEType::Public,
+            AbiType::Integer {
+                visibility,
+                sign: _,
+                width: _,
+            } => visibility == &AbiFEType::Public,
         }
     }
 }
@@ -94,8 +114,8 @@ impl Serialize for Abi {
         for (param_name, param_type) in &self.parameters {
             match param_type {
                 AbiType::Field(_) => map.serialize_entry(&param_name, "")?,
-                AbiType::Array { length: _, typ: _ } => map.serialize_entry(&param_name, &vec)?,
-                AbiType::Integer { sign: _, width: _ } => map.serialize_entry(&param_name, "")?,
+                AbiType::Array { .. } => map.serialize_entry(&param_name, &vec)?,
+                AbiType::Integer { .. } => map.serialize_entry(&param_name, "")?,
             };
         }
         map.end()
