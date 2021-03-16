@@ -2,23 +2,20 @@ mod binary_op;
 
 mod builtin;
 mod environment;
+mod errors;
 mod low_level_function_impl;
 mod object;
 
-mod errors;
-use acvm::BackendPointer;
-use errors::RuntimeErrorKind;
-
-use environment::Environment;
-use object::{Array, Integer, Object, RangedObject};
-
-use acvm::acir::circuit::Circuit;
 use acvm::acir::circuit::{
     gate::{AndGate, Gate, XorGate},
-    PublicInputs,
+    Circuit, PublicInputs,
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
-
+use acvm::BackendPointer;
+use environment::Environment;
+use errors::RuntimeErrorKind;
+use noir_field::FieldElement;
+use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::{
     expr::{
         HirBinaryOp, HirBinaryOpKind, HirBlockExpression, HirCallExpression, HirExpression,
@@ -28,10 +25,7 @@ use noirc_frontend::hir_def::{
 };
 use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::{FunctionKind, Type};
-
-use noirc_frontend::hir::Context;
-
-use noir_field::FieldElement;
+use object::{Array, Integer, Object, RangedObject};
 pub struct Evaluator<'a> {
     // Why is this not u64?
     //
