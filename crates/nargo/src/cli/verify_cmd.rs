@@ -6,6 +6,12 @@ use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::{collections::BTreeMap, path::Path};
 
+// The verifier.toml file will by default have an
+// array that will be used to add public inputs
+// which were not in the main function field.
+// This constant stores the name of that array.
+pub const RESERVED_PUBLIC_ARR: &str = "setpub";
+
 pub(crate) fn run(args: ArgMatches) {
     let proof_name = args
         .subcommand_matches("verify")
@@ -32,7 +38,8 @@ fn verify(proof_name: &str) -> bool {
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
 
-    let public_abi = compiled_program.abi.clone().unwrap().public_abi();
+    let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
+    add_dummy_setpub_arr(&mut public_abi);
     let num_params = public_abi.num_parameters();
 
     let mut public_inputs = BTreeMap::new();
@@ -76,7 +83,7 @@ fn process_abi_with_verifier_input(
             ))
             .clone();
 
-        if !value.matches_abi(param_type) {
+        if !value.matches_abi(param_type) && param_name != RESERVED_PUBLIC_ARR {
             write_stderr(&format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter. ", VERIFIER_INPUT_FILE,param_name))
         }
 
@@ -87,4 +94,20 @@ fn process_abi_with_verifier_input(
     }
 
     public_inputs
+}
+
+use noirc_abi::{AbiFEType, AbiType};
+pub fn add_dummy_setpub_arr(abi: &mut Abi) {
+    // Add a dummy setpub array
+    // This method is used so that an empty "setpub" array is created in the verifier.toml
+    // and also so that when the verifier searches for public inputs,
+    // they also search for this "setpub"
+    let dummy_arr = AbiType::Array {
+        visibility: AbiFEType::Private,
+        length: 0,
+        typ: Box::new(AbiType::Field(AbiFEType::Private)),
+    };
+    // setpub is a keyword in Noir, so it cannot be used as a field name
+    // ensuring there will be no conflicts
+    abi.parameters.push((RESERVED_PUBLIC_ARR.into(), dummy_arr));
 }

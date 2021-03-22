@@ -8,35 +8,55 @@ use noirc_frontend::hir::scope::{
 type ScopeTree = GenericScopeTree<String, Object>;
 type ScopeForest = GenericScopeForest<String, Object>;
 
-pub struct Environment(ScopeForest);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FuncContext {
+    Main,
+    NonMain,
+}
+
+pub struct Environment {
+    pub func_context: FuncContext,
+    env: ScopeForest,
+}
 
 impl Environment {
-    pub fn new() -> Environment {
-        Environment(ScopeForest::new())
+    /// Create a new environment, passing in a boolean flag
+    /// to indicate whether this environment is for the main function
+    /// or in the context of the main function. The latter would be
+    /// the case, if we had closures and we need to possibly create and
+    /// extend an environment.
+    ///
+    /// This flag is used because there are some functions which should only be
+    /// callable within the main context.
+    pub fn new(func_context: FuncContext) -> Environment {
+        Environment {
+            func_context,
+            env: ScopeForest::new(),
+        }
     }
 
     pub fn start_function_environment(&mut self) {
-        self.0.start_function()
+        self.env.start_function()
     }
     pub fn end_function_environment(&mut self) -> ScopeTree {
-        self.0.end_function()
+        self.env.end_function()
     }
 
     pub fn start_for_loop(&mut self) {
-        self.0.start_for_loop()
+        self.env.start_for_loop()
     }
 
     pub fn end_for_loop(&mut self) {
-        self.0.end_for_loop();
+        self.env.end_for_loop();
     }
 
     pub fn store(&mut self, name: String, object: Object) {
-        let scope = self.0.get_mut_scope();
+        let scope = self.env.get_mut_scope();
         scope.add_key_value(name.clone(), object);
     }
 
     pub fn get(&mut self, name: &String) -> Object {
-        let scope = self.0.current_scope_tree();
+        let scope = self.env.current_scope_tree();
         scope.find(name).unwrap().clone()
     }
 
@@ -44,7 +64,7 @@ impl Environment {
     // Witness indices to variable names.
     pub fn find_with_value(&mut self, val: &Witness) -> Option<String> {
         let mut found = None;
-        for scope in self.0.current_scope_tree().0.iter().rev() {
+        for scope in self.env.current_scope_tree().0.iter().rev() {
             found = scope.0.iter().find_map(|(k, v)| match v {
                 Object::Null | Object::Array(_) | Object::Constants(_) | Object::Arithmetic(_) => {
                     None

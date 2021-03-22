@@ -13,6 +13,9 @@ pub enum RuntimeErrorKind {
         span: Span,
     },
 
+    #[error("cannot call {func_name} function in non main function")]
+    FunctionNonMainContext { func_name: String, span: Span },
+
     // Environment errors
     #[error("Cannot find Array")]
     ArrayNotFound { found_type: String, name: String },
@@ -79,6 +82,13 @@ impl DiagnosableError for RuntimeErrorKind {
             ),
             RuntimeErrorKind::Spanless(message) => Diagnostic::from_message(&message),
             RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(&message),
+            RuntimeErrorKind::FunctionNonMainContext { func_name, span } => {
+                Diagnostic::simple_error(
+                    "cannot call function outside of main".to_owned(),
+                    format!("function {} can only be called in main", func_name),
+                    *span,
+                )
+            }
         }
     }
 }
