@@ -12,7 +12,7 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use acvm::BackendPointer;
-use environment::Environment;
+use environment::{Environment, FuncContext};
 use errors::RuntimeErrorKind;
 use noir_field::FieldElement;
 use noirc_frontend::hir::Context;
@@ -48,7 +48,7 @@ impl<'a> Evaluator<'a> {
             // This means that every constraint system at the moment, will either need
             // to decrease each index by 1, or create a dummy witness.
             //
-            // We ideally want to not have this and have barretenberg apply the
+            // We ideally want to not have this and have Barretenberg apply the
             // following transformation to the witness index : f(i) = i + 1
             //
             current_witness_index: 0,
@@ -87,8 +87,8 @@ impl<'a> Evaluator<'a> {
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
     pub fn compile(mut self, backend: BackendPointer) -> Result<Circuit, RuntimeErrorKind> {
-        // create a new environment
-        let mut env = Environment::new();
+        // create a new environment for the main context
+        let mut env = Environment::new(FuncContext::Main);
 
         // First evaluate the main function
         self.evaluate_main(&mut env)?;
@@ -593,7 +593,7 @@ impl<'a> Evaluator<'a> {
         // This is okay because functions are not stored in the environment
         // We need to add the arguments into the environment though
         // Note: The arguments are evaluated in the old environment
-        let mut new_env = Environment::new();
+        let mut new_env = Environment::new(FuncContext::NonMain);
         let (arguments, mut errors) = self.expression_list_to_objects(env, &call_expr.arguments);
         if !errors.is_empty() {
             // XXX: We could have an error variant to return multiple errors here

@@ -4,12 +4,15 @@ mod arraysum;
 use arraysum::ArraySum;
 mod arrayprod;
 use arrayprod::ArrayProd;
+mod setpub;
 use noirc_frontend::hir_def::expr::HirCallExpression;
+use setpub::SetPub;
 
 #[derive(Debug)]
 enum BuiltInFunctions {
     ArraySum,
     ArrayProd,
+    SetPub,
 }
 
 impl BuiltInFunctions {
@@ -17,6 +20,7 @@ impl BuiltInFunctions {
         match name {
             "arraysum" => Some(BuiltInFunctions::ArraySum),
             "arrayprod" => Some(BuiltInFunctions::ArrayProd),
+            "set_pub" => Some(BuiltInFunctions::SetPub),
             _ => None,
         }
     }
@@ -53,5 +57,6 @@ pub fn call_builtin(
     match func {
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, call_expr),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, call_expr),
+        BuiltInFunctions::SetPub => SetPub::call(evaluator, env, call_expr),
     }
 }
