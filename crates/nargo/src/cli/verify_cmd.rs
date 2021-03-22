@@ -83,7 +83,7 @@ fn process_abi_with_verifier_input(
             ))
             .clone();
 
-        if !value.matches_abi(param_type) && param_name != "setpub" {
+        if !value.matches_abi(param_type) && param_name != RESERVED_PUBLIC_ARR {
             write_stderr(&format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter. ", VERIFIER_INPUT_FILE,param_name))
         }
 
