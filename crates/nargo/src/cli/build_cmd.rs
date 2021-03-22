@@ -32,7 +32,9 @@ pub fn build_from_path<P: AsRef<Path>>(p: P) {
                 write_to_file(toml.as_bytes(), &path_to_prover_input);
             }
             if !path_to_verifier_input.exists() {
-                let toml = toml::to_string(&x.public_abi()).unwrap();
+                let mut abi = x.public_abi();
+                super::verify_cmd::add_dummy_setpub_arr(&mut abi);
+                let toml = toml::to_string(&abi).unwrap();
                 write_to_file(toml.as_bytes(), &path_to_verifier_input);
             }
         }
