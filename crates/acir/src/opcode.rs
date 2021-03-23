@@ -8,6 +8,7 @@ pub enum OPCODE {
     Pedersen,
     HashToField,
     EcdsaSecp256k1,
+    FixedBaseScalarMul,
 }
 
 impl std::fmt::Display for OPCODE {
@@ -27,6 +28,7 @@ impl OPCODE {
             OPCODE::Pedersen => 5,
             OPCODE::HashToField => 6,
             OPCODE::EcdsaSecp256k1 => 7,
+            OPCODE::FixedBaseScalarMul => 8,
         }
     }
     pub fn name(&self) -> &str {
@@ -39,6 +41,7 @@ impl OPCODE {
             OPCODE::Pedersen => "pedersen",
             OPCODE::HashToField => "hash_to_field",
             OPCODE::EcdsaSecp256k1 => "ecdsa_secp256k1",
+            OPCODE::FixedBaseScalarMul => "fixed_base_scalar_mul",
         }
     }
     pub fn lookup(op_name: &str) -> Option<OPCODE> {
@@ -50,6 +53,7 @@ impl OPCODE {
             "pedersen" => Some(OPCODE::Pedersen),
             "hash_to_field" => Some(OPCODE::HashToField),
             "ecdsa_secp256k1" => Some(OPCODE::EcdsaSecp256k1),
+            "fixed_base_scalar_mul" => Some(OPCODE::FixedBaseScalarMul),
             _ => None,
         }
     }
@@ -96,6 +100,11 @@ impl OPCODE {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
                 output_size: OutputSize(1),
+            },
+            OPCODE::FixedBaseScalarMul => GadgetDefinition {
+                name: self.name().into(),
+                input_size: InputSize::Fixed(1),
+                output_size: OutputSize(2),
             },
         }
     }
