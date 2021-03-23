@@ -49,6 +49,9 @@ impl<'a> Parser<'a> {
         loop {
             match self.lexer.next_token() {
                 Ok(spanned_token) => {
+                    if spanned_token.is_comment() {
+                        continue;
+                    }
                     self.peek_token = spanned_token;
                     break;
                 }
@@ -483,5 +486,38 @@ impl<'a> Parser<'a> {
         let array_type = self.parse_type(false)?;
 
         Ok(Type::Array(field_type, array_len, Box::new(array_type)))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn regression_skip_comment() {
+        const COMMENT_BETWEEN_FIELD: &'static str = r#"
+            fn main(
+                // This comment should be skipped
+                x : Field, 
+                // And this one
+                y : Field,
+            ) {
+
+            }
+        "#;
+        const COMMENT_BETWEEN_CALL: &'static str = r#"
+            fn main(x : Field, y : Field,) {
+                foo::bar(
+                    // Comment for x argument
+                    x,
+                    // Comment for y argument
+                    y
+                )
+            }
+        "#;
+        let mut parser = Parser::from_src(COMMENT_BETWEEN_FIELD);
+        let program = parser.parse_program().unwrap();
+        parser = Parser::from_src(COMMENT_BETWEEN_CALL);
+        let program = parser.parse_program().unwrap();
     }
 }
