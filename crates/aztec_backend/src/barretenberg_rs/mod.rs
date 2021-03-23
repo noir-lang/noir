@@ -6,6 +6,7 @@ pub mod composer;
 mod crs;
 pub mod pedersen;
 mod pippenger;
+pub mod scalar_mul;
 pub mod schnorr;
 
 use wasmer::{imports, ChainableNamedResolver, Cranelift, Function, Instance, Value};

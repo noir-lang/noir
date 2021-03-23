@@ -1,9 +1,9 @@
 // Aztec uses a `TurboFormat` object in order to bridge the gap between Rust and C++.
 // This serialiser converts the IR into the `TurboFormat` which can then be fed into the WASM file
 use crate::barretenberg_rs::composer::{
-    Blake2sConstraint, Constraint, ConstraintSystem, EcdsaConstraint, HashToFieldConstraint,
-    LogicConstraint, MerkleMembershipConstraint, PedersenConstraint, RangeConstraint,
-    SchnorrConstraint, Sha256Constraint,
+    Blake2sConstraint, Constraint, ConstraintSystem, EcdsaConstraint, FixedBaseScalarMulConstraint,
+    HashToFieldConstraint, LogicConstraint, MerkleMembershipConstraint, PedersenConstraint,
+    RangeConstraint, SchnorrConstraint, Sha256Constraint,
 };
 use acir::circuit::{Circuit, Gate};
 use acir::native_types::Arithmetic;
@@ -22,6 +22,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
     let mut ecdsa_secp256k1_constraints: Vec<EcdsaConstraint> = Vec::new();
+    let mut fixed_base_scalar_mul_constraints: Vec<FixedBaseScalarMulConstraint> = Vec::new();
     let mut hash_to_field_constraints: Vec<HashToFieldConstraint> = Vec::new();
 
     for gate in circuit.gates.iter() {
@@ -304,6 +305,22 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         ecdsa_secp256k1_constraints.push(constraint);
                     }
+                    OPCODE::FixedBaseScalarMul => {
+                        assert_eq!(gadget_call.inputs.len(), 1);
+                        let scalar = gadget_call.inputs[0].witness.witness_index() as i32;
+
+                        assert_eq!(gadget_call.outputs.len(), 2);
+                        let pubkey_x = gadget_call.outputs[0].witness_index() as i32;
+                        let pubkey_y = gadget_call.outputs[1].witness_index() as i32;
+
+                        let fixed_base_scalar_mul = FixedBaseScalarMulConstraint {
+                            scalar,
+                            pubkey_x,
+                            pubkey_y,
+                        };
+
+                        fixed_base_scalar_mul_constraints.push(fixed_base_scalar_mul);
+                    }
                 };
             }
             Gate::Directive(_) => {
@@ -326,6 +343,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         blake2s_constraints,
         hash_to_field_constraints,
         constraints,
+        fixed_base_scalar_mul_constraints,
     };
 
     constraint_system

@@ -1,8 +1,6 @@
 use super::merkle::MerkleTree;
 use crate::pwg::{self, input_to_value};
-use acir::circuit::gate::GadgetCall;
-use acir::native_types::Witness;
-use acir::OPCODE;
+use acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
 use aztec_backend::barretenberg_rs::Barretenberg;
 use blake2::Blake2s;
 use noir_field::FieldElement;
@@ -137,6 +135,18 @@ impl GadgetCaller {
                 assert_eq!(gadget_call.outputs.len(), 1);
 
                 initial_witness.insert(gadget_call.outputs[0].clone(), reduced_res);
+            }
+            OPCODE::FixedBaseScalarMul => {
+                let scalar = initial_witness.get(&gadget_call.inputs[0].witness);
+                let scalar = match scalar {
+                    None => panic!("cannot find witness assignment for {:?}", scalar),
+                    Some(assignment) => assignment,
+                };
+                let mut barretenberg = Barretenberg::new();
+                let (pub_x, pub_y) = barretenberg.fixed_base(&scalar);
+
+                initial_witness.insert(gadget_call.outputs[0].clone(), pub_x);
+                initial_witness.insert(gadget_call.outputs[1].clone(), pub_y);
             }
         }
         Ok(())

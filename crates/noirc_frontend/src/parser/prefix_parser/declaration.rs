@@ -210,7 +210,6 @@ mod test {
 
         for invalid in INVALID {
             let mut parser = test_parse(invalid);
-            let start = parser.curr_token.clone();
             assert!(DeclarationParser::parse_statement(&mut parser).is_err());
         }
     }
