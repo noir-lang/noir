@@ -39,6 +39,7 @@ class Engine {
 
     std::mt19937_64 engine;
     std::uniform_int_distribution<uint64_t> dist = std::uniform_int_distribution<uint64_t>{ 0ULL, UINT64_MAX };
+    bool is_debug = false;
 };
 
 Engine& get_debug_engine(bool reset = false);

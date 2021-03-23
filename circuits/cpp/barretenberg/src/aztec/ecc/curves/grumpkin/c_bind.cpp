@@ -31,4 +31,10 @@ WASM_EXPORT void ecc_grumpkin__batch_mul(uint8_t const* point_buf,
         write(result_ptr, r);
     }
 }
+
+WASM_EXPORT void ecc_grumpkin__get_random_fr(uint8_t* result)
+{
+    grumpkin::fr output = grumpkin::fr::random_element();
+    write(result, output);
+}
 }

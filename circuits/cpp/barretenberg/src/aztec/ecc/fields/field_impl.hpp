@@ -547,19 +547,11 @@ template <class T> field<T> field<T>::random_element(numeric::random::Engine* en
     if (engine == nullptr) {
         engine = &numeric::random::get_engine();
     }
-    wide_array random_data{
-        engine->get_random_uint64(), engine->get_random_uint64(), engine->get_random_uint64(),
-        engine->get_random_uint64(), engine->get_random_uint64(), engine->get_random_uint64(),
-        engine->get_random_uint64(), engine->get_random_uint64(),
-    };
-    random_data.data[7] = random_data.data[7] & 0b0000111111111111111111111111111111111111111111111111111111111111ULL;
-    random_data.data[3] = random_data.data[3] & 0b0000111111111111111111111111111111111111111111111111111111111111ULL;
-    field left{ random_data.data[0], random_data.data[1], random_data.data[2], random_data.data[3] };
-    field right{ random_data.data[4], random_data.data[5], random_data.data[6], random_data.data[7] };
-    left = left.reduce_once().reduce_once();
-    right = right.reduce_once().reduce_once();
-    field result = (left * right).reduce_once();
-    return result;
+
+    uint512_t source = engine->get_random_uint512();
+    uint512_t q(modulus);
+    uint512_t reduced = source % q;
+    return field(reduced.lo);
 }
 
 template <class T> constexpr size_t field<T>::primitive_root_log_size() noexcept
