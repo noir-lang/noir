@@ -49,6 +49,9 @@ impl<'a> Parser<'a> {
         loop {
             match self.lexer.next_token() {
                 Ok(spanned_token) => {
+                    if spanned_token.is_comment() {
+                        continue;
+                    }
                     self.peek_token = spanned_token;
                     break;
                 }
@@ -514,7 +517,7 @@ mod test {
         "#;
         let mut parser = Parser::from_src(COMMENT_BETWEEN_FIELD);
         let program = parser.parse_program().unwrap();
-        let mut parser = Parser::from_src(COMMENT_BETWEEN_CALL);
+        parser = Parser::from_src(COMMENT_BETWEEN_CALL);
         let program = parser.parse_program().unwrap();
     }
 }
