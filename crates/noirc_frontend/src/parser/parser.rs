@@ -485,3 +485,36 @@ impl<'a> Parser<'a> {
         Ok(Type::Array(field_type, array_len, Box::new(array_type)))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn regression_skip_comment() {
+        const COMMENT_BETWEEN_FIELD: &'static str = r#"
+            fn main(
+                // This comment should be skipped
+                x : Field, 
+                // And this one
+                y : Field,
+            ) {
+
+            }
+        "#;
+        const COMMENT_BETWEEN_CALL: &'static str = r#"
+            fn main(x : Field, y : Field,) {
+                foo::bar(
+                    // Comment for x argument
+                    x,
+                    // Comment for y argument
+                    y
+                )
+            }
+        "#;
+        let mut parser = Parser::from_src(COMMENT_BETWEEN_FIELD);
+        let program = parser.parse_program().unwrap();
+        let mut parser = Parser::from_src(COMMENT_BETWEEN_CALL);
+        let program = parser.parse_program().unwrap();
+    }
+}
