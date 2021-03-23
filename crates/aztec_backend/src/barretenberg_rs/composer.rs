@@ -312,6 +312,24 @@ impl PedersenConstraint {
         buffer
     }
 }
+#[derive(Clone, Hash, Debug)]
+pub struct FixedBaseScalarMulConstraint {
+    pub scalar: i32,
+    pub pubkey_x: i32,
+    pub pubkey_y: i32,
+}
+
+impl FixedBaseScalarMulConstraint {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        // Serialising Wires
+        buffer.extend_from_slice(&self.scalar.to_be_bytes());
+        buffer.extend_from_slice(&self.pubkey_x.to_be_bytes());
+        buffer.extend_from_slice(&self.pubkey_y.to_be_bytes());
+
+        buffer
+    }
+}
 
 #[derive(Clone, Hash, Debug)]
 pub struct LogicConstraint {
@@ -369,6 +387,7 @@ pub struct ConstraintSystem {
     pub blake2s_constraints: Vec<Blake2sConstraint>,
     pub pedersen_constraints: Vec<PedersenConstraint>,
     pub hash_to_field_constraints: Vec<HashToFieldConstraint>,
+    pub fixed_base_scalar_mul_constraints: Vec<FixedBaseScalarMulConstraint>,
     pub constraints: Vec<Constraint>,
 }
 
@@ -445,6 +464,13 @@ impl ConstraintSystem {
         let h2f_len = self.hash_to_field_constraints.len() as u32;
         buffer.extend_from_slice(&h2f_len.to_be_bytes());
         for constraint in self.hash_to_field_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each HashToField constraint
+        let fixed_base_scalar_mul_len = self.fixed_base_scalar_mul_constraints.len() as u32;
+        buffer.extend_from_slice(&fixed_base_scalar_mul_len.to_be_bytes());
+        for constraint in self.fixed_base_scalar_mul_constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
 
@@ -698,6 +724,7 @@ mod test {
             hash_to_field_constraints: vec![],
             constraints: vec![constraint.clone()],
             ecdsa_secp256k1_constraints: vec![],
+            fixed_base_scalar_mul_constraints: vec![],
         };
 
         let case_1 = WitnessResult {
@@ -777,6 +804,7 @@ mod test {
             hash_to_field_constraints: vec![],
             constraints: vec![constraint],
             ecdsa_secp256k1_constraints: vec![],
+            fixed_base_scalar_mul_constraints: vec![],
         };
 
         // This fails because the constraint system requires public inputs,
@@ -860,6 +888,7 @@ mod test {
             hash_to_field_constraints: vec![],
             constraints: vec![constraint, constraint2],
             ecdsa_secp256k1_constraints: vec![],
+            fixed_base_scalar_mul_constraints: vec![],
         };
 
         let case_1 = WitnessResult {
@@ -915,6 +944,7 @@ mod test {
             hash_to_field_constraints: vec![],
             constraints: vec![arith_constraint],
             ecdsa_secp256k1_constraints: vec![],
+            fixed_base_scalar_mul_constraints: vec![],
         };
 
         let pub_x =
@@ -981,6 +1011,7 @@ mod test {
             hash_to_field_constraints: vec![],
             constraints: vec![],
             ecdsa_secp256k1_constraints: vec![],
+            fixed_base_scalar_mul_constraints: vec![],
         };
 
         let scalar_0 = Scalar::from_hex("0x00").unwrap();
