@@ -9,7 +9,7 @@ use std::ops::{Add, Mul, Neg, Sub};
 //
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arithmetic {
     // To avoid having to create intermediate variables pre-optimisation
     // We collect all of the multiplication terms in the arithmetic gate

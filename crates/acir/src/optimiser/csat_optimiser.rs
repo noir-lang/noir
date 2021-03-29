@@ -369,7 +369,7 @@ impl Optimiser {
 }
 
 #[test]
-fn simple_reduction() {
+fn simple_reduction_smoke_test() {
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
