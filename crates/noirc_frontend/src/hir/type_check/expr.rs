@@ -349,15 +349,8 @@ fn check_param_argument(
     if arg_type.is_variable_sized_array() {
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
-
-    // Variable sized arrays (vectors) can be linked to fixed size arrays
-    // If the parameter specifies a variable sized array, then we can pass a
-    // fixed size array as an argument
-    if param_type.is_variable_sized_array() && arg_type.is_fixed_sized_array() {
-        return Ok(());
-    }
-
-    if param_type != arg_type {
+    
+    if !param_type.is_super_type_of(arg_type) {
         let span = interner.ident_span(&param_id);
         return Err(TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),

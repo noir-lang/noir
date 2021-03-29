@@ -16,11 +16,18 @@ pub enum ArraySize {
 }
 
 impl ArraySize {
-    pub fn is_fixed(&self) -> bool {
+    fn is_fixed(&self) -> bool {
         match self {
             ArraySize::Fixed(_) => true,
             _ => false,
         }
+    }
+    fn is_variable(&self) -> bool {
+        !self.is_fixed()
+    }
+
+    fn is_a_super_type_of(&self, argument: &ArraySize) -> bool {
+        (self.is_variable() && argument.is_fixed()) || (self == argument)
     }
 }
 
@@ -109,7 +116,7 @@ impl Into<AbiType> for &Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement(fe_type) => write!(f, " {} Field", fe_type),
+            Type::FieldElement(fe_type) => write!(f, "{} Field", fe_type),
             Type::Array(fe_type, size, typ) => write!(f, "{} {}{}", fe_type, size, typ),
             Type::Integer(fe_type, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{} i{}", fe_type, num_bits),
@@ -130,6 +137,43 @@ impl Type {
         match self {
             Type::FieldElement(FieldElementType::Private) => true,
             Type::Integer(field_type, _, _) => field_type == &FieldElementType::Private,
+            _ => false,
+        }
+    }
+
+    // A feature of the language is that `Field` is like an
+    // `Any` type which allows you to pass in any type which
+    // is fundamentally a field element. Eg all integer types
+    pub fn is_super_type_of(&self, argument: &Type) -> bool {
+        // if `self` is a `Field` then it is a super type
+        // iff the argument is a field element
+        if let Type::FieldElement(FieldElementType::Private) = self {
+            return argument.is_field_element();
+        }
+
+        // For composite types, we need to check they are structurally the same
+        // and then check that their base types are super types
+        match (self, argument) {
+            (Type::Array(_, param_size, param_type), Type::Array(_, arg_size, arg_type)) => {
+                let is_super_type = param_type.is_super_type_of(arg_type);
+
+                let arity_check = param_size.is_a_super_type_of(arg_size);
+
+                return is_super_type && arity_check;
+            }
+            _ => {}
+        }
+
+        // XXX: Should we also allow functions that ask for u16
+        // to accept u8? We would need to pad the bit decomposition
+        // if so.
+
+        self == argument
+    }
+
+    pub fn is_field_element(&self) -> bool {
+        match self {
+            Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _) => true,
             _ => false,
         }
     }
