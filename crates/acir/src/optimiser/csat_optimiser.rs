@@ -37,7 +37,6 @@ impl Optimiser {
 
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full gate
         let gate = self.full_gate_scan_optimisation(gate, &mut intermediate_variables, num_witness);
-
         // The last optimisation to do is to create intermediate variables in order to flatten the fan-in and the amount of mul terms
         // If a gate has more than one mul term . we may need an intermediate variable for each one. Since not every variable will need to link to
         // the mul term, we could possibly do it that way.
@@ -330,6 +329,10 @@ impl Optimiser {
             return gate;
         }
 
+        // Stores the intermediate variables that are used to
+        // reduce the fan in.
+        let mut added = Vec::new();
+
         while gate.linear_combinations.len() > self.width {
             // Collect as many terms upto the given width-1 and constrain them to an intermediate variable
             let mut intermediate_gate = Arithmetic::default();
@@ -347,6 +350,8 @@ impl Optimiser {
             // Constrain the intermediate gate to be equal to the intermediate variable
             let inter_var = Witness((intermediate_variables.len() as u32) + num_witness);
 
+            added.push((FieldElement::one(), inter_var));
+
             intermediate_gate
                 .linear_combinations
                 .push((-FieldElement::one(), inter_var.clone()));
@@ -355,6 +360,71 @@ impl Optimiser {
             intermediate_variables.insert(inter_var, intermediate_gate);
         }
 
-        gate
+        // Add back the intermediate variables to
+        // keep consistency with the original equation.
+        gate.linear_combinations.extend(added);
+
+        self.partial_gate_scan_optimisation(gate, intermediate_variables, num_witness)
     }
+}
+
+#[test]
+fn simple_reduction_smoke_test() {
+    let a = Witness(0);
+    let b = Witness(1);
+    let c = Witness(2);
+    let d = Witness(3);
+
+    // a = b + c + d;
+    let gate_a = Arithmetic {
+        mul_terms: vec![],
+        linear_combinations: vec![
+            (FieldElement::one(), a),
+            (-FieldElement::one(), b),
+            (-FieldElement::one(), c),
+            (-FieldElement::one(), d),
+        ],
+        q_c: FieldElement::zero(),
+    };
+
+    let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
+
+    let num_witness = 4;
+
+    let optimiser = Optimiser::new(3);
+    let got_optimised_gate_a = optimiser.optimise(gate_a, &mut intermediate_variables, num_witness);
+
+    // a = b + c + d => a - b - c - d = 0
+    // For width3, the result becomes:
+    // a - b + e = 0
+    // - c - d  - e = 0
+    //
+    // a - b + e = 0
+    let e = Witness(4);
+    let expected_optimised_gate_a = Arithmetic {
+        mul_terms: vec![],
+        linear_combinations: vec![
+            (FieldElement::one(), a),
+            (FieldElement::one(), e),
+            (-FieldElement::one(), b),
+        ],
+        q_c: FieldElement::zero(),
+    };
+    assert_eq!(expected_optimised_gate_a, got_optimised_gate_a);
+
+    assert_eq!(intermediate_variables.len(), 1);
+
+    let got_intermediate_gate = intermediate_variables.get(&e).unwrap();
+
+    // - c - d  - e = 0
+    let expected_intermediate_gate = Arithmetic {
+        mul_terms: vec![],
+        linear_combinations: vec![
+            (-FieldElement::one(), d),
+            (-FieldElement::one(), c),
+            (-FieldElement::one(), e),
+        ],
+        q_c: FieldElement::zero(),
+    };
+    assert_eq!(&expected_intermediate_gate, got_intermediate_gate);
 }
