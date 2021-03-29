@@ -141,3 +141,44 @@ impl ArithmeticSolver {
         GateStatus::GateSolvable(result, unknown_variable)
     }
 }
+
+#[test]
+fn arithmetic_smoke_test() {
+    let a = Witness(0);
+    let b = Witness(1);
+    let c = Witness(2);
+    let d = Witness(3);
+
+    // a = b + c + d;
+    let gate_a = Arithmetic {
+        mul_terms: vec![],
+        linear_combinations: vec![
+            (FieldElement::one(), a),
+            (-FieldElement::one(), b),
+            (-FieldElement::one(), c),
+            (-FieldElement::one(), d),
+        ],
+        q_c: FieldElement::zero(),
+    };
+
+    let e = Witness(4);
+    let gate_b = Arithmetic {
+        mul_terms: vec![],
+        linear_combinations: vec![
+            (FieldElement::one(), e),
+            (-FieldElement::one(), a),
+            (-FieldElement::one(), b),
+        ],
+        q_c: FieldElement::zero(),
+    };
+
+    let mut values: BTreeMap<Witness, FieldElement> = BTreeMap::new();
+    values.insert(b, FieldElement::from(2));
+    values.insert(c, FieldElement::from(1));
+    values.insert(d, FieldElement::from(1));
+
+    assert!(ArithmeticSolver::solve(&mut values, &gate_a).is_none());
+    assert!(ArithmeticSolver::solve(&mut values, &gate_b).is_none());
+
+    assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4));
+}
