@@ -1,0 +1,18 @@
+[package]
+name = "arkworks_backend"
+version = "0.1.0"
+authors = ["Kevaundray Wedderburn <kevtheappdev@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ark-serialize = { version = "^0.2.0", default-features = false, features = [ "derive" ] }
+ark-ff = { version = "^0.2.0", default-features = false }
+ark-std = { version = "^0.2.0", default-features = false }
+ark-poly = { version = "^0.2.0", default-features = false }
+ark-relations = { version = "^0.2.0", default-features = false }
+ark-poly-commit = { version = "^0.2.0", default-features = false }
+ark-bn254 = { version = "^0.2.0", default-features = false, features = [ "curve" ] }
+acvm = {path = "../acvm"}
+ark-bls12-381 = { version = "^0.2.0", default-features = false, features = [ "curve" ] }
