@@ -87,7 +87,7 @@ impl DiagnosableError for DefCollectorErrorKind {
                 }
 
                 let diag = Diagnostic::simple_error(
-                    format!("could not resolve import"),
+                    format!("could not resolve import {}", &import.path.as_string()),
                     format!(""),
                     span,
                 );
