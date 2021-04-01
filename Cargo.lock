@@ -38,17 +38,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
 
 [[package]]
-name = "ahash"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f200cbb1e856866d9eade941cf3aa0c5d7dd36f74311c4273b494f4ef036957"
-dependencies = [
- "getrandom 0.2.2",
- "once_cell",
- "version_check",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -77,17 +66,6 @@ name = "arena"
 version = "0.1.0"
 dependencies = [
  "generational-arena",
-]
-
-[[package]]
-name = "ark-bls12-381"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70e1c2ad76c4f725520440b981df3ce2d635f2baa1122750c757c0cf0f3d4b74"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-std",
 ]
 
 [[package]]
@@ -154,35 +132,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ark-poly"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72d6683d21645a2abb94034f6a14e708405e55d9597687952d54b2269922857a"
-dependencies = [
- "ark-ff",
- "ark-serialize",
- "ark-std",
- "derivative",
- "hashbrown 0.11.2",
-]
-
-[[package]]
-name = "ark-poly-commit"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad7df2d50062d718e5914d013ee2f30dc203324e08070d16b241e869b8717ed6"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-poly",
- "ark-serialize",
- "ark-std",
- "derivative",
- "digest",
- "tracing",
-]
-
-[[package]]
 name = "ark-relations"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -199,19 +148,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e9b59329dc9b92086b3dc619f31cef4a0c802f10829b575a3666d48a48387d"
 dependencies = [
- "ark-serialize-derive",
  "ark-std",
-]
-
-[[package]]
-name = "ark-serialize-derive"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ac3d78c750b01f5df5b2e76d106ed31487a93b3868f14a7f0eb3a74f45e1d8a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -229,14 +166,9 @@ name = "arkworks_backend"
 version = "0.1.0"
 dependencies = [
  "acvm",
- "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
- "ark-poly",
- "ark-poly-commit",
  "ark-relations",
- "ark-serialize",
- "ark-std",
 ]
 
 [[package]]
@@ -1069,15 +1001,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
 
 [[package]]
-name = "hashbrown"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
-dependencies = [
- "ahash",
-]
-
-[[package]]
 name = "hermit-abi"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1196,7 +1119,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb1fa934250de4de8aef298d81c729a7d33d8c239daa3a7575e6b92bfc7313b"
 dependencies = [
  "autocfg",
- "hashbrown 0.9.1",
+ "hashbrown",
  "serde",
 ]
 
