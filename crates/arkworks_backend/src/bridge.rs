@@ -8,16 +8,39 @@ use ark_relations::{
     },
 };
 
-use ark_bn254::Fr;
-pub type Bn254Acir = ACIRCircuit<Fr>;
-pub type Bn254AcirGate = ACIRGate<Fr>;
+// AcirCircuit and AcirArithGate are structs that arkworks can synthesise.
+//
+// The difference between these structures and the ACIR structure that the compiler uses is the following:
+// - The compilers ACIR struct is currently fixed to bn254
+// - These structures only support arithmetic gates, while the compiler has other
+// gate types. These can be added later once the backend knows how to deal with things like XOR
+// or once ACIR is taught how to do convert these black box functions to Arithmetic gates.
+//
+// XXX: Ideally we want to implement `ConstraintSynthesizer` on ACIR however
+// this does not seem possible since ACIR is juts a description of the constraint system and the API Asks for prover values also.
+//
+// Perfect API would look like:
+// - index(srs, circ)
+// - prove(index_pk, prover_values, rng)
+// - verify(index_vk, verifier, rng)
+#[derive(Clone)]
+pub struct AcirCircuit<F: Field> {
+    gates: Vec<AcirArithGate<F>>,
+    public_inputs: PublicInputs,
+    values: Vec<F>,
+    num_variables: usize,
+}
 
 #[derive(Clone)]
-pub struct ACIRGate<F: Field> {
+pub struct AcirArithGate<F: Field> {
     mul_terms: Vec<(F, Witness, Witness)>,
     add_terms: Vec<(F, Witness)>,
     constant_term: F,
 }
+
+use ark_bn254::Fr;
+type Bn254Acir = AcirCircuit<Fr>;
+type Bn254AcirArithGate = AcirArithGate<Fr>;
 
 impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
     fn from(circ_val: (Circuit, Vec<Fr>)) -> Bn254Acir {
@@ -28,7 +51,7 @@ impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
             .gates
             .into_iter()
             .filter(|gate| gate.is_arithmetic())
-            .map(|gate| Bn254AcirGate::from(gate.arithmetic()))
+            .map(|gate| Bn254AcirArithGate::from(gate.arithmetic()))
             .collect();
 
         let values = circ_val.1;
@@ -43,8 +66,8 @@ impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
     }
 }
 
-impl From<Arithmetic> for Bn254AcirGate {
-    fn from(arith_gate: Arithmetic) -> Bn254AcirGate {
+impl From<Arithmetic> for Bn254AcirArithGate {
+    fn from(arith_gate: Arithmetic) -> Bn254AcirArithGate {
         let converted_mul_terms: Vec<_> = arith_gate
             .mul_terms
             .into_iter()
@@ -57,7 +80,7 @@ impl From<Arithmetic> for Bn254AcirGate {
             .map(|(coeff, var)| (coeff.into_repr(), var))
             .collect();
 
-        Bn254AcirGate {
+        Bn254AcirArithGate {
             mul_terms: converted_mul_terms,
             add_terms: converted_linear_combinations,
             constant_term: arith_gate.q_c.into_repr(),
@@ -65,15 +88,7 @@ impl From<Arithmetic> for Bn254AcirGate {
     }
 }
 
-#[derive(Clone)]
-pub struct ACIRCircuit<F: Field> {
-    gates: Vec<ACIRGate<F>>,
-    public_inputs: PublicInputs,
-    values: Vec<F>,
-    num_variables: usize,
-}
-
-impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for ACIRCircuit<ConstraintF> {
+impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for AcirCircuit<ConstraintF> {
     fn generate_constraints(
         self,
         cs: ConstraintSystemRef<ConstraintF>,
