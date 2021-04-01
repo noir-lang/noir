@@ -12,6 +12,12 @@ pub struct Circuit {
     pub public_inputs: PublicInputs,
 }
 
+impl Circuit {
+    pub fn num_vars(&self) -> u32 {
+        self.current_witness_index + 1
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PublicInputs(pub Vec<Witness>);
 
@@ -22,6 +28,10 @@ impl PublicInputs {
             .iter()
             .map(|witness| witness.witness_index() as u32)
             .collect()
+    }
+
+    pub fn contains(&self, index : usize) -> bool {
+        self.0.contains(&Witness(index as u32))
     }
 }
 #[derive(Clone, Debug)]

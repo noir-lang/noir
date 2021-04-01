@@ -28,6 +28,20 @@ pub enum Gate {
     Directive(Directive),
 }
 
+impl Gate {
+    pub fn is_arithmetic(&self) -> bool {
+        if let Gate::Arithmetic(_) = self {
+            true
+        } else { false}
+    }
+    pub fn arithmetic(self) -> Arithmetic {
+        match self {
+            Gate::Arithmetic(gate) => gate,
+            _=> panic!("tried to convert a non arithmetic gate to an Arithmetic struct")
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 /// Directives do not apply any constraints.
 pub enum Directive {
