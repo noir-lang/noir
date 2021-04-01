@@ -110,13 +110,12 @@ fn resolve_name_in_module(
     }
 
     let mut import_path = import_path.into_iter();
+    let first_segment = import_path.next().expect("ice: could not fetch first segment");
+    let mut current_ns = current_mod.scope.find_name(&first_segment);
+    if current_ns.is_none() {
+        return PathResolution::Unresolved(first_segment.clone());
+    }
 
-    let mut current_ns = match import_path.next() {
-        Some(segment) => current_mod.scope.find_name(&segment),
-        None => {
-            unreachable!("ice: could not fetch first segment")
-        }
-    };
 
     for segment in import_path {
         let typ = match current_ns.take_types() {
@@ -127,10 +126,9 @@ fn resolve_name_in_module(
         // In the type namespace, only Mod can be used in a path. Moreover only Mod is in this namespace for now
         let new_module_id = match typ {
             ModuleDefId::ModuleId(id) => id,
-            ModuleDefId::FunctionId(_) => unreachable!("functions cannot be in the type namespace"),
+            ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
         };
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
-
         // Check if namespace
         let found_ns = current_mod.scope.find_name(&segment);
         if found_ns.is_none() {
@@ -173,7 +171,7 @@ fn resolve_external_dep(
         kind: PathKind::Plain,
     };
     let dep_directive = ImportDirective {
-        module_id: directive.module_id,
+        module_id: dep_module.local_id,
         path,
         alias: directive.alias.clone(),
     };
