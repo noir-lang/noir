@@ -14,6 +14,7 @@ name = "acvm"
 version = "0.1.0"
 dependencies = [
  "acir",
+ "arkworks_backend",
  "aztec_backend",
  "blake2",
  "hex",
@@ -36,6 +37,17 @@ name = "adler"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
+
+[[package]]
+name = "ahash"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f200cbb1e856866d9eade941cf3aa0c5d7dd36f74311c4273b494f4ef036957"
+dependencies = [
+ "getrandom 0.2.2",
+ "once_cell",
+ "version_check",
+]
 
 [[package]]
 name = "aho-corasick"
@@ -90,6 +102,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "num-traits",
+ "rayon",
  "zeroize",
 ]
 
@@ -105,6 +118,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "num-traits",
+ "rayon",
  "rustc_version",
  "zeroize",
 ]
@@ -132,6 +146,91 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-marlin"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85eea366fcce1487bd8f1bee281fbc9de1d7bce353a89ace8eee6ebc9d65e2d2"
+dependencies = [
+ "ark-ff",
+ "ark-poly",
+ "ark-poly-commit",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest",
+ "rand_chacha 0.2.2",
+ "rayon",
+]
+
+[[package]]
+name = "ark-nonnative-field"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17887af156e9911d1dba5b30d49256d508f82f6a4f765a6fad8b5c637b700353"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-std",
+ "derivative",
+ "num-bigint 0.4.0",
+ "num-integer",
+ "num-traits",
+ "tracing",
+]
+
+[[package]]
+name = "ark-poly"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72d6683d21645a2abb94034f6a14e708405e55d9597687952d54b2269922857a"
+dependencies = [
+ "ark-ff",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "hashbrown 0.11.2",
+ "rayon",
+]
+
+[[package]]
+name = "ark-poly-commit"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad7df2d50062d718e5914d013ee2f30dc203324e08070d16b241e869b8717ed6"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-nonnative-field",
+ "ark-poly",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "digest",
+ "rayon",
+ "tracing",
+]
+
+[[package]]
+name = "ark-r1cs-std"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a90fea2b84ae4443983d56540360ea004cab952292b7a6535798b6b9dcb7f41"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-relations",
+ "ark-std",
+ "derivative",
+ "num-bigint 0.4.0",
+ "num-traits",
+ "tracing",
+]
+
+[[package]]
 name = "ark-relations"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -140,6 +239,7 @@ dependencies = [
  "ark-ff",
  "ark-std",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -148,7 +248,19 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e9b59329dc9b92086b3dc619f31cef4a0c802f10829b575a3666d48a48387d"
 dependencies = [
+ "ark-serialize-derive",
  "ark-std",
+]
+
+[[package]]
+name = "ark-serialize-derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ac3d78c750b01f5df5b2e76d106ed31487a93b3868f14a7f0eb3a74f45e1d8a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -159,16 +271,24 @@ checksum = "fb5b856a29bea7b810858116a596beee3d20fc4c5aeb240e8e5a8bca4845a470"
 dependencies = [
  "rand 0.7.3",
  "rand_xorshift",
+ "rayon",
 ]
 
 [[package]]
 name = "arkworks_backend"
 version = "0.1.0"
 dependencies = [
- "acvm",
+ "acir",
  "ark-bn254",
  "ark-ff",
+ "ark-marlin",
+ "ark-poly",
+ "ark-poly-commit",
  "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "blake2",
+ "noir_field",
 ]
 
 [[package]]
@@ -1001,6 +1121,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
 
 [[package]]
+name = "hashbrown"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+dependencies = [
+ "ahash",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1119,7 +1248,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb1fa934250de4de8aef298d81c729a7d33d8c239daa3a7575e6b92bfc7313b"
 dependencies = [
  "autocfg",
- "hashbrown",
+ "hashbrown 0.9.1",
  "serde",
 ]
 
@@ -1460,9 +1589,9 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.43"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d59457e662d541ba17869cf51cf177c0b5f0cbf476c66bdc90bf1edac4f875b"
+checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
 dependencies = [
  "autocfg",
  "num-traits",
@@ -2362,6 +2491,15 @@ checksum = "ab7bb6f14721aa00656086e9335d363c5c8747bae02ebe32ea2c7dece5689b4c"
 dependencies = [
  "pin-project 0.4.26",
  "tracing",
+]
+
+[[package]]
+name = "tracing-subscriber"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "705096c6f83bf68ea5d357a6aa01829ddbdac531b357b45abeca842938085baa"
+dependencies = [
+ "tracing-core",
 ]
 
 [[package]]
