@@ -40,8 +40,7 @@ impl ItemScope {
                     return Err((old_ident.clone(), name));
                 }
 
-                self.types
-                    .insert(name, (mod_def, Visibility::Public))
+                self.types.insert(name, (mod_def, Visibility::Public))
             }
             ModuleDefId::FunctionId(_) => {
                 if let Entry::Occupied(o) = self.values.entry(name.clone()) {
@@ -49,8 +48,7 @@ impl ItemScope {
                     return Err((old_ident.clone(), name));
                 }
 
-                self.values
-                    .insert(name, (mod_def, Visibility::Public))
+                self.values.insert(name, (mod_def, Visibility::Public))
             }
         };
         Ok(())

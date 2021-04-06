@@ -767,15 +767,7 @@ mod test {
 
         test_circuit(
             constraint_system,
-            vec![
-                case_1,
-                case_2,
-                case_3,
-                case_4,
-                case_5,
-                case_6a,
-                case_6b,
-            ],
+            vec![case_1, case_2, case_3, case_4, case_5, case_6a, case_6b],
         );
     }
     #[test]

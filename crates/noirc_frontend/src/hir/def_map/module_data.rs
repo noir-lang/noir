@@ -27,7 +27,6 @@ impl ModuleOrigin {
             ModuleOrigin::CrateRoot(file_id) => *file_id,
             ModuleOrigin::File(file_id) => *file_id,
         }
-
     }
 }
 

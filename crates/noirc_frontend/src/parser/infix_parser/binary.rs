@@ -24,11 +24,7 @@ impl BinaryParser {
         parser.advance_tokens();
         let rhs = parser.parse_expression(curr_precedence)?;
 
-        let infix_expression = Box::new(InfixExpression {
-            lhs,
-            operator,
-            rhs,
-        });
+        let infix_expression = Box::new(InfixExpression { lhs, operator, rhs });
 
         if is_predicate_op {
             return Ok(ExpressionKind::Predicate(infix_expression));

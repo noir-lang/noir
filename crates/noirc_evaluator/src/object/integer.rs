@@ -203,11 +203,7 @@ impl Integer {
         let res =
             binary_op::handle_mul_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
-        Integer::from_object(
-            res,
-            self.num_bits + num_bits,
-            evaluator,
-        )
+        Integer::from_object(res, self.num_bits + num_bits, evaluator)
     }
 }
 

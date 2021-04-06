@@ -110,12 +110,13 @@ fn resolve_name_in_module(
     }
 
     let mut import_path = import_path.iter();
-    let first_segment = import_path.next().expect("ice: could not fetch first segment");
+    let first_segment = import_path
+        .next()
+        .expect("ice: could not fetch first segment");
     let mut current_ns = current_mod.scope.find_name(&first_segment);
     if current_ns.is_none() {
         return PathResolution::Unresolved(first_segment.clone());
     }
-
 
     for segment in import_path {
         let typ = match current_ns.take_types() {
