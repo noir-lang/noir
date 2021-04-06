@@ -18,7 +18,7 @@ pub struct XorGate {
 }
 
 #[derive(Clone, Debug)]
-// XXX: Gate does not capture what this is anymore. I think IR would be a better name
+// XXX: Gate does not capture what this is anymore. I think IR/OPCODE would be a better name
 pub enum Gate {
     Arithmetic(Arithmetic),
     Range(Witness, u32),
@@ -32,12 +32,14 @@ impl Gate {
     pub fn is_arithmetic(&self) -> bool {
         if let Gate::Arithmetic(_) = self {
             true
-        } else { false}
+        } else {
+            false
+        }
     }
     pub fn arithmetic(self) -> Arithmetic {
         match self {
             Gate::Arithmetic(gate) => gate,
-            _=> panic!("tried to convert a non arithmetic gate to an Arithmetic struct")
+            _ => panic!("tried to convert a non arithmetic gate to an Arithmetic struct"),
         }
     }
 }
