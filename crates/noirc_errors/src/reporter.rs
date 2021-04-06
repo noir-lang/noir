@@ -59,7 +59,7 @@ impl Reporter {
     pub fn with_diagnostics(
         file_id: usize,
         files: &fm::FileManager,
-        diagnostics: &Vec<CustomDiagnostic>,
+        diagnostics: &[CustomDiagnostic],
     ) {
         // Convert each Custom Diagnostic into a diagnostic
         let diagnostics: Vec<_> = diagnostics

@@ -41,7 +41,7 @@ impl GadgetCaller {
                     .collect();
                 let result = MerkleTree::check_membership(hash_path, root, index, leaf);
 
-                initial_witness.insert(gadget_call.outputs[0].clone(), result);
+                initial_witness.insert(gadget_call.outputs[0], result);
             }
             OPCODE::SchnorrVerify => {
                 // In barretenberg, if the signature fails, then the whole thing fails.
@@ -69,10 +69,9 @@ impl GadgetCaller {
 
                 let mut signature = [0u8; 64];
                 for i in 0..64 {
-                    let _sig_i = inputs_iter.next().expect(&format!(
-                        "signature should be 64 bytes long, found only {} bytes",
-                        i
-                    ));
+                    let _sig_i = inputs_iter.next().unwrap_or_else(|| {
+                        panic!("signature should be 64 bytes long, found only {} bytes", i)
+                    });
                     let sig_i = input_to_value(initial_witness, _sig_i);
                     signature[i] = *sig_i.to_bytes().last().unwrap()
                 }
@@ -91,7 +90,7 @@ impl GadgetCaller {
                     dbg!("signature has failed to verify");
                 }
 
-                initial_witness.insert(gadget_call.outputs[0].clone(), result);
+                initial_witness.insert(gadget_call.outputs[0], result);
             }
             OPCODE::Pedersen => {
                 let inputs_iter = gadget_call.inputs.iter();
@@ -106,7 +105,7 @@ impl GadgetCaller {
 
                 let mut barretenberg = Barretenberg::new();
                 let result = barretenberg.compress_many(scalars);
-                initial_witness.insert(gadget_call.outputs[0].clone(), result);
+                initial_witness.insert(gadget_call.outputs[0], result);
             }
             OPCODE::HashToField => {
                 // Deal with Blake2s -- XXX: It's not possible for pwg to know that it is blake2s
@@ -134,7 +133,7 @@ impl GadgetCaller {
 
                 assert_eq!(gadget_call.outputs.len(), 1);
 
-                initial_witness.insert(gadget_call.outputs[0].clone(), reduced_res);
+                initial_witness.insert(gadget_call.outputs[0], reduced_res);
             }
             OPCODE::FixedBaseScalarMul => {
                 let scalar = initial_witness.get(&gadget_call.inputs[0].witness);
@@ -145,8 +144,8 @@ impl GadgetCaller {
                 let mut barretenberg = Barretenberg::new();
                 let (pub_x, pub_y) = barretenberg.fixed_base(&scalar);
 
-                initial_witness.insert(gadget_call.outputs[0].clone(), pub_x);
-                initial_witness.insert(gadget_call.outputs[1].clone(), pub_y);
+                initial_witness.insert(gadget_call.outputs[0], pub_x);
+                initial_witness.insert(gadget_call.outputs[1], pub_y);
             }
         }
         Ok(())

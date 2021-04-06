@@ -119,6 +119,7 @@ pub enum Token {
     // =
     Assign,
     Error(String),
+    #[allow(clippy::upper_case_acronyms)]
     EOF,
 }
 
@@ -193,10 +194,6 @@ impl fmt::Display for TokenKind {
 }
 
 impl Token {
-    pub fn to_string(&self) -> String {
-        format!("{}", self)
-    }
-
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,

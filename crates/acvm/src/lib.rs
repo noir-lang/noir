@@ -32,7 +32,7 @@ pub enum BackendPointer {
 
 impl Default for BackendPointer {
     fn default() -> BackendPointer {
-        const AZTEC_BACKEND: &'static str = "csat_3_plonk_aztec";
+        const AZTEC_BACKEND: &str = "csat_3_plonk_aztec";
         fetch_by_name(AZTEC_BACKEND).expect("expected the default backend to be available")
     }
 }

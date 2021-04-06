@@ -26,7 +26,7 @@ impl Integer {
             let x = Linear::from_witness(self.witness);
             let mut x_minus_one = Linear::from_witness(self.witness);
             x_minus_one.add_scale = -noir_field::FieldElement::one();
-            let bool_constraint = &x_minus_one * &x;
+            let bool_constraint = x_minus_one * x;
 
             evaluator.gates.push(Gate::Arithmetic(bool_constraint));
         } else if self.num_bits == FieldElement::max_num_bits() {

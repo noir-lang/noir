@@ -154,11 +154,11 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let result = gadget_call.outputs[0].witness_index() as i32;
 
                         let constraint = MerkleMembershipConstraint {
+                            hash_path,
                             root,
                             leaf,
                             index,
                             result,
-                            hash_path,
                         };
 
                         merkle_membership_constraints.push(constraint);
@@ -326,7 +326,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     }
 
     // Create constraint system
-    let constraint_system = ConstraintSystem {
+    ConstraintSystem {
         var_num: circuit.current_witness_index + 1, // number of witnesses is the witness index + 1;
         public_inputs: circuit.public_inputs.indices(),
         logic_constraints,
@@ -340,9 +340,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         hash_to_field_constraints,
         constraints,
         fixed_base_scalar_mul_constraints,
-    };
-
-    constraint_system
+    }
 }
 
 #[allow(non_snake_case)]

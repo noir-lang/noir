@@ -40,7 +40,7 @@ impl FileManager {
     }
 
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
-    pub fn add_file(&mut self, path_to_file: &PathBuf, file_type: FileType) -> Option<FileId> {
+    pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
         // We expect the caller to ensure that the file is a valid noir file
         let ext = path_to_file
             .extension()
@@ -51,7 +51,9 @@ impl FileManager {
 
         let source = std::fs::read_to_string(&path_to_file).ok()?;
 
-        let file_id = self.file_map.add_file(path_to_file.clone().into(), source);
+        let file_id = self
+            .file_map
+            .add_file(path_to_file.to_path_buf().into(), source);
         let path_to_file = virtualise_path(path_to_file, file_type);
         self.register_path(file_id, path_to_file);
 
@@ -102,12 +104,19 @@ impl FileManager {
             .to_owned())
     }
 }
+
+impl Default for FileManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Takes a path to a noir file. This will panic on paths to directories
 /// Returns
 /// For Normal filetypes, given "src/mod.nr" this method returns "src/mod"
 /// For Root filetypes, given "src/mod.nr" this method returns "src"
-fn virtualise_path(path: &PathBuf, file_type: FileType) -> VirtualPath {
-    let mut path = path.clone();
+fn virtualise_path(path: &Path, file_type: FileType) -> VirtualPath {
+    let mut path = path.to_path_buf();
     let path = match file_type {
         FileType::Root => {
             path.pop();

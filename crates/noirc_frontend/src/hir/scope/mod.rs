@@ -58,6 +58,13 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
         self.0.iter().filter(pred)
     }
 }
+
+impl<K: std::hash::Hash + Eq + Clone, V> Default for Scope<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// ScopeTree allows one to specify that maps within the same vector are scope extensions
 /// This allows one to extend the scope and then remove the extension, without affecting the un-extended
 /// part of the scope
@@ -96,6 +103,13 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
         self.0.pop().unwrap()
     }
 }
+
+impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeTree<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // XXX: This trait is needed because when we pop off a forscope in the resolver
 // We want to check it for unused variables and return. Currently,
 // we only have an API for this with ScopeTree in the resolver.
@@ -151,6 +165,12 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
     /// Ending a for loop requires removal of it's scope from the current scope tree
     pub fn end_for_loop(&mut self) -> Scope<K, V> {
         self.remove_scope_tree_extension()
+    }
+}
+
+impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeForest<K, V> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

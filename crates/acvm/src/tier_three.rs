@@ -17,5 +17,5 @@ impl TierThree {
     }
 }
 
-pub const TIER_THREE_MAP: [(&'static str, TierThree); 1] =
+pub const TIER_THREE_MAP: [(&str, TierThree); 1] =
     [("csat_3_plonk_aztec", TierThree::Csat3PlonkAztec)];

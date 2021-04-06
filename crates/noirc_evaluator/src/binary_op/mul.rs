@@ -64,10 +64,10 @@ fn handle_linear_mul(
         Object::Arithmetic(arith) => {
             handle_arithmetic_mul(arith, Object::Linear(linear), evaluator)
         }
-        Object::Linear(linear_rhs) => Ok(Object::Arithmetic(&linear * &linear_rhs)),
+        Object::Linear(linear_rhs) => Ok(Object::Arithmetic(linear * linear_rhs)),
         Object::Constants(constant) => Ok(Object::Linear(&linear * &constant)),
         Object::Integer(integer) => {
-            let result = &Linear::from_witness(integer.witness) * &linear;
+            let result = Linear::from_witness(integer.witness) * linear;
             Ok(Object::Arithmetic(result))
         }
         Object::Array(arr) => {

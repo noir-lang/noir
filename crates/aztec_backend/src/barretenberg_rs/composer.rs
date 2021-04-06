@@ -23,9 +23,9 @@ impl StandardComposer {
         let pippenger = Pippenger::new(&crs.g1_data, &mut barretenberg);
 
         StandardComposer {
-            crs,
             barretenberg,
             pippenger,
+            crs,
             constraint_system,
         }
     }
@@ -61,6 +61,12 @@ impl Assignments {
     }
     pub fn new() -> Assignments {
         Assignments(vec![])
+    }
+}
+
+impl Default for Assignments {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -628,22 +634,19 @@ impl StandardComposer {
         let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
 
         let verified = match public_inputs {
-            None => {
-                let verified = self
-                    .barretenberg
-                    .call_multiple(
-                        "composer__verify_proof",
-                        vec![
-                            &self.pippenger.pointer(),
-                            &g2_ptr,
-                            &cs_ptr,
-                            &proof_ptr,
-                            &Value::I32(proof.len() as i32),
-                        ],
-                    )
-                    .value();
-                verified
-            }
+            None => self
+                .barretenberg
+                .call_multiple(
+                    "composer__verify_proof",
+                    vec![
+                        &self.pippenger.pointer(),
+                        &g2_ptr,
+                        &cs_ptr,
+                        &proof_ptr,
+                        &Value::I32(proof.len() as i32),
+                    ],
+                )
+                .value(),
             Some(pub_inputs) => {
                 let pub_inputs_buf = pub_inputs.to_bytes();
                 let pub_inputs_ptr = self.barretenberg.allocate(&pub_inputs_buf);

@@ -103,6 +103,12 @@ impl Barretenberg {
     }
 }
 
+impl Default for Barretenberg {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn load_module() -> (Module, Store) {
     use wasmer_cache::{Cache, FileSystemCache, Hash};
 

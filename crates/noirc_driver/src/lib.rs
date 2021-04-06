@@ -189,7 +189,7 @@ impl Driver {
                 Reporter::with_diagnostics(
                     file_id,
                     &self.context.file_manager,
-                    &vec![err.to_diagnostic()],
+                    &[err.to_diagnostic()],
                 );
                 std::process::exit(1);
             }

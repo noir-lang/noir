@@ -21,10 +21,9 @@ pub fn secp256k1_prehashed(
 
     let mut pub_key_y = [0u8; 32];
     for i in 0..32 {
-        let _y_i = inputs_iter.next().expect(&format!(
-            "pub_key_y should be 32 bytes long, found only {} bytes",
-            i
-        ));
+        let _y_i = inputs_iter
+            .next()
+            .unwrap_or_else(|| panic!("pub_key_y should be 32 bytes long, found only {} bytes", i));
         let y_i = input_to_value(initial_witness, _y_i);
         pub_key_y[i] = *y_i.to_bytes().last().unwrap()
     }
@@ -40,7 +39,7 @@ pub fn secp256k1_prehashed(
     }
 
     let mut hashed_message = Vec::new();
-    while let Some(msg) = inputs_iter.next() {
+    for msg in inputs_iter {
         let msg_i_field = input_to_value(initial_witness, msg);
         let msg_i = *msg_i_field.to_bytes().last().unwrap();
         hashed_message.push(msg_i);
@@ -58,7 +57,7 @@ pub fn secp256k1_prehashed(
         }
     };
 
-    initial_witness.insert(gadget_call.outputs[0].clone(), result);
+    initial_witness.insert(gadget_call.outputs[0], result);
 }
 
 mod ecdsa_secp256k1 {
@@ -146,18 +145,18 @@ mod ecdsa_secp256k1 {
         }
 
         let s_inv = s.invert().unwrap();
-        let u1 = z * &s_inv;
+        let u1 = z * s_inv;
         let u2 = *r * s_inv;
 
         let R: AffinePoint = ((ProjectivePoint::generator() * u1)
             + (ProjectivePoint::from(*pubkey.as_affine()) * u2))
             .to_affine();
 
-        if let Coordinates::Uncompressed { x, y } = R.to_encoded_point(false).coordinates() {
+        if let Coordinates::Uncompressed { x, y: _ } = R.to_encoded_point(false).coordinates() {
             if Scalar::from_bytes_reduced(&x).eq(&r) {
                 return Ok(());
             }
         }
-        return Err(());
+        Err(())
     }
 }

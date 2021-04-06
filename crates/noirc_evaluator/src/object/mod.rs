@@ -87,10 +87,7 @@ impl Object {
         }
     }
     pub fn is_gate(&self) -> bool {
-        match self {
-            Object::Arithmetic(_) => true,
-            _ => false,
-        }
+        matches!(self, Object::Arithmetic(_))
     }
     pub fn constant(&self) -> Result<FieldElement, RuntimeErrorKind> {
         match self {
@@ -99,11 +96,9 @@ impl Object {
         }
     }
     pub fn is_constant(&self) -> bool {
-        match self {
-            Object::Constants(_) => true,
-            _ => false,
-        }
+        matches!(self, Object::Constants(_))
     }
+
     pub fn arithmetic(&self) -> Option<&Arithmetic> {
         match self {
             Object::Arithmetic(x) => Some(x),
@@ -173,12 +168,10 @@ impl Object {
     }
     // Returns true if the Object is linear
     pub fn is_linear(&self) -> bool {
-        match self {
-            Object::Linear(_) => true,
-            Object::Constants(_) => true,
-            Object::Integer(_) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Object::Linear(_) | Object::Constants(_) | Object::Integer(_)
+        )
     }
     pub fn from_witness(witness: Witness) -> Object {
         Object::Linear(Linear::from_witness(witness))
@@ -282,7 +275,7 @@ impl Iterator for RangedObject {
     fn next(&mut self) -> Option<FieldElement> {
         if self.start != self.end {
             let return_val = self.start;
-            self.start = self.start + FieldElement::one();
+            self.start += FieldElement::one();
             Some(return_val)
         } else {
             None

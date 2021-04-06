@@ -22,7 +22,7 @@ impl MerkleTree {
     pub fn new(depth: u32) -> MerkleTree {
         let mut barretenberg = Barretenberg::new();
 
-        assert!(depth >= 1 && depth <= 20); // Why can depth != 0 and depth not more than 20?
+        assert!((1..=20).contains(&depth)); // Why can depth != 0 and depth not more than 20?
 
         let total_size = 1u32 << depth;
 
@@ -44,7 +44,7 @@ impl MerkleTree {
             current = compress_native(&mut barretenberg, &current, &current);
 
             offset += layer_size;
-            layer_size = layer_size / 2;
+            layer_size /= 2;
         }
         let root = current;
 
@@ -52,8 +52,8 @@ impl MerkleTree {
             depth,
             total_size,
             root,
-            pre_images,
             hashes,
+            pre_images,
             barretenberg,
         }
     }
@@ -120,7 +120,7 @@ impl MerkleTree {
         let mut index_bits = index.bits();
         index_bits.reverse();
 
-        let mut current = leaf.clone();
+        let mut current = *leaf;
 
         let mut is_member = true;
 
