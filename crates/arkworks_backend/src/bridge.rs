@@ -1,5 +1,5 @@
-use acvm::acir::{circuit::Circuit, native_types::Witness};
-use acvm::acir::{circuit::PublicInputs, native_types::Arithmetic};
+use acir::{circuit::Circuit, native_types::Witness};
+use acir::{circuit::PublicInputs, native_types::Arithmetic};
 use ark_ff::Field;
 use ark_relations::{
     lc,
@@ -40,8 +40,8 @@ pub struct AcirArithGate<F: Field> {
 
 // XXX: This is in place, until we make noir_field generic.
 use ark_bn254::Fr;
-type Bn254Acir = AcirCircuit<Fr>;
-type Bn254AcirArithGate = AcirArithGate<Fr>;
+pub type Bn254Acir = AcirCircuit<Fr>;
+pub type Bn254AcirArithGate = AcirArithGate<Fr>;
 
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for AcirCircuit<ConstraintF> {
     fn generate_constraints(
