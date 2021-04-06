@@ -223,7 +223,7 @@ impl Token {
         };
 
         // If we arrive here, then the Token variants are the same and they are not the Keyword type
-        return same_token_variant;
+        same_token_variant
     }
     pub fn is_comment(&self) -> bool {
         match self {
@@ -274,19 +274,16 @@ impl IntType {
     pub(crate) fn lookup_int_type(word: &str) -> Option<Token> {
         // Check if the first string is a 'u' or 'i'
 
-        let is_signed = if word.starts_with("i") {
+        let is_signed = if word.starts_with('i') {
             true
-        } else if word.starts_with("u") {
+        } else if word.starts_with('u') {
             false
         } else {
             return None;
         };
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
-        let str_as_u32 = match word[1..].parse::<u32>() {
-            Ok(str_as_u32) => str_as_u32,
-            Err(_) => return None,
-        };
+        let str_as_u32 = word[1..].parse::<u32>().ok()?;
 
         let max_bits = noir_field::FieldElement::max_num_bits();
 
@@ -301,9 +298,9 @@ impl IntType {
         }
 
         if is_signed {
-            return Some(Token::IntType(IntType::Signed(str_as_u32)));
+            Some(Token::IntType(IntType::Signed(str_as_u32)))
         } else {
-            return Some(Token::IntType(IntType::Unsigned(str_as_u32)));
+            Some(Token::IntType(IntType::Unsigned(str_as_u32)))
         }
     }
 }

@@ -94,7 +94,7 @@ pub(crate) fn test_parse(src: &str) -> Parser {
 #[cfg(test)]
 pub(crate) fn dummy_expr() -> crate::Expression {
     use crate::parser::prefix_parser::PrefixParser;
-    const SRC: &'static str = r#"
+    const SRC: &str = r#"
         foo;
     "#;
     let mut parser = test_parse(SRC);

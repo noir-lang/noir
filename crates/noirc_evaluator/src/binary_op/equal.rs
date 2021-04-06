@@ -17,13 +17,13 @@ pub fn handle_equal_op(
         Object::Null => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
-                message: format!("constrain statement cannot output a null polynomial"),
+                message: "constrain statement cannot output a null polynomial".to_string(),
             })
         } // XXX; This should be BUG  severity as sub should have caught it
         Object::Constants(_) => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
-                message: format!("cannot constrain two constants"),
+                message: "cannot constrain two constants".to_string(),
             })
         }
         Object::Linear(linear) => evaluator.gates.push(Gate::Arithmetic(linear.into())),

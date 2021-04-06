@@ -67,14 +67,14 @@ mod test {
 
     #[test]
     fn valid_syntax() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             if x + a {
 
             } else {
 
             }
         "#;
-        const SRC_NO_ELSE: &'static str = r#"
+        const SRC_NO_ELSE: &str = r#"
             if x {
 
             }
@@ -85,7 +85,7 @@ mod test {
     }
     #[test]
     fn no_else_brace() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             if (x / a) + 1 {
 
             } else

@@ -37,20 +37,20 @@ impl ItemScope {
             ModuleDefId::ModuleId(_) => {
                 if let Entry::Occupied(o) = self.types.entry(name.clone()) {
                     let old_ident = o.key();
-                    return Err((old_ident.clone(), name.clone()));
+                    return Err((old_ident.clone(), name));
                 }
 
                 self.types
-                    .insert(name.clone(), (mod_def, Visibility::Public))
+                    .insert(name, (mod_def, Visibility::Public))
             }
             ModuleDefId::FunctionId(_) => {
                 if let Entry::Occupied(o) = self.values.entry(name.clone()) {
                     let old_ident = o.key();
-                    return Err((old_ident.clone(), name.clone()));
+                    return Err((old_ident.clone(), name));
                 }
 
                 self.values
-                    .insert(name.clone(), (mod_def, Visibility::Public))
+                    .insert(name, (mod_def, Visibility::Public))
             }
         };
         Ok(())

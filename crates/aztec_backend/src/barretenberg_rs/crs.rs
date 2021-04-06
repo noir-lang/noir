@@ -79,7 +79,7 @@ struct PartialRangeIter {
 impl PartialRangeIter {
     pub fn new(start: u64, end: u64, buffer_size: u32) -> Result<Self> {
         if buffer_size == 0 {
-            Err("invalid buffer_size, give a value greater than zero.")?;
+            return Err("invalid buffer_size, give a value greater than zero.".into());
         }
         Ok(PartialRangeIter {
             start,

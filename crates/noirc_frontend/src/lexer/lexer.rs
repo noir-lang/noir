@@ -63,14 +63,14 @@ impl<'a> Lexer<'a> {
         if let Some(peeked_ch) = self.peek_char() {
             return *peeked_ch == ch;
         };
-        return false;
+        false
     }
 
     pub fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
                 self.eat_whitespace();
-                return self.next_token();
+                self.next_token()
             }
             Some('<') => self.glue(Token::Less),
             Some('>') => self.glue(Token::Greater),
@@ -118,10 +118,10 @@ impl<'a> Lexer<'a> {
         let start = self.position.mark();
 
         match self.peek_char_is(character) {
-            false => return Ok(single.into_single_span(start)),
+            false => Ok(single.into_single_span(start)),
             true => {
                 self.next_char();
-                return Ok(double.into_span(start, start.forward()));
+                Ok(double.into_span(start, start.forward()))
             }
         }
     }
@@ -226,7 +226,7 @@ impl<'a> Lexer<'a> {
                 "Lexer expected a '[' character after the '#' character, instead got {}",
                 self.next_char().unwrap()
             );
-            let err = Token::Error(err_msg.to_string());
+            let err = Token::Error(err_msg);
             return err.into_single_span(self.position.mark());
         }
         self.next_char();
@@ -241,7 +241,7 @@ impl<'a> Lexer<'a> {
                 "Lexer expected a trailing ']' character instead got {}",
                 self.next_char().unwrap()
             );
-            return Token::Error(err_msg.to_string()).into_single_span(self.position.mark());
+            return Token::Error(err_msg).into_single_span(self.position.mark());
         }
         self.next_char();
 
@@ -260,15 +260,15 @@ impl<'a> Lexer<'a> {
         });
 
         // Check if word either an identifier or a keyword
-        if let Some(keyword_token) = Keyword::lookup_keyword(&word.to_string()) {
+        if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
             return keyword_token.into_span(start_span, end_span);
         }
         // Check if word an int type
-        if let Some(int_type_token) = IntType::lookup_int_type(&word.to_string()) {
+        if let Some(int_type_token) = IntType::lookup_int_type(&word) {
             return int_type_token.into_span(start_span, end_span);
         }
         let ident_token = Token::Ident(word);
-        return ident_token.into_span(start_span, end_span);
+        ident_token.into_span(start_span, end_span)
     }
     fn eat_digit(&mut self, initial_char: char) -> SpannedToken {
         let (integer_str, start_span, end_span) = self.eat_while(Some(initial_char), |ch| {
@@ -280,7 +280,7 @@ impl<'a> Lexer<'a> {
             Some(integer) => integer,
         };
 
-        let integer_token = Token::Int(integer.into());
+        let integer_token = Token::Int(integer);
         integer_token.into_span(start_span, end_span)
     }
     fn eat_string_literal(&mut self) -> SpannedToken {

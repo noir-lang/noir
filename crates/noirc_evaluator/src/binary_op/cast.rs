@@ -10,7 +10,7 @@ pub fn handle_cast_op(
         _ => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
-                message: format!("currently we do not support type casting to non integers"),
+                message: "currently we do not support type casting to non integers".to_string(),
             })
         }
     };
@@ -24,7 +24,7 @@ pub fn handle_cast_op(
         Object::Constants(_) => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
-                message: format!("currently we do not support casting constants to a type"),
+                message: "currently we do not support casting constants to a type".to_string(),
             })
         }
         Object::Linear(linear) => {

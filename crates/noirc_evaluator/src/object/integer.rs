@@ -80,10 +80,10 @@ impl Integer {
                     "tried to convert a {} into an integer. This is not possible.",
                     k.r#type()
                 );
-                return Err(RuntimeErrorKind::UnstructuredError {
+                Err(RuntimeErrorKind::UnstructuredError {
                     span: Default::default(),
                     message,
-                });
+                })
             }
         }
     }
@@ -105,7 +105,7 @@ impl Integer {
         let res =
             binary_op::handle_add_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
-        Ok(Integer::from_object(res, self.num_bits, evaluator)?)
+        Integer::from_object(res, self.num_bits, evaluator)
     }
     pub fn sub(
         &self,
@@ -127,7 +127,7 @@ impl Integer {
             binary_op::handle_sub_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
         // Constrain the result to be equal to an integer in range of 2^num_bits
-        Ok(Integer::from_object(res, self.num_bits, evaluator)?)
+        Integer::from_object(res, self.num_bits, evaluator)
     }
 
     pub fn logic(
@@ -203,11 +203,11 @@ impl Integer {
         let res =
             binary_op::handle_mul_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
-        Ok(Integer::from_object(
+        Integer::from_object(
             res,
             self.num_bits + num_bits,
             evaluator,
-        )?)
+        )
     }
 }
 

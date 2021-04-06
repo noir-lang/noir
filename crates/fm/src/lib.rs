@@ -8,7 +8,7 @@ use std::{
 };
 pub use util::*;
 
-pub const FILE_EXTENSION: &'static str = "nr";
+pub const FILE_EXTENSION: &str = "nr";
 
 // XXX: Create a trait for file io
 /// An enum to differentiate between the root file
@@ -44,7 +44,7 @@ impl FileManager {
         // We expect the caller to ensure that the file is a valid noir file
         let ext = path_to_file
             .extension()
-            .expect(&format!("{:?} does not have an extension", path_to_file));
+            .unwrap_or_else(|| panic!("{:?} does not have an extension", path_to_file));
         if ext != FILE_EXTENSION {
             return None;
         }
@@ -87,7 +87,7 @@ impl FileManager {
         let dir = self.path(anchor).to_path_buf();
 
         candidate_files.push(
-            dir.to_path_buf()
+            dir
                 .join(&format!("{}.{}", mod_name, FILE_EXTENSION)),
         );
 

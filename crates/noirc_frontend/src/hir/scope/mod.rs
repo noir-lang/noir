@@ -45,10 +45,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
         self.0.get_mut(key)
     }
     pub fn occupied_key(&mut self, key: &K) -> Option<&K> {
-        match self.0.get_key_value(key) {
-            Some((k, _)) => Some(k),
-            None => None,
-        }
+        self.0.get_key_value(key).map(|(k, _)| k)
     }
 
     // From HashMap: If the map did not have this key present, None is returned.
@@ -88,7 +85,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
             }
         }
 
-        return None;
+        None
     }
 
     pub fn push_scope(&mut self) {

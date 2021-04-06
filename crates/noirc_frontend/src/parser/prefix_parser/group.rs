@@ -37,12 +37,12 @@ mod test {
 
     #[test]
     fn valid_syntax() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             (x+a)
         "#;
         /// Remember that although this may fail overall
         /// for the GroupParser, it is locally correct
-        const SRC_DOUBLE_RPAREN: &'static str = r#"
+        const SRC_DOUBLE_RPAREN: &str = r#"
             (x+a))
         "#;
 
@@ -51,14 +51,14 @@ mod test {
     }
     #[test]
     fn invalid_syntax() {
-        const SRC_MISSING_RPAREN: &'static str = r#"
+        const SRC_MISSING_RPAREN: &str = r#"
             (x+a
         "#;
-        const SRC_DOUBLE_LPAREN: &'static str = r#"
+        const SRC_DOUBLE_LPAREN: &str = r#"
             ((x+a)
         "#;
 
-        const SRC_EMPTY_EXPR: &'static str = r#"
+        const SRC_EMPTY_EXPR: &str = r#"
             ()
         "#;
 

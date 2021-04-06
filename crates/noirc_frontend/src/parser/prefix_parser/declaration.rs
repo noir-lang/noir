@@ -25,10 +25,10 @@ impl DeclarationParser {
             Keyword::Priv => Ok(Statement::Private(parse_private_statement(parser)?)),
             kw => {
                 let msg = format!("the keyword {} cannot be used to declare a statement. Please use `let`, `const` or `priv`", kw);
-                return Err(ParserErrorKind::UnstructuredError {
+                Err(ParserErrorKind::UnstructuredError {
                     span: parser.curr_token.into_span(),
                     message: msg,
-                });
+                })
             }
         }
     }
@@ -148,7 +148,7 @@ mod test {
         /// Let statements are not type checked here, so the parser will accept as
         /// long as it is a type. Other statements such as Public are type checked
         /// Because for now, they can only have one type
-        const VALID: &'static [&str] = &[
+        const VALID: &[&str] = &[
             r#"
                 let x = y;
             "#,
@@ -175,7 +175,7 @@ mod test {
         /// as there are many private types.
         ///
         /// It is possible to check for basic types in the future.
-        const VALID: &'static [&str] = &[
+        const VALID: &[&str] = &[
             r#"
                 priv x = y;
             "#,
@@ -199,7 +199,7 @@ mod test {
     #[test]
     fn invalid_pub_syntax() {
         // pub cannot be used to declare a statement
-        const INVALID: &'static [&str] = &[
+        const INVALID: &[&str] = &[
             r#"
                 pub x = y;
             "#,
@@ -217,7 +217,7 @@ mod test {
     fn valid_const_syntax() {
         /// XXX: We have `Constant` because we may allow constants to
         /// be casted to integers. Maybe rename this to `Field` instead
-        const VALID: &'static [&str] = &[
+        const VALID: &[&str] = &[
             r#"
                 const x = y;
             "#,

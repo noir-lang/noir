@@ -44,14 +44,14 @@ impl Mul<&FieldElement> for &Arithmetic {
         let mul_terms: Vec<_> = self
             .mul_terms
             .iter()
-            .map(|(q_m, w_l, w_r)| (*q_m * *rhs, w_l.clone(), w_r.clone()))
+            .map(|(q_m, w_l, w_r)| (*q_m * *rhs, *w_l, *w_r))
             .collect();
 
         // Scale the linear combinations terms
         let lin_combinations: Vec<_> = self
             .linear_combinations
             .iter()
-            .map(|(q_l, w_l)| (*q_l * *rhs, w_l.clone()))
+            .map(|(q_l, w_l)| (*q_l * *rhs, *w_l))
             .collect();
 
         // Scale the constant
@@ -127,13 +127,13 @@ impl Neg for &Arithmetic {
         let mul_terms: Vec<_> = self
             .mul_terms
             .iter()
-            .map(|(q_m, w_l, w_r)| (-*q_m, w_l.clone(), w_r.clone()))
+            .map(|(q_m, w_l, w_r)| (-*q_m, *w_l, *w_r))
             .collect();
 
         let linear_combinations: Vec<_> = self
             .linear_combinations
             .iter()
-            .map(|(q_k, w_k)| (-*q_k, w_k.clone()))
+            .map(|(q_k, w_k)| (-*q_k, *w_k))
             .collect();
         let q_c = -self.q_c;
 
@@ -213,7 +213,7 @@ impl Arithmetic {
         }
 
         // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single gate
-        if self.mul_terms.len() == 0 {
+        if self.mul_terms.is_empty() {
             return true;
         }
 
@@ -253,6 +253,6 @@ impl Arithmetic {
             }
         }
 
-        return found_x & found_y;
+        found_x & found_y
     }
 }

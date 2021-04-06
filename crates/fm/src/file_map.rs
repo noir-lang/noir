@@ -62,10 +62,7 @@ impl FileMap {
         FileId(file_id)
     }
     pub fn get_file(&self, file_id: FileId) -> Option<File> {
-        match self.0.get(file_id.0) {
-            Some(source) => Some(File(source)),
-            None => None,
-        }
+        self.0.get(file_id.0).map(|source| File(source))
     }
 }
 

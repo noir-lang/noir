@@ -12,11 +12,11 @@ pub fn handle_sub_op(
         Object::Null => {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
-                message: format!("cannot do an operation with the null object"),
+                message: "cannot do an operation with the null object".to_string(),
             })
         }
         Object::Arithmetic(arith) => Object::Arithmetic(-&arith),
-        Object::Constants(c) => Object::Constants(-c.clone()),
+        Object::Constants(c) => Object::Constants(-c),
         Object::Linear(linear) => Object::Linear(-&linear),
         Object::Integer(_rhs_integer) => {
             let left_int = left.integer();
@@ -25,7 +25,7 @@ pub fn handle_sub_op(
                 None => {
                     return Err(RuntimeErrorKind::UnstructuredError {
                         span: Default::default(),
-                        message: format!("rhs is an integer, however the lhs is not"),
+                        message: "rhs is an integer, however the lhs is not".to_string(),
                     })
                 }
             }
@@ -39,7 +39,7 @@ pub fn handle_sub_op(
                 None => {
                     return Err(RuntimeErrorKind::UnstructuredError {
                         span: Default::default(),
-                        message: format!("rhs is an integer, however the lhs is not"),
+                        message: "rhs is an integer, however the lhs is not".to_string(),
                     })
                 }
             }

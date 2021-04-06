@@ -39,7 +39,7 @@ fn bound_check(
                     .into_arithmetic()
                     .ok_or(RuntimeErrorKind::UnstructuredError {
                         span: Default::default(),
-                        message: format!("invalid lower bound being used in bound check"),
+                        message: "invalid lower bound being used in bound check".to_string(),
                     })?;
 
             let k = handle_sub_op(

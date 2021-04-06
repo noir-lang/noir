@@ -150,11 +150,11 @@ impl<'a> Evaluator<'a> {
                     "The Binary operation `=` can only be used in declaration statements"
                         .to_string(),
                 );
-                return Err(err);
+                Err(err)
             }
             HirBinaryOpKind::Or => {
                 let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
-                return Err(err);
+                Err(err)
             }
         }
     }
@@ -347,7 +347,7 @@ impl<'a> Evaluator<'a> {
                 .extract_private_witness()
                 .ok_or(RuntimeErrorKind::UnstructuredError {
                     span: Default::default(),
-                    message: format!("only witnesses can be used in a private statement"),
+                    message: "only witnesses can be used in a private statement".to_string(),
                 })?;
         self.gates
             .push(Gate::Arithmetic(&rhs_as_witness - &witness));
@@ -447,7 +447,7 @@ impl<'a> Evaluator<'a> {
 
         match rhs_poly {
             Object::Array(arr) => {
-                env.store(variable_name.into(), Object::Array(arr));
+                env.store(variable_name, Object::Array(arr));
             }
             _ => unimplemented!(
                 "logic for types that are not arrays in a let statement, not implemented yet!"
@@ -523,7 +523,7 @@ impl<'a> Evaluator<'a> {
     ) -> Result<Object, RuntimeErrorKind> {
         let expr = self.context.def_interner.expression(expr_id);
         match expr {
-            HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x.into())),
+            HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
                 Ok(Object::Array(Array::from(self, env, arr_lit)?))
             }

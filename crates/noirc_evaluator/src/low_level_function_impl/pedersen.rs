@@ -52,7 +52,7 @@ impl PedersenGadget {
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         // XXX: Instead of panics, return a user error here
-        if arr.contents.len() < 1 {
+        if arr.contents.is_empty() {
             panic!("a pedersen hash requires at least one element to hash")
         }
 
@@ -73,7 +73,7 @@ impl PedersenGadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: noir_field::FieldElement::max_num_bits(),
             });
         }

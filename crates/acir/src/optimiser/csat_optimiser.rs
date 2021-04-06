@@ -86,7 +86,7 @@ impl Optimiser {
             pair.sort();
 
             *hash_map
-                .entry((pair[0].clone(), pair[1].clone()))
+                .entry((pair[0], pair[1]))
                 .or_insert(FieldElement::zero()) += scale;
         }
 
@@ -149,8 +149,8 @@ impl Optimiser {
         // subset of the terms that can be represented as full gates
         let mut new_gate = Arithmetic::default();
 
-        while gate.mul_terms.len() > 0 {
-            let pair = gate.mul_terms[0].clone();
+        while !gate.mul_terms.is_empty() {
+            let pair = gate.mul_terms[0];
 
             // Check if this pair is present in the simplified fan-in
             // We are assuming that the fan-in/fan-out has been simplified.
@@ -179,8 +179,8 @@ impl Optimiser {
                     // This means that we can form a full gate with this Qm term
 
                     // First fetch the left and right wires which match the mul term
-                    let left_wire_term = gate.linear_combinations[x].clone();
-                    let right_wire_term = gate.linear_combinations[y].clone();
+                    let left_wire_term = gate.linear_combinations[x];
+                    let right_wire_term = gate.linear_combinations[y];
 
                     // Lets create an intermediate gate to store this full gate
                     //
@@ -221,9 +221,9 @@ impl Optimiser {
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
                         .linear_combinations
-                        .push((-FieldElement::one(), inter_var.clone()));
+                        .push((-FieldElement::one(), inter_var));
                     // Add intermediate gate to the map
-                    intermediate_variables.insert(inter_var.clone(), intermediate_gate);
+                    intermediate_variables.insert(inter_var, intermediate_gate);
 
                     // Add intermediate variable to the new gate instead of the full gate
                     new_gate
@@ -308,10 +308,10 @@ impl Optimiser {
             // Constrain it to be equal to the intermediate variable
             intermediate_gate
                 .linear_combinations
-                .push((-FieldElement::one(), inter_var.clone()));
+                .push((-FieldElement::one(), inter_var));
 
             // Add intermediate gate and variable to map
-            intermediate_variables.insert(inter_var.clone(), intermediate_gate);
+            intermediate_variables.insert(inter_var, intermediate_gate);
 
             // Add intermediate variable as a part of the fan-in for the original gate
             gate.linear_combinations
@@ -354,7 +354,7 @@ impl Optimiser {
 
             intermediate_gate
                 .linear_combinations
-                .push((-FieldElement::one(), inter_var.clone()));
+                .push((-FieldElement::one(), inter_var));
 
             // Add intermediate gate and variable to map
             intermediate_variables.insert(inter_var, intermediate_gate);

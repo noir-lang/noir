@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
             });
         }
         self.advance_tokens();
-        return Ok(());
+        Ok(())
     }
 
     // peaks at the next token
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
             });
         }
         self.advance_tokens();
-        return Ok(());
+        Ok(())
     }
 
     /// A Program corresponds to a single module
@@ -160,10 +160,10 @@ impl<'a> Parser<'a> {
             self.advance_tokens();
         }
 
-        if self.errors.len() > 0 {
-            return Err(&self.errors);
+        if !self.errors.is_empty() {
+            Err(&self.errors)
         } else {
-            return Ok(program);
+            Ok(program)
         }
     }
 
@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
                 }
             }
         };
-        return Ok(stmt);
+        Ok(stmt)
     }
 
     fn parse_expression_statement(&mut self) -> ParserExprResult {
@@ -264,7 +264,7 @@ impl<'a> Parser<'a> {
             match self.choose_infix_parser() {
                 None => {
                     dbg!("No infix function found for {}", self.curr_token.token());
-                    return Ok(left_exp.clone());
+                    return Ok(left_exp);
                 }
                 Some(infix_parser) => {
                     self.advance_tokens();
@@ -273,7 +273,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        return Ok(left_exp);
+        Ok(left_exp)
     }
     fn choose_prefix_parser(&self) -> Option<PrefixParser> {
         match self.curr_token.token() {
@@ -388,7 +388,7 @@ impl<'a> Parser<'a> {
                 self.advance_tokens();
             }
             (true, false) => {
-                let message = format!("unexpected field element type keyword found. \"pub, priv or const\" is not valid here");
+                let message = "unexpected field element type keyword found. \"pub, priv or const\" is not valid here".to_string();
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: self.curr_token.into_span(),
@@ -413,10 +413,10 @@ impl<'a> Parser<'a> {
             Token::LeftBracket => self.parse_array_type(field_type),
             k => {
                 let message = format!("Expected a type, found {}", k);
-                return Err(ParserErrorKind::UnstructuredError {
+                Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: self.curr_token.into_span(),
-                });
+                })
             }
         }
     }
@@ -433,10 +433,10 @@ impl<'a> Parser<'a> {
                     "unexpected keyword. Expected \"pub, const or priv\". found {}",
                     tok
                 );
-                return Err(ParserErrorKind::UnstructuredError {
+                Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: self.curr_token.into_span(),
-                });
+                })
             }
         }
     }
@@ -450,7 +450,7 @@ impl<'a> Parser<'a> {
         let array_len = match self.peek_token.clone().into() {
             Token::Int(integer) => {
                 if !integer.fits_in_u128() {
-                    let message = format!("Array sizes must fit within a u128");
+                    let message = "Array sizes must fit within a u128".to_string();
                     return Err(ParserErrorKind::UnstructuredError {
                         message,
                         span: self.peek_token.into_span(),
@@ -461,7 +461,7 @@ impl<'a> Parser<'a> {
             }
             Token::RightBracket => ArraySize::Variable,
             _ => {
-                let message = format!("The array size is defined as [k] for fixed size or [] for variable length. k must be a literal");
+                let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: self.peek_token.into_span(),
@@ -477,7 +477,7 @@ impl<'a> Parser<'a> {
         // Disallow [4][3]Witness ie Matrices
         if self.peek_token == Token::LeftBracket {
             return Err(ParserErrorKind::UnstructuredError {
-                message: format!("Currently Multi-dimensional arrays are not supported"),
+                message: "Currently Multi-dimensional arrays are not supported".to_string(),
                 span: self.peek_token.into_span(),
             });
         }
@@ -495,7 +495,7 @@ mod test {
 
     #[test]
     fn regression_skip_comment() {
-        const COMMENT_BETWEEN_FIELD: &'static str = r#"
+        const COMMENT_BETWEEN_FIELD: &str = r#"
             fn main(
                 // This comment should be skipped
                 x : Field, 
@@ -505,7 +505,7 @@ mod test {
 
             }
         "#;
-        const COMMENT_BETWEEN_CALL: &'static str = r#"
+        const COMMENT_BETWEEN_CALL: &str = r#"
             fn main(x : Field, y : Field,) {
                 foo::bar(
                     // Comment for x argument
@@ -516,8 +516,8 @@ mod test {
             }
         "#;
         let mut parser = Parser::from_src(COMMENT_BETWEEN_FIELD);
-        let program = parser.parse_program().unwrap();
+        let _program = parser.parse_program().unwrap();
         parser = Parser::from_src(COMMENT_BETWEEN_CALL);
-        let program = parser.parse_program().unwrap();
+        let _program = parser.parse_program().unwrap();
     }
 }

@@ -88,10 +88,7 @@ fn process_abi_with_input(
     for (param_name, param_type) in abi.parameters.into_iter() {
         let value = witness_map
             .get(&param_name)
-            .expect(&format!(
-                "ABI expects the parameter `{}`, but this was not found",
-                param_name
-            ))
+            .unwrap_or_else(|| panic!("ABI expects the parameter `{}`, but this was not found", param_name))
             .clone();
 
         if !value.matches_abi(param_type) {

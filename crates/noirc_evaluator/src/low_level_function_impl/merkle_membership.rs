@@ -60,7 +60,7 @@ impl MerkleMembershipGadget {
         let root_witness = root.witness().unwrap();
 
         // XXX: Instead of panics, return a user error here
-        if hash_path.contents.len() < 1 {
+        if hash_path.contents.is_empty() {
             panic!("the hash path must contain atleast two items")
         }
         // XXX: Instead of panics, return a user error here
@@ -98,7 +98,7 @@ impl MerkleMembershipGadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: noir_field::FieldElement::max_num_bits(),
             });
         }

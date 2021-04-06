@@ -61,7 +61,7 @@ fn basic_interop() {
 
         let got = barretenberg.compress_native(&test.input_left, &test.input_right);
         let got_many =
-            barretenberg.compress_many(vec![test.input_left.clone(), test.input_right.clone()]);
+            barretenberg.compress_many(vec![test.input_left, test.input_right]);
         assert_eq!(got, expected);
         assert_eq!(got, got_many);
     }

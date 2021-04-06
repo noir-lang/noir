@@ -83,7 +83,7 @@ enum TomlTypes {
 
 fn parse_str(value: &str) -> FieldElement {
     if value.starts_with("0x") {
-        FieldElement::from_hex(value).expect(&format!("Could not parse hex value {}", value))
+        FieldElement::from_hex(value).unwrap_or_else(|| panic!("Could not parse hex value {}", value))
     } else {
         let val: i128 = value
             .parse()

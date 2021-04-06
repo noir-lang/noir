@@ -87,12 +87,12 @@ mod test {
         /// The Parser does not check the types of the loops,
         /// it only checks for valid expressions in RANGE_START and
         /// RANGE_END
-        const SRC_EXPR_LOOP: &'static str = r#"
+        const SRC_EXPR_LOOP: &str = r#"
             for i in x+y..z {
 
             }
         "#;
-        const SRC_CONST_LOOP: &'static str = r#"
+        const SRC_CONST_LOOP: &str = r#"
             for i in 0..100 {
 
             }
@@ -112,19 +112,19 @@ mod test {
     #[test]
     fn invalid_syntax() {
         /// Cannot have a literal as the loop identifier
-        const SRC_LITERAL_IDENT: &'static str = r#"
+        const SRC_LITERAL_IDENT: &str = r#"
             for 1 in x+y..z {
 
             }
         "#;
         /// Currently only the DoubleDot is supported
-        const SRC_INCLUSIVE_LOOP: &'static str = r#"
+        const SRC_INCLUSIVE_LOOP: &str = r#"
             for i in 0...100 {
 
             }
         "#;
         /// Currently only the DoubleDot is supported
-        const SRC_INCLUSIVE_EQUAL_LOOP: &'static str = r#"
+        const SRC_INCLUSIVE_EQUAL_LOOP: &str = r#"
             for i in 0..=100 {
 
             }

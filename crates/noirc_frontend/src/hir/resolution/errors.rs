@@ -51,10 +51,10 @@ impl ResolverError {
 
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {} found", name),
-                    format!("first definition found here"),
+                    "first definition found here".to_string(),
                     first_span,
                 );
-                diag.add_secondary(format!("second definition found here"), second_span);
+                diag.add_secondary("second definition found here".to_string(), second_span);
                 diag
             }
             ResolverError::UnusedVariable { ident_id } => {
@@ -63,7 +63,7 @@ impl ResolverError {
 
                 let mut diag = Diagnostic::simple_error(
                     format!("unused variable {}", name),
-                    format!("unused variable "),
+                    "unused variable ".to_string(),
                     span,
                 );
 
@@ -72,11 +72,11 @@ impl ResolverError {
             }
             ResolverError::VariableNotDeclared { name, span } => Diagnostic::simple_error(
                 format!("cannot find `{}` in this scope ", name),
-                format!("not found in this scope"),
+                "not found in this scope".to_string(),
                 span,
             ),
             ResolverError::PathIsNotIdent { span } => Diagnostic::simple_error(
-                format!("cannot use path as an identifier"),
+                "cannot use path as an identifier".to_string(),
                 String::new(),
                 span,
             ),
