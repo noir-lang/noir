@@ -38,7 +38,7 @@ mod test {
 
     #[test]
     fn valid_syntax() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             mod foo;
         "#;
 
@@ -48,7 +48,7 @@ mod test {
 
         ModuleParser::parse_decl(&mut parser).unwrap();
 
-        let end = parser.curr_token.clone();
+        let end = parser.curr_token;
 
         // First check that the cursor was in the right position at
         // the start and at the end
@@ -57,10 +57,10 @@ mod test {
     }
     #[test]
     fn invalid_syntax() {
-        const SRC_MISSING_SEMI_COLON: &'static str = r#"
+        const SRC_MISSING_SEMI_COLON: &str = r#"
             mod foo
         "#;
-        const SRC_INT: &'static str = r#"
+        const SRC_INT: &str = r#"
             mod 1;
         "#;
 

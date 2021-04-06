@@ -67,10 +67,10 @@ pub fn call_low_level(
         OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
-            return Err(RuntimeErrorKind::UnstructuredError {
+            Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
                 message,
-            });
+            })
         }
     }
 }

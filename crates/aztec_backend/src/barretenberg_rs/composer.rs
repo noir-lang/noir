@@ -593,7 +593,7 @@ impl StandardComposer {
             now.elapsed().as_nanos(),
             now.elapsed().as_secs(),
         );
-        return remove_public_inputs(self.constraint_system.public_inputs.len(), proof);
+        remove_public_inputs(self.constraint_system.public_inputs.len(), proof)
     }
 
     pub fn verify(
@@ -642,7 +642,7 @@ impl StandardComposer {
                         ],
                     )
                     .value();
-                verified.clone()
+                verified
             }
             Some(pub_inputs) => {
                 let pub_inputs_buf = pub_inputs.to_bytes();
@@ -665,7 +665,7 @@ impl StandardComposer {
 
                 self.barretenberg.free(pub_inputs_ptr);
 
-                verified.clone()
+                verified
             }
         };
         // self.barretenberg.free(cs_ptr);
@@ -722,7 +722,7 @@ mod test {
             blake2s_constraints: vec![],
             pedersen_constraints: vec![],
             hash_to_field_constraints: vec![],
-            constraints: vec![constraint.clone()],
+            constraints: vec![constraint],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
         };
@@ -768,11 +768,11 @@ mod test {
         test_circuit(
             constraint_system,
             vec![
-                case_1.clone(),
-                case_2.clone(),
-                case_3.clone(),
-                case_4.clone(),
-                case_5.clone(),
+                case_1,
+                case_2,
+                case_3,
+                case_4,
+                case_5,
                 case_6a,
                 case_6b,
             ],

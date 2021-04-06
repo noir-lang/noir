@@ -8,7 +8,7 @@ pub fn find_file<P: AsRef<Path>>(path: P, file_name: &str, extension: &str) -> O
     let entries = list_files_and_folders_in(path)?;
 
     let mut file_name = file_name.to_owned();
-    file_name.push_str(".");
+    file_name.push('.');
     file_name.push_str(extension);
 
     find_artifact(entries, &file_name)

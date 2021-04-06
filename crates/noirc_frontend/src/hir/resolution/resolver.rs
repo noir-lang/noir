@@ -76,7 +76,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn push_err(&mut self, err: ResolverError) {
-        self.errors.push(err.into())
+        self.errors.push(err)
     }
 
     /// Resolving a function involves interning the metadata
@@ -96,9 +96,9 @@ impl<'a> Resolver<'a> {
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
 
         if self.errors.is_empty() {
-            return Ok((hir_func, func_meta));
+            Ok((hir_func, func_meta))
         } else {
-            return Err(self.errors);
+            Err(self.errors)
         }
     }
     fn resolve_expression(&mut self, expr: Expression) -> ExprId {
@@ -144,7 +144,7 @@ impl<'a> Resolver<'a> {
             num_times_used: 0,
             id,
         };
-        let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_value = scope.add_key_value(name.0.contents, resolver_meta);
 
         match old_value {
             None => {
@@ -187,7 +187,7 @@ impl<'a> Resolver<'a> {
         };
         self.push_err(err);
 
-        return IdentId::dummy_id();
+        IdentId::dummy_id()
     }
 
     pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {
@@ -363,7 +363,7 @@ impl<'a> Resolver<'a> {
                             let err = ResolverError::Expected {
                                 expected: "function".to_owned(),
                                 got: def_id.as_str().to_owned(),
-                                span: span,
+                                span,
                             };
                             self.push_err(err);
                             FuncId::dummy_id()
@@ -505,7 +505,7 @@ mod test {
             }
         }
 
-        (interner.clone(), errors)
+        (interner, errors)
     }
 
     #[test]

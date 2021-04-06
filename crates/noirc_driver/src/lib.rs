@@ -47,7 +47,7 @@ impl Driver {
             }
             return false;
         }
-        return true;
+        true
     }
 
     /// Adds the File with the local crate root to the file system

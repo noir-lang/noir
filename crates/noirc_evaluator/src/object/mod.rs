@@ -208,7 +208,7 @@ impl Object {
             Object::Constants(lhs) => Object::Constants(*lhs * constant),
             Object::Arithmetic(lhs) => Object::Arithmetic(lhs * &constant),
         };
-        return Some(obj);
+        Some(obj)
     }
 }
 
@@ -264,7 +264,7 @@ impl RangedObject {
 
         // We only allow ascending ranges
         if (end - start).num_bits() > 252 {
-            let message = format!("We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not");
+            let message = "We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not".to_string();
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
                 message,

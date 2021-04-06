@@ -38,10 +38,10 @@ mod test {
     }
     #[test]
     fn valid_syntax_int() {
-        const SRC_INT: &'static str = r#"
+        const SRC_INT: &str = r#"
             5
         "#;
-        const SRC_HEX: &'static str = r#"
+        const SRC_HEX: &str = r#"
             0x05
         "#;
 
@@ -61,7 +61,7 @@ mod test {
 
     #[test]
     fn valid_syntax_str() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             "hello"
         "#;
 
@@ -74,10 +74,10 @@ mod test {
     }
     #[test]
     fn valid_syntax_bool() {
-        const SRC_TRUE: &'static str = r#"
+        const SRC_TRUE: &str = r#"
             true
         "#;
-        const SRC_FALSE: &'static str = r#"
+        const SRC_FALSE: &str = r#"
             false
         "#;
 

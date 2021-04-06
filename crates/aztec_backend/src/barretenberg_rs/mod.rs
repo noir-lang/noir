@@ -1,5 +1,5 @@
 ///  Import the barretenberg WASM file
-pub static WASM: &'static [u8] = include_bytes!("barretenberg.wasm");
+pub static WASM: &[u8] = include_bytes!("barretenberg.wasm");
 
 pub mod blake2s;
 pub mod composer;
@@ -75,7 +75,7 @@ impl Barretenberg {
         // We take in a reference to values, since they do not implement Copy.
         // We then clone them inside of this function, so that the API does not have a bunch of Clones everywhere
 
-        let params: Vec<_> = params.into_iter().map(|p| p.clone()).collect();
+        let params: Vec<_> = params.into_iter().cloned().collect();
         let func = self.instance.exports.get_function(name).unwrap();
         let option_value = func.call(&params).unwrap().first().cloned();
 

@@ -52,7 +52,7 @@ impl DiagnosableError for RuntimeErrorKind {
     fn to_diagnostic(&self) -> Diagnostic {
         match self {
             RuntimeErrorKind::ArrayOutOfBounds { index, bound, span } => Diagnostic::simple_error(
-                format!("index out of bounds"),
+                "index out of bounds".to_string(),
                 format!(
                     "out of bounds error, index is {} but length is {}",
                     index, bound

@@ -75,7 +75,7 @@ impl EcdsaSecp256k1Gadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: 8,
             });
         }
@@ -93,7 +93,7 @@ impl EcdsaSecp256k1Gadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: 8,
             });
         }
@@ -111,7 +111,7 @@ impl EcdsaSecp256k1Gadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: 8,
             });
         }
@@ -128,7 +128,7 @@ impl EcdsaSecp256k1Gadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: 8,
             });
         }

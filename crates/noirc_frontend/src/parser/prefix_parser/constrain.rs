@@ -49,7 +49,7 @@ impl ConstrainParser {
         let infix = match expr.kind.into_infix() {
             Some(infix) => infix,
             None => {
-                let message = format!("Expected an infix expression since this is a constrain statement. You cannot assign values");
+                let message = "Expected an infix expression since this is a constrain statement. You cannot assign values".to_string();
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
                     span: expr.span,
@@ -58,7 +58,7 @@ impl ConstrainParser {
         };
 
         if infix.operator.contents == BinaryOpKind::Assign {
-            let message = format!("Cannot use '=' with a constrain statement");
+            let message = "Cannot use '=' with a constrain statement".to_string();
             return Err(ParserErrorKind::UnstructuredError {
                 message,
                 span: infix.operator.span(),
@@ -92,7 +92,7 @@ mod test {
     /// This is the standard way to declare a constrain statement
     #[test]
     fn valid_syntax() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             constrain x == y;
         "#;
 
@@ -102,7 +102,7 @@ mod test {
 
         let _stmt = ConstrainParser::parse_statement(&mut parser).unwrap();
 
-        let end = parser.curr_token.clone();
+        let end = parser.curr_token;
 
         // First check that the cursor was in the right position at
         // the start and at the end
@@ -135,19 +135,19 @@ mod test {
         /// The first (inner) `==` is a predicate which returns 0/1
         /// The outer layer is an infix `==` which is
         /// associated with the Constrain statement
-        const VALID_1: &'static str = r#"
+        const VALID_1: &str = r#"
             constrain ((x + y) == k) + z == y;
         "#;
-        const VALID_2: &'static str = r#"
+        const VALID_2: &str = r#"
             constrain (x + !y) == y;
         "#;
-        const VALID_3: &'static str = r#"
+        const VALID_3: &str = r#"
             constrain (x ^ y) == y;
         "#;
-        const VALID_4: &'static str = r#"
+        const VALID_4: &str = r#"
             constrain (x ^ y) == (y + m);
         "#;
-        const VALID_5: &'static str = r#"
+        const VALID_5: &str = r#"
             constrain x + x ^ x == y | m;
         "#;
 
@@ -172,7 +172,7 @@ mod test {
         ///
         /// This is so that, you can have an expression as the last item in
         /// a block.
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
                 constrain x == y
             }
         "#;
@@ -185,7 +185,7 @@ mod test {
     fn invalid_assign() {
         /// The Assignment operator is different to the equals sign
         /// and cannot be used in a constrain statement.
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
                 constrain x = y;
             }
         "#;

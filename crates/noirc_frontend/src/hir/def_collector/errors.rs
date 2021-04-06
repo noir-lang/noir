@@ -31,10 +31,10 @@ impl DiagnosableError for DefCollectorErrorKind {
 
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {} function found", func_name),
-                    format!("first definition found here"),
+                    "first definition found here".to_string(),
                     first_span,
                 );
-                diag.add_secondary(format!("second definition found here"), second_span);
+                diag.add_secondary("second definition found here".to_string(), second_span);
                 diag
             }
             DefCollectorErrorKind::DuplicateModuleDecl {
@@ -47,10 +47,10 @@ impl DiagnosableError for DefCollectorErrorKind {
 
                 let mut diag = Diagnostic::simple_error(
                     format!("module {} has been declared twice", mod_name),
-                    format!("first declaration found here"),
+                    "first declaration found here".to_string(),
                     first_span,
                 );
-                diag.add_secondary(format!("second declaration found here"), second_span);
+                diag.add_secondary("second declaration found here".to_string(), second_span);
                 diag
             }
             DefCollectorErrorKind::DuplicateImport {
@@ -63,10 +63,10 @@ impl DiagnosableError for DefCollectorErrorKind {
 
                 let mut diag = Diagnostic::simple_error(
                     format!("the name `{}` is defined multiple times", import_name),
-                    format!("first import found here"),
+                    "first import found here".to_string(),
                     first_span,
                 );
-                diag.add_secondary(format!("second import found here"), second_span);
+                diag.add_secondary("second import found here".to_string(), second_span);
                 diag
             }
             DefCollectorErrorKind::UnresolvedModuleDecl { mod_name } => {

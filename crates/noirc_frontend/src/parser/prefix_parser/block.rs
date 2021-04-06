@@ -26,7 +26,7 @@ impl BlockParser {
         // XXX: Check consistency with for parser, if parser and func parser
         if parser.curr_token != Token::LeftBrace {
             return Err(ParserErrorKind::UnstructuredError {
-                message: format!("Expected a {{ to start the block expression"),
+                message: "Expected a { to start the block expression".to_string(),
                 span: parser.curr_token.into_span(),
             });
         }
@@ -39,7 +39,7 @@ impl BlockParser {
 
         if parser.curr_token != Token::RightBrace {
             return Err(ParserErrorKind::UnstructuredError {
-                message: format!("Expected a }} to end the block expression"),
+                message: "Expected a } to end the block expression".to_string(),
                 span: parser.curr_token.into_span(),
             });
         }
@@ -65,7 +65,7 @@ mod test {
     /// This block expression has a single item in it, an array
     #[test]
     fn valid_syntax() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             {
                 [0,1,2,3,4]
             }
@@ -77,7 +77,7 @@ mod test {
 
         let expr = BlockParser::parse(&mut parser).unwrap();
 
-        let end = parser.curr_token.clone();
+        let end = parser.curr_token;
 
         // First check that the cursor was in the right position at
         // the start and at the end
@@ -93,7 +93,7 @@ mod test {
 
     #[test]
     fn missing_starting_brace() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             
                 [0,1,2,3,4]
             }
@@ -104,7 +104,7 @@ mod test {
     }
     #[test]
     fn missing_end_brace() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             {
                 [0,1,2,3,4]
             
@@ -119,19 +119,19 @@ mod test {
         /// Invalid contents is caught
         ///
         /// Array content is invalid
-        const INVALID_SRC: &'static str = r#"
+        const INVALID_SRC: &str = r#"
             {
                 [0,1,2,,]
             }
         "#;
         /// Array is missing it's ending bracket
-        const INVALID_SRC_2: &'static str = r#"
+        const INVALID_SRC_2: &str = r#"
             {
                 [0,1,2,3
             }
         "#;
         /// Array is missing it's starting bracket
-        const INVALID_SRC_3: &'static str = r#"
+        const INVALID_SRC_3: &str = r#"
             {
                 0,1,2,3]
             }
@@ -155,7 +155,7 @@ mod test {
         /// is not called unless there is a left brace.
         /// To be on the conservative side, it should be left in,
         /// incase there is a way to manipulate the syntax
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
                 [[0,1,2,3,4]
             }
         "#;

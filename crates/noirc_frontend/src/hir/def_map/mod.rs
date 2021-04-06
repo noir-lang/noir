@@ -116,7 +116,7 @@ pub fn parse_file(
         Err(errs) => {
             let file_errs = CollectedErrors {
                 file_id,
-                errors: errs.into_iter().map(|err| err.to_diagnostic()).collect(),
+                errors: errs.iter().map(|err| err.to_diagnostic()).collect(),
             };
 
             Err(vec![file_errs])

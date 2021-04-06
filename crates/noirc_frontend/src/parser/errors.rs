@@ -41,20 +41,20 @@ impl DiagnosableError for ParserErrorKind {
             ParserErrorKind::ExpectedExpression { span, lexeme } => {
                 let mut diag = Diagnostic::simple_error(
                     format!("Unexpected start of an expression {}", lexeme),
-                    format!("did not expect this token"),
+                    "did not expect this token".to_string(),
                     *span,
                 );
-                diag.add_note(format!("This error is commonly caused by either a previous error cascading or an unclosed delimiter."));
+                diag.add_note("This error is commonly caused by either a previous error cascading or an unclosed delimiter.".to_string());
                 diag
             }
             ParserErrorKind::TokenNotUnaryOp { spanned_token } => Diagnostic::simple_error(
                 format!("Unsupported unary operation {}", spanned_token.token()),
-                format!("cannot use as a unary operation."),
+                "cannot use as a unary operation.".to_string(),
                 spanned_token.into_span(),
             ),
             ParserErrorKind::TokenNotBinaryOp { spanned_token } => Diagnostic::simple_error(
                 format!("Unsupported binary operation {}", spanned_token.token()),
-                format!("cannot use as a binary operation."),
+                "cannot use as a binary operation.".to_string(),
                 spanned_token.into_span(),
             ),
             ParserErrorKind::UnexpectedToken {
@@ -86,8 +86,8 @@ impl DiagnosableError for ParserErrorKind {
                 };
 
                 let mut diag = Diagnostic::simple_error(
-                    format!("path is ambiguous"),
-                    format!("path contains a single keyword"),
+                    "path is ambiguous".to_string(),
+                    "path contains a single keyword".to_string(),
                     *span,
                 );
                 diag.add_note(note.to_owned());

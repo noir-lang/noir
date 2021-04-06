@@ -28,7 +28,7 @@ impl From<i128> for FieldElement {
         if negative {
             result = -result;
         }
-        return FieldElement(result);
+        FieldElement(result)
     }
 }
 
@@ -54,10 +54,7 @@ impl FieldElement {
             return FieldElement::from_hex(input);
         }
 
-        let fr = match Fr::from_str(input) {
-            Err(_) => return None,
-            Ok(x) => x,
-        };
+        let fr = Fr::from_str(input).ok()?;
         Some(FieldElement(fr))
     }
     // This is the amount of bits that are always zero,
@@ -76,10 +73,10 @@ impl FieldElement {
     }
     /// This is the number of bits required to represent this specific field element
     pub fn num_bits(&self) -> u32 {
-        let non_zero_index = BitIteratorBE::new(self.0.into_repr()).position(|x| x != false);
+        let non_zero_index = BitIteratorBE::new(self.0.into_repr()).position(|x| x);
 
         match non_zero_index {
-            None => return 0,
+            None => 0,
             Some(index) => {
                 // The most significant bit was found at index.
                 // The index tells us how many elements came before the most significant bit
@@ -90,7 +87,7 @@ impl FieldElement {
                 // This is now the amount of significant elements that came before the most significant bit
                 let msb_index_offset = (index as u32) - offset;
 
-                return FieldElement::max_num_bits() - msb_index_offset;
+                FieldElement::max_num_bits() - msb_index_offset
             }
         }
     }
@@ -129,7 +126,7 @@ impl FieldElement {
     }
     pub fn from_hex(hex_str: &str) -> Option<FieldElement> {
         let dec_str = hex_to_decimal(hex_str);
-        return Fr::from_str(&dec_str).map(|fr| FieldElement(fr)).ok();
+        Fr::from_str(&dec_str).map(FieldElement).ok()
     }
 
     // XXX: This is not portable, if the underlying field changes!
@@ -170,9 +167,9 @@ impl FieldElement {
             .enumerate()
             .map(|(i, bit)| {
                 if i < (max_bits - num_bits) as usize {
-                    return false;
+                    false
                 } else {
-                    return bit;
+                    bit
                 }
             })
             .collect();

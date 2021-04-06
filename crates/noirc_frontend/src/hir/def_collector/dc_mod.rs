@@ -45,7 +45,7 @@ impl<'a> ModCollector<'a> {
         };
         for function in self.ast.functions.clone() {
             let name = function.name_ident().clone();
-            let nf: NoirFunction = function.into();
+            let nf: NoirFunction = function;
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
@@ -152,8 +152,7 @@ impl<'a> ModCollector<'a> {
         let mod_id = ModuleId {
             krate: self.def_collector.def_map.krate,
             local_id: LocalModuleId(module_id),
-        }
-        .into();
+        };
         modules[self.module_id.0]
             .scope
             .define_module_def(mod_name.to_owned(), mod_id)

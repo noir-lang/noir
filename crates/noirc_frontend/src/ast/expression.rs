@@ -93,7 +93,7 @@ impl Expression {
         };
 
         let ident = Ident(Spanned::from(self.span, identifier));
-        return Some(ident);
+        Some(ident)
     }
 }
 
@@ -180,7 +180,7 @@ impl From<&Token> for Option<BinaryOpKind> {
             Token::Assign => BinaryOpKind::Assign,
             _ => return None,
         };
-        return Some(op);
+        Some(op)
     }
 }
 

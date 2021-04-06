@@ -29,7 +29,7 @@ impl Position {
     }
 
     pub fn mark(&self) -> Position {
-        self.clone()
+        *self
     }
     pub fn forward(self) -> Position {
         self.forward_by(1)
@@ -99,7 +99,7 @@ impl<T> Spanned<T> {
     }
 
     pub fn span(&self) -> Span {
-        self.span.clone()
+        self.span
     }
 }
 
