@@ -14,10 +14,10 @@ impl NameParser {
             return Ok(ExpressionKind::Ident(x.clone()));
         }
 
-        return Err(ParserErrorKind::UnexpectedTokenKind {
+        Err(ParserErrorKind::UnexpectedTokenKind {
             span: parser.curr_token.into_span(),
             expected: TokenKind::Ident,
             found: parser.curr_token.kind(),
-        });
+        })
     }
 }

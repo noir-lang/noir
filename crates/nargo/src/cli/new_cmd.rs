@@ -23,13 +23,13 @@ pub(crate) fn run(args: ArgMatches) {
     let src_dir = package_dir.join(Path::new(SRC_DIR));
     create_src_dir(&src_dir);
 
-    const EXAMPLE: &'static str = "
+    const EXAMPLE: &str = "
         fn main(x : Field, y : pub Field) {
             constrain x != y;
         }
     ";
 
-    const SETTINGS: &'static str = r#"
+    const SETTINGS: &str = r#"
         [package]
         authors = [""]
         compiler_version = "0.1"

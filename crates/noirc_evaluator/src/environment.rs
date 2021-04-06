@@ -52,7 +52,7 @@ impl Environment {
 
     pub fn store(&mut self, name: String, object: Object) {
         let scope = self.env.get_mut_scope();
-        scope.add_key_value(name.clone(), object);
+        scope.add_key_value(name, object);
     }
 
     pub fn get(&mut self, name: &String) -> Object {

@@ -25,7 +25,7 @@ pub(crate) fn type_check_expression(
 
             // The type of this Ident expression is the type of the Identifier which defined it
             let typ = interner.id_type(ident_def_id);
-            interner.push_expr_type(expr_id, typ.clone());
+            interner.push_expr_type(expr_id, typ);
         }
         HirExpression::Literal(literal) => {
             match literal {
@@ -291,10 +291,10 @@ pub fn infix_operand_type_rules(
                 Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
             }
             (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Private)) | ( Type::FieldElement(FieldElementType::Private), Type::Integer(_,_, _) ) => {
-                Err(format!("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer"))
+                Err("Cannot use an integer and a witness in a binary operation, try converting the witness into an integer".to_string())
             }
             (Type::Integer(_,_, _), Type::FieldElement(FieldElementType::Public)) | ( Type::FieldElement(FieldElementType::Public), Type::Integer(_,_, _) ) => {
-                Err(format!("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer"))
+                Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
             }
             (Type::Integer(int_field_type,sign_x, bit_width_x), Type::FieldElement(FieldElementType::Constant))| (Type::FieldElement(FieldElementType::Constant),Type::Integer(int_field_type,sign_x, bit_width_x)) => {
                 
@@ -305,7 +305,7 @@ pub fn infix_operand_type_rules(
                 Err(format!("Integer cannot be used with type {}", typ))
             }
             // Currently, arrays are not supported in binary operations
-            (Type::Array(_,_,_), _) | (_,Type::Array(_,_, _)) => Err(format!("Arrays cannot be used in an infix operation")),
+            (Type::Array(_,_,_), _) | (_,Type::Array(_,_, _)) => Err("Arrays cannot be used in an infix operation".to_string()),
             //
             // An error type on either side will always return an error
             (Type::Error, _) | (_,Type::Error) => Ok(Type::Error),
@@ -381,10 +381,10 @@ fn type_check_list_expression(
     interner: &mut NodeInterner,
     exprs: &[ExprId],
 ) -> Result<(), TypeCheckError> {
-    assert!(exprs.len() > 0);
+    assert!(!exprs.is_empty());
 
     let (_, errors): (Vec<_>, Vec<_>) = exprs
-        .into_iter()
+        .iter()
         .map(|arg| type_check_expression(interner, arg))
         .partition(Result::is_ok);
 

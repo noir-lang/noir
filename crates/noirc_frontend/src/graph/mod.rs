@@ -97,7 +97,7 @@ impl CrateGraph {
     }
 
     pub fn crate_type(&self, crate_id: CrateId) -> CrateType {
-        self.arena.get(&crate_id).unwrap().crate_type.clone()
+        self.arena.get(&crate_id).unwrap().crate_type
     }
 
     pub fn iter_keys(&self) -> impl Iterator<Item = CrateId> + '_ {

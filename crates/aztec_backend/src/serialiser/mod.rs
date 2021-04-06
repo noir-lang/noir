@@ -71,10 +71,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let mut outputs_iter = gadget_call.outputs.iter();
                         let mut result = [0i32; 32];
                         for i in 0..32 {
-                            let out_byte = outputs_iter.next().expect(&format!(
-                                "missing rest of output. tried to get byte {} but failed",
-                                i
-                            ));
+                            let out_byte = outputs_iter.next().unwrap_or_else(|| panic!("missing rest of output. tried to get byte {} but failed", i));
 
                             let out_byte_index = out_byte.witness_index() as i32;
                             result[i] = out_byte_index
@@ -99,10 +96,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let mut outputs_iter = gadget_call.outputs.iter();
                         let mut result = [0i32; 32];
                         for i in 0..32 {
-                            let out_byte = outputs_iter.next().expect(&format!(
-                                "missing rest of output. tried to get byte {} but failed",
-                                i
-                            ));
+                            let out_byte = outputs_iter.next().unwrap_or_else(|| panic!("missing rest of output. tried to get byte {} but failed", i));
 
                             let out_byte_index = out_byte.witness_index() as i32;
                             result[i] = out_byte_index
@@ -185,10 +179,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         // signature
                         let mut signature = [0i32; 64];
                         for i in 0..64 {
-                            let sig_byte = inputs_iter.next().expect(&format!(
-                                "missing rest of signature. tried to get byte {} but failed",
-                                i
-                            ));
+                            let sig_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of signature. tried to get byte {} but failed", i));
                             let sig_byte_index = sig_byte.witness.witness_index() as i32;
                             signature[i] = sig_byte_index
                         }
@@ -254,20 +245,14 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         // public key x
                         let mut public_key_x = [0i32; 32];
                         for i in 0..32 {
-                            let x_byte = inputs_iter.next().expect(&format!(
-                                "missing rest of x component for public key. tried to get byte {} but failed",
-                                i
-                            ));
+                            let x_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of x component for public key. tried to get byte {} but failed", i));
                             let x_byte_index = x_byte.witness.witness_index() as i32;
                             public_key_x[i] = x_byte_index
                         }
                         // public key y
                         let mut public_key_y = [0i32; 32];
                         for i in 0..32 {
-                            let y_byte = inputs_iter.next().expect(&format!(
-                                          "missing rest of y component for public key. tried to get byte {} but failed",
-                                          i
-                                      ));
+                            let y_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of y component for public key. tried to get byte {} but failed", i));
                             let y_byte_index = y_byte.witness.witness_index() as i32;
                             public_key_y[i] = y_byte_index
                         }
@@ -275,10 +260,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         // signature
                         let mut signature = [0i32; 64];
                         for i in 0..64 {
-                            let sig_byte = inputs_iter.next().expect(&format!(
-                                "missing rest of signature. tried to get byte {} but failed",
-                                i
-                            ));
+                            let sig_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of signature. tried to get byte {} but failed", i));
                             let sig_byte_index = sig_byte.witness.witness_index() as i32;
                             signature[i] = sig_byte_index
                         }
@@ -361,7 +343,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let qc: FieldElement;
 
     // check mul gate
-    if gate.mul_terms.len() != 0 {
+    if !gate.mul_terms.is_empty() {
         let mul_term = &gate.mul_terms[0];
         qm = mul_term.0;
 

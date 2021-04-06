@@ -196,7 +196,7 @@ fn resolve_functions(
     if errors.is_empty() {
         return Ok(file_func_ids);
     }
-    return Err(errors);
+    Err(errors)
 }
 
 use crate::hir::type_check::type_check_func;

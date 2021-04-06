@@ -109,7 +109,7 @@ fn resolve_name_in_module(
         return PathResolution::Resolved(PerNs::types(mod_id.into()));
     }
 
-    let mut import_path = import_path.into_iter();
+    let mut import_path = import_path.iter();
     let first_segment = import_path.next().expect("ice: could not fetch first segment");
     let mut current_ns = current_mod.scope.find_name(&first_segment);
     if current_ns.is_none() {

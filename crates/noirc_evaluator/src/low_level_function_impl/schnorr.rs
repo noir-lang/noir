@@ -89,7 +89,7 @@ impl SchnorrVerifyGadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: 8,
             });
         }
@@ -108,7 +108,7 @@ impl SchnorrVerifyGadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits: 8,
             });
         }

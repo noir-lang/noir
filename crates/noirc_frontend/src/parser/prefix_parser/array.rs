@@ -54,7 +54,7 @@ mod test {
     /// This is the standard way to declare an array
     #[test]
     fn valid_syntax() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             [0,1,2,3,4]
         "#;
 
@@ -64,7 +64,7 @@ mod test {
 
         let expr = ArrayParser::parse(&mut parser).unwrap();
 
-        let end = parser.curr_token.clone();
+        let end = parser.curr_token;
 
         // First check that the cursor was in the right position at
         // the start and at the end
@@ -86,7 +86,7 @@ mod test {
     fn valid_syntax_extra_comma() {
         // This is a valid user error. We return an unexpected token error.
         // We expect a `]` but instead we get an EOF
-        const MISSING_END: &'static str = r#"
+        const MISSING_END: &str = r#"
             [0,1,2,3,4,]
         "#;
 
@@ -98,21 +98,21 @@ mod test {
         // Since this is a prefix parser, this should be impossible to arrive at
         // unless there is an off-by-one error. The exact error here is not important,
         // since arriving here would signal an ICE
-        const MISSING_START: &'static str = r#"
+        const MISSING_START: &str = r#"
             0,1,2,3,4]
         "#;
         ArrayParser::parse(&mut test_parse(MISSING_START)).unwrap_err();
     }
     #[test]
     fn double_prefix() {
-        const DOUBLE_PREFIX: &'static str = r#"
+        const DOUBLE_PREFIX: &str = r#"
             [[0,1,2,3,4]
         "#;
         ArrayParser::parse(&mut test_parse(DOUBLE_PREFIX)).unwrap_err();
     }
     #[test]
     fn double_delimiter() {
-        const DOUBLE_DELIMITER: &'static str = r#"
+        const DOUBLE_DELIMITER: &str = r#"
             [0,1,2,,]
         "#;
         ArrayParser::parse(&mut test_parse(DOUBLE_DELIMITER)).unwrap_err();
@@ -123,7 +123,7 @@ mod test {
         /// Note that the ArrayParser parses the first array which is [0,1,2,3,4]
         /// Then whatever comes after that is no longer the responsibility of the
         /// Array Parser
-        const DOUBLE_POSTFIX: &'static str = r#"
+        const DOUBLE_POSTFIX: &str = r#"
             [0,1,2,3,4]]
         "#;
         ArrayParser::parse(&mut test_parse(DOUBLE_POSTFIX)).unwrap();
@@ -133,7 +133,7 @@ mod test {
     fn missing_closing_bracket() {
         // This is a valid user error. We return an unexpected token error.
         // We expect a `]` but instead we get an EOF
-        const MISSING_END: &'static str = r#"
+        const MISSING_END: &str = r#"
             [0,1,2,3,4
         "#;
 

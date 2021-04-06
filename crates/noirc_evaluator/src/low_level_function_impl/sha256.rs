@@ -81,7 +81,7 @@ impl Sha256Gadget {
             };
 
             inputs.push(GadgetInput {
-                witness: witness,
+                witness,
                 num_bits,
             });
         }

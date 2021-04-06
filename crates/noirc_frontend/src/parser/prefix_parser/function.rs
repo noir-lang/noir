@@ -69,7 +69,7 @@ impl FuncParser {
         // In the future, we can add a test attribute.
         // Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {
-            name: spanned_func_name.into(),
+            name: spanned_func_name,
             attribute,
             parameters,
             body,
@@ -191,7 +191,7 @@ mod test {
     }
     #[test]
     fn double_comma() {
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             fn x2( f: []Field,,) {
 
             }

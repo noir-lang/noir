@@ -70,8 +70,7 @@ impl TypeCheckError {
             }
             TypeCheckError::MultipleErrors(errors) => errors
                 .into_iter()
-                .map(|err| err.into_diagnostics(interner))
-                .flatten()
+                .flat_map(|err| err.into_diagnostics(interner))
                 .collect(),
             TypeCheckError::Context { err, ctx } => {
                 let mut diags = err.into_diagnostics(interner);
@@ -136,7 +135,7 @@ impl TypeCheckError {
             }
             TypeCheckError::PublicReturnType { typ, span } => {
                 vec![Diagnostic::simple_error(
-                    format!("functions cannot declare a public return type"),
+                    "functions cannot declare a public return type".to_string(),
                     format!("return type is {}", typ),
                     span,
                 )]

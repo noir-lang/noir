@@ -17,12 +17,12 @@ impl DiagnosableError for LexerErrorKind {
     fn to_diagnostic(&self) -> Diagnostic {
         match self {
             LexerErrorKind::UnexpectedCharacter { span, found } => Diagnostic::simple_error(
-                format!("an unexpected character was found"),
+                "an unexpected character was found".to_string(),
                 format!(" {:?} is unexpected", found),
                 *span,
             ),
             LexerErrorKind::CharacterNotInLanguage { span, found } => Diagnostic::simple_error(
-                format!("char is not in language"),
+                "char is not in language".to_string(),
                 format!(" {:?} is not in language", found),
                 *span,
             ),

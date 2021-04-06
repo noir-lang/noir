@@ -63,7 +63,7 @@ impl Reporter {
     ) {
         // Convert each Custom Diagnostic into a diagnostic
         let diagnostics: Vec<_> = diagnostics
-            .into_iter()
+            .iter()
             .map(|cd| {
                 let secondary_labels: Vec<_> = cd
                     .secondaries
@@ -95,7 +95,7 @@ impl Reporter {
             .unwrap();
         }
 
-        if diagnostics.len() != 0 {
+        if !diagnostics.is_empty() {
             writer
                 .lock()
                 .set_color(ColorSpec::new().set_fg(Some(Color::Red)))

@@ -104,7 +104,7 @@ impl Array {
         if lhs_len == 0 {
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Span::default(),
-                message: format!("arrays must contain at least one element"),
+                message: "arrays must contain at least one element".to_string(),
             });
         }
 

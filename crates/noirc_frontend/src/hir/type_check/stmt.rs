@@ -80,9 +80,9 @@ fn type_check_let_stmt(
     if !resolved_type.can_be_used_in_let() {
         let span = interner.expr_span(&let_stmt.expression);
         return Err(TypeCheckError::TypeCannotBeUsed {
-            typ: resolved_type.clone(),
+            typ: resolved_type,
             place: "let statement",
-            span: span,
+            span,
         });
     }
 

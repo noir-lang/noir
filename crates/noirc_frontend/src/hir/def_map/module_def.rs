@@ -13,7 +13,7 @@ impl ModuleDefId {
         if let ModuleDefId::FunctionId(func_id) = self {
             return Some(*func_id);
         }
-        return None;
+        None
     }
     // XXX: We are still allocating fro error reporting even though strings are stored in binary
     // It is a minor performance issue, which can be addressed by having the error reporting, not allocate

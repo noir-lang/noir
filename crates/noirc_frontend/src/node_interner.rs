@@ -253,7 +253,7 @@ impl NodeInterner {
             .expect("ice: all function ids should have definitions");
 
         match def {
-            Node::Function(func) => return func.clone(),
+            Node::Function(func) => func.clone(),
             _ => panic!("ice: all function ids should correspond to a function in the interner"),
         }
     }
@@ -273,7 +273,7 @@ impl NodeInterner {
             .expect("ice: all statement ids should have definitions");
 
         match def {
-            Node::Statement(stmt) => return stmt.clone(),
+            Node::Statement(stmt) => stmt.clone(),
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
@@ -285,7 +285,7 @@ impl NodeInterner {
             .expect("ice: all expression ids should have definitions");
 
         match def {
-            Node::Expression(expr) => return expr.clone(),
+            Node::Expression(expr) => expr.clone(),
             _ => {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
@@ -299,7 +299,7 @@ impl NodeInterner {
             .expect("ice: all ident ids should have definitions");
 
         match def {
-            Node::Ident(ident) => return ident.clone(),
+            Node::Ident(ident) => ident.clone(),
             _ => panic!("ice: all expression ids should correspond to a statement in the interner"),
         }
     }

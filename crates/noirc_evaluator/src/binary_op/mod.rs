@@ -75,12 +75,12 @@ pub fn maybe_equal(
     }));
 
     // y = 1 -uz
-    let uz: Arithmetic = (Linear::from_witness(u_wit) * Linear::from_witness(z)).into();
+    let uz: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(z);
     let gate = uz.neg() + &FieldElement::one();
     let (_, y) = evaluator.create_intermediate_variable(gate);
 
     // yu = 0
-    let gate: Arithmetic = (Linear::from_witness(u_wit) * Linear::from_witness(y)).into();
+    let gate: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(y);
     evaluator.gates.push(Gate::Arithmetic(gate));
 
     // We know that y is a boolean

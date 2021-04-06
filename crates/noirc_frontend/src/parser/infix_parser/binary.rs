@@ -25,15 +25,15 @@ impl BinaryParser {
         let rhs = parser.parse_expression(curr_precedence)?;
 
         let infix_expression = Box::new(InfixExpression {
-            lhs: lhs,
+            lhs,
             operator,
-            rhs: rhs.clone(),
+            rhs,
         });
 
         if is_predicate_op {
             return Ok(ExpressionKind::Predicate(infix_expression));
         }
-        return Ok(ExpressionKind::Infix(infix_expression));
+        Ok(ExpressionKind::Infix(infix_expression))
     }
 }
 fn token_to_binary_op(spanned_tok: &SpannedToken) -> Result<BinaryOp, ParserErrorKind> {
@@ -63,7 +63,7 @@ mod test {
 
     #[test]
     fn start_end_cursor() {
-        const SRC: &'static str = " + 6";
+        const SRC: &str = " + 6";
 
         let mut parser = test_parse(SRC);
 
@@ -71,7 +71,7 @@ mod test {
 
         let _ = BinaryParser::parse(&mut parser, dummy_expr()).unwrap();
 
-        let end = parser.curr_token.clone();
+        let end = parser.curr_token;
 
         assert_eq!(start, crate::token::Token::Plus);
         assert_eq!(end, crate::token::Token::Int(6.into()));

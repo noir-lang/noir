@@ -52,7 +52,7 @@ fn handle_arithmetic_mul(
     // Arriving here means that we do not have one of the operands as a constant
     // Create an intermediate variable for the arithmetic gate
     let (intermediate_var, _) = evaluator.create_intermediate_variable(arith);
-    return handle_mul_op(intermediate_var, polynomial, evaluator);
+    handle_mul_op(intermediate_var, polynomial, evaluator)
 }
 
 fn handle_linear_mul(
@@ -62,7 +62,7 @@ fn handle_linear_mul(
 ) -> Result<Object, RuntimeErrorKind> {
     match polynomial {
         Object::Arithmetic(arith) => {
-            return handle_arithmetic_mul(arith, Object::Linear(linear), evaluator);
+            handle_arithmetic_mul(arith, Object::Linear(linear), evaluator)
         }
         Object::Linear(linear_rhs) => Ok(Object::Arithmetic(&linear * &linear_rhs)),
         Object::Constants(constant) => Ok(Object::Linear(&linear * &constant)),

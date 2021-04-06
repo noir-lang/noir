@@ -23,7 +23,7 @@ impl CallParser {
             ExpressionKind::Path(path) => path,
             _ => {
                 return Err(ParserErrorKind::UnstructuredError {
-                    message: format!("expected a path for the function name"),
+                    message: "expected a path for the function name".to_string(),
                     span: func_path.span,
                 })
             }
@@ -50,7 +50,7 @@ mod test {
     pub(crate) fn dummy_path_expr() -> Expression {
         use crate::parser::prefix_parser::PrefixParser;
 
-        const SRC: &'static str = r#"
+        const SRC: &str = r#"
             std::hash
         "#;
 
