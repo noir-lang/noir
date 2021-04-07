@@ -41,7 +41,11 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
         Scope(HashMap::with_capacity(100))
     }
 
-    pub fn find(&mut self, key: &K) -> Option<&mut V> {
+    pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: std::borrow::Borrow<Q>,
+        Q: std::hash::Hash + Eq,
+    {
         self.0.get_mut(key)
     }
     pub fn occupied_key(&mut self, key: &K) -> Option<&K> {
@@ -85,7 +89,11 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
     }
 
     // Recursively search for a key in the scope tree
-    pub fn find(&mut self, key: &K) -> Option<&mut V> {
+    pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: std::borrow::Borrow<Q>,
+        Q: std::hash::Hash + Eq,
+    {
         for scope in self.0.iter_mut().rev() {
             if let Some(value_found) = scope.find(key) {
                 return Some(value_found);
@@ -113,10 +121,10 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for ScopeTree<K, V> {
 // XXX: This trait is needed because when we pop off a forscope in the resolver
 // We want to check it for unused variables and return. Currently,
 // we only have an API for this with ScopeTree in the resolver.
-impl<K: std::hash::Hash + Eq + Clone, V> Into<ScopeTree<K, V>> for Scope<K, V> {
-    fn into(self) -> ScopeTree<K, V> {
+impl<K: std::hash::Hash + Eq + Clone, V> From<Scope<K, V>> for ScopeTree<K, V> {
+    fn from(scp: Scope<K, V>) -> Self {
         let mut tree = ScopeTree::new();
-        tree.0.push(self);
+        tree.0.push(scp);
         tree
     }
 }

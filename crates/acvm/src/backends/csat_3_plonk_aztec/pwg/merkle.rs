@@ -1,3 +1,4 @@
+#![allow(dead_code)] // TODO: remove once this module is used
 use aztec_backend::barretenberg_rs::Barretenberg;
 use noir_field::FieldElement;
 
@@ -294,7 +295,7 @@ fn check_membership() {
     let mut tree = MerkleTree::new(3);
 
     for test_vector in tests {
-        let index = FieldElement::from_str(test_vector.index).unwrap();
+        let index = FieldElement::try_from_str(test_vector.index).unwrap();
         let index_as_usize: usize = test_vector.index.parse().unwrap();
 
         let leaf = hash(&test_vector.message);

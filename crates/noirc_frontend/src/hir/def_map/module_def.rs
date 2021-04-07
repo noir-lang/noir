@@ -25,13 +25,14 @@ impl ModuleDefId {
     }
 }
 
-impl Into<ModuleDefId> for ModuleId {
-    fn into(self) -> ModuleDefId {
-        ModuleDefId::ModuleId(self)
+impl From<ModuleId> for ModuleDefId {
+    fn from(mid: ModuleId) -> Self {
+        ModuleDefId::ModuleId(mid)
     }
 }
-impl Into<ModuleDefId> for FuncId {
-    fn into(self) -> ModuleDefId {
-        ModuleDefId::FunctionId(self)
+
+impl From<FuncId> for ModuleDefId {
+    fn from(fid: FuncId) -> Self {
+        ModuleDefId::FunctionId(fid)
     }
 }

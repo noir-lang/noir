@@ -60,7 +60,7 @@ pub fn fetch_by_name(string: &str) -> Option<BackendPointer> {
     };
 
     let (_, target) = TIER_THREE_MAP.iter().find(|(name, _)| name == &string)?;
-    return Some(BackendPointer::Three(*target));
+    Some(BackendPointer::Three(*target))
 }
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}

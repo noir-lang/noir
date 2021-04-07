@@ -75,9 +75,9 @@ fn span_parser(
     parser: &mut Parser,
     f: fn(parser: &mut Parser) -> ParserExprKindResult,
 ) -> ParserExprResult {
-    let start = parser.curr_token.into_span();
+    let start = parser.curr_token.to_span();
     let kind = f(parser)?;
-    let end = parser.curr_token.into_span();
+    let end = parser.curr_token.to_span();
 
     Ok(Expression {
         kind,

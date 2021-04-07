@@ -38,7 +38,7 @@ impl WASMValue {
     pub fn value(self) -> Value {
         self.0.unwrap()
     }
-    pub fn to_i32(self) -> i32 {
+    pub fn into_i32(self) -> i32 {
         use std::convert::TryFrom;
         i32::try_from(self.0.unwrap()).expect("expected an i32 value")
     }

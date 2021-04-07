@@ -36,7 +36,7 @@ fn bound_check(
             // the compiler will complain as we cannot subtract an integer from a linear polynomial
             let lower_bound_as_arith =
                 lower_bound
-                    .into_arithmetic()
+                    .to_arithmetic()
                     .ok_or(RuntimeErrorKind::UnstructuredError {
                         span: Default::default(),
                         message: "invalid lower bound being used in bound check".to_string(),

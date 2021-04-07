@@ -79,7 +79,7 @@ impl Driver {
     }
 
     /// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
-    /// the compiler is compiling.  
+    /// the compiler is compiling.
     pub fn create_non_local_crate<P: AsRef<Path>>(
         &mut self,
         root_file: P,
@@ -149,12 +149,12 @@ impl Driver {
         let main_function = local_crate.main_function()?;
 
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
+        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
         Some(abi)
     }
 
-    pub fn into_compiled_program(&mut self, backend: BackendPointer) -> CompiledProgram {
+    pub fn into_compiled_program(mut self, backend: BackendPointer) -> CompiledProgram {
         self.build();
         // First find the local crate
         // There is always a local crate
@@ -176,7 +176,7 @@ impl Driver {
 
         // Create ABi for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
-        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
+        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
         let evaluator = Evaluator::new(main_function, &self.context);
 
@@ -224,6 +224,12 @@ impl Driver {
                 .add_dep(crate_id, name.clone(), std_crate_id)
                 .expect("ice: cyclic error triggered with std library");
         }
+    }
+}
+
+impl Default for Driver {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

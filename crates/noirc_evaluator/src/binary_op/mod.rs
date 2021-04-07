@@ -60,8 +60,8 @@ pub fn maybe_equal(
     evaluator: &mut Evaluator,
 ) -> Result<Integer, RuntimeErrorKind> {
     const ICE_STR: &str = "ice: this method should only be called for arithmetic gates";
-    let a_arith = a.into_arithmetic().expect(ICE_STR);
-    let b_arith = b.into_arithmetic().expect(ICE_STR);
+    let a_arith = a.to_arithmetic().expect(ICE_STR);
+    let b_arith = b.to_arithmetic().expect(ICE_STR);
 
     // u = a - b
     let a_minus_b = &a_arith - &b_arith;

@@ -26,7 +26,7 @@ impl DeclarationParser {
             kw => {
                 let msg = format!("the keyword {} cannot be used to declare a statement. Please use `let`, `const` or `priv`", kw);
                 Err(ParserErrorKind::UnstructuredError {
-                    span: parser.curr_token.into_span(),
+                    span: parser.curr_token.to_span(),
                     message: msg,
                 })
             }

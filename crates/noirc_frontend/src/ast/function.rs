@@ -78,14 +78,14 @@ impl NoirFunction {
     }
 }
 
-impl Into<NoirFunction> for FunctionDefinition {
-    fn into(self) -> NoirFunction {
-        let kind = match self.attribute {
+impl From<FunctionDefinition> for NoirFunction {
+    fn from(fd: FunctionDefinition) -> Self {
+        let kind = match fd.attribute {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
             None => FunctionKind::Normal,
         };
 
-        NoirFunction { def: self, kind }
+        NoirFunction { def: fd, kind }
     }
 }

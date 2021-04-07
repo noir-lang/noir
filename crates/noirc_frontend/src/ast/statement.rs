@@ -7,7 +7,7 @@ pub struct Ident(pub Spanned<String>);
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
-        &self.0.contents == &other.0.contents
+        self.0.contents == other.0.contents
     }
 }
 
@@ -36,7 +36,7 @@ impl From<&str> for Ident {
 
 impl From<SpannedToken> for Ident {
     fn from(st: SpannedToken) -> Ident {
-        let spanned_str = Spanned::from(st.into_span(), st.token().to_string());
+        let spanned_str = Spanned::from(st.to_span(), st.token().to_string());
         Ident(spanned_str)
     }
 }
@@ -114,7 +114,7 @@ impl Path {
         }
         self.segments.first()
     }
-    pub fn into_ident(&self) -> Option<Ident> {
+    pub fn to_ident(&self) -> Option<Ident> {
         if !self.is_ident() {
             return None;
         }

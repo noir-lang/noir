@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 pub struct GadgetCaller;
 
 impl GadgetCaller {
-    pub fn solve_gadget_call<'a>(
+    pub fn solve_gadget_call(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gadget_call: &GadgetCall,
     ) -> Result<(), acir::OPCODE> {
@@ -68,16 +68,16 @@ impl GadgetCaller {
                 let pub_key: [u8; 64] = pub_key_bytes.try_into().unwrap();
 
                 let mut signature = [0u8; 64];
-                for i in 0..64 {
+                for (i, sig) in signature.iter_mut().enumerate() {
                     let _sig_i = inputs_iter.next().unwrap_or_else(|| {
                         panic!("signature should be 64 bytes long, found only {} bytes", i)
                     });
                     let sig_i = input_to_value(initial_witness, _sig_i);
-                    signature[i] = *sig_i.to_bytes().last().unwrap()
+                    *sig = *sig_i.to_bytes().last().unwrap()
                 }
 
                 let mut message = Vec::new();
-                while let Some(msg) = inputs_iter.next() {
+                for msg in inputs_iter {
                     let msg_i_field = input_to_value(initial_witness, msg);
                     let msg_i = *msg_i_field.to_bytes().last().unwrap();
                     message.push(msg_i);
@@ -99,7 +99,7 @@ impl GadgetCaller {
                     .map(|input| {
                         // XXX: Clone is not desirable. Remove on next refactor.
                         // Although it is just a memcpy
-                        input_to_value(initial_witness, input).clone()
+                        *input_to_value(initial_witness, input)
                     })
                     .collect();
 
@@ -152,6 +152,7 @@ impl GadgetCaller {
     }
 }
 
+#[allow(dead_code)]
 fn log2(x: usize) -> u32 {
     let x = x as u128;
     assert!(x.is_power_of_two());

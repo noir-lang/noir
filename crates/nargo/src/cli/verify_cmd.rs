@@ -30,7 +30,7 @@ pub(crate) fn run(args: ArgMatches) {
 
 fn verify(proof_name: &str) -> bool {
     let curr_dir = std::env::current_dir().unwrap();
-    let (mut driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
+    let (driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
     let compiled_program = driver.into_compiled_program(backend_ptr);
 
     let mut proof_path = curr_dir;

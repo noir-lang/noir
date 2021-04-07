@@ -55,7 +55,7 @@ impl FieldElement {
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.
     /// This method can be used for both hex and decimal representations.
-    pub fn from_str(input: &str) -> Option<FieldElement> {
+    pub fn try_from_str(input: &str) -> Option<FieldElement> {
         if input.contains('x') {
             return FieldElement::from_hex(input);
         }

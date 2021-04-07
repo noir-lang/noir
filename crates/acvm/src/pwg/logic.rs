@@ -7,7 +7,7 @@ pub struct LogicSolver {}
 
 impl LogicSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    fn solve_logic_gate<'a>(
+    fn solve_logic_gate(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         a: &Witness,
         b: &Witness,

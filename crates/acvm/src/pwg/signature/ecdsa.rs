@@ -10,32 +10,30 @@ pub fn secp256k1_prehashed(
     let mut inputs_iter = gadget_call.inputs.iter();
 
     let mut pub_key_x = [0u8; 32];
-    for i in 0..32 {
-        let _x_i = inputs_iter.next().expect(&format!(
-            "pub_key_x should be 32 bytes long, found only {} bytes",
-            i
-        ));
+    for (i, pkx) in pub_key_x.iter_mut().enumerate() {
+        let _x_i = inputs_iter
+            .next()
+            .unwrap_or_else(|| panic!("pub_key_x should be 32 bytes long, found only {} bytes", i));
         let x_i = input_to_value(initial_witness, _x_i);
-        pub_key_x[i] = *x_i.to_bytes().last().unwrap()
+        *pkx = *x_i.to_bytes().last().unwrap()
     }
 
     let mut pub_key_y = [0u8; 32];
-    for i in 0..32 {
+    for (i, pky) in pub_key_y.iter_mut().enumerate() {
         let _y_i = inputs_iter
             .next()
             .unwrap_or_else(|| panic!("pub_key_y should be 32 bytes long, found only {} bytes", i));
         let y_i = input_to_value(initial_witness, _y_i);
-        pub_key_y[i] = *y_i.to_bytes().last().unwrap()
+        *pky = *y_i.to_bytes().last().unwrap()
     }
 
     let mut signature = [0u8; 64];
-    for i in 0..64 {
-        let _sig_i = inputs_iter.next().expect(&format!(
-            "signature should be 64 bytes long, found only {} bytes",
-            i
-        ));
+    for (i, sig) in signature.iter_mut().enumerate() {
+        let _sig_i = inputs_iter
+            .next()
+            .unwrap_or_else(|| panic!("signature should be 64 bytes long, found only {} bytes", i));
         let sig_i = input_to_value(initial_witness, _sig_i);
-        signature[i] = *sig_i.to_bytes().last().unwrap()
+        *sig = *sig_i.to_bytes().last().unwrap()
     }
 
     let mut hashed_message = Vec::new();
@@ -69,7 +67,8 @@ mod ecdsa_secp256k1 {
         AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
     };
     // This method is used to generate test vectors
-    // in noir.
+    // in noir. TODO: check that it is indeed used
+    #[allow(dead_code)]
     fn generate_proof_data() {
         use k256::ecdsa::{signature::Signer, SigningKey};
 
@@ -148,6 +147,7 @@ mod ecdsa_secp256k1 {
         let u1 = z * s_inv;
         let u2 = *r * s_inv;
 
+        #[allow(non_snake_case)]
         let R: AffinePoint = ((ProjectivePoint::generator() * u1)
             + (ProjectivePoint::from(*pubkey.as_affine()) * u2))
             .to_affine();

@@ -37,7 +37,7 @@ fn token_to_binary_op(spanned_tok: &SpannedToken) -> Result<BinaryOp, ParserErro
     let bin_op_kind = bin_op_kind.ok_or(ParserErrorKind::TokenNotBinaryOp {
         spanned_token: spanned_tok.clone(),
     })?;
-    Ok(Spanned::from(spanned_tok.into_span(), bin_op_kind))
+    Ok(Spanned::from(spanned_tok.to_span(), bin_op_kind))
 }
 
 #[cfg(test)]

@@ -228,7 +228,7 @@ impl<'a> Resolver<'a> {
             attributes,
             parameters: parameters.into(),
             return_type,
-            has_body: func.def.body.len() > 0,
+            has_body: !func.def.body.is_empty(),
         }
     }
 

@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
         let same_variant = self.peek_token.is_variant(token);
 
         if !same_variant {
-            let peeked_span = self.peek_token.into_span();
+            let peeked_span = self.peek_token.to_span();
             let peeked_token = self.peek_token.token().clone();
             self.advance_tokens(); // We advance the token regardless, so the parser does not choke on a prefix function
             return Err(ParserErrorKind::UnexpectedToken {
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
         let peeked_kind = self.peek_token.kind();
         let same_kind = peeked_kind == token_kind;
         if !same_kind {
-            let peeked_span = self.peek_token.into_span();
+            let peeked_span = self.peek_token.to_span();
             self.advance_tokens();
             return Err(ParserErrorKind::UnexpectedTokenKind {
                 span: peeked_span,
@@ -148,7 +148,7 @@ impl<'a> Parser<'a> {
                     // XXX: We may allow global constants. We can use a subenum to remove the wildcard pattern
                     let expected_tokens = r#" expected "`mod`, `use`,`fn` `#`"#;
                     let err = ParserErrorKind::UnstructuredError {
-                        span: self.curr_token.into_span(),
+                        span: self.curr_token.to_span(),
                         message: format!("found `{}`. {}", tok, expected_tokens), // XXX: Fix in next refactor, avoid allocations with error messages
                     };
                     self.errors.push(err);
@@ -252,7 +252,7 @@ impl<'a> Parser<'a> {
             Some(prefix_parser) => prefix_parser.parse(self)?,
             None => {
                 return Err(ParserErrorKind::ExpectedExpression {
-                    span: self.curr_token.into_span(),
+                    span: self.curr_token.to_span(),
                     lexeme: self.curr_token.token().to_string(),
                 })
             }
@@ -391,7 +391,7 @@ impl<'a> Parser<'a> {
                 let message = "unexpected field element type keyword found. \"pub, priv or const\" is not valid here".to_string();
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
-                    span: self.curr_token.into_span(),
+                    span: self.curr_token.to_span(),
                 });
             }
             (false, false) => {
@@ -415,7 +415,7 @@ impl<'a> Parser<'a> {
                 let message = format!("Expected a type, found {}", k);
                 Err(ParserErrorKind::UnstructuredError {
                     message,
-                    span: self.curr_token.into_span(),
+                    span: self.curr_token.to_span(),
                 })
             }
         }
@@ -435,7 +435,7 @@ impl<'a> Parser<'a> {
                 );
                 Err(ParserErrorKind::UnstructuredError {
                     message,
-                    span: self.curr_token.into_span(),
+                    span: self.curr_token.to_span(),
                 })
             }
         }
@@ -453,7 +453,7 @@ impl<'a> Parser<'a> {
                     let message = "Array sizes must fit within a u128".to_string();
                     return Err(ParserErrorKind::UnstructuredError {
                         message,
-                        span: self.peek_token.into_span(),
+                        span: self.peek_token.to_span(),
                     });
                 }
                 self.advance_tokens();
@@ -464,7 +464,7 @@ impl<'a> Parser<'a> {
                 let message = "The array size is defined as [k] for fixed size or [] for variable length. k must be a literal".to_string();
                 return Err(ParserErrorKind::UnstructuredError {
                     message,
-                    span: self.peek_token.into_span(),
+                    span: self.peek_token.to_span(),
                 });
             }
         };
@@ -478,7 +478,7 @@ impl<'a> Parser<'a> {
         if self.peek_token == Token::LeftBracket {
             return Err(ParserErrorKind::UnstructuredError {
                 message: "Currently Multi-dimensional arrays are not supported".to_string(),
-                span: self.peek_token.into_span(),
+                span: self.peek_token.to_span(),
             });
         }
 
@@ -498,7 +498,7 @@ mod test {
         const COMMENT_BETWEEN_FIELD: &str = r#"
             fn main(
                 // This comment should be skipped
-                x : Field, 
+                x : Field,
                 // And this one
                 y : Field,
             ) {

@@ -194,7 +194,7 @@ impl<'a> Evaluator<'a> {
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
 
-        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
+        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
         for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {

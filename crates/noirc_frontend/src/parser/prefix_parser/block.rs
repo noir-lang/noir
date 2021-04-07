@@ -27,7 +27,7 @@ impl BlockParser {
         if parser.curr_token != Token::LeftBrace {
             return Err(ParserErrorKind::UnstructuredError {
                 message: "Expected a { to start the block expression".to_string(),
-                span: parser.curr_token.into_span(),
+                span: parser.curr_token.to_span(),
             });
         }
         parser.advance_tokens();
@@ -40,7 +40,7 @@ impl BlockParser {
         if parser.curr_token != Token::RightBrace {
             return Err(ParserErrorKind::UnstructuredError {
                 message: "Expected a } to end the block expression".to_string(),
-                span: parser.curr_token.into_span(),
+                span: parser.curr_token.to_span(),
             });
         }
 

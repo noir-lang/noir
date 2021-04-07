@@ -17,15 +17,13 @@ pub enum ArraySize {
 
 impl ArraySize {
     fn is_fixed(&self) -> bool {
-        match self {
-            ArraySize::Fixed(_) => true,
-            _ => false,
-        }
+        matches!(self, ArraySize::Fixed(_))
     }
     fn is_variable(&self) -> bool {
         !self.is_fixed()
     }
 
+    #[allow(clippy::suspicious_operation_groupings)]
     fn is_a_super_type_of(&self, argument: &ArraySize) -> bool {
         (self.is_variable() && argument.is_fixed()) || (self == argument)
     }
@@ -107,9 +105,9 @@ impl Type {
     pub const PUBLIC: Type = Type::FieldElement(FieldElementType::Public);
 }
 
-impl Into<AbiType> for &Type {
-    fn into(self) -> AbiType {
-        self.as_abi_type()
+impl From<&Type> for AbiType {
+    fn from(ty: &Type) -> AbiType {
+        ty.as_abi_type()
     }
 }
 
@@ -153,15 +151,14 @@ impl Type {
 
         // For composite types, we need to check they are structurally the same
         // and then check that their base types are super types
-        match (self, argument) {
-            (Type::Array(_, param_size, param_type), Type::Array(_, arg_size, arg_type)) => {
-                let is_super_type = param_type.is_super_type_of(arg_type);
+        if let (Type::Array(_, param_size, param_type), Type::Array(_, arg_size, arg_type)) =
+            (self, argument)
+        {
+            let is_super_type = param_type.is_super_type_of(arg_type);
 
-                let arity_check = param_size.is_a_super_type_of(arg_size);
+            let arity_check = param_size.is_a_super_type_of(arg_size);
 
-                return is_super_type && arity_check;
-            }
-            _ => {}
+            return is_super_type && arity_check;
         }
 
         // XXX: Should we also allow functions that ask for u16
@@ -172,10 +169,10 @@ impl Type {
     }
 
     pub fn is_field_element(&self) -> bool {
-        match self {
-            Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Type::FieldElement(_) | Type::Bool | Type::Integer(_, _, _)
+        )
     }
 
     /// Computes the number of elements in a Type
@@ -227,37 +224,34 @@ impl Type {
     }
     // Returns true if the Type can be used in a Constrain statement
     pub fn can_be_used_in_constrain(&self) -> bool {
-        match self {
-            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Type::FieldElement(_) | Type::Integer(_, _, _) | Type::Array(_, _, _)
+        )
     }
 
     // Base types are types in the language that are simply alias for a field element
     // Therefore they can be the operands in an infix comparison operator
     pub fn is_base_type(&self) -> bool {
-        match self {
-            Type::FieldElement(_) | Type::Integer(_, _, _) => true,
-            _ => false,
-        }
+        matches!(self, Type::FieldElement(_) | Type::Integer(_, _, _))
     }
 
     pub fn is_constant(&self) -> bool {
-        match self {
-            Type::FieldElement(FieldElementType::Constant) => true,
-            Type::Integer(FieldElementType::Constant, _, _) => true,
-            // XXX: Currently no such thing as a const array
-            _ => false,
-        }
+        // XXX: Currently no such thing as a const array
+        matches!(
+            self,
+            Type::FieldElement(FieldElementType::Constant)
+                | Type::Integer(FieldElementType::Constant, _, _)
+        )
     }
 
     pub fn is_public(&self) -> bool {
-        match self {
-            Type::FieldElement(FieldElementType::Public) => true,
-            Type::Integer(FieldElementType::Public, _, _) => true,
-            Type::Array(FieldElementType::Public, _, _) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Type::FieldElement(FieldElementType::Public)
+                | Type::Integer(FieldElementType::Public, _, _)
+                | Type::Array(FieldElementType::Public, _, _)
+        )
     }
 
     // Returns true, if both type can be used in an infix expression

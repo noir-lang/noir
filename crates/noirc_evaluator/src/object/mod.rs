@@ -76,7 +76,7 @@ impl Object {
         }
     }
     // Converts a Object into an arithmetic object
-    pub fn into_arithmetic(&self) -> Option<Arithmetic> {
+    pub fn to_arithmetic(&self) -> Option<Arithmetic> {
         match self {
             Object::Null => None,
             Object::Integer(integer) => Some(Linear::from_witness(integer.witness).into()),

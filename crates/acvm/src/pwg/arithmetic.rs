@@ -91,8 +91,8 @@ impl ArithmeticSolver {
                 match (w_l_value, w_r_value) {
                     (None, None) => MulTerm::TooManyUnknowns,
                     (Some(w_l), Some(w_r)) => MulTerm::Solved(*q_m * *w_l * *w_r),
-                    (None, Some(w_r)) => MulTerm::OneUnknown(*q_m * *w_r, w_l.clone()),
-                    (Some(w_l), None) => MulTerm::OneUnknown(*q_m * *w_l, w_r.clone()),
+                    (None, Some(w_r)) => MulTerm::OneUnknown(*q_m * *w_r, *w_l),
+                    (Some(w_l), None) => MulTerm::OneUnknown(*q_m * *w_l, *w_r),
                 }
             }
             _ => panic!("Mul term in the arithmetic gate must contain either zero or one term"),
@@ -124,7 +124,7 @@ impl ArithmeticSolver {
             match w_l_value {
                 Some(a) => result += q_l * *a,
                 None => {
-                    unknown_variable = term.clone();
+                    unknown_variable = *term;
                     num_unknowns += 1;
                 }
             };
