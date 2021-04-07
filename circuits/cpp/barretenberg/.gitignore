@@ -1,5 +1,5 @@
 build*
-src/wasi-sdk-8.0
+src/wasi-sdk-*
 srs_db/ignition/transcript*
 srs_db/lagrange
 srs_db/coset_lagrange
