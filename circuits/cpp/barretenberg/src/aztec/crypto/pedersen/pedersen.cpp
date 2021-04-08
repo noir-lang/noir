@@ -11,7 +11,11 @@ namespace pedersen {
 namespace {
 
 // The number of unique base points with precomputed lookup tables
+#ifdef __wasm__
+static constexpr size_t num_generators = 64;
+#else
 static constexpr size_t num_generators = 2048;
+#endif
 
 /**
  * The number of bits in each precomputed lookup table. Regular pedersen hashes use 254 bits, some other

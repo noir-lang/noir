@@ -10,12 +10,12 @@ if [ "$1" == "staged" ]; then
   done
 elif [ -n "$1" ]; then
   for FILE in $(git diff-index --relative --name-only $1 | grep -e '\.\(cpp\|hpp\|tcc\)$'); do
-    clang-format --sort-includes -i $FILE
+    clang-format -i $FILE
     sed -i.bak 's/\r$//' $FILE && rm ${FILE}.bak
   done
 else
   for FILE in $(find ./src -iname *.hpp -o -iname *.cpp -o -iname *.tcc | grep -v src/boost); do
-    clang-format --sort-includes -i $FILE
+    clang-format -i $FILE
     sed -i.bak 's/\r$//' $FILE && rm ${FILE}.bak
   done
 fi
