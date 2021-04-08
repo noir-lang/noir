@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 /// and create the other witness variables
 pub struct ArithmeticSolver;
 
+#[allow(clippy::enum_variant_names)]
 enum GateStatus {
     GateSatisfied(FieldElement),
     GateSolvable(FieldElement, (FieldElement, Witness)),
@@ -30,9 +31,9 @@ impl ArithmeticSolver {
         let gate_status = ArithmeticSolver::solve_fan_in_term(&gate, &initial_witness);
 
         match (mul_result, gate_status) {
-            (MulTerm::TooManyUnknowns, _) => return Some(gate),
-            (_, GateStatus::GateUnsolvable) => return Some(gate),
-            (MulTerm::OneUnknown(_, _), GateStatus::GateSolvable(_, _)) => return Some(gate),
+            (MulTerm::TooManyUnknowns, _) => Some(gate),
+            (_, GateStatus::GateUnsolvable) => Some(gate),
+            (MulTerm::OneUnknown(_, _), GateStatus::GateSolvable(_, _)) => Some(gate),
             (MulTerm::OneUnknown(partial_prod, unknown_var), GateStatus::GateSatisfied(sum)) => {
                 // We have one unknown in the mul term and the fan-in terms are solved.
                 // Hence the equation is solvable, since there is a single unknown
@@ -42,11 +43,12 @@ impl ArithmeticSolver {
                 let assignment = -(total_sum / partial_prod);
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
+                None
             }
             (MulTerm::Solved(_), GateStatus::GateSatisfied(_)) => {
                 // All the variables in the MulTerm are solved and the Fan-in is also solved
                 // There is nothing to solve
-                return None;
+                None
             }
             (
                 MulTerm::Solved(total_prod),
@@ -60,15 +62,14 @@ impl ArithmeticSolver {
                 let assignment = -(total_sum / coeff);
                 // Add this into the witness assignments
                 initial_witness.insert(unknown_var, assignment);
+                None
             }
-        };
-
-        return None;
+        }
     }
 
     /// Returns the evaluation of the multiplication term in the arithmetic gate
     /// If the witness values are not known, then the function returns a None
-    /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another gate  
+    /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another gate
     /// XXX: What about making a mul gate = a constant 5xy + 7 = 0 ? This is the same as the above.
     fn solve_mul_term(
         arith_gate: &Arithmetic,
@@ -77,7 +78,7 @@ impl ArithmeticSolver {
         // First note that the mul term can only contain one/zero term
         // We are assuming it has been optimised.
         match arith_gate.mul_terms.len() {
-            0 => return MulTerm::Solved(FieldElement::zero()),
+            0 => MulTerm::Solved(FieldElement::zero()),
             1 => {
                 let q_m = &arith_gate.mul_terms[0].0;
                 let w_l = &arith_gate.mul_terms[0].1;
@@ -88,11 +89,11 @@ impl ArithmeticSolver {
                 let w_r_value = witness_assignments.get(w_r);
 
                 match (w_l_value, w_r_value) {
-                    (None, None) => return MulTerm::TooManyUnknowns,
-                    (Some(w_l), Some(w_r)) => return MulTerm::Solved(*q_m * *w_l * *w_r),
-                    (None, Some(w_r)) => return MulTerm::OneUnknown(*q_m * *w_r, w_l.clone()),
-                    (Some(w_l), None) => return MulTerm::OneUnknown(*q_m * *w_l, w_r.clone()),
-                };
+                    (None, None) => MulTerm::TooManyUnknowns,
+                    (Some(w_l), Some(w_r)) => MulTerm::Solved(*q_m * *w_l * *w_r),
+                    (None, Some(w_r)) => MulTerm::OneUnknown(*q_m * *w_r, *w_l),
+                    (Some(w_l), None) => MulTerm::OneUnknown(*q_m * *w_l, *w_r),
+                }
             }
             _ => panic!("Mul term in the arithmetic gate must contain either zero or one term"),
         }
@@ -123,7 +124,7 @@ impl ArithmeticSolver {
             match w_l_value {
                 Some(a) => result += q_l * *a,
                 None => {
-                    unknown_variable = term.clone();
+                    unknown_variable = *term;
                     num_unknowns += 1;
                 }
             };

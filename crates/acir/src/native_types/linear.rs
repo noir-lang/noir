@@ -1,3 +1,7 @@
+// turn off linting related to operator usage (this
+// file contains /implementations/)
+#![allow(clippy::op_ref)]
+
 use crate::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
 
@@ -69,6 +73,7 @@ impl Neg for &Linear {
 
 impl Mul<&Linear> for &Linear {
     type Output = Arithmetic;
+    #[allow(clippy::many_single_char_names)]
     fn mul(self, rhs: &Linear) -> Self::Output {
         // (Ax+B)(Cy+D) = ACxy + ADx + BCy + BD
         let a = self.mul_scale;
@@ -132,7 +137,7 @@ impl Add<&FieldElement> for &Linear {
     }
 }
 
-/// Convenience Trait implementations
+// Convenience Trait implementations
 impl Add<Linear> for Linear {
     type Output = Arithmetic;
     fn add(self, rhs: Linear) -> Self::Output {

@@ -5,7 +5,7 @@ use crate::Backend;
 #[derive(Debug, Copy, Clone)]
 pub enum TierTwo {}
 
-pub const TIER_TWO_MAP: [(&'static str, TierTwo); 0] = [];
+pub const TIER_TWO_MAP: [(&str, TierTwo); 0] = [];
 
 impl TierTwo {
     pub(crate) fn fetch_backend(&self) -> Box<dyn Backend> {

@@ -13,7 +13,7 @@ impl LiteralParser {
             Token::Bool(x) => ExpressionKind::Literal(Literal::Bool(x)),
             x => {
                 return Err(ParserErrorKind::UnexpectedTokenKind {
-                    span: parser.curr_token.into_span(),
+                    span: parser.curr_token.to_span(),
                     expected: TokenKind::Literal,
                     found: x.kind(),
                 })

@@ -1,5 +1,6 @@
 mod errors;
 mod infix_parser;
+#[allow(clippy::module_inception)]
 mod parser;
 mod prefix_parser;
 

@@ -68,12 +68,11 @@ impl MerkleMembershipGadget {
             panic!("the hashpath is always an even number")
         }
 
-        let mut inputs: Vec<GadgetInput> = Vec::new();
-
-        inputs.push(GadgetInput {
+        let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: root_witness,
             num_bits: noir_field::FieldElement::max_num_bits(),
-        });
+        }];
+
         inputs.push(GadgetInput {
             witness: leaf_witness,
             num_bits: noir_field::FieldElement::max_num_bits(),

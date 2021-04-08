@@ -31,9 +31,7 @@ impl PerNs {
     }
 
     pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility)> {
-        self.types
-            .into_iter()
-            .chain(self.values.into_iter())
+        self.types.into_iter().chain(self.values.into_iter())
     }
 
     pub fn is_none(&self) -> bool {

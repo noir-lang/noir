@@ -80,10 +80,7 @@ impl Sha256Gadget {
                 k => unimplemented!("SHA256 logic for {:?} is not implemented yet", k),
             };
 
-            inputs.push(GadgetInput {
-                witness,
-                num_bits,
-            });
+            inputs.push(GadgetInput { witness, num_bits });
         }
 
         Ok(inputs)

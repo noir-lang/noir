@@ -5,12 +5,18 @@ use ark_ff::{One, Zero};
 use std::str::FromStr;
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Eq, PartialOrd, Ord)]
 pub struct FieldElement(Fr);
 
 impl std::hash::Hash for FieldElement {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write(&self.to_bytes())
+    }
+}
+
+impl PartialEq for FieldElement {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_bytes() == other.to_bytes()
     }
 }
 
@@ -49,7 +55,7 @@ impl FieldElement {
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.
     /// This method can be used for both hex and decimal representations.
-    pub fn from_str(input: &str) -> Option<FieldElement> {
+    pub fn try_from_str(input: &str) -> Option<FieldElement> {
         if input.contains('x') {
             return FieldElement::from_hex(input);
         }
@@ -115,7 +121,7 @@ impl FieldElement {
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behaviour is necessary
     pub fn inverse(&self) -> FieldElement {
-        let inv = self.0.inverse().unwrap_or(Fr::zero());
+        let inv = self.0.inverse().unwrap_or_else(Fr::zero);
         FieldElement(inv)
     }
 
@@ -266,11 +272,7 @@ fn pack_bits_into_bytes(bits: Vec<bool>) -> Vec<u8> {
 // This is needed because arkworks only accepts arbitrary sized
 // decimal strings and not hex strings
 pub fn hex_to_decimal(value: &str) -> String {
-    let value = if value.starts_with("0x") {
-        &value[2..]
-    } else {
-        value
-    };
+    let value = value.strip_prefix("0x").unwrap_or(value);
 
     use num_bigint::BigInt;
     BigInt::parse_bytes(value.as_bytes(), 16)
@@ -298,6 +300,7 @@ impl Mul for FieldElement {
 }
 impl Div for FieldElement {
     type Output = FieldElement;
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: FieldElement) -> Self::Output {
         self * rhs.inverse()
     }

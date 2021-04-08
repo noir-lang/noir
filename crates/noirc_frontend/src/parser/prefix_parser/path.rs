@@ -17,7 +17,7 @@ impl PathParser {
         let mut parsed_path = Vec::new();
 
         // Parse the first path segment as a keyword or an identifier
-        let span_first_segment = parser.curr_token.into_span();
+        let span_first_segment = parser.curr_token.to_span();
         let (ident, path_kind) = path_identifer(&parser.curr_token)?;
         if let PathKind::Plain = path_kind {
             parsed_path.push(ident.expect("plain paths should contain their identifiers"));
@@ -62,14 +62,14 @@ fn path_identifer(
     use noirc_errors::Spanned;
     match tok.token() {
         Token::Ident(x) => Ok((
-            Some(Spanned::from(tok.into_span(), x.to_owned()).into()),
+            Some(Spanned::from(tok.to_span(), x.to_owned()).into()),
             PathKind::Plain,
         )),
         Token::Keyword(Keyword::Crate) => Ok((None, PathKind::Crate)),
         Token::Keyword(Keyword::Dep) => Ok((None, PathKind::Dep)),
         _ => {
             return Err(ParserErrorKind::UnstructuredError {
-                span: tok.into_span(),
+                span: tok.to_span(),
                 message: format!(
                     "expected an identifier, `dep` or `crate`. found {} ",
                     tok.token().to_string()

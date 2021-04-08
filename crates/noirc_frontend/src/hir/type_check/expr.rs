@@ -97,7 +97,8 @@ pub(crate) fn type_check_expression(
                 }
                 HirLiteral::Integer(_) => {
                     // Literal integers will always be a constant, since the lexer was able to parse the integer
-                    interner.push_expr_type(expr_id, Type::FieldElement(FieldElementType::Constant));
+                    interner
+                        .push_expr_type(expr_id, Type::FieldElement(FieldElementType::Constant));
                 }
                 HirLiteral::Str(_) => unimplemented!(
                     "[Coming Soon] : Currently string literal types have not been implemented"
@@ -297,7 +298,6 @@ pub fn infix_operand_type_rules(
                 Err("Cannot use an integer and a public variable in a binary operation, try converting the public into an integer".to_string())
             }
             (Type::Integer(int_field_type,sign_x, bit_width_x), Type::FieldElement(FieldElementType::Constant))| (Type::FieldElement(FieldElementType::Constant),Type::Integer(int_field_type,sign_x, bit_width_x)) => {
-                
                 let field_type = field_type_rules(int_field_type, &FieldElementType::Constant);
                 Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
             }
@@ -349,7 +349,7 @@ fn check_param_argument(
     if arg_type.is_variable_sized_array() {
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
-    
+
     if !param_type.is_super_type_of(arg_type) {
         let span = interner.ident_span(&param_id);
         return Err(TypeCheckError::TypeMismatch {

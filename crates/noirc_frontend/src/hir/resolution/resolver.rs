@@ -122,7 +122,7 @@ impl<'a> Resolver<'a> {
             let variable_name = kv.0;
             let metadata = kv.1;
 
-            let has_underscore_prefix = variable_name.starts_with("_"); // XXX: This is used for development mode, and will be removed
+            let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
 
             if metadata.num_times_used == 0 && !has_underscore_prefix {
                 return true;
@@ -176,7 +176,7 @@ impl<'a> Resolver<'a> {
         let variable = scope_tree.find(&name.0.contents);
 
         if let Some(variable_found) = variable {
-            variable_found.num_times_used = variable_found.num_times_used + 1;
+            variable_found.num_times_used += 1;
             self.interner.linked_ident_to_def(id, variable_found.id);
             return id;
         }
@@ -222,15 +222,14 @@ impl<'a> Resolver<'a> {
 
         let return_type = func.return_type();
 
-        let func_meta = FuncMeta {
+        FuncMeta {
             name,
             kind: func.kind,
             attributes,
             parameters: parameters.into(),
             return_type,
-            has_body: func.def.body.len() > 0,
-        };
-        func_meta
+            has_body: !func.def.body.is_empty(),
+        }
     }
 
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
@@ -262,7 +261,7 @@ impl<'a> Resolver<'a> {
                 let operator: HirBinaryOp = constrain_stmt.0.operator.into();
                 let rhs = self.resolve_expression(constrain_stmt.0.rhs);
 
-                let stmt = HirConstrainStatement(HirInfixExpression { lhs, rhs, operator });
+                let stmt = HirConstrainStatement(HirInfixExpression { lhs, operator, rhs });
 
                 self.interner.push_stmt(HirStatement::Constrain(stmt))
             }
@@ -318,7 +317,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Prefix(prefix) => {
                 let operator: HirUnaryOp = prefix.operator.into();
                 let rhs = self.resolve_expression(prefix.rhs);
-                let expr = HirPrefixExpression { rhs, operator };
+                let expr = HirPrefixExpression { operator, rhs };
                 self.interner.push_expr(HirExpression::Prefix(expr))
             }
             ExpressionKind::Infix(infix) | ExpressionKind::Predicate(infix) => {

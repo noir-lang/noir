@@ -275,7 +275,7 @@ impl<'a> Lexer<'a> {
             ch.is_digit(10) | ch.is_digit(16) | (ch == 'x')
         });
 
-        let integer = match FieldElement::from_str(&integer_str) {
+        let integer = match FieldElement::try_from_str(&integer_str) {
             None => panic!("could not parse integer literal"),
             Some(integer) => integer,
         };
@@ -471,7 +471,7 @@ fn test_span() {
 
     for spanned_token in expected.into_iter() {
         let got = lexer.next_token().unwrap();
-        assert_eq!(got.into_span(), spanned_token.into_span());
+        assert_eq!(got.to_span(), spanned_token.to_span());
         assert_eq!(got, spanned_token);
     }
 }
@@ -479,14 +479,14 @@ fn test_span() {
 #[test]
 fn test_basic_language_syntax() {
     let input = "
-    
+
     const five = 5;
     pub ten : Field = 10;
     let mul = fn(x, y) {
          x * y;
     };
     priv result = mul(five, ten);
-    
+
     ";
 
     let expected = vec![

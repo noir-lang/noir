@@ -93,15 +93,15 @@ impl HirBinaryOpKind {
     /// When seen in the middle of an infix operator,
     /// they transform the infix expression into a predicate expression
     pub fn is_comparator(&self) -> bool {
-        match self {
+        matches!(
+            self,
             HirBinaryOpKind::Equal
-            | HirBinaryOpKind::NotEqual
-            | HirBinaryOpKind::LessEqual
-            | HirBinaryOpKind::Less
-            | HirBinaryOpKind::Greater
-            | HirBinaryOpKind::GreaterEqual => true,
-            _ => false,
-        }
+                | HirBinaryOpKind::NotEqual
+                | HirBinaryOpKind::LessEqual
+                | HirBinaryOpKind::Less
+                | HirBinaryOpKind::Greater
+                | HirBinaryOpKind::GreaterEqual
+        )
     }
 }
 

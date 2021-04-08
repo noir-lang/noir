@@ -58,9 +58,9 @@ impl FuncParser {
 
         parser.peek_check_variant_advance(&Token::LeftBrace)?;
 
-        let start = parser.curr_token.into_span();
+        let start = parser.curr_token.to_span();
         let body = BlockParser::parse_block_expression(parser)?;
-        let end = parser.curr_token.into_span();
+        let end = parser.curr_token.to_span();
 
         // The cursor position is inherited from the block expression
         // parsing procedure which is `}`

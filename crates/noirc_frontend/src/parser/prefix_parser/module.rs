@@ -20,7 +20,7 @@ impl ModuleParser {
 
         // XXX: It may be helpful to have a token to Ident function
         let module_identifier: Ident = match parser.curr_token.token() {
-            Token::Ident(x) => Spanned::from(parser.curr_token.into_span(), x.to_owned()).into(),
+            Token::Ident(x) => Spanned::from(parser.curr_token.to_span(), x.to_owned()).into(),
             _ => unreachable!("ice: next token was peeked to be an Ident"),
         };
 

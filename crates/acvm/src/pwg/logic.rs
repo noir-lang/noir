@@ -7,7 +7,7 @@ pub struct LogicSolver {}
 
 impl LogicSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    fn solve_logic_gate<'a>(
+    fn solve_logic_gate(
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         a: &Witness,
         b: &Witness,
@@ -21,7 +21,7 @@ impl LogicSolver {
         let (w_l_value, w_r_value) = match (w_l,w_r) {
             (Some(w_l_value), Some(w_r_value)) => { (w_l_value, w_r_value)
             },
-            (_,_) => panic!("This should have been caught by the semantic analyser; or the gates were added in the wrong order. One of your wires are None for the logic gate") 
+            (_,_) => panic!("This should have been caught by the semantic analyser; or the gates were added in the wrong order. One of your wires are None for the logic gate")
         };
 
         if is_xor_gate {
@@ -38,7 +38,7 @@ impl LogicSolver {
             initial_witness,
             &gate.a,
             &gate.b,
-            gate.result.clone(),
+            gate.result,
             gate.num_bits,
             false,
         )
@@ -48,7 +48,7 @@ impl LogicSolver {
             initial_witness,
             &gate.a,
             &gate.b,
-            gate.result.clone(),
+            gate.result,
             gate.num_bits,
             true,
         )

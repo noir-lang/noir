@@ -1,5 +1,7 @@
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy)]
 pub enum OPCODE {
+    #[allow(clippy::upper_case_acronyms)]
     AES,
     SHA256,
     Blake2s,
