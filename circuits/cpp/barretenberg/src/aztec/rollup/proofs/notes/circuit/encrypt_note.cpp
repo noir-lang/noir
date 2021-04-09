@@ -43,8 +43,9 @@ point_ct accumulate(const point_ct& accumulator, const point_ct& p_1)
 
 /**
  * Compute a pedersen hash of the plaintext:
- * [output] = plaintext.value * [g0] + plaintext.secret * [g1] + plaintext.asset_id * [g2] + plaintext.owner.x * [g3] +
- * plaintext.owner.y * [g4]
+ * [output] = plaintext.value * [g0] + plaintext.secret * [g1] + plaintext.asset_id * [g2] +
+ * Pedersen_{g6,g7,g8,g8}(plaintext.owner.x,plaintext.owner.y)
+ * + plaintext.nonce * [g5]
  **/
 point_ct encrypt_note(const value_note& plaintext)
 {

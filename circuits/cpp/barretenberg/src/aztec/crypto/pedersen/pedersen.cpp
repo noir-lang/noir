@@ -20,16 +20,14 @@ static constexpr size_t num_generators = 2048;
 /**
  * The number of bits in each precomputed lookup table. Regular pedersen hashes use 254 bits, some other
  * fixed-base scalar mul subroutines (e.g. verifying schnorr signatures) use 256 bits.
- * bit_length must be 2 bits larger than the maximum hash size
- * because we represent scalar multipliers via an array of 2-bit windowed non-adjacent form entries
  *
  * When representing an n-bit integer via a WNAF with a window size of b-bits,
  * one requires a minimum of min = (n/b + 1) windows to represent any integer
- *
- * if n = 256 and b = 2, min = 129 windows = 258 bits
+ * (The last "window" will essentially be a bit saying if the integer is odd or even)
+ * if n = 256 and b = 2, min = 129 windows
  */
-static constexpr size_t bit_length = 258;
-static constexpr size_t quad_length = bit_length / 2;
+static constexpr size_t bit_length = 256;
+static constexpr size_t quad_length = bit_length / 2 + 1;
 
 static std::array<grumpkin::g1::affine_element, num_generators> generators;
 static std::vector<std::array<fixed_base_ladder, quad_length>> ladders;
@@ -49,19 +47,19 @@ static bool inited = false;
  *
  *    ladder[3].one = [P]
  *    ladder[3].three = 3[P]
- *    ladder[2].one = 4[P] + [P]
- *    ladder[2].three = 4[P] + 3[P]
- *    ladder[1].one = 16[P] + [P]
- *    ladder[1].three = 16[P] + 3[P]
+ *    ladder[2].one = 4[P]
+ *    ladder[2].three = 12[P]
+ *    ladder[1].one = 16[P]
+ *    ladder[1].three = 3*16[P]
  *    ladder[0].one = 64[P] + [P]
- *    ladder[0].three = 64[P] + 3[P]
+ *    ladder[0].three = 3*64[P]
  *
  * i.e. for a ladder size of `n`, we have the following:
  *
  *                        n - 1 - i
- *    ladder[i].one   = (4           + 1).[P]
- *                        n - 1 - i
- *    ladder[i].three = (4           + 3).[P]
+ *    ladder[i].one   = (4           ).[P]
+ *                          n - 1 - i
+ *    ladder[i].three = (3*4           ).[P]
  *
  * When a fixed-base scalar multiplier is decomposed into a size-2 WNAF, each ladder entry represents
  * the positive half of a WNAF table
@@ -72,15 +70,19 @@ static bool inited = false;
  *
  * e.g. if the grumpkin curve order is `n`, then hash(x) = hash(x + n) if we use a single generator
  *
- * A `hash_ladders` first 128 entries, corresponding to the high 256-bits of a scalar, are taken from a ladder table.
- * The next 2 entries, however, are taken from a different ladder table, corresponding to a different generator
+ * For this reason, a hash ladder is built in a way that enables hashing the 252 higher bits of a 256 bit scalar
+ * according to one generator and the four lower bits according to a second.
  *
- * When using `hash_ladders[i]`, the scalar is split into two segments:
+ * Specifically,
  *
- *  1. The least 4 significant bits use `ladders[2 * i + 1]` (i.e. generator 2 * i + 1)
- *  2. The remaining bits use `ladders[2 * i]` (i.e. generator 2 * i)
+ *  1. For j=0,...,126, hash_ladders[i][j]=ladders[2*i][j] (i.e. generator 2 * i)
+ *  2. For j=127,128  hash_ladders[i][j]=ladders[2*i][j] (i.e. generator 2 * i + 1)
  *
- * This is sufficient to create a unique hash for an input string that is < 2^{260}
+ * This is sufficient to create an injective hash for 256 bit strings
+ * The reason we need 127 elements to hash 252 bits, or equivalently 126 quads, is that the first element of the ladder
+ * is used simply to add the  "normalization factor" 4^{127}*[P] (so ladder[0].three is never used); this addition makes
+ * all resultant scalars positive. When wanting to hash e.g. 254 instead of 256 bits, we will start the ladder one step
+ * forward - this happends in `get_ladder_internal`
  **/
 const auto init = []() {
     generators = grumpkin::g1::derive_generators<num_generators>();
