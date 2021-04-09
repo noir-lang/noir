@@ -30,7 +30,7 @@ impl PublicInputs {
             .collect()
     }
 
-    pub fn contains(&self, index : usize) -> bool {
+    pub fn contains(&self, index: usize) -> bool {
         self.0.contains(&Witness(index as u32))
     }
 }

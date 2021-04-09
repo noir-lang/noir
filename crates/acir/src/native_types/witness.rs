@@ -20,7 +20,6 @@ impl Witness {
         self.0 as usize
     }
 
-
     pub const fn can_defer_constraint(&self) -> bool {
         true
     }

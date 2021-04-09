@@ -125,7 +125,7 @@ impl FieldElement {
         FieldElement(inv)
     }
 
-    // XXX: This method is used while this field element 
+    // XXX: This method is used while this field element
     // implementation is not generic.
     pub fn into_repr(self) -> Fr {
         self.0
