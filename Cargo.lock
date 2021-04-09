@@ -102,7 +102,6 @@ dependencies = [
  "ark-std",
  "derivative",
  "num-traits",
- "rayon",
  "zeroize",
 ]
 
@@ -118,7 +117,6 @@ dependencies = [
  "ark-std",
  "derivative",
  "num-traits",
- "rayon",
  "rustc_version",
  "zeroize",
 ]
@@ -160,25 +158,6 @@ dependencies = [
  "derivative",
  "digest",
  "rand_chacha 0.2.2",
- "rayon",
-]
-
-[[package]]
-name = "ark-nonnative-field"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17887af156e9911d1dba5b30d49256d508f82f6a4f765a6fad8b5c637b700353"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-r1cs-std",
- "ark-relations",
- "ark-std",
- "derivative",
- "num-bigint 0.4.0",
- "num-integer",
- "num-traits",
- "tracing",
 ]
 
 [[package]]
@@ -192,7 +171,6 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown 0.11.2",
- "rayon",
 ]
 
 [[package]]
@@ -203,30 +181,11 @@ checksum = "ad7df2d50062d718e5914d013ee2f30dc203324e08070d16b241e869b8717ed6"
 dependencies = [
  "ark-ec",
  "ark-ff",
- "ark-nonnative-field",
  "ark-poly",
- "ark-relations",
  "ark-serialize",
  "ark-std",
  "derivative",
  "digest",
- "rayon",
- "tracing",
-]
-
-[[package]]
-name = "ark-r1cs-std"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a90fea2b84ae4443983d56540360ea004cab952292b7a6535798b6b9dcb7f41"
-dependencies = [
- "ark-ec",
- "ark-ff",
- "ark-relations",
- "ark-std",
- "derivative",
- "num-bigint 0.4.0",
- "num-traits",
  "tracing",
 ]
 
@@ -239,7 +198,6 @@ dependencies = [
  "ark-ff",
  "ark-std",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -271,7 +229,6 @@ checksum = "fb5b856a29bea7b810858116a596beee3d20fc4c5aeb240e8e5a8bca4845a470"
 dependencies = [
  "rand 0.7.3",
  "rand_xorshift",
- "rayon",
 ]
 
 [[package]]
@@ -2491,15 +2448,6 @@ checksum = "ab7bb6f14721aa00656086e9335d363c5c8747bae02ebe32ea2c7dece5689b4c"
 dependencies = [
  "pin-project 0.4.26",
  "tracing",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "705096c6f83bf68ea5d357a6aa01829ddbdac531b357b45abeca842938085baa"
-dependencies = [
- "tracing-core",
 ]
 
 [[package]]

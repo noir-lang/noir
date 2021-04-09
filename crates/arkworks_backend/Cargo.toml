@@ -13,7 +13,7 @@ ark-ff = { version = "0.2.0", default-features = false }
 ark-bn254 = { version = "0.2.0", default-features = false, features = ["curve"] }
 acir = { path = "../acir" }
 noir_field = { path = "../noir_field" }
-ark-marlin = "0.2.0"
+ark-marlin = { version = "0.2.0", default-features = false }
 ark-poly-commit = { version = "0.2.0", default-features = false }
 ark-poly = { version = "0.2.0", default-features = false }
 ark-relations = { version = "0.2.0", default-features = false }
