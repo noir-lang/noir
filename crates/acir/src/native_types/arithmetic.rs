@@ -35,6 +35,9 @@ impl Arithmetic {
     pub const fn can_defer_constraint(&self) -> bool {
         false
     }
+    pub fn num_mul_terms(&self) -> usize {
+        self.mul_terms.len()
+    }
 }
 
 impl Mul<&FieldElement> for &Arithmetic {
