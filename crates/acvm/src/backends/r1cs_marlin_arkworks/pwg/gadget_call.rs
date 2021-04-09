@@ -5,12 +5,12 @@ use std::collections::BTreeMap;
 pub struct GadgetCaller;
 
 impl GadgetCaller {
-    pub fn solve_gadget_call<'a>(
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
+    pub fn solve_gadget_call(
+        _initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gadget_call: &GadgetCall,
     ) -> Result<(), acir::OPCODE> {
         // XXX: arkworks currently does not implement any of the ACIR opcodes
         // except for arithmetic
-        return Err(gadget_call.name);
+        Err(gadget_call.name)
     }
 }

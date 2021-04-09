@@ -70,7 +70,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for AcirCircuit<Cons
                 let left_val = self.values[mul_term.1.as_usize()];
                 let right_val = self.values[mul_term.2.as_usize()];
 
-                let out_val = left_val * &right_val;
+                let out_val = left_val * right_val;
 
                 let out_var = cs.new_witness_variable(|| Ok(out_val))?;
                 arith_gate += (coeff, out_var);

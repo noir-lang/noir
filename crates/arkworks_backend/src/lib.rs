@@ -55,7 +55,7 @@ pub fn verify(acir: Circuit, proof: &[u8], public_inputs: Vec<FieldElement>) -> 
 
     let universal_srs = MarlinInst::universal_setup(num_constraints, num_vars, 100, rng).unwrap();
 
-    let (_, index_vk) = MarlinInst::index(&universal_srs, bn254_circ.clone()).unwrap();
+    let (_, index_vk) = MarlinInst::index(&universal_srs, bn254_circ).unwrap();
 
     let public_inputs: Vec<_> = public_inputs.into_iter().map(|x| x.into_repr()).collect();
     let proof = MarlinBn254Proof::deserialize(proof).unwrap();

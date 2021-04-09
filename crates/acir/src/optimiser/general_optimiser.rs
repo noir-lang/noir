@@ -43,7 +43,7 @@ pub fn simplify_mul_terms(mut gate: Arithmetic) -> Arithmetic {
 
         *hash_map
             .entry((pair[0], pair[1]))
-            .or_insert(FieldElement::zero()) += scale;
+            .or_insert_with(FieldElement::zero) += scale;
     }
 
     gate.mul_terms = hash_map

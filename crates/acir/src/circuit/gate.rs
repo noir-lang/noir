@@ -30,11 +30,7 @@ pub enum Gate {
 
 impl Gate {
     pub fn is_arithmetic(&self) -> bool {
-        if let Gate::Arithmetic(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Gate::Arithmetic(_))
     }
     pub fn arithmetic(self) -> Arithmetic {
         match self {

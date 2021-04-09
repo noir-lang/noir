@@ -17,7 +17,7 @@ impl PartialWitnessGenerator for Marlin {
         initial_witness: &mut BTreeMap<Witness, FieldElement>,
         gates: Vec<acir::circuit::Gate>,
     ) -> Result<(), acir::OPCODE> {
-        if gates.len() == 0 {
+        if gates.is_empty() {
             return Ok(());
         }
 
