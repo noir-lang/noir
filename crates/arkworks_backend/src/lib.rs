@@ -77,29 +77,37 @@ fn compute_num_constraints(acir: &Circuit) -> usize {
     num_gates
 }
 
-#[test]
-fn simple_equal() {
-    let a = Witness(1);
-    let b = Witness(2);
+#[cfg(test)]
+mod test {
+    use super::*;
+    use acir::circuit::{Gate, PublicInputs};
+    use acir::native_types::{Arithmetic, Witness};
+    use noir_field::FieldElement;
 
-    // assert a == b
-    let arith = Arithmetic {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::one(), a), (-FieldElement::one(), b)],
-        q_c: FieldElement::zero(),
-    };
-    let gate = Gate::Arithmetic(arith);
-    let circ = Circuit {
-        current_witness_index: 2,
-        gates: vec![gate],
-        public_inputs: PublicInputs(vec![Witness(1)]),
-    };
-    let a_val = FieldElement::from(6);
-    let b_val = FieldElement::from(6);
-    let values = vec![&a_val, &b_val];
+    #[test]
+    fn simple_equal() {
+        let a = Witness(1);
+        let b = Witness(2);
 
-    let proof = prove(circ.clone(), values);
-    let ok = verify(circ.clone(), &proof, vec![a_val]);
+        // assert a == b
+        let arith = Arithmetic {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::one(), a), (-FieldElement::one(), b)],
+            q_c: FieldElement::zero(),
+        };
+        let gate = Gate::Arithmetic(arith);
+        let circ = Circuit {
+            current_witness_index: 2,
+            gates: vec![gate],
+            public_inputs: PublicInputs(vec![Witness(1)]),
+        };
+        let a_val = FieldElement::from(6);
+        let b_val = FieldElement::from(6);
+        let values = vec![&a_val, &b_val];
 
-    assert!(ok)
+        let proof = prove(circ.clone(), values);
+        let ok = verify(circ.clone(), &proof, vec![a_val]);
+
+        assert!(ok)
+    }
 }
