@@ -19,7 +19,7 @@ impl IndexParser {
         };
 
         let collection_name = match collection_name.kind {
-            ExpressionKind::Path(path) => path.into_ident().ok_or(err)?,
+            ExpressionKind::Path(path) => path.to_ident().ok_or(err)?,
             _ => return Err(err),
         };
 

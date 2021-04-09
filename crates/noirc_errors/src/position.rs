@@ -1,4 +1,5 @@
 use codespan::{ByteIndex, Span as ByteSpan};
+use std::hash::{Hash, Hasher};
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
 pub struct Position {
@@ -70,7 +71,7 @@ impl Position {
     }
 }
 
-#[derive(PartialOrd, Eq, Ord, Hash, Debug, Clone)]
+#[derive(PartialOrd, Eq, Ord, Debug, Clone)]
 pub struct Spanned<T> {
     pub contents: T,
     span: Span,
@@ -81,6 +82,15 @@ pub struct Spanned<T> {
 impl<T: std::cmp::PartialEq> PartialEq<Spanned<T>> for Spanned<T> {
     fn eq(&self, other: &Spanned<T>) -> bool {
         self.contents == other.contents
+    }
+}
+
+/// Hash-based data structures (HashMap, HashSet) rely on the inverse of Hash
+/// being injective, i.e. x.eq(y) => hash(x, H) == hash(y, H), we hence align
+/// this with the above
+impl<T: Hash> Hash for Spanned<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.contents.hash(state);
     }
 }
 

@@ -55,7 +55,7 @@ impl Environment {
         scope.add_key_value(name, object);
     }
 
-    pub fn get(&mut self, name: &String) -> Object {
+    pub fn get(&mut self, name: &str) -> Object {
         let scope = self.env.current_scope_tree();
         scope.find(name).unwrap().clone()
     }
@@ -82,7 +82,7 @@ impl Environment {
         found.cloned()
     }
 
-    pub fn get_array(&mut self, name: &String) -> Result<Array, RuntimeErrorKind> {
+    pub fn get_array(&mut self, name: &str) -> Result<Array, RuntimeErrorKind> {
         let poly = self.get(name);
 
         match poly {

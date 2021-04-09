@@ -50,12 +50,12 @@ impl DiagnosableError for ParserErrorKind {
             ParserErrorKind::TokenNotUnaryOp { spanned_token } => Diagnostic::simple_error(
                 format!("Unsupported unary operation {}", spanned_token.token()),
                 "cannot use as a unary operation.".to_string(),
-                spanned_token.into_span(),
+                spanned_token.to_span(),
             ),
             ParserErrorKind::TokenNotBinaryOp { spanned_token } => Diagnostic::simple_error(
                 format!("Unsupported binary operation {}", spanned_token.token()),
                 "cannot use as a binary operation.".to_string(),
-                spanned_token.into_span(),
+                spanned_token.to_span(),
             ),
             ParserErrorKind::UnexpectedToken {
                 span,

@@ -66,6 +66,12 @@ impl FileMap {
     }
 }
 
+impl Default for FileMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileManager {
     // Needed as code_span dep requires underlying SimpleFiles
     pub fn as_simple_files(&self) -> &SimpleFiles<PathString, String> {

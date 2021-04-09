@@ -61,12 +61,10 @@ impl SchnorrVerifyGadget {
         let pub_key_x_witness = pub_key_x.witness().unwrap();
         let pub_key_y_witness = pub_key_y.witness().unwrap();
 
-        let mut inputs: Vec<GadgetInput> = Vec::new();
-
-        inputs.push(GadgetInput {
+        let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: pub_key_x_witness,
             num_bits: noir_field::FieldElement::max_num_bits(),
-        });
+        }];
         inputs.push(GadgetInput {
             witness: pub_key_y_witness,
             num_bits: noir_field::FieldElement::max_num_bits(),

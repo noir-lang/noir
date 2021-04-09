@@ -46,14 +46,15 @@ impl FuncId {
 
 macro_rules! into_index {
     ($id_type:ty) => {
-        impl Into<Index> for $id_type {
-            fn into(self) -> Index {
-                self.0
+        impl From<$id_type> for Index {
+            fn from(t: $id_type) -> Self {
+                t.0
             }
         }
-        impl Into<Index> for &$id_type {
-            fn into(self) -> Index {
-                self.0
+
+        impl From<&$id_type> for Index {
+            fn from(t: &$id_type) -> Self {
+                t.0
             }
         }
     };

@@ -61,8 +61,7 @@ impl<'a> Evaluator<'a> {
     // Creates a new Witness index
     fn add_witness_to_cs(&mut self) -> Witness {
         self.current_witness_index += 1;
-        let witness = Witness(self.current_witness_index);
-        witness
+        Witness(self.current_witness_index)
     }
 
     // Maps a variable name to a witness index
@@ -195,7 +194,7 @@ impl<'a> Evaluator<'a> {
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
 
-        let abi = func_meta.parameters.to_abi(&self.context.def_interner);
+        let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
         for (param_name, param_type) in abi.parameters.into_iter() {
             match param_type {
@@ -419,11 +418,9 @@ impl<'a> Evaluator<'a> {
             if let Some(unit_wit) = lhs_unit_witness {
                 // Check if the RHS is linear or constant
                 if rhs.is_linear() | rhs.is_constant() {
-                    match env.find_with_value(&unit_wit) {
-                        Some(var_name) => env.store(var_name, rhs),
-                        None => {
-                            // This can happen if the element is from an array
-                        }
+                    // The alternative can happen if the element is from an array
+                    if let Some(var_name) = env.find_with_value(&unit_wit) {
+                        env.store(var_name, rhs)
                     }
                 }
             }

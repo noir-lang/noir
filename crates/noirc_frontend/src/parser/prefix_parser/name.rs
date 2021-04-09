@@ -15,7 +15,7 @@ impl NameParser {
         }
 
         Err(ParserErrorKind::UnexpectedTokenKind {
-            span: parser.curr_token.into_span(),
+            span: parser.curr_token.to_span(),
             expected: TokenKind::Ident,
             found: parser.curr_token.kind(),
         })

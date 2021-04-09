@@ -131,16 +131,17 @@ impl BinaryOpKind {
     /// When seen in the middle of an infix operator,
     /// they transform the infix expression into a predicate expression
     pub fn is_comparator(&self) -> bool {
-        match self {
+        matches!(
+            self,
             BinaryOpKind::Equal
-            | BinaryOpKind::NotEqual
-            | BinaryOpKind::LessEqual
-            | BinaryOpKind::Less
-            | BinaryOpKind::Greater
-            | BinaryOpKind::GreaterEqual => true,
-            _ => false,
-        }
+                | BinaryOpKind::NotEqual
+                | BinaryOpKind::LessEqual
+                | BinaryOpKind::Less
+                | BinaryOpKind::Greater
+                | BinaryOpKind::GreaterEqual
+        )
     }
+
     pub fn as_string(&self) -> &str {
         match self {
             BinaryOpKind::Add => "+",
@@ -274,5 +275,9 @@ impl BlockExpression {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }

@@ -30,7 +30,7 @@ pub(crate) fn run(args: ArgMatches) {
 
 fn verify(proof_name: &str) -> bool {
     let curr_dir = std::env::current_dir().unwrap();
-    let (mut driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
+    let (driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
     let compiled_program = driver.into_compiled_program(backend_ptr);
 
     let mut proof_path = curr_dir;
@@ -77,7 +77,12 @@ fn process_abi_with_verifier_input(
     for (param_name, param_type) in abi.parameters.into_iter() {
         let value = pi_map
             .get(&param_name)
-            .unwrap_or_else(|| panic!("ABI expects the parameter `{}`, but this was not found", param_name))
+            .unwrap_or_else(|| {
+                panic!(
+                    "ABI expects the parameter `{}`, but this was not found",
+                    param_name
+                )
+            })
             .clone();
 
         if !value.matches_abi(param_type) && param_name != RESERVED_PUBLIC_ARR {

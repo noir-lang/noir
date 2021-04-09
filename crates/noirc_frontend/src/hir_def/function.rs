@@ -42,7 +42,7 @@ pub struct Param(pub IdentId, pub Type);
 pub struct Parameters(Vec<Param>);
 
 impl Parameters {
-    pub fn to_abi(self, interner: &NodeInterner) -> Abi {
+    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
         let parameters: Vec<_> = self
             .0
             .into_iter()
@@ -59,10 +59,19 @@ impl Parameters {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &Param> {
         self.0.iter()
     }
-    pub fn into_iter(self) -> impl Iterator<Item = Param> {
+}
+
+impl IntoIterator for Parameters {
+    type Item = Param;
+    type IntoIter = <Vec<Param> as IntoIterator>::IntoIter;
+    fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }

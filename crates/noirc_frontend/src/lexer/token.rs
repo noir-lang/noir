@@ -16,14 +16,14 @@ impl PartialEq<Token> for SpannedToken {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpannedToken(Spanned<Token>);
 
-impl Into<Token> for SpannedToken {
-    fn into(self) -> Token {
-        self.0.contents
+impl From<SpannedToken> for Token {
+    fn from(spt: SpannedToken) -> Self {
+        spt.0.contents
     }
 }
 
 impl SpannedToken {
-    pub fn into_span(&self) -> Span {
+    pub fn to_span(&self) -> Span {
         self.0.span()
     }
     pub fn token(&self) -> &Token {
@@ -119,6 +119,7 @@ pub enum Token {
     // =
     Assign,
     Error(String),
+    #[allow(clippy::upper_case_acronyms)]
     EOF,
 }
 
@@ -193,10 +194,6 @@ impl fmt::Display for TokenKind {
 }
 
 impl Token {
-    pub fn to_string(&self) -> String {
-        format!("{}", self)
-    }
-
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
@@ -226,10 +223,7 @@ impl Token {
         same_token_variant
     }
     pub fn is_comment(&self) -> bool {
-        match self {
-            Token::Comment(_) => true,
-            _ => false,
-        }
+        matches!(self, Token::Comment(_))
     }
 
     pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
@@ -240,18 +234,18 @@ impl Token {
     }
 
     pub fn can_start_type(&self) -> bool {
-        match self {
-            Token::Keyword(Keyword::Field) | Token::IntType(_) | Token::LeftBracket => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Token::Keyword(Keyword::Field) | Token::IntType(_) | Token::LeftBracket
+        )
     }
     pub fn can_be_field_element_type(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Token::Keyword(Keyword::Pub)
-            | Token::Keyword(Keyword::Const)
-            | Token::Keyword(Keyword::Priv) => true,
-            _ => false,
-        }
+                | Token::Keyword(Keyword::Const)
+                | Token::Keyword(Keyword::Priv)
+        )
     }
 }
 
@@ -360,21 +354,15 @@ impl Attribute {
     }
 
     pub fn is_foreign(&self) -> bool {
-        match self {
-            Attribute::Foreign(_) => true,
-            _ => false,
-        }
+        matches!(self, Attribute::Foreign(_))
     }
     pub fn is_low_level(&self) -> bool {
-        match self {
-            Attribute::Foreign(_) => true,
-            Attribute::Builtin(_) => true,
-        }
+        matches!(self, Attribute::Foreign(_) | Attribute::Builtin(_))
     }
 }
 
-impl<'a> Into<&'a str> for &'a Attribute {
-    fn into(self) -> &'a str {
+impl AsRef<str> for Attribute {
+    fn as_ref(&self) -> &str {
         match self {
             Attribute::Foreign(string) => &string,
             Attribute::Builtin(string) => &string,

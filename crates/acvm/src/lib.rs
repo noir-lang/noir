@@ -32,7 +32,7 @@ pub enum BackendPointer {
 
 impl Default for BackendPointer {
     fn default() -> BackendPointer {
-        const AZTEC_BACKEND: &'static str = "csat_3_plonk_aztec";
+        const AZTEC_BACKEND: &str = "csat_3_plonk_aztec";
         fetch_by_name(AZTEC_BACKEND).expect("expected the default backend to be available")
     }
 }
@@ -60,7 +60,7 @@ pub fn fetch_by_name(string: &str) -> Option<BackendPointer> {
     };
 
     let (_, target) = TIER_THREE_MAP.iter().find(|(name, _)| name == &string)?;
-    return Some(BackendPointer::Three(*target));
+    Some(BackendPointer::Three(*target))
 }
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}

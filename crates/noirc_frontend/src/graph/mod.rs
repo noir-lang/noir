@@ -167,7 +167,7 @@ impl CrateGraph {
 }
 impl CrateData {
     fn add_dep(&mut self, name: CrateName, crate_id: CrateId) {
-        self.dependencies.push(Dependency { name, crate_id })
+        self.dependencies.push(Dependency { crate_id, name })
     }
 }
 impl std::ops::Index<CrateId> for CrateGraph {

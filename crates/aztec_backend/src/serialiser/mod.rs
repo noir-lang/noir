@@ -70,11 +70,13 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         let mut outputs_iter = gadget_call.outputs.iter();
                         let mut result = [0i32; 32];
-                        for i in 0..32 {
-                            let out_byte = outputs_iter.next().unwrap_or_else(|| panic!("missing rest of output. tried to get byte {} but failed", i));
+                        for (i, res) in result.iter_mut().enumerate() {
+                            let out_byte = outputs_iter.next().unwrap_or_else(|| {
+                                panic!("missing rest of output. tried to get byte {} but failed", i)
+                            });
 
                             let out_byte_index = out_byte.witness_index() as i32;
-                            result[i] = out_byte_index
+                            *res = out_byte_index
                         }
                         let sha256_constraint = Sha256Constraint {
                             inputs: sha256_inputs,
@@ -95,11 +97,13 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         let mut outputs_iter = gadget_call.outputs.iter();
                         let mut result = [0i32; 32];
-                        for i in 0..32 {
-                            let out_byte = outputs_iter.next().unwrap_or_else(|| panic!("missing rest of output. tried to get byte {} but failed", i));
+                        for (i, res) in result.iter_mut().enumerate() {
+                            let out_byte = outputs_iter.next().unwrap_or_else(|| {
+                                panic!("missing rest of output. tried to get byte {} but failed", i)
+                            });
 
                             let out_byte_index = out_byte.witness_index() as i32;
-                            result[i] = out_byte_index
+                            *res = out_byte_index
                         }
                         let blake2s_constraint = Blake2sConstraint {
                             inputs: blake2s_inputs,
@@ -150,11 +154,11 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let result = gadget_call.outputs[0].witness_index() as i32;
 
                         let constraint = MerkleMembershipConstraint {
+                            hash_path,
                             root,
                             leaf,
                             index,
                             result,
-                            hash_path,
                         };
 
                         merkle_membership_constraints.push(constraint);
@@ -178,10 +182,15 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         };
                         // signature
                         let mut signature = [0i32; 64];
-                        for i in 0..64 {
-                            let sig_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of signature. tried to get byte {} but failed", i));
+                        for (i, sig) in signature.iter_mut().enumerate() {
+                            let sig_byte = inputs_iter.next().unwrap_or_else(|| {
+                                panic!(
+                                    "missing rest of signature. tried to get byte {} but failed",
+                                    i
+                                )
+                            });
                             let sig_byte_index = sig_byte.witness.witness_index() as i32;
-                            signature[i] = sig_byte_index
+                            *sig = sig_byte_index
                         }
 
                         // The rest of the input is the message
@@ -244,25 +253,31 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         // public key x
                         let mut public_key_x = [0i32; 32];
-                        for i in 0..32 {
+                        for (i, pkx) in public_key_x.iter_mut().enumerate() {
                             let x_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of x component for public key. tried to get byte {} but failed", i));
                             let x_byte_index = x_byte.witness.witness_index() as i32;
-                            public_key_x[i] = x_byte_index
+                            *pkx = x_byte_index;
                         }
+
                         // public key y
                         let mut public_key_y = [0i32; 32];
-                        for i in 0..32 {
+                        for (i, pky) in public_key_y.iter_mut().enumerate() {
                             let y_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of y component for public key. tried to get byte {} but failed", i));
                             let y_byte_index = y_byte.witness.witness_index() as i32;
-                            public_key_y[i] = y_byte_index
+                            *pky = y_byte_index;
                         }
 
                         // signature
                         let mut signature = [0i32; 64];
-                        for i in 0..64 {
-                            let sig_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of signature. tried to get byte {} but failed", i));
+                        for (i, sig) in signature.iter_mut().enumerate() {
+                            let sig_byte = inputs_iter.next().unwrap_or_else(|| {
+                                panic!(
+                                    "missing rest of signature. tried to get byte {} but failed",
+                                    i
+                                )
+                            });
                             let sig_byte_index = sig_byte.witness.witness_index() as i32;
-                            signature[i] = sig_byte_index
+                            *sig = sig_byte_index;
                         }
 
                         // The rest of the input is the message
@@ -312,7 +327,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     }
 
     // Create constraint system
-    let constraint_system = ConstraintSystem {
+    ConstraintSystem {
         var_num: circuit.current_witness_index + 1, // number of witnesses is the witness index + 1;
         public_inputs: circuit.public_inputs.indices(),
         logic_constraints,
@@ -326,9 +341,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         hash_to_field_constraints,
         constraints,
         fixed_base_scalar_mul_constraints,
-    };
-
-    constraint_system
+    }
 }
 
 #[allow(non_snake_case)]

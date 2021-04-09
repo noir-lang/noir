@@ -151,7 +151,7 @@ impl Array {
                 .expect("ice: arrays must have at least one element in them"),
         );
 
-        for pred in predicates_iter.next() {
+        for pred in predicates_iter {
             result =
                 crate::binary_op::handle_mul_op(result, Object::from_witness(pred), evaluator)?;
         }

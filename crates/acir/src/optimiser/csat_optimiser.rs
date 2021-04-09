@@ -152,17 +152,14 @@ impl Optimiser {
                     let remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contrain the intermediate variable
                                                               // Keep adding terms until we have no more left, or we reach the width
                     for _ in 0..remaining_space {
-                        match gate.linear_combinations.pop() {
-                            Some(wire_term) => {
-                                // Add this element into the new gate
-                                intermediate_gate.linear_combinations.push(wire_term);
-                            }
-                            None => {
-                                // Nomore elements left in the old gate, we could stop the whole function
-                                // We could alternative let it keep going, as it will never reach this branch again since there are nomore elements left
-                                // XXX: Future optimisation
-                                // nomoreleft = true
-                            }
+                        if let Some(wire_term) = gate.linear_combinations.pop() {
+                            // Add this element into the new gate
+                            intermediate_gate.linear_combinations.push(wire_term);
+                        } else {
+                            // Nomore elements left in the old gate, we could stop the whole function
+                            // We could alternative let it keep going, as it will never reach this branch again since there are nomore elements left
+                            // XXX: Future optimisation
+                            // nomoreleft = true
                         }
                     }
                     // Constraint this intermediate_gate to be equal to the temp variable by adding it into the BTreeMap
