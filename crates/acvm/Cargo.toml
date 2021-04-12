@@ -7,18 +7,18 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acir = {path = "../acir"}
+acir = { path = "../acir" }
 
 # Ideally, there should be a way for the Nargo.toml file to indicate a proof system
 # and not need to pull in the other proof systems. Also ideally like to avoid using DLL
 # It seems to be only way... This is not an immediate problem while dependencies are small
-aztec_backend = {path = "../aztec_backend"}
-noir_field = {path = "../noir_field"}
+aztec_backend = { path = "../aztec_backend" }
+arkworks_backend = { path = "../arkworks_backend" }
+noir_field = { path = "../noir_field" }
 sha2 = "0.9.3"
 blake2 = "0.9.1"
 hex = "0.4.2"
 
-k256 = {version = "0.7.2", features = ["ecdsa","ecdsa-core", "sha256", "digest", "arithmetic"]}
-# ecdsa = { version = "=0.11.0-pre.1", default-features = true, features = ["dev", "hazmat"] }
+k256 = { version = "0.7.2", features = ["ecdsa", "ecdsa-core", "sha256", "digest", "arithmetic"] }
 
 [dev-dependencies]

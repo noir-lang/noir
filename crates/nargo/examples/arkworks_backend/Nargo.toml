@@ -1,0 +1,8 @@
+
+        [package]
+        authors = [""]
+        compiler_version = "0.1"
+        backend = "r1cs_marlin_arkworks"
+
+        [dependencies]
+    
