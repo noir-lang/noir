@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use arena::{Arena, Index};
+use noir_field::FieldElement;
 use noirc_errors::Span;
 
 use crate::{Ident, Type};
@@ -84,16 +85,16 @@ partialeq!(StmtId);
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
 #[derive(Debug, Clone)]
-enum Node {
+enum Node<F: FieldElement> {
     Function(HirFunction),
     Ident(Ident),
     Statement(HirStatement),
-    Expression(HirExpression),
+    Expression(HirExpression<F>),
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeInterner {
-    nodes: Arena<Node>,
+pub struct NodeInterner<F: FieldElement> {
+    nodes: Arena<Node<F>>,
     func_meta: HashMap<FuncId, FuncMeta>,
 
     // Maps for span
@@ -120,7 +121,7 @@ pub struct NodeInterner {
     id_to_type: HashMap<Index, Type>,
 }
 
-impl Default for NodeInterner {
+impl<F: FieldElement> Default for NodeInterner<F> {
     fn default() -> Self {
         let mut interner = NodeInterner {
             nodes: Arena::default(),
@@ -141,13 +142,13 @@ impl Default for NodeInterner {
 
 // XXX: Add check that insertions are not overwrites for maps
 // XXX: Maybe change push to intern, and remove comments
-impl NodeInterner {
+impl<F: FieldElement> NodeInterner<F> {
     /// Interns a HIR statement.
     pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
         StmtId(self.nodes.insert(Node::Statement(stmt)))
     }
     /// Interns a HIR expression.
-    pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
+    pub fn push_expr(&mut self, expr: HirExpression<F>) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
     }
     /// Stores the span for an interned expression.
@@ -279,7 +280,7 @@ impl NodeInterner {
         }
     }
     /// Returns the interned expression corresponding to `expr_id`
-    pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
+    pub fn expression(&self, expr_id: &ExprId) -> HirExpression<F> {
         let def = self
             .nodes
             .get(expr_id.0)
