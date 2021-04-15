@@ -1,6 +1,7 @@
 use acvm::acir::circuit::Circuit;
 use acvm::BackendPointer;
 use fm::FileType;
+use noir_field::FieldElement;
 use noirc_abi::Abi;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Reporter;
@@ -11,15 +12,15 @@ use noirc_frontend::hir::Context;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
-pub struct Driver {
-    context: Context,
+pub struct Driver<F: FieldElement> {
+    context: Context<F>,
 }
-pub struct CompiledProgram {
-    pub circuit: Circuit,
+pub struct CompiledProgram<F: FieldElement> {
+    pub circuit: Circuit<F>,
     pub abi: Option<noirc_abi::Abi>,
 }
 
-impl Driver {
+impl<F: FieldElement> Driver<F> {
     pub fn new() -> Self {
         Driver {
             context: Context::default(),
@@ -28,7 +29,7 @@ impl Driver {
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(root_file: PathBuf, backend: BackendPointer) -> CompiledProgram {
+    pub fn compile_file(root_file: PathBuf, backend: BackendPointer) -> CompiledProgram<F> {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.into_compiled_program(backend)
@@ -38,7 +39,7 @@ impl Driver {
     ///
     /// This is used for tests.
     pub fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new();
+        let mut driver = Driver::<F>::new();
         driver.create_local_crate(root_file, CrateType::Binary);
         driver.add_std_lib();
         if let Err(errs) = CrateDefMap::collect_defs(LOCAL_CRATE, &mut driver.context) {
@@ -154,7 +155,7 @@ impl Driver {
         Some(abi)
     }
 
-    pub fn into_compiled_program(mut self, backend: BackendPointer) -> CompiledProgram {
+    pub fn into_compiled_program(mut self, backend: BackendPointer) -> CompiledProgram<F> {
         self.build();
         // First find the local crate
         // There is always a local crate
@@ -227,7 +228,7 @@ impl Driver {
     }
 }
 
-impl Default for Driver {
+impl<F: FieldElement> Default for Driver<F> {
     fn default() -> Self {
         Self::new()
     }

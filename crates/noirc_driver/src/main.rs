@@ -1,3 +1,4 @@
+use noir_field::Bn254Scalar;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateType, LOCAL_CRATE};
 fn main() {
@@ -5,7 +6,7 @@ fn main() {
     const EXTERNAL_DIR2: &str = "dep_a/lib.nr";
     const ROOT_DIR_MAIN: &str = "example_real_project/main.nr";
 
-    let mut driver = Driver::new();
+    let mut driver = Driver::<Bn254Scalar>::new();
 
     // Add local crate to dep graph
     driver.create_local_crate(ROOT_DIR_MAIN, CrateType::Binary);
