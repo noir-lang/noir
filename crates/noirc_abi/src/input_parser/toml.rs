@@ -1,10 +1,10 @@
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 use serde_derive::Deserialize;
 use std::{collections::BTreeMap, path::Path};
 
 use super::InputValue;
 
-pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> BTreeMap<String, InputValue> {
+pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> BTreeMap<String, InputValue<Bn254Scalar>> {
     let path_to_toml = path_to_toml.as_ref();
     assert!(
         path_to_toml.exists(),
@@ -24,7 +24,9 @@ pub(crate) fn parse<P: AsRef<Path>>(path_to_toml: P) -> BTreeMap<String, InputVa
 
 /// Converts the Toml mapping to the native representation that the compiler
 /// understands for Inputs
-fn toml_map_to_field(toml_map: BTreeMap<String, TomlTypes>) -> BTreeMap<String, InputValue> {
+fn toml_map_to_field(
+    toml_map: BTreeMap<String, TomlTypes>,
+) -> BTreeMap<String, InputValue<Bn254Scalar>> {
     let mut field_map = BTreeMap::new();
 
     for (parameter, value) in toml_map {
@@ -81,7 +83,7 @@ enum TomlTypes {
     ArrayString(Vec<String>),
 }
 
-fn parse_str(value: &str) -> FieldElement {
+fn parse_str(value: &str) -> Bn254Scalar {
     if value.starts_with("0x") {
         FieldElement::from_hex(value)
             .unwrap_or_else(|| panic!("Could not parse hex value {}", value))
@@ -89,6 +91,6 @@ fn parse_str(value: &str) -> FieldElement {
         let val: i128 = value
             .parse()
             .expect("Expected witness values to be integers");
-        FieldElement::from(val)
+        Bn254Scalar::from_i128(val)
     }
 }

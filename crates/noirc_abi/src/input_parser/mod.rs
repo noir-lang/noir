@@ -2,7 +2,7 @@ mod toml;
 
 use std::{collections::BTreeMap, path::Path};
 
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 
 use crate::AbiType;
 
@@ -10,12 +10,12 @@ use crate::AbiType;
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
 #[derive(Debug, Clone)]
-pub enum InputValue {
-    Field(FieldElement),
-    Vec(Vec<FieldElement>),
+pub enum InputValue<F: FieldElement> {
+    Field(F),
+    Vec(Vec<F>),
 }
 
-impl InputValue {
+impl<F: FieldElement> InputValue<F> {
     /// Checks whether the ABI type matches the InputValue type
     /// and also their arity
     pub fn matches_abi(&self, abi_param: AbiType) -> bool {
@@ -32,8 +32,8 @@ impl InputValue {
 
 /// Parses the initial Witness Values that are needed to seed the
 /// Partial Witness generator
-pub trait InitialWitnessParser {
-    fn parse_initial_witness<P: AsRef<Path>>(&self, path: P) -> BTreeMap<String, InputValue>;
+pub trait InitialWitnessParser<F: FieldElement> {
+    fn parse_initial_witness<P: AsRef<Path>>(&self, path: P) -> BTreeMap<String, InputValue<F>>;
 }
 
 /// The different formats that are supported when parsing
@@ -51,7 +51,11 @@ impl Format {
 }
 
 impl Format {
-    pub fn parse<P: AsRef<Path>>(&self, path: P, file_name: &str) -> BTreeMap<String, InputValue> {
+    pub fn parse<P: AsRef<Path>>(
+        &self,
+        path: P,
+        file_name: &str,
+    ) -> BTreeMap<String, InputValue<Bn254Scalar>> {
         match self {
             Format::Toml => {
                 let mut dir_path = path.as_ref().to_path_buf();
