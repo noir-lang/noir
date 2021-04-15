@@ -77,10 +77,10 @@ fn create_proof_dir() -> PathBuf {
 
 /// Ordering is important here, which is why we need the ABI to tell us what order to add the elements in
 /// We then need the witness map to get the elements field values.
-fn process_abi_with_input(
+fn process_abi_with_input<F: FieldElement>(
     abi: Abi,
-    witness_map: BTreeMap<String, InputValue>,
-) -> BTreeMap<Witness, FieldElement> {
+    witness_map: BTreeMap<String, InputValue<F>>,
+) -> BTreeMap<Witness, F> {
     let mut solved_witness = BTreeMap::new();
 
     let mut index = 0;

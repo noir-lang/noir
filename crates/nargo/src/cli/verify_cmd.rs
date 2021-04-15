@@ -68,10 +68,10 @@ fn verify(proof_name: &str) -> bool {
         .verify_from_cs(&proof, public_inputs, compiled_program.circuit)
 }
 
-fn process_abi_with_verifier_input(
+fn process_abi_with_verifier_input<F: FieldElement>(
     abi: Abi,
-    pi_map: BTreeMap<String, InputValue>,
-) -> Vec<FieldElement> {
+    pi_map: BTreeMap<String, InputValue<F>>,
+) -> Vec<F> {
     let mut public_inputs = Vec::with_capacity(pi_map.len());
 
     for (param_name, param_type) in abi.parameters.into_iter() {

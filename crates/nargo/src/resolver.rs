@@ -4,6 +4,7 @@ use std::{
 };
 
 use acvm::BackendPointer;
+use noir_field::{Bn254Scalar, FieldElement};
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateType};
 
@@ -11,6 +12,10 @@ use crate::{
     toml::{Config, Dependency},
     write_stderr,
 };
+
+enum PossibleDrivers {
+    Bn254(Driver<Bn254Scalar>),
+}
 
 /// Creates a unique folder name for a github repo
 /// by using it's url and tag
@@ -35,13 +40,13 @@ struct CachedDep {
 /// or it uses the repo on the cache.
 /// Downloading will be recursive, so if a package contains packages
 /// We need to download those too
-pub struct Resolver<'a> {
+pub struct Resolver<'a, F: FieldElement> {
     cached_packages: HashMap<PathBuf, (CrateId, CachedDep)>,
-    driver: &'a mut Driver,
+    driver: &'a mut Driver<F>,
 }
 
-impl<'a> Resolver<'a> {
-    fn with_driver(driver: &mut Driver) -> Resolver {
+impl<'a, F: FieldElement> Resolver<'a, F> {
+    fn with_driver(driver: &mut Driver<F>) -> Resolver<F> {
         Resolver {
             cached_packages: HashMap::new(),
             driver,
@@ -69,8 +74,9 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver, BackendPointer) {
-        let mut driver = Driver::new();
+    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver<F>, BackendPointer) {
+        // XXX: We figure out the field in this function via the toml file
+        let mut driver = Driver::<Bn254Scalar>::new();
 
         let (entry_path, crate_type) = super::lib_or_bin(&dir_path);
 

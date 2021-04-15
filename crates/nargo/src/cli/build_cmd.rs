@@ -1,17 +1,18 @@
 use clap::ArgMatches;
+use noir_field::FieldElement;
 use std::path::{Path, PathBuf};
 
 use crate::resolver::Resolver;
 
 use super::{write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
-pub(crate) fn run(_args: ArgMatches) {
+pub(crate) fn run<F: FieldElement>(_args: ArgMatches) {
     let package_dir = std::env::current_dir().unwrap();
-    build_from_path(package_dir);
+    build_from_path::<F>(package_dir.as_path());
     println!("Constraint system successfully built!")
 }
 // This is exposed so that we can run the examples and verify that they pass
-pub fn build_from_path<P: AsRef<Path>>(p: P) {
+pub fn build_from_path<F: FieldElement>(p: &Path) {
     let (mut driver, _) = Resolver::resolve_root_config(p.as_ref());
     driver.build();
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
@@ -20,7 +21,7 @@ pub fn build_from_path<P: AsRef<Path>>(p: P) {
         // For now it is hardcoded to be toml.
         //
         // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(p.as_ref());
+        let path_to_root = PathBuf::from(p);
         let path_to_prover_input = path_to_root.join(format!("{}.toml", PROVER_INPUT_FILE));
         let path_to_verifier_input = path_to_root.join(format!("{}.toml", VERIFIER_INPUT_FILE));
 
