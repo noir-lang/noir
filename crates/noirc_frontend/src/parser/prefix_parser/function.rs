@@ -18,10 +18,10 @@ impl FuncParser {
     /// Cursor End : `}`
     //
     /// All functions are function definitions. Functions are not first class citizens.
-    pub(crate) fn parse_fn_definition(
-        parser: &mut Parser,
+    pub(crate) fn parse_fn_definition<F: FieldElement>(
+        parser: &mut Parser<F>,
         attribute: Option<Attribute>,
-    ) -> Result<NoirFunction, ParserErrorKind> {
+    ) -> Result<NoirFunction<F>, ParserErrorKind<F>> {
         // Current token is `fn`
         //
         // Peek ahead and check if the next token is an identifier
@@ -83,7 +83,9 @@ impl FuncParser {
     /// Cursor Start : `(`
     ///
     /// Cursor End : `)`
-    fn parse_fn_parameters(parser: &mut Parser) -> Result<Vec<(Ident, Type)>, ParserErrorKind> {
+    fn parse_fn_parameters<F: FieldElement>(
+        parser: &mut Parser<F>,
+    ) -> Result<Vec<(Ident, Type)>, ParserErrorKind<F>> {
         // Current token is `(`
         //
         // Check if we have an empty list
@@ -134,7 +136,7 @@ impl FuncParser {
     /// Cursor Start : `IDENT`
     ///
     /// Cursor End : `TYPE`
-    fn parse_fn_type(parser: &mut Parser) -> Result<Type, ParserErrorKind> {
+    fn parse_fn_type<F: FieldElement>(parser: &mut Parser<F>) -> Result<Type, ParserErrorKind<F>> {
         // Current token is `IDENT`
         //
         // Peek ahead and check if the next token is `:`

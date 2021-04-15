@@ -13,7 +13,7 @@ impl PathParser {
     /// Cursor Start : `FIRST_PATH_SEGMENT`
     ///
     /// Cursor End : `LAST_PATH_SEGMENT`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         let mut parsed_path = Vec::new();
 
         // Parse the first path segment as a keyword or an identifier
@@ -56,9 +56,9 @@ impl PathParser {
 /// Checks the token and returns the identifier along with the path kind
 /// only plain paths return identifiers, as the other path kinds implicitly
 /// contain the keyword used.
-fn path_identifer(
-    tok: &crate::token::SpannedToken,
-) -> Result<(Option<Ident>, PathKind), ParserErrorKind> {
+fn path_identifer<F: FieldElement>(
+    tok: &crate::token::SpannedToken<F>,
+) -> Result<(Option<Ident>, PathKind), ParserErrorKind<F>> {
     use noirc_errors::Spanned;
     match tok.token() {
         Token::Ident(x) => Ok((

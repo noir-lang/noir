@@ -4,7 +4,9 @@ pub struct UseParser;
 
 impl UseParser {
     // Import statements of the form use std::hash::sha256;
-    pub fn parse(parser: &mut Parser) -> Result<ImportStatement, ParserErrorKind> {
+    pub fn parse<F: FieldElement>(
+        parser: &mut Parser<F>,
+    ) -> Result<ImportStatement, ParserErrorKind<F>> {
         // Current token is 'use'
         //
         // Next token should be the first segment for the Path

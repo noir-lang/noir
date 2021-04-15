@@ -4,10 +4,10 @@ use super::*;
 ///
 /// Since they follow the same structure, the parsing strategy for
 /// them are generic
-struct GenericDeclStructure {
+struct GenericDeclStructure<F: FieldElement> {
     identifier: Ident,
     typ: Option<Type>,
-    rhs: Expression,
+    rhs: Expression<F>,
 }
 
 pub struct DeclarationParser;
@@ -18,7 +18,9 @@ impl DeclarationParser {
     /// XXX: We can make this clearer by further separating keywords into declaration keywords.
     /// This would ensure that the match statement will always be exhaustive on the list
     /// of declaration keywords.
-    pub fn parse_statement(parser: &mut Parser) -> Result<Statement, ParserErrorKind> {
+    pub fn parse_statement<F: FieldElement>(
+        parser: &mut Parser<F>,
+    ) -> Result<Statement<F>, ParserErrorKind<F>> {
         match parser.curr_token.token().to_declaration_keyword() {
             Keyword::Let => Ok(Statement::Let(parse_let_statement(parser)?)),
             Keyword::Const => Ok(Statement::Const(parse_const_statement(parser)?)),
@@ -42,9 +44,9 @@ impl DeclarationParser {
 /// Cursor Start : `DECL_KEYWORD`
 ///
 /// Cursor End : `;`
-fn parse_generic_decl_statement(
-    parser: &mut Parser,
-) -> Result<GenericDeclStructure, ParserErrorKind> {
+fn parse_generic_decl_statement<F: FieldElement>(
+    parser: &mut Parser<F>,
+) -> Result<GenericDeclStructure<F>, ParserErrorKind<F>> {
     // The next token should be an identifier
     parser.peek_check_kind_advance(TokenKind::Ident)?;
 
@@ -84,7 +86,9 @@ fn parse_generic_decl_statement(
     })
 }
 
-fn parse_let_statement(parser: &mut Parser) -> Result<LetStatement, ParserErrorKind> {
+fn parse_let_statement<F: FieldElement>(
+    parser: &mut Parser<F>,
+) -> Result<LetStatement<F>, ParserErrorKind<F>> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     let stmt = LetStatement {
@@ -94,7 +98,9 @@ fn parse_let_statement(parser: &mut Parser) -> Result<LetStatement, ParserErrorK
     };
     Ok(stmt)
 }
-fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserErrorKind> {
+fn parse_const_statement<F: FieldElement>(
+    parser: &mut Parser<F>,
+) -> Result<ConstStatement<F>, ParserErrorKind<F>> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // Note: If a Type is supplied for some reason in a const statement, it can only be a Field element/Constant
@@ -118,7 +124,9 @@ fn parse_const_statement(parser: &mut Parser) -> Result<ConstStatement, ParserEr
     };
     Ok(stmt)
 }
-fn parse_private_statement(parser: &mut Parser) -> Result<PrivateStatement, ParserErrorKind> {
+fn parse_private_statement<F: FieldElement>(
+    parser: &mut Parser<F>,
+) -> Result<PrivateStatement<F>, ParserErrorKind<F>> {
     let generic_stmt = parse_generic_decl_statement(parser)?;
 
     // XXX: As of FieldElement refactor, we can catch basic type errors for private statements,

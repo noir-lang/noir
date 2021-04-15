@@ -8,7 +8,7 @@ impl GroupParser {
     /// Cursor Start : `(`
     ///
     /// Cursor End : `)`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         // Current token is `(`
         //
         // Bump cursor. The next token should be

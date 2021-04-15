@@ -11,7 +11,7 @@ impl UnaryParser {
     /// Cursor Start : `OP`
     ///
     /// Cursor End : `EXPR`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         let operator =
             UnaryOp::from(parser.curr_token.token()).ok_or(ParserErrorKind::TokenNotUnaryOp {
                 spanned_token: parser.curr_token.clone(),

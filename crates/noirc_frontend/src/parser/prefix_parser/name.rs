@@ -9,7 +9,7 @@ impl NameParser {
     /// Cursor Start : `IDENT`
     ///
     /// Cursor End : `IDENT`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         if let Token::Ident(x) = parser.curr_token.token() {
             return Ok(ExpressionKind::Ident(x.clone()));
         }

@@ -29,15 +29,15 @@ pub use function::FuncParser;
 pub use module::ModuleParser;
 pub use use_stmt::UseParser;
 
+use super::{Parser, ParserErrorKind, ParserExprKindResult, ParserExprResult, Precedence};
 /// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
     ArrayLiteral, BlockExpression, Expression, ExpressionKind, ForExpression, FunctionDefinition,
     Ident, IfExpression, Literal, NoirFunction, PrefixExpression, Type,
 };
 use crate::token::{Attribute, Keyword, Token, TokenKind};
+use noir_field::FieldElement;
 use noirc_errors::Span;
-
-use super::{Parser, ParserErrorKind, ParserExprKindResult, ParserExprResult, Precedence};
 
 use crate::ast::{ConstStatement, ImportStatement, LetStatement, PrivateStatement, Statement};
 
@@ -56,7 +56,7 @@ pub enum PrefixParser {
 }
 
 impl PrefixParser {
-    pub fn parse(&self, parser: &mut Parser) -> ParserExprResult {
+    pub fn parse<F: FieldElement>(&self, parser: &mut Parser<F>) -> ParserExprResult<F> {
         match self {
             PrefixParser::For => span_parser(parser, ForParser::parse),
             PrefixParser::If => span_parser(parser, IfParser::parse),
@@ -71,10 +71,10 @@ impl PrefixParser {
     }
 }
 
-fn span_parser(
-    parser: &mut Parser,
-    f: fn(parser: &mut Parser) -> ParserExprKindResult,
-) -> ParserExprResult {
+fn span_parser<F: FieldElement>(
+    parser: &mut Parser<F>,
+    f: fn(parser: &mut Parser<F>) -> ParserExprKindResult<F>,
+) -> ParserExprResult<F> {
     let start = parser.curr_token.to_span();
     let kind = f(parser)?;
     let end = parser.curr_token.to_span();

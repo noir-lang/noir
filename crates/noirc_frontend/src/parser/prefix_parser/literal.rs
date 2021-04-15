@@ -6,7 +6,7 @@ impl LiteralParser {
     /// Cursor Start : `LITERAL`
     ///
     /// Cursor End : `LITERAL`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         let expr = match parser.curr_token.clone().into() {
             Token::Int(x) => ExpressionKind::Literal(Literal::Integer(x)),
             Token::Str(x) => ExpressionKind::Literal(Literal::Str(x)),

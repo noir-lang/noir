@@ -1,40 +1,41 @@
 use crate::lexer::token::{SpannedToken, Token, TokenKind};
 use crate::{lexer::errors::LexerErrorKind, PathKind};
 
+use noir_field::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosableError;
 use noirc_errors::Span;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ParserErrorKind {
+pub enum ParserErrorKind<F: FieldElement> {
     #[error("Lexer error found")]
-    LexerError(LexerErrorKind),
+    LexerError(LexerErrorKind<F>),
     #[error(" expected expression, found `{}`", lexeme)]
     ExpectedExpression { span: Span, lexeme: String },
     #[error("Unexpected token found")]
     UnexpectedToken {
         span: Span,
-        expected: Token,
-        found: Token,
+        expected: Token<F>,
+        found: Token<F>,
     },
     #[error("Unexpected token kind found")]
     UnexpectedTokenKind {
         span: Span,
-        expected: TokenKind,
-        found: TokenKind,
+        expected: TokenKind<F>,
+        found: TokenKind<F>,
     },
     #[error("Paths with a single segment, cannot have the single segment be a keyword")]
     SingleKeywordSegmentNotAllowed { span: Span, path_kind: PathKind },
     #[error("Unstructured Error")]
     UnstructuredError { span: Span, message: String },
     #[error("Token is not a unary operation")]
-    TokenNotUnaryOp { spanned_token: SpannedToken },
+    TokenNotUnaryOp { spanned_token: SpannedToken<F> },
     #[error("Token is not a binary operation")]
-    TokenNotBinaryOp { spanned_token: SpannedToken },
+    TokenNotBinaryOp { spanned_token: SpannedToken<F> },
 }
 
-impl DiagnosableError for ParserErrorKind {
+impl<F: FieldElement> DiagnosableError for ParserErrorKind<F> {
     fn to_diagnostic(&self) -> Diagnostic {
         match self {
             ParserErrorKind::LexerError(lex_err) => lex_err.to_diagnostic(),

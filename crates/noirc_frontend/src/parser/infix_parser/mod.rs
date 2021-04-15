@@ -7,6 +7,7 @@ use binary::BinaryParser;
 use call::CallParser;
 use cast::CastParser;
 use index::IndexParser;
+use noir_field::FieldElement;
 
 use super::Precedence;
 use crate::ast::{BinaryOp, BinaryOpKind};
@@ -29,7 +30,11 @@ pub enum InfixParser {
 }
 
 impl InfixParser {
-    pub fn parse(&self, parser: &mut Parser, left: Expression) -> ParserExprResult {
+    pub fn parse<F: FieldElement>(
+        &self,
+        parser: &mut Parser<F>,
+        left: Expression<F>,
+    ) -> ParserExprResult<F> {
         match self {
             InfixParser::Binary => span_parser(parser, left, BinaryParser::parse),
             InfixParser::Call => span_parser(parser, left, CallParser::parse),
@@ -39,11 +44,11 @@ impl InfixParser {
     }
 }
 
-fn span_parser(
-    parser: &mut Parser,
-    left: Expression,
-    f: fn(parser: &mut Parser, left: Expression) -> ParserExprKindResult,
-) -> ParserExprResult {
+fn span_parser<F: FieldElement>(
+    parser: &mut Parser<F>,
+    left: Expression<F>,
+    f: fn(parser: &mut Parser<F>, left: Expression<F>) -> ParserExprKindResult<F>,
+) -> ParserExprResult<F> {
     let start = parser.curr_token.to_span();
     let kind = f(parser, left)?;
     let end = parser.curr_token.to_span();

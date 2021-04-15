@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use crate::parser::errors::ParserErrorKind;
 
 use super::*;
@@ -12,7 +14,10 @@ impl CallParser {
     /// Cursor Start : `(`
     ///
     /// Cursor End : `)`
-    pub fn parse(parser: &mut Parser, func_path: Expression) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(
+        parser: &mut Parser<F>,
+        func_path: Expression<F>,
+    ) -> ParserExprKindResult<F> {
         assert_eq!(&parser.curr_token, &Token::LeftParen);
 
         //

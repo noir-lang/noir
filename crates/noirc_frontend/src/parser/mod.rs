@@ -10,16 +10,17 @@ use crate::{
     Ident,
 };
 pub use errors::ParserErrorKind;
+use noir_field::FieldElement;
 pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
 #[derive(Clone, Debug)]
-pub struct ParsedModule {
+pub struct ParsedModule<F: FieldElement> {
     pub imports: Vec<ImportStatement>,
-    pub functions: Vec<NoirFunction>,
+    pub functions: Vec<NoirFunction<F>>,
     pub module_decls: Vec<Ident>,
 }
 
-impl ParsedModule {
+impl<F: FieldElement> ParsedModule<F> {
     fn with_capacity(cap: usize) -> Self {
         ParsedModule {
             imports: Vec::with_capacity(cap),
@@ -28,7 +29,7 @@ impl ParsedModule {
         }
     }
 
-    fn push_function(&mut self, func: NoirFunction) {
+    fn push_function(&mut self, func: NoirFunction<F>) {
         self.functions.push(func);
     }
     fn push_import(&mut self, import_stmt: ImportStatement) {
@@ -53,7 +54,7 @@ pub enum Precedence {
 impl Precedence {
     // Higher the number, the higher(more priority) the precedence
     // XXX: Check the precedence is correct for operators
-    fn token_precedence(tok: &Token) -> Precedence {
+    fn token_precedence<F: FieldElement>(tok: &Token<F>) -> Precedence {
         match tok {
             Token::Assign => Precedence::Equals,
             Token::Equal => Precedence::Equals,
@@ -76,13 +77,13 @@ impl Precedence {
         }
     }
 }
-impl From<&Token> for Precedence {
-    fn from(t: &Token) -> Precedence {
+impl<F: FieldElement> From<&Token<F>> for Precedence {
+    fn from(t: &Token<F>) -> Precedence {
         Precedence::token_precedence(t)
     }
 }
-impl From<&SpannedToken> for Precedence {
-    fn from(t: &SpannedToken) -> Precedence {
+impl<F: FieldElement> From<&SpannedToken<F>> for Precedence {
+    fn from(t: &SpannedToken<F>) -> Precedence {
         Precedence::token_precedence(t.token())
     }
 }

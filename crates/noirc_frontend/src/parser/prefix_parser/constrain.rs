@@ -35,9 +35,9 @@ fn disallowed_operators() -> Vec<BinaryOpKind> {
 impl ConstrainParser {
     // Since == is an infix operator
     // The pratt parser will do most of the job, we just need to check that everything was correct
-    pub(crate) fn parse_statement(
-        parser: &mut Parser,
-    ) -> Result<ConstrainStatement, ParserErrorKind> {
+    pub(crate) fn parse_statement<F: FieldElement>(
+        parser: &mut Parser<F>,
+    ) -> Result<ConstrainStatement<F>, ParserErrorKind<F>> {
         parser.advance_tokens();
 
         let expr = parser.parse_expression(Precedence::Lowest)?;

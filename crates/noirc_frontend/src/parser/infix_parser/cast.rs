@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use super::*;
 
 pub struct CastParser;
@@ -10,7 +12,10 @@ impl CastParser {
     /// Cursor Start : `as`
     ///
     /// Cursor End : `TYPE`
-    pub fn parse(parser: &mut Parser, lhs: Expression) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(
+        parser: &mut Parser<F>,
+        lhs: Expression<F>,
+    ) -> ParserExprKindResult<F> {
         // Current Token is `as`
         //
         // Bump Cursor. Next token should be type

@@ -11,7 +11,7 @@ impl IfParser {
     /// Cursor Start : `if`
     ///
     /// Cursor End : `}`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         // Current token is `if`
         //
         // Bump cursor.
@@ -32,7 +32,7 @@ impl IfParser {
         let consequence = BlockParser::parse_block_expression(parser)?;
 
         // Parse the optional else condition
-        let mut alternative: Option<BlockExpression> = None;
+        let mut alternative: Option<BlockExpression<F>> = None;
         if parser.peek_token == Token::Keyword(Keyword::Else) {
             // Current token is a `}`
             //

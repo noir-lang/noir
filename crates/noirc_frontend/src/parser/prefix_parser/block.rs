@@ -9,7 +9,7 @@ impl BlockParser {
     /// Cursor Start : `{`
     ///
     /// Cursor End : `}`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         let block_expr = BlockParser::parse_block_expression(parser)?;
 
         Ok(ExpressionKind::Block(block_expr))
@@ -18,10 +18,10 @@ impl BlockParser {
     /// This is useful for when the AST Node, will always contain a
     /// BlockExpression, hence parsing it through the BlockParser
     /// which returns an ExpressionKind is redundant.
-    pub(crate) fn parse_block_expression(
-        parser: &mut Parser,
-    ) -> Result<BlockExpression, ParserErrorKind> {
-        let mut statements: Vec<Statement> = Vec::new();
+    pub(crate) fn parse_block_expression<F: FieldElement>(
+        parser: &mut Parser<F>,
+    ) -> Result<BlockExpression<F>, ParserErrorKind<F>> {
+        let mut statements: Vec<Statement<F>> = Vec::new();
 
         // XXX: Check consistency with for parser, if parser and func parser
         if parser.curr_token != Token::LeftBrace {

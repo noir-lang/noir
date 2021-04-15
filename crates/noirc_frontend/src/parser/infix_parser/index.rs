@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use super::*;
 
 pub struct IndexParser;
@@ -10,7 +12,10 @@ impl IndexParser {
     /// Cursor Start : `[`
     ///
     /// Cursor End : `]`
-    pub fn parse(parser: &mut Parser, collection_name: Expression) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(
+        parser: &mut Parser<F>,
+        collection_name: Expression<F>,
+    ) -> ParserExprKindResult<F> {
         // XXX: We will clean up these unnecessary format! allocations in the refactor after the next
         let msg = "expected an identifier for the collection name. Arbitrary expressions are yet to arrive".to_string();
         let err = ParserErrorKind::UnstructuredError {

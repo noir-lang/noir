@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use super::*;
 
 pub struct ArrayParser;
@@ -11,7 +13,7 @@ impl ArrayParser {
     /// Cursor Start : `[`
     ///
     /// Cursor End : `]`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         // Current token is '['
         //
         // parse the contents of the array

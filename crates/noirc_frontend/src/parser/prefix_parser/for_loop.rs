@@ -14,7 +14,7 @@ impl ForParser {
     /// Cursor Start : `for`
     ///
     /// Cursor End : `}`
-    pub fn parse(parser: &mut Parser) -> ParserExprKindResult {
+    pub fn parse<F: FieldElement>(parser: &mut Parser<F>) -> ParserExprKindResult<F> {
         // Current token is `for`
         //
         // Peek ahead and check if the next token is an identifier

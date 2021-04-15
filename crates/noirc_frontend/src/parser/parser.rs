@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use super::{errors::ParserErrorKind, ParsedModule, Precedence};
 use crate::lexer::Lexer;
 use crate::token::{Keyword, SpannedToken, Token, TokenKind};
@@ -9,23 +11,23 @@ use crate::{
 use super::infix_parser::InfixParser;
 use super::prefix_parser::PrefixParser;
 
-pub type ParserResult<T> = Result<T, ParserErrorKind>;
-pub type ParserExprKindResult = ParserResult<ExpressionKind>;
-pub type ParserExprResult = ParserResult<Expression>;
-type ParserStmtResult = ParserResult<Statement>;
+pub type ParserResult<T, F> = Result<T, ParserErrorKind<F>>;
+pub type ParserExprKindResult<F> = ParserResult<ExpressionKind<F>, F>;
+pub type ParserExprResult<F> = ParserResult<Expression<F>, F>;
+type ParserStmtResult<F> = ParserResult<Statement<F>, F>;
 
 // XXX: We can probably abstract the lexer away, as we really only need an Iterator of Tokens/ TokenStream
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
-pub struct Parser<'a> {
-    pub(crate) lexer: Lexer<'a>,
-    pub(crate) curr_token: SpannedToken,
-    pub(crate) peek_token: SpannedToken,
-    pub(crate) errors: Vec<ParserErrorKind>,
+pub struct Parser<'a, F: FieldElement> {
+    pub(crate) lexer: Lexer<'a, F>,
+    pub(crate) curr_token: SpannedToken<F>,
+    pub(crate) peek_token: SpannedToken<F>,
+    pub(crate) errors: Vec<ParserErrorKind<F>>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(mut lexer: Lexer<'a>) -> Self {
+impl<'a, F: FieldElement> Parser<'a, F> {
+    pub fn new(mut lexer: Lexer<'a, F>) -> Self {
         let curr_token = lexer.next_token().unwrap();
         let peek_token = lexer.next_token().unwrap();
 
@@ -71,8 +73,8 @@ impl<'a> Parser<'a> {
     // If it is, the parser is advanced
     pub(crate) fn peek_check_variant_advance(
         &mut self,
-        token: &Token,
-    ) -> Result<(), ParserErrorKind> {
+        token: &Token<F>,
+    ) -> Result<(), ParserErrorKind<F>> {
         let same_variant = self.peek_token.is_variant(token);
 
         if !same_variant {
@@ -94,8 +96,8 @@ impl<'a> Parser<'a> {
     // If it is, the parser is advanced
     pub(crate) fn peek_check_kind_advance(
         &mut self,
-        token_kind: TokenKind,
-    ) -> Result<(), ParserErrorKind> {
+        token_kind: TokenKind<F>,
+    ) -> Result<(), ParserErrorKind<F>> {
         let peeked_kind = self.peek_token.kind();
         let same_kind = peeked_kind == token_kind;
         if !same_kind {
@@ -112,7 +114,7 @@ impl<'a> Parser<'a> {
     }
 
     /// A Program corresponds to a single module
-    pub fn parse_program(&mut self) -> Result<ParsedModule, &Vec<ParserErrorKind>> {
+    pub fn parse_program(&mut self) -> Result<ParsedModule<F>, &Vec<ParserErrorKind<F>>> {
         use super::prefix_parser::{FuncParser, ModuleParser, UseParser};
 
         let mut program = ParsedModule::with_capacity(self.lexer.by_ref().approx_len());
@@ -167,9 +169,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn on_value<T, F>(&mut self, parser_res: ParserResult<T>, mut func: F)
+    fn on_value<T, Func>(&mut self, parser_res: ParserResult<T, F>, mut func: Func)
     where
-        F: FnMut(T),
+        Func: FnMut(T),
     {
         match parser_res {
             Ok(value) => func(value),
@@ -210,7 +212,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_statement(&mut self) -> ParserStmtResult {
+    pub fn parse_statement(&mut self) -> ParserStmtResult<F> {
         use crate::parser::prefix_parser::{ConstrainParser, DeclarationParser};
 
         let stmt = match self.curr_token.token() {
@@ -241,11 +243,11 @@ impl<'a> Parser<'a> {
         Ok(stmt)
     }
 
-    fn parse_expression_statement(&mut self) -> ParserExprResult {
+    fn parse_expression_statement(&mut self) -> ParserExprResult<F> {
         self.parse_expression(Precedence::Lowest)
     }
 
-    pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParserExprResult {
+    pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParserExprResult<F> {
         // Calling this method means that we are at the beginning of a local expression
         // We may be in the middle of a global expression, but this does not matter
         let mut left_exp = match self.choose_prefix_parser() {
@@ -331,8 +333,8 @@ impl<'a> Parser<'a> {
     /// In general, the END_TOKEN will be closing_token
     pub(crate) fn parse_comma_separated_argument_list(
         &mut self,
-        closing_token: Token,
-    ) -> Result<Vec<Expression>, ParserErrorKind> {
+        closing_token: Token<F>,
+    ) -> Result<Vec<Expression<F>>, ParserErrorKind<F>> {
         // An empty container.
         // Advance to the ending token and
         // return an empty array
@@ -340,7 +342,7 @@ impl<'a> Parser<'a> {
             self.advance_tokens();
             return Ok(Vec::new());
         }
-        let mut arguments: Vec<Expression> = Vec::new();
+        let mut arguments: Vec<Expression<F>> = Vec::new();
 
         // Parse the first element, implicitly assuming that `parse_expression`
         // does not advance the token from what it has just parsed
@@ -374,7 +376,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_type(
         &mut self,
         can_have_field_type: bool,
-    ) -> Result<Type, ParserErrorKind> {
+    ) -> Result<Type, ParserErrorKind<F>> {
         let mut field_type = FieldElementType::Private;
 
         // This implicitly assumes that the tokens used to declare field types
@@ -423,7 +425,7 @@ impl<'a> Parser<'a> {
     /// Cursor Start : `FIELD_ELEMENT_TYPE`
     ///
     /// Cursor End : `FIELD_ELEMENT_TYPE`
-    fn parse_field_type(&mut self) -> Result<FieldElementType, ParserErrorKind> {
+    fn parse_field_type(&mut self) -> Result<FieldElementType, ParserErrorKind<F>> {
         match self.curr_token.token() {
             Token::Keyword(Keyword::Priv) => Ok(FieldElementType::Private),
             Token::Keyword(Keyword::Pub) => Ok(FieldElementType::Public),
@@ -441,7 +443,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_array_type(&mut self, field_type: FieldElementType) -> Result<Type, ParserErrorKind> {
+    fn parse_array_type(
+        &mut self,
+        field_type: FieldElementType,
+    ) -> Result<Type, ParserErrorKind<F>> {
         // Expression is of the form [3]Type
 
         // Current token is '['
