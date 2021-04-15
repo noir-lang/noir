@@ -1,6 +1,6 @@
 use crate::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, marker::PhantomData};
 
 use super::general_optimiser::GeneralOpt;
 // Optimiser struct with all of the related optimisations to the arithmetic gate
@@ -8,16 +8,20 @@ use super::general_optimiser::GeneralOpt;
 // Is this more of a Reducer than an optimiser?
 // Should we give it all of the gates?
 // Have a single optimiser that you instantiate with a width, then pass many gates through
-pub struct Optimiser {
+pub struct Optimiser<F: FieldElement> {
     width: usize,
+    phantom: PhantomData<F>,
 }
 
-impl Optimiser {
+impl<F: FieldElement> Optimiser<F> {
     // Configure the width for the optimiser
-    pub fn new(width: usize) -> Optimiser {
+    pub fn new(width: usize) -> Optimiser<F> {
         assert!(width > 2);
 
-        Optimiser { width }
+        Optimiser {
+            width,
+            phantom: PhantomData,
+        }
     }
 
     // Still missing dead witness optimisation.
@@ -25,10 +29,10 @@ impl Optimiser {
     // I think it can also be done before the local optimisation seen here, as dead variables will come from the user
     pub fn optimise(
         &self,
-        gate: Arithmetic,
-        mut intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
+        gate: Arithmetic<F>,
+        mut intermediate_variables: &mut BTreeMap<Witness, Arithmetic<F>>,
         num_witness: u32,
-    ) -> Arithmetic {
+    ) -> Arithmetic<F> {
         let gate = GeneralOpt::optimise(gate);
 
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full gate
@@ -45,7 +49,7 @@ impl Optimiser {
 
     /// Sorts gate in a deterministic order
     /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
-    fn sort(&self, mut gate: Arithmetic) -> Arithmetic {
+    fn sort(&self, mut gate: Arithmetic<F>) -> Arithmetic<F> {
         gate.mul_terms.sort();
         gate.linear_combinations.sort();
 
@@ -77,10 +81,10 @@ impl Optimiser {
     // This stage of preprocessing does not guarantee that all polynomials can fit into a gate. It only guarantees that all full gates have been extracted from each polynomial
     fn full_gate_scan_optimisation(
         &self,
-        mut gate: Arithmetic,
-        intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
+        mut gate: Arithmetic<F>,
+        intermediate_variables: &mut BTreeMap<Witness, Arithmetic<F>>,
         num_witness: u32,
-    ) -> Arithmetic {
+    ) -> Arithmetic<F> {
         // We pass around this intermediate variable BTreeMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
 
@@ -172,14 +176,12 @@ impl Optimiser {
                     // Constrain the gate to the intermediate variable
                     intermediate_gate
                         .linear_combinations
-                        .push((-FieldElement::one(), inter_var));
+                        .push((-F::one(), inter_var));
                     // Add intermediate gate to the map
                     intermediate_variables.insert(inter_var, intermediate_gate);
 
                     // Add intermediate variable to the new gate instead of the full gate
-                    new_gate
-                        .linear_combinations
-                        .push((FieldElement::one(), inter_var));
+                    new_gate.linear_combinations.push((F::one(), inter_var));
                 }
             };
             // Remove this term as we are finished processing it
@@ -235,10 +237,10 @@ impl Optimiser {
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
     fn partial_gate_scan_optimisation(
         &self,
-        mut gate: Arithmetic,
-        intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
+        mut gate: Arithmetic<F>,
+        intermediate_variables: &mut BTreeMap<Witness, Arithmetic<F>>,
         num_witness: u32,
-    ) -> Arithmetic {
+    ) -> Arithmetic<F> {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
 
@@ -259,7 +261,7 @@ impl Optimiser {
             // Constrain it to be equal to the intermediate variable
             intermediate_gate
                 .linear_combinations
-                .push((-FieldElement::one(), inter_var));
+                .push((-F::one(), inter_var));
 
             // Add intermediate gate and variable to map
             intermediate_variables.insert(inter_var, intermediate_gate);
@@ -305,7 +307,7 @@ impl Optimiser {
 
             intermediate_gate
                 .linear_combinations
-                .push((-FieldElement::one(), inter_var));
+                .push((-F::one(), inter_var));
 
             // Add intermediate gate and variable to map
             intermediate_variables.insert(inter_var, intermediate_gate);

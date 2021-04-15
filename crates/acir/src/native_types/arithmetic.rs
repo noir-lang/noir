@@ -10,19 +10,19 @@ use std::ops::{Add, Mul, Neg, Sub};
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Arithmetic {
+pub struct Arithmetic<F: FieldElement> {
     // To avoid having to create intermediate variables pre-optimisation
     // We collect all of the multiplication terms in the arithmetic gate
     // A multiplication term if of the form q_M * wL * wR
     // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
-    pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
+    pub mul_terms: Vec<(F, Witness, Witness)>,
 
-    pub linear_combinations: Vec<(FieldElement, Witness)>,
-    pub q_c: FieldElement,
+    pub linear_combinations: Vec<(F, Witness)>,
+    pub q_c: F,
 }
 
-impl Default for Arithmetic {
-    fn default() -> Arithmetic {
+impl<F: FieldElement> Default for Arithmetic<F> {
+    fn default() -> Arithmetic<F> {
         Arithmetic {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
@@ -31,8 +31,8 @@ impl Default for Arithmetic {
     }
 }
 
-impl Arithmetic {
-    pub const fn can_defer_constraint(&self) -> bool {
+impl<F: FieldElement> Arithmetic<F> {
+    pub fn can_defer_constraint(&self) -> bool {
         false
     }
     pub fn num_mul_terms(&self) -> usize {
@@ -40,9 +40,9 @@ impl Arithmetic {
     }
 }
 
-impl Mul<&FieldElement> for &Arithmetic {
-    type Output = Arithmetic;
-    fn mul(self, rhs: &FieldElement) -> Self::Output {
+impl<F: FieldElement> Mul<&F> for &Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn mul(self, rhs: &F) -> Self::Output {
         // Scale the mul terms
         let mul_terms: Vec<_> = self
             .mul_terms
@@ -67,9 +67,9 @@ impl Mul<&FieldElement> for &Arithmetic {
         }
     }
 }
-impl Add<&FieldElement> for Arithmetic {
-    type Output = Arithmetic;
-    fn add(self, rhs: &FieldElement) -> Self::Output {
+impl<F: FieldElement> Add<&F> for Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: &F) -> Self::Output {
         // Increase the constant
         let q_c = self.q_c + *rhs;
 
@@ -80,9 +80,9 @@ impl Add<&FieldElement> for Arithmetic {
         }
     }
 }
-impl Sub<&FieldElement> for Arithmetic {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &FieldElement) -> Self::Output {
+impl<F: FieldElement> Sub<&F> for Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn sub(self, rhs: &F) -> Self::Output {
         // Increase the constant
         let q_c = self.q_c - *rhs;
 
@@ -94,9 +94,9 @@ impl Sub<&FieldElement> for Arithmetic {
     }
 }
 
-impl Add<&Arithmetic> for &Arithmetic {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Arithmetic) -> Arithmetic {
+impl<F: FieldElement> Add<&Arithmetic<F>> for &Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: &Arithmetic<F>) -> Arithmetic<F> {
         // XXX(med) : Implement an efficient way to do this
 
         let mul_terms: Vec<_> = self
@@ -122,8 +122,8 @@ impl Add<&Arithmetic> for &Arithmetic {
     }
 }
 
-impl Neg for &Arithmetic {
-    type Output = Arithmetic;
+impl<F: FieldElement> Neg for &Arithmetic<F> {
+    type Output = Arithmetic<F>;
     fn neg(self) -> Self::Output {
         // XXX(med) : Implement an efficient way to do this
 
@@ -148,15 +148,15 @@ impl Neg for &Arithmetic {
     }
 }
 
-impl Sub<&Arithmetic> for &Arithmetic {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &Arithmetic) -> Arithmetic {
+impl<F: FieldElement> Sub<&Arithmetic<F>> for &Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn sub(self, rhs: &Arithmetic<F>) -> Arithmetic<F> {
         self + &-rhs
     }
 }
 
-impl From<&FieldElement> for Arithmetic {
-    fn from(constant: &FieldElement) -> Arithmetic {
+impl<F: FieldElement> From<&F> for Arithmetic<F> {
+    fn from(constant: &F) -> Arithmetic<F> {
         Arithmetic {
             q_c: *constant,
             linear_combinations: Vec::new(),
@@ -164,8 +164,8 @@ impl From<&FieldElement> for Arithmetic {
         }
     }
 }
-impl From<&Linear> for Arithmetic {
-    fn from(lin: &Linear) -> Arithmetic {
+impl<F: FieldElement> From<&Linear<F>> for Arithmetic<F> {
+    fn from(lin: &Linear<F>) -> Arithmetic<F> {
         Arithmetic {
             q_c: lin.add_scale,
             linear_combinations: vec![(lin.mul_scale, lin.witness)],
@@ -173,37 +173,37 @@ impl From<&Linear> for Arithmetic {
         }
     }
 }
-impl From<Linear> for Arithmetic {
-    fn from(lin: Linear) -> Arithmetic {
+impl<F: FieldElement> From<Linear<F>> for Arithmetic<F> {
+    fn from(lin: Linear<F>) -> Arithmetic<F> {
         Arithmetic::from(&lin)
     }
 }
-impl From<&Witness> for Arithmetic {
-    fn from(wit: &Witness) -> Arithmetic {
+impl<F: FieldElement> From<&Witness> for Arithmetic<F> {
+    fn from(wit: &Witness) -> Arithmetic<F> {
         Linear::from_witness(*wit).into()
     }
 }
 
-impl Add<&Arithmetic> for &Linear {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Arithmetic) -> Arithmetic {
+impl<F: FieldElement> Add<&Arithmetic<F>> for &Linear<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: &Arithmetic<F>) -> Arithmetic<F> {
         &Arithmetic::from(self) + rhs
     }
 }
-impl Add<&Linear> for &Arithmetic {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Linear) -> Arithmetic {
+impl<F: FieldElement> Add<&Linear<F>> for &Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: &Linear<F>) -> Arithmetic<F> {
         &Arithmetic::from(rhs) + self
     }
 }
-impl Sub<&Witness> for &Arithmetic {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &Witness) -> Arithmetic {
+impl<F: FieldElement> Sub<&Witness> for &Arithmetic<F> {
+    type Output = Arithmetic<F>;
+    fn sub(self, rhs: &Witness) -> Arithmetic<F> {
         self - &Arithmetic::from(rhs)
     }
 }
 
-impl Arithmetic {
+impl<F: FieldElement> Arithmetic<F> {
     // Checks if this polynomial can fit into one arithmetic identity
     pub fn fits_in_one_identity(&self, width: usize) -> bool {
         // A Polynomial with more than one mul term cannot fit into one gate

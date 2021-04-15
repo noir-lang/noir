@@ -8,17 +8,17 @@ use noir_field::FieldElement;
 use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Clone, Copy, Debug)]
-pub struct Linear {
-    pub mul_scale: FieldElement,
+pub struct Linear<F: FieldElement> {
+    pub mul_scale: F,
     pub witness: Witness,
-    pub add_scale: FieldElement,
+    pub add_scale: F,
 }
 
-impl Linear {
+impl<F: FieldElement> Linear<F> {
     pub fn is_unit(&self) -> bool {
         self.mul_scale.is_one() && self.add_scale.is_zero()
     }
-    pub fn from_witness(witness: Witness) -> Linear {
+    pub fn from_witness(witness: Witness) -> Linear<F> {
         Linear {
             mul_scale: FieldElement::one(),
             witness,
@@ -26,18 +26,18 @@ impl Linear {
         }
     }
     // XXX: This is true for the NPC languages that we use, are there any where this is not true?
-    pub const fn can_defer_constraint(&self) -> bool {
+    pub fn can_defer_constraint(&self) -> bool {
         true
     }
 }
 
-impl From<Witness> for Linear {
-    fn from(w: Witness) -> Linear {
+impl<F: FieldElement> From<Witness> for Linear<F> {
+    fn from(w: Witness) -> Linear<F> {
         Linear::from_witness(w)
     }
 }
-impl From<FieldElement> for Linear {
-    fn from(element: FieldElement) -> Linear {
+impl<F: FieldElement> From<F> for Linear<F> {
+    fn from(element: F) -> Linear<F> {
         Linear {
             add_scale: element,
             witness: Witness::default(),
@@ -46,9 +46,9 @@ impl From<FieldElement> for Linear {
     }
 }
 
-impl Add<&Linear> for &Linear {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Linear) -> Self::Output {
+impl<F: FieldElement> Add<&Linear<F>> for &Linear<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: &Linear<F>) -> Self::Output {
         // (Ax+B) + ( Cx + D) = (Ax + Cx) + ( B+D)
         // (Ax + B) + (Cy + D) = Ax + Cy + (B+D)
         Arithmetic {
@@ -59,8 +59,8 @@ impl Add<&Linear> for &Linear {
     }
 }
 
-impl Neg for &Linear {
-    type Output = Linear;
+impl<F: FieldElement> Neg for &Linear<F> {
+    type Output = Linear<F>;
     fn neg(self) -> Self::Output {
         // -(Ax + B) = -Ax - B
         Linear {
@@ -71,10 +71,10 @@ impl Neg for &Linear {
     }
 }
 
-impl Mul<&Linear> for &Linear {
-    type Output = Arithmetic;
+impl<F: FieldElement> Mul<&Linear<F>> for &Linear<F> {
+    type Output = Arithmetic<F>;
     #[allow(clippy::many_single_char_names)]
-    fn mul(self, rhs: &Linear) -> Self::Output {
+    fn mul(self, rhs: &Linear<F>) -> Self::Output {
         // (Ax+B)(Cy+D) = ACxy + ADx + BCy + BD
         let a = self.mul_scale;
         let b = self.add_scale;
@@ -116,9 +116,9 @@ impl Mul<&Linear> for &Linear {
         }
     }
 }
-impl Mul<&FieldElement> for &Linear {
-    type Output = Linear;
-    fn mul(self, rhs: &FieldElement) -> Self::Output {
+impl<F: FieldElement> Mul<&F> for &Linear<F> {
+    type Output = Linear<F>;
+    fn mul(self, rhs: &F) -> Self::Output {
         Linear {
             mul_scale: self.mul_scale * *rhs,
             witness: self.witness,
@@ -126,9 +126,9 @@ impl Mul<&FieldElement> for &Linear {
         }
     }
 }
-impl Add<&FieldElement> for &Linear {
-    type Output = Linear;
-    fn add(self, rhs: &FieldElement) -> Self::Output {
+impl<F: FieldElement> Add<&F> for &Linear<F> {
+    type Output = Linear<F>;
+    fn add(self, rhs: &F) -> Self::Output {
         Linear {
             mul_scale: self.mul_scale,
             witness: self.witness,
@@ -138,39 +138,39 @@ impl Add<&FieldElement> for &Linear {
 }
 
 // Convenience Trait implementations
-impl Add<Linear> for Linear {
-    type Output = Arithmetic;
-    fn add(self, rhs: Linear) -> Self::Output {
+impl<F: FieldElement> Add<Linear<F>> for Linear<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: Linear<F>) -> Self::Output {
         &self + &rhs
     }
 }
-impl Mul<Linear> for Linear {
-    type Output = Arithmetic;
-    fn mul(self, rhs: Linear) -> Self::Output {
+impl<F: FieldElement> Mul<Linear<F>> for Linear<F> {
+    type Output = Arithmetic<F>;
+    fn mul(self, rhs: Linear<F>) -> Self::Output {
         &self * &rhs
     }
 }
-impl Add<&Linear> for Linear {
-    type Output = Arithmetic;
-    fn add(self, rhs: &Linear) -> Self::Output {
+impl<F: FieldElement> Add<&Linear<F>> for Linear<F> {
+    type Output = Arithmetic<F>;
+    fn add(self, rhs: &Linear<F>) -> Self::Output {
         &self + rhs
     }
 }
-impl Mul<&Linear> for Linear {
-    type Output = Arithmetic;
-    fn mul(self, rhs: &Linear) -> Self::Output {
+impl<F: FieldElement> Mul<&Linear<F>> for Linear<F> {
+    type Output = Arithmetic<F>;
+    fn mul(self, rhs: &Linear<F>) -> Self::Output {
         &self * rhs
     }
 }
-impl Sub<&Linear> for &Linear {
-    type Output = Arithmetic;
-    fn sub(self, rhs: &Linear) -> Self::Output {
+impl<F: FieldElement> Sub<&Linear<F>> for &Linear<F> {
+    type Output = Arithmetic<F>;
+    fn sub(self, rhs: &Linear<F>) -> Self::Output {
         self + &-rhs
     }
 }
-impl Sub<&FieldElement> for &Linear {
-    type Output = Linear;
-    fn sub(self, rhs: &FieldElement) -> Self::Output {
+impl<F: FieldElement> Sub<&F> for &Linear<F> {
+    type Output = Linear<F>;
+    fn sub(self, rhs: &F) -> Self::Output {
         self + &-*rhs
     }
 }

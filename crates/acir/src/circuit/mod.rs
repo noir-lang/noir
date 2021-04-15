@@ -6,13 +6,13 @@ use noir_field::FieldElement;
 use crate::native_types::Witness;
 
 #[derive(Clone, Debug)]
-pub struct Circuit {
+pub struct Circuit<F: FieldElement> {
     pub current_witness_index: u32,
-    pub gates: Vec<Gate>,
+    pub gates: Vec<Gate<F>>,
     pub public_inputs: PublicInputs,
 }
 
-impl Circuit {
+impl<F: FieldElement> Circuit<F> {
     pub fn num_vars(&self) -> u32 {
         self.current_witness_index + 1
     }
@@ -35,10 +35,10 @@ impl PublicInputs {
     }
 }
 #[derive(Clone, Debug)]
-pub struct Selector(pub String, pub FieldElement);
+pub struct Selector<F: FieldElement>(pub String, pub F);
 
-impl Default for Selector {
-    fn default() -> Selector {
+impl<F: FieldElement> Default for Selector<F> {
+    fn default() -> Selector<F> {
         Selector("zero".to_string(), FieldElement::zero())
     }
 }
