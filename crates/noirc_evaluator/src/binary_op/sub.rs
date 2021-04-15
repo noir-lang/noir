@@ -1,13 +1,15 @@
+use noir_field::FieldElement;
+
 use super::add::handle_add_op;
 use crate::{object::Array, Evaluator, Object, RuntimeErrorKind};
 
 /// This calls the add op under the hood
 /// We negate the RHS and send it to the add op
-pub fn handle_sub_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_sub_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     let negated_right = match right {
         Object::Null => {
             return Err(RuntimeErrorKind::UnstructuredError {

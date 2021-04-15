@@ -3,22 +3,23 @@ use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 
 pub struct EcdsaSecp256k1Gadget;
 
-impl GadgetCaller for EcdsaSecp256k1Gadget {
+impl<F: FieldElement> GadgetCaller<F> for EcdsaSecp256k1Gadget {
     fn name() -> OPCODE {
         OPCODE::EcdsaSecp256k1
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = EcdsaSecp256k1Gadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Prepare output
@@ -29,7 +30,7 @@ impl GadgetCaller for EcdsaSecp256k1Gadget {
         let _verify_object = Object::from_witness(_verify_witness);
 
         let _verify_gate = GadgetCall {
-            name: EcdsaSecp256k1Gadget::name(),
+            name: OPCODE::EcdsaSecp256k1,
             inputs,
             outputs: vec![_verify_witness],
         };
@@ -41,9 +42,9 @@ impl GadgetCaller for EcdsaSecp256k1Gadget {
 }
 
 impl EcdsaSecp256k1Gadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         assert_eq!(call_expr.arguments.len(), 4);

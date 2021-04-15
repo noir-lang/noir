@@ -1,12 +1,14 @@
+use noir_field::FieldElement;
+
 use crate::{object::Array, Evaluator, Linear, Object, RuntimeErrorKind};
 
 // Intentionally chose to write this out manually as it's not expected to change often or at all
 // We could expand again, so that ordering is preserved, but this does not seem necessary.
-pub fn handle_add_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_add_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     match (left, right) {
         //
         // You cannot add Null objects with anything else

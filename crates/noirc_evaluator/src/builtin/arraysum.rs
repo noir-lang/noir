@@ -1,3 +1,4 @@
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
@@ -8,12 +9,12 @@ use crate::{Environment, Evaluator, RuntimeErrorKind};
 /// Sums all of the elements in an array
 pub struct ArraySum;
 
-impl BuiltInCaller for ArraySum {
+impl<F: FieldElement> BuiltInCaller<F> for ArraySum {
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let arr_expr = {
             assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()

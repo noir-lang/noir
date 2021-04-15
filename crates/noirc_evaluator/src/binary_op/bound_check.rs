@@ -13,12 +13,12 @@ use crate::{Evaluator, FieldElement, Integer, Linear, Object, RuntimeErrorKind};
 // a <= b => b - a is always positive
 // a < b => b - a - 1  is always positive
 
-fn bound_check(
-    lower_bound: Object,
-    upper_bound: Object,
+fn bound_check<F: FieldElement>(
+    lower_bound: Object<F>,
+    upper_bound: Object<F>,
     upper_bound_included: bool,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     let offset = if upper_bound_included {
         FieldElement::zero()
     } else {
@@ -65,31 +65,31 @@ fn bound_check(
     Ok(Object::Null)
 }
 
-pub fn handle_less_than_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_less_than_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     bound_check(left, right, false, evaluator)
 }
-pub fn handle_less_than_equal_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_less_than_equal_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     bound_check(left, right, true, evaluator)
 }
-pub fn handle_greater_than_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_greater_than_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     bound_check(right, left, false, evaluator)
 }
-pub fn handle_greater_than_equal_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_greater_than_equal_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     bound_check(right, left, true, evaluator)
 }

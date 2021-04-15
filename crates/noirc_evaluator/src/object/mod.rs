@@ -13,16 +13,16 @@ use crate::Evaluator;
 use super::errors::RuntimeErrorKind;
 
 #[derive(Clone, Debug)]
-pub enum Object {
+pub enum Object<F: FieldElement> {
     Null,
-    Integer(Integer),
-    Array(Array),
-    Arithmetic(Arithmetic),
-    Constants(FieldElement),
-    Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate Eg `5x+6` does not apply a gate
+    Integer(Integer<F>),
+    Array(Array<F>),
+    Arithmetic(Arithmetic<F>),
+    Constants(F),
+    Linear(Linear<F>), // These will be selector * witness(var_name) + selector // Note that this is not a gate Eg `5x+6` does not apply a gate
 }
 
-impl Object {
+impl<F: FieldElement> Object<F> {
     pub fn r#type(&self) -> &'static str {
         match self {
             Object::Integer(_) | Object::Arithmetic(_) | Object::Linear(_) => "witness",
@@ -32,7 +32,7 @@ impl Object {
         }
     }
 
-    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+    pub fn constrain_zero(&self, evaluator: &mut Evaluator<F>) {
         match self {
             Object::Null => unreachable!(),
             Object::Constants(_) => unreachable!("cannot constrain a constant to be zero"),
@@ -76,7 +76,7 @@ impl Object {
         }
     }
     // Converts a Object into an arithmetic object
-    pub fn to_arithmetic(&self) -> Option<Arithmetic> {
+    pub fn to_arithmetic(&self) -> Option<Arithmetic<F>> {
         match self {
             Object::Null => None,
             Object::Integer(integer) => Some(Linear::from_witness(integer.witness).into()),
@@ -89,7 +89,7 @@ impl Object {
     pub fn is_gate(&self) -> bool {
         matches!(self, Object::Arithmetic(_))
     }
-    pub fn constant(&self) -> Result<FieldElement, RuntimeErrorKind> {
+    pub fn constant(&self) -> Result<F, RuntimeErrorKind> {
         match self {
             Object::Constants(x) => Ok(*x),
             _ => Err(RuntimeErrorKind::expected_type("constant", self.r#type())),
@@ -99,13 +99,13 @@ impl Object {
         matches!(self, Object::Constants(_))
     }
 
-    pub fn arithmetic(&self) -> Option<&Arithmetic> {
+    pub fn arithmetic(&self) -> Option<&Arithmetic<F>> {
         match self {
             Object::Arithmetic(x) => Some(x),
             _ => None,
         }
     }
-    pub fn extract_private_witness(self) -> Option<Arithmetic> {
+    pub fn extract_private_witness(self) -> Option<Arithmetic<F>> {
         match self {
             Object::Arithmetic(x) => Some(x),
             Object::Linear(x) => Some(x.into()),
@@ -140,20 +140,20 @@ impl Object {
             _ => None,
         }
     }
-    pub fn linear(&self) -> Option<Linear> {
+    pub fn linear(&self) -> Option<Linear<F>> {
         match self {
             Object::Linear(linear) => Some(*linear),
             Object::Integer(integer) => Some(Linear::from(integer.witness)),
             _ => None,
         }
     }
-    pub fn integer(&self) -> Option<Integer> {
+    pub fn integer(&self) -> Option<Integer<F>> {
         match self {
             Object::Integer(integer) => Some(*integer),
             _ => None,
         }
     }
-    pub fn array(&self) -> Option<Array> {
+    pub fn array(&self) -> Option<Array<F>> {
         match self {
             Object::Array(arr) => Some(arr.clone()),
             _ => None,
@@ -173,13 +173,13 @@ impl Object {
             Object::Linear(_) | Object::Constants(_) | Object::Integer(_)
         )
     }
-    pub fn from_witness(witness: Witness) -> Object {
+    pub fn from_witness(witness: Witness) -> Object<F> {
         Object::Linear(Linear::from_witness(witness))
     }
 
     // XXX: It is possible to make this into a Mul trait, but it seems to hurt readability
     // Could we move this into the Mul file itself?
-    pub fn mul_constant(&self, constant: FieldElement) -> Option<Object> {
+    pub fn mul_constant(&self, constant: F) -> Option<Object<F>> {
         let obj = match self {
             Object::Null => return None,
             Object::Array(arr) => {
@@ -205,8 +205,8 @@ impl Object {
     }
 }
 
-impl From<Object> for Gate {
-    fn from(poly: Object) -> Gate {
+impl<F: FieldElement> From<Object<F>> for Gate<F> {
+    fn from(poly: Object<F>) -> Gate<F> {
         match poly {
             Object::Arithmetic(arith) => Gate::Arithmetic(arith),
             // XXX: Arriving here means we have an internal error/bug, so we abort
@@ -217,21 +217,21 @@ impl From<Object> for Gate {
 
 // (selector_id, selector as an i128 , We don't have big int yet)
 #[derive(Clone, Debug)]
-pub struct Selector(pub String, pub Object); //XXX(med) I guess we know it's going to be a FieldElement, so we should probably find a way to give it FieldElement directly instead of Polynomial
+pub struct Selector<F: FieldElement>(pub String, pub Object<F>); //XXX(med) I guess we know it's going to be a FieldElement, so we should probably find a way to give it FieldElement directly instead of Polynomial
 
-impl Default for Selector {
-    fn default() -> Selector {
+impl<F: FieldElement> Default for Selector<F> {
+    fn default() -> Selector<F> {
         Selector("zero".to_string(), Object::Constants(FieldElement::zero()))
     }
 }
 
-pub struct RangedObject {
-    pub(crate) start: FieldElement,
-    pub(crate) end: FieldElement,
+pub struct RangedObject<F: FieldElement> {
+    pub(crate) start: F,
+    pub(crate) end: F,
 }
 
-impl RangedObject {
-    pub fn new(start: FieldElement, end: FieldElement) -> Result<Self, RuntimeErrorKind> {
+impl<F: FieldElement> RangedObject<F> {
+    pub fn new(start: F, end: F) -> Result<Self, RuntimeErrorKind> {
         // We will move these checks into the analyser once
         // we have Private and Public integers, so they are only checked once
 
@@ -268,14 +268,14 @@ impl RangedObject {
     }
 }
 
-impl Iterator for RangedObject {
-    type Item = FieldElement;
+impl<F: FieldElement> Iterator for RangedObject<F> {
+    type Item = F;
 
     #[inline]
-    fn next(&mut self) -> Option<FieldElement> {
+    fn next(&mut self) -> Option<F> {
         if self.start != self.end {
             let return_val = self.start;
-            self.start += FieldElement::one();
+            self.start += F::one();
             Some(return_val)
         } else {
             None

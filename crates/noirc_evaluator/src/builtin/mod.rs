@@ -5,6 +5,7 @@ use arraysum::ArraySum;
 mod arrayprod;
 use arrayprod::ArrayProd;
 mod setpub;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 use setpub::SetPub;
 
@@ -26,20 +27,20 @@ impl BuiltInFunctions {
     }
 }
 
-pub trait BuiltInCaller {
+pub trait BuiltInCaller<F: FieldElement> {
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind>;
+    ) -> Result<Object<F>, RuntimeErrorKind>;
 }
 
-pub fn call_builtin(
-    evaluator: &mut Evaluator,
-    env: &mut Environment,
+pub fn call_builtin<F: FieldElement>(
+    evaluator: &mut Evaluator<F>,
+    env: &mut Environment<F>,
     builtin_name: &str,
     call_expr: HirCallExpression,
-) -> Result<Object, RuntimeErrorKind> {
+) -> Result<Object<F>, RuntimeErrorKind> {
     let func = match BuiltInFunctions::look_up_func_name(builtin_name) {
         None => {
             let message = format!(

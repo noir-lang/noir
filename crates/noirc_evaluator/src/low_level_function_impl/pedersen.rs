@@ -3,22 +3,23 @@ use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 
 pub struct PedersenGadget;
 
-impl GadgetCaller for PedersenGadget {
+impl<F: FieldElement> GadgetCaller<F> for PedersenGadget {
     fn name() -> OPCODE {
         OPCODE::Pedersen
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = PedersenGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create a Witness which will be the output of the pedersen hash
@@ -26,7 +27,7 @@ impl GadgetCaller for PedersenGadget {
         let pedersen_object = Object::from_witness(pedersen_witness);
 
         let pedersen_gate = GadgetCall {
-            name: PedersenGadget::name(),
+            name: OPCODE::Pedersen,
             inputs,
             outputs: vec![pedersen_witness],
         };
@@ -38,9 +39,9 @@ impl GadgetCaller for PedersenGadget {
 }
 
 impl PedersenGadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         let arr_expr = {
@@ -74,7 +75,7 @@ impl PedersenGadget {
 
             inputs.push(GadgetInput {
                 witness,
-                num_bits: noir_field::FieldElement::max_num_bits(),
+                num_bits: F::max_num_bits(),
             });
         }
 

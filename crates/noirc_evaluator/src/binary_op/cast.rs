@@ -1,10 +1,12 @@
+use noir_field::FieldElement;
+
 use crate::{Evaluator, Integer, Linear, Object, RuntimeErrorKind, Type};
 
-pub fn handle_cast_op(
-    evaluator: &mut Evaluator,
-    left: Object,
+pub fn handle_cast_op<F: FieldElement>(
+    evaluator: &mut Evaluator<F>,
+    left: Object<F>,
     right: Type,
-) -> Result<Object, RuntimeErrorKind> {
+) -> Result<Object<F>, RuntimeErrorKind> {
     let num_bits = match right {
         Type::Integer(_, _sign, num_bits) => num_bits,
         _ => {

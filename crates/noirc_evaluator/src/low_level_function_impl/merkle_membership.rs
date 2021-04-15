@@ -4,20 +4,21 @@ use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct MerkleMembershipGadget;
 
-impl GadgetCaller for MerkleMembershipGadget {
+impl<F: FieldElement> GadgetCaller<F> for MerkleMembershipGadget {
     fn name() -> OPCODE {
         OPCODE::MerkleMembership
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = MerkleMembershipGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create a fresh variable which will be the root
@@ -26,7 +27,7 @@ impl GadgetCaller for MerkleMembershipGadget {
         let merkle_mem_object = Object::from_witness(merkle_mem_witness);
 
         let merkle_mem_gate = GadgetCall {
-            name: MerkleMembershipGadget::name(),
+            name: OPCODE::MerkleMembership,
             inputs,
             outputs: vec![merkle_mem_witness],
         };
@@ -38,9 +39,9 @@ impl GadgetCaller for MerkleMembershipGadget {
 }
 
 impl MerkleMembershipGadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         assert_eq!(call_expr.arguments.len(), 4);
@@ -70,16 +71,16 @@ impl MerkleMembershipGadget {
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: root_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: F::max_num_bits(),
         }];
 
         inputs.push(GadgetInput {
             witness: leaf_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: F::max_num_bits(),
         });
         inputs.push(GadgetInput {
             witness: index_witness,
-            num_bits: noir_field::FieldElement::max_num_bits(),
+            num_bits: F::max_num_bits(),
         });
 
         for element in hash_path.contents.into_iter() {
@@ -98,7 +99,7 @@ impl MerkleMembershipGadget {
 
             inputs.push(GadgetInput {
                 witness,
-                num_bits: noir_field::FieldElement::max_num_bits(),
+                num_bits: F::max_num_bits(),
             });
         }
 

@@ -8,17 +8,17 @@ use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
 
 #[derive(Clone, Debug)]
-pub struct Array {
-    pub contents: Vec<Object>,
+pub struct Array<F: FieldElement> {
+    pub contents: Vec<Object<F>>,
     pub length: u128,
 }
 
-impl Array {
+impl<F: FieldElement> Array<F> {
     pub fn from(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         arr_lit: HirArrayLiteral,
-    ) -> Result<Array, RuntimeErrorKind> {
+    ) -> Result<Array<F>, RuntimeErrorKind> {
         // Take each element in the array and turn it into an object
         // We do not check that the array is homogenous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
@@ -32,7 +32,7 @@ impl Array {
             length: arr_lit.length,
         })
     }
-    pub fn get(&self, index: u128, span: Span) -> Result<Object, RuntimeErrorKind> {
+    pub fn get(&self, index: u128, span: Span) -> Result<Object<F>, RuntimeErrorKind> {
         if index >= self.length {
             return Err(RuntimeErrorKind::ArrayOutOfBounds {
                 index,
@@ -51,10 +51,10 @@ impl Array {
     /// This method creates a new array C
     /// such that C[i] = A[i] - B[i] for all i.
     pub fn sub(
-        lhs: Array,
-        rhs: Array,
-        evaluator: &mut Evaluator,
-    ) -> Result<Array, RuntimeErrorKind> {
+        lhs: Array<F>,
+        rhs: Array<F>,
+        evaluator: &mut Evaluator<F>,
+    ) -> Result<Array<F>, RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
         let mut contents = Vec::with_capacity(length);
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
@@ -71,10 +71,10 @@ impl Array {
     /// This method creates a new array C
     /// such that C[i] = A[i] + B[i] for all i.
     pub fn add(
-        lhs: Array,
-        rhs: Array,
-        evaluator: &mut Evaluator,
-    ) -> Result<Array, RuntimeErrorKind> {
+        lhs: Array<F>,
+        rhs: Array<F>,
+        evaluator: &mut Evaluator<F>,
+    ) -> Result<Array<F>, RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
         let mut contents = Vec::with_capacity(length);
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
@@ -88,7 +88,7 @@ impl Array {
         })
     }
 
-    fn check_arr_len(lhs: &Array, rhs: &Array) -> Result<usize, RuntimeErrorKind> {
+    fn check_arr_len(lhs: &Array<F>, rhs: &Array<F>) -> Result<usize, RuntimeErrorKind> {
         let lhs_len = lhs.num_elements();
         let rhs_len = rhs.num_elements();
         if lhs_len != rhs_len {
@@ -113,9 +113,9 @@ impl Array {
     /// Given two arrays A, B
     /// This method checks that A[i] == B[i] for all i.
     pub fn equal(
-        lhs: Array,
-        rhs: Array,
-        evaluator: &mut Evaluator,
+        lhs: Array<F>,
+        rhs: Array<F>,
+        evaluator: &mut Evaluator<F>,
     ) -> Result<(), RuntimeErrorKind> {
         let _ = Array::check_arr_len(&lhs, &rhs)?;
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
@@ -126,9 +126,9 @@ impl Array {
     /// Given two arrays A, B
     /// This method checks that A[i] != B[i] for some i.
     pub fn not_equal(
-        lhs: Array,
-        rhs: Array,
-        evaluator: &mut Evaluator,
+        lhs: Array<F>,
+        rhs: Array<F>,
+        evaluator: &mut Evaluator<F>,
     ) -> Result<(), RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
 
@@ -166,17 +166,17 @@ impl Array {
     }
 
     /// Constrains all elements in the array to be equal to zero
-    pub fn constrain_zero(&self, evaluator: &mut Evaluator) {
+    pub fn constrain_zero(&self, evaluator: &mut Evaluator<F>) {
         for element in self.contents.iter() {
             element.constrain_zero(evaluator)
         }
     }
 
     pub fn from_expression(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         expr_id: &ExprId,
-    ) -> Result<Array, RuntimeErrorKind> {
+    ) -> Result<Array<F>, RuntimeErrorKind> {
         let object = evaluator.expression_to_object(env, expr_id)?;
         match object {
             Object::Array(arr) => Ok(arr),

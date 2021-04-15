@@ -33,7 +33,10 @@ pub use xor::handle_xor_op;
 use crate::{object::Integer, Evaluator, FieldElement, Object, RuntimeErrorKind};
 
 /// Creates a new witness and constrains it to be the inverse of the polynomial passed in
-pub fn invert(x: Object, evaluator: &mut Evaluator) -> Result<Object, RuntimeErrorKind> {
+pub fn invert<F: FieldElement>(
+    x: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     // Create a fresh witness
 
     let inverse_witness = evaluator.add_witness_to_cs();
@@ -54,11 +57,11 @@ pub fn invert(x: Object, evaluator: &mut Evaluator) -> Result<Object, RuntimeErr
 }
 
 /// Returns 1 if a == b else 0
-pub fn maybe_equal(
-    a: Object,
-    b: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Integer, RuntimeErrorKind> {
+pub fn maybe_equal<F: FieldElement>(
+    a: Object<F>,
+    b: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Integer<F>, RuntimeErrorKind> {
     const ICE_STR: &str = "ice: this method should only be called for arithmetic gates";
     let a_arith = a.to_arithmetic().expect(ICE_STR);
     let b_arith = b.to_arithmetic().expect(ICE_STR);
@@ -75,12 +78,12 @@ pub fn maybe_equal(
     }));
 
     // y = 1 -uz
-    let uz: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(z);
-    let gate = uz.neg() + &FieldElement::one();
+    let uz: Arithmetic<F> = Linear::from_witness(u_wit) * Linear::from_witness(z);
+    let gate = uz.neg() + &F::one();
     let (_, y) = evaluator.create_intermediate_variable(gate);
 
     // yu = 0
-    let gate: Arithmetic = Linear::from_witness(u_wit) * Linear::from_witness(y);
+    let gate: Arithmetic<F> = Linear::from_witness(u_wit) * Linear::from_witness(y);
     evaluator.gates.push(Gate::Arithmetic(gate));
 
     // We know that y is a boolean

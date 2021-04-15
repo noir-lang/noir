@@ -3,29 +3,30 @@ use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 
 pub struct HashToFieldGadget;
 
-impl GadgetCaller for HashToFieldGadget {
+impl<F: FieldElement> GadgetCaller<F> for HashToFieldGadget {
     fn name() -> OPCODE {
         OPCODE::HashToField
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = HashToFieldGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         let res_witness = evaluator.add_witness_to_cs();
         let res_object = Object::from_witness(res_witness);
 
         let hash_to_field_gate = GadgetCall {
-            name: HashToFieldGadget::name(),
+            name: OPCODE::HashToField,
             inputs,
             outputs: vec![res_witness],
         };
@@ -37,9 +38,9 @@ impl GadgetCaller for HashToFieldGadget {
 }
 
 impl HashToFieldGadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         let arr_expr = {
@@ -62,7 +63,7 @@ impl HashToFieldGadget {
                             "HashToField Logic for non unit witnesses is currently not implemented"
                         )
                     }
-                    (lin.witness, noir_field::FieldElement::max_num_bits())
+                    (lin.witness, F::max_num_bits())
                 }
                 k => unimplemented!("HashToField logic for {:?} is not implemented yet", k),
             };

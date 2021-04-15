@@ -26,21 +26,21 @@ use noirc_frontend::hir_def::{
 use noirc_frontend::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use noirc_frontend::{FunctionKind, Type};
 use object::{Array, Integer, Object, RangedObject};
-pub struct Evaluator<'a> {
+pub struct Evaluator<'a, F: FieldElement> {
     // Why is this not u64?
     //
     // At the moment, wasm32 is being used in the default backend
     // so it is safer to use a u64, at least until clang is changed
     // to compile wasm64.
     current_witness_index: u32,
-    context: &'a Context,
+    context: &'a Context<F>,
     public_inputs: Vec<Witness>,
     main_function: FuncId,
-    gates: Vec<Gate>,
+    gates: Vec<Gate<F>>,
 }
 
-impl<'a> Evaluator<'a> {
-    pub fn new(main_function: FuncId, context: &Context) -> Evaluator {
+impl<'a, F: FieldElement> Evaluator<'a, F> {
+    pub fn new(main_function: FuncId, context: &Context<F>) -> Evaluator<F> {
         Evaluator {
             public_inputs: Vec::new(),
             // XXX: Barretenberg, reserves the first index to have value 0.
@@ -69,8 +69,8 @@ impl<'a> Evaluator<'a> {
         &mut self,
         variable_name: String,
         witness: Witness,
-        env: &mut Environment,
-    ) -> Object {
+        env: &mut Environment<F>,
+    ) -> Object<F> {
         let value = Object::from_witness(witness);
         env.store(variable_name, value.clone());
         value
@@ -85,7 +85,7 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self, backend: BackendPointer) -> Result<Circuit, RuntimeErrorKind> {
+    pub fn compile(mut self, backend: BackendPointer) -> Result<Circuit<F>, RuntimeErrorKind> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
@@ -111,8 +111,8 @@ impl<'a> Evaluator<'a> {
     //
     pub fn create_intermediate_variable(
         &mut self,
-        arithmetic_gate: Arithmetic,
-    ) -> (Object, Witness) {
+        arithmetic_gate: Arithmetic<F>,
+    ) -> (Object<F>, Witness) {
         // Create a unique witness name and add witness to the constraint system
         let inter_var_witness = self.add_witness_to_cs();
         let inter_var_object = Object::from_witness(inter_var_witness);
@@ -125,10 +125,10 @@ impl<'a> Evaluator<'a> {
 
     pub fn evaluate_infix_expression(
         &mut self,
-        lhs: Object,
-        rhs: Object,
+        lhs: Object<F>,
+        rhs: Object<F>,
         op: HirBinaryOp,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         match op.kind {
             HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
             HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
@@ -162,13 +162,13 @@ impl<'a> Evaluator<'a> {
     // This is because, we currently do not have support for optimisations with polynomials of higher degree or higher fan-ins
     // XXX: One way to configure this in the future, is to count the fan-in/out and check if it is lower than the configured width
     // Either it is 1 * x + 0 or it is ax+b
-    fn evaluate_identifier(&mut self, ident_id: &IdentId, env: &mut Environment) -> Object {
+    fn evaluate_identifier(&mut self, ident_id: &IdentId, env: &mut Environment<F>) -> Object<F> {
         let ident_name = self.context.def_interner.ident_name(ident_id);
         env.get(&ident_name)
     }
 
     /// Compiles the AST into the intermediate format by evaluating the main function
-    pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
+    pub fn evaluate_main(&mut self, env: &mut Environment<F>) -> Result<(), RuntimeErrorKind> {
         self.parse_abi(env)?;
 
         // Now call the main function
@@ -186,7 +186,7 @@ impl<'a> Evaluator<'a> {
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
-    fn parse_abi(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
+    fn parse_abi(&mut self, env: &mut Environment<F>) -> Result<(), RuntimeErrorKind> {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
@@ -285,9 +285,9 @@ impl<'a> Evaluator<'a> {
 
     fn evaluate_statement(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         stmt_id: &StmtId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
@@ -320,9 +320,9 @@ impl<'a> Evaluator<'a> {
     // It is also a new variable, since private is used to derive variables
     fn handle_private_statement(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         x: HirPrivateStatement,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
 
         let variable_name = self.context.def_interner.ident_name(&x.identifier);
@@ -381,9 +381,9 @@ impl<'a> Evaluator<'a> {
     // Add a constraint to constrain two expression together
     fn handle_constrain_statement(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         constrain_stmt: HirConstrainStatement,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let lhs_poly = self.expression_to_object(env, &constrain_stmt.0.lhs)?;
         let rhs_poly = self.expression_to_object(env, &constrain_stmt.0.rhs)?;
 
@@ -430,9 +430,9 @@ impl<'a> Evaluator<'a> {
     // Let statements are used to declare higher level objects
     fn handle_let_statement(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         let_stmt: HirLetStatement,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         // Convert the LHS into an identifier
         let variable_name = self.context.def_interner.ident_name(&let_stmt.identifier);
 
@@ -455,9 +455,9 @@ impl<'a> Evaluator<'a> {
     }
     fn handle_for_expr(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         for_expr: HirForExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         // First create an iterator over all of the for loop identifiers
         // XXX: We preferably need to introduce public integers and private integers, so that we can
         // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest
@@ -469,7 +469,7 @@ impl<'a> Evaluator<'a> {
             .constant()?;
         let ranged_object = RangedObject::new(start, end)?;
 
-        let mut contents: Vec<Object> = Vec::new();
+        let mut contents: Vec<Object<F>> = Vec::new();
 
         for indice in ranged_object {
             env.start_for_loop();
@@ -499,9 +499,9 @@ impl<'a> Evaluator<'a> {
 
     pub fn evaluate_integer(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         expr_id: &ExprId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let polynomial = self.expression_to_object(env, expr_id)?;
 
         if polynomial.is_constant() {
@@ -515,9 +515,9 @@ impl<'a> Evaluator<'a> {
 
     pub fn expression_to_object(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         expr_id: &ExprId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let expr = self.context.def_interner.expression(expr_id);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
@@ -582,10 +582,10 @@ impl<'a> Evaluator<'a> {
 
     fn call_function(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         call_expr: &HirCallExpression,
         func_id: FuncId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         // Create a new environment for this function
         // This is okay because functions are not stored in the environment
         // We need to add the arguments into the environment though
@@ -614,9 +614,9 @@ impl<'a> Evaluator<'a> {
 
     fn apply_func(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         func_id: &FuncId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let function = self.context.def_interner.function(func_id);
         let block = function.block(&self.context.def_interner);
         self.eval_block(env, block.statements())
@@ -624,9 +624,9 @@ impl<'a> Evaluator<'a> {
 
     fn eval_block(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         block: &[StmtId],
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let mut result = Object::Null;
         for stmt in block {
             result = self.evaluate_statement(env, stmt)?;
@@ -636,9 +636,9 @@ impl<'a> Evaluator<'a> {
 
     fn expression_list_to_objects(
         &mut self,
-        env: &mut Environment,
+        env: &mut Environment<F>,
         exprs: &[ExprId],
-    ) -> (Vec<Object>, Vec<RuntimeErrorKind>) {
+    ) -> (Vec<Object<F>>, Vec<RuntimeErrorKind>) {
         let (objects, errors): (Vec<_>, Vec<_>) = exprs
             .iter()
             .map(|expr| self.expression_to_object(env, expr))

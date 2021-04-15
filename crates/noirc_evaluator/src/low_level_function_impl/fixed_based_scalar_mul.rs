@@ -3,22 +3,23 @@ use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 
 pub struct FixedBaseScalarMulGadget;
 
-impl GadgetCaller for FixedBaseScalarMulGadget {
+impl<F: FieldElement> GadgetCaller<F> for FixedBaseScalarMulGadget {
     fn name() -> OPCODE {
         OPCODE::FixedBaseScalarMul
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = FixedBaseScalarMulGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         let witness_pubkey_x = evaluator.add_witness_to_cs();
@@ -28,7 +29,7 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
         let object_pubkey_y = Object::from_witness(witness_pubkey_y);
 
         let fixed_base_gate = GadgetCall {
-            name: FixedBaseScalarMulGadget::name(),
+            name: OPCODE::FixedBaseScalarMul,
             inputs,
             outputs: vec![witness_pubkey_x, witness_pubkey_y],
         };
@@ -45,9 +46,9 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
 }
 
 impl FixedBaseScalarMulGadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         let expr = {
@@ -66,7 +67,7 @@ impl FixedBaseScalarMulGadget {
                         "SHA256 Logic for non unit witnesses is currently not implemented"
                     )
                 }
-                (lin.witness, noir_field::FieldElement::max_num_bits())
+                (lin.witness, F::max_num_bits())
             }
             k => unimplemented!("SHA256 logic for {:?} is not implemented yet", k),
         };

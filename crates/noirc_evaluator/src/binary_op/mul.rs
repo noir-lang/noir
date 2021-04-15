@@ -1,14 +1,16 @@
+use noir_field::FieldElement;
+
 use crate::{Arithmetic, Array, Evaluator, Linear, Object, RuntimeErrorKind};
 
 ///   Dealing with multiplication
 /// - Multiplying an arithmetic gate with anything else except a constant requires an intermediate variable
 /// - We can safely multiply two linear polynomials
 
-pub fn handle_mul_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_mul_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     let general_err = err_cannot_mul(left.r#type(), right.r#type());
 
     match (left, right) {
@@ -41,11 +43,11 @@ fn err_cannot_mul(first_type: &'static str, second_type: &'static str) -> Runtim
     }
 }
 
-fn handle_arithmetic_mul(
-    arith: Arithmetic,
-    polynomial: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+fn handle_arithmetic_mul<F: FieldElement>(
+    arith: Arithmetic<F>,
+    polynomial: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     if let Ok(constant) = polynomial.constant() {
         return Ok(Object::Arithmetic(&arith * &constant));
     };
@@ -55,11 +57,11 @@ fn handle_arithmetic_mul(
     handle_mul_op(intermediate_var, polynomial, evaluator)
 }
 
-fn handle_linear_mul(
-    linear: Linear,
-    polynomial: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+fn handle_linear_mul<F: FieldElement>(
+    linear: Linear<F>,
+    polynomial: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     match polynomial {
         Object::Arithmetic(arith) => {
             handle_arithmetic_mul(arith, Object::Linear(linear), evaluator)

@@ -3,22 +3,23 @@ use crate::object::{Array, Integer, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
 
 pub struct Sha256Gadget;
 
-impl GadgetCaller for Sha256Gadget {
+impl<F: FieldElement> GadgetCaller<F> for Sha256Gadget {
     fn name() -> OPCODE {
         OPCODE::SHA256
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = Sha256Gadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create 32 fresh variables that will link to the SHA256 output
@@ -33,7 +34,7 @@ impl GadgetCaller for Sha256Gadget {
         }
 
         let sha256_gate = GadgetCall {
-            name: Sha256Gadget::name(),
+            name: OPCODE::SHA256,
             inputs,
             outputs,
         };
@@ -50,9 +51,9 @@ impl GadgetCaller for Sha256Gadget {
 }
 
 impl Sha256Gadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         let arr_expr = {
@@ -75,7 +76,7 @@ impl Sha256Gadget {
                             "SHA256 Logic for non unit witnesses is currently not implemented"
                         )
                     }
-                    (lin.witness, noir_field::FieldElement::max_num_bits())
+                    (lin.witness, F::max_num_bits())
                 }
                 k => unimplemented!("SHA256 logic for {:?} is not implemented yet", k),
             };

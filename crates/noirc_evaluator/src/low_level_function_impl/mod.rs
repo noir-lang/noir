@@ -17,6 +17,7 @@ use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use fixed_based_scalar_mul::FixedBaseScalarMulGadget;
 use hash_to_field::HashToFieldGadget;
 use merkle_membership::MerkleMembershipGadget;
+use noir_field::FieldElement;
 use pedersen::PedersenGadget;
 use schnorr::SchnorrVerifyGadget;
 use sha256::Sha256Gadget;
@@ -26,21 +27,21 @@ use noirc_frontend::hir_def::expr::HirCallExpression;
 use super::RuntimeErrorKind;
 use acvm::acir::OPCODE;
 
-pub trait GadgetCaller {
+pub trait GadgetCaller<F: FieldElement> {
     fn name() -> acvm::acir::OPCODE;
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind>;
+    ) -> Result<Object<F>, RuntimeErrorKind>;
 }
 
-pub fn call_low_level(
-    evaluator: &mut Evaluator,
-    env: &mut Environment,
+pub fn call_low_level<F: FieldElement>(
+    evaluator: &mut Evaluator<F>,
+    env: &mut Environment<F>,
     opcode_name: &str,
     call_expr: HirCallExpression,
-) -> Result<Object, RuntimeErrorKind> {
+) -> Result<Object<F>, RuntimeErrorKind> {
     let func = match OPCODE::lookup(opcode_name) {
         None => {
             let message = format!(

@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use super::sub::handle_sub_op;
 use crate::{Evaluator, Gate, Linear, Object, RuntimeErrorKind};
 
@@ -6,11 +8,11 @@ use crate::{Evaluator, Gate, Linear, Object, RuntimeErrorKind};
 
 /// This calls the sub op under the hood
 /// We negate the RHS and send it to the add op
-pub fn handle_equal_op(
-    left: Object,
-    right: Object,
-    evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+pub fn handle_equal_op<F: FieldElement>(
+    left: Object<F>,
+    right: Object<F>,
+    evaluator: &mut Evaluator<F>,
+) -> Result<Object<F>, RuntimeErrorKind> {
     let result = handle_sub_op(left, right, evaluator)?;
 
     match result {

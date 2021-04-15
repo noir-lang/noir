@@ -3,6 +3,7 @@ use crate::object::{Array, Integer, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::RuntimeErrorKind;
@@ -11,16 +12,16 @@ use super::RuntimeErrorKind;
 
 pub struct Blake2sGadget;
 
-impl GadgetCaller for Blake2sGadget {
+impl<F: FieldElement> GadgetCaller<F> for Blake2sGadget {
     fn name() -> OPCODE {
         OPCODE::Blake2s
     }
 
     fn call(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object<F>, RuntimeErrorKind> {
         let inputs = Blake2sGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create 32 fresh variables that will link to the Blake2s output
@@ -34,7 +35,7 @@ impl GadgetCaller for Blake2sGadget {
         }
 
         let blake2s_gate = GadgetCall {
-            name: Blake2sGadget::name(),
+            name: OPCODE::Blake2s,
             inputs,
             outputs,
         };
@@ -51,9 +52,9 @@ impl GadgetCaller for Blake2sGadget {
 }
 
 impl Blake2sGadget {
-    fn prepare_inputs(
-        evaluator: &mut Evaluator,
-        env: &mut Environment,
+    fn prepare_inputs<F: FieldElement>(
+        evaluator: &mut Evaluator<F>,
+        env: &mut Environment<F>,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         let arr_expr = {
@@ -76,7 +77,7 @@ impl Blake2sGadget {
                             "Blake2s Logic for non unit witnesses is currently not implemented"
                         )
                     }
-                    (lin.witness, noir_field::FieldElement::max_num_bits())
+                    (lin.witness, F::max_num_bits())
                 }
                 k => unimplemented!("Blake2s logic for {:?} is not implemented yet", k),
             };
