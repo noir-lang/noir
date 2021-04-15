@@ -1,10 +1,24 @@
 use std::{
     hash::Hash,
-    ops::{AddAssign, Div, Mul, Neg, SubAssign},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign},
 };
 
 pub trait FieldElement:
-    Copy + Clone + PartialEq + Eq + PartialOrd + Ord + Mul + Neg + Div + AddAssign + SubAssign + Hash
+    Copy
+    + Clone
+    + PartialEq
+    + Eq
+    + PartialOrd
+    + Ord
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Neg<Output = Self>
+    + Div<Output = Self>
+    + AddAssign
+    + SubAssign
+    + Hash
+    + core::fmt::Debug
 {
     /// Converts field element to bytes
     fn to_bytes(&self) -> Vec<u8>;
@@ -89,6 +103,8 @@ pub trait FieldElement:
     /// Casts a Field element as a u128
     //XXX: Change this to return Option, incase it cannot fit in a u128?
     fn to_u128(&self) -> u128;
+
+    fn from_i128(a: i128) -> Self;
 
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Do not panic, as we do not want the compiler to need to catch the unwind

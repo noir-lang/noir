@@ -183,6 +183,21 @@ impl FieldElement for Fr {
         let dec_str = hex_to_decimal(hex_str);
         Fr::from_str(&dec_str).ok()
     }
+    fn from_i128(mut a: i128) -> Self {
+        let mut negative = false;
+        if a < 0 {
+            a = -a;
+            negative = true;
+        }
+
+        let mut result = Fr::from_str(&a.to_string())
+            .expect("Cannot convert i128 as a string to a field element");
+
+        if negative {
+            result = -result;
+        }
+        result
+    }
 }
 
 // This is needed because arkworks only accepts arbitrary sized
