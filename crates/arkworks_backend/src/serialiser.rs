@@ -4,12 +4,12 @@ use ark_bn254::Fr;
 
 /// Converts an ACIR into an ACIR struct that
 /// the arkworks backend can consume
-pub fn serialise(acir: Circuit, values: Vec<Fr>) -> Bn254Acir {
+pub fn serialise(acir: Circuit<Fr>, values: Vec<Fr>) -> Bn254Acir {
     (acir, values).into()
 }
 
-impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
-    fn from(circ_val: (Circuit, Vec<Fr>)) -> Bn254Acir {
+impl From<(Circuit<Fr>, Vec<Fr>)> for Bn254Acir {
+    fn from(circ_val: (Circuit<Fr>, Vec<Fr>)) -> Bn254Acir {
         // Currently non-arithmetic gates are not supported
         // so we extract all of the arithmetic gates only
         let circ = circ_val.0;
@@ -32,24 +32,24 @@ impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
     }
 }
 
-impl From<Arithmetic> for Bn254AcirArithGate {
-    fn from(arith_gate: Arithmetic) -> Bn254AcirArithGate {
+impl From<Arithmetic<Fr>> for Bn254AcirArithGate {
+    fn from(arith_gate: Arithmetic<Fr>) -> Bn254AcirArithGate {
         let converted_mul_terms: Vec<_> = arith_gate
             .mul_terms
             .into_iter()
-            .map(|(coeff, l_var, r_var)| (coeff.into_repr(), l_var, r_var))
+            .map(|(coeff, l_var, r_var)| (coeff, l_var, r_var))
             .collect();
 
         let converted_linear_combinations: Vec<_> = arith_gate
             .linear_combinations
             .into_iter()
-            .map(|(coeff, var)| (coeff.into_repr(), var))
+            .map(|(coeff, var)| (coeff, var))
             .collect();
 
         Bn254AcirArithGate {
             mul_terms: converted_mul_terms,
             add_terms: converted_linear_combinations,
-            constant_term: arith_gate.q_c.into_repr(),
+            constant_term: arith_gate.q_c,
         }
     }
 }

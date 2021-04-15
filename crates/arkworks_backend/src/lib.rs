@@ -1,6 +1,5 @@
 use acir::circuit::Circuit;
 use ark_bn254::{Bn254, Fr};
-use ark_ff::Zero;
 use ark_marlin::{Marlin, Proof};
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::marlin_pc::MarlinKZG10;
@@ -17,7 +16,7 @@ type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 type MarlinBn254Proof = Proof<Fr, MultiPC>;
 
 // Creates a proof using the Marlin proving system
-pub fn prove(acir: Circuit, values: Vec<&FieldElement>) -> Vec<u8> {
+pub fn prove(acir: Circuit<Fr>, values: Vec<&Fr>) -> Vec<u8> {
     let num_vars = acir.num_vars() as usize;
     let num_constraints = compute_num_constraints(&acir);
 
@@ -26,7 +25,7 @@ pub fn prove(acir: Circuit, values: Vec<&FieldElement>) -> Vec<u8> {
     let values: Vec<_> = std::iter::once(&FieldElement::zero())
         .chain(values.into_iter())
         .copied()
-        .map(|x| x.into_repr())
+        .map(|x| x)
         .collect();
 
     let bn254_circ = serialise(acir, values);
@@ -46,10 +45,10 @@ pub fn prove(acir: Circuit, values: Vec<&FieldElement>) -> Vec<u8> {
     bytes
 }
 
-pub fn verify(acir: Circuit, proof: &[u8], public_inputs: Vec<FieldElement>) -> bool {
+pub fn verify(acir: Circuit<Fr>, proof: &[u8], public_inputs: Vec<Fr>) -> bool {
     let num_vars = acir.num_vars() as usize;
     let num_constraints = compute_num_constraints(&acir);
-    let bn254_circ = serialise(acir, vec![Fr::zero(); num_vars]);
+    let bn254_circ = serialise(acir, vec![FieldElement::zero(); num_vars]);
 
     let rng = &mut ark_std::test_rng();
 
@@ -57,12 +56,12 @@ pub fn verify(acir: Circuit, proof: &[u8], public_inputs: Vec<FieldElement>) -> 
 
     let (_, index_vk) = MarlinInst::index(&universal_srs, bn254_circ).unwrap();
 
-    let public_inputs: Vec<_> = public_inputs.into_iter().map(|x| x.into_repr()).collect();
+    let public_inputs: Vec<_> = public_inputs.into_iter().map(|x| x).collect();
     let proof = MarlinBn254Proof::deserialize(proof).unwrap();
     MarlinInst::verify(&index_vk, &public_inputs, &proof, rng).unwrap()
 }
 
-fn compute_num_constraints(acir: &Circuit) -> usize {
+fn compute_num_constraints(acir: &Circuit<Fr>) -> usize {
     // each multiplication term adds an extra constraint
     let mut num_gates = acir.gates.len();
 
