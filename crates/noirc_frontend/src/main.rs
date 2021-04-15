@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use fm::{FileManager, FileType};
 use hir::{def_map::CrateDefMap, Context};
+use noir_field::Bn254Scalar;
 use noirc_frontend::graph::{CrateGraph, CrateType};
 use noirc_frontend::hir::{self, def_map::ModuleDefId};
-
 // XXX: This is another sandbox test
 fn main() {
     // File Manager
@@ -20,7 +20,7 @@ fn main() {
     let crate_id = crate_graph.add_crate_root(CrateType::Library, root_file_id);
 
     // initiate context with file manager and crate graph
-    let mut context = Context::new(fm, crate_graph);
+    let mut context = Context::<Bn254Scalar>::new(fm, crate_graph);
 
     // Now create the CrateDefMap
     // This is preamble for analysis
