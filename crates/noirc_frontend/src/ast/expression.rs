@@ -4,22 +4,22 @@ use noir_field::FieldElement;
 use noirc_errors::{Span, Spanned};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ExpressionKind {
+pub enum ExpressionKind<F: FieldElement> {
     Ident(String),
-    Literal(Literal),
-    Block(BlockExpression),
-    Prefix(Box<PrefixExpression>),
-    Index(Box<IndexExpression>),
-    Call(Box<CallExpression>),
-    Cast(Box<CastExpression>),
-    Infix(Box<InfixExpression>),
-    Predicate(Box<InfixExpression>),
-    For(Box<ForExpression>),
-    If(Box<IfExpression>),
+    Literal(Literal<F>),
+    Block(BlockExpression<F>),
+    Prefix(Box<PrefixExpression<F>>),
+    Index(Box<IndexExpression<F>>),
+    Call(Box<CallExpression<F>>),
+    Cast(Box<CastExpression<F>>),
+    Infix(Box<InfixExpression<F>>),
+    Predicate(Box<InfixExpression<F>>),
+    For(Box<ForExpression<F>>),
+    If(Box<IfExpression<F>>),
     Path(Path),
 }
 
-impl ExpressionKind {
+impl<F: FieldElement> ExpressionKind<F> {
     pub fn into_path(self) -> Option<Path> {
         match self {
             ExpressionKind::Path(path) => Some(path),
@@ -27,7 +27,7 @@ impl ExpressionKind {
         }
     }
 
-    pub fn into_infix(self) -> Option<InfixExpression> {
+    pub fn into_infix(self) -> Option<InfixExpression<F>> {
         match self {
             ExpressionKind::Infix(infix) => Some(*infix),
             ExpressionKind::Predicate(infix) => Some(*infix),
@@ -40,7 +40,7 @@ impl ExpressionKind {
         self.as_integer().is_some()
     }
 
-    fn as_integer(&self) -> Option<FieldElement> {
+    fn as_integer(&self) -> Option<F> {
         let literal = match self {
             ExpressionKind::Literal(literal) => literal,
             _ => return None,
@@ -72,20 +72,20 @@ impl ExpressionKind {
 }
 
 #[derive(Debug, Eq, Clone)]
-pub struct Expression {
-    pub kind: ExpressionKind,
+pub struct Expression<F: FieldElement> {
+    pub kind: ExpressionKind<F>,
     pub span: Span,
 }
 
 // This is important for tests. Two expressions are the same, iff their Kind is the same
 // We are ignoring Span
-impl PartialEq<Expression> for Expression {
-    fn eq(&self, rhs: &Expression) -> bool {
+impl<F: FieldElement> PartialEq<Expression<F>> for Expression<F> {
+    fn eq(&self, rhs: &Expression<F>) -> bool {
         self.kind == rhs.kind
     }
 }
 
-impl Expression {
+impl<F: FieldElement> Expression<F> {
     pub fn into_ident(self) -> Option<Ident> {
         let identifier = match self.kind {
             ExpressionKind::Ident(x) => x,
@@ -98,11 +98,11 @@ impl Expression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ForExpression {
+pub struct ForExpression<F: FieldElement> {
     pub identifier: Ident,
-    pub start_range: Expression,
-    pub end_range: Expression,
-    pub block: BlockExpression,
+    pub start_range: Expression<F>,
+    pub end_range: Expression<F>,
+    pub block: BlockExpression<F>,
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;
@@ -162,8 +162,8 @@ impl BinaryOpKind {
     }
 }
 
-impl From<&Token> for Option<BinaryOpKind> {
-    fn from(token: &Token) -> Option<BinaryOpKind> {
+impl<F: FieldElement> From<&Token<F>> for Option<BinaryOpKind> {
+    fn from(token: &Token<F>) -> Option<BinaryOpKind> {
         let op = match token {
             Token::Plus => BinaryOpKind::Add,
             Token::Ampersand => BinaryOpKind::And,
@@ -194,7 +194,7 @@ pub enum UnaryOp {
 impl UnaryOp {
     /// Converts a token to a unary operator
     /// If you want the parser to recognise another Token as being a prefix operator, it is defined here
-    pub fn from(token: &Token) -> Option<UnaryOp> {
+    pub fn from<F: FieldElement>(token: &Token<F>) -> Option<UnaryOp> {
         match token {
             Token::Minus => Some(UnaryOp::Minus),
             Token::Bang => Some(UnaryOp::Not),
@@ -203,73 +203,73 @@ impl UnaryOp {
     }
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Literal {
-    Array(ArrayLiteral),
+pub enum Literal<F: FieldElement> {
+    Array(ArrayLiteral<F>),
     Bool(bool),
-    Integer(FieldElement),
+    Integer(F),
     Str(String),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PrefixExpression {
+pub struct PrefixExpression<F: FieldElement> {
     pub operator: UnaryOp,
-    pub rhs: Expression,
+    pub rhs: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct InfixExpression {
-    pub lhs: Expression,
+pub struct InfixExpression<F: FieldElement> {
+    pub lhs: Expression<F>,
     pub operator: BinaryOp,
-    pub rhs: Expression,
+    pub rhs: Expression<F>,
 }
 
 // This is an infix expression with 'as' as the binary operator
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CastExpression {
-    pub lhs: Expression,
+pub struct CastExpression<F: FieldElement> {
+    pub lhs: Expression<F>,
     pub r#type: Type,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IfExpression {
-    pub condition: Expression,
-    pub consequence: BlockExpression,
-    pub alternative: Option<BlockExpression>,
+pub struct IfExpression<F: FieldElement> {
+    pub condition: Expression<F>,
+    pub consequence: BlockExpression<F>,
+    pub alternative: Option<BlockExpression<F>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FunctionDefinition {
+pub struct FunctionDefinition<F: FieldElement> {
     pub name: Ident,
     pub attribute: Option<Attribute>, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
     pub parameters: Vec<(Ident, Type)>,
-    pub body: BlockExpression,
+    pub body: BlockExpression<F>,
     pub span: Span,
     pub return_type: Type,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ArrayLiteral {
+pub struct ArrayLiteral<F: FieldElement> {
     pub length: u128, // XXX: Maybe allow field element, so that the user can define the length using a constant
     pub r#type: Type,
-    pub contents: Vec<Expression>,
+    pub contents: Vec<Expression<F>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CallExpression {
+pub struct CallExpression<F: FieldElement> {
     pub func_name: Path,
-    pub arguments: Vec<Expression>,
+    pub arguments: Vec<Expression<F>>,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IndexExpression {
+pub struct IndexExpression<F: FieldElement> {
     pub collection_name: Ident, // XXX: For now, this will be the name of the array, as we do not support other collections
-    pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
+    pub index: Expression<F>, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct BlockExpression(pub Vec<Statement>);
+pub struct BlockExpression<F: FieldElement>(pub Vec<Statement<F>>);
 
-impl BlockExpression {
-    pub fn pop(&mut self) -> Option<Statement> {
+impl<F: FieldElement> BlockExpression<F> {
+    pub fn pop(&mut self) -> Option<Statement<F>> {
         self.0.pop()
     }
 

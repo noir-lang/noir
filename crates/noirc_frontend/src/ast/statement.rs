@@ -1,5 +1,6 @@
 use crate::lexer::token::SpannedToken;
 use crate::{Expression, ExpressionKind, InfixExpression, Type};
+use noir_field::FieldElement;
 use noirc_errors::{Span, Spanned};
 
 #[derive(PartialOrd, Eq, Ord, Debug, Clone)]
@@ -34,15 +35,15 @@ impl From<&str> for Ident {
     }
 }
 
-impl From<SpannedToken> for Ident {
-    fn from(st: SpannedToken) -> Ident {
+impl<F: FieldElement> From<SpannedToken<F>> for Ident {
+    fn from(st: SpannedToken<F>) -> Ident {
         let spanned_str = Spanned::from(st.to_span(), st.token().to_string());
         Ident(spanned_str)
     }
 }
 
-impl From<Ident> for Expression {
-    fn from(i: Ident) -> Expression {
+impl<F: FieldElement> From<Ident> for Expression<F> {
+    fn from(i: Ident) -> Expression<F> {
         Expression {
             span: i.0.span(),
             kind: ExpressionKind::Ident(i.0.contents),
@@ -50,22 +51,22 @@ impl From<Ident> for Expression {
     }
 }
 
-impl From<Ident> for ExpressionKind {
-    fn from(i: Ident) -> ExpressionKind {
+impl<F: FieldElement> From<Ident> for ExpressionKind<F> {
+    fn from(i: Ident) -> ExpressionKind<F> {
         ExpressionKind::Ident(i.0.contents)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Statement {
-    Let(LetStatement),
-    Const(ConstStatement),
-    Constrain(ConstrainStatement),
-    Private(PrivateStatement),
-    Expression(Expression),
+pub enum Statement<F: FieldElement> {
+    Let(LetStatement<F>),
+    Const(ConstStatement<F>),
+    Constrain(ConstrainStatement<F>),
+    Private(PrivateStatement<F>),
+    Expression(Expression<F>),
     // This is an expression with a trailing semi-colon
     // terminology Taken from rustc
-    Semi(Expression),
+    Semi(Expression<F>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -143,25 +144,25 @@ impl Path {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 // This will be used for non primitive data types like Arrays and Structs
-pub struct LetStatement {
+pub struct LetStatement<F: FieldElement> {
     pub identifier: Ident,
     pub r#type: Type,
-    pub expression: Expression,
+    pub expression: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstStatement {
+pub struct ConstStatement<F: FieldElement> {
     pub identifier: Ident,
     pub r#type: Type, // This will always be a Literal FieldElement
-    pub expression: Expression,
+    pub expression: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PrivateStatement {
+pub struct PrivateStatement<F: FieldElement> {
     pub identifier: Ident,
     pub r#type: Type,
-    pub expression: Expression,
+    pub expression: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub InfixExpression);
+pub struct ConstrainStatement<F: FieldElement>(pub InfixExpression<F>);

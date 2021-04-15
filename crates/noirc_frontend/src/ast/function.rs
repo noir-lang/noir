@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use crate::{token::Attribute, Ident};
 
 use super::{FunctionDefinition, Type};
@@ -7,9 +9,9 @@ use super::{FunctionDefinition, Type};
 // The name for function literal will be the variable it is binded to, and the name for a function definition will
 // be the function name itself.
 #[derive(Clone, Debug, PartialEq)]
-pub struct NoirFunction {
+pub struct NoirFunction<F: FieldElement> {
     pub kind: FunctionKind,
-    pub def: FunctionDefinition,
+    pub def: FunctionDefinition<F>,
 }
 
 /// Currently, we support three types of functions:
@@ -23,20 +25,20 @@ pub enum FunctionKind {
     Normal,
 }
 
-impl NoirFunction {
-    pub fn normal(def: FunctionDefinition) -> NoirFunction {
+impl<F: FieldElement> NoirFunction<F> {
+    pub fn normal(def: FunctionDefinition<F>) -> NoirFunction<F> {
         NoirFunction {
             kind: FunctionKind::Normal,
             def,
         }
     }
-    pub fn builtin(def: FunctionDefinition) -> NoirFunction {
+    pub fn builtin(def: FunctionDefinition<F>) -> NoirFunction<F> {
         NoirFunction {
             kind: FunctionKind::Builtin,
             def,
         }
     }
-    pub fn low_level(def: FunctionDefinition) -> NoirFunction {
+    pub fn low_level(def: FunctionDefinition<F>) -> NoirFunction<F> {
         NoirFunction {
             kind: FunctionKind::LowLevel,
             def,
@@ -58,17 +60,17 @@ impl NoirFunction {
     pub fn attribute(&self) -> Option<&Attribute> {
         self.def.attribute.as_ref()
     }
-    pub fn def(&self) -> &FunctionDefinition {
+    pub fn def(&self) -> &FunctionDefinition<F> {
         &self.def
     }
-    pub fn def_mut(&mut self) -> &mut FunctionDefinition {
+    pub fn def_mut(&mut self) -> &mut FunctionDefinition<F> {
         &mut self.def
     }
     pub fn number_of_statements(&self) -> usize {
         self.def.body.0.len()
     }
 
-    pub fn foreign(&self) -> Option<&FunctionDefinition> {
+    pub fn foreign(&self) -> Option<&FunctionDefinition<F>> {
         match &self.kind {
             FunctionKind::LowLevel => {}
             _ => return None,
@@ -78,8 +80,8 @@ impl NoirFunction {
     }
 }
 
-impl From<FunctionDefinition> for NoirFunction {
-    fn from(fd: FunctionDefinition) -> Self {
+impl<F: FieldElement> From<FunctionDefinition<F>> for NoirFunction<F> {
+    fn from(fd: FunctionDefinition<F>) -> Self {
         let kind = match fd.attribute {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
