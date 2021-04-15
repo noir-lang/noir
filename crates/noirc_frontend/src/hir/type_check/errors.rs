@@ -1,3 +1,4 @@
+use noir_field::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
@@ -59,7 +60,7 @@ pub enum TypeCheckError {
 }
 
 impl TypeCheckError {
-    pub fn into_diagnostics(self, interner: &NodeInterner) -> Vec<Diagnostic> {
+    pub fn into_diagnostics<F: FieldElement>(self, interner: &NodeInterner<F>) -> Vec<Diagnostic> {
         match self {
             TypeCheckError::TypeCannotBeUsed { typ, place, span } => {
                 vec![Diagnostic::simple_error(

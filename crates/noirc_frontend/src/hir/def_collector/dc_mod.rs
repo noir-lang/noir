@@ -1,4 +1,5 @@
 use fm::FileId;
+use noir_field::FieldElement;
 use noirc_errors::{CollectedErrors, DiagnosableError};
 
 use crate::{Ident, NoirFunction, ParsedModule};
@@ -12,16 +13,16 @@ use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
 /// Given a module collect all definitions into ModuleData
-pub struct ModCollector<'a> {
-    pub(crate) def_collector: &'a mut DefCollector,
-    pub(crate) ast: ParsedModule,
+pub struct ModCollector<'a, F: FieldElement> {
+    pub(crate) def_collector: &'a mut DefCollector<F>,
+    pub(crate) ast: ParsedModule<F>,
     pub(crate) file_id: FileId,
     pub(crate) module_id: LocalModuleId,
 }
 
-impl<'a> ModCollector<'a> {
+impl<'a, F: FieldElement> ModCollector<'a, F> {
     /// Walk a module and collect it's definitions
-    pub fn collect_defs(&mut self, context: &mut Context) -> Result<(), Vec<CollectedErrors>> {
+    pub fn collect_defs(&mut self, context: &mut Context<F>) -> Result<(), Vec<CollectedErrors>> {
         // First resolve the module declarations
         // XXX: to avoid clone, possibly destructure the AST and pass in `self` for mod collector instead of `&mut self`
         // Alternatively, pass in the AST as a reference
@@ -45,7 +46,7 @@ impl<'a> ModCollector<'a> {
         };
         for function in self.ast.functions.clone() {
             let name = function.name_ident().clone();
-            let nf: NoirFunction = function;
+            let nf: NoirFunction<F> = function;
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
@@ -86,7 +87,7 @@ impl<'a> ModCollector<'a> {
     /// and then collect all definitions of the child module
     fn parse_module_declaration(
         &mut self,
-        context: &mut Context,
+        context: &mut Context<F>,
         mod_name: &Ident,
     ) -> Result<(), Vec<CollectedErrors>> {
         let child_file_id = context

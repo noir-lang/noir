@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use crate::{
     hir_def::{
         expr::{HirBinaryOp, HirExpression, HirLiteral},
@@ -13,8 +15,8 @@ use crate::{
 
 use super::errors::TypeCheckError;
 
-pub(crate) fn type_check_expression(
-    interner: &mut NodeInterner,
+pub(crate) fn type_check_expression<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     expr_id: &ExprId,
 ) -> Result<(), TypeCheckError> {
     let hir_expr = interner.expression(expr_id);
@@ -338,8 +340,8 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
     }
 }
 
-fn check_param_argument(
-    interner: &NodeInterner,
+fn check_param_argument<F: FieldElement>(
+    interner: &NodeInterner<F>,
     param: &Param,
     arg_type: &Type,
 ) -> Result<(), TypeCheckError> {
@@ -362,7 +364,7 @@ fn check_param_argument(
     Ok(())
 }
 
-fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
+fn extract_ret_type<F: FieldElement>(interner: &NodeInterner<F>, stmt_id: &StmtId) -> Type {
     let stmt = interner.statement(stmt_id);
     match stmt {
         HirStatement::Let(_)
@@ -377,8 +379,8 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
     }
 }
 
-fn type_check_list_expression(
-    interner: &mut NodeInterner,
+fn type_check_list_expression<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     exprs: &[ExprId],
 ) -> Result<(), TypeCheckError> {
     assert!(!exprs.is_empty());

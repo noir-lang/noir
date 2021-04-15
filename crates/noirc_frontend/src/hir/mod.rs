@@ -8,12 +8,13 @@ use crate::graph::{CrateGraph, CrateId};
 use crate::node_interner::NodeInterner;
 use def_map::CrateDefMap;
 use fm::FileManager;
+use noir_field::FieldElement;
 use std::collections::HashMap;
 
 /// Global context that is accessible during each stage
 #[derive(Debug)]
-pub struct Context {
-    pub def_interner: NodeInterner,
+pub struct Context<F: FieldElement> {
+    pub def_interner: NodeInterner<F>,
 
     pub crate_graph: CrateGraph,
 
@@ -22,7 +23,7 @@ pub struct Context {
     pub file_manager: FileManager,
 }
 
-impl Default for Context {
+impl<F: FieldElement> Default for Context<F> {
     fn default() -> Self {
         Context {
             def_interner: NodeInterner::default(),
@@ -33,8 +34,8 @@ impl Default for Context {
     }
 }
 
-impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+impl<F: FieldElement> Context<F> {
+    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context<F> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: HashMap::new(),

@@ -1,3 +1,4 @@
+use noir_field::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 pub use noirc_errors::Span;
 use thiserror::Error;
@@ -38,7 +39,7 @@ impl ResolverError {
     /// Only user errors can be transformed into a Diagnostic
     /// ICEs will make the compiler panic, as they could affect the
     /// soundness of the generated program
-    pub fn into_diagnostic(self, interner: &NodeInterner) -> Diagnostic {
+    pub fn into_diagnostic<F: FieldElement>(self, interner: &NodeInterner<F>) -> Diagnostic {
         match self {
             ResolverError::DuplicateDefinition {
                 first_ident,

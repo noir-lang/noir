@@ -5,6 +5,7 @@ use crate::node_interner::FuncId;
 use crate::{parser::ParsedModule, Parser};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
+use noir_field::FieldElement;
 use noirc_errors::{CollectedErrors, DiagnosableError};
 use std::collections::HashMap;
 
@@ -41,9 +42,9 @@ pub struct CrateDefMap {
 
 impl CrateDefMap {
     /// Collect all definitions in the crate
-    pub fn collect_defs(
+    pub fn collect_defs<F: FieldElement>(
         crate_id: CrateId,
-        context: &mut Context,
+        context: &mut Context<F>,
     ) -> Result<(), Vec<CollectedErrors>> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -105,10 +106,10 @@ impl CrateDefMap {
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(
+pub fn parse_file<F: FieldElement>(
     fm: &mut FileManager,
     file_id: FileId,
-) -> Result<ParsedModule, Vec<CollectedErrors>> {
+) -> Result<ParsedModule<F>, Vec<CollectedErrors>> {
     let file = fm.fetch_file(file_id);
     let mut parser = Parser::from_src(file.get_source());
     match parser.parse_program() {

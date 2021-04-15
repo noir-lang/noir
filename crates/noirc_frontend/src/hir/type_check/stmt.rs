@@ -1,3 +1,5 @@
+use noir_field::FieldElement;
+
 use crate::hir_def::stmt::{
     HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement,
 };
@@ -6,8 +8,8 @@ use crate::Type;
 
 use super::{errors::TypeCheckError, expr::type_check_expression};
 
-pub(crate) fn type_check(
-    interner: &mut NodeInterner,
+pub(crate) fn type_check<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     stmt_id: &StmtId,
 ) -> Result<(), TypeCheckError> {
     match interner.statement(stmt_id) {
@@ -48,8 +50,8 @@ pub(crate) fn type_check(
     }
 }
 
-fn type_check_priv_stmt(
-    interner: &mut NodeInterner,
+fn type_check_priv_stmt<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     priv_stmt: HirPrivateStatement,
 ) -> Result<(), TypeCheckError> {
     let resolved_type = type_check_declaration(interner, priv_stmt.expression, priv_stmt.r#type)?;
@@ -70,8 +72,8 @@ fn type_check_priv_stmt(
     Ok(())
 }
 
-fn type_check_let_stmt(
-    interner: &mut NodeInterner,
+fn type_check_let_stmt<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     let_stmt: HirLetStatement,
 ) -> Result<(), TypeCheckError> {
     let resolved_type = type_check_declaration(interner, let_stmt.expression, let_stmt.r#type)?;
@@ -91,8 +93,8 @@ fn type_check_let_stmt(
 
     Ok(())
 }
-fn type_check_const_stmt(
-    interner: &mut NodeInterner,
+fn type_check_const_stmt<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     const_stmt: HirConstStatement,
 ) -> Result<(), TypeCheckError> {
     // XXX: It may not make sense to have annotations for const statements, since they can only have one type
@@ -116,8 +118,8 @@ fn type_check_const_stmt(
 
     Ok(())
 }
-fn type_check_constrain_stmt(
-    interner: &mut NodeInterner,
+fn type_check_constrain_stmt<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     stmt: HirConstrainStatement,
 ) -> Result<(), TypeCheckError> {
     type_check_expression(interner, &stmt.0.lhs)?;
@@ -163,8 +165,8 @@ fn type_check_constrain_stmt(
 /// All declaration statements check that the user specified type(UST) is equal to the
 /// expression on the RHS, unless the UST is unspecified
 /// In that case, the UST because the expression
-fn type_check_declaration(
-    interner: &mut NodeInterner,
+fn type_check_declaration<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     rhs_expr: ExprId,
     mut annotated_type: Type,
 ) -> Result<Type, TypeCheckError> {

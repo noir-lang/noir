@@ -3,10 +3,12 @@ use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId};
 use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
+
+// XXX: We could possibly intern the literals and not need the generic parameter
 #[derive(Debug, Clone)]
-pub enum HirExpression {
+pub enum HirExpression<F: FieldElement> {
     Ident(IdentId),
-    Literal(HirLiteral),
+    Literal(HirLiteral<F>),
     Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
     Infix(HirInfixExpression),
@@ -18,9 +20,9 @@ pub enum HirExpression {
     If(IfExpression),
 }
 
-impl HirExpression {
+impl<F: FieldElement> HirExpression<F> {
     /// Returns an empty block expression
-    pub const fn empty_block() -> HirExpression {
+    pub fn empty_block() -> HirExpression<F> {
         HirExpression::Block(HirBlockExpression(vec![]))
     }
 }
@@ -121,10 +123,10 @@ impl From<UnaryOp> for HirUnaryOp {
 }
 
 #[derive(Debug, Clone)]
-pub enum HirLiteral {
+pub enum HirLiteral<F: FieldElement> {
     Array(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement),
+    Integer(F),
     Str(String),
 }
 

@@ -25,6 +25,7 @@ use crate::{
     BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
     Statement,
 };
+use noir_field::FieldElement;
 use noirc_errors::Spanned;
 
 use crate::hir::scope::{
@@ -49,23 +50,23 @@ type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
-pub struct Resolver<'a> {
+pub struct Resolver<'a, F: FieldElement> {
     scopes: ScopeForest,
 
     path_resolver: &'a dyn PathResolver,
     def_maps: &'a HashMap<CrateId, CrateDefMap>,
 
-    interner: &'a mut NodeInterner,
+    interner: &'a mut NodeInterner<F>,
 
     errors: Vec<ResolverError>,
 }
 
-impl<'a> Resolver<'a> {
+impl<'a, F: FieldElement> Resolver<'a, F> {
     pub fn new(
-        interner: &'a mut NodeInterner,
+        interner: &'a mut NodeInterner<F>,
         path_resolver: &'a dyn PathResolver,
         def_maps: &'a HashMap<CrateId, CrateDefMap>,
-    ) -> Resolver<'a> {
+    ) -> Resolver<'a, F> {
         Self {
             path_resolver,
             def_maps,
@@ -86,7 +87,7 @@ impl<'a> Resolver<'a> {
     /// Since lowering would require scope data, unless we add an extra resolution field to the AST
     pub fn resolve_function(
         mut self,
-        func: NoirFunction,
+        func: NoirFunction<F>,
     ) -> Result<(HirFunction, FuncMeta), Vec<ResolverError>> {
         self.scopes.start_function();
 
@@ -101,14 +102,14 @@ impl<'a> Resolver<'a> {
             Err(self.errors)
         }
     }
-    fn resolve_expression(&mut self, expr: Expression) -> ExprId {
+    fn resolve_expression(&mut self, expr: Expression<F>) -> ExprId {
         self.intern_expr(expr)
     }
 
     fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
         let mut unused_vars = Vec::new();
         for scope in scope_decls.0.into_iter() {
-            Resolver::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
+            Resolver::<F>::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
         }
 
         for unused_var in unused_vars.iter() {
@@ -133,7 +134,7 @@ impl<'a> Resolver<'a> {
     }
 }
 
-impl<'a> Resolver<'a> {
+impl<'a, F: FieldElement> Resolver<'a, F> {
     fn add_variable_decl(&mut self, name: Ident) -> IdentId {
         let id = self.interner.push_ident(name.clone());
         // Variable was defined here, so it's definition links to itself
@@ -190,7 +191,7 @@ impl<'a> Resolver<'a> {
         IdentId::dummy_id()
     }
 
-    pub fn intern_function(&mut self, func: NoirFunction) -> (HirFunction, FuncMeta) {
+    pub fn intern_function(&mut self, func: NoirFunction<F>) -> (HirFunction, FuncMeta) {
         let func_meta = self.extract_meta(&func);
 
         let hir_func = match func.kind {
@@ -209,7 +210,7 @@ impl<'a> Resolver<'a> {
 
     /// Extract metadata from a NoirFunction
     /// to be used in analysis and intern the function parameters
-    fn extract_meta(&mut self, func: &NoirFunction) -> FuncMeta {
+    fn extract_meta(&mut self, func: &NoirFunction<F>) -> FuncMeta {
         let name = func.name().to_owned();
         let attributes = func.attribute().cloned();
 
@@ -232,7 +233,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+    pub fn intern_stmt(&mut self, stmt: Statement<F>) -> StmtId {
         match stmt {
             Statement::Let(let_stmt) => {
                 let id = self.add_variable_decl(let_stmt.identifier);
@@ -286,7 +287,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn intern_expr(&mut self, expr: Expression) -> ExprId {
+    pub fn intern_expr(&mut self, expr: Expression<F>) -> ExprId {
         let expr_id = match expr.kind {
             ExpressionKind::Ident(string) => {
                 let span = expr.span;
@@ -440,7 +441,7 @@ impl<'a> Resolver<'a> {
         expr_id
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> ExprId {
+    fn resolve_block(&mut self, block_expr: BlockExpression<F>) -> ExprId {
         let stmts: Vec<_> = block_expr
             .0
             .into_iter()

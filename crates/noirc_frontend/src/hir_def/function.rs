@@ -1,3 +1,4 @@
+use noir_field::FieldElement;
 use noirc_abi::Abi;
 
 use super::expr::{HirBlockExpression, HirExpression};
@@ -26,7 +27,7 @@ impl HirFunction {
         &self.0
     }
 
-    pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
+    pub fn block<F: FieldElement>(&self, interner: &NodeInterner<F>) -> HirBlockExpression {
         match interner.expression(&self.0) {
             HirExpression::Block(block_expr) => block_expr,
             _ => unreachable!("ice: functions can only be block expressions"),
@@ -42,7 +43,7 @@ pub struct Param(pub IdentId, pub Type);
 pub struct Parameters(Vec<Param>);
 
 impl Parameters {
-    pub fn into_abi(self, interner: &NodeInterner) -> Abi {
+    pub fn into_abi<F: FieldElement>(self, interner: &NodeInterner<F>) -> Abi {
         let parameters: Vec<_> = self
             .0
             .into_iter()

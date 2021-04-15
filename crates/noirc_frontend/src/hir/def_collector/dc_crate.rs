@@ -11,37 +11,38 @@ use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::{NoirFunction, ParsedModule};
 use fm::FileId;
+use noir_field::FieldElement;
 use noirc_errors::CollectedErrors;
 use noirc_errors::DiagnosableError;
 use std::collections::HashMap;
 
 /// Stores all of the unresolved functions in a particular file/mod
-pub struct UnresolvedFunctions {
+pub struct UnresolvedFunctions<F: FieldElement> {
     pub file_id: FileId,
-    pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
+    pub functions: Vec<(LocalModuleId, FuncId, NoirFunction<F>)>,
 }
 
-impl UnresolvedFunctions {
-    pub fn push_fn(&mut self, mod_id: LocalModuleId, func_id: FuncId, func: NoirFunction) {
+impl<F: FieldElement> UnresolvedFunctions<F> {
+    pub fn push_fn(&mut self, mod_id: LocalModuleId, func_id: FuncId, func: NoirFunction<F>) {
         self.functions.push((mod_id, func_id, func))
     }
 }
 
 /// Given a Crate root, collect all definitions in that crate
-pub struct DefCollector {
+pub struct DefCollector<F: FieldElement> {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
-    pub(crate) collected_functions: Vec<UnresolvedFunctions>,
+    pub(crate) collected_functions: Vec<UnresolvedFunctions<F>>,
 }
 
-impl DefCollector {
+impl<F: FieldElement> DefCollector<F> {
     /// Collect all of the definitions in a given crate into a CrateDefMap
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
     pub fn collect(
         mut def_map: CrateDefMap,
-        context: &mut Context,
-        ast: ParsedModule,
+        context: &mut Context<F>,
+        ast: ParsedModule<F>,
         root_file_id: FileId,
     ) -> Result<(), Vec<CollectedErrors>> {
         let crate_id = def_map.krate;
@@ -155,11 +156,11 @@ impl DefCollector {
     }
 }
 
-fn resolve_functions(
-    interner: &mut NodeInterner,
+fn resolve_functions<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     crate_id: CrateId,
     def_maps: &HashMap<CrateId, CrateDefMap>,
-    collected_functions: Vec<UnresolvedFunctions>,
+    collected_functions: Vec<UnresolvedFunctions<F>>,
 ) -> Result<Vec<(FileId, FuncId)>, Vec<CollectedErrors>> {
     let mut file_func_ids = Vec::new();
     let mut errors = Vec::new();
@@ -205,8 +206,8 @@ fn resolve_functions(
 }
 
 use crate::hir::type_check::type_check_func;
-fn type_check_functions(
-    interner: &mut NodeInterner,
+fn type_check_functions<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
     file_func_ids: Vec<(FileId, FuncId)>,
 ) -> Result<(), Vec<CollectedErrors>> {
     for (file_id, func_id) in file_func_ids {

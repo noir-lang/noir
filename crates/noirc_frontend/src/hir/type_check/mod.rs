@@ -8,12 +8,16 @@ mod stmt;
 
 use errors::TypeCheckError;
 use expr::type_check_expression;
+use noir_field::FieldElement;
 
 use crate::node_interner::{FuncId, NodeInterner};
 
 /// Type checks a function and assigns the
 /// appropriate types to expressions in a side table
-pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Result<(), TypeCheckError> {
+pub fn type_check_func<F: FieldElement>(
+    interner: &mut NodeInterner<F>,
+    func_id: FuncId,
+) -> Result<(), TypeCheckError> {
     // First fetch the metadata and add the types for parameters
     // Note that we do not look for the defining Identifier for a parameter,
     // since we know that it is the parameter itself
