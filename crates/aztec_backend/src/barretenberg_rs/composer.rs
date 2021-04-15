@@ -1,7 +1,8 @@
 use super::crs::CRS;
 use super::pippenger::Pippenger;
 use super::Barretenberg;
-use noir_field::FieldElement as Scalar;
+use noir_field::Bn254Scalar as Scalar;
+use noir_field::FieldElement;
 use wasmer::Value;
 
 pub struct StandardComposer {
@@ -54,7 +55,12 @@ impl Assignments {
     }
 
     pub fn push_i32(&mut self, value: i32) {
-        self.0.push(Scalar::from(value as i128));
+        let value = if value < 0 {
+            -Scalar::from(-value as u128)
+        } else {
+            Scalar::from(value as u128)
+        };
+        self.0.push(value);
     }
     pub fn push(&mut self, value: Scalar) {
         self.0.push(value);

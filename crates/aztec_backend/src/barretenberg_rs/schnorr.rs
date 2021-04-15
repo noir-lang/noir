@@ -1,3 +1,4 @@
+use noir_field::Bn254Scalar as Scalar;
 use noir_field::FieldElement;
 use std::convert::TryInto;
 use wasmer::Value;
@@ -29,12 +30,7 @@ impl Barretenberg {
 
         self.slice_memory(32, 96).try_into().unwrap()
     }
-    pub fn verify_signature(
-        &mut self,
-        pub_key: [u8; 64],
-        sig: [u8; 64],
-        message: &[u8],
-    ) -> FieldElement {
+    pub fn verify_signature(&mut self, pub_key: [u8; 64], sig: [u8; 64], message: &[u8]) -> Scalar {
         self.transfer_to_heap(&pub_key, 0);
         self.transfer_to_heap(&sig[0..32], 64);
         self.transfer_to_heap(&sig[32..64], 96);
@@ -51,8 +47,8 @@ impl Barretenberg {
             ],
         );
         match wasm_value.into_i32() {
-            0 => FieldElement::zero(),
-            1 => FieldElement::one(),
+            0 => Scalar::zero(),
+            1 => Scalar::one(),
             _=> unreachable!("verify signature should return a boolean to indicate whether the signature + parameters were valid")
         }
 
@@ -72,7 +68,7 @@ fn basic_interop() {
     let public_key = barretenberg.construct_public_key(private_key);
     let signature = barretenberg.construct_signature(&message, private_key);
     let result = barretenberg.verify_signature(public_key, signature, &message);
-    assert_eq!(result, FieldElement::one());
+    assert_eq!(result, Scalar::one());
 
     // Should fail, since the messages are different
     let private_key = [2; 32];
@@ -81,7 +77,7 @@ fn basic_interop() {
     let public_key = barretenberg.construct_public_key(private_key);
     let signature = barretenberg.construct_signature(&message, private_key);
     let result = barretenberg.verify_signature(public_key, signature, &[0, 2]);
-    assert_eq!(result, FieldElement::zero());
+    assert_eq!(result, Scalar::zero());
 
     // Should fail, since the signature is not valid
     let private_key = [2; 32];
@@ -90,7 +86,7 @@ fn basic_interop() {
 
     let public_key = barretenberg.construct_public_key(private_key);
     let result = barretenberg.verify_signature(public_key, signature, &message);
-    assert_eq!(result, FieldElement::zero());
+    assert_eq!(result, Scalar::zero());
 
     // Should fail, since the public key does not match
     let private_key_a = [1; 32];
@@ -100,7 +96,7 @@ fn basic_interop() {
     let public_key_b = barretenberg.construct_public_key(private_key_b);
     let signature_a = barretenberg.construct_signature(&message, private_key_a);
     let result = barretenberg.verify_signature(public_key_b, signature_a, &message);
-    assert_eq!(result, FieldElement::zero());
+    assert_eq!(result, Scalar::zero());
 
     // Test the first case again, to check if memory is being freed and overwritten properly
     let private_key = [2; 32];
@@ -109,5 +105,5 @@ fn basic_interop() {
     let public_key = barretenberg.construct_public_key(private_key);
     let signature = barretenberg.construct_signature(&message, private_key);
     let result = barretenberg.verify_signature(public_key, signature, &message);
-    assert_eq!(result, FieldElement::one());
+    assert_eq!(result, Scalar::one());
 }

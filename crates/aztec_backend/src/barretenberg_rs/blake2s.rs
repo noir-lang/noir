@@ -1,11 +1,11 @@
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 use wasmer::Value;
 
 use super::Barretenberg;
 
 impl Barretenberg {
     /// Hashes to a bn254 scalar field element using blake2s
-    pub fn hash_to_field(&mut self, input: &[u8]) -> FieldElement {
+    pub fn hash_to_field(&mut self, input: &[u8]) -> Bn254Scalar {
         let input_ptr = self.allocate(input); // 0..32
 
         let result_ptr = Value::I32(0);
@@ -19,7 +19,7 @@ impl Barretenberg {
         self.free(input_ptr);
 
         let result_bytes = self.slice_memory(0, 32);
-        FieldElement::from_bytes(&result_bytes)
+        Bn254Scalar::from_bytes(&result_bytes)
     }
 }
 

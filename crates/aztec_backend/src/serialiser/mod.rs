@@ -8,10 +8,11 @@ use crate::barretenberg_rs::composer::{
 use acir::circuit::{Circuit, Gate};
 use acir::native_types::Arithmetic;
 use acir::OPCODE;
+use noir_field::Bn254Scalar;
 use noir_field::FieldElement;
 
 /// Converts an `IR` into the `StandardFormat` constraint system
-pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
+pub fn serialise_circuit(circuit: &Circuit<Bn254Scalar>) -> ConstraintSystem {
     // Create constraint system
     let mut constraints: Vec<Constraint> = Vec::new();
     let mut range_constraints: Vec<RangeConstraint> = Vec::new();
@@ -345,15 +346,15 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 }
 
 #[allow(non_snake_case)]
-fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
+fn serialise_arithmetic_gates(gate: &Arithmetic<Bn254Scalar>) -> Constraint {
     let mut a: i32 = 0;
     let mut b: i32 = 0;
     let mut c: i32 = 0;
-    let mut qm: FieldElement = 0.into();
-    let mut ql: FieldElement = 0.into();
-    let mut qr: FieldElement = 0.into();
-    let mut qo: FieldElement = 0.into();
-    let qc: FieldElement;
+    let mut qm: Bn254Scalar = Bn254Scalar::zero();
+    let mut ql: Bn254Scalar = Bn254Scalar::zero();
+    let mut qr: Bn254Scalar = Bn254Scalar::zero();
+    let mut qo: Bn254Scalar = Bn254Scalar::zero();
+    let qc = gate.q_c;
 
     // check mul gate
     if !gate.mul_terms.is_empty() {
@@ -416,9 +417,6 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
         let wO = &qO_wO_term.1;
         c = wO.witness_index() as i32;
     }
-
-    // Add the qc term
-    qc = gate.q_c;
 
     Constraint {
         a,

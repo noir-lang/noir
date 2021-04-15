@@ -1,10 +1,11 @@
+use noir_field::Bn254Scalar as Scalar;
 use noir_field::FieldElement;
 use wasmer::Value;
 
 use super::Barretenberg;
 
 impl Barretenberg {
-    pub fn fixed_base(&mut self, input: &FieldElement) -> (FieldElement, FieldElement) {
+    pub fn fixed_base(&mut self, input: &Scalar) -> (Scalar, Scalar) {
         let lhs_ptr = self.allocate(&input.to_bytes()); // 0..32
         let result_ptr = Value::I32(32);
         self.call_multiple("compute_public_key", vec![&lhs_ptr, &result_ptr]);
@@ -14,8 +15,8 @@ impl Barretenberg {
         assert!(pubkey_x_bytes.len() == 32);
         assert!(pubkey_y_bytes.len() == 32);
 
-        let pubkey_x = FieldElement::from_bytes(pubkey_x_bytes);
-        let pubkey_y = FieldElement::from_bytes(pubkey_y_bytes);
+        let pubkey_x = Scalar::from_bytes(pubkey_x_bytes);
+        let pubkey_y = Scalar::from_bytes(pubkey_y_bytes);
         (pubkey_x, pubkey_y)
     }
 }
@@ -26,7 +27,7 @@ mod test {
     #[test]
     fn smoke_test() {
         let mut barretenberg = Barretenberg::new();
-        let input = FieldElement::one();
+        let input = Scalar::one();
 
         let res = barretenberg.fixed_base(&input);
         let x = "0000000000000000000000000000000000000000000000000000000000000001";
