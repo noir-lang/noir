@@ -5,25 +5,27 @@ use super::{
 use fm::File;
 use noir_field::FieldElement;
 use noirc_errors::Position;
-use std::iter::Peekable;
 use std::str::Chars;
+use std::{iter::Peekable, marker::PhantomData};
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
 // XXX(low) : Currently the Lexer does not return Result. It would be more idiomatic to do this, instead of returning Token::Error
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
 // XXX(low) : Possibly use &str instead of String when applicable
 
-pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
+pub type SpannedTokenResult<F> = Result<SpannedToken<F>, LexerErrorKind<F>>;
 
-pub struct Lexer<'a> {
+pub struct Lexer<'a, F: FieldElement> {
     char_iter: Peekable<Chars<'a>>,
     position: Position,
+    _phantom: PhantomData<F>,
 }
 
-impl<'a> Lexer<'a> {
+impl<'a, F: FieldElement> Lexer<'a, F> {
     pub fn new(source: &'a str) -> Self {
         Lexer {
             char_iter: source.chars().peekable(),
             position: Position::default(),
+            _phantom: PhantomData,
         }
     }
     pub fn from_file(source: File<'a>) -> Self {
@@ -66,7 +68,7 @@ impl<'a> Lexer<'a> {
         false
     }
 
-    pub fn next_token(&mut self) -> SpannedTokenResult {
+    pub fn next_token(&mut self) -> SpannedTokenResult<F> {
         match self.next_char() {
             Some(x) if { x.is_whitespace() } => {
                 self.eat_whitespace();
@@ -105,16 +107,16 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn single_char_token(&self, token: Token) -> SpannedTokenResult {
+    fn single_char_token(&self, token: Token<F>) -> SpannedTokenResult<F> {
         Ok(token.into_single_span(self.position.mark()))
     }
 
     fn single_double_peek_token(
         &mut self,
         character: char,
-        single: Token,
-        double: Token,
-    ) -> SpannedTokenResult {
+        single: Token<F>,
+        double: Token<F>,
+    ) -> SpannedTokenResult<F> {
         let start = self.position.mark();
 
         match self.peek_char_is(character) {
@@ -129,7 +131,7 @@ impl<'a> Lexer<'a> {
     /// Given that some tokens can contain two characters, such as <= , !=, >=
     /// Glue will take the first character of the token and check if it can be glued onto the next character
     /// forming a double token
-    fn glue(&mut self, prev_token: Token) -> SpannedTokenResult {
+    fn glue(&mut self, prev_token: Token<F>) -> SpannedTokenResult<F> {
         let spanned_prev_token = prev_token.clone().into_single_span(self.position.mark());
         match prev_token {
             Token::Dot => self.single_double_peek_token('.', prev_token, Token::DoubleDot),
@@ -173,10 +175,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Keeps consuming tokens as long as the predicate is satisfied
-    fn eat_while<F: Fn(char) -> bool>(
+    fn eat_while<Func: Fn(char) -> bool>(
         &mut self,
         initial_char: Option<char>,
-        predicate: F,
+        predicate: Func,
     ) -> (String, Position, Position) {
         let start_span = self.position.mark();
 
@@ -206,7 +208,7 @@ impl<'a> Lexer<'a> {
         (word, start_span, end_span)
     }
 
-    fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
+    fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult<F> {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)),
             '0'..='9' => Ok(self.eat_digit(initial_char)),
@@ -220,7 +222,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn eat_attribute(&mut self) -> SpannedToken {
+    fn eat_attribute(&mut self) -> SpannedToken<F> {
         if !self.peek_char_is('[') {
             let err_msg = format!(
                 "Lexer expected a '[' character after the '#' character, instead got {}",
@@ -254,7 +256,7 @@ impl<'a> Lexer<'a> {
 
     //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
-    fn eat_word(&mut self, initial_char: char) -> SpannedToken {
+    fn eat_word(&mut self, initial_char: char) -> SpannedToken<F> {
         let (word, start_span, end_span) = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
@@ -270,7 +272,7 @@ impl<'a> Lexer<'a> {
         let ident_token = Token::Ident(word);
         ident_token.into_span(start_span, end_span)
     }
-    fn eat_digit(&mut self, initial_char: char) -> SpannedToken {
+    fn eat_digit(&mut self, initial_char: char) -> SpannedToken<F> {
         let (integer_str, start_span, end_span) = self.eat_while(Some(initial_char), |ch| {
             ch.is_digit(10) | ch.is_digit(16) | (ch == 'x')
         });
@@ -283,12 +285,12 @@ impl<'a> Lexer<'a> {
         let integer_token = Token::Int(integer);
         integer_token.into_span(start_span, end_span)
     }
-    fn eat_string_literal(&mut self) -> SpannedToken {
+    fn eat_string_literal(&mut self) -> SpannedToken<F> {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
         let str_literal_token = Token::Str(str_literal);
         str_literal_token.into_span(start_span, end_span)
     }
-    fn parse_comment(&mut self) -> SpannedToken {
+    fn parse_comment(&mut self) -> SpannedToken<F> {
         let (comment_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '\n');
         let comment_literal_token = Token::Comment(comment_literal);
         comment_literal_token.into_span(start_span, end_span)
@@ -299,8 +301,8 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = SpannedTokenResult;
+impl<'a, F: FieldElement> Iterator for Lexer<'a, F> {
+    type Item = SpannedTokenResult<F>;
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.next_token())
     }

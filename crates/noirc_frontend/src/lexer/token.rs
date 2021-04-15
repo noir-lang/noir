@@ -2,37 +2,37 @@ use noir_field::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use std::fmt;
 
-impl PartialEq<SpannedToken> for Token {
-    fn eq(&self, other: &SpannedToken) -> bool {
+impl<F: FieldElement> PartialEq<SpannedToken<F>> for Token<F> {
+    fn eq(&self, other: &SpannedToken<F>) -> bool {
         self == &other.0.contents
     }
 }
-impl PartialEq<Token> for SpannedToken {
-    fn eq(&self, other: &Token) -> bool {
+impl<F: FieldElement> PartialEq<Token<F>> for SpannedToken<F> {
+    fn eq(&self, other: &Token<F>) -> bool {
         &self.0.contents == other
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpannedToken(Spanned<Token>);
+pub struct SpannedToken<F: FieldElement>(Spanned<Token<F>>);
 
-impl From<SpannedToken> for Token {
-    fn from(spt: SpannedToken) -> Self {
+impl<F: FieldElement> From<SpannedToken<F>> for Token<F> {
+    fn from(spt: SpannedToken<F>) -> Self {
         spt.0.contents
     }
 }
 
-impl SpannedToken {
+impl<F: FieldElement> SpannedToken<F> {
     pub fn to_span(&self) -> Span {
         self.0.span()
     }
-    pub fn token(&self) -> &Token {
+    pub fn token(&self) -> &Token<F> {
         &self.0.contents
     }
-    pub fn kind(&self) -> TokenKind {
+    pub fn kind(&self) -> TokenKind<F> {
         self.token().kind()
     }
-    pub fn is_variant(&self, tok: &Token) -> bool {
+    pub fn is_variant(&self, tok: &Token<F>) -> bool {
         self.token().is_variant(tok)
     }
     pub fn is_comment(&self) -> bool {
@@ -47,9 +47,9 @@ impl SpannedToken {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 /// All possible tokens allowed in the target language
-pub enum Token {
+pub enum Token<F: FieldElement> {
     Ident(String),
-    Int(FieldElement),
+    Int(F),
     Bool(bool),
     Str(String),
     Keyword(Keyword),
@@ -123,7 +123,7 @@ pub enum Token {
     EOF,
 }
 
-impl fmt::Display for Token {
+impl<F: FieldElement> fmt::Display for Token<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{}", s),
@@ -173,15 +173,15 @@ impl fmt::Display for Token {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 /// The different kinds of tokens that are possible in the target language
-pub enum TokenKind {
-    Token(Token),
+pub enum TokenKind<F: FieldElement> {
+    Token(Token<F>),
     Ident,
     Literal,
     Keyword,
     Attribute,
 }
 
-impl fmt::Display for TokenKind {
+impl<F: FieldElement> fmt::Display for TokenKind<F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenKind::Token(ref tok) => write!(f, "{}", tok),
@@ -193,8 +193,8 @@ impl fmt::Display for TokenKind {
     }
 }
 
-impl Token {
-    pub fn kind(&self) -> TokenKind {
+impl<F: FieldElement> Token<F> {
+    pub fn kind(&self) -> TokenKind<F> {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
             Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
@@ -204,7 +204,7 @@ impl Token {
     }
     // Does not work for Keyword or whatever is inside of variant
     // XXX: Review the special case of Keyword
-    pub fn is_variant(&self, tok: &Token) -> bool {
+    pub fn is_variant(&self, tok: &Token<F>) -> bool {
         let got_variant = core::mem::discriminant(self);
         let expected_variant = core::mem::discriminant(tok);
         let same_token_variant = got_variant == expected_variant;
@@ -226,10 +226,10 @@ impl Token {
         matches!(self, Token::Comment(_))
     }
 
-    pub(super) fn into_single_span(self, position: Position) -> SpannedToken {
+    pub(super) fn into_single_span(self, position: Position) -> SpannedToken<F> {
         self.into_span(position, position)
     }
-    pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken {
+    pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken<F> {
         SpannedToken(Spanned::from_position(start, end, self))
     }
 
@@ -265,7 +265,7 @@ impl fmt::Display for IntType {
 }
 
 impl IntType {
-    pub(crate) fn lookup_int_type(word: &str) -> Option<Token> {
+    pub(crate) fn lookup_int_type<F: FieldElement>(word: &str) -> Option<Token<F>> {
         // Check if the first string is a 'u' or 'i'
 
         let is_signed = if word.starts_with('i') {
@@ -279,7 +279,7 @@ impl IntType {
         // Word start with 'u' or 'i'. Check if the latter is an integer
         let str_as_u32 = word[1..].parse::<u32>().ok()?;
 
-        let max_bits = noir_field::FieldElement::max_num_bits();
+        let max_bits = F::max_num_bits();
 
         if str_as_u32 > max_bits {
             panic!(
@@ -320,7 +320,7 @@ impl fmt::Display for Attribute {
 impl Attribute {
     /// If the string is a fixed attribute return that, else
     /// return the custom attribute
-    pub(crate) fn lookup_attribute(word: &str) -> Token {
+    pub(crate) fn lookup_attribute<F: FieldElement>(word: &str) -> Token<F> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
             .filter(|string_segment| !string_segment.is_empty())
@@ -429,7 +429,7 @@ impl Keyword {
     /// If the string is a keyword, return the associated token
     /// else return None
     /// XXX: Notice that because of the underscore, new keywords will not produce an err for this function
-    pub(crate) fn lookup_keyword(word: &str) -> Option<Token> {
+    pub(crate) fn lookup_keyword<F: FieldElement>(word: &str) -> Option<Token<F>> {
         match word {
             "fn" => Some(Token::Keyword(Keyword::Fn)),
             "struct" => Some(Token::Keyword(Keyword::Struct)),
@@ -468,7 +468,7 @@ const fn declaration_keywords() -> [Keyword; 4] {
     [Keyword::Let, Keyword::Const, Keyword::Pub, Keyword::Priv]
 }
 
-impl Token {
+impl<F: FieldElement> Token<F> {
     /// Converts Token into a declaration keyword
     /// Panics if the token cannot start a declaration
     /// XXX: There should be a cleaner way of doing this.
