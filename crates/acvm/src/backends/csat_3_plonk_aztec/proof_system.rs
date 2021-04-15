@@ -2,17 +2,17 @@ use std::collections::BTreeMap;
 
 use acir::{circuit::Circuit, native_types::Witness};
 use aztec_backend::barretenberg_rs::composer::{Assignments, StandardComposer};
-use noir_field::FieldElement;
+use noir_field::Bn254Scalar;
 
 use crate::{Language, ProofSystemCompiler};
 
 use super::Plonk;
 
-impl ProofSystemCompiler for Plonk {
+impl ProofSystemCompiler<Bn254Scalar> for Plonk {
     fn prove_with_meta(
         &self,
-        circuit: Circuit,
-        witness_values: BTreeMap<Witness, FieldElement>,
+        circuit: Circuit<Bn254Scalar>,
+        witness_values: BTreeMap<Witness, Bn254Scalar>,
     ) -> Vec<u8> {
         let constraint_system = aztec_backend::serialise_circuit(&circuit);
 
@@ -31,8 +31,8 @@ impl ProofSystemCompiler for Plonk {
     fn verify_from_cs(
         &self,
         proof: &[u8],
-        public_inputs: Vec<FieldElement>,
-        circuit: Circuit,
+        public_inputs: Vec<Bn254Scalar>,
+        circuit: Circuit<Bn254Scalar>,
     ) -> bool {
         let constraint_system = aztec_backend::serialise_circuit(&circuit);
 

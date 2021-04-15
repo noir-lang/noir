@@ -1,30 +1,32 @@
 use acir::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, marker::PhantomData};
 
 /// An Arithmetic solver will take a Circuit's arithmetic gates with witness assignments
 /// and create the other witness variables
-pub struct ArithmeticSolver;
+pub struct ArithmeticSolver<F: FieldElement> {
+    _phantom: PhantomData<F>,
+}
 
 #[allow(clippy::enum_variant_names)]
-enum GateStatus {
-    GateSatisfied(FieldElement),
-    GateSolvable(FieldElement, (FieldElement, Witness)),
+enum GateStatus<F: FieldElement> {
+    GateSatisfied(F),
+    GateSolvable(F, (F, Witness)),
     GateUnsolvable,
 }
 
-enum MulTerm {
-    OneUnknown(FieldElement, Witness), // (qM * known_witness, unknown_witness)
+enum MulTerm<F: FieldElement> {
+    OneUnknown(F, Witness), // (qM * known_witness, unknown_witness)
     TooManyUnknowns,
-    Solved(FieldElement),
+    Solved(F),
 }
 
-impl ArithmeticSolver {
+impl<F: FieldElement> ArithmeticSolver<F> {
     /// Derives the rest of the witness based on the initial low level variables
     pub fn solve<'a>(
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gate: &'a Arithmetic,
-    ) -> Option<&'a Arithmetic> {
+        initial_witness: &mut BTreeMap<Witness, F>,
+        gate: &'a Arithmetic<F>,
+    ) -> Option<&'a Arithmetic<F>> {
         // Evaluate multiplication term
         let mul_result = ArithmeticSolver::solve_mul_term(&gate, &initial_witness);
         // Evaluate the fan-in terms
@@ -72,9 +74,9 @@ impl ArithmeticSolver {
     /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another gate
     /// XXX: What about making a mul gate = a constant 5xy + 7 = 0 ? This is the same as the above.
     fn solve_mul_term(
-        arith_gate: &Arithmetic,
-        witness_assignments: &BTreeMap<Witness, FieldElement>,
-    ) -> MulTerm {
+        arith_gate: &Arithmetic<F>,
+        witness_assignments: &BTreeMap<Witness, F>,
+    ) -> MulTerm<F> {
         // First note that the mul term can only contain one/zero term
         // We are assuming it has been optimised.
         match arith_gate.mul_terms.len() {
@@ -103,9 +105,9 @@ impl ArithmeticSolver {
     /// Returns None, if there is more than one unknown variable
     /// We cannot assign
     fn solve_fan_in_term(
-        arith_gate: &Arithmetic,
-        witness_assignments: &BTreeMap<Witness, FieldElement>,
-    ) -> GateStatus {
+        arith_gate: &Arithmetic<F>,
+        witness_assignments: &BTreeMap<Witness, F>,
+    ) -> GateStatus<F> {
         // This is assuming that the fan-in is more than 0
 
         // This is the variable that we want to assign the value to

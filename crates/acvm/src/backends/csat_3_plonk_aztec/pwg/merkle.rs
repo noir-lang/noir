@@ -1,10 +1,10 @@
 #![allow(dead_code)] // TODO: remove once this module is used
 use aztec_backend::barretenberg_rs::Barretenberg;
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 
-type HashPath = Vec<(FieldElement, FieldElement)>;
+type HashPath = Vec<(Bn254Scalar, Bn254Scalar)>;
 
-pub fn flatten_path(path: Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement> {
+pub fn flatten_path(path: Vec<(Bn254Scalar, Bn254Scalar)>) -> Vec<Bn254Scalar> {
     path.into_iter()
         .flat_map(|(left, right)| std::iter::once(left).chain(std::iter::once(right)))
         .collect()
@@ -13,8 +13,8 @@ pub fn flatten_path(path: Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement
 pub struct MerkleTree {
     depth: u32,
     total_size: u32,
-    root: FieldElement,
-    hashes: Vec<FieldElement>,
+    root: Bn254Scalar,
+    hashes: Vec<Bn254Scalar>,
     pre_images: Vec<Vec<u8>>,
     barretenberg: Barretenberg,
 }
@@ -28,7 +28,7 @@ impl MerkleTree {
         let total_size = 1u32 << depth;
 
         let mut hashes: Vec<_> = (0..total_size * 2 - 2)
-            .map(|_| FieldElement::zero())
+            .map(|_| Bn254Scalar::zero())
             .collect();
 
         let zero_message = [0u8; 64];
@@ -74,13 +74,13 @@ impl MerkleTree {
         path
     }
     /// Updates the message at index and computes the new tree root
-    pub fn update_message(&mut self, index: usize, new_message: Vec<u8>) -> FieldElement {
+    pub fn update_message(&mut self, index: usize, new_message: Vec<u8>) -> Bn254Scalar {
         let current = hash(&new_message);
         self.pre_images[index] = new_message;
         self.update_leaf(index, current)
     }
     /// Update the element at index and compute the new tree root
-    pub fn update_leaf(&mut self, mut index: usize, mut current: FieldElement) -> FieldElement {
+    pub fn update_leaf(&mut self, mut index: usize, mut current: Bn254Scalar) -> Bn254Scalar {
         // Note that this method does not update the list of messages [preimages]|
         // use `update_message` to do this
 
@@ -109,11 +109,11 @@ impl MerkleTree {
     }
 
     pub fn check_membership(
-        hash_path: Vec<&FieldElement>,
-        root: &FieldElement,
-        index: &FieldElement,
-        leaf: &FieldElement,
-    ) -> FieldElement {
+        hash_path: Vec<&Bn254Scalar>,
+        root: &Bn254Scalar,
+        index: &Bn254Scalar,
+        leaf: &Bn254Scalar,
+    ) -> Bn254Scalar {
         assert!(hash_path.len() % 2 == 0);
 
         let mut barretenberg = Barretenberg::new();
@@ -140,28 +140,28 @@ impl MerkleTree {
         is_member &= &current == root;
 
         if is_member {
-            FieldElement::one()
+            Bn254Scalar::one()
         } else {
-            FieldElement::zero()
+            Bn254Scalar::zero()
         }
     }
 }
 
-fn hash(message: &[u8]) -> FieldElement {
+fn hash(message: &[u8]) -> Bn254Scalar {
     use blake2::Digest;
 
     let mut hasher = blake2::Blake2s::new();
     hasher.update(message);
     let res = hasher.finalize();
-    FieldElement::from_bytes_reduce(&res[..])
+    Bn254Scalar::from_bytes_reduce(&res[..])
 }
 // XXX(FIXME) : Currently, this is very aztec specific, because this PWG does not have
 // a way to deal with generic ECC operations
 fn compress_native(
     barretenberg: &mut Barretenberg,
-    left: &FieldElement,
-    right: &FieldElement,
-) -> FieldElement {
+    left: &Bn254Scalar,
+    right: &Bn254Scalar,
+) -> Bn254Scalar {
     barretenberg.compress_native(left, right)
 }
 
@@ -295,7 +295,7 @@ fn check_membership() {
     let mut tree = MerkleTree::new(3);
 
     for test_vector in tests {
-        let index = FieldElement::try_from_str(test_vector.index).unwrap();
+        let index = Bn254Scalar::try_from_str(test_vector.index).unwrap();
         let index_as_usize: usize = test_vector.index.parse().unwrap();
 
         let leaf = hash(&test_vector.message);
@@ -309,7 +309,7 @@ fn check_membership() {
         let hash_path_ref = hash_path.iter().collect();
 
         let result = MerkleTree::check_membership(hash_path_ref, &root, &index, &leaf);
-        let is_leaf_in_true = result == FieldElement::one();
+        let is_leaf_in_true = result == Bn254Scalar::one();
 
         assert!(
             is_leaf_in_true == test_vector.result,

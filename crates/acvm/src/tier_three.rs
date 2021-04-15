@@ -1,5 +1,7 @@
 // Listed below are backends with tier two support
 
+use noir_field::Bn254Scalar;
+
 pub use super::backends::csat_3_plonk_aztec::Plonk as CSAT_3_PLONK_AZTEC;
 pub use super::backends::r1cs_marlin_arkworks::Marlin as R1CS_MARLIN_ARKWORKS;
 
@@ -12,7 +14,7 @@ pub enum TierThree {
 }
 
 impl TierThree {
-    pub(crate) fn fetch_backend(&self) -> Box<dyn Backend> {
+    pub(crate) fn fetch_backend(&self) -> Box<dyn Backend<Bn254Scalar>> {
         match self {
             TierThree::Csat3PlonkAztec => Box::new(CSAT_3_PLONK_AZTEC),
             TierThree::R1CSMarlinArkworks => Box::new(R1CS_MARLIN_ARKWORKS),

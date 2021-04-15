@@ -3,7 +3,7 @@ use crate::{
     PartialWitnessGenerator,
 };
 use acir::{circuit::Gate, native_types::Witness};
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 use std::collections::BTreeMap;
 
 mod gadget_call;
@@ -12,17 +12,17 @@ pub mod merkle;
 use self::gadget_call::GadgetCaller;
 use super::Plonk;
 
-impl PartialWitnessGenerator for Plonk {
+impl PartialWitnessGenerator<Bn254Scalar> for Plonk {
     fn solve(
         &self,
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gates: Vec<acir::circuit::Gate>,
+        initial_witness: &mut BTreeMap<Witness, Bn254Scalar>,
+        gates: Vec<acir::circuit::Gate<Bn254Scalar>>,
     ) -> Result<(), acir::OPCODE> {
         if gates.is_empty() {
             return Ok(());
         }
 
-        let mut unsolved_gates: Vec<Gate> = Vec::new();
+        let mut unsolved_gates: Vec<Gate<Bn254Scalar>> = Vec::new();
 
         for gate in gates.into_iter() {
             let unsolved = match &gate {

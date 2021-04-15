@@ -3,8 +3,8 @@ use acir::{circuit::gate::GadgetCall, native_types::Witness};
 use noir_field::FieldElement;
 use std::collections::BTreeMap;
 
-pub fn secp256k1_prehashed(
-    initial_witness: &mut BTreeMap<Witness, FieldElement>,
+pub fn secp256k1_prehashed<F: FieldElement>(
+    initial_witness: &mut BTreeMap<Witness, F>,
     gadget_call: &GadgetCall,
 ) {
     let mut inputs_iter = gadget_call.inputs.iter();

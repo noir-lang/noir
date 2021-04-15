@@ -10,10 +10,10 @@ pub mod hash;
 pub mod logic;
 pub mod signature;
 
-pub fn input_to_value<'a>(
-    witness_map: &'a BTreeMap<Witness, FieldElement>,
+pub fn input_to_value<'a, F: FieldElement>(
+    witness_map: &'a BTreeMap<Witness, F>,
     input: &GadgetInput,
-) -> &'a FieldElement {
+) -> &'a F {
     match witness_map.get(&input.witness) {
         None => panic!("Cannot find witness assignment for {:?}", input),
         Some(assignment) => assignment,

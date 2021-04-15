@@ -11,17 +11,17 @@ mod gadget_call;
 use self::gadget_call::GadgetCaller;
 use super::Marlin;
 
-impl PartialWitnessGenerator for Marlin {
+impl<F: FieldElement> PartialWitnessGenerator<F> for Marlin {
     fn solve(
         &self,
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gates: Vec<acir::circuit::Gate>,
+        initial_witness: &mut BTreeMap<Witness, F>,
+        gates: Vec<acir::circuit::Gate<F>>,
     ) -> Result<(), acir::OPCODE> {
         if gates.is_empty() {
             return Ok(());
         }
 
-        let mut unsolved_gates: Vec<Gate> = Vec::new();
+        let mut unsolved_gates: Vec<Gate<F>> = Vec::new();
 
         for gate in gates.into_iter() {
             let unsolved = match &gate {

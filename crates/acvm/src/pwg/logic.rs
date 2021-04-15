@@ -7,8 +7,8 @@ pub struct LogicSolver {}
 
 impl LogicSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    fn solve_logic_gate(
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
+    fn solve_logic_gate<F: FieldElement>(
+        initial_witness: &mut BTreeMap<Witness, F>,
         a: &Witness,
         b: &Witness,
         result: Witness,
@@ -33,7 +33,10 @@ impl LogicSolver {
         }
     }
 
-    pub fn solve_and_gate(initial_witness: &mut BTreeMap<Witness, FieldElement>, gate: &AndGate) {
+    pub fn solve_and_gate<F: FieldElement>(
+        initial_witness: &mut BTreeMap<Witness, F>,
+        gate: &AndGate,
+    ) {
         LogicSolver::solve_logic_gate(
             initial_witness,
             &gate.a,
@@ -43,7 +46,10 @@ impl LogicSolver {
             false,
         )
     }
-    pub fn solve_xor_gate(initial_witness: &mut BTreeMap<Witness, FieldElement>, gate: &XorGate) {
+    pub fn solve_xor_gate<F: FieldElement>(
+        initial_witness: &mut BTreeMap<Witness, F>,
+        gate: &XorGate,
+    ) {
         LogicSolver::solve_logic_gate(
             initial_witness,
             &gate.a,

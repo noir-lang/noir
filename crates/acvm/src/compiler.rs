@@ -5,11 +5,12 @@ use acir::{
     native_types::{Arithmetic, Witness},
     optimiser::{CSatOptimiser, GeneralOptimiser},
 };
+use noir_field::{Bn254Scalar, FieldElement};
 
-use crate::BackendPointer;
+use crate::{Backend, BackendPointer};
 
-pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
-    let backend = backend.backend();
+pub fn compile<F: FieldElement>(acir: Circuit<F>, backend: BackendPointer) -> Circuit<F> {
+    let backend: Box<dyn Backend<Bn254Scalar>> = backend.backend();
     //
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same
@@ -18,7 +19,7 @@ pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
         crate::Language::PLONKCSat { width } => CSatOptimiser::new(width),
     };
 
-    let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
+    let mut intermediate_variables: BTreeMap<Witness, Arithmetic<F>> = BTreeMap::new();
 
     // Optimise the arithmetic gates by reducing them into the correct width and
     // creating intermediate variables when necessary
@@ -50,7 +51,7 @@ pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
 // R1CS optimisations uses the general optimiser.
 // Once R1CS specific optimisations are found, then we can
 // refactor this function
-fn optimise_r1cs(acir: Circuit) -> Circuit {
+fn optimise_r1cs<F: FieldElement>(acir: Circuit<F>) -> Circuit<F> {
     let optimised_arith_gates: Vec<_> = acir
         .gates
         .into_iter()

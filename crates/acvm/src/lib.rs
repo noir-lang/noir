@@ -21,7 +21,7 @@ use acir::{
 
 // re-export acir
 pub use acir;
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 
 #[derive(Debug, Copy, Clone)]
 pub enum BackendPointer {
@@ -38,7 +38,7 @@ impl Default for BackendPointer {
 }
 
 impl BackendPointer {
-    pub fn backend(&self) -> Box<dyn Backend> {
+    pub fn backend(&self) -> Box<dyn Backend<Bn254Scalar>> {
         match self {
             BackendPointer::One(x) => x.fetch_backend(),
             BackendPointer::Two(x) => x.fetch_backend(),
@@ -63,19 +63,22 @@ pub fn fetch_by_name(string: &str) -> Option<BackendPointer> {
     Some(BackendPointer::Three(*target))
 }
 
-pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
+pub trait Backend<F: FieldElement>:
+    SmartContract<F> + ProofSystemCompiler<F> + PartialWitnessGenerator<F>
+{
+}
 
 /// This component will generate the backend specific output for
 /// each OPCODE.
 /// Returns an Error if the backend does not support that OPCODE
-pub trait PartialWitnessGenerator {
+pub trait PartialWitnessGenerator<F: FieldElement> {
     fn solve(
         &self,
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
-        gates: Vec<Gate>,
+        initial_witness: &mut BTreeMap<Witness, F>,
+        gates: Vec<Gate<F>>,
     ) -> Result<(), OPCODE>;
 }
-pub trait SmartContract {
+pub trait SmartContract<F: FieldElement> {
     // Takes a verification  key and produces a smart contract
     // The platform indicator allows a backend to support multiple smart contract platforms
     //
@@ -90,10 +93,10 @@ pub trait SmartContract {
     /// This deprecation may happen in two stages:
     /// The first stage will remove `num_witnesses` and `num_public_inputs` parameters.
     /// If we cannot avoid `num_witnesses`, it can be added into the Circuit struct.
-    fn eth_contract_from_cs(&self, circuit: Circuit) -> String;
+    fn eth_contract_from_cs(&self, circuit: Circuit<F>) -> String;
 }
 
-pub trait ProofSystemCompiler {
+pub trait ProofSystemCompiler<F: FieldElement> {
     /// The NPC language that this proof system directly accepts.
     /// It is possible for ACVM to transpile to different languages, however it is advised to create a new backend
     /// as this in most cases will be inefficient. For this reason, we want to throw a hard error
@@ -105,11 +108,8 @@ pub trait ProofSystemCompiler {
     /// This is the responsibility of the proof system.
     ///
     /// See `SmartContract` regarding the removal of `num_witnesses` and `num_public_inputs`
-    fn prove_with_meta(
-        &self,
-        circuit: Circuit,
-        witness_values: BTreeMap<Witness, FieldElement>,
-    ) -> Vec<u8>;
+    fn prove_with_meta(&self, circuit: Circuit<F>, witness_values: BTreeMap<Witness, F>)
+        -> Vec<u8>;
 
     /// Verifies a Proof, given the circuit description.
     ///
@@ -118,12 +118,7 @@ pub trait ProofSystemCompiler {
     /// which is why this is here.
     ///
     /// See `SmartContract` regarding the removal of `num_witnesses` and `num_public_inputs`
-    fn verify_from_cs(
-        &self,
-        proof: &[u8],
-        public_input: Vec<FieldElement>,
-        circuit: Circuit,
-    ) -> bool;
+    fn verify_from_cs(&self, proof: &[u8], public_input: Vec<F>, circuit: Circuit<F>) -> bool;
 }
 
 /// Supported NP complete languages
@@ -133,7 +128,7 @@ pub enum Language {
     PLONKCSat { width: usize },
 }
 
-pub fn hash_constraint_system(cs: &Circuit) {
+pub fn hash_constraint_system<F: FieldElement>(cs: &Circuit<F>) {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&format!("{:?}", cs));

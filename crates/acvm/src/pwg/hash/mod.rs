@@ -5,16 +5,22 @@ use blake2::{Blake2s, Digest};
 use noir_field::FieldElement;
 use sha2::Sha256;
 
-pub fn blake2s(initial_witness: &mut BTreeMap<Witness, FieldElement>, gadget_call: &GadgetCall) {
-    generic_hash_256::<Blake2s>(initial_witness, gadget_call)
+pub fn blake2s<F: FieldElement>(
+    initial_witness: &mut BTreeMap<Witness, F>,
+    gadget_call: &GadgetCall,
+) {
+    generic_hash_256::<Blake2s, F>(initial_witness, gadget_call)
 }
 
-pub fn sha256(initial_witness: &mut BTreeMap<Witness, FieldElement>, gadget_call: &GadgetCall) {
-    generic_hash_256::<Sha256>(initial_witness, gadget_call)
+pub fn sha256<F: FieldElement>(
+    initial_witness: &mut BTreeMap<Witness, F>,
+    gadget_call: &GadgetCall,
+) {
+    generic_hash_256::<Sha256, F>(initial_witness, gadget_call)
 }
 
-fn generic_hash_256<D: Digest>(
-    initial_witness: &mut BTreeMap<Witness, FieldElement>,
+fn generic_hash_256<D: Digest, F: FieldElement>(
+    initial_witness: &mut BTreeMap<Witness, F>,
     gadget_call: &GadgetCall,
 ) {
     let mut hasher = D::new();

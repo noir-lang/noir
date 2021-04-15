@@ -3,7 +3,7 @@ use crate::pwg::{self, input_to_value};
 use acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
 use aztec_backend::barretenberg_rs::Barretenberg;
 use blake2::Blake2s;
-use noir_field::FieldElement;
+use noir_field::{Bn254Scalar, FieldElement};
 use sha2::Digest;
 use std::collections::BTreeMap;
 
@@ -14,7 +14,7 @@ pub struct GadgetCaller;
 
 impl GadgetCaller {
     pub fn solve_gadget_call(
-        initial_witness: &mut BTreeMap<Witness, FieldElement>,
+        initial_witness: &mut BTreeMap<Witness, Bn254Scalar>,
         gadget_call: &GadgetCall,
     ) -> Result<(), acir::OPCODE> {
         match gadget_call.name {
