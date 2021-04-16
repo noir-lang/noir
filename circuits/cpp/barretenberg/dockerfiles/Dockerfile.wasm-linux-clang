@@ -1,6 +1,6 @@
-FROM aztecprotocol/cmake:3.16.5 AS builder
-RUN apt update && apt install -y curl
-RUN curl https://wasmtime.dev/install.sh -sSf | bash
+FROM ubuntu:latest AS builder
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget git libssl-dev cmake curl
+RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v0.25.0
 WORKDIR /usr/src/barretenberg/src
 RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz | tar zxfv -
 WORKDIR /usr/src/barretenberg
@@ -8,5 +8,5 @@ COPY . .
 RUN mkdir build && cd build && cmake -DWASM=ON .. && make -j$(nproc) barretenberg.wasm rollup_proofs_tests
 RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/rollup/proofs/rollup_proofs_tests -- --gtest_filter=join_split_tests.*
 
-FROM alpine:latest
+FROM alpine:3.12
 COPY --from=builder /usr/src/barretenberg/build/src/aztec/barretenberg.wasm /usr/src/barretenberg/build/src/aztec/barretenberg.wasm
