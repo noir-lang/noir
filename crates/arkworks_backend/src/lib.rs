@@ -81,7 +81,7 @@ mod test {
     use super::*;
     use acir::circuit::{Gate, PublicInputs};
     use acir::native_types::{Arithmetic, Witness};
-    use noir_field::FieldElement;
+    use ark_bn254::Fr;
 
     #[test]
     fn simple_equal() {
@@ -91,8 +91,8 @@ mod test {
         // assert a == b
         let arith = Arithmetic {
             mul_terms: vec![],
-            linear_combinations: vec![(FieldElement::one(), a), (-FieldElement::one(), b)],
-            q_c: FieldElement::zero(),
+            linear_combinations: vec![(Fr::one(), a), (-Fr::one(), b)],
+            q_c: Fr::zero(),
         };
         let gate = Gate::Arithmetic(arith);
         let circ = Circuit {
@@ -100,8 +100,8 @@ mod test {
             gates: vec![gate],
             public_inputs: PublicInputs(vec![Witness(1)]),
         };
-        let a_val = FieldElement::from(6);
-        let b_val = FieldElement::from(6);
+        let a_val = Fr::from(6u64);
+        let b_val = Fr::from(6u64);
         let values = vec![&a_val, &b_val];
 
         let proof = prove(circ.clone(), values);
