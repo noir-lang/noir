@@ -22,3 +22,4 @@ hex = "0.4.2"
 k256 = { version = "0.7.2", features = ["ecdsa", "ecdsa-core", "sha256", "digest", "arithmetic"] }
 
 [dev-dependencies]
+ark-bn254 = { version = "^0.2.0", default-features = false, features = [ "curve" ] }

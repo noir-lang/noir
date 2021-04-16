@@ -8,7 +8,7 @@ use noir_field::FieldElement;
 use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Clone, Copy, Debug)]
-pub struct Linear<F: FieldElement> {
+pub struct Linear<F> {
     pub mul_scale: F,
     pub witness: Witness,
     pub add_scale: F,

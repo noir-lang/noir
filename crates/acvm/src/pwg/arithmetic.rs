@@ -1,29 +1,27 @@
 use acir::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::collections::BTreeMap;
 
 /// An Arithmetic solver will take a Circuit's arithmetic gates with witness assignments
 /// and create the other witness variables
-pub struct ArithmeticSolver<F: FieldElement> {
-    _phantom: PhantomData<F>,
-}
+pub struct ArithmeticSolver {}
 
 #[allow(clippy::enum_variant_names)]
-enum GateStatus<F: FieldElement> {
+enum GateStatus<F> {
     GateSatisfied(F),
     GateSolvable(F, (F, Witness)),
     GateUnsolvable,
 }
 
-enum MulTerm<F: FieldElement> {
+enum MulTerm<F> {
     OneUnknown(F, Witness), // (qM * known_witness, unknown_witness)
     TooManyUnknowns,
     Solved(F),
 }
 
-impl<F: FieldElement> ArithmeticSolver<F> {
+impl ArithmeticSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    pub fn solve<'a>(
+    pub fn solve<'a, F: FieldElement>(
         initial_witness: &mut BTreeMap<Witness, F>,
         gate: &'a Arithmetic<F>,
     ) -> Option<&'a Arithmetic<F>> {
@@ -73,7 +71,7 @@ impl<F: FieldElement> ArithmeticSolver<F> {
     /// If the witness values are not known, then the function returns a None
     /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another gate
     /// XXX: What about making a mul gate = a constant 5xy + 7 = 0 ? This is the same as the above.
-    fn solve_mul_term(
+    fn solve_mul_term<F: FieldElement>(
         arith_gate: &Arithmetic<F>,
         witness_assignments: &BTreeMap<Witness, F>,
     ) -> MulTerm<F> {
@@ -104,7 +102,7 @@ impl<F: FieldElement> ArithmeticSolver<F> {
     /// Returns the summation of all of the variables, plus the unknown variable
     /// Returns None, if there is more than one unknown variable
     /// We cannot assign
-    fn solve_fan_in_term(
+    fn solve_fan_in_term<F: FieldElement>(
         arith_gate: &Arithmetic<F>,
         witness_assignments: &BTreeMap<Witness, F>,
     ) -> GateStatus<F> {
@@ -147,6 +145,8 @@ impl<F: FieldElement> ArithmeticSolver<F> {
 
 #[test]
 fn arithmetic_smoke_test() {
+    use ark_bn254::Fr;
+
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -156,32 +156,28 @@ fn arithmetic_smoke_test() {
     let gate_a = Arithmetic {
         mul_terms: vec![],
         linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), b),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), d),
+            (Fr::one(), a),
+            (-Fr::one(), b),
+            (-Fr::one(), c),
+            (-Fr::one(), d),
         ],
-        q_c: FieldElement::zero(),
+        q_c: Fr::zero(),
     };
 
     let e = Witness(4);
     let gate_b = Arithmetic {
         mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), e),
-            (-FieldElement::one(), a),
-            (-FieldElement::one(), b),
-        ],
-        q_c: FieldElement::zero(),
+        linear_combinations: vec![(Fr::one(), e), (-Fr::one(), a), (-Fr::one(), b)],
+        q_c: Fr::zero(),
     };
 
-    let mut values: BTreeMap<Witness, FieldElement> = BTreeMap::new();
-    values.insert(b, FieldElement::from(2));
-    values.insert(c, FieldElement::from(1));
-    values.insert(d, FieldElement::from(1));
+    let mut values: BTreeMap<Witness, Fr> = BTreeMap::new();
+    values.insert(b, Fr::from(2u64));
+    values.insert(c, Fr::from(1u64));
+    values.insert(d, Fr::from(1u64));
 
     assert!(ArithmeticSolver::solve(&mut values, &gate_a).is_none());
     assert!(ArithmeticSolver::solve(&mut values, &gate_b).is_none());
 
-    assert_eq!(values.get(&a).unwrap(), &FieldElement::from(4));
+    assert_eq!(values.get(&a).unwrap(), &Fr::from(4u64));
 }

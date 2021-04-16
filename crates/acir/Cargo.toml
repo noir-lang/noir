@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 noir_field = {path = "../noir_field"}
+
+[dev-dependencies]
+ark-bn254 = { version = "^0.2.0", default-features = false, features = [ "curve" ] }

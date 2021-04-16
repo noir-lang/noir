@@ -1,5 +1,3 @@
-use noir_field::FieldElement;
-
 use crate::native_types::{Arithmetic, Witness};
 use crate::OPCODE;
 
@@ -21,7 +19,7 @@ pub struct XorGate {
 
 #[derive(Clone, Debug)]
 // XXX: Gate does not capture what this is anymore. I think IR/OPCODE would be a better name
-pub enum Gate<F: FieldElement> {
+pub enum Gate<F> {
     Arithmetic(Arithmetic<F>),
     Range(Witness, u32),
     And(AndGate),
@@ -30,7 +28,7 @@ pub enum Gate<F: FieldElement> {
     Directive(Directive),
 }
 
-impl<F: FieldElement> Gate<F> {
+impl<F> Gate<F> {
     pub fn is_arithmetic(&self) -> bool {
         matches!(self, Gate::Arithmetic(_))
     }

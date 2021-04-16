@@ -1,6 +1,6 @@
 use crate::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::collections::BTreeMap;
 
 use super::general_optimiser::GeneralOpt;
 // Optimiser struct with all of the related optimisations to the arithmetic gate
@@ -8,26 +8,22 @@ use super::general_optimiser::GeneralOpt;
 // Is this more of a Reducer than an optimiser?
 // Should we give it all of the gates?
 // Have a single optimiser that you instantiate with a width, then pass many gates through
-pub struct Optimiser<F: FieldElement> {
+pub struct Optimiser {
     width: usize,
-    phantom: PhantomData<F>,
 }
 
-impl<F: FieldElement> Optimiser<F> {
+impl Optimiser {
     // Configure the width for the optimiser
-    pub fn new(width: usize) -> Optimiser<F> {
+    pub fn new(width: usize) -> Optimiser {
         assert!(width > 2);
 
-        Optimiser {
-            width,
-            phantom: PhantomData,
-        }
+        Optimiser { width }
     }
 
     // Still missing dead witness optimisation.
     // To do this, we will need the whole set of arithmetic gates
     // I think it can also be done before the local optimisation seen here, as dead variables will come from the user
-    pub fn optimise(
+    pub fn optimise<F: FieldElement>(
         &self,
         gate: Arithmetic<F>,
         mut intermediate_variables: &mut BTreeMap<Witness, Arithmetic<F>>,
@@ -49,7 +45,7 @@ impl<F: FieldElement> Optimiser<F> {
 
     /// Sorts gate in a deterministic order
     /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
-    fn sort(&self, mut gate: Arithmetic<F>) -> Arithmetic<F> {
+    fn sort<F: FieldElement>(&self, mut gate: Arithmetic<F>) -> Arithmetic<F> {
         gate.mul_terms.sort();
         gate.linear_combinations.sort();
 
@@ -79,7 +75,7 @@ impl<F: FieldElement> Optimiser<F> {
     // The polynomial now looks like so t + t2
     // We can no longer extract another full gate, hence the algorithm terminates. Creating two intermediate variables t and t2.
     // This stage of preprocessing does not guarantee that all polynomials can fit into a gate. It only guarantees that all full gates have been extracted from each polynomial
-    fn full_gate_scan_optimisation(
+    fn full_gate_scan_optimisation<F: FieldElement>(
         &self,
         mut gate: Arithmetic<F>,
         intermediate_variables: &mut BTreeMap<Witness, Arithmetic<F>>,
@@ -235,7 +231,7 @@ impl<F: FieldElement> Optimiser<F> {
     // Also remember that since we did full gate scan, there is no way we can have a non-zero mul term along with the wL and wR terms being non-zero
     //
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
-    fn partial_gate_scan_optimisation(
+    fn partial_gate_scan_optimisation<F: FieldElement>(
         &self,
         mut gate: Arithmetic<F>,
         intermediate_variables: &mut BTreeMap<Witness, Arithmetic<F>>,
@@ -323,6 +319,8 @@ impl<F: FieldElement> Optimiser<F> {
 
 #[test]
 fn simple_reduction_smoke_test() {
+    use ark_bn254::Fr;
+
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -332,15 +330,15 @@ fn simple_reduction_smoke_test() {
     let gate_a = Arithmetic {
         mul_terms: vec![],
         linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), b),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), d),
+            (Fr::one(), a),
+            (-Fr::one(), b),
+            (-Fr::one(), c),
+            (-Fr::one(), d),
         ],
-        q_c: FieldElement::zero(),
+        q_c: Fr::zero(),
     };
 
-    let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
+    let mut intermediate_variables: BTreeMap<Witness, Arithmetic<Fr>> = BTreeMap::new();
 
     let num_witness = 4;
 
@@ -356,12 +354,8 @@ fn simple_reduction_smoke_test() {
     let e = Witness(4);
     let expected_optimised_gate_a = Arithmetic {
         mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (FieldElement::one(), e),
-            (-FieldElement::one(), b),
-        ],
-        q_c: FieldElement::zero(),
+        linear_combinations: vec![(Fr::one(), a), (Fr::one(), e), (-Fr::one(), b)],
+        q_c: Fr::zero(),
     };
     assert_eq!(expected_optimised_gate_a, got_optimised_gate_a);
 
@@ -372,12 +366,8 @@ fn simple_reduction_smoke_test() {
     // - c - d  - e = 0
     let expected_intermediate_gate = Arithmetic {
         mul_terms: vec![],
-        linear_combinations: vec![
-            (-FieldElement::one(), d),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), e),
-        ],
-        q_c: FieldElement::zero(),
+        linear_combinations: vec![(-Fr::one(), d), (-Fr::one(), c), (-Fr::one(), e)],
+        q_c: Fr::zero(),
     };
     assert_eq!(&expected_intermediate_gate, got_intermediate_gate);
 }

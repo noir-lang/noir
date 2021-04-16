@@ -6,6 +6,7 @@ version = 3
 name = "acir"
 version = "0.1.0"
 dependencies = [
+ "ark-bn254",
  "noir_field",
 ]
 
@@ -14,6 +15,7 @@ name = "acvm"
 version = "0.1.0"
 dependencies = [
  "acir",
+ "ark-bn254",
  "arkworks_backend",
  "aztec_backend",
  "blake2",
