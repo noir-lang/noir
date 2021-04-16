@@ -1,4 +1,5 @@
 use std::{
+    fmt::{Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign},
 };
@@ -6,25 +7,35 @@ use std::{
 pub trait FieldElement:
     Copy
     + Clone
-    + PartialEq
+    + Debug
+    + Display
+    + Default
+    + Send
+    + Sync
     + Eq
-    + PartialOrd
-    + Ord
-    + Add<Output = Self>
-    + Sub<Output = Self>
-    + Mul<Output = Self>
-    + Neg<Output = Self>
-    + Div<Output = Self>
+    + PartialEq
+    + Hash
+    + Sized
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
     + AddAssign
     + SubAssign
-    + Hash
-    + core::fmt::Debug
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + Neg<Output = Self>
+    + Ord
+    + From<u128>
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
 {
     /// Converts field element to bytes
     fn to_bytes(&self) -> Vec<u8>;
 
     /// Converts bytes into a FieldElement. Does not reduce
     /// and panics if non-canonical
+    // TODO: replace this with a for<'a> TryFrom<&'a [u8]> bound
     fn from_bytes(bytes: &[u8]) -> Self;
 
     /// Converts bytes into a FieldElement.
@@ -59,11 +70,11 @@ pub trait FieldElement:
     // XXX: -- End
 
     /// Returns the representation of the number 1
-    /// in the underlying field
+    /// in the field
     fn one() -> Self;
 
     /// Returns the representation of the number 0
-    /// in the underlying field
+    /// in the field
     fn zero() -> Self;
 
     fn is_one(&self) -> bool {
@@ -78,7 +89,7 @@ pub trait FieldElement:
     /// Example, you only need 254 bits to represent a field element in BN256
     /// But the representation uses 256 bits, so the top two bits are always zero
     /// This method would return 254
-    fn max_num_bits() -> u32;
+    const MAX_NUM_BITS: u32;
 
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order

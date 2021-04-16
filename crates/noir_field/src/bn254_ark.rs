@@ -35,7 +35,7 @@ impl FieldElement for Fr {
     }
 
     fn mask_to_bits(&self, num_bits: u32) -> Vec<bool> {
-        let max_bits = Self::max_num_bits() + Self::wasted_bits();
+        let max_bits = Self::MAX_NUM_BITS + Self::wasted_bits();
 
         let bit_iter: Vec<_> = BitIteratorBE::new(self.into_repr())
             .enumerate()
@@ -52,7 +52,7 @@ impl FieldElement for Fr {
     }
 
     fn truncate_to_bits(&self, num_bits: u32) -> Vec<bool> {
-        let max_bits = Self::max_num_bits() + Self::wasted_bits();
+        let max_bits = Self::MAX_NUM_BITS + Self::wasted_bits();
 
         let bit_iter: Vec<_> = BitIteratorBE::new(self.into_repr())
             .enumerate()
@@ -112,17 +112,15 @@ impl FieldElement for Fr {
         self.and_xor(rhs, num_bits, true)
     }
 
-    fn one() -> Self {
+    fn one() -> Fr {
         ark_ff::One::one()
     }
 
-    fn zero() -> Self {
+    fn zero() -> Fr {
         ark_ff::Zero::zero()
     }
 
-    fn max_num_bits() -> u32 {
-        254
-    }
+    const MAX_NUM_BITS: u32 = 254;
 
     fn try_from_str(input: &str) -> Option<Self> {
         if input.contains('x') {
@@ -134,12 +132,10 @@ impl FieldElement for Fr {
     }
 
     fn wasted_bits() -> u32 {
-        let one: Fr = ark_ff::One::one();
-        let vec: Vec<_> = BitIteratorBE::new(one.into_repr()).collect();
+        let vec: Vec<_> = BitIteratorBE::new(Self::one().into_repr()).collect();
 
         let num_bits_used = vec.len() as u32;
-        let num_bits_needed = Self::max_num_bits();
-        num_bits_used - num_bits_needed
+        num_bits_used - Self::MAX_NUM_BITS
     }
 
     fn num_bits(&self) -> u32 {
@@ -157,7 +153,7 @@ impl FieldElement for Fr {
                 // This is now the amount of significant elements that came before the most significant bit
                 let msb_index_offset = (index as u32) - offset;
 
-                Self::max_num_bits() - msb_index_offset
+                Self::MAX_NUM_BITS - msb_index_offset
             }
         }
     }
@@ -170,7 +166,7 @@ impl FieldElement for Fr {
     }
 
     fn inverse(&self) -> Self {
-        ark_ff::Field::inverse(self).unwrap_or_else(Fr::zero)
+        ark_ff::Field::inverse(self).unwrap_or(Self::zero())
     }
 
     fn to_hex(&self) -> String {
