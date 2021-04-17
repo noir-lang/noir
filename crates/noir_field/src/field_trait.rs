@@ -23,11 +23,12 @@ pub trait FieldElement:
     + Mul<Self, Output = Self>
     + Div<Self, Output = Self>
     + Neg<Output = Self>
-    + Ord // + From<u128>
-// + From<u64>
-// + From<u32>
-// + From<u16>
-// + From<u8>
+    + Ord
+    + From<u128>
+    + From<u64>
+    + From<u32>
+    + From<u16>
+    + From<u8>
 {
     /// Converts field element to bytes
     fn to_bytes(&self) -> Vec<u8>;

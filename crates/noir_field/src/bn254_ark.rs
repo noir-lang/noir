@@ -234,3 +234,38 @@ fn pack_bits_into_bytes(bits: Vec<bool>) -> Vec<u8> {
 
     message_bytes
 }
+
+// Solve the problem of converting from iXXX to ark_bn254::Fr, an
+// implementation we cannot add here without being confronted to the orpahn
+// problem.
+// TODO : delete this once https://github.com/arkworks-rs/algebra/pull/263 is
+// merged
+// TODO: make a newtype wrapper around ark_bn254::Fr
+macro_rules! integer_proxy {
+    ($($num:expr),*) => {
+        $(
+            paste::paste!{
+                pub struct [<I $num>]([<i $num>]);
+                impl From<[<i $num>]> for [<I $num>]{
+                    fn from(val: [<i $num>]) -> Self {
+                        [<I $num>](val)
+                    }
+                }
+
+                impl From<[<I $num>]> for Fr {
+                    fn from(val: [<I $num>]) -> Self {
+                        let positive = val.0.is_positive();
+                        let abs = Fr::from(val.0.unsigned_abs());
+                        if positive {
+                            abs
+                        } else {
+                            -abs
+                        }
+                    }
+                }
+            }
+        )*
+    };
+}
+
+integer_proxy!(8, 16, 32, 64, 128);

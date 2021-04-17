@@ -706,6 +706,7 @@ fn remove_public_inputs(num_pub_inputs: usize, proof: Vec<u8>) -> Vec<u8> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use noir_field::bn254_ark::{I128, I32};
 
     #[test]
     fn test_a_single_constraint_no_pub_inputs() {
@@ -737,7 +738,11 @@ mod test {
         };
 
         let case_1 = WitnessResult {
-            witness: Assignments(vec![(-1).into(), 2.into(), 1.into()]),
+            witness: Assignments(vec![
+                I32::from(-1).into(),
+                I32::from(2).into(),
+                I32::from(1).into(),
+            ]),
             public_inputs: None,
             result: true,
         };
@@ -747,7 +752,11 @@ mod test {
             result: true,
         };
         let case_3 = WitnessResult {
-            witness: Assignments(vec![10.into(), (-3).into(), 7.into()]),
+            witness: Assignments(vec![
+                I32::from(10).into(),
+                I32::from(-3).into(),
+                I32::from(7).into(),
+            ]),
             public_inputs: None,
             result: true,
         };
@@ -757,19 +766,31 @@ mod test {
             result: false,
         };
         let case_5 = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), 2.into(), 6.into()]),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(6).into(),
+            ]),
             public_inputs: None,
             result: false,
         };
         // This should fail as we specified that we do not have any public inputs
         let case_6a = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), 2.into(), 6.into()]),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(6).into(),
+            ]),
             public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: false,
         };
         // Even if the public input is zero
         let case_6b = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), Scalar::from(2), Scalar::from(6)]),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(6).into(),
+            ]),
             public_inputs: Some(Assignments(vec![Scalar::zero()])),
             result: false,
         };
@@ -812,7 +833,11 @@ mod test {
         // but none are supplied in public_inputs. So the verifier will not
         // supply anything.
         let case_1 = WitnessResult {
-            witness: Assignments(vec![(-1).into(), 2.into(), 1.into()]),
+            witness: Assignments(vec![
+                I32::from(-1).into(),
+                I32::from(2).into(),
+                I32::from(1).into(),
+            ]),
             public_inputs: None,
             result: false,
         };
@@ -823,27 +848,43 @@ mod test {
         };
 
         let case_3 = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), 2.into(), 6.into()]),
-            public_inputs: Some(Assignments(vec![Scalar::one(), 3.into()])),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(6).into(),
+            ]),
+            public_inputs: Some(Assignments(vec![Scalar::one(), I32::from(3).into()])),
             result: false,
         };
 
         // Not enough public inputs
         let case_4 = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), Scalar::from(2), Scalar::from(6)]),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(6).into(),
+            ]),
             public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: false,
         };
 
         let case_5 = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
-            public_inputs: Some(Assignments(vec![Scalar::one(), 2.into()])),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(3).into(),
+            ]),
+            public_inputs: Some(Assignments(vec![Scalar::one(), I32::from(2).into()])),
             result: true,
         };
 
         let case_6 = WitnessResult {
-            witness: Assignments(vec![Scalar::one(), 2.into(), 3.into()]),
-            public_inputs: Some(Assignments(vec![Scalar::one(), 3.into()])),
+            witness: Assignments(vec![
+                Scalar::one(),
+                I32::from(2).into(),
+                I32::from(3).into(),
+            ]),
+            public_inputs: Some(Assignments(vec![Scalar::one(), I32::from(3).into()])),
             result: false,
         };
 
@@ -893,12 +934,22 @@ mod test {
         };
 
         let case_1 = WitnessResult {
-            witness: Assignments(vec![1.into(), 1.into(), 2.into(), 3.into()]),
+            witness: Assignments(vec![
+                I32::from(1).into(),
+                I32::from(1).into(),
+                I32::from(2).into(),
+                I32::from(3).into(),
+            ]),
             public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: true,
         };
         let case_2 = WitnessResult {
-            witness: Assignments(vec![1.into(), 1.into(), 2.into(), 13.into()]),
+            witness: Assignments(vec![
+                I32::from(1).into(),
+                I32::from(1).into(),
+                I32::from(2).into(),
+                I32::from(13).into(),
+            ]),
             public_inputs: Some(Assignments(vec![Scalar::one()])),
             result: false,
         };
@@ -963,19 +1014,19 @@ mod test {
         ];
         let mut sig_as_scalars = [Scalar::zero(); 64];
         for i in 0..64 {
-            sig_as_scalars[i] = sig[i].into()
+            sig_as_scalars[i] = I128::from(sig[i]).into()
         }
         let message: Vec<Scalar> = vec![
-            0.into(),
-            1.into(),
-            2.into(),
-            3.into(),
-            4.into(),
-            5.into(),
-            6.into(),
-            7.into(),
-            8.into(),
-            9.into(),
+            I32::from(0).into(),
+            I32::from(1).into(),
+            I32::from(2).into(),
+            I32::from(3).into(),
+            I32::from(4).into(),
+            I32::from(5).into(),
+            I32::from(6).into(),
+            I32::from(7).into(),
+            I32::from(8).into(),
+            I32::from(9).into(),
         ];
         let mut witness_values = Vec::new();
         witness_values.extend(message);
