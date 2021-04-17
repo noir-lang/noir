@@ -86,7 +86,7 @@ mod test {
 
     #[test]
     fn basic_priv() {
-        let mut interner = NodeInterner::default();
+        let mut interner = NodeInterner::<ark_bn254::Fr>::default();
 
         // Add a simple Priv Statement into the interner
         // let z = x + y;
@@ -258,7 +258,8 @@ mod test {
             .functions
             .into_iter()
             .map(|nf| {
-                let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps);
+                let resolver =
+                    Resolver::<ark_bn254::Fr>::new(&mut interner, &path_resolver, &def_maps);
                 resolver.resolve_function(nf).unwrap()
             })
             .collect();

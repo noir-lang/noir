@@ -30,7 +30,7 @@ mod test {
 
     use super::LiteralParser;
 
-    fn expr_to_lit(expr: ExpressionKind) -> Literal {
+    fn expr_to_lit<F>(expr: ExpressionKind<F>) -> Literal<F> {
         match expr {
             ExpressionKind::Literal(literal) => literal,
             _ => unreachable!("expected a literal"),

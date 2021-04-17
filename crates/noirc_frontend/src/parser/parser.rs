@@ -19,7 +19,7 @@ type ParserStmtResult<F> = ParserResult<Statement<F>, F>;
 // XXX: We can probably abstract the lexer away, as we really only need an Iterator of Tokens/ TokenStream
 // XXX: Alternatively can make Lexer take a Reader, but will need to do a Bytes -> to char conversion. Can just return an error if cannot do conversion
 // As this should not be leaked to any other part of the lib
-pub struct Parser<'a, F: FieldElement> {
+pub struct Parser<'a, F: std::fmt::Debug> {
     pub(crate) lexer: Lexer<'a, F>,
     pub(crate) curr_token: SpannedToken<F>,
     pub(crate) peek_token: SpannedToken<F>,
@@ -520,7 +520,7 @@ mod test {
                 )
             }
         "#;
-        let mut parser = Parser::from_src(COMMENT_BETWEEN_FIELD);
+        let mut parser = Parser::<ark_bn254::Fr>::from_src(COMMENT_BETWEEN_FIELD);
         let _program = parser.parse_program().unwrap();
         parser = Parser::from_src(COMMENT_BETWEEN_CALL);
         let _program = parser.parse_program().unwrap();

@@ -496,7 +496,7 @@ impl<F: FieldElement> Token<F> {
 
 #[test]
 fn test_variant_equality() {
-    let tok = Token::Keyword(Keyword::Let);
+    let tok: Token<ark_bn254::Fr> = Token::Keyword(Keyword::Let);
     let tok2 = Token::Keyword(Keyword::Let);
     assert!(tok.is_variant(&tok2));
 

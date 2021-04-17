@@ -13,7 +13,7 @@ use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
 /// Given a module collect all definitions into ModuleData
-pub struct ModCollector<'a, F: FieldElement> {
+pub struct ModCollector<'a, F> {
     pub(crate) def_collector: &'a mut DefCollector<F>,
     pub(crate) ast: ParsedModule<F>,
     pub(crate) file_id: FileId,

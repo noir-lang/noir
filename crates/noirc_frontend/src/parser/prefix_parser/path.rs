@@ -85,7 +85,7 @@ mod test {
 
     use super::PathParser;
 
-    fn expr_to_path(expr: ExpressionKind) -> Path {
+    fn expr_to_path<F>(expr: ExpressionKind<F>) -> Path {
         match expr {
             ExpressionKind::Path(pth) => pth,
             _ => unreachable!(),

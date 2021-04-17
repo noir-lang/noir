@@ -50,7 +50,7 @@ type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
-pub struct Resolver<'a, F: FieldElement> {
+pub struct Resolver<'a, F> {
     scopes: ScopeForest,
 
     path_resolver: &'a dyn PathResolver,
@@ -463,6 +463,7 @@ mod test {
     use std::collections::HashMap;
 
     use crate::{hir::resolution::errors::ResolverError, Ident};
+    use ark_bn254::Fr;
 
     use crate::graph::CrateId;
     use crate::hir_def::function::HirFunction;
@@ -476,10 +477,10 @@ mod test {
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
-    fn resolve_src_code(
+    fn resolve_src_code<F: noir_field::FieldElement>(
         src: &str,
         func_namespace: Vec<String>,
-    ) -> (NodeInterner, Vec<ResolverError>) {
+    ) -> (NodeInterner<F>, Vec<ResolverError>) {
         let mut parser = Parser::from_src(src);
         let program = parser.parse_program().unwrap();
         let mut interner = NodeInterner::default();
@@ -516,7 +517,7 @@ mod test {
             }
         ";
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (_, errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -528,7 +529,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (_, errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -540,7 +541,7 @@ mod test {
             }
         "#;
 
-        let (interner, mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (interner, mut errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
 
         // There should only be one error
         assert!(errors.len() == 1);
@@ -562,7 +563,7 @@ mod test {
             }
         "#;
 
-        let (_, mut errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (_, mut errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
 
         // There should only be one error
         assert!(errors.len() == 1);
@@ -584,7 +585,7 @@ mod test {
         ";
 
         let (_, mut errors) =
-            resolve_src_code(src, vec![String::from("main"), String::from("foo")]);
+            resolve_src_code::<Fr>(src, vec![String::from("main"), String::from("foo")]);
         assert_eq!(errors.len(), 1);
         let err = errors.pop().unwrap();
 
@@ -600,7 +601,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (_, errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
         assert!(errors.is_empty());
     }
 
@@ -613,7 +614,7 @@ mod test {
             }
         "#;
 
-        let (interner, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (interner, errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
         assert!(errors.len() == 3);
 
         // Errors are:
@@ -642,7 +643,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (_, errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -655,7 +656,7 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main")]);
+        let (_, errors) = resolve_src_code::<Fr>(src, vec![String::from("main")]);
         assert!(errors.is_empty());
     }
     #[test]
@@ -670,7 +671,8 @@ mod test {
             }
         "#;
 
-        let (_, errors) = resolve_src_code(src, vec![String::from("main"), String::from("foo")]);
+        let (_, errors) =
+            resolve_src_code::<Fr>(src, vec![String::from("main"), String::from("foo")]);
         assert!(errors.is_empty());
     }
 

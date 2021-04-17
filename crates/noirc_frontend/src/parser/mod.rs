@@ -89,12 +89,12 @@ impl<F: FieldElement> From<&SpannedToken<F>> for Precedence {
 }
 
 #[cfg(test)]
-pub(crate) fn test_parse(src: &str) -> Parser {
+pub(crate) fn test_parse(src: &str) -> Parser<ark_bn254::Fr> {
     Parser::from_src(src)
 }
 
 #[cfg(test)]
-pub(crate) fn dummy_expr() -> crate::Expression {
+pub(crate) fn dummy_expr() -> crate::Expression<ark_bn254::Fr> {
     use crate::parser::prefix_parser::PrefixParser;
     const SRC: &str = r#"
         foo;

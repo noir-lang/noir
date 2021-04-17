@@ -14,7 +14,7 @@ use std::{iter::Peekable, marker::PhantomData};
 
 pub type SpannedTokenResult<F> = Result<SpannedToken<F>, LexerErrorKind<F>>;
 
-pub struct Lexer<'a, F: FieldElement> {
+pub struct Lexer<'a, F> {
     char_iter: Peekable<Chars<'a>>,
     position: Position,
     _phantom: PhantomData<F>,
@@ -308,11 +308,16 @@ impl<'a, F: FieldElement> Iterator for Lexer<'a, F> {
     }
 }
 
+#[cfg(test)]
+use ark_bn254::Fr;
+#[cfg(test)]
+use noir_field::bn254_ark::I32;
+
 #[test]
 fn test_single_double_char() {
     let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = ==";
 
-    let expected = vec![
+    let expected: Vec<Token<Fr>> = vec![
         Token::Bang,
         Token::NotEqual,
         Token::Plus,
@@ -356,7 +361,7 @@ fn test_single_double_char() {
 fn test_custom_gate_syntax() {
     let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
-    let expected = vec![
+    let expected: Vec<Token<Fr>> = vec![
         Token::Attribute(Attribute::Foreign("sha256".to_string())),
         Token::Attribute(Attribute::Foreign("blake2s".to_string())),
         Token::Attribute(Attribute::Builtin("sum".to_string())),
@@ -373,13 +378,13 @@ fn test_custom_gate_syntax() {
 fn test_int_type() {
     let input = "u16 i16 i108 u104.5";
 
-    let expected = vec![
+    let expected: Vec<Token<Fr>> = vec![
         Token::IntType(IntType::Unsigned(16)),
         Token::IntType(IntType::Signed(16)),
         Token::IntType(IntType::Signed(108)),
         Token::IntType(IntType::Unsigned(104)),
         Token::Dot,
-        Token::Int(5.into()),
+        Token::Int(I32::from(5).into()),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -394,12 +399,12 @@ fn test_comment() {
         let x = 5
     ";
 
-    let expected = vec![
+    let expected: Vec<Token<Fr>> = vec![
         Token::Comment(" hello".to_string()),
         Token::Keyword(Keyword::Let),
         Token::Ident("x".to_string()),
         Token::Assign,
-        Token::Int(FieldElement::from(5)),
+        Token::Int(Fr::from(I32::from(5))),
     ];
 
     let mut lexer = Lexer::new(input);
@@ -413,7 +418,7 @@ fn test_comment() {
 fn test_eat_string_literal() {
     let input = "let _word = \"hello\"";
 
-    let expected = vec![
+    let expected: Vec<Token<Fr>> = vec![
         Token::Keyword(Keyword::Let),
         Token::Ident("_word".to_string()),
         Token::Assign,
@@ -430,7 +435,7 @@ fn test_eat_string_literal() {
 fn test_eat_hex_int() {
     let input = "0x05";
 
-    let expected = vec![Token::Int(5.into())];
+    let expected: Vec<Token<Fr>> = vec![Token::Int(I32::from(5).into())];
     let mut lexer = Lexer::new(input);
 
     for token in expected.into_iter() {
@@ -445,7 +450,8 @@ fn test_span() {
     // Let
     let start_position = Position::default().forward();
     let let_position = start_position.forward_by(2);
-    let let_token = Token::Keyword(Keyword::Let).into_span(start_position, let_position);
+    let let_token: SpannedToken<Fr> =
+        Token::Keyword(Keyword::Let).into_span(start_position, let_position);
 
     // Skip whitespace
     let whitespace_position = let_position.forward();
@@ -466,7 +472,7 @@ fn test_span() {
 
     // Int position
     let int_position = whitespace_position.forward();
-    let int_token = Token::Int(5.into()).into_single_span(int_position);
+    let int_token = Token::Int(I32::from(5).into()).into_single_span(int_position);
 
     let expected = vec![let_token, ident_token, assign_token, int_token];
     let mut lexer = Lexer::new(input);
@@ -491,18 +497,18 @@ fn test_basic_language_syntax() {
 
     ";
 
-    let expected = vec![
+    let expected: Vec<Token<Fr>> = vec![
         Token::Keyword(Keyword::Const),
         Token::Ident("five".to_string()),
         Token::Assign,
-        Token::Int(5.into()),
+        Token::Int(I32::from(5).into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Pub),
         Token::Ident("ten".to_string()),
         Token::Colon,
         Token::Keyword(Keyword::Field),
         Token::Assign,
-        Token::Int(10.into()),
+        Token::Int(I32::from(10).into()),
         Token::Semicolon,
         Token::Keyword(Keyword::Let),
         Token::Ident("mul".to_string()),

@@ -50,6 +50,7 @@ fn token_to_binary_op<F: FieldElement>(
 mod test {
 
     use crate::parser::{dummy_expr, test_parse};
+    use noir_field::bn254_ark::I32;
 
     use super::BinaryParser;
 
@@ -76,7 +77,7 @@ mod test {
         let end = parser.curr_token;
 
         assert_eq!(start, crate::token::Token::Plus);
-        assert_eq!(end, crate::token::Token::Int(6.into()));
+        assert_eq!(end, crate::token::Token::Int(I32::from(6).into()));
     }
     #[test]
     fn invalid_syntax() {

@@ -51,8 +51,9 @@ mod test {
 
     use super::CallParser;
     use crate::{parser::test_parse, Expression};
+    use ark_bn254::Fr;
 
-    pub(crate) fn dummy_path_expr() -> Expression {
+    pub(crate) fn dummy_path_expr() -> Expression<Fr> {
         use crate::parser::prefix_parser::PrefixParser;
 
         const SRC: &str = r#"

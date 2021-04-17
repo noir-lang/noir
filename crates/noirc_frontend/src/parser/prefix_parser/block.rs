@@ -54,7 +54,7 @@ mod test {
 
     use super::BlockParser;
 
-    fn expr_to_block(expr: ExpressionKind) -> BlockExpression {
+    fn expr_to_block<F>(expr: ExpressionKind<F>) -> BlockExpression<F> {
         match expr {
             ExpressionKind::Block(block) => block,
             _ => unreachable!("expected a block expression"),
@@ -94,7 +94,7 @@ mod test {
     #[test]
     fn missing_starting_brace() {
         const SRC: &str = r#"
-            
+
                 [0,1,2,3,4]
             }
         "#;
@@ -107,7 +107,7 @@ mod test {
         const SRC: &str = r#"
             {
                 [0,1,2,3,4]
-            
+
         "#;
 
         let mut parser = test_parse(SRC);

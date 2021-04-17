@@ -31,6 +31,7 @@ impl UnaryParser {
 #[cfg(test)]
 mod test {
     use crate::parser::test_parse;
+    use ark_bn254::Fr;
 
     use super::UnaryParser;
 
@@ -39,7 +40,7 @@ mod test {
         let vectors = vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"];
 
         for src in vectors {
-            UnaryParser::parse(&mut test_parse(src)).unwrap();
+            UnaryParser::parse::<Fr>(&mut test_parse(src)).unwrap();
         }
     }
     #[test]
@@ -47,7 +48,7 @@ mod test {
         let vectors = vec!["+hello", "/hello", "hello"];
 
         for src in vectors {
-            UnaryParser::parse(&mut test_parse(src)).unwrap_err();
+            UnaryParser::parse::<Fr>(&mut test_parse(src)).unwrap_err();
         }
     }
 }

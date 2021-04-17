@@ -41,7 +41,7 @@ mod test {
 
     use super::ArrayParser;
 
-    fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
+    fn expr_to_array<F>(expr: ExpressionKind<F>) -> ArrayLiteral<F> {
         let lit = match expr {
             ExpressionKind::Literal(literal) => literal,
             _ => unreachable!("expected a literal"),
