@@ -1,14 +1,12 @@
-use std::{collections::BTreeMap, marker::PhantomData};
+use std::collections::BTreeMap;
 
 use crate::native_types::{Arithmetic, Witness};
 use noir_field::FieldElement;
 
-pub struct GeneralOpt<F: FieldElement> {
-    phantom: PhantomData<F>,
-}
+pub struct GeneralOpt {}
 
-impl<F: FieldElement> GeneralOpt<F> {
-    pub fn optimise(gate: Arithmetic<F>) -> Arithmetic<F> {
+impl GeneralOpt {
+    pub fn optimise<F: FieldElement>(gate: Arithmetic<F>) -> Arithmetic<F> {
         // XXX: Perhaps this optimisation can be done on the fly
         let gate = remove_zero_coefficients(gate);
         simplify_mul_terms(gate)
