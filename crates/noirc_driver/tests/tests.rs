@@ -1,3 +1,4 @@
+use ark_bn254::Fr;
 use noirc_driver::Driver;
 use std::path::PathBuf;
 
@@ -10,7 +11,11 @@ fn fail() {
 
     for path in paths {
         let path = path.unwrap().path();
-        assert!(!Driver::file_compiles(&path), "path: {}", path.display())
+        assert!(
+            !Driver::<Fr>::file_compiles(&path),
+            "path: {}",
+            path.display()
+        )
     }
 }
 #[test]
@@ -22,6 +27,10 @@ fn pass() {
 
     for path in paths {
         let path = path.unwrap().path();
-        assert!(Driver::file_compiles(&path), "path: {}", path.display())
+        assert!(
+            Driver::<Fr>::file_compiles(&path),
+            "path: {}",
+            path.display()
+        )
     }
 }

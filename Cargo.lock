@@ -1466,6 +1466,7 @@ name = "noirc_driver"
 version = "0.1.0"
 dependencies = [
  "acvm",
+ "ark-bn254",
  "dirs",
  "fm",
  "noir_field",

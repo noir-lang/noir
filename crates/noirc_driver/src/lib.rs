@@ -12,10 +12,10 @@ use noirc_frontend::hir::Context;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
-pub struct Driver<F: FieldElement> {
+pub struct Driver<F> {
     context: Context<F>,
 }
-pub struct CompiledProgram<F: FieldElement> {
+pub struct CompiledProgram<F> {
     pub circuit: Circuit<F>,
     pub abi: Option<noirc_abi::Abi>,
 }
