@@ -14,7 +14,7 @@ impl<F: FieldElement> PartialEq<Token<F>> for SpannedToken<F> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpannedToken<F: FieldElement>(Spanned<Token<F>>);
+pub struct SpannedToken<F>(Spanned<Token<F>>);
 
 impl<F: FieldElement> From<SpannedToken<F>> for Token<F> {
     fn from(spt: SpannedToken<F>) -> Self {
@@ -47,7 +47,7 @@ impl<F: FieldElement> SpannedToken<F> {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 /// All possible tokens allowed in the target language
-pub enum Token<F: FieldElement> {
+pub enum Token<F> {
     Ident(String),
     Int(F),
     Bool(bool),
@@ -173,7 +173,7 @@ impl<F: FieldElement> fmt::Display for Token<F> {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 /// The different kinds of tokens that are possible in the target language
-pub enum TokenKind<F: FieldElement> {
+pub enum TokenKind<F> {
     Token(Token<F>),
     Ident,
     Literal,
@@ -279,7 +279,7 @@ impl IntType {
         // Word start with 'u' or 'i'. Check if the latter is an integer
         let str_as_u32 = word[1..].parse::<u32>().ok()?;
 
-        let max_bits = F::max_num_bits();
+        let max_bits = F::MAX_NUM_BITS;
 
         if str_as_u32 > max_bits {
             panic!(

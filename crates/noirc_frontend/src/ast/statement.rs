@@ -58,7 +58,7 @@ impl<F: FieldElement> From<Ident> for ExpressionKind<F> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Statement<F: FieldElement> {
+pub enum Statement<F> {
     Let(LetStatement<F>),
     Const(ConstStatement<F>),
     Constrain(ConstrainStatement<F>),
@@ -144,25 +144,25 @@ impl Path {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 // This will be used for non primitive data types like Arrays and Structs
-pub struct LetStatement<F: FieldElement> {
+pub struct LetStatement<F> {
     pub identifier: Ident,
     pub r#type: Type,
     pub expression: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstStatement<F: FieldElement> {
+pub struct ConstStatement<F> {
     pub identifier: Ident,
     pub r#type: Type, // This will always be a Literal FieldElement
     pub expression: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PrivateStatement<F: FieldElement> {
+pub struct PrivateStatement<F> {
     pub identifier: Ident,
     pub r#type: Type,
     pub expression: Expression<F>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement<F: FieldElement>(pub InfixExpression<F>);
+pub struct ConstrainStatement<F>(pub InfixExpression<F>);

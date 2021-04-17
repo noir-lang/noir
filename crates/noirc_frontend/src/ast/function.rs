@@ -9,7 +9,7 @@ use super::{FunctionDefinition, Type};
 // The name for function literal will be the variable it is binded to, and the name for a function definition will
 // be the function name itself.
 #[derive(Clone, Debug, PartialEq)]
-pub struct NoirFunction<F: FieldElement> {
+pub struct NoirFunction<F> {
     pub kind: FunctionKind,
     pub def: FunctionDefinition<F>,
 }

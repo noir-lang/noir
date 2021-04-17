@@ -14,7 +14,7 @@ use noir_field::FieldElement;
 pub use parser::{Parser, ParserExprKindResult, ParserExprResult};
 
 #[derive(Clone, Debug)]
-pub struct ParsedModule<F: FieldElement> {
+pub struct ParsedModule<F> {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction<F>>,
     pub module_decls: Vec<Ident>,

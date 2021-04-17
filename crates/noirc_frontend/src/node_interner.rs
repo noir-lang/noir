@@ -85,7 +85,7 @@ partialeq!(StmtId);
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
 #[derive(Debug, Clone)]
-enum Node<F: FieldElement> {
+enum Node<F> {
     Function(HirFunction),
     Ident(Ident),
     Statement(HirStatement),
@@ -93,7 +93,7 @@ enum Node<F: FieldElement> {
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeInterner<F: FieldElement> {
+pub struct NodeInterner<F> {
     nodes: Arena<Node<F>>,
     func_meta: HashMap<FuncId, FuncMeta>,
 

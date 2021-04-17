@@ -17,7 +17,7 @@ use noirc_errors::DiagnosableError;
 use std::collections::HashMap;
 
 /// Stores all of the unresolved functions in a particular file/mod
-pub struct UnresolvedFunctions<F: FieldElement> {
+pub struct UnresolvedFunctions<F> {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction<F>)>,
 }
@@ -29,7 +29,7 @@ impl<F: FieldElement> UnresolvedFunctions<F> {
 }
 
 /// Given a Crate root, collect all definitions in that crate
-pub struct DefCollector<F: FieldElement> {
+pub struct DefCollector<F> {
     pub(crate) def_map: CrateDefMap,
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions<F>>,

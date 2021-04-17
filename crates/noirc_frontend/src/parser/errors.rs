@@ -8,7 +8,7 @@ use noirc_errors::Span;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ParserErrorKind<F: FieldElement> {
+pub enum ParserErrorKind<F: std::fmt::Debug> {
     #[error("Lexer error found")]
     LexerError(LexerErrorKind<F>),
     #[error(" expected expression, found `{}`", lexeme)]

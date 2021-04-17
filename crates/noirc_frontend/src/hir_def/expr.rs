@@ -6,7 +6,7 @@ use crate::{BinaryOp, BinaryOpKind, Type, UnaryOp};
 
 // XXX: We could possibly intern the literals and not need the generic parameter
 #[derive(Debug, Clone)]
-pub enum HirExpression<F: FieldElement> {
+pub enum HirExpression<F> {
     Ident(IdentId),
     Literal(HirLiteral<F>),
     Block(HirBlockExpression),
@@ -123,7 +123,7 @@ impl From<UnaryOp> for HirUnaryOp {
 }
 
 #[derive(Debug, Clone)]
-pub enum HirLiteral<F: FieldElement> {
+pub enum HirLiteral<F> {
     Array(HirArrayLiteral),
     Bool(bool),
     Integer(F),

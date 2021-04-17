@@ -5,7 +5,7 @@ use noirc_errors::{DiagnosableError, Span};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum LexerErrorKind<F: FieldElement> {
+pub enum LexerErrorKind<F: std::fmt::Debug> {
     #[error("An unexpected character {:?} was found.", found)]
     UnexpectedCharacter { span: Span, found: char },
     #[error("The character {:?} is not in the language.", found)]

@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 /// Global context that is accessible during each stage
 #[derive(Debug)]
-pub struct Context<F: FieldElement> {
+pub struct Context<F> {
     pub def_interner: NodeInterner<F>,
 
     pub crate_graph: CrateGraph,

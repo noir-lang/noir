@@ -4,7 +4,7 @@ use super::*;
 ///
 /// Since they follow the same structure, the parsing strategy for
 /// them are generic
-struct GenericDeclStructure<F: FieldElement> {
+struct GenericDeclStructure<F> {
     identifier: Ident,
     typ: Option<Type>,
     rhs: Expression<F>,
