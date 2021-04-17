@@ -4,7 +4,8 @@ use std::{
 };
 
 use acvm::BackendPointer;
-use noir_field::{Bn254Scalar, FieldElement};
+use ark_bn254::Fr;
+use noir_field::Bn254Scalar;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateType};
 
@@ -40,13 +41,16 @@ struct CachedDep {
 /// or it uses the repo on the cache.
 /// Downloading will be recursive, so if a package contains packages
 /// We need to download those too
-pub struct Resolver<'a, F: FieldElement> {
+// TODO: this Resolver should probably not return a polymorphic result until
+// and unless we make it meaningfully inspect a (necessarily dynamic) configuration to return a
+// Driver  using one backend or another.
+pub struct Resolver<'a> {
     cached_packages: HashMap<PathBuf, (CrateId, CachedDep)>,
-    driver: &'a mut Driver<F>,
+    driver: &'a mut Driver<Fr>,
 }
 
-impl<'a, F: FieldElement> Resolver<'a, F> {
-    fn with_driver(driver: &mut Driver<F>) -> Resolver<F> {
+impl<'a> Resolver<'a> {
+    fn with_driver(driver: &mut Driver<Fr>) -> Resolver {
         Resolver {
             cached_packages: HashMap::new(),
             driver,
@@ -74,7 +78,7 @@ impl<'a, F: FieldElement> Resolver<'a, F> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver<F>, BackendPointer) {
+    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver<Fr>, BackendPointer) {
         // XXX: We figure out the field in this function via the toml file
         let mut driver = Driver::<Bn254Scalar>::new();
 

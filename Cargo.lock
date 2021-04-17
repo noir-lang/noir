@@ -1404,6 +1404,7 @@ name = "nargo"
 version = "0.1.0"
 dependencies = [
  "acvm",
+ "ark-bn254",
  "clap",
  "dirs",
  "fm",
