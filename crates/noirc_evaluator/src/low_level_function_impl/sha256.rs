@@ -76,7 +76,7 @@ impl Sha256Gadget {
                             "SHA256 Logic for non unit witnesses is currently not implemented"
                         )
                     }
-                    (lin.witness, F::max_num_bits())
+                    (lin.witness, F::MAX_NUM_BITS)
                 }
                 k => unimplemented!("SHA256 logic for {:?} is not implemented yet", k),
             };

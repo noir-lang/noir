@@ -75,7 +75,7 @@ impl PedersenGadget {
 
             inputs.push(GadgetInput {
                 witness,
-                num_bits: F::max_num_bits(),
+                num_bits: F::MAX_NUM_BITS,
             });
         }
 

@@ -77,7 +77,7 @@ impl Blake2sGadget {
                             "Blake2s Logic for non unit witnesses is currently not implemented"
                         )
                     }
-                    (lin.witness, F::max_num_bits())
+                    (lin.witness, F::MAX_NUM_BITS)
                 }
                 k => unimplemented!("Blake2s logic for {:?} is not implemented yet", k),
             };

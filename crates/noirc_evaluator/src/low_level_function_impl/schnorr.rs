@@ -64,11 +64,11 @@ impl SchnorrVerifyGadget {
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: pub_key_x_witness,
-            num_bits: F::max_num_bits(),
+            num_bits: F::MAX_NUM_BITS,
         }];
         inputs.push(GadgetInput {
             witness: pub_key_y_witness,
-            num_bits: F::max_num_bits(),
+            num_bits: F::MAX_NUM_BITS,
         });
 
         // XXX: Technical debt: refactor so this functionality,

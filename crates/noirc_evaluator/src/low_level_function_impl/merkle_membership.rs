@@ -71,16 +71,16 @@ impl MerkleMembershipGadget {
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: root_witness,
-            num_bits: F::max_num_bits(),
+            num_bits: F::MAX_NUM_BITS,
         }];
 
         inputs.push(GadgetInput {
             witness: leaf_witness,
-            num_bits: F::max_num_bits(),
+            num_bits: F::MAX_NUM_BITS,
         });
         inputs.push(GadgetInput {
             witness: index_witness,
-            num_bits: F::max_num_bits(),
+            num_bits: F::MAX_NUM_BITS,
         });
 
         for element in hash_path.contents.into_iter() {
@@ -99,7 +99,7 @@ impl MerkleMembershipGadget {
 
             inputs.push(GadgetInput {
                 witness,
-                num_bits: F::max_num_bits(),
+                num_bits: F::MAX_NUM_BITS,
             });
         }
 

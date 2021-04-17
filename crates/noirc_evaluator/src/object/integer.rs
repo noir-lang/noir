@@ -36,9 +36,9 @@ impl<F: FieldElement> Integer<F> {
             let bool_constraint = x_minus_one * x;
 
             evaluator.gates.push(Gate::Arithmetic(bool_constraint));
-        } else if self.num_bits == F::max_num_bits() {
+        } else if self.num_bits == F::MAX_NUM_BITS {
             // Don't apply any constraints if the range is for the maximum number of bits
-            let message = format!("All Witnesses are by default u{}. Applying this type does not apply any constraints.",F::max_num_bits());
+            let message = format!("All Witnesses are by default u{}. Applying this type does not apply any constraints.",F::MAX_NUM_BITS);
             return Err(RuntimeErrorKind::UnstructuredError {
                 span: Default::default(),
                 message,
