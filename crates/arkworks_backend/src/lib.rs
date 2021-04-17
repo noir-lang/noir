@@ -25,7 +25,6 @@ pub fn prove(acir: Circuit<Fr>, values: Vec<&Fr>) -> Vec<u8> {
     let values: Vec<_> = std::iter::once(&FieldElement::zero())
         .chain(values.into_iter())
         .copied()
-        .map(|x| x)
         .collect();
 
     let bn254_circ = serialise(acir, values);
@@ -56,7 +55,7 @@ pub fn verify(acir: Circuit<Fr>, proof: &[u8], public_inputs: Vec<Fr>) -> bool {
 
     let (_, index_vk) = MarlinInst::index(&universal_srs, bn254_circ).unwrap();
 
-    let public_inputs: Vec<_> = public_inputs.into_iter().map(|x| x).collect();
+    let public_inputs: Vec<_> = public_inputs.into_iter().collect();
     let proof = MarlinBn254Proof::deserialize(proof).unwrap();
     MarlinInst::verify(&index_vk, &public_inputs, &proof, rng).unwrap()
 }
@@ -105,7 +104,7 @@ mod test {
         let values = vec![&a_val, &b_val];
 
         let proof = prove(circ.clone(), values);
-        let ok = verify(circ.clone(), &proof, vec![a_val]);
+        let ok = verify(circ, &proof, vec![a_val]);
 
         assert!(ok)
     }

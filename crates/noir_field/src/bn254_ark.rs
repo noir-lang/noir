@@ -166,7 +166,7 @@ impl FieldElement for Fr {
     }
 
     fn inverse(&self) -> Self {
-        ark_ff::Field::inverse(self).unwrap_or(Self::zero())
+        ark_ff::Field::inverse(self).unwrap_or_else(Self::zero)
     }
 
     fn to_hex(&self) -> String {

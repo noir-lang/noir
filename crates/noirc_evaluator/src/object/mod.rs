@@ -39,9 +39,7 @@ impl<F: FieldElement> Object<F> {
             Object::Integer(integer) => integer.constrain_zero(evaluator),
             Object::Array(arr) => arr.constrain_zero(evaluator),
             Object::Arithmetic(arith) => evaluator.gates.push(Gate::Arithmetic(arith.clone())),
-            Object::Linear(linear) => evaluator
-                .gates
-                .push(Gate::Arithmetic(linear.clone().into())),
+            Object::Linear(linear) => evaluator.gates.push(Gate::Arithmetic((*linear).into())),
         }
     }
     pub fn negate(self) -> Self {

@@ -14,6 +14,7 @@ use crate::{
     write_stderr,
 };
 
+#[allow(dead_code)]
 enum PossibleDrivers {
     Bn254(Driver<Bn254Scalar>),
 }

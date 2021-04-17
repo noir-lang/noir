@@ -20,7 +20,7 @@ impl std::fmt::Display for OPCODE {
 }
 
 impl OPCODE {
-    pub fn to_u16(&self) -> u16 {
+    pub fn to_u16(self) -> u16 {
         match self {
             OPCODE::AES => 0,
             OPCODE::SHA256 => 1,
