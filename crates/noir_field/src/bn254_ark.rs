@@ -170,7 +170,7 @@ impl FieldElement for Fr {
     }
 
     fn to_hex(&self) -> String {
-        let mut bytes = to_bytes!(self.0).unwrap();
+        let mut bytes = to_bytes!(self).unwrap();
         bytes.reverse();
         hex::encode(bytes)
     }
