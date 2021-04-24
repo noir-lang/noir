@@ -111,7 +111,7 @@ impl FieldElement {
         self.num_bits() <= 128
     }
 
-    pub fn to_u128(&self) -> u128 {
+    pub fn to_u128(self) -> u128 {
         use std::convert::TryInto;
 
         let bytes = self.to_bytes();
@@ -130,7 +130,7 @@ impl FieldElement {
         self.0
     }
 
-    pub fn to_hex(&self) -> String {
+    pub fn to_hex(self) -> String {
         // XXX: This is only needed for tests mainly, and can be migrated to the parts in the code
         // that use it
         let mut bytes = to_bytes!(self.0).unwrap();
@@ -152,7 +152,7 @@ impl FieldElement {
         Fr::from_str(&dec_str).map(FieldElement).ok()
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(self) -> Vec<u8> {
         let mut bytes = to_bytes!(self.0).unwrap();
         bytes.reverse();
         bytes
