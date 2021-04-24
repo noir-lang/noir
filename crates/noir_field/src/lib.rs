@@ -281,7 +281,8 @@ impl SubAssign for FieldElement {
 #[test]
 fn and() {
     let max = 10_000u32;
-    let num_bits = u32::BITS - max.leading_zeros();
+
+    let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
 
     for x in 0..max {
         let x = FieldElement::from(x as i128);
