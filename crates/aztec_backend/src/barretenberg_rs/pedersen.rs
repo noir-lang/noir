@@ -14,7 +14,7 @@ impl Barretenberg {
         );
 
         let result_bytes = self.slice_memory(64, 96);
-        FieldElement::from_bytes(&result_bytes)
+        FieldElement::from_be_bytes_reduce(&result_bytes)
     }
     pub fn compress_many(&mut self, inputs: Vec<FieldElement>) -> FieldElement {
         let input_buf = Assignments(inputs).to_bytes();
@@ -23,7 +23,7 @@ impl Barretenberg {
         self.call_multiple("pedersen_compress", vec![&input_ptr, &Value::I32(0)]);
 
         let result_bytes = self.slice_memory(0, 32);
-        FieldElement::from_bytes(&result_bytes)
+        FieldElement::from_be_bytes_reduce(&result_bytes)
     }
 }
 

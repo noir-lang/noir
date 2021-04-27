@@ -37,7 +37,7 @@ fn generic_hash_256<D: Digest>(
     for i in 0..32 {
         initial_witness.insert(
             gadget_call.outputs[i],
-            FieldElement::from_bytes(&[result[i]]),
+            FieldElement::from_be_bytes_reduce(&[result[i]]),
         );
     }
 }

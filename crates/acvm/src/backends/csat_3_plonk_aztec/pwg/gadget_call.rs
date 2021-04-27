@@ -129,7 +129,7 @@ impl GadgetCaller {
                 }
                 let result = hasher.finalize();
 
-                let reduced_res = FieldElement::from_bytes_reduce(&result);
+                let reduced_res = FieldElement::from_be_bytes_reduce(&result);
 
                 assert_eq!(gadget_call.outputs.len(), 1);
 
