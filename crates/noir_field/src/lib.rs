@@ -115,18 +115,9 @@ impl FieldElement {
         hex::encode(bytes)
     }
     pub fn from_hex(hex_str: &str) -> Option<FieldElement> {
-        // This is needed because arkworks only accepts arbitrary sized
-        // decimal strings and not hex strings
-        fn hex_to_decimal(value: &str) -> String {
-            let value = value.strip_prefix("0x").unwrap_or(value);
-
-            use num_bigint::BigInt;
-            BigInt::parse_bytes(value.as_bytes(), 16)
-                .unwrap()
-                .to_str_radix(10)
-        }
-        let dec_str = hex_to_decimal(hex_str);
-        Fr::from_str(&dec_str).map(FieldElement).ok()
+        let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+        let hex_as_bytes = hex::decode(value).ok()?;
+        Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
     }
 
     pub fn to_bytes(self) -> Vec<u8> {

@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 hex = "0.4.2"
 
-ark-bn254 = { version = "^0.2.0", default-features = false, features = [ "curve" ] }
+ark-bn254 = { version = "^0.2.0", default-features = false, features = ["curve"] }
 ark-ff = { version = "^0.2.0", default-features = false }
 blake2 = "0.9.1"
-num-bigint = "0.3.1"
