@@ -78,7 +78,7 @@ impl FieldElement {
     pub fn num_bits(&self) -> u32 {
         let bits = self.bits();
         // Iterate the number of bits and pop off all leading zeroes
-        let iter = bits.iter().skip_while(|x| **x == false);
+        let iter = bits.iter().skip_while(|x| !(**x));
         // Note: count will panic if it goes over usize::MAX.
         // This may not be suitable for devices whose usize < u16
         iter.count() as u32
