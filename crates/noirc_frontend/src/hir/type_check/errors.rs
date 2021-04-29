@@ -48,7 +48,7 @@ pub enum TypeCheckError {
         ctx: &'static str,
     },
     #[error("Array is not homogeneous")]
-    NonHomogenousArray {
+    NonHomogeneousArray {
         first_span: Span,
         first_type: String,
         first_index: usize,
@@ -100,7 +100,7 @@ impl TypeCheckError {
                     expr_span,
                 )]
             }
-            TypeCheckError::NonHomogenousArray {
+            TypeCheckError::NonHomogeneousArray {
                 first_span,
                 first_type,
                 first_index,
@@ -148,7 +148,7 @@ impl TypeCheckError {
             TypeCheckError::OpCannotBeUsed { .. }
             | TypeCheckError::Unstructured { .. }
             | TypeCheckError::TypeMismatch { .. }
-            | TypeCheckError::NonHomogenousArray { .. }
+            | TypeCheckError::NonHomogeneousArray { .. }
             | TypeCheckError::PublicReturnType { .. }
             | TypeCheckError::ArityMisMatch { .. }
             | TypeCheckError::TypeCannotBeUsed { .. } => Some(TypeCheckError::Context {
