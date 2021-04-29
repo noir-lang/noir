@@ -61,11 +61,11 @@ impl MerkleMembershipGadget {
 
         // XXX: Instead of panics, return a user error here
         if hash_path.contents.is_empty() {
-            panic!("the hash path must contain atleast two items")
+            panic!("the hash path must contain at least two items")
         }
         // XXX: Instead of panics, return a user error here
         if hash_path.contents.len() % 2 != 0 {
-            panic!("the hashpath is always an even number")
+            panic!("the hash path is always an even number")
         }
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {

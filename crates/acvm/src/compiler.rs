@@ -10,7 +10,6 @@ use crate::BackendPointer;
 
 pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
     let backend = backend.backend();
-    //
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same
     let optimiser = match backend.np_language() {

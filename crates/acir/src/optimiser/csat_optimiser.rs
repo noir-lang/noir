@@ -34,7 +34,7 @@ impl Optimiser {
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full gate
         let gate = self.full_gate_scan_optimisation(gate, &mut intermediate_variables, num_witness);
         // The last optimisation to do is to create intermediate variables in order to flatten the fan-in and the amount of mul terms
-        // If a gate has more than one mul term . we may need an intermediate variable for each one. Since not every variable will need to link to
+        // If a gate has more than one mul term. We may need an intermediate variable for each one. Since not every variable will need to link to
         // the mul term, we could possibly do it that way.
         // We wil call this a partial gate scan optimisation which will result in the gates being able to fit into the correct width
         let gate =
@@ -53,14 +53,14 @@ impl Optimiser {
     }
 
     // This optimisation will search for combinations of terms which can be represented in a single arithmetic gate
-    // Case1 : qM * wL * wR + qL * wL + qR * wR + qO * wO + qC
+    // Case 1 : qM * wL * wR + qL * wL + qR * wR + qO * wO + qC
     // This polynomial does not require any further optimisations, it can be safely represented in one gate
     // ie a polynomial with 1 mul(bi-variate) term and 3 (univariate) terms where 2 of those terms match the bivariate term
     // wL and wR, we can represent it in one gate
     // GENERALISED for WIDTH: instead of the number 3, we use `WIDTH`
     //
     //
-    // Case2: qM * wL * wR + qL * wL + qR * wR + qO * wO + qC + qM2 * wL2 * wR2 + qL * wL2 + qR * wR2 + qO * wO2 + qC2
+    // Case 2: qM * wL * wR + qL * wL + qR * wR + qO * wO + qC + qM2 * wL2 * wR2 + qL * wL2 + qR * wR2 + qO * wO2 + qC2
     // This polynomial cannot be represented using one arithmetic gate.
     //
     // This algorithm will first extract the first full gate(if possible):
@@ -149,7 +149,7 @@ impl Optimiser {
                     gate.linear_combinations.remove(y);
 
                     // Now we have used up 2 spaces in our arithmetic gate. The width now dictates, how many more we can add
-                    let remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contrain the intermediate variable
+                    let remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
                                                               // Keep adding terms until we have no more left, or we reach the width
                     for _ in 0..remaining_space {
                         if let Some(wire_term) = gate.linear_combinations.pop() {
@@ -272,7 +272,7 @@ impl Optimiser {
         // Remove all of the mul terms as we have intermediate variables to represent them now
         gate.mul_terms.clear();
 
-        // We now only have a polynomial with only fan-in/fan-out terms ie terms of the form Ax + By + Cd + ...
+        // We now only have a polynomial with only fan-in/fan-out terms i.e. terms of the form Ax + By + Cd + ...
         // Lets create intermediate variables if all of them cannot fit into the width
         //
         // If the polynomial fits perfectly within the given width, we are finished
@@ -285,7 +285,7 @@ impl Optimiser {
         let mut added = Vec::new();
 
         while gate.linear_combinations.len() > self.width {
-            // Collect as many terms upto the given width-1 and constrain them to an intermediate variable
+            // Collect as many terms up to the given width-1 and constrain them to an intermediate variable
             let mut intermediate_gate = Arithmetic::default();
 
             for _ in 0..(self.width - 1) {

@@ -21,7 +21,7 @@ pub(crate) fn type_check_expression(
     match hir_expr {
         HirExpression::Ident(ident_id) => {
             // If an Ident is used in an expression, it cannot be a declaration statement
-            let ident_def_id = interner.ident_def(&ident_id).expect("ice: all identifiers should have been resolved. this should have been caught in the resolver");
+            let ident_def_id = interner.ident_def(&ident_id).expect("ice: all identifiers should have been resolved. This should have been caught in the resolver");
 
             // The type of this Ident expression is the type of the Identifier which defined it
             let typ = interner.id_type(ident_def_id);
@@ -43,7 +43,7 @@ pub(crate) fn type_check_expression(
                     // Check the result for errors
 
                     // Specify the type of the Array
-                    // Note: This assumes that the array is homogenous, which will be checked next
+                    // Note: This assumes that the array is homogeneous, which will be checked next
                     let arr_type = Type::Array(
                         // The FieldElement type is assumed to be private unless the user
                         // adds type annotations that say otherwise.
@@ -52,16 +52,16 @@ pub(crate) fn type_check_expression(
                         Box::new(arr_types[0].clone()),
                     );
 
-                    // Check if the array is homogenous
+                    // Check if the array is homogeneous
                     //
-                    // An array with one element will be homogenous
+                    // An array with one element will be homogeneous
                     if arr_types.len() == 1 {
                         interner.push_expr_type(expr_id, arr_type);
                         return Ok(());
                     }
 
                     // To check if an array with more than one element
-                    // is homogenous, we can use a sliding window of size two
+                    // is homogeneous, we can use a sliding window of size two
                     // to check if adjacent elements are the same
                     // Note: windows(2) expects there to be two or more values
                     // So the case of one element is an edge case which would panic in the compiler.
@@ -75,7 +75,7 @@ pub(crate) fn type_check_expression(
                         if left_type != right_type {
                             let left_span = interner.expr_span(&arr.contents[index]);
                             let right_span = interner.expr_span(&arr.contents[index + 1]);
-                            let err = TypeCheckError::NonHomogenousArray {
+                            let err = TypeCheckError::NonhomogeneousArray {
                                 first_span: left_span,
                                 first_type: left_type.to_string(),
                                 first_index: index,
@@ -178,7 +178,7 @@ pub(crate) fn type_check_expression(
             interner.push_expr_type(expr_id, func_meta.return_type);
         }
         HirExpression::Cast(cast_expr) => {
-            // Evaluate the Lhs
+            // Evaluate the LHS
             type_check_expression(interner, &cast_expr.lhs)?;
             let _lhs_type = interner.id_type(cast_expr.lhs);
 
@@ -237,7 +237,7 @@ pub(crate) fn type_check_expression(
                 expr_id,
                 Type::Array(
                     // The type is assumed to be private unless the user specifies
-                    // that they want to make it public on the lhs with type annotations
+                    // that they want to make it public on the LHS with type annotations
                     FieldElementType::Private,
                     ArraySize::Variable,
                     Box::new(last_type),
@@ -284,10 +284,10 @@ pub fn infix_operand_type_rules(
             (Type::Integer(lhs_field_type,sign_x, bit_width_x), Type::Integer(rhs_field_type,sign_y, bit_width_y)) => {
                 let field_type = field_type_rules(lhs_field_type, rhs_field_type);
                 if sign_x != sign_y {
-                    return Err(format!("Integers must have the same signedness lhs is {:?}, rhs is {:?} ", sign_x, sign_y))
+                    return Err(format!("Integers must have the same signedness LHS is {:?}, LHS is {:?} ", sign_x, sign_y))
                 }
                 if bit_width_x != bit_width_y {
-                    return Err(format!("Integers must have the same bit width lhs is {}, rhs is {} ", bit_width_x, bit_width_y))
+                    return Err(format!("Integers must have the same bit width LHS is {}, LHS is {} ", bit_width_x, bit_width_y))
                 }
                 Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
             }
@@ -369,7 +369,7 @@ fn extract_ret_type(interner: &NodeInterner, stmt_id: &StmtId) -> Type {
         | HirStatement::Const(_)
         | HirStatement::Private(_)
         // We could fetch the type here also for Semi
-        // It would return Unit, as we modify the 
+        // It would return Unit, as we modify the
         // return type in the interner after type checking it
         | HirStatement::Semi(_)
         | HirStatement::Constrain(_) => Type::Unit,

@@ -47,7 +47,7 @@ pub enum TypeCheckError {
         err: Box<TypeCheckError>,
         ctx: &'static str,
     },
-    #[error("Array is not homogenous")]
+    #[error("Array is not homogeneous")]
     NonHomogenousArray {
         first_span: Span,
         first_type: String,
@@ -110,7 +110,7 @@ impl TypeCheckError {
             } => {
                 let mut diag = Diagnostic::simple_error(
                     format!(
-                        "Non homogenous array found at indices ({},{})",
+                        "Non homogeneous array found at indices ({},{})",
                         first_index, second_index
                     ),
                     format!("found type {}", first_type),

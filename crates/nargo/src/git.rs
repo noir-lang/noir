@@ -6,7 +6,7 @@ pub fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     super::nargo_crates().join(folder_name)
 }
 
-/// XXX: I'd prefer to use a github library however, there
+/// XXX: I'd prefer to use a GitHub library however, there
 /// does not seem to be an easy way to download a repo at a specific
 /// tag
 /// github-rs looks promising, however it seems to require an API token

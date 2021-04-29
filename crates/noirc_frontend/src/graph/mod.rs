@@ -177,7 +177,7 @@ impl std::ops::Index<CrateId> for CrateGraph {
     }
 }
 
-/// XXX: This is barebone for two reasons:
+/// XXX: This is bare-bone for two reasons:
 // There are no display names currently
 // The error would be better if it showed the full cyclic dependency, including transitives.
 #[derive(Debug)]

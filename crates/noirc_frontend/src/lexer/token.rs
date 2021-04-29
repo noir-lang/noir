@@ -301,7 +301,7 @@ impl IntType {
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 // Attributes are special language markers in the target language
-// An example of one is `#[sha256]` . Currently only Foreign attributes are supported
+// An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
 // Calls to functions which have the foreign attribute are executed in the host language
 pub enum Attribute {
     Foreign(String),

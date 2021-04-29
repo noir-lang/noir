@@ -1,4 +1,4 @@
-///  Import the barretenberg WASM file
+///  Import the Barretenberg WASM file
 pub static WASM: &[u8] = include_bytes!("barretenberg.wasm");
 
 pub mod blake2s;

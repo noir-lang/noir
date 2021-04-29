@@ -198,8 +198,8 @@ impl FieldElement {
     }
 
     fn and_xor(&self, rhs: &FieldElement, num_bits: u32, is_xor: bool) -> FieldElement {
-        // XXX: Gadgets like sha256 need to have their input be a multiple of 8
-        // This is not a restriction caused by sha256, as it works on bits
+        // XXX: Gadgets like SHA256 need to have their input be a multiple of 8
+        // This is not a restriction caused by SHA256, as it works on bits
         // but most backends assume bytes.
         // We could implicitly pad, however this may not be intuitive for users.
         // assert!(

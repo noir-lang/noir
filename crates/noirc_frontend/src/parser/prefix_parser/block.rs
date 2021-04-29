@@ -94,7 +94,7 @@ mod test {
     #[test]
     fn missing_starting_brace() {
         const SRC: &str = r#"
-            
+
                 [0,1,2,3,4]
             }
         "#;
@@ -107,7 +107,7 @@ mod test {
         const SRC: &str = r#"
             {
                 [0,1,2,3,4]
-            
+
         "#;
 
         let mut parser = test_parse(SRC);
@@ -151,10 +151,10 @@ mod test {
         /// This test previously failed, as we were advancing past the first token
         /// without checking that it was indeed a `{`
         ///
-        /// XXX: It's still debateable if this is needed, as this prefix functions
+        /// XXX: It's still debatable if this is needed, as this prefix functions
         /// is not called unless there is a left brace.
         /// To be on the conservative side, it should be left in,
-        /// incase there is a way to manipulate the syntax
+        /// in case there is a way to manipulate the syntax
         const SRC: &str = r#"
                 [[0,1,2,3,4]
             }

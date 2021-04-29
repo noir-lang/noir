@@ -7,7 +7,7 @@ use noir_field::FieldElement;
 use sha2::Digest;
 use std::collections::BTreeMap;
 
-// Note that the outputs for things like sha256 need to be computed
+// Note that the outputs for things like Sha256 need to be computed
 // as they may be used in later arithmetic gates
 
 pub struct GadgetCaller;
@@ -108,7 +108,7 @@ impl GadgetCaller {
                 initial_witness.insert(gadget_call.outputs[0], result);
             }
             OPCODE::HashToField => {
-                // Deal with Blake2s -- XXX: It's not possible for pwg to know that it is blake2s
+                // Deal with Blake2s -- XXX: It's not possible for pwg to know that it is Blake2s
                 // We need to get this method from the backend
                 let mut hasher = Blake2s::new();
 

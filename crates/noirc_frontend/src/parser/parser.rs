@@ -430,7 +430,7 @@ impl<'a> Parser<'a> {
             Token::Keyword(Keyword::Const) => Ok(FieldElementType::Constant),
             tok => {
                 let message = format!(
-                    "unexpected keyword. Expected \"pub, const or priv\". found {}",
+                    "unexpected keyword. Expected \"pub, const or priv\". Found {}",
                     tok
                 );
                 Err(ParserErrorKind::UnstructuredError {
@@ -474,7 +474,7 @@ impl<'a> Parser<'a> {
         // Skip Right bracket
         self.advance_tokens();
 
-        // Disallow [4][3]Witness ie Matrices
+        // Disallow [4][3]Witness i.e. Matrices
         if self.peek_token == Token::LeftBracket {
             return Err(ParserErrorKind::UnstructuredError {
                 message: "Currently Multi-dimensional arrays are not supported".to_string(),

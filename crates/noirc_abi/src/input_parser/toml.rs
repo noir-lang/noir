@@ -71,7 +71,7 @@ fn toml_map_to_field(toml_map: BTreeMap<String, TomlTypes>) -> BTreeMap<String, 
 #[serde(untagged)]
 enum TomlTypes {
     // This is most likely going to be a hex string
-    // But it is possible to support utf8
+    // But it is possible to support UTF-8
     String(String),
     // Just a regular integer, that can fit in 128 bits
     Integer(u64),

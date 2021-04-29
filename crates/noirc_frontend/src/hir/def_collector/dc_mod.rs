@@ -138,7 +138,7 @@ impl<'a> ModCollector<'a> {
         // Update the origin of the child module
         // Note: We do not support inline modules
         // Also note that the FileId is where this module is defined and not declared
-        // To fnd out where the module was declared, you need to check its parent
+        // To find out where the module was declared, you need to check its parent
         modules[module_id].origin = ModuleOrigin::File(file_id);
 
         // Update the parent module to reference the child

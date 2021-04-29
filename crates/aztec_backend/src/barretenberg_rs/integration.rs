@@ -63,14 +63,14 @@ fn integration_test_does_not_panic() {
     witness.push_i32(num);
     witness.push_i32(lhs_operand);
     witness.push_i32(rhs_operand);
-    witness.push_i32(0); // Note: This will be populated by barretenberg with the copy_from_to method
-    
+    witness.push_i32(0); // Note: This will be populated by Barretenberg with the copy_from_to method
+
     println!("Creating proof");
     let proof = composer.create_proof(&constraint_system, witness);
     println!("Proof created\n");
-    
+
     let public_inputs = None;
-    
+
     println!("Verifying proof");
     let verified = composer.verify(&constraint_system, &proof, public_inputs);
     println!("Proof verified : {}\n", verified);

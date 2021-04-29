@@ -108,7 +108,6 @@ impl<'a> Evaluator<'a> {
     // When we are multiplying arithmetic gates by each other, if one gate has too many terms
     // It is better to create an intermediate variable which links to the gate and then multiply by that intermediate variable
     // instead
-    //
     pub fn create_intermediate_variable(
         &mut self,
         arithmetic_gate: Arithmetic,
@@ -190,7 +189,7 @@ impl<'a> Evaluator<'a> {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
-        // The new grammar has been conceived, adn will be implemented.
+        // The new grammar has been conceived, and will be implemented.
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
 
@@ -369,12 +368,12 @@ impl<'a> Evaluator<'a> {
         // Since the lhs type is the same as the rhs, it will pass analysis.
         // When we constrain the rhs `y + z as u32` we are sure that the RHS is a u32 or it will fail
         // When we then add the constraint that x - y + z = 0
-        // We know that x must be a u32 aswell, since the constraint enforces them to be equal
+        // We know that x must be a u32 as well, since the constraint enforces them to be equal
         //
         // TLDR; This works because the RHS is already constrained when we receive it as an object
         // Even if we remove the typing information, the constraint has already been applied, so it is correct.
         // Elaborating a little more. An integer x is a witness which has been constrained to be y num_bits. If we simply remove the type information
-        // ie just take x, then apply the constraint z - x' = 0. Then x' is implicitly constrained to be y num bits also.
+        // i.e. just take x, then apply the constraint z - x' = 0. Then x' is implicitly constrained to be y num bits also.
         Ok(Object::Null)
     }
 

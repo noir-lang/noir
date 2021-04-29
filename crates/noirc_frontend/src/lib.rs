@@ -10,8 +10,8 @@ pub mod hir_def;
 // Lexer API
 pub use lexer::token;
 
-//Parser API
+// Parser API
 pub use parser::{ParsedModule, Parser};
 
-//AST API
+// AST API
 pub use ast::*;

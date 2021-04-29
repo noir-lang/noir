@@ -19,7 +19,7 @@ pub enum Object {
     Array(Array),
     Arithmetic(Arithmetic),
     Constants(FieldElement),
-    Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate Eg `5x+6` does not apply a gate
+    Linear(Linear), // These will be selector * witness(var_name) + selector // Note that this is not a gate e.g `5x+6` does not apply a gate
 }
 
 impl Object {

@@ -174,7 +174,7 @@ impl Driver {
             .main_function()
             .expect("cannot compile a program with no main function");
 
-        // Create ABi for main function
+        // Create ABI for main function
         let func_meta = self.context.def_interner.function_meta(&main_function);
         let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
