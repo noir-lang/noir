@@ -75,7 +75,7 @@ pub(crate) fn type_check_expression(
                         if left_type != right_type {
                             let left_span = interner.expr_span(&arr.contents[index]);
                             let right_span = interner.expr_span(&arr.contents[index + 1]);
-                            let err = TypeCheckError::NonhomogeneousArray {
+                            let err = TypeCheckError::NonHomogeneousArray {
                                 first_span: left_span,
                                 first_type: left_type.to_string(),
                                 first_index: index,
