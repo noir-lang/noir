@@ -64,7 +64,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for AcirCircuit<Cons
         for gate in self.gates {
             let mut arith_gate = LinearCombination::<ConstraintF>::new();
 
-            // Process Mul terms
+            // Process mul terms
             for mul_term in gate.mul_terms {
                 let coeff = mul_term.0;
                 let left_val = self.values[mul_term.1.as_usize()];

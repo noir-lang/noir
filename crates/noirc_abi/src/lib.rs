@@ -93,7 +93,7 @@ impl Abi {
     pub fn num_parameters(&self) -> usize {
         self.parameters.len()
     }
-    /// Abi with only the public parameters
+    /// ABI with only the public parameters
     pub fn public_abi(self) -> Abi {
         let parameters: Vec<_> = self
             .parameters

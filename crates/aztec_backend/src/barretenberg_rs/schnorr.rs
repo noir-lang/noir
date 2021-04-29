@@ -56,7 +56,7 @@ impl Barretenberg {
             _=> unreachable!("verify signature should return a boolean to indicate whether the signature + parameters were valid")
         }
 
-        // Note, currently for barretenberg plonk, if the signature fails
+        // Note, currently for Barretenberg plonk, if the signature fails
         // then the whole circuit fails.
     }
 }
@@ -65,7 +65,7 @@ impl Barretenberg {
 fn basic_interop() {
     let mut barretenberg = Barretenberg::new();
 
-    // First case should pass, standard procedure for schnorr
+    // First case should pass, standard procedure for Schnorr
     let private_key = [2; 32];
     let message = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 

@@ -11,7 +11,7 @@ impl IndexParser {
     ///
     /// Cursor End : `]`
     pub fn parse(parser: &mut Parser, collection_name: Expression) -> ParserExprKindResult {
-        // XXX: We will clean up these unnecessary format! allocations in the refactor after the next
+        // XXX: We will clean up these unnecessary format! Allocations in the refactor after the next
         let msg = "expected an identifier for the collection name. Arbitrary expressions are yet to arrive".to_string();
         let err = ParserErrorKind::UnstructuredError {
             message: msg,

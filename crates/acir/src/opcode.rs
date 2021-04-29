@@ -114,7 +114,7 @@ impl OPCODE {
 
 // Descriptor as to whether the input/output is fixed or variable
 // Example: The input for Sha256 is Variable and the output is fixed at 2 witnesses
-// each holding 128 bits of the actual sha256 function
+// each holding 128 bits of the actual Sha256 function
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub enum InputSize {
     Variable,

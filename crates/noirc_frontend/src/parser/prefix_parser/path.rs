@@ -71,7 +71,7 @@ fn path_identifer(
             return Err(ParserErrorKind::UnstructuredError {
                 span: tok.to_span(),
                 message: format!(
-                    "expected an identifier, `dep` or `crate`. found {} ",
+                    "expected an identifier, `dep` or `crate`. Found {} ",
                     tok.token().to_string()
                 ),
             })

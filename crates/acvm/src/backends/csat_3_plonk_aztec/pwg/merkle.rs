@@ -203,7 +203,7 @@ fn basic_interop_hashpath() {
 
 #[test]
 fn basic_interop_update() {
-    // Test that computing the hashpath is correct
+    // Test that computing the HashPath is correct
     let mut tree = MerkleTree::new(3);
 
     tree.update_message(0, vec![0; 64]);
@@ -246,9 +246,9 @@ fn basic_interop_update() {
 #[test]
 fn check_membership() {
     struct Test<'a> {
-        // Index of the leaf in the merkle tree
+        // Index of the leaf in the MerkleTree
         index: &'a str,
-        // Returns true if the leaf is indeed a part of the merkle tree at the specified index
+        // Returns true if the leaf is indeed a part of the MerkleTree at the specified index
         result: bool,
         // The message is used to derive the leaf at `index` by using the specified hash
         message: Vec<u8>,
@@ -260,7 +260,7 @@ fn check_membership() {
     }
 
     // Note these test cases are not independent.
-    // ie. If you update index 0, then this will be saved for the next test
+    // i.e. If you update index 0, then this will be saved for the next test
     let tests = vec![
         Test {
             index : "0",

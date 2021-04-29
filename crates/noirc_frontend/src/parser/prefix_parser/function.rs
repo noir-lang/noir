@@ -6,10 +6,10 @@ impl FuncParser {
     /// Parses a function definition.
     ///
     /// fn IDENT(IDENT : Type,IDENT : Type,... ) (-> Type)? {
-    ///         <STMT> <STMT> ...   
+    ///         <STMT> <STMT> ...
     /// }
     ///
-    /// (->Type)? indicates that the return type is optional.
+    /// (->Type)? Indicates that the return type is optional.
     /// If not return type is supplied, the return type is
     /// implied to be the unit type.
     ///
@@ -65,7 +65,7 @@ impl FuncParser {
         // The cursor position is inherited from the block expression
         // parsing procedure which is `}`
 
-        // Currently, we only allow lowlevel, builtin and normal functions
+        // Currently, we only allow low level, builtin and normal functions
         // In the future, we can add a test attribute.
         // Arbitrary attributes will not be supported.
         let func_def = FunctionDefinition {

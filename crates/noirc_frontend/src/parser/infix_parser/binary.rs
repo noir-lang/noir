@@ -18,7 +18,7 @@ impl BinaryParser {
         // so that we can eagerly wrap it as a Predicate expression
         let is_predicate_op = operator.contents.is_comparator();
 
-        // Parse rhs, precedence is extracted so that the
+        // Parse RHS, precedence is extracted so that the
         // expression is grouped correctly
         let curr_precedence = Precedence::from(&parser.curr_token);
         parser.advance_tokens();

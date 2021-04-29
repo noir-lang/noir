@@ -56,12 +56,12 @@ impl Sha256Gadget {
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
         let arr_expr = {
-            // For sha256, we expect a single input which should be an array
+            // For SHA256, we expect a single input which should be an array
             assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()
         };
 
-        // "Sha256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
+        // "SHA256 should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
         let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(arr.contents.len());

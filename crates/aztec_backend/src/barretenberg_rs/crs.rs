@@ -106,7 +106,7 @@ impl Iterator for PartialRangeIter {
     }
 }
 
-// XXX: Clean up to handle Errors better and remove the partial file incase we cannot
+// XXX: Clean up to handle Errors better and remove the partial file in case we cannot
 // download the whole file
 pub fn download_crs(mut path: std::path::PathBuf) {
     if path.exists() {

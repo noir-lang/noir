@@ -29,7 +29,7 @@ impl Barretenberg {
 
 #[test]
 fn basic_interop() {
-    // Expected values were taken from barretenberg by running `crypto::pedersen::compress_native`
+    // Expected values were taken from Barretenberg by running `crypto::pedersen::compress_native`
     // printing the result in hex to `std::cout` and copying
     struct Test<'a> {
         input_left: FieldElement,

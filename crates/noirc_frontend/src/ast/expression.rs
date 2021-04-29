@@ -77,7 +77,7 @@ pub struct Expression {
     pub span: Span,
 }
 
-// This is important for tests. Two expressions are the same, iff their Kind is the same
+// This is important for tests. Two expressions are the same, if their Kind is the same
 // We are ignoring Span
 impl PartialEq<Expression> for Expression {
     fn eq(&self, rhs: &Expression) -> bool {

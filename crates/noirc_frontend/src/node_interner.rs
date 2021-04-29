@@ -246,7 +246,7 @@ impl NodeInterner {
 
     /// Returns the interned HIR function corresponding to `func_id`
     //
-    // Cloning Hir structures is cheap, so we return owned structures
+    // Cloning HIR structures is cheap, so we return owned structures
     pub fn function(&self, func_id: &FuncId) -> HirFunction {
         let def = self
             .nodes
@@ -327,7 +327,7 @@ impl NodeInterner {
     /// Returns the type of an item stored in the Interner.
     //
     // Why can we unwrap here?
-    // If the compiler is correct, it will not ask for a an Id of an object
+    // If the compiler is correct, it will not ask for an Id of an object
     // which does not have a type. This will cause a panic.
     // Since type checking always comes after resolution.
     // If resolution is correct, we will always assign types to Identifiers before we use them.

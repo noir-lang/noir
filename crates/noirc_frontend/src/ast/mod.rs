@@ -141,10 +141,10 @@ impl Type {
 
     // A feature of the language is that `Field` is like an
     // `Any` type which allows you to pass in any type which
-    // is fundamentally a field element. Eg all integer types
+    // is fundamentally a field element. E.g all integer types
     pub fn is_super_type_of(&self, argument: &Type) -> bool {
         // if `self` is a `Field` then it is a super type
-        // iff the argument is a field element
+        // if the argument is a field element
         if let Type::FieldElement(FieldElementType::Private) = self {
             return argument.is_field_element();
         }
@@ -191,7 +191,7 @@ impl Type {
         };
 
         match arr_size {
-            ArraySize::Variable => unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the abi in main. The ABI should not have variable input. The program should be compiled before calling this"),
+            ArraySize::Variable => unreachable!("ice : this method is only ever called when we want to compare the prover inputs with the ABI in main. The ABI should not have variable input. The program should be compiled before calling this"),
             ArraySize::Fixed(fixed_size) => *fixed_size as usize
         }
     }
@@ -260,7 +260,7 @@ impl Type {
     }
 
     // Note; use strict_eq instead of partial_eq when comparing field types
-    // in this method, you most likely want to distinguish between public and privtae
+    // in this method, you most likely want to distinguish between public and private
     pub fn as_abi_type(&self) -> AbiType {
         // converts a field element type
         fn fet_to_abi(fe: &FieldElementType) -> AbiFEType {
@@ -268,7 +268,7 @@ impl Type {
                 FieldElementType::Private => noirc_abi::AbiFEType::Private,
                 FieldElementType::Public => noirc_abi::AbiFEType::Public,
                 FieldElementType::Constant => {
-                    panic!("constant field in the abi, this is not allowed!")
+                    panic!("constant field in the ABI, this is not allowed!")
                 }
             }
         }

@@ -37,7 +37,7 @@ impl Integer {
                 message,
             });
         } else {
-            // Note if the number of bits is odd, then barretenberg will panic
+            // Note if the number of bits is odd, then Barretenberg will panic
             evaluator
                 .gates
                 .push(Gate::Range(self.witness, self.num_bits));
@@ -98,7 +98,7 @@ impl Integer {
 
         assert_eq!(
             self.num_bits, num_bits,
-            "Both integers must have the same integer type. expected u{}, got u{}",
+            "Both integers must have the same integer type. Expected u{}, got u{}",
             self.num_bits, num_bits
         );
 
@@ -191,7 +191,7 @@ impl Integer {
 
         if self.num_bits != num_bits {
             let message = format!(
-                "Both integers must have the same integer type. expected u{}, got u{}",
+                "Both integers must have the same integer type. Expected u{}, got u{}",
                 self.num_bits, num_bits
             );
             return Err(RuntimeErrorKind::UnstructuredError {

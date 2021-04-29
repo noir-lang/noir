@@ -72,7 +72,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let mut result = [0i32; 32];
                         for (i, res) in result.iter_mut().enumerate() {
                             let out_byte = outputs_iter.next().unwrap_or_else(|| {
-                                panic!("missing rest of output. tried to get byte {} but failed", i)
+                                panic!("missing rest of output. Tried to get byte {} but failed", i)
                             });
 
                             let out_byte_index = out_byte.witness_index() as i32;
@@ -99,7 +99,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         let mut result = [0i32; 32];
                         for (i, res) in result.iter_mut().enumerate() {
                             let out_byte = outputs_iter.next().unwrap_or_else(|| {
-                                panic!("missing rest of output. tried to get byte {} but failed", i)
+                                panic!("missing rest of output. Tried to get byte {} but failed", i)
                             });
 
                             let out_byte_index = out_byte.witness_index() as i32;
@@ -117,7 +117,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         // root
                         let root = {
-                            let root_input = inputs_iter.next().expect("missing merkle root");
+                            let root_input = inputs_iter.next().expect("missing Merkle root");
                             root_input.witness.witness_index() as i32
                         };
                         // leaf
@@ -185,7 +185,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         for (i, sig) in signature.iter_mut().enumerate() {
                             let sig_byte = inputs_iter.next().unwrap_or_else(|| {
                                 panic!(
-                                    "missing rest of signature. tried to get byte {} but failed",
+                                    "missing rest of signature. Tried to get byte {} but failed",
                                     i
                                 )
                             });
@@ -254,7 +254,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         // public key x
                         let mut public_key_x = [0i32; 32];
                         for (i, pkx) in public_key_x.iter_mut().enumerate() {
-                            let x_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of x component for public key. tried to get byte {} but failed", i));
+                            let x_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of x component for public key. Tried to get byte {} but failed", i));
                             let x_byte_index = x_byte.witness.witness_index() as i32;
                             *pkx = x_byte_index;
                         }
@@ -262,7 +262,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         // public key y
                         let mut public_key_y = [0i32; 32];
                         for (i, pky) in public_key_y.iter_mut().enumerate() {
-                            let y_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of y component for public key. tried to get byte {} but failed", i));
+                            let y_byte = inputs_iter.next().unwrap_or_else(|| panic!("missing rest of y component for public key. Tried to get byte {} but failed", i));
                             let y_byte_index = y_byte.witness.witness_index() as i32;
                             *pky = y_byte_index;
                         }
@@ -272,7 +272,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                         for (i, sig) in signature.iter_mut().enumerate() {
                             let sig_byte = inputs_iter.next().unwrap_or_else(|| {
                                 panic!(
-                                    "missing rest of signature. tried to get byte {} but failed",
+                                    "missing rest of signature. Tried to get byte {} but failed",
                                     i
                                 )
                             });
@@ -371,7 +371,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
 
     // If there is only one simplified fan term,
     // then put it in qO * wO
-    // This is incase, the qM term is non-zero
+    // This is in case, the qM term is non-zero
     if gate.linear_combinations.len() == 1 {
         let qO_wO_term = &gate.linear_combinations[0];
         qo = qO_wO_term.0;
@@ -380,7 +380,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
         c = wO.witness_index() as i32;
     }
 
-    // XXX: THis is a code smell. Refactor to be better. Maybe change barretenberg to take vectors
+    // XXX: This is a code smell. Refactor to be better. Maybe change Barretenberg to take vectors
     // If there is more than one term,
     // Then add normally
     if gate.linear_combinations.len() == 2 {

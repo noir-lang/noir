@@ -12,8 +12,8 @@ use crate::{
     write_stderr,
 };
 
-/// Creates a unique folder name for a github repo
-/// by using it's url and tag
+/// Creates a unique folder name for a GitHub repo
+/// by using it's URL and tag
 pub(crate) fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     let mut folder_name = base.domain().unwrap().to_owned();
     folder_name.push_str(base.path());
@@ -65,7 +65,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    /// Returns the Driver and the Backend to use
+    /// Returns the Driver and the backend to use
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!

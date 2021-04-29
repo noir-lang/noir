@@ -20,7 +20,7 @@ impl Array {
         arr_lit: HirArrayLiteral,
     ) -> Result<Array, RuntimeErrorKind> {
         // Take each element in the array and turn it into an object
-        // We do not check that the array is homogenous, this is done by the type checker.
+        // We do not check that the array is homogeneous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
         let (objects, mut errs) = evaluator.expression_list_to_objects(env, &arr_lit.contents);
         if !errs.is_empty() {

@@ -21,7 +21,7 @@ pub fn remove_zero_coefficients(mut gate: Arithmetic) -> Arithmetic {
         .filter(|(scale, _, _)| !scale.is_zero())
         .collect();
 
-    // Check the lin combination terms
+    // Check the linear combination terms
     gate.linear_combinations = gate
         .linear_combinations
         .into_iter()

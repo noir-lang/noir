@@ -17,7 +17,7 @@ pub fn build_from_path<P: AsRef<Path>>(p: P) {
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(x) = driver.compute_abi() {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
-        // For now it is hardcoded to be toml.
+        // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
         let path_to_root = PathBuf::from(p.as_ref());

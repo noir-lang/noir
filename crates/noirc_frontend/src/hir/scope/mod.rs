@@ -70,7 +70,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for Scope<K, V> {
 }
 
 /// ScopeTree allows one to specify that maps within the same vector are scope extensions
-/// This allows one to extend the scope and then remove the extension, without affecting the un-extended
+/// This allows one to extend the scope and then remove the extension, without affecting the unextended
 /// part of the scope
 pub struct ScopeTree<K, V>(pub Vec<Scope<K, V>>);
 

@@ -79,7 +79,7 @@ impl DefCollector {
 
         // Collecting module declarations with ModCollector
         // and lowering the functions
-        // ie Use a mod collector to collect the nodes at the root module
+        // i.e. Use a mod collector to collect the nodes at the root module
         // and process them
         ModCollector {
             def_collector: &mut def_collector,

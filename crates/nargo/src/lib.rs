@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-// nargo is the package manager for Noir
+// Nargo is the package manager for Noir
 // This name was used because it sounds like `cargo` and
 // Noir Package Manager abbreviated is npm, which is already taken.
 

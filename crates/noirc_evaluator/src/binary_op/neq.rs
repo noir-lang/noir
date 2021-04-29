@@ -3,7 +3,7 @@ use crate::{object::Array, Evaluator, Object, RuntimeErrorKind};
 
 /// This calls the sub op under the hood
 /// Then asserts that the result has an inverse
-/// ie a != b => a-b has an inverse => 1/(a-b) * (a-b) = 1
+/// i.e a != b => a-b has an inverse => 1/(a-b) * (a-b) = 1
 pub fn handle_neq_op(
     left: Object,
     right: Object,

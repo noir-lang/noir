@@ -29,7 +29,7 @@ pub use function::FuncParser;
 pub use module::ModuleParser;
 pub use use_stmt::UseParser;
 
-/// This file defines all Prefix parser ie it defines how we parser statements which begin with a specific token or token type
+/// This file defines all Prefix parser i.e it defines how we parser statements which begin with a specific token or token type
 use crate::ast::{
     ArrayLiteral, BlockExpression, Expression, ExpressionKind, ForExpression, FunctionDefinition,
     Ident, IfExpression, Literal, NoirFunction, PrefixExpression, Type,
