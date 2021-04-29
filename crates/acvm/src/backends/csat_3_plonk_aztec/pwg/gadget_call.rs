@@ -151,12 +151,3 @@ impl GadgetCaller {
         Ok(())
     }
 }
-
-fn log2(x: usize) -> u32 {
-    let x = x as u128;
-    assert!(x.is_power_of_two());
-    assert!(x > 0);
-    let u128_num_bits = std::mem::size_of::<u128>() * 8;
-
-    u128_num_bits as u32 - x.leading_zeros() - 1
-}
