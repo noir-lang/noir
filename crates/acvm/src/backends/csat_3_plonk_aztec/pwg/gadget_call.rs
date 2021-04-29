@@ -152,7 +152,6 @@ impl GadgetCaller {
     }
 }
 
-#[allow(dead_code)]
 fn log2(x: usize) -> u32 {
     let x = x as u128;
     assert!(x.is_power_of_two());
