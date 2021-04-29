@@ -14,8 +14,8 @@ impl Barretenberg {
         assert!(pubkey_x_bytes.len() == 32);
         assert!(pubkey_y_bytes.len() == 32);
 
-        let pubkey_x = FieldElement::from_bytes(pubkey_x_bytes);
-        let pubkey_y = FieldElement::from_bytes(pubkey_y_bytes);
+        let pubkey_x = FieldElement::from_be_bytes_reduce(pubkey_x_bytes);
+        let pubkey_y = FieldElement::from_be_bytes_reduce(pubkey_y_bytes);
         (pubkey_x, pubkey_y)
     }
 }

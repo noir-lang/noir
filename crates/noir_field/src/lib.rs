@@ -1,6 +1,6 @@
 use ark_bn254::Fr;
+use ark_ff::PrimeField;
 use ark_ff::{to_bytes, Field};
-use ark_ff::{BitIteratorBE, PrimeField};
 use ark_ff::{One, Zero};
 use std::str::FromStr;
 // XXX: Switch out for a trait and proper implementations
@@ -74,37 +74,14 @@ impl FieldElement {
         Some(FieldElement(fr))
     }
 
-    // This is the amount of bits that are always zero,
-    // In BN256, every element can be represented with 254 bits.
-    // However this representation uses 256 bits, hence 2 wasted bits
-    // Note: This has nothing to do with saturated field elements.
-    fn wasted_bits() -> u32 {
-        let vec: Vec<_> = BitIteratorBE::new(Fr::one().into_repr()).collect();
-
-        let num_bits_used = vec.len() as u32;
-        let num_bits_needed = FieldElement::max_num_bits();
-        num_bits_used - num_bits_needed
-    }
-
     /// This is the number of bits required to represent this specific field element
     pub fn num_bits(&self) -> u32 {
-        let non_zero_index = BitIteratorBE::new(self.0.into_repr()).position(|x| x);
-
-        match non_zero_index {
-            None => 0,
-            Some(index) => {
-                // The most significant bit was found at index.
-                // The index tells us how many elements came before the most significant bit
-
-                // We need to compute the offset as the representation may have wasted bits
-                let offset = FieldElement::wasted_bits();
-
-                // This is now the amount of significant elements that came before the most significant bit
-                let msb_index_offset = (index as u32) - offset;
-
-                FieldElement::max_num_bits() - msb_index_offset
-            }
-        }
+        let bits = self.bits();
+        // Iterate the number of bits and pop off all leading zeroes
+        let iter = bits.iter().skip_while(|x| !(**x));
+        // Note: count will panic if it goes over usize::MAX.
+        // This may not be suitable for devices whose usize < u16
+        iter.count() as u32
     }
 
     pub fn fits_in_u128(&self) -> bool {
@@ -138,18 +115,9 @@ impl FieldElement {
         hex::encode(bytes)
     }
     pub fn from_hex(hex_str: &str) -> Option<FieldElement> {
-        // This is needed because arkworks only accepts arbitrary sized
-        // decimal strings and not hex strings
-        fn hex_to_decimal(value: &str) -> String {
-            let value = value.strip_prefix("0x").unwrap_or(value);
-
-            use num_bigint::BigInt;
-            BigInt::parse_bytes(value.as_bytes(), 16)
-                .unwrap()
-                .to_str_radix(10)
-        }
-        let dec_str = hex_to_decimal(hex_str);
-        Fr::from_str(&dec_str).map(FieldElement).ok()
+        let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+        let hex_as_bytes = hex::decode(value).ok()?;
+        Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
     }
 
     pub fn to_bytes(self) -> Vec<u8> {
@@ -158,27 +126,28 @@ impl FieldElement {
         bytes
     }
 
-    /// Converts bytes into a FieldElement. Does not reduce.
-    pub fn from_bytes(bytes: &[u8]) -> FieldElement {
-        let hex_str = hex::encode(bytes);
-        FieldElement::from_hex(&hex_str).unwrap()
-    }
     /// Converts bytes into a FieldElement and applies a
     /// reduction if needed.
-    pub fn from_bytes_reduce(bytes: &[u8]) -> FieldElement {
+    pub fn from_be_bytes_reduce(bytes: &[u8]) -> FieldElement {
         FieldElement(Fr::from_be_bytes_mod_order(bytes))
     }
 
-    // mask_to methods will not remove any bytes from the field
-    // they are simply zeroed out
-    // Whereas truncate_to will remove those bits and make the byte array smaller
-    fn mask_to_bytes(&self, num_bits: u32) -> Vec<u8> {
-        let mut bytes = self.to_bytes();
-        mask_vector_le(&mut bytes, num_bits as usize);
-        bytes.to_vec()
-    }
     pub fn bits(&self) -> Vec<bool> {
-        BitIteratorBE::new(self.0.into_repr()).collect()
+        let bytes = self.to_bytes();
+        let mut bits = Vec::with_capacity(bytes.len() * 8);
+        for byte in bytes {
+            let _bits = FieldElement::byte_to_bit(byte);
+            bits.extend(_bits);
+        }
+        bits
+    }
+
+    fn byte_to_bit(byte: u8) -> Vec<bool> {
+        let mut bits = Vec::with_capacity(8);
+        for index in (0..=7).rev() {
+            bits.push((byte & (1 << index)) >> index == 1)
+        }
+        bits
     }
 
     /// Returns the closest number of bytes to the bits specified
@@ -195,6 +164,15 @@ impl FieldElement {
         bytes.reverse(); // put it in big endian format. XXX(next refactor): we should be explicit about endianess.
 
         bytes[0..num_elements].to_vec()
+    }
+
+    // mask_to methods will not remove any bytes from the field
+    // they are simply zeroed out
+    // Whereas truncate_to will remove those bits and make the byte array smaller
+    fn mask_to_bytes(&self, num_bits: u32) -> Vec<u8> {
+        let mut bytes = self.to_bytes();
+        mask_vector_le(&mut bytes, num_bits as usize);
+        bytes.to_vec()
     }
 
     fn and_xor(&self, rhs: &FieldElement, num_bits: u32, is_xor: bool) -> FieldElement {
@@ -217,7 +195,7 @@ impl FieldElement {
             .map(|(lhs, rhs)| if is_xor { lhs ^ rhs } else { lhs & rhs })
             .collect();
 
-        FieldElement::from_bytes(&and_byte_arr)
+        FieldElement::from_be_bytes_reduce(&and_byte_arr)
     }
     pub fn and(&self, rhs: &FieldElement, num_bits: u32) -> FieldElement {
         self.and_xor(rhs, num_bits, false)

@@ -153,7 +153,7 @@ fn hash(message: &[u8]) -> FieldElement {
     let mut hasher = blake2::Blake2s::new();
     hasher.update(message);
     let res = hasher.finalize();
-    FieldElement::from_bytes_reduce(&res[..])
+    FieldElement::from_be_bytes_reduce(&res[..])
 }
 // XXX(FIXME) : Currently, this is very aztec specific, because this PWG does not have
 // a way to deal with generic ECC operations
