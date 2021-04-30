@@ -73,12 +73,11 @@ impl DiagnosableError for DefCollectorErrorKind {
                 let span = mod_name.0.span();
                 let mod_name = &mod_name.0.contents;
 
-                let diag = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!("could not resolve module `{}` ", mod_name),
                     format!(""),
                     span,
-                );
-                diag
+                )
             }
             DefCollectorErrorKind::UnresolvedImport { import } => {
                 let mut span = import.path.span();
@@ -86,12 +85,11 @@ impl DiagnosableError for DefCollectorErrorKind {
                     span = span.merge(alias.0.span())
                 }
 
-                let diag = Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     format!("could not resolve import {}", &import.path.as_string()),
                     format!(""),
                     span,
-                );
-                diag
+                )
             }
         }
     }
