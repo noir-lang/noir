@@ -20,42 +20,53 @@ struct defi_interaction_result_note {
     bool interaction_result;
 };
 
-// grumpkin::g1::affine_element encrypt_note(claim_note const& note);
+grumpkin::g1::affine_element encrypt_note(defi_interaction_result_note const& note);
 
 // barretenberg::fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note,
 //                                    const uint32_t tree_index);
 
-// inline bool operator==(claim_note const& lhs, claim_note const& rhs)
-// {
-//     return lhs.owner == rhs.owner && lhs.value == rhs.value && lhs.secret == rhs.secret && lhs.nonce == rhs.nonce;
-// }
+inline bool operator==(defi_interaction_result_note const& lhs, defi_interaction_result_note const& rhs)
+{
+    return lhs.bridge_id == rhs.bridge_id && lhs.total_input_value == rhs.total_input_value &&
+           lhs.total_output_a_value == rhs.total_output_a_value &&
+           lhs.total_output_b_value == rhs.total_output_b_value && lhs.interaction_nonce == rhs.interaction_nonce &&
+           lhs.interaction_result == rhs.interaction_result;
+}
 
-// inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
-// {
-//     os << "{ owner_x: " << note.owner.x << ", owner_y: " << note.owner.y << ", view_key: " << note.secret
-//        << ", value: " << note.value << ", asset_id: " << note.asset_id << ", nonce: " << note.nonce << " }";
-//     return os;
-// }
+inline std::ostream& operator<<(std::ostream& os, defi_interaction_result_note const& note)
+{
+    os << "{ bridge_contract_address: " << note.bridge_id.bridge_contract_address
+       << ", input_asset_id: " << note.bridge_id.input_asset_id
+       << ", output_asset_id_a: " << note.bridge_id.output_asset_id_a
+       << ", output_asset_id_a: " << note.bridge_id.output_asset_id_a
+       << ", total_input_value: " << note.total_input_value << ", total_output_a_value: " << note.total_output_a_value
+       << ", total_output_b_value: " << note.total_output_b_value << ", interaction_nonce: " << note.interaction_nonce
+       << ", interaction_result: " << note.interaction_result << " }";
+    return os;
+}
 
-// inline void read(uint8_t const*& it, claim_note& note)
+// inline void read(uint8_t const*& it, defi_interaction_result_note& note)
 // {
 //     using serialize::read;
-//     read(it, note.value);
-//     read(it, note.asset_id);
-//     read(it, note.nonce);
-//     read(it, note.owner);
-//     read(it, note.secret);
+//     read(it, note.bridge_id);
+//     read(it, note.total_input_value);
+//     read(it, note.total_output_a_value);
+//     read(it, note.total_output_b_value);
+//     read(it, note.interaction_nonce);
+//     read(it, note.interaction_result);
 // }
 
-// inline void write(std::vector<uint8_t>& buf, claim_note const& note)
+// inline void write(std::vector<uint8_t>& buf, defi_interaction_result_note const& note)
 // {
 //     using serialize::write;
-//     write(buf, note.value);
-//     write(buf, note.asset_id);
-//     write(buf, note.nonce);
-//     write(buf, note.owner);
-//     write(buf, note.secret);
+//     write(buf, note.bridge_id);
+//     write(buf, note.total_input_value);
+//     write(buf, note.total_output_a_value);
+//     write(buf, note.total_output_b_value);
+//     write(buf, note.interaction_nonce);
+//     write(buf, note.interaction_result);
 // }
+
 } // namespace native
 } // namespace notes
 } // namespace proofs
