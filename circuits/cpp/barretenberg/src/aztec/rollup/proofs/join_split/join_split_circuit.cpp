@@ -34,8 +34,8 @@ field_ct process_input_note(Composer& composer,
         merkle_tree::check_membership(composer, merkle_root, hash_path, leaf, byte_array_ct(index)) || !is_real;
     composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
 
-    bool_ct validValue = note.first.value == field_ct(&composer, 0) || is_real;
-    composer.assert_equal_constant(validValue.witness_index, 1, "padding note non zero");
+    bool_ct valid_value = note.first.value == field_ct(&composer, 0) || is_real;
+    composer.assert_equal_constant(valid_value.witness_index, 1, "padding note non zero");
 
     // Compute input notes nullifier index. We mix in the index and notes secret as part of the value we hash into the
     // tree to ensure notes will always have unique entries. The is_real flag protects against nullifing a real
@@ -50,6 +50,18 @@ field_ct process_input_note(Composer& composer,
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
+    auto not_defi_bridge = inputs.claim_note.first.deposit_value.is_zero();
+    auto is_defi_bridge = (!not_defi_bridge).normalize();
+    auto proof_id = field_ct(2) * is_defi_bridge;
+    auto public_input = inputs.public_input * not_defi_bridge;
+    auto public_output = inputs.claim_note.first.deposit_value + (inputs.public_output * not_defi_bridge);
+    point_ct output_note1 = {
+        inputs.output_note1.second.x * not_defi_bridge + inputs.claim_note.second.x * is_defi_bridge,
+        inputs.output_note1.second.y * not_defi_bridge + inputs.claim_note.second.y * is_defi_bridge
+    };
+    auto asset_id = inputs.input_note1.first.asset_id * not_defi_bridge +
+                    inputs.claim_note.first.bridge_id.to_field(composer) * is_defi_bridge;
+
     // Verify all notes have a consistent asset id
     composer.assert_equal(inputs.input_note1.first.asset_id.witness_index,
                           inputs.input_note2.first.asset_id.witness_index,
@@ -63,6 +75,9 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.assert_equal(inputs.input_note1.first.asset_id.witness_index,
                           inputs.asset_id.witness_index,
                           "note asset ids not equal to tx asset id");
+    composer.assert_equal(inputs.claim_note.first.bridge_id.input_asset_id.witness_index,
+                          inputs.input_note1.first.asset_id.witness_index,
+                          "bridge asset ids don't match");
 
     // Verify the asset id is less than the total number of assets.
     composer.create_range_constraint(inputs.asset_id.witness_index, NUM_ASSETS_BIT_LENGTH);
@@ -76,8 +91,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.create_range_constraint(inputs.public_output.witness_index, NOTE_VALUE_BIT_LENGTH);
 
     // Derive tx_fee.
-    field_ct total_in_value = inputs.input_note1.first.value + inputs.input_note2.first.value + inputs.public_input;
-    field_ct total_out_value = inputs.output_note1.first.value + inputs.output_note2.first.value + inputs.public_output;
+    field_ct total_in_value = inputs.input_note1.first.value + inputs.input_note2.first.value + public_input;
+    field_ct total_out_value = inputs.output_note1.first.value + inputs.output_note2.first.value + public_output;
     field_ct tx_fee = (total_in_value - total_out_value).normalize();
     composer.create_range_constraint(tx_fee.witness_index, TX_FEE_BIT_LENGTH);
 
@@ -135,7 +150,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
 
     verify_signature(inputs, nullifier1, nullifier2, tx_fee, signer, inputs.signature);
 
-    return { nullifier1, nullifier2, tx_fee };
+    return { proof_id, nullifier1, nullifier2, tx_fee, public_input, public_output, output_note1, asset_id };
 }
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
@@ -151,6 +166,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         create_note_pair(composer, tx.input_note[1]),
         create_note_pair(composer, tx.output_note[0]),
         create_note_pair(composer, tx.output_note[1]),
+        create_note_pair(composer, tx.claim_note),
         { witness_ct(&composer, tx.signing_pub_key.x), witness_ct(&composer, tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.signature),
         witness_ct(&composer, tx.old_data_root),
@@ -168,11 +184,11 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     auto outputs = join_split_circuit_component(composer, inputs);
 
     // The following make up the public inputs to the circuit.
-    public_witness_ct(&composer, 0);
+    composer.set_public_input(outputs.proof_id.witness_index);
     composer.set_public_input(inputs.public_input.get_witness_index());
-    composer.set_public_input(inputs.public_output.get_witness_index());
-    composer.set_public_input(inputs.asset_id.get_witness_index());
-    inputs.output_note1.second.set_public();
+    composer.set_public_input(outputs.public_output.witness_index);
+    composer.set_public_input(outputs.asset_id.witness_index);
+    outputs.output_note1.set_public();
     inputs.output_note2.second.set_public();
     composer.set_public_input(outputs.nullifier1.witness_index);
     composer.set_public_input(outputs.nullifier2.witness_index);

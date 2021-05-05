@@ -2,6 +2,7 @@
 #include <stdlib/types/turbo.hpp>
 #include "../native/claim_note.hpp"
 #include "../constants.hpp"
+#include "bridge_id.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -11,16 +12,14 @@ namespace circuit {
 using namespace plonk::stdlib::types::turbo;
 
 struct claim_note {
-
     field_ct deposit_value;
 
-    // squish bridge_id to field
-    field_ct bridge_id;
-
-    point_ct partial_state;
+    bridge_id bridge_id;
 
     // populated in rollup ciruit; in deposit circuit this defaults to 0
     field_ct defi_interaction_nonce;
+
+    point_ct partial_state;
 };
 
 // inline claim_note create_value_note_witness(Composer& composer, native::claim_note const& /*input_id*/)

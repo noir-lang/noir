@@ -1,4 +1,5 @@
 #pragma once
+#include "../notes/native/claim_note.hpp"
 #include "../notes/native/value_note.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/merkle_tree/hash_path.hpp>
@@ -20,6 +21,8 @@ struct join_split_tx {
     std::array<merkle_tree::fr_hash_path, 2> input_path;
     std::array<notes::native::value_note, 2> input_note;
     std::array<notes::native::value_note, 2> output_note;
+
+    notes::native::claim_note claim_note;
 
     grumpkin::fr account_private_key;
     barretenberg::fr alias_hash;
