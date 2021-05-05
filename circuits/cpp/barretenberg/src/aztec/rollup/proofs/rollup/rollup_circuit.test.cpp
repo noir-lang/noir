@@ -102,7 +102,8 @@ class rollup_tests : public ::testing::Test {
             fr(1),
             account_alias_id,
         };
-        auto nullifier = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_ALIAS_ID_HASH_INDEX);
+        auto nullifier =
+            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 
         null_tree.update_element(uint256_t(nullifier), { 1 });
     }

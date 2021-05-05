@@ -26,12 +26,12 @@ field_ct compute_account_alias_id_nullifier(field_ct const& proof_id,
                                             bool_ct migrate)
 {
     return pedersen::compress(
-        { proof_id, account_alias_id, gibberish * !migrate }, true, notes::ACCOUNT_ALIAS_ID_HASH_INDEX);
+        { proof_id, account_alias_id, gibberish * !migrate }, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 field_ct compute_gibberish_nullifier(field_ct const& proof_id, field_ct const& gibberish)
 {
-    return pedersen::compress({ proof_id, gibberish }, true, notes::ACCOUNT_GIBBERISH_HASH_INDEX);
+    return pedersen::compress({ proof_id, gibberish }, true, notes::GeneratorIndex::ACCOUNT_GIBBERISH_NULLIFIER);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)

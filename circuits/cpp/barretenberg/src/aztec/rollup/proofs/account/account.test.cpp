@@ -68,7 +68,8 @@ class account_tests : public ::testing::Test {
             account_alias_id,
             gibberish * !migrate_account,
         };
-        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_ALIAS_ID_HASH_INDEX);
+        auto result =
+            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
         return uint256_t(result);
     }
 
@@ -78,7 +79,8 @@ class account_tests : public ::testing::Test {
             fr(1),
             gibberish,
         };
-        auto result = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_GIBBERISH_HASH_INDEX);
+        auto result =
+            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_GIBBERISH_NULLIFIER);
         return uint256_t(result);
     }
 

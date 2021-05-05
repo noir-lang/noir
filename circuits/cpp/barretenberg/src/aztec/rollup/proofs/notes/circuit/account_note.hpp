@@ -18,7 +18,7 @@ inline point_ct encrypt_account_note(field_ct const& account_alias_id,
         account_public_key.x,
         signing_pub_key.x,
     };
-    return pedersen::encrypt(leaf_elements, notes::ACCOUNT_NOTE_HASH_INDEX, true);
+    return pedersen::encrypt(leaf_elements, GeneratorIndex::ACCOUNT_NOTE_HASH_INPUTS, true);
 }
 
 } // namespace circuit

@@ -49,14 +49,18 @@ point_ct accumulate(const point_ct& accumulator, const point_ct& p_1)
  **/
 point_ct encrypt_note(const value_note& plaintext)
 {
-    point_ct accumulator = group_ct::fixed_base_scalar_mul<254>(plaintext.secret, TX_NOTE_HASH_INDEX + 1);
+    point_ct accumulator =
+        group_ct::fixed_base_scalar_mul<254>(plaintext.secret, GeneratorIndex::JOIN_SPLIT_NOTE_SECRET);
 
+    accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(
+        accumulator, plaintext.value, GeneratorIndex::JOIN_SPLIT_NOTE_VALUE);
+    accumulator = conditionally_hash_and_accumulate<32>(
+        accumulator, plaintext.asset_id, GeneratorIndex::JOIN_SPLIT_NOTE_ASSET_ID);
+    accumulator = accumulate(
+        accumulator,
+        pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y, GeneratorIndex::JOIN_SPLIT_NOTE_OWNER));
     accumulator =
-        conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(accumulator, plaintext.value, TX_NOTE_HASH_INDEX);
-    accumulator = conditionally_hash_and_accumulate<32>(accumulator, plaintext.asset_id, TX_NOTE_HASH_INDEX + 2);
-    accumulator = accumulate(accumulator,
-                             pedersen::compress_to_point(plaintext.owner.x, plaintext.owner.y, TX_NOTE_HASH_INDEX + 3));
-    accumulator = conditionally_hash_and_accumulate<32>(accumulator, plaintext.nonce, TX_NOTE_HASH_INDEX + 5);
+        conditionally_hash_and_accumulate<32>(accumulator, plaintext.nonce, GeneratorIndex::JOIN_SPLIT_NOTE_NONCE);
     return accumulator;
 }
 
