@@ -7,12 +7,14 @@ namespace join_split {
 
 using namespace notes;
 
-bool verify_signature(join_split_inputs const& inputs,
-                      field_ct const& nullifier1,
-                      field_ct const& nullifier2,
-                      field_ct const& tx_fee,
-                      point_ct const& owner_pub_key,
-                      schnorr::signature_bits const& signature)
+inline bool verify_signature(join_split_inputs const& inputs,
+                             point_ct const& encrypted_output_note1,
+                             point_ct const& encrypted_output_note2,
+                             field_ct const& nullifier1,
+                             field_ct const& nullifier2,
+                             field_ct const& tx_fee,
+                             point_ct const& owner_pub_key,
+                             schnorr::signature_bits const& signature)
 {
     // format message to contain:
     // * input value
@@ -30,10 +32,10 @@ bool verify_signature(join_split_inputs const& inputs,
     to_compress.push_back(inputs.public_input);
     to_compress.push_back(inputs.public_output);
     to_compress.push_back(inputs.asset_id);
-    to_compress.push_back(inputs.output_note1.second.x);
-    to_compress.push_back(inputs.output_note1.second.y);
-    to_compress.push_back(inputs.output_note2.second.x);
-    to_compress.push_back(inputs.output_note2.second.y);
+    to_compress.push_back(encrypted_output_note1.x);
+    to_compress.push_back(encrypted_output_note1.y);
+    to_compress.push_back(encrypted_output_note2.x);
+    to_compress.push_back(encrypted_output_note2.y);
     to_compress.push_back(nullifier1);
     to_compress.push_back(nullifier2);
     to_compress.push_back(inputs.input_owner);

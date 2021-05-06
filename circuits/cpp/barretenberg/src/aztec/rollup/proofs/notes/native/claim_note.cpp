@@ -11,8 +11,10 @@ namespace native {
 
 grumpkin::g1::affine_element encrypt_note(claim_note const& note)
 {
-    grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note.deposit_value, 0);
-    grumpkin::g1::element p_2 = crypto::pedersen::fixed_base_scalar_mul<254>(note.bridge_id.to_field(), 1);
+    grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
+        note.deposit_value, GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_VALUE);
+    grumpkin::g1::element p_2 = crypto::pedersen::fixed_base_scalar_mul<254>(
+        note.bridge_id.to_field(), GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_BRIDGE_ID);
 
     // deposit value could be zero so we conditionally include its term in the 'sum'
     // bridge_id is always non-zero as it would always contain 'bridge_contract_address'
@@ -24,11 +26,12 @@ grumpkin::g1::affine_element encrypt_note(claim_note const& note)
         sum = p_2;
     }
 
-    grumpkin::g1::affine_element p_3 =
-        crypto::pedersen::compress_to_point_native(note.partial_state.x, note.partial_state.y, 2);
+    grumpkin::g1::affine_element p_3 = crypto::pedersen::compress_to_point_native(
+        note.partial_state.x, note.partial_state.y, GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_PARTIAL_STATE);
     sum += p_3;
 
-    grumpkin::g1::element p_4 = crypto::pedersen::fixed_base_scalar_mul<32>((uint64_t)note.defi_interaction_nonce, 3);
+    grumpkin::g1::element p_4 = crypto::pedersen::fixed_base_scalar_mul<32>(
+        (uint64_t)note.defi_interaction_nonce, GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_DEFI_INTERACTION_NONCE);
     if (note.defi_interaction_nonce > 0) {
         sum += p_4;
     }

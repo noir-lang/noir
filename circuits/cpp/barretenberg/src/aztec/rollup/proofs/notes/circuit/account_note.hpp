@@ -9,14 +9,18 @@ namespace circuit {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline point_ct encrypt_account_note(field_ct const& account_alias_id,
-                                     point_ct const& account_public_key,
-                                     point_ct const& signing_pub_key)
+struct account_note {
+    field_ct account_alias_id;
+    point_ct account_public_key;
+    point_ct signing_pub_key;
+};
+
+inline point_ct encrypt_note(account_note const& account_note)
 {
     std::vector<field_ct> leaf_elements{
-        account_alias_id,
-        account_public_key.x,
-        signing_pub_key.x,
+        account_note.account_alias_id,
+        account_note.account_public_key.x,
+        account_note.signing_pub_key.x,
     };
     return pedersen::encrypt(leaf_elements, GeneratorIndex::ACCOUNT_NOTE_HASH_INPUTS, true);
 }

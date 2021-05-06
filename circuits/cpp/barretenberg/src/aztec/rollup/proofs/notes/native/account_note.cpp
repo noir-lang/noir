@@ -9,7 +9,7 @@ namespace proofs {
 namespace notes {
 namespace native {
 
-grumpkin::g1::affine_element encrypt_account_note(account_note const& note)
+grumpkin::g1::affine_element encrypt_note(account_note const& note)
 {
     std::vector<barretenberg::fr> hash_elements{ note.account_alias_id, note.owner_key.x, note.signing_key.x };
     return crypto::pedersen::encrypt_native(hash_elements, GeneratorIndex::ACCOUNT_NOTE_HASH_INPUTS);

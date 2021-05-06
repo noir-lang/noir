@@ -9,6 +9,7 @@ namespace notes {
 namespace circuit {
 
 using namespace plonk::stdlib::types::turbo;
+// typedef std::pair<value_note, point_ct> note_pair;
 
 struct value_note {
     point_ct owner;
@@ -35,6 +36,13 @@ inline value_note create_value_note_witness(Composer& composer, native::value_no
 
     return { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id, nonce };
 }
+
+// inline note_pair create_note_pair(Composer& composer, native::value_note const& note)
+// {
+//     auto note_witness = create_value_note_witness(composer, note);
+//     auto enc_note = encrypt_note(note_witness);
+//     return { note_witness, enc_note };
+// }
 
 } // namespace circuit
 } // namespace notes

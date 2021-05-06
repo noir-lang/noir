@@ -22,9 +22,6 @@ struct defi_interaction_result_note {
 
 grumpkin::g1::affine_element encrypt_note(defi_interaction_result_note const& note);
 
-// barretenberg::fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note,
-//                                    const uint32_t tree_index);
-
 inline bool operator==(defi_interaction_result_note const& lhs, defi_interaction_result_note const& rhs)
 {
     return lhs.bridge_id == rhs.bridge_id && lhs.total_input_value == rhs.total_input_value &&

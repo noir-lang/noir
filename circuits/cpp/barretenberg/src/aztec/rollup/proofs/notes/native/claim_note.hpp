@@ -22,27 +22,31 @@ struct claim_note {
     grumpkin::g1::affine_element partial_state;
 };
 
+struct claim_note_tx_data {
+    uint256_t deposit_value;
+    uint256_t bridge_id;
+    uint256_t note_secret;
+    uint32_t defi_interaction_nonce;
+};
+
 grumpkin::g1::affine_element encrypt_note(claim_note const& note);
 
-// barretenberg::fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note,
-//                                    const uint32_t tree_index);
+// inline bool operator==(claim_note const& lhs, claim_note const& rhs)
+// {
+//     return lhs.bridge_id == rhs.bridge_id && lhs.deposit_value == rhs.deposit_value &&
+//            lhs.partial_state == rhs.partial_state && lhs.defi_interaction_nonce == rhs.defi_interaction_nonce;
+// }
 
-inline bool operator==(claim_note const& lhs, claim_note const& rhs)
-{
-    return lhs.bridge_id == rhs.bridge_id && lhs.deposit_value == rhs.deposit_value &&
-           lhs.partial_state == rhs.partial_state && lhs.defi_interaction_nonce == rhs.defi_interaction_nonce;
-}
-
-inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
-{
-    os << "{ partial_state_x: " << note.partial_state.x << ", partial_state_y: " << note.partial_state.y
-       << ", deposit value: " << note.deposit_value << ", input_asset_id: " << note.bridge_id.input_asset_id
-       << ", output_asset_id_a: " << note.bridge_id.output_asset_id_a
-       << ", output_asset_id_b: " << note.bridge_id.output_asset_id_b
-       << ", bridge contract address: " << note.bridge_id.bridge_contract_address
-       << ", defi interation nonce: " << note.defi_interaction_nonce << " }";
-    return os;
-}
+// inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
+// {
+//     os << "{ partial_state_x: " << note.partial_state.x << ", partial_state_y: " << note.partial_state.y
+//        << ", deposit value: " << note.deposit_value << ", input_asset_id: " << note.bridge_id.input_asset_id
+//        << ", output_asset_id_a: " << note.bridge_id.output_asset_id_a
+//        << ", output_asset_id_b: " << note.bridge_id.output_asset_id_b
+//        << ", bridge contract address: " << note.bridge_id.bridge_contract_address
+//        << ", defi interation nonce: " << note.defi_interaction_nonce << " }";
+//     return os;
+// }
 
 // inline void read(uint8_t const*& it, claim_note& note)
 // {

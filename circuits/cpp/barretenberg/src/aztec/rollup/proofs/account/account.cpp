@@ -57,10 +57,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto output_nonce = nonce + migrate;
     const auto output_account_alias_id = alias_hash + (output_nonce * pow(field_ct(2), uint32_ct(224)));
 
-    const auto output_note_1 =
-        encrypt_account_note(output_account_alias_id, new_account_public_key, spending_public_key_1);
-    const auto output_note_2 =
-        encrypt_account_note(output_account_alias_id, new_account_public_key, spending_public_key_2);
+    const auto output_note_1 = encrypt_note({ output_account_alias_id, new_account_public_key, spending_public_key_1 });
+    const auto output_note_2 = encrypt_note({ output_account_alias_id, new_account_public_key, spending_public_key_2 });
 
     const auto nullifier_1 = compute_account_alias_id_nullifier(proof_id, account_alias_id, gibberish, migrate);
     const auto nullifier_2 = compute_gibberish_nullifier(proof_id, gibberish);
@@ -86,7 +84,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     // Check signing account note exists if nonce != 0.
     const auto assert_account_exists = !zero_nonce;
-    const auto account_note_data = encrypt_account_note(account_alias_id, account_public_key, signer);
+    const auto account_note_data = encrypt_note({ account_alias_id, account_public_key, signer });
     const auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
     const auto exists = merkle_tree::check_membership(
         composer, data_tree_root, account_note_path, leaf_data, byte_array_ct(account_note_index));
