@@ -502,8 +502,6 @@ TEST_F(join_split_tests, test_nonregistered_signing_key_fails)
     EXPECT_FALSE(sign_and_verify_logic(tx, keys.private_key));
 }
 
-// Note membership
-
 TEST_F(join_split_tests, test_wrong_note_hash_path_fails)
 {
     join_split_tx tx = simple_setup();
@@ -512,8 +510,6 @@ TEST_F(join_split_tests, test_wrong_note_hash_path_fails)
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
-
-// Output Owner
 
 TEST_F(join_split_tests, test_zero_output_owner)
 {
@@ -543,4 +539,12 @@ HEAVY_TEST_F(join_split_tests, test_tainted_output_owner_fails)
     proof.proof_data[InnerProofFields::OUTPUT_OWNER] = 0x02;
 
     EXPECT_FALSE(verify_proof(proof));
+}
+
+TEST_F(join_split_tests, test_invalid_bridge_id)
+{
+    join_split_tx tx = simple_setup();
+    tx.claim_note.deposit_value = 1;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }

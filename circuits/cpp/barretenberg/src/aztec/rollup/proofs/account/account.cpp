@@ -1,5 +1,5 @@
 #include "account.hpp"
-#include "../notes/circuit/account_note.hpp"
+#include "../notes/circuit/account/account_note.hpp"
 #include "../notes/constants.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
@@ -15,7 +15,7 @@ namespace account {
 
 using namespace plonk;
 using namespace plonk::stdlib::types::turbo;
-using namespace notes::circuit;
+using namespace notes::circuit::account;
 
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
@@ -57,8 +57,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto output_nonce = nonce + migrate;
     const auto output_account_alias_id = alias_hash + (output_nonce * pow(field_ct(2), uint32_ct(224)));
 
-    const auto output_note_1 = encrypt_note({ output_account_alias_id, new_account_public_key, spending_public_key_1 });
-    const auto output_note_2 = encrypt_note({ output_account_alias_id, new_account_public_key, spending_public_key_2 });
+    const auto output_note_1 = account_note(output_account_alias_id, new_account_public_key, spending_public_key_1);
+    const auto output_note_2 = account_note(output_account_alias_id, new_account_public_key, spending_public_key_2);
 
     const auto nullifier_1 = compute_account_alias_id_nullifier(proof_id, account_alias_id, gibberish, migrate);
     const auto nullifier_2 = compute_gibberish_nullifier(proof_id, gibberish);
@@ -84,10 +84,12 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     // Check signing account note exists if nonce != 0.
     const auto assert_account_exists = !zero_nonce;
-    const auto account_note_data = encrypt_note({ account_alias_id, account_public_key, signer });
-    const auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
-    const auto exists = merkle_tree::check_membership(
-        composer, data_tree_root, account_note_path, leaf_data, byte_array_ct(account_note_index));
+    const auto account_note_data = account_note(account_alias_id, account_public_key, signer);
+    const auto exists = merkle_tree::check_membership(composer,
+                                                      data_tree_root,
+                                                      account_note_path,
+                                                      byte_array_ct(account_note_data),
+                                                      byte_array_ct(account_note_index));
     composer.assert_equal(exists.normalize().witness_index,
                           assert_account_exists.normalize().witness_index,
                           "account check_membership failed");
@@ -106,10 +108,10 @@ void account_circuit(Composer& composer, account_tx const& tx)
     composer.set_public_input(new_account_public_key.x.witness_index); // public_input but using for owner x.
     composer.set_public_input(new_account_public_key.y.witness_index); // public_output but using for owner y.
     composer.set_public_input(output_account_alias_id.witness_index);  // asset_id
-    composer.set_public_input(output_note_1.x.witness_index);
-    composer.set_public_input(output_note_1.y.witness_index);
-    composer.set_public_input(output_note_2.x.witness_index);
-    composer.set_public_input(output_note_2.y.witness_index);
+    composer.set_public_input(output_note_1.encrypted.x.witness_index);
+    composer.set_public_input(output_note_1.encrypted.y.witness_index);
+    composer.set_public_input(output_note_2.encrypted.x.witness_index);
+    composer.set_public_input(output_note_2.encrypted.y.witness_index);
     composer.set_public_input(nullifier_1.witness_index);
     composer.set_public_input(nullifier_2.witness_index);
     composer.set_public_input(spending_public_key_1.x.witness_index); // input_owner

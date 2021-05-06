@@ -7,10 +7,11 @@ namespace rollup {
 namespace proofs {
 namespace notes {
 namespace circuit {
+namespace defi_interaction {
 
 using namespace plonk::stdlib::types::turbo;
 
-struct defi_interaction_result_note {
+struct defi_interaction_note {
 
     // squish bridge_id to field
     field_ct bridge_id;
@@ -46,6 +47,7 @@ struct defi_interaction_result_note {
 //     // return { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id, nonce };
 // }
 
+} // namespace defi_interaction
 } // namespace circuit
 } // namespace notes
 } // namespace proofs

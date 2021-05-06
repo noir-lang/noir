@@ -1,7 +1,7 @@
 #pragma once
 #include "join_split_tx.hpp"
-#include "../notes/circuit/claim_note.hpp"
-// #include "../notes/circuit/note_pair.hpp"
+#include "../notes/circuit/value/witness_data.hpp"
+#include "../notes/circuit/claim/witness_data.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -18,11 +18,11 @@ struct join_split_inputs {
     uint32_ct num_input_notes;
     field_ct input_note1_index;
     field_ct input_note2_index;
-    notes::circuit::value_note input_note1;
-    notes::circuit::value_note input_note2;
-    notes::circuit::value_note output_note1;
-    notes::circuit::value_note output_note2;
-    notes::circuit::claim_note claim_note;
+    notes::circuit::value::witness_data input_note1;
+    notes::circuit::value::witness_data input_note2;
+    notes::circuit::value::witness_data output_note1;
+    notes::circuit::value::witness_data output_note2;
+    notes::circuit::claim::witness_data claim_note;
     point_ct signing_pub_key;
     stdlib::schnorr::signature_bits<Composer> signature;
     field_ct merkle_root;

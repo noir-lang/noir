@@ -19,6 +19,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.input_path);
     write(buf, tx.input_note);
     write(buf, tx.output_note);
+    write(buf, tx.claim_note);
 
     write(buf, tx.account_private_key);
     write(buf, tx.alias_hash);
@@ -44,6 +45,7 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.input_path);
     read(it, tx.input_note);
     read(it, tx.output_note);
+    read(it, tx.claim_note);
 
     read(it, tx.account_private_key);
     read(it, tx.alias_hash);
@@ -69,6 +71,7 @@ bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
         && lhs.input_path == rhs.input_path
         && lhs.input_note == rhs.input_note
         && lhs.output_note == rhs.output_note
+        && lhs.claim_note == rhs.claim_note
         && lhs.account_private_key == rhs.account_private_key
         && lhs.alias_hash == rhs.alias_hash
         && lhs.nonce == rhs.nonce

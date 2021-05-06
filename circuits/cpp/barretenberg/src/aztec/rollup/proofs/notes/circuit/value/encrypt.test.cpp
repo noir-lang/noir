@@ -1,10 +1,10 @@
-#include "encrypt_note.hpp"
+#include "encrypt.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace rollup::proofs::notes;
-using namespace rollup::proofs::notes::circuit;
+using namespace rollup::proofs::notes::circuit::value;
 
 TEST(encrypt_note, encrypts)
 {
@@ -46,9 +46,9 @@ TEST(encrypt_note, encrypts)
     field_ct note_owner_y = witness_ct(&composer, note_owner_pub_key.y);
     field_ct asset_id = witness_ct(&composer, asset_id_value);
     field_ct nonce = witness_ct(&composer, nonce_value);
-    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id, nonce };
+    witness_data plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id, nonce };
 
-    point_ct result = encrypt_note(plaintext);
+    point_ct result = encrypt(plaintext);
     composer.assert_equal_constant(result.x.witness_index, expected.x);
     composer.assert_equal_constant(result.y.witness_index, expected.y);
 
@@ -93,9 +93,9 @@ TEST(encrypt_note, encrypts_with_0_value)
     field_ct asset_id = witness_ct(&composer, asset_id_value);
     field_ct nonce = witness_ct(&composer, nonce_value);
 
-    value_note plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id, nonce };
+    witness_data plaintext{ { note_owner_x, note_owner_y }, value, view_key, asset_id, nonce };
 
-    point_ct result = encrypt_note(plaintext);
+    point_ct result = encrypt(plaintext);
     composer.assert_equal_constant(result.x.witness_index, expected.x);
     composer.assert_equal_constant(result.y.witness_index, expected.y);
 

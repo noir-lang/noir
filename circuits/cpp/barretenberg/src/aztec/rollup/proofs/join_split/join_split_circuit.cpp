@@ -1,6 +1,8 @@
 #include "join_split_circuit.hpp"
 #include "../../constants.hpp"
-#include "../notes/circuit/account_note.hpp"
+#include "../notes/circuit/value/value_note.hpp"
+#include "../notes/circuit/account/account_note.hpp"
+#include "../notes/circuit/claim/claim_note.hpp"
 #include "../notes/circuit/compute_nullifier.hpp"
 #include "verify_signature.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
@@ -25,22 +27,18 @@ field_ct process_input_note(Composer& composer,
                             field_ct const& merkle_root,
                             merkle_tree::hash_path const& hash_path,
                             field_ct const& index,
-                            value_note const& note,
-                            point_ct const& encrypted_note,
+                            value::value_note const& note,
                             bool_ct is_real)
 {
-    byte_array_ct leaf(&composer);
-    leaf.write(encrypted_note.x).write(encrypted_note.y);
-    bool_ct good =
-        merkle_tree::check_membership(composer, merkle_root, hash_path, leaf, byte_array_ct(index)) || !is_real;
+    auto exists =
+        merkle_tree::check_membership(composer, merkle_root, hash_path, byte_array_ct(note), byte_array_ct(index));
+    auto good = exists || !is_real;
     composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
 
     bool_ct valid_value = note.value == field_ct(&composer, 0) || is_real;
     composer.assert_equal_constant(valid_value.witness_index, 1, "padding note non zero");
 
-    field_ct nullifier_index = compute_nullifier(encrypted_note, index, account_private_key, is_real);
-
-    return nullifier_index;
+    return compute_nullifier(note.encrypted, index, account_private_key, is_real);
 }
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
@@ -50,11 +48,11 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto public_input = inputs.public_input * not_defi_bridge;
     auto public_output = inputs.claim_note.deposit_value + (inputs.public_output * not_defi_bridge);
 
-    auto encrypted_input_note1 = encrypt_note(inputs.input_note1);
-    auto encrypted_input_note2 = encrypt_note(inputs.input_note2);
-    auto encrypted_output_note1 = encrypt_note(inputs.output_note1);
-    auto encrypted_output_note2 = encrypt_note(inputs.output_note2);
-    auto encrypted_claim_note = inputs.claim_note.encrypt(inputs.input_note1.nonce, inputs.input_note1.owner);
+    auto input_note1 = value::value_note(inputs.input_note1);
+    auto input_note2 = value::value_note(inputs.input_note2);
+    auto output_note1 = value::value_note(inputs.output_note1);
+    auto output_note2 = value::value_note(inputs.output_note2);
+    auto claim_note = claim::claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
 
     // Verify all notes have a consistent asset id
     composer.assert_equal(inputs.input_note1.asset_id.witness_index,
@@ -69,9 +67,9 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.assert_equal(inputs.input_note1.asset_id.witness_index,
                           inputs.asset_id.witness_index,
                           "note asset ids not equal to tx asset id");
-    composer.assert_equal(inputs.claim_note.bridge_id.input_asset_id.witness_index,
-                          inputs.input_note1.asset_id.witness_index,
-                          "bridge asset ids don't match");
+    auto valid_claim_note_asset_id =
+        inputs.claim_note.bridge_id.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
+    composer.assert_equal_constant(valid_claim_note_asset_id.witness_index, 1, "bridge asset ids don't match");
 
     // Verify the asset id is less than the total number of assets.
     composer.create_range_constraint(inputs.asset_id.witness_index, NUM_ASSETS_BIT_LENGTH);
@@ -116,10 +114,12 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.create_range_constraint(inputs.alias_hash.witness_index, 224);
     // Verify that the account exists if nonce > 0
     auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
-    auto account_note_data = encrypt_note({ account_alias_id, account_public_key, signer });
-    auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
-    auto exists = merkle_tree::check_membership(
-        composer, inputs.merkle_root, inputs.account_path, leaf_data, byte_array_ct(inputs.account_index));
+    auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
+    auto exists = merkle_tree::check_membership(composer,
+                                                inputs.merkle_root,
+                                                inputs.account_path,
+                                                byte_array_ct(account_note_data),
+                                                byte_array_ct(inputs.account_index));
     auto signing_key_registered_or_zero_nonce = exists || zero_nonce;
     composer.assert_equal_constant(
         signing_key_registered_or_zero_nonce.witness_index, 1, "account check_membership failed");
@@ -132,21 +132,19 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              inputs.merkle_root,
                                              inputs.input_path1,
                                              inputs.input_note1_index,
-                                             inputs.input_note1,
-                                             encrypted_input_note1,
+                                             input_note1,
                                              note_1_valid);
     field_ct nullifier2 = process_input_note(composer,
                                              inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path2,
                                              inputs.input_note2_index,
-                                             inputs.input_note2,
-                                             encrypted_input_note2,
+                                             input_note2,
                                              note_2_valid);
 
     verify_signature(inputs,
-                     encrypted_output_note1,
-                     encrypted_output_note2,
+                     output_note1.encrypted,
+                     output_note2.encrypted,
                      nullifier1,
                      nullifier2,
                      tx_fee,
@@ -155,12 +153,11 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
 
     // Compute circuit public outputs.
     auto proof_id = field_ct(2) * is_defi_bridge;
-    point_ct output_note1 = { encrypted_output_note1.x * not_defi_bridge + encrypted_claim_note.x * is_defi_bridge,
-                              encrypted_output_note1.y * not_defi_bridge + encrypted_claim_note.y * is_defi_bridge };
-    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + inputs.claim_note.packed_bridge_id * is_defi_bridge;
+    point_ct out_note1 = { output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
+                           output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge };
+    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
 
-    return { proof_id,     nullifier1,    nullifier2,   tx_fee,
-             public_input, public_output, output_note1, encrypted_output_note2,
+    return { proof_id, nullifier1, nullifier2, tx_fee, public_input, public_output, out_note1, output_note2.encrypted,
              asset_id };
 }
 
@@ -173,11 +170,11 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         witness_ct(&composer, tx.num_input_notes),
         witness_ct(&composer, tx.input_index[0]),
         witness_ct(&composer, tx.input_index[1]),
-        create_value_note_witness(composer, tx.input_note[0]),
-        create_value_note_witness(composer, tx.input_note[1]),
-        create_value_note_witness(composer, tx.output_note[0]),
-        create_value_note_witness(composer, tx.output_note[1]),
-        claim_note(composer, tx.claim_note_data),
+        value::witness_data::from_tx_data(composer, tx.input_note[0]),
+        value::witness_data::from_tx_data(composer, tx.input_note[1]),
+        value::witness_data::from_tx_data(composer, tx.output_note[0]),
+        value::witness_data::from_tx_data(composer, tx.output_note[1]),
+        claim::witness_data::from_tx_data(composer, tx.claim_note),
         { witness_ct(&composer, tx.signing_pub_key.x), witness_ct(&composer, tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.signature),
         witness_ct(&composer, tx.old_data_root),

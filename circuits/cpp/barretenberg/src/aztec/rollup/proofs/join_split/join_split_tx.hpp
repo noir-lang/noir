@@ -22,12 +22,7 @@ struct join_split_tx {
     std::array<notes::native::value_note, 2> input_note;
     std::array<notes::native::value_note, 2> output_note;
 
-    notes::native::claim_note_tx_data claim_note_data;
-    // uint256_t claim_note_deposit_value;
-    // uint256_t claim_note_bridge_id;
-    // uint256_t claim_note_secret;
-    // uint32_t claim_note_defi_interaction_nonce;
-    // notes::native::claim_note claim_note;
+    notes::native::claim_note_tx_data claim_note;
 
     grumpkin::fr account_private_key;
     barretenberg::fr alias_hash;
