@@ -28,7 +28,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         create_value_note_witness(composer, tx.js_tx.input_note[1]),
         create_value_note_witness(composer, tx.js_tx.output_note[0]),
         create_value_note_witness(composer, tx.js_tx.output_note[1]),
-        create_claim_note_witness(composer, tx.js_tx.claim_note_data),
+        claim_note(composer, tx.js_tx.claim_note_data),
         { witness_ct(&composer, tx.js_tx.signing_pub_key.x), witness_ct(&composer, tx.js_tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.js_tx.signature),
         witness_ct(&composer, tx.js_tx.old_data_root),

@@ -22,7 +22,7 @@ struct join_split_inputs {
     notes::circuit::value_note input_note2;
     notes::circuit::value_note output_note1;
     notes::circuit::value_note output_note2;
-    notes::circuit::claim_note_tx_data_ct claim_note_tx_data;
+    notes::circuit::claim_note claim_note;
     point_ct signing_pub_key;
     stdlib::schnorr::signature_bits<Composer> signature;
     field_ct merkle_root;

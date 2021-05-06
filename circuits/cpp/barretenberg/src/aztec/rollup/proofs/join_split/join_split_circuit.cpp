@@ -45,17 +45,16 @@ field_ct process_input_note(Composer& composer,
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
-    auto not_defi_bridge = inputs.claim_note_tx_data.deposit_value.is_zero();
+    auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
     auto is_defi_bridge = (!not_defi_bridge).normalize();
     auto public_input = inputs.public_input * not_defi_bridge;
-    auto public_output = inputs.claim_note_tx_data.deposit_value + (inputs.public_output * not_defi_bridge);
+    auto public_output = inputs.claim_note.deposit_value + (inputs.public_output * not_defi_bridge);
 
     auto encrypted_input_note1 = encrypt_note(inputs.input_note1);
     auto encrypted_input_note2 = encrypt_note(inputs.input_note2);
     auto encrypted_output_note1 = encrypt_note(inputs.output_note1);
     auto encrypted_output_note2 = encrypt_note(inputs.output_note2);
-    auto claim_note = compute_claim_note(inputs.claim_note_tx_data, inputs.input_note1.nonce, inputs.input_note1.owner);
-    auto encrypted_claim_note = encrypt_note(claim_note);
+    auto encrypted_claim_note = inputs.claim_note.encrypt(inputs.input_note1.nonce, inputs.input_note1.owner);
 
     // Verify all notes have a consistent asset id
     composer.assert_equal(inputs.input_note1.asset_id.witness_index,
@@ -70,7 +69,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.assert_equal(inputs.input_note1.asset_id.witness_index,
                           inputs.asset_id.witness_index,
                           "note asset ids not equal to tx asset id");
-    composer.assert_equal(inputs.claim_note_tx_data.bridge_id.input_asset_id.witness_index,
+    composer.assert_equal(inputs.claim_note.bridge_id.input_asset_id.witness_index,
                           inputs.input_note1.asset_id.witness_index,
                           "bridge asset ids don't match");
 
@@ -158,7 +157,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto proof_id = field_ct(2) * is_defi_bridge;
     point_ct output_note1 = { encrypted_output_note1.x * not_defi_bridge + encrypted_claim_note.x * is_defi_bridge,
                               encrypted_output_note1.y * not_defi_bridge + encrypted_claim_note.y * is_defi_bridge };
-    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
+    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + inputs.claim_note.packed_bridge_id * is_defi_bridge;
 
     return { proof_id,     nullifier1,    nullifier2,   tx_fee,
              public_input, public_output, output_note1, encrypted_output_note2,
@@ -178,7 +177,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         create_value_note_witness(composer, tx.input_note[1]),
         create_value_note_witness(composer, tx.output_note[0]),
         create_value_note_witness(composer, tx.output_note[1]),
-        create_claim_note_witness(composer, tx.claim_note_data),
+        claim_note(composer, tx.claim_note_data),
         { witness_ct(&composer, tx.signing_pub_key.x), witness_ct(&composer, tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.signature),
         witness_ct(&composer, tx.old_data_root),
