@@ -21,13 +21,16 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
     uint256_t total_output_value =
         tx.output_note[0].value + tx.output_note[1].value + tx.public_output + tx.claim_note.deposit_value;
     grumpkin::fq tx_fee = total_input_value - total_output_value;
+
+    auto is_defi = tx.claim_note.deposit_value > 0;
+    auto asset_id = is_defi ? tx.claim_note.bridge_id : tx.asset_id;
+    auto public_input = is_defi ? tx.claim_note.deposit_value : 0;
+    auto public_output = is_defi ? tx.claim_note.deposit_value : tx.public_output;
+
     const grumpkin::g1::affine_element input_note_1 = encrypt_note(tx.input_note[0]);
     const grumpkin::g1::affine_element input_note_2 = encrypt_note(tx.input_note[1]);
     const grumpkin::g1::affine_element output_note_1 = encrypt_note(tx.output_note[0]);
     const grumpkin::g1::affine_element output_note_2 = encrypt_note(tx.output_note[1]);
-
-    auto is_defi = tx.claim_note.deposit_value > 0;
-    auto asset_id = is_defi ? tx.claim_note.bridge_id : tx.asset_id;
 
     const auto nullifier1 =
         compute_nullifier(input_note_1, tx.input_index[0], tx.account_private_key, tx.num_input_notes >= 1);
@@ -36,8 +39,8 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
 
     std::vector<grumpkin::fq> to_compress;
 
-    to_compress.push_back(tx.public_input);
-    to_compress.push_back(tx.public_output);
+    to_compress.push_back(public_input);
+    to_compress.push_back(public_output);
     to_compress.push_back(grumpkin::fq(asset_id));
     to_compress.push_back(output_note_1.x);
     to_compress.push_back(output_note_1.y);

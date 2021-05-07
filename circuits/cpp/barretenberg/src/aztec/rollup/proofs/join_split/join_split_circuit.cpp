@@ -53,8 +53,11 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto output_note1 = value::value_note(inputs.output_note1);
     auto output_note2 = value::value_note(inputs.output_note2);
     auto claim_note = claim::claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
-    point_ct out_note1 = { output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
-                           output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge };
+    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
+    point_ct encrypted_output_note1 = {
+        output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
+        output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge
+    };
 
     // Verify all notes have a consistent asset id
     composer.assert_equal(inputs.input_note1.asset_id.witness_index,
@@ -145,21 +148,31 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              note_2_valid);
 
     info(composer.failed);
-    verify_signature(inputs,
-                     output_note1.encrypted,
+    verify_signature(public_input,
+                     public_output,
+                     asset_id,
+                     encrypted_output_note1,
                      output_note2.encrypted,
                      nullifier1,
                      nullifier2,
                      tx_fee,
                      signer,
+                     inputs.input_owner,
+                     inputs.output_owner,
                      inputs.signature);
     info(composer.failed);
 
     // Compute circuit public outputs.
     auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
-    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
 
-    return { proof_id, nullifier1, nullifier2, tx_fee, public_input, public_output, out_note1, output_note2.encrypted,
+    return { proof_id,
+             nullifier1,
+             nullifier2,
+             tx_fee,
+             public_input,
+             public_output,
+             encrypted_output_note1,
+             output_note2.encrypted,
              asset_id };
 }
 
