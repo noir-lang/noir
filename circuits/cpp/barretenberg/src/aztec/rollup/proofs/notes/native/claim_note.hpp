@@ -44,7 +44,7 @@ struct claim_note {
     // value of deposited tokens
     uint256_t deposit_value;
     // defi bridge identifier (address, assets involved, number of output notes)
-    bridge_id bridge_id;
+    uint256_t bridge_id;
     // global rollup variable - total number of defi interactions made
     uint32_t defi_interaction_nonce;
 
@@ -54,6 +54,10 @@ struct claim_note {
 };
 
 grumpkin::g1::affine_element encrypt_note(claim_note const& note);
+
+grumpkin::g1::affine_element create_partial_value_note(barretenberg::fr const& secret,
+                                                       grumpkin::g1::affine_element const& owner,
+                                                       uint32_t nonce);
 
 // inline bool operator==(claim_note const& lhs, claim_note const& rhs)
 // {

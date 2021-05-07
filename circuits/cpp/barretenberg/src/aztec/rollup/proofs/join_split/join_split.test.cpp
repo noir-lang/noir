@@ -562,6 +562,14 @@ std::array<uint8_t, 64> get_encrypted_note_array(value_note const& note)
     return enc_note;
 }
 
+std::array<uint8_t, 64> get_encrypted_claim_note_array(claim_note const& note)
+{
+    auto encrypted_note = to_buffer(encrypt_note(note));
+    std::array<uint8_t, 64> enc_note;
+    std::copy(encrypted_note.begin(), encrypted_note.end(), enc_note.begin());
+    return enc_note;
+}
+
 HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
@@ -607,9 +615,15 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 
     auto proof_data = inner_proof_data(proof.proof_data);
 
+    auto partial_state =
+        create_partial_value_note(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
+    claim_note claim_note = {
+        tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
+    };
+
     auto enc_input_note1_raw = encrypt_note(tx.input_note[0]);
     auto enc_input_note2_raw = encrypt_note(tx.input_note[1]);
-    auto enc_output_note1 = get_encrypted_note_array(tx.output_note[0]);
+    auto enc_output_note1 = get_encrypted_claim_note_array(claim_note);
     auto enc_output_note2 = get_encrypted_note_array(tx.output_note[1]);
     uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
@@ -617,7 +631,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     EXPECT_EQ(proof_data.proof_id, 2UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.merkle_root, tree->root());
-    // EXPECT_EQ(proof_data.new_note1, enc_output_note1);
+    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
     EXPECT_EQ(proof_data.new_note2, enc_output_note2);
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, nullifier2);

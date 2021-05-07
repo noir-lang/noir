@@ -147,7 +147,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              input_note2,
                                              note_2_valid);
 
-    info(composer.failed);
     verify_signature(public_input,
                      public_output,
                      asset_id,
@@ -160,7 +159,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      inputs.input_owner,
                      inputs.output_owner,
                      inputs.signature);
-    info(composer.failed);
 
     // Compute circuit public outputs.
     auto proof_id = (field_ct(2) * is_defi_bridge).normalize();

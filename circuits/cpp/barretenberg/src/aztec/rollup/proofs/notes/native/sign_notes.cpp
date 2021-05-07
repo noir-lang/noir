@@ -24,12 +24,18 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
 
     auto is_defi = tx.claim_note.deposit_value > 0;
     auto asset_id = is_defi ? tx.claim_note.bridge_id : tx.asset_id;
-    auto public_input = is_defi ? tx.claim_note.deposit_value : 0;
+    auto public_input = is_defi ? 0 : tx.public_input;
     auto public_output = is_defi ? tx.claim_note.deposit_value : tx.public_output;
 
+    auto partial_state =
+        create_partial_value_note(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
+    claim_note claim_note = {
+        tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
+    };
     const grumpkin::g1::affine_element input_note_1 = encrypt_note(tx.input_note[0]);
     const grumpkin::g1::affine_element input_note_2 = encrypt_note(tx.input_note[1]);
-    const grumpkin::g1::affine_element output_note_1 = encrypt_note(tx.output_note[0]);
+    const grumpkin::g1::affine_element output_note_1 =
+        is_defi ? encrypt_note(claim_note) : encrypt_note(tx.output_note[0]);
     const grumpkin::g1::affine_element output_note_2 = encrypt_note(tx.output_note[1]);
 
     const auto nullifier1 =
