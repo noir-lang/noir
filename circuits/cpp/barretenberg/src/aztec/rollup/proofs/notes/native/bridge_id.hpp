@@ -49,6 +49,17 @@ inline bool operator==(bridge_id const& lhs, bridge_id const& rhs)
            lhs.output_asset_id_b == rhs.output_asset_id_b;
 }
 
+inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
+{
+    os << "{\n"
+       << "  bridge_contract_address: " << bridge_id.bridge_contract_address << ",\n"
+       << "  num_output_notes: " << bridge_id.num_output_notes << ",\n"
+       << "  input_asset_id: " << bridge_id.input_asset_id << ",\n"
+       << "  output_asset_id_a: " << bridge_id.output_asset_id_a << ",\n"
+       << "  output_asset_id_b: " << bridge_id.output_asset_id_a << "\n}";
+    return os;
+}
+
 } // namespace native
 } // namespace notes
 } // namespace proofs

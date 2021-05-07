@@ -43,6 +43,7 @@ field_ct process_input_note(Composer& composer,
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
+    info(inputs.claim_note.bridge_id);
     auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
     auto is_defi_bridge = (!not_defi_bridge).normalize();
     auto public_input = inputs.public_input * not_defi_bridge;
@@ -152,7 +153,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      inputs.signature);
 
     // Compute circuit public outputs.
-    auto proof_id = field_ct(2) * is_defi_bridge;
+    auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
     point_ct out_note1 = { output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
                            output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge };
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;

@@ -5,6 +5,7 @@
 #include "join_split_circuit.hpp"
 #include "../notes/native/sign_notes.hpp"
 #include "../notes/native/encrypt_note.hpp"
+#include "../notes/native/compute_nullifier.hpp"
 #include "../notes/native/account_note.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
@@ -175,13 +176,17 @@ class join_split_tests : public ::testing::Test {
         return tx;
     }
 
-    bool sign_and_verify(join_split_tx& tx, grumpkin::fr const& signing_private_key)
+    waffle::plonk_proof sign_and_create_proof(join_split_tx& tx, grumpkin::fr const& signing_private_key)
     {
         tx.signature = sign_notes(tx, { signing_private_key, tx.signing_pub_key });
 
         auto prover = new_join_split_prover(tx);
-        auto proof = prover.construct_proof();
-        return verify_proof(proof);
+        return prover.construct_proof();
+    }
+
+    bool sign_and_verify(join_split_tx& tx, grumpkin::fr const& signing_private_key)
+    {
+        return verify_proof(sign_and_create_proof(tx, signing_private_key));
     }
 
     bool verify_logic(join_split_tx& tx)
@@ -547,4 +552,79 @@ TEST_F(join_split_tests, test_invalid_bridge_id)
     tx.claim_note.deposit_value = 1;
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+std::array<uint8_t, 64> get_encrypted_note_array(value_note const& note)
+{
+    auto encrypted_note = to_buffer(encrypt_note(note));
+    std::array<uint8_t, 64> enc_note;
+    std::copy(encrypted_note.begin(), encrypted_note.end(), enc_note.begin());
+    return enc_note;
+}
+
+HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
+{
+    join_split_tx tx = simple_setup();
+    auto proof = sign_and_create_proof(tx, user.owner.private_key);
+
+    auto proof_data = inner_proof_data(proof.proof_data);
+
+    auto enc_input_note1_raw = encrypt_note(tx.input_note[0]);
+    auto enc_input_note2_raw = encrypt_note(tx.input_note[1]);
+    auto enc_output_note1 = get_encrypted_note_array(tx.output_note[0]);
+    auto enc_output_note2 = get_encrypted_note_array(tx.output_note[1]);
+    uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
+    uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
+
+    EXPECT_EQ(proof_data.proof_id, 0UL);
+    EXPECT_EQ(proof_data.asset_id, tx.asset_id);
+    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
+    EXPECT_EQ(proof_data.new_note2, enc_output_note2);
+    EXPECT_EQ(proof_data.nullifier1, nullifier1);
+    EXPECT_EQ(proof_data.nullifier2, nullifier2);
+    EXPECT_EQ(proof_data.input_owner, tx.input_owner);
+    EXPECT_EQ(proof_data.output_owner, tx.output_owner);
+    EXPECT_EQ(proof_data.public_input, tx.public_input);
+    EXPECT_EQ(proof_data.public_output, tx.public_output);
+    EXPECT_EQ(proof_data.tx_fee, 0UL);
+
+    EXPECT_TRUE(verify_proof(proof));
+}
+
+HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
+{
+    join_split_tx tx = simple_setup();
+    tx.input_note[0].value = 150;
+    tx.claim_note.deposit_value = 50;
+
+    bridge_id bridge_id = { 0, 2, tx.asset_id, 0, 0 };
+    tx.claim_note.bridge_id = bridge_id.to_field();
+    info("native bridge_id: ", bridge_id);
+    info("native bridge_id packed: ", tx.claim_note.bridge_id);
+    auto proof = sign_and_create_proof(tx, user.owner.private_key);
+
+    auto proof_data = inner_proof_data(proof.proof_data);
+
+    auto enc_input_note1_raw = encrypt_note(tx.input_note[0]);
+    auto enc_input_note2_raw = encrypt_note(tx.input_note[1]);
+    auto enc_output_note1 = get_encrypted_note_array(tx.output_note[0]);
+    auto enc_output_note2 = get_encrypted_note_array(tx.output_note[1]);
+    uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
+    uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
+
+    EXPECT_EQ(proof_data.proof_id, 2UL);
+    EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
+    EXPECT_EQ(proof_data.new_note2, enc_output_note2);
+    EXPECT_EQ(proof_data.nullifier1, nullifier1);
+    EXPECT_EQ(proof_data.nullifier2, nullifier2);
+    EXPECT_EQ(proof_data.input_owner, tx.input_owner);
+    EXPECT_EQ(proof_data.output_owner, tx.output_owner);
+    EXPECT_EQ(proof_data.public_input, tx.public_input);
+    EXPECT_EQ(proof_data.public_output, tx.claim_note.deposit_value);
+    EXPECT_EQ(proof_data.tx_fee, 0UL);
+
+    EXPECT_TRUE(verify_proof(proof));
 }

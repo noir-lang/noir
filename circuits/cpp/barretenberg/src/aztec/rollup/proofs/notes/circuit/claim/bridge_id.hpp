@@ -43,6 +43,8 @@ struct bridge_id {
             (bridge_id >> output_asset_id_a_shift) & uint256_t((big_one << DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN) - 1);
         auto output_asset_id_b =
             (bridge_id >> output_asset_id_b_shift) & uint256_t((big_one << DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN) - 1);
+        info("from_uint256_t bridge_id: ", bridge_id);
+        info("from_uint256_t: ", input_asset_id);
 
         field_ct bridge_contract_address_ct = witness_ct(&composer, bridge_contract_address);
         field_ct num_output_notes_ct = witness_ct(&composer, num_output_notes);
@@ -56,11 +58,11 @@ struct bridge_id {
         composer.create_range_constraint(output_asset_id_a_ct.witness_index, DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN);
         composer.create_range_constraint(output_asset_id_b_ct.witness_index, DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN);
 
-        return { bridge_contract_address_ct,
-                 num_output_notes_ct,
-                 input_asset_id_ct,
-                 output_asset_id_a_ct,
-                 output_asset_id_b_ct };
+        return { bridge_contract_address_ct.normalize(),
+                 num_output_notes_ct.normalize(),
+                 input_asset_id_ct.normalize(),
+                 output_asset_id_a_ct.normalize(),
+                 output_asset_id_b_ct.normalize() };
     }
 
     field_ct to_field() const
@@ -79,6 +81,17 @@ struct bridge_id {
         return result;
     }
 };
+
+inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
+{
+    os << "{\n"
+       << "  bridge_contract_address: " << bridge_id.bridge_contract_address << ",\n"
+       << "  num_output_notes: " << bridge_id.num_output_notes << ",\n"
+       << "  input_asset_id: " << bridge_id.input_asset_id << ",\n"
+       << "  output_asset_id_a: " << bridge_id.output_asset_id_a << ",\n"
+       << "  output_asset_id_b: " << bridge_id.output_asset_id_a << "\n}";
+    return os;
+}
 
 } // namespace circuit
 } // namespace notes
