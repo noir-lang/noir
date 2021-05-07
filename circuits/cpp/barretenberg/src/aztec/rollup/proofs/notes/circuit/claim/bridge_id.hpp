@@ -28,9 +28,9 @@ struct bridge_id {
     static bridge_id from_uint256_t(Composer& composer, uint256_t const& bridge_id)
     {
         // constants
-        constexpr auto input_asset_id_shift = DEFI_BRIDGE_ADDRESS_BIT_LENGTH;
-        constexpr auto num_output_notes_shift = input_asset_id_shift + DEFI_BRIDGE_INPUT_ASSET_ID_LEN;
-        constexpr auto output_asset_id_a_shift = num_output_notes_shift + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN;
+        constexpr auto num_output_notes_shift = DEFI_BRIDGE_ADDRESS_BIT_LENGTH;
+        constexpr auto input_asset_id_shift = num_output_notes_shift + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN;
+        constexpr auto output_asset_id_a_shift = input_asset_id_shift + DEFI_BRIDGE_INPUT_ASSET_ID_LEN;
         constexpr auto output_asset_id_b_shift = output_asset_id_a_shift + DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN;
         constexpr auto big_one = uint256_t(1);
 
@@ -43,8 +43,6 @@ struct bridge_id {
             (bridge_id >> output_asset_id_a_shift) & uint256_t((big_one << DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN) - 1);
         auto output_asset_id_b =
             (bridge_id >> output_asset_id_b_shift) & uint256_t((big_one << DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN) - 1);
-        info("from_uint256_t bridge_id: ", bridge_id);
-        info("from_uint256_t: ", input_asset_id);
 
         field_ct bridge_contract_address_ct = witness_ct(&composer, bridge_contract_address);
         field_ct num_output_notes_ct = witness_ct(&composer, num_output_notes);

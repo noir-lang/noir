@@ -43,7 +43,6 @@ field_ct process_input_note(Composer& composer,
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
 {
-    info(inputs.claim_note.bridge_id);
     auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
     auto is_defi_bridge = (!not_defi_bridge).normalize();
     auto public_input = inputs.public_input * not_defi_bridge;
@@ -54,6 +53,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto output_note1 = value::value_note(inputs.output_note1);
     auto output_note2 = value::value_note(inputs.output_note2);
     auto claim_note = claim::claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
+    point_ct out_note1 = { output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
+                           output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge };
 
     // Verify all notes have a consistent asset id
     composer.assert_equal(inputs.input_note1.asset_id.witness_index,
@@ -143,6 +144,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              input_note2,
                                              note_2_valid);
 
+    info(composer.failed);
     verify_signature(inputs,
                      output_note1.encrypted,
                      output_note2.encrypted,
@@ -151,11 +153,10 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      tx_fee,
                      signer,
                      inputs.signature);
+    info(composer.failed);
 
     // Compute circuit public outputs.
     auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
-    point_ct out_note1 = { output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
-                           output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge };
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
 
     return { proof_id, nullifier1, nullifier2, tx_fee, public_input, public_output, out_note1, output_note2.encrypted,

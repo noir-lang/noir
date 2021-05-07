@@ -27,16 +27,16 @@ struct bridge_id {
             barretenberg::errors::throw_or_abort("Structure of the bridge_id incorrect!");
         }
 
-        uint32_t num_output_notes_offset = DEFI_BRIDGE_ADDRESS_BIT_LENGTH;
-        uint32_t input_asset_id_offset = num_output_notes_offset + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN;
-        uint32_t output_asset_id_a_offset = input_asset_id_offset + DEFI_BRIDGE_INPUT_ASSET_ID_LEN;
-        uint32_t output_asset_id_b_offset = output_asset_id_a_offset + DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN;
+        constexpr uint32_t num_output_notes_offset = DEFI_BRIDGE_ADDRESS_BIT_LENGTH;
+        constexpr uint32_t input_asset_id_offset = num_output_notes_offset + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN;
+        constexpr uint32_t output_asset_id_a_offset = input_asset_id_offset + DEFI_BRIDGE_INPUT_ASSET_ID_LEN;
+        constexpr uint32_t output_asset_id_b_offset = output_asset_id_a_offset + DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN;
 
         uint256_t result = bridge_contract_address +
-                           (static_cast<uint256_t>(num_output_notes) * (1UL << num_output_notes_offset)) +
-                           (static_cast<uint256_t>(input_asset_id) * (1UL << input_asset_id_offset)) +
-                           (static_cast<uint256_t>(output_asset_id_a) * (1UL << output_asset_id_a_offset)) +
-                           (static_cast<uint256_t>(input_asset_id) * (1UL << output_asset_id_b_offset));
+                           (static_cast<uint256_t>(num_output_notes) << num_output_notes_offset) +
+                           (static_cast<uint256_t>(input_asset_id) << input_asset_id_offset) +
+                           (static_cast<uint256_t>(output_asset_id_a) << output_asset_id_a_offset) +
+                           (static_cast<uint256_t>(output_asset_id_b) << output_asset_id_b_offset);
 
         return barretenberg::fr(result);
     }
