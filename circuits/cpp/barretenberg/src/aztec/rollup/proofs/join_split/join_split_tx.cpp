@@ -99,6 +99,7 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "in_note2: " << tx.input_note[1] << "\n"
               << "out_note1: " << tx.output_note[0] << "\n"
               << "out_note2: " << tx.output_note[1] << "\n"
+              << "claim_note: " << tx.claim_note << "\n"
               << "account_private_key: " << tx.account_private_key << "\n"
               << "alias_hash: " << tx.alias_hash << "\n"
               << "nonce: " << tx.nonce << "\n"
