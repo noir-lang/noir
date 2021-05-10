@@ -12,7 +12,8 @@ namespace defi_interaction {
 using namespace plonk::stdlib::types::turbo;
 
 struct witness_data {
-    bridge_id bridge_id;
+    // GCC compiler complains when the object and its type's names matches, so changing bridge_id -> bridge_id_data
+    bridge_id bridge_id_data;
     field_ct interaction_nonce;
     field_ct total_input_value;
     field_ct total_output_a_value;
@@ -22,7 +23,7 @@ struct witness_data {
     static witness_data from_tx_data(Composer& composer,
                                      native::defi_interaction::defi_interaction_note const& note_data)
     {
-        auto bridge_id = bridge_id::from_uint256_t(composer, note_data.bridge_id);
+        auto bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
         auto interaction_nonce = witness_ct(&composer, note_data.interaction_nonce);
         auto total_input_value = witness_ct(&composer, note_data.total_input_value);
         auto total_output_a_value = witness_ct(&composer, note_data.total_output_a_value);
@@ -35,8 +36,8 @@ struct witness_data {
         composer.create_range_constraint(total_output_b_value.witness_index, NOTE_VALUE_BIT_LENGTH);
         composer.create_range_constraint(interaction_result.witness_index, 1);
 
-        return { bridge_id,         interaction_nonce, total_input_value, total_output_a_value, total_output_b_value,
-                 interaction_result };
+        return { bridge_id_data,       interaction_nonce,    total_input_value,
+                 total_output_a_value, total_output_b_value, interaction_result };
     }
 };
 

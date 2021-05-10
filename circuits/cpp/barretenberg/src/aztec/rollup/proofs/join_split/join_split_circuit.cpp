@@ -73,7 +73,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                           inputs.asset_id.witness_index,
                           "note asset ids not equal to tx asset id");
     auto valid_claim_note_asset_id =
-        inputs.claim_note.bridge_id.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
+        inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
     composer.assert_equal_constant(valid_claim_note_asset_id.witness_index, 1, "bridge asset ids don't match");
 
     // Verify the asset id is less than the total number of assets.

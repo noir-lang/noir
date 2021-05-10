@@ -16,7 +16,7 @@ using namespace plonk::stdlib::types::turbo;
 inline point_ct encrypt(witness_data const& plaintext)
 {
     point_ct accumulator =
-        group_ct::fixed_base_scalar_mul<254>(plaintext.bridge_id, GeneratorIndex::DEFI_INTERACTION_NOTE_BRIDGE_ID);
+        group_ct::fixed_base_scalar_mul<254>(plaintext.bridge_id_data, GeneratorIndex::DEFI_INTERACTION_NOTE_BRIDGE_ID);
 
     accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(
         accumulator, plaintext.total_input_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_INPUT_VALUE);

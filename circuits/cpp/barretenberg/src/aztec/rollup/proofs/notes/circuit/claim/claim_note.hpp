@@ -24,7 +24,7 @@ struct claim_note {
     claim_note(witness_data const& data, point_ct const& owner, field_ct const& nonce)
     {
         deposit_value = data.deposit_value;
-        bridge_id = data.bridge_id.to_field();
+        bridge_id = data.bridge_id_data.to_field();
         defi_interaction_nonce = data.defi_interaction_nonce;
         partial_state = create_partial_value_note(data.note_secret, nonce, owner);
         encrypted = encrypt(data.deposit_value, bridge_id, data.defi_interaction_nonce, partial_state);
