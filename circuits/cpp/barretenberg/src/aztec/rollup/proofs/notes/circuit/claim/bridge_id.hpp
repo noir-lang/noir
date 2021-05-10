@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/bridge_id.hpp"
+#include "../../native/claim/bridge_id.hpp"
 #include "../../constants.hpp"
 
 namespace rollup {

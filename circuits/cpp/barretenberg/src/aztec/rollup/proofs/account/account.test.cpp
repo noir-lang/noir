@@ -2,7 +2,8 @@
 #include "account.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/constants.hpp"
-#include "../notes/native/account_note.hpp"
+#include "../notes/native/account/account_note.hpp"
+#include "../notes/native/account/encrypt.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
 #include <crypto/schnorr/schnorr.hpp>
@@ -16,7 +17,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs;
 using namespace rollup::proofs::account;
-using namespace rollup::proofs::notes::native;
+using namespace rollup::proofs::notes::native::account;
 
 class account_tests : public ::testing::Test {
   protected:
@@ -54,7 +55,7 @@ class account_tests : public ::testing::Test {
                                                   grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = encrypt_note({ account_alias_id, owner_key, signing_key });
+        auto enc_note = encrypt({ account_alias_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);

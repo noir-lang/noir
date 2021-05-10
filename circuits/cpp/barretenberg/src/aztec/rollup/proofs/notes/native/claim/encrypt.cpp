@@ -1,15 +1,14 @@
 #include "claim_note.hpp"
-#include "../constants.hpp"
+#include "../../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
-
-// using namespace barretenberg;
 
 namespace rollup {
 namespace proofs {
 namespace notes {
 namespace native {
+namespace claim {
 
-grumpkin::g1::affine_element encrypt_note(claim_note const& note)
+grumpkin::g1::affine_element encrypt(claim_note const& note)
 {
     grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
         note.deposit_value, GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_VALUE);
@@ -56,6 +55,7 @@ grumpkin::g1::affine_element create_partial_value_note(barretenberg::fr const& s
     return { sum.x, sum.y };
 }
 
+} // namespace claim
 } // namespace native
 } // namespace notes
 } // namespace proofs

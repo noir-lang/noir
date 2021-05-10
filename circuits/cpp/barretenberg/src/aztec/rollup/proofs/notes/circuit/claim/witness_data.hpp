@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/claim_note.hpp"
+#include "../../native/claim/claim_note_tx_data.hpp"
 #include "../../constants.hpp"
 #include "bridge_id.hpp"
 
@@ -18,7 +18,7 @@ struct witness_data {
     field_ct note_secret;
     field_ct defi_interaction_nonce;
 
-    static witness_data from_tx_data(Composer& composer, native::claim_note_tx_data const& note_data)
+    static witness_data from_tx_data(Composer& composer, native::claim::claim_note_tx_data const& note_data)
     {
         auto deposit_value = witness_ct(&composer, note_data.deposit_value);
         auto bridge_id = bridge_id::from_uint256_t(composer, note_data.bridge_id);

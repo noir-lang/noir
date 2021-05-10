@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/claim_note.hpp"
+// #include "../../native/claim/claim_note.hpp"
 #include "../../constants.hpp"
 #include "encrypt.hpp"
 
@@ -12,7 +12,7 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
-point_ct create_partial_value_note(field_ct const& secret, field_ct const& nonce, point_ct const& owner)
+inline point_ct create_partial_value_note(field_ct const& secret, field_ct const& nonce, point_ct const& owner)
 {
     point_ct accumulator = group_ct::fixed_base_scalar_mul<254>(secret, GeneratorIndex::JOIN_SPLIT_NOTE_SECRET);
     accumulator =

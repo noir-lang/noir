@@ -1,6 +1,7 @@
 #include "compute_circuit_data.hpp"
 #include "join_split_circuit.hpp"
-#include "../notes/native/sign_notes.hpp"
+// #include "../notes/native/sign_notes.hpp"
+#include "sign_join_split_tx.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
 #include <fstream>
@@ -29,7 +30,7 @@ join_split_tx noop_tx()
 {
     grumpkin::fr priv_key = grumpkin::fr::random_element();
     grumpkin::g1::affine_element pub_key = grumpkin::g1::one * priv_key;
-    native::value_note gibberish_note = { 0, 0, 0, pub_key, fr::random_element() };
+    native::value::value_note gibberish_note = { 0, 0, 0, pub_key, fr::random_element() };
     gibberish_note.secret.data[3] = gibberish_note.secret.data[3] & 0x03FFFFFFFFFFFFFFULL;
     gibberish_note.secret = gibberish_note.secret.to_montgomery_form();
     auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
@@ -54,7 +55,7 @@ join_split_tx noop_tx()
     tx.input_owner = fr::random_element();
     tx.output_owner = fr::random_element();
 
-    tx.signature = native::sign_notes(tx, { priv_key, pub_key });
+    tx.signature = sign_join_split_tx(tx, { priv_key, pub_key });
     return tx;
 }
 

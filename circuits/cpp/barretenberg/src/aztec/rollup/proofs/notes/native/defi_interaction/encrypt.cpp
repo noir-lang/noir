@@ -1,15 +1,14 @@
-#include "defi_interaction_result_note.hpp"
-#include "../constants.hpp"
+#include "defi_interaction_note.hpp"
+#include "../../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
-
-// using namespace barretenberg;
 
 namespace rollup {
 namespace proofs {
 namespace notes {
 namespace native {
+namespace defi_interaction {
 
-grumpkin::g1::affine_element encrypt_note(defi_interaction_result_note const& note)
+grumpkin::g1::affine_element encrypt(defi_interaction_note const& note)
 {
     grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
         note.total_input_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_INPUT_VALUE);
@@ -17,8 +16,8 @@ grumpkin::g1::affine_element encrypt_note(defi_interaction_result_note const& no
         note.total_output_a_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_OUTPUT_A_VALUE);
     grumpkin::g1::element p_3 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
         note.total_output_b_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_OUTPUT_B_VALUE);
-    grumpkin::g1::element p_4 = crypto::pedersen::fixed_base_scalar_mul<254>(
-        note.bridge_id.to_field(), GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_BRIDGE_ID);
+    grumpkin::g1::element p_4 =
+        crypto::pedersen::fixed_base_scalar_mul<254>(note.bridge_id, GeneratorIndex::DEFI_INTERACTION_NOTE_BRIDGE_ID);
 
     // input and output values could be zero so we conditionally include its term in the 'sum'
     // bridge_id is always non-zero as it would always contain 'bridge_contract_address'
@@ -57,6 +56,7 @@ grumpkin::g1::affine_element encrypt_note(defi_interaction_result_note const& no
     return { sum.x, sum.y };
 }
 
+} // namespace defi_interaction
 } // namespace native
 } // namespace notes
 } // namespace proofs

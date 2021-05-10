@@ -1,20 +1,24 @@
-#include "sign_notes.hpp"
-#include "encrypt_note.hpp"
-#include "compute_nullifier.hpp"
+#include "sign_join_split_tx.hpp"
+#include "../notes/native/value/encrypt.hpp"
+#include "../notes/native/claim/encrypt.hpp"
+#include "../notes/native/claim/create_partial_value_note.hpp"
+#include "../notes/native/compute_nullifier.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <crypto/schnorr/schnorr.hpp>
 
 namespace rollup {
 namespace proofs {
-namespace notes {
-namespace native {
+namespace join_split {
 
 using namespace crypto::schnorr;
 using namespace crypto::pedersen;
+using namespace notes::native;
+using namespace notes::native::claim;
+using namespace notes::native::value;
 
-signature sign_notes(proofs::join_split::join_split_tx const& tx,
-                     key_pair<grumpkin::fr, grumpkin::g1> const& keys,
-                     numeric::random::Engine* engine)
+signature sign_join_split_tx(proofs::join_split::join_split_tx const& tx,
+                             key_pair<grumpkin::fr, grumpkin::g1> const& keys,
+                             numeric::random::Engine* engine)
 {
 
     uint256_t total_input_value = tx.input_note[0].value + tx.input_note[1].value + tx.public_input;
@@ -32,11 +36,10 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
     claim_note claim_note = {
         tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
     };
-    const grumpkin::g1::affine_element input_note_1 = encrypt_note(tx.input_note[0]);
-    const grumpkin::g1::affine_element input_note_2 = encrypt_note(tx.input_note[1]);
-    const grumpkin::g1::affine_element output_note_1 =
-        is_defi ? encrypt_note(claim_note) : encrypt_note(tx.output_note[0]);
-    const grumpkin::g1::affine_element output_note_2 = encrypt_note(tx.output_note[1]);
+    const grumpkin::g1::affine_element input_note_1 = encrypt(tx.input_note[0]);
+    const grumpkin::g1::affine_element input_note_2 = encrypt(tx.input_note[1]);
+    const grumpkin::g1::affine_element output_note_1 = is_defi ? encrypt(claim_note) : encrypt(tx.output_note[0]);
+    const grumpkin::g1::affine_element output_note_2 = encrypt(tx.output_note[1]);
 
     const auto nullifier1 =
         compute_nullifier(input_note_1, tx.input_index[0], tx.account_private_key, tx.num_input_notes >= 1);
@@ -69,7 +72,6 @@ signature sign_notes(proofs::join_split::join_split_tx const& tx,
     return signature;
 }
 
-} // namespace native
-} // namespace notes
+} // namespace join_split
 } // namespace proofs
 } // namespace rollup

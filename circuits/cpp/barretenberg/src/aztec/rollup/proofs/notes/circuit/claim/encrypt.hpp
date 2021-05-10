@@ -1,6 +1,5 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/claim_note.hpp"
 #include "../../constants.hpp"
 #include "../pedersen_note.hpp"
 #include "bridge_id.hpp"

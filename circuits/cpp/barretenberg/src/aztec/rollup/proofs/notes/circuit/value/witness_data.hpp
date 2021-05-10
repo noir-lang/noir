@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/value_note.hpp"
+#include "../../native/value/value_note.hpp"
 #include "../../constants.hpp"
 
 namespace rollup {
@@ -21,7 +21,7 @@ struct witness_data {
     field_ct asset_id;
     field_ct nonce;
 
-    static witness_data from_tx_data(Composer& composer, native::value_note const& note)
+    static witness_data from_tx_data(Composer& composer, native::value::value_note const& note)
     {
         field_ct view_key = witness_ct(&composer, note.secret);
         field_ct note_owner_x = witness_ct(&composer, note.owner.x);

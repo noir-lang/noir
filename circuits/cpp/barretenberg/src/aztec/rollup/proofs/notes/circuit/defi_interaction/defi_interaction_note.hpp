@@ -1,7 +1,8 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../native/defi_interaction_result_note.hpp"
-#include "../constants.hpp"
+#include "../native/defi_interaction/defi_interaction_note.hpp"
+#include "witness_data.hpp"
+#include "encrypt.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -13,7 +14,7 @@ using namespace plonk::stdlib::types::turbo;
 
 struct defi_interaction_note {
 
-    // squish bridge_id to field
+    // compress bridge_id to field
     field_ct bridge_id;
 
     // 32 bits
@@ -30,22 +31,20 @@ struct defi_interaction_note {
 
     // if interaction failed, re-create original deposit note
     bool_ct interaction_result;
+
+    // encrypted defi_interaction_note
+    point_ct encrypted;
+
+    defi_interaction_note(witness_data const& note)
+        : bridge_id(note.bridge_id)
+        , interaction_nonce(note.interaction_nonce)
+        , total_input_value(note.total_input_value)
+        , total_output_a_value(note.total_output_a_value)
+        , total_output_b_value(note.total_output_b_value)
+        , interaction_result(note.interaction_result)
+        , encrypted(encrypt(note))
+    {}
 };
-
-// inline claim_note create_value_note_witness(Composer& composer, native::claim_note const& /*input_id*/)
-// {
-//     // field_ct view_key = witness_ct(&composer, note.secret);
-//     // field_ct note_owner_x = witness_ct(&composer, note.owner.x);
-//     // field_ct note_owner_y = witness_ct(&composer, note.owner.y);
-//     // field_ct witness_value = witness_ct(&composer, note.value);
-//     // field_ct asset_id = witness_ct(&composer, note.asset_id);
-//     // field_ct nonce = witness_ct(&composer, note.nonce);
-
-//     // composer.create_range_constraint(asset_id.witness_index, 32);
-//     // composer.create_range_constraint(witness_value.witness_index, NOTE_VALUE_BIT_LENGTH);
-
-//     // return { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id, nonce };
-// }
 
 } // namespace defi_interaction
 } // namespace circuit
