@@ -45,9 +45,9 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
 {
     auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
     auto is_defi_bridge = (!not_defi_bridge).normalize();
+    auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
     auto public_input = inputs.public_input * not_defi_bridge;
     auto public_output = inputs.claim_note.deposit_value + (inputs.public_output * not_defi_bridge);
-
     auto input_note1 = value::value_note(inputs.input_note1);
     auto input_note2 = value::value_note(inputs.input_note2);
     auto output_note1 = value::value_note(inputs.output_note1);
@@ -159,9 +159,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      inputs.input_owner,
                      inputs.output_owner,
                      inputs.signature);
-
-    // Compute circuit public outputs.
-    auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
 
     return { proof_id,
              nullifier1,

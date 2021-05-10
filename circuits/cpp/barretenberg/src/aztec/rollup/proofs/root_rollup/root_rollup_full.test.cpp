@@ -128,11 +128,10 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     EXPECT_EQ(rollup_data.num_txs, 0U);
 
     auto inner_data = rollup_data.inner_proofs[3];
-    auto zero_arr = std::array<uint8_t, 64>();
     EXPECT_EQ(inner_data.public_input, uint256_t(0));
     EXPECT_EQ(inner_data.public_output, uint256_t(0));
-    EXPECT_EQ(inner_data.new_note1, zero_arr);
-    EXPECT_EQ(inner_data.new_note2, zero_arr);
+    EXPECT_EQ(inner_data.new_note1, grumpkin::g1::affine_element(0));
+    EXPECT_EQ(inner_data.new_note2, grumpkin::g1::affine_element(0));
     EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
     EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
     EXPECT_EQ(inner_data.input_owner, fr(0));
@@ -170,11 +169,10 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
 
     for (size_t i = 1; i < rollup_data.inner_proofs.size(); ++i) {
         auto inner_data = rollup_data.inner_proofs[i];
-        auto zero_arr = std::array<uint8_t, 64>();
         EXPECT_EQ(inner_data.public_input, uint256_t(0));
         EXPECT_EQ(inner_data.public_output, uint256_t(0));
-        EXPECT_EQ(inner_data.new_note1, zero_arr);
-        EXPECT_EQ(inner_data.new_note2, zero_arr);
+        EXPECT_EQ(inner_data.new_note1, grumpkin::g1::affine_element(0));
+        EXPECT_EQ(inner_data.new_note2, grumpkin::g1::affine_element(0));
         EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
         EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
         EXPECT_EQ(inner_data.input_owner, fr(0));

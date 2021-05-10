@@ -2,6 +2,7 @@
 #include <numeric/uint256/uint256.hpp>
 #include <numeric/uint128/uint128.hpp>
 #include <ecc/curves/bn254/fr.hpp>
+#include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <array>
 
 namespace rollup {
@@ -53,8 +54,8 @@ struct inner_proof_data {
     uint256_t public_input;
     uint256_t public_output;
     uint256_t asset_id;
-    std::array<uint8_t, 64> new_note1;
-    std::array<uint8_t, 64> new_note2;
+    grumpkin::g1::affine_element new_note1;
+    grumpkin::g1::affine_element new_note2;
     uint256_t nullifier1;
     uint256_t nullifier2;
     barretenberg::fr input_owner;

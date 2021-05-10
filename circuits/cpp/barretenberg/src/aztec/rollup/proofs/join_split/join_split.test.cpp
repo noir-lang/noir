@@ -554,22 +554,6 @@ TEST_F(join_split_tests, test_invalid_bridge_id)
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-std::array<uint8_t, 64> get_encrypted_note_array(value_note const& note)
-{
-    auto encrypted_note = to_buffer(encrypt_note(note));
-    std::array<uint8_t, 64> enc_note;
-    std::copy(encrypted_note.begin(), encrypted_note.end(), enc_note.begin());
-    return enc_note;
-}
-
-std::array<uint8_t, 64> get_encrypted_claim_note_array(claim_note const& note)
-{
-    auto encrypted_note = to_buffer(encrypt_note(note));
-    std::array<uint8_t, 64> enc_note;
-    std::copy(encrypted_note.begin(), encrypted_note.end(), enc_note.begin());
-    return enc_note;
-}
-
 HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
@@ -579,8 +563,8 @@ HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 
     auto enc_input_note1_raw = encrypt_note(tx.input_note[0]);
     auto enc_input_note2_raw = encrypt_note(tx.input_note[1]);
-    auto enc_output_note1 = get_encrypted_note_array(tx.output_note[0]);
-    auto enc_output_note2 = get_encrypted_note_array(tx.output_note[1]);
+    auto enc_output_note1 = encrypt_note(tx.output_note[0]);
+    auto enc_output_note2 = encrypt_note(tx.output_note[1]);
     uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
 
@@ -600,8 +584,6 @@ HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
     EXPECT_TRUE(verify_proof(proof));
 }
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
@@ -623,8 +605,8 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 
     auto enc_input_note1_raw = encrypt_note(tx.input_note[0]);
     auto enc_input_note2_raw = encrypt_note(tx.input_note[1]);
-    auto enc_output_note1 = get_encrypted_claim_note_array(claim_note);
-    auto enc_output_note2 = get_encrypted_note_array(tx.output_note[1]);
+    auto enc_output_note1 = encrypt_note(claim_note);
+    auto enc_output_note2 = encrypt_note(tx.output_note[1]);
     uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
 
