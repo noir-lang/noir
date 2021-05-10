@@ -1,4 +1,5 @@
 #include "encrypt.hpp"
+#include "../../constants.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
@@ -23,10 +24,14 @@ TEST(encrypt_note, encrypts)
     fr asset_id_value = 0xaabbccddULL;
     fr nonce_value = 1;
 
-    grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(note_value, 0);
-    grumpkin::g1::element right = crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, 1);
-    grumpkin::g1::element top = crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, 2);
-    grumpkin::g1::element top3 = crypto::pedersen::fixed_base_scalar_mul<32>(nonce_value, 5);
+    grumpkin::g1::element left = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
+        note_value, GeneratorIndex::JOIN_SPLIT_NOTE_VALUE);
+    grumpkin::g1::element right =
+        crypto::pedersen::fixed_base_scalar_mul<250>(view_key_value, GeneratorIndex::JOIN_SPLIT_NOTE_SECRET);
+    grumpkin::g1::element top =
+        crypto::pedersen::fixed_base_scalar_mul<32>(asset_id_value, GeneratorIndex::JOIN_SPLIT_NOTE_ASSET_ID);
+    grumpkin::g1::element top3 =
+        crypto::pedersen::fixed_base_scalar_mul<32>(nonce_value, GeneratorIndex::JOIN_SPLIT_NOTE_NONCE);
 
     grumpkin::g1::element expected;
     expected = left + right;
@@ -34,8 +39,8 @@ TEST(encrypt_note, encrypts)
     expected += top3;
     expected = expected.normalize();
 
-    grumpkin::g1::affine_element hashed_pub_key =
-        crypto::pedersen::compress_to_point_native(note_owner_pub_key.x, note_owner_pub_key.y, 3);
+    grumpkin::g1::affine_element hashed_pub_key = crypto::pedersen::compress_to_point_native(
+        note_owner_pub_key.x, note_owner_pub_key.y, GeneratorIndex::JOIN_SPLIT_NOTE_OWNER);
 
     expected += hashed_pub_key;
     expected = expected.normalize();
