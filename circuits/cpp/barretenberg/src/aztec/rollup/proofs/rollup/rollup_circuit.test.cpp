@@ -7,9 +7,9 @@
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
 #include "../account/account.hpp"
-#include "../notes/native/sign_notes.hpp"
-#include "../notes/native/encrypt_note.hpp"
-#include "../notes/native/account_note.hpp"
+#include "../join_split/sign_join_split_tx.hpp"
+#include "../notes/native/value/encrypt.hpp"
+#include "../notes/native/account/encrypt.hpp"
 #include "../notes/constants.hpp"
 #include "../join_split/compute_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
@@ -26,8 +26,9 @@ namespace proofs {
 namespace rollup {
 
 using namespace barretenberg;
-using namespace notes::native;
 using namespace plonk::stdlib::merkle_tree;
+using namespace notes::native::value;
+using namespace notes::native::account;
 
 class rollup_tests : public ::testing::Test {
   protected:
@@ -59,8 +60,8 @@ class rollup_tests : public ::testing::Test {
 
     uint32_t append_note(uint32_t value, uint32_t asset_id, uint32_t nonce)
     {
-        value_note note = { value, asset_id, nonce, user.owner.public_key, user.note_secret };
-        auto enc_note = encrypt_note(note);
+        notes::native::value::value_note note = { value, asset_id, nonce, user.owner.public_key, user.note_secret };
+        auto enc_note = encrypt(note);
         uint32_t index = static_cast<uint32_t>(data_tree.size());
         auto leaf_data = create_leaf_data(enc_note);
         data_tree.update_element(index, leaf_data);
@@ -78,7 +79,7 @@ class rollup_tests : public ::testing::Test {
                                                   grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = encrypt_account_note({ account_alias_id, owner_key, signing_key });
+        auto enc_note = encrypt({ account_alias_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);
@@ -102,7 +103,8 @@ class rollup_tests : public ::testing::Test {
             fr(1),
             account_alias_id,
         };
-        auto nullifier = crypto::pedersen::compress_native(hash_elements, notes::ACCOUNT_ALIAS_ID_HASH_INDEX);
+        auto nullifier =
+            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 
         null_tree.update_element(uint256_t(nullifier), { 1 });
     }
@@ -152,7 +154,7 @@ class rollup_tests : public ::testing::Test {
         tx.output_owner = fr::random_element(rand_engine);
 
         auto signer = nonce ? user.signing_keys[0] : user.owner;
-        tx.signature = sign_notes(tx, signer, rand_engine);
+        tx.signature = sign_join_split_tx(tx, signer, rand_engine);
 
         Composer composer =
             Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);

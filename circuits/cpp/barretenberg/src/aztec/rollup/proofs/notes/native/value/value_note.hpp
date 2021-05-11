@@ -7,6 +7,7 @@ namespace rollup {
 namespace proofs {
 namespace notes {
 namespace native {
+namespace value {
 
 using namespace barretenberg;
 
@@ -50,6 +51,7 @@ inline void write(std::vector<uint8_t>& buf, value_note const& note)
     write(buf, note.secret);
 }
 
+} // namespace value
 } // namespace native
 } // namespace notes
 } // namespace proofs

@@ -2,9 +2,9 @@
 #include "escape_hatch.hpp"
 #include "escape_hatch_circuit.hpp"
 #include "escape_hatch_tx.hpp"
-#include "../notes/native/sign_notes.hpp"
-#include "../notes/native/encrypt_note.hpp"
-#include "../notes/native/account_note.hpp"
+#include "../join_split/sign_join_split_tx.hpp"
+#include "../notes/native/value/encrypt.hpp"
+#include "../notes/native/account/encrypt.hpp"
 #include "../notes/native/compute_nullifier.hpp"
 #include "../../constants.hpp"
 #include <common/streams.hpp>
@@ -20,6 +20,8 @@ using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::join_split;
 using namespace rollup::proofs::escape_hatch;
 using namespace rollup::proofs::notes::native;
+using namespace rollup::proofs::notes::native::value;
+using namespace rollup::proofs::notes::native::account;
 
 class escape_hatch_tests : public ::testing::Test {
   protected:
@@ -44,10 +46,10 @@ class escape_hatch_tests : public ::testing::Test {
     {
         value_note note1 = { 100, 0, nonce, user.owner.public_key, user.note_secret };
         value_note note2 = { 50, 0, nonce, user.owner.public_key, user.note_secret };
-        auto enc_note1 = encrypt_note(note1);
+        auto enc_note1 = encrypt(note1);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
 
-        auto enc_note2 = encrypt_note(note2);
+        auto enc_note2 = encrypt(note2);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
     }
 
@@ -70,7 +72,7 @@ class escape_hatch_tests : public ::testing::Test {
 
     bool sign_and_verify(escape_hatch_tx& tx, grumpkin::fr const& signing_private_key)
     {
-        tx.js_tx.signature = sign_notes(tx.js_tx, { signing_private_key, tx.js_tx.signing_pub_key });
+        tx.js_tx.signature = sign_join_split_tx(tx.js_tx, { signing_private_key, tx.js_tx.signing_pub_key });
         auto prover = new_escape_hatch_prover(tx);
         auto proof = prover.construct_proof();
         return verify_proof(proof);
@@ -88,7 +90,7 @@ class escape_hatch_tests : public ::testing::Test {
 
     bool sign_and_verify_logic(escape_hatch_tx& tx, grumpkin::fr const& signing_private_key)
     {
-        tx.js_tx.signature = sign_notes(tx.js_tx, { signing_private_key, tx.js_tx.signing_pub_key });
+        tx.js_tx.signature = sign_join_split_tx(tx.js_tx, { signing_private_key, tx.js_tx.signing_pub_key });
         return verify_logic(tx);
     }
 
@@ -104,7 +106,7 @@ class escape_hatch_tests : public ::testing::Test {
                                                   grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = encrypt_account_note({ account_alias_id, owner_key, signing_key });
+        auto enc_note = encrypt({ account_alias_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);
@@ -159,8 +161,8 @@ class escape_hatch_tests : public ::testing::Test {
         tx.rollup_id = static_cast<uint32_t>(data_tree.size() / 2 - 1);
         tx.data_start_index = static_cast<uint32_t>(data_tree.size());
         tx.old_data_path = data_tree.get_hash_path(tx.data_start_index);
-        auto enc_note1 = encrypt_note(tx.js_tx.output_note[0]);
-        auto enc_note2 = encrypt_note(tx.js_tx.output_note[1]);
+        auto enc_note1 = encrypt(tx.js_tx.output_note[0]);
+        auto enc_note2 = encrypt(tx.js_tx.output_note[1]);
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
         tx.new_data_root = data_tree.root();
@@ -174,10 +176,10 @@ class escape_hatch_tests : public ::testing::Test {
         tx.new_data_roots_root = root_tree.root();
         tx.new_data_roots_path = root_tree.get_hash_path(root_tree_index);
 
-        auto nullifier1 = uint256_t(compute_nullifier(
-            encrypt_note(tx.js_tx.input_note[0]), tx.js_tx.input_index[0], user.owner.private_key, true));
-        auto nullifier2 = uint256_t(compute_nullifier(
-            encrypt_note(tx.js_tx.input_note[1]), tx.js_tx.input_index[1], user.owner.private_key, true));
+        auto nullifier1 = uint256_t(
+            compute_nullifier(encrypt(tx.js_tx.input_note[0]), tx.js_tx.input_index[0], user.owner.private_key, true));
+        auto nullifier2 = uint256_t(
+            compute_nullifier(encrypt(tx.js_tx.input_note[1]), tx.js_tx.input_index[1], user.owner.private_key, true));
 
         auto nullifier_value = std::vector<uint8_t>(64, 0);
         nullifier_value[63] = 1;

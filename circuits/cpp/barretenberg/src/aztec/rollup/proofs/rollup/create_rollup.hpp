@@ -111,8 +111,8 @@ inline rollup_tx create_rollup(std::vector<std::vector<uint8_t>> const& txs,
     for (size_t i = 0; i < num_txs; ++i) {
         auto proof_data = txs[i];
         auto struct_data = inner_proof_data(proof_data);
-        auto data_value1 = struct_data.new_note1;
-        auto data_value2 = struct_data.new_note2;
+        auto data_value1 = to_buffer(struct_data.new_note1);
+        auto data_value2 = to_buffer(struct_data.new_note2);
 
         data_tree.update_element(data_start_index + i * 2, data_value1);
         data_tree.update_element(data_start_index + i * 2 + 1, data_value2);

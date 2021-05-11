@@ -1,6 +1,5 @@
 #include "c_bind.h"
-#include "native/sign_notes.hpp"
-#include "native/encrypt_note.hpp"
+#include "native/value/encrypt.hpp"
 #include "native/compute_nullifier.hpp"
 
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -16,8 +15,8 @@ extern "C" {
 
 WASM_EXPORT void notes__encrypt_note(uint8_t const* note_buffer, uint8_t* output)
 {
-    auto note = from_buffer<value_note>(note_buffer);
-    auto encrypted = encrypt_note(note);
+    auto note = from_buffer<value::value_note>(note_buffer);
+    auto encrypted = value::encrypt(note);
     write(output, encrypted);
 }
 

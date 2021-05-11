@@ -5,6 +5,7 @@ namespace rollup {
 namespace proofs {
 namespace notes {
 namespace native {
+namespace account {
 
 struct account_note {
     barretenberg::fr account_alias_id;
@@ -12,8 +13,7 @@ struct account_note {
     grumpkin::g1::affine_element signing_key;
 };
 
-grumpkin::g1::affine_element encrypt_account_note(account_note const& note);
-
+} // namespace account
 } // namespace native
 } // namespace notes
 } // namespace proofs

@@ -12,8 +12,8 @@ struct propagated_inner_proof_data {
     uint256_t public_input;
     uint256_t public_output;
     uint256_t asset_id;
-    std::array<uint8_t, 64> new_note1;
-    std::array<uint8_t, 64> new_note2;
+    grumpkin::g1::affine_element new_note1;
+    grumpkin::g1::affine_element new_note2;
     uint256_t nullifier1;
     uint256_t nullifier2;
     fr input_owner;

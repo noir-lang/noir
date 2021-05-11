@@ -4,11 +4,13 @@
 namespace rollup {
 namespace proofs {
 namespace notes {
-namespace circuit {
+namespace native {
+namespace value {
 
-point_ct encrypt_note(const value_note& plaintext);
+grumpkin::g1::affine_element encrypt(value_note const& note);
 
 }
+} // namespace native
 } // namespace notes
 } // namespace proofs
 } // namespace rollup

@@ -1,6 +1,7 @@
 #pragma once
 #include "join_split_tx.hpp"
-#include "../notes/circuit/note_pair.hpp"
+#include "../notes/circuit/value/witness_data.hpp"
+#include "../notes/circuit/claim/witness_data.hpp"
 #include <crypto/schnorr/schnorr.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -17,10 +18,11 @@ struct join_split_inputs {
     uint32_ct num_input_notes;
     field_ct input_note1_index;
     field_ct input_note2_index;
-    notes::circuit::note_pair input_note1;
-    notes::circuit::note_pair input_note2;
-    notes::circuit::note_pair output_note1;
-    notes::circuit::note_pair output_note2;
+    notes::circuit::value::witness_data input_note1;
+    notes::circuit::value::witness_data input_note2;
+    notes::circuit::value::witness_data output_note1;
+    notes::circuit::value::witness_data output_note2;
+    notes::circuit::claim::witness_data claim_note;
     point_ct signing_pub_key;
     stdlib::schnorr::signature_bits<Composer> signature;
     field_ct merkle_root;
@@ -36,9 +38,15 @@ struct join_split_inputs {
 };
 
 struct join_split_outputs {
+    field_ct proof_id;
     field_ct nullifier1;
     field_ct nullifier2;
     field_ct tx_fee;
+    field_ct public_input;
+    field_ct public_output;
+    point_ct output_note1;
+    point_ct output_note2;
+    field_ct asset_id;
 };
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs);

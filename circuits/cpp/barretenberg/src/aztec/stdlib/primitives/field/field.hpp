@@ -37,6 +37,14 @@ template <typename ComposerContext> class field_t {
         witness_index = IS_CONSTANT;
     }
 
+    field_t(uint256_t const& value)
+        : context(nullptr)
+    {
+        additive_constant = barretenberg::fr(value);
+        multiplicative_constant = barretenberg::fr(0);
+        witness_index = IS_CONSTANT;
+    }
+
     field_t(const barretenberg::fr& value)
         : context(nullptr)
         , additive_constant(value)

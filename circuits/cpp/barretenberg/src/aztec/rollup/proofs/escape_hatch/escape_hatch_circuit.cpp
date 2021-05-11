@@ -1,7 +1,6 @@
 #include "escape_hatch.hpp"
 #include "../../constants.hpp"
 #include "../join_split/join_split_circuit.hpp"
-#include "../notes/circuit/note_pair.hpp"
 #include "../rollup/rollup_circuit.hpp"
 #include "../root_rollup/root_rollup_circuit.hpp"
 
@@ -14,6 +13,7 @@ namespace escape_hatch {
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace join_split;
+using namespace proofs::notes::circuit;
 
 void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
 {
@@ -24,10 +24,11 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         witness_ct(&composer, tx.js_tx.num_input_notes),
         witness_ct(&composer, tx.js_tx.input_index[0]),
         witness_ct(&composer, tx.js_tx.input_index[1]),
-        notes::circuit::create_note_pair(composer, tx.js_tx.input_note[0]),
-        notes::circuit::create_note_pair(composer, tx.js_tx.input_note[1]),
-        notes::circuit::create_note_pair(composer, tx.js_tx.output_note[0]),
-        notes::circuit::create_note_pair(composer, tx.js_tx.output_note[1]),
+        value::witness_data::from_tx_data(composer, tx.js_tx.input_note[0]),
+        value::witness_data::from_tx_data(composer, tx.js_tx.input_note[1]),
+        value::witness_data::from_tx_data(composer, tx.js_tx.output_note[0]),
+        value::witness_data::from_tx_data(composer, tx.js_tx.output_note[1]),
+        claim::witness_data::from_tx_data(composer, tx.js_tx.claim_note),
         { witness_ct(&composer, tx.js_tx.signing_pub_key.x), witness_ct(&composer, tx.js_tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.js_tx.signature),
         witness_ct(&composer, tx.js_tx.old_data_root),
@@ -75,8 +76,8 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
         1,
         create_witness_hash_path(composer, tx.new_data_path),
         create_witness_hash_path(composer, tx.old_data_path),
-        { byte_array_ct(&composer).write(inputs.output_note1.second.x).write(inputs.output_note1.second.y),
-          byte_array_ct(&composer).write(inputs.output_note2.second.x).write(inputs.output_note2.second.y) },
+        { byte_array_ct(&composer).write(outputs.output_note1.x).write(outputs.output_note1.y),
+          byte_array_ct(&composer).write(outputs.output_note2.x).write(outputs.output_note2.y) },
         old_data_root,
         new_data_root,
         data_start_index);
@@ -102,10 +103,10 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     composer.set_public_input(inputs.public_input.witness_index);
     composer.set_public_input(inputs.public_output.witness_index);
     composer.set_public_input(inputs.asset_id.witness_index);
-    composer.set_public_input(inputs.output_note1.second.x.witness_index);
-    composer.set_public_input(inputs.output_note1.second.y.witness_index);
-    composer.set_public_input(inputs.output_note2.second.x.witness_index);
-    composer.set_public_input(inputs.output_note2.second.y.witness_index);
+    composer.set_public_input(outputs.output_note1.x.witness_index);
+    composer.set_public_input(outputs.output_note1.y.witness_index);
+    composer.set_public_input(outputs.output_note2.x.witness_index);
+    composer.set_public_input(outputs.output_note2.y.witness_index);
     composer.set_public_input(outputs.nullifier1.witness_index);
     composer.set_public_input(outputs.nullifier2.witness_index);
     public_witness_ct(&composer, tx.js_tx.input_owner);

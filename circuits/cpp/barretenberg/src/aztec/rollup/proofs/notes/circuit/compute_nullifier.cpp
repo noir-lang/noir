@@ -22,7 +22,8 @@ field_ct compute_nullifier(point_ct const& encrypted_note,
     field_ct modified_index = (tree_index + (static_cast<field_ct>(is_real_note) * shift)).normalize();
 
     // We hash the account_private_key to ensure that the result is a field (254 bits).
-    auto hashed_pk = group_ct::fixed_base_scalar_mul<254>(account_private_key, TX_NOTE_ACCOUNT_PRIVATE_KEY_INDEX);
+    auto hashed_pk = group_ct::fixed_base_scalar_mul<254>(account_private_key,
+                                                          GeneratorIndex::JOIN_SPLIT_NULLIFIER_ACCOUNT_PRIVATE_KEY);
 
     std::vector<field_ct> hash_inputs{
         encrypted_note.x,
@@ -31,7 +32,7 @@ field_ct compute_nullifier(point_ct const& encrypted_note,
         modified_index,
     };
 
-    const auto result = pedersen::encrypt(hash_inputs, TX_NOTE_NULLIFIER_INDEX, true);
+    const auto result = pedersen::encrypt(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER_HASH_INPUTS, true);
 
     // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen compression.
     auto blake_input = byte_array_ct(result.x).write(byte_array_ct(result.y));
