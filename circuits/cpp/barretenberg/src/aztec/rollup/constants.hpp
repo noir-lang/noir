@@ -13,4 +13,7 @@ constexpr size_t TX_FEE_BIT_LENGTH = 254 - MAX_TXS_BIT_LENGTH;
 constexpr size_t NUM_ASSETS_BIT_LENGTH = 2;
 constexpr size_t NUM_ASSETS = 1 << NUM_ASSETS_BIT_LENGTH;
 
+constexpr size_t NUM_BRIDGE_CALLS_PER_BLOCK = 4;
+constexpr size_t DEFI_BRIDGE_DEPOSIT = 2;
+
 } // namespace rollup

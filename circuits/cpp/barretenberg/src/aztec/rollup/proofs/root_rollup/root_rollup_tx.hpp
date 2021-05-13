@@ -6,6 +6,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <sstream>
 #include <stdlib/merkle_tree/hash_path.hpp>
+#include "../notes/circuit/defi_interaction/defi_interaction_note.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -13,6 +14,7 @@ namespace root_rollup {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
+using namespace notes::circuit::defi_interaction;
 
 struct root_rollup_tx {
     uint32_t num_inner_proofs;
@@ -22,6 +24,21 @@ struct root_rollup_tx {
     fr new_data_roots_root;
     fr_hash_path old_data_roots_path;
     fr_hash_path new_data_roots_path;
+
+    // We need a new data root since we'd be adding defi_interaction_notes in the data tree.
+    // We intend to add a height 2 subtree of defi_interaction_notes in the last 4 leaves of
+    // the data tree.
+    fr new_data_root;
+    fr_hash_path old_data_path;
+    fr_hash_path new_data_path;
+
+    // The bridge_ids and the interaction nonce is passed as private input to the root rollup circuit.
+    // The rollup provider would mix-in the interaction nonce in the claim notes of defi deposits.
+    std::vector<field_ct> bridge_ids;
+    uint32_ct interaction_nonce;
+
+    // The defi interaction notes would also be private input to a root rollup.
+    std::vector<defi_interaction_note> defi_interaction_notes;
 
     bool operator==(root_rollup_tx const&) const = default;
 };

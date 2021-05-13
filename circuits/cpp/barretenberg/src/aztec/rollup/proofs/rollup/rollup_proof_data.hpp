@@ -1,11 +1,44 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
+#include "../../constants.hpp"
 
 namespace rollup {
 namespace proofs {
 namespace rollup {
 
 using namespace plonk::stdlib::types::turbo;
+
+namespace RollupProofFields {
+enum {
+    ROLLUP_ID = 0,
+    ROLLUP_SIZE = 1,
+    DATA_START_INDEX = 2,
+    OLD_DATA_ROOT = 3,
+    NEW_DATA_ROOT = 4,
+    OLD_NULL_ROOT = 5,
+    NEW_NULL_ROOT = 6,
+    OLD_DATA_ROOTS_ROOT = 7,
+    NEW_DATA_ROOTS_ROOT = 8,
+    TOTAL_TX_FEES = 9,
+    INNER_PROOFS_DATA = 10 + NUM_ASSETS,
+};
+} // namespace RollupProofFields
+
+namespace RollupProofOffsets {
+enum {
+    ROLLUP_ID = RollupProofFields::ROLLUP_ID * 32,
+    ROLLUP_SIZE = RollupProofFields::ROLLUP_SIZE * 32,
+    DATA_START_INDEX = RollupProofFields::DATA_START_INDEX * 32,
+    OLD_DATA_ROOT = RollupProofFields::OLD_DATA_ROOT * 32,
+    NEW_DATA_ROOT = RollupProofFields::NEW_DATA_ROOT * 32,
+    OLD_NULL_ROOT = RollupProofFields::OLD_NULL_ROOT * 32,
+    NEW_NULL_ROOT = RollupProofFields::NEW_NULL_ROOT * 32,
+    OLD_DATA_ROOTS_ROOT = RollupProofFields::OLD_DATA_ROOTS_ROOT * 32,
+    NEW_DATA_ROOTS_ROOT = RollupProofFields::NEW_DATA_ROOTS_ROOT * 32,
+    TOTAL_TX_FEES = RollupProofFields::TOTAL_TX_FEES * 32,
+    INNER_PROOFS_DATA = RollupProofFields::INNER_PROOFS_DATA * 32,
+};
+} // namespace RollupProofOffsets
 
 struct propagated_inner_proof_data {
     uint256_t proof_id;

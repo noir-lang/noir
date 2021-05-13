@@ -29,7 +29,7 @@ struct defi_interaction_note {
     field_ct total_output_b_value;
 
     // if interaction failed, re-create original deposit note
-    bool_ct interaction_result;
+    field_ct interaction_result;
 
     // encrypted defi_interaction_note
     point_ct encrypted;
@@ -64,6 +64,20 @@ struct defi_interaction_note {
             accumulator, field_ct(interaction_result), GeneratorIndex::DEFI_INTERACTION_NOTE_INTERACTION_RESULT);
 
         return accumulator;
+    }
+
+    byte_array_ct to_byte_array(Composer& composer, bool_ct is_real = 1) const
+    {
+        byte_array_ct arr(&composer);
+
+        arr.write(bridge_id * is_real);
+        arr.write(interaction_nonce * is_real);
+        arr.write(total_input_value * is_real);
+        arr.write(total_output_a_value * is_real);
+        arr.write(total_output_b_value * is_real);
+        arr.write(interaction_result * is_real);
+
+        return arr;
     }
 };
 
