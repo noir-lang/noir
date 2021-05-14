@@ -31,13 +31,12 @@ struct escape_hatch_tx {
     fr_hash_path old_data_roots_path;
     fr_hash_path new_data_roots_path;
 
-    // bool operator==(escape_hatch_tx const& rhs) const = default;
+    bool operator==(escape_hatch_tx const& rhs) const = default;
 };
 
 void read(uint8_t const*& it, escape_hatch_tx& tx);
 void write(std::vector<uint8_t>& buf, escape_hatch_tx const& tx);
 
-bool operator==(escape_hatch_tx const& lhs, escape_hatch_tx const& rhs);
 std::ostream& operator<<(std::ostream& os, escape_hatch_tx const& tx);
 
 } // namespace escape_hatch

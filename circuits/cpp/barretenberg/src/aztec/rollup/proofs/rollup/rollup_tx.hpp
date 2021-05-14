@@ -33,32 +33,8 @@ struct rollup_tx {
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint32_t> data_roots_indicies;
 
-    // bool operator==(rollup_tx const&) const = default;
+    bool operator==(rollup_tx const&) const = default;
 };
-
-inline bool operator==(rollup_tx const& lhs, rollup_tx const& rhs)
-{
-    // clang-format off
-    return
-        lhs.num_txs == rhs.num_txs &&
-        lhs.data_start_index == rhs.data_start_index &&
-        lhs.txs == rhs.txs &&
-
-        lhs.old_data_root == rhs.old_data_root &&
-        lhs.new_data_root == rhs.new_data_root &&
-        lhs.old_data_path == rhs.old_data_path &&
-        lhs.new_data_path == rhs.new_data_path &&
-
-        lhs.old_null_root == rhs.old_null_root &&
-        lhs.new_null_roots == rhs.new_null_roots &&
-        lhs.old_null_paths == rhs.old_null_paths &&
-        lhs.new_null_paths == rhs.new_null_paths &&
-
-        lhs.data_roots_root == rhs.data_roots_root &&
-        lhs.data_roots_paths == rhs.data_roots_paths &&
-        lhs.data_roots_indicies == rhs.data_roots_indicies;
-    // clang-format on
-}
 
 template <typename B> inline void read(B& buf, rollup_tx& tx)
 {

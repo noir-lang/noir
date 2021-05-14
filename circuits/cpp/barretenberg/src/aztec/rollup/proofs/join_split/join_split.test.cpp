@@ -6,6 +6,7 @@
 #include "sign_join_split_tx.hpp"
 #include "../notes/native/value/encrypt.hpp"
 #include "../notes/native/claim/claim_note.hpp"
+#include "../notes/native/claim/encrypt.hpp"
 #include "../notes/native/claim/create_partial_value_note.hpp"
 #include "../notes/native/compute_nullifier.hpp"
 #include "../notes/native/account/encrypt.hpp"
@@ -129,6 +130,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = !nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
         tx.nonce = nonce;
+        tx.claim_note.defi_interaction_nonce = 0;
         return tx;
     }
 
@@ -178,6 +180,7 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
+        tx.claim_note.defi_interaction_nonce = 0;
         return tx;
     }
 
@@ -597,7 +600,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     tx.claim_note.deposit_value = 50;
 
     bridge_id bridge_id = { 0, 2, tx.asset_id, 0, 0 };
-    tx.claim_note.bridge_id = bridge_id.to_field();
+    tx.claim_note.bridge_id = bridge_id.to_uint256_t();
     auto proof = sign_and_create_proof(tx, user.owner.private_key);
 
     auto proof_data = inner_proof_data(proof.proof_data);

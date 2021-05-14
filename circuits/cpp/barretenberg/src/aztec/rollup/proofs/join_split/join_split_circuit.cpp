@@ -76,6 +76,9 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
         inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
     composer.assert_equal_constant(valid_claim_note_asset_id.witness_index, 1, "bridge asset ids don't match");
 
+    // Check the claim note interaction nonce is 0 (will be added by the rollup circuit).
+    composer.assert_equal_constant(claim_note.defi_interaction_nonce.witness_index, 0, "interaction nonce must be 0");
+
     // Verify the asset id is less than the total number of assets.
     composer.create_range_constraint(inputs.asset_id.witness_index, NUM_ASSETS_BIT_LENGTH);
 
@@ -180,11 +183,11 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         witness_ct(&composer, tx.num_input_notes),
         witness_ct(&composer, tx.input_index[0]),
         witness_ct(&composer, tx.input_index[1]),
-        value::witness_data::from_tx_data(composer, tx.input_note[0]),
-        value::witness_data::from_tx_data(composer, tx.input_note[1]),
-        value::witness_data::from_tx_data(composer, tx.output_note[0]),
-        value::witness_data::from_tx_data(composer, tx.output_note[1]),
-        claim::witness_data::from_tx_data(composer, tx.claim_note),
+        value::witness_data(composer, tx.input_note[0]),
+        value::witness_data(composer, tx.input_note[1]),
+        value::witness_data(composer, tx.output_note[0]),
+        value::witness_data(composer, tx.output_note[1]),
+        claim::claim_note_tx_witness_data(composer, tx.claim_note),
         { witness_ct(&composer, tx.signing_pub_key.x), witness_ct(&composer, tx.signing_pub_key.y) },
         stdlib::schnorr::convert_signature(&composer, tx.signature),
         witness_ct(&composer, tx.old_data_root),

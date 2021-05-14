@@ -23,22 +23,8 @@ struct root_rollup_tx {
     fr_hash_path old_data_roots_path;
     fr_hash_path new_data_roots_path;
 
-    // bool operator==(rollup_tx const&) const = default;
+    bool operator==(root_rollup_tx const&) const = default;
 };
-
-inline bool operator==(root_rollup_tx const& lhs, root_rollup_tx const& rhs)
-{
-    // clang-format off
-    return
-        lhs.num_inner_proofs == rhs.num_inner_proofs &&
-        lhs.rollup_id == rhs.rollup_id &&
-        lhs.rollups == rhs.rollups &&
-        lhs.old_data_roots_root == rhs.old_data_roots_root &&
-        lhs.new_data_roots_root == rhs.new_data_roots_root &&
-        lhs.old_data_roots_path == rhs.old_data_roots_path &&
-        lhs.new_data_roots_path == rhs.new_data_roots_path;
-    // clang-format on
-}
 
 template <typename B> inline void read(B& buf, root_rollup_tx& tx)
 {

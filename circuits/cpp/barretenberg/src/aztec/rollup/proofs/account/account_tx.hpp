@@ -33,12 +33,13 @@ struct account_tx {
     }
 
     void sign(crypto::schnorr::key_pair<grumpkin::fr, grumpkin::g1> const& keys);
+
+    bool operator==(account_tx const&) const = default;
 };
 
 void read(uint8_t const*& it, account_tx& tx);
 void write(std::vector<uint8_t>& buf, account_tx const& tx);
 
-bool operator==(account_tx const& lhs, account_tx const& rhs);
 std::ostream& operator<<(std::ostream& os, account_tx const& tx);
 
 } // namespace account

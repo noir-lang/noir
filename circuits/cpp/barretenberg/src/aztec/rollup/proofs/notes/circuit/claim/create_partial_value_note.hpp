@@ -1,6 +1,5 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-// #include "../../native/claim/claim_note.hpp"
 #include "../../constants.hpp"
 #include "encrypt.hpp"
 

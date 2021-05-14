@@ -1,4 +1,4 @@
-add_compile_options(-Werror -Wall -Wextra -Wconversion -Wsign-conversion -Wno-deprecated -Wfatal-errors)
+add_compile_options(-Werror -Wall -Wextra -Wconversion -Wsign-conversion -Wno-deprecated -Wno-tautological-compare -Wfatal-errors)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wno-unguarded-availability-new -Wno-c99-extensions -fconstexpr-steps=100000000)
@@ -31,7 +31,6 @@ add_subdirectory(crypto)
 add_subdirectory(polynomials)
 add_subdirectory(plonk)
 add_subdirectory(stdlib)
-add_subdirectory(noir)
 add_subdirectory(rollup)
 
 if(BENCHMARKS)

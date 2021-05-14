@@ -15,18 +15,14 @@ struct claim_note_tx_data {
     uint256_t bridge_id;
     uint256_t note_secret;
     uint32_t defi_interaction_nonce;
+
+    bool operator==(claim_note_tx_data const&) const = default;
 };
 
 inline std::ostream& operator<<(std::ostream& os, claim_note_tx_data const& note)
 {
     return os << "{ value: " << note.deposit_value << ", bridge_id: " << note.bridge_id
               << ", secret: " << note.note_secret << ", nonce: " << note.defi_interaction_nonce << " }";
-}
-
-inline bool operator==(claim_note_tx_data const& lhs, claim_note_tx_data const& rhs)
-{
-    return lhs.bridge_id == rhs.bridge_id && lhs.deposit_value == rhs.deposit_value &&
-           lhs.note_secret == rhs.note_secret && lhs.defi_interaction_nonce == rhs.defi_interaction_nonce;
 }
 
 inline void read(uint8_t const*& it, claim_note_tx_data& note)

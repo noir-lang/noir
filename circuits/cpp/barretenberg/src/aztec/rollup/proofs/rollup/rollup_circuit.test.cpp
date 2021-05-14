@@ -146,6 +146,7 @@ class rollup_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = user.alias_hash;
         tx.nonce = nonce;
+        tx.claim_note.defi_interaction_nonce = 0;
 
         uint8_t owner_address[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0xb4, 0x42, 0xd3, 0x7d, 0xd2, 0x93, 0xa4, 0x3a, 0xde, 0x80,

@@ -72,19 +72,16 @@ constexpr size_t get_num_rounds(const size_t num_points)
 
 template <size_t bits, size_t bit_position> inline uint64_t get_wnaf_bits_const(const uint64_t* scalar) noexcept
 {
-    if constexpr (bits == 0)
-    {
+    if constexpr (bits == 0) {
         return 0ULL;
-    }
-    else
-    {
+    } else {
         /**
          *  we want to take a 128 bit scalar and shift it down by (bit_position).
          * We then wish to mask out `bits` number of bits.
          * Low limb contains first 64 bits, so we wish to shift this limb by (bit_position mod 64), which is also
-         * (bit_position & 63) If we require bits from the high limb, these need to be shifted left, not right. Actual bit
-         * position of bit in high limb = `b`. Desired position = 64 - (amount we shifted low limb by) = 64 - (bit_position
-         * & 63)
+         * (bit_position & 63) If we require bits from the high limb, these need to be shifted left, not right. Actual
+         * bit position of bit in high limb = `b`. Desired position = 64 - (amount we shifted low limb by) = 64 -
+         * (bit_position & 63)
          *
          * So, step 1:
          * get low limb and shift right by (bit_position & 63)
@@ -355,6 +352,7 @@ inline void wnaf_round_packed(const uint64_t* scalar,
         wnaf[1] =
             ((((previous - (predicate << (wnaf_bits /*+ 1*/))) ^ (0UL - predicate)) >> 1UL) | (predicate << 31UL)) |
             (point_index);
+
         wnaf[0] = ((slice + predicate) >> 1UL) | (point_index);
     }
 }

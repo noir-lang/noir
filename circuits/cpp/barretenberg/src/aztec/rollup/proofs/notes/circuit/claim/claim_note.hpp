@@ -21,13 +21,21 @@ struct claim_note {
     point_ct partial_state;
     point_ct encrypted;
 
-    claim_note(witness_data const& data, point_ct const& owner, field_ct const& nonce)
+    claim_note(claim_note_witness_data const& data)
+        : deposit_value(data.deposit_value)
+        , bridge_id(data.bridge_id_data.to_field())
+        , defi_interaction_nonce(data.defi_interaction_nonce)
+        , partial_state(data.partial_state)
+        , encrypted(encrypt(deposit_value, bridge_id, defi_interaction_nonce, partial_state))
+    {}
+
+    claim_note(claim_note_tx_witness_data const& data, point_ct const& owner, field_ct const& nonce)
     {
         deposit_value = data.deposit_value;
         bridge_id = data.bridge_id_data.to_field();
         defi_interaction_nonce = data.defi_interaction_nonce;
         partial_state = create_partial_value_note(data.note_secret, nonce, owner);
-        encrypted = encrypt(data.deposit_value, bridge_id, data.defi_interaction_nonce, partial_state);
+        encrypted = encrypt(deposit_value, bridge_id, defi_interaction_nonce, partial_state);
     }
 
     operator byte_array_ct() const { return byte_array_ct(encrypted.x).write(encrypted.y); }

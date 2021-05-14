@@ -21,19 +21,17 @@ struct witness_data {
     field_ct asset_id;
     field_ct nonce;
 
-    static witness_data from_tx_data(Composer& composer, native::value::value_note const& note)
+    witness_data(Composer& composer, native::value::value_note const& note)
     {
-        field_ct view_key = witness_ct(&composer, note.secret);
-        field_ct note_owner_x = witness_ct(&composer, note.owner.x);
-        field_ct note_owner_y = witness_ct(&composer, note.owner.y);
-        field_ct witness_value = witness_ct(&composer, note.value);
-        field_ct asset_id = witness_ct(&composer, note.asset_id);
-        field_ct nonce = witness_ct(&composer, note.nonce);
+        secret = witness_ct(&composer, note.secret);
+        owner.x = witness_ct(&composer, note.owner.x);
+        owner.y = witness_ct(&composer, note.owner.y);
+        value = witness_ct(&composer, note.value);
+        asset_id = witness_ct(&composer, note.asset_id);
+        nonce = witness_ct(&composer, note.nonce);
 
         composer.create_range_constraint(asset_id.witness_index, 32);
-        composer.create_range_constraint(witness_value.witness_index, NOTE_VALUE_BIT_LENGTH);
-
-        return { { note_owner_x, note_owner_y }, witness_value, view_key, asset_id, nonce };
+        composer.create_range_constraint(value.witness_index, NOTE_VALUE_BIT_LENGTH);
     }
 };
 

@@ -52,26 +52,6 @@ void read(uint8_t const*& buf, escape_hatch_tx& tx)
     read(buf, tx.new_data_roots_path);
 }
 
-bool operator==(escape_hatch_tx const& lhs, escape_hatch_tx const& rhs)
-{
-    // clang-format off
-    return lhs.js_tx == rhs.js_tx
-        && lhs.rollup_id == rhs.rollup_id
-        && lhs.data_start_index == rhs.data_start_index
-        && lhs.new_data_root == rhs.new_data_root
-        && lhs.old_data_path == rhs.old_data_path
-        && lhs.new_data_path == rhs.new_data_path
-        && lhs.old_null_root == rhs.old_null_root
-        && lhs.new_null_roots == rhs.new_null_roots
-        && lhs.old_null_paths == rhs.old_null_paths
-        && lhs.new_null_paths == rhs.new_null_paths
-        && lhs.old_data_roots_root == rhs.old_data_roots_root
-        && lhs.new_data_roots_root == rhs.new_data_roots_root
-        && lhs.old_data_roots_path == rhs.old_data_roots_path
-        && lhs.new_data_roots_path == rhs.new_data_roots_path;
-    // clang-format on
-}
-
 std::ostream& operator<<(std::ostream& os, escape_hatch_tx const& tx)
 {
     os << "join_split: " << tx.js_tx << "\n";

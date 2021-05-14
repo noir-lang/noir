@@ -60,26 +60,6 @@ void read(uint8_t const*& buf, account_tx& tx)
     read(buf, tx.signature);
 }
 
-bool operator==(account_tx const& lhs, account_tx const& rhs)
-{
-    // clang-format off
-    return lhs.merkle_root == rhs.merkle_root
-        && lhs.account_public_key == rhs.account_public_key
-        && lhs.new_account_public_key == rhs.new_account_public_key
-        && lhs.num_new_keys == rhs.num_new_keys
-        && lhs.new_signing_pub_key_1 == rhs.new_signing_pub_key_1
-        && lhs.new_signing_pub_key_2 == rhs.new_signing_pub_key_2
-        && lhs.alias_hash == rhs.alias_hash
-        && lhs.nonce == rhs.nonce
-        && lhs.migrate == rhs.migrate
-        && lhs.gibberish == rhs.gibberish
-        && lhs.account_index == rhs.account_index
-        && lhs.account_path == rhs.account_path
-        && lhs.signing_pub_key == rhs.signing_pub_key
-        && lhs.signature == rhs.signature;
-    // clang-format on
-}
-
 std::ostream& operator<<(std::ostream& os, account_tx const& tx)
 {
     return os << "merkle_root: " << tx.merkle_root << "\n"

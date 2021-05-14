@@ -16,7 +16,7 @@ struct bridge_id {
     uint32_t output_asset_id_a;
     uint32_t output_asset_id_b;
 
-    barretenberg::fr to_field() const
+    uint256_t to_uint256_t() const
     {
         // check if the address is 160 bits, num_output_notes is 2 bits and output_asset_id_b is 26 bits
         bool address_check = ((bridge_contract_address >> DEFI_BRIDGE_ADDRESS_BIT_LENGTH) == 0);
@@ -38,16 +38,11 @@ struct bridge_id {
                            (static_cast<uint256_t>(output_asset_id_a) << output_asset_id_a_offset) +
                            (static_cast<uint256_t>(output_asset_id_b) << output_asset_id_b_offset);
 
-        return barretenberg::fr(result);
+        return result;
     }
-};
 
-inline bool operator==(bridge_id const& lhs, bridge_id const& rhs)
-{
-    return lhs.bridge_contract_address == rhs.bridge_contract_address && lhs.input_asset_id == rhs.input_asset_id &&
-           lhs.num_output_notes == rhs.num_output_notes && lhs.output_asset_id_a == rhs.output_asset_id_a &&
-           lhs.output_asset_id_b == rhs.output_asset_id_b;
-}
+    bool operator==(bridge_id const&) const = default;
+};
 
 inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
 {

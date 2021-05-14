@@ -17,12 +17,9 @@ struct value_note {
     uint32_t nonce;
     grumpkin::g1::affine_element owner;
     barretenberg::fr secret;
-};
 
-inline bool operator==(value_note const& lhs, value_note const& rhs)
-{
-    return lhs.owner == rhs.owner && lhs.value == rhs.value && lhs.secret == rhs.secret && lhs.nonce == rhs.nonce;
-}
+    bool operator==(value_note const&) const = default;
+};
 
 inline std::ostream& operator<<(std::ostream& os, value_note const& note)
 {

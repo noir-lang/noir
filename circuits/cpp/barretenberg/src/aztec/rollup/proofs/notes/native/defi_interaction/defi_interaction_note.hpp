@@ -19,15 +19,9 @@ struct defi_interaction_note {
     uint256_t total_output_b_value;
     // did the rollup smart contract call to the defi bridge succeed or fail?
     bool interaction_result;
-};
 
-inline bool operator==(defi_interaction_note const& lhs, defi_interaction_note const& rhs)
-{
-    return lhs.bridge_id == rhs.bridge_id && lhs.total_input_value == rhs.total_input_value &&
-           lhs.total_output_a_value == rhs.total_output_a_value &&
-           lhs.total_output_b_value == rhs.total_output_b_value && lhs.interaction_nonce == rhs.interaction_nonce &&
-           lhs.interaction_result == rhs.interaction_result;
-}
+    bool operator==(defi_interaction_note const&) const = default;
+};
 
 inline std::ostream& operator<<(std::ostream& os, defi_interaction_note const& note)
 {
@@ -38,18 +32,18 @@ inline std::ostream& operator<<(std::ostream& os, defi_interaction_note const& n
     return os;
 }
 
-inline void read(uint8_t const*& it, defi_interaction_note& note)
+template <typename B> inline void read(B& buf, defi_interaction_note& note)
 {
     using serialize::read;
-    read(it, note.bridge_id);
-    read(it, note.total_input_value);
-    read(it, note.total_output_a_value);
-    read(it, note.total_output_b_value);
-    read(it, note.interaction_nonce);
-    read(it, note.interaction_result);
+    read(buf, note.bridge_id);
+    read(buf, note.total_input_value);
+    read(buf, note.total_output_a_value);
+    read(buf, note.total_output_b_value);
+    read(buf, note.interaction_nonce);
+    read(buf, note.interaction_result);
 }
 
-inline void write(std::vector<uint8_t>& buf, defi_interaction_note const& note)
+template <typename B> inline void write(B& buf, defi_interaction_note const& note)
 {
     using serialize::write;
     write(buf, note.bridge_id);

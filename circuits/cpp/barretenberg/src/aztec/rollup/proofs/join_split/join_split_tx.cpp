@@ -59,31 +59,6 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.output_owner);
 }
 
-bool operator==(join_split_tx const& lhs, join_split_tx const& rhs)
-{
-    // clang-format off
-    return lhs.public_input == rhs.public_input
-        && lhs.public_output == rhs.public_output
-        && lhs.asset_id == rhs.asset_id
-        && lhs.num_input_notes == rhs.num_input_notes
-        && lhs.input_index == rhs.input_index
-        && lhs.old_data_root == rhs.old_data_root
-        && lhs.input_path == rhs.input_path
-        && lhs.input_note == rhs.input_note
-        && lhs.output_note == rhs.output_note
-        && lhs.claim_note == rhs.claim_note
-        && lhs.account_private_key == rhs.account_private_key
-        && lhs.alias_hash == rhs.alias_hash
-        && lhs.nonce == rhs.nonce
-        && lhs.account_index == rhs.account_index
-        && lhs.account_path == rhs.account_path
-        && lhs.signing_pub_key == rhs.signing_pub_key
-        && lhs.signature == rhs.signature
-        && lhs.input_owner == rhs.input_owner
-        && lhs.output_owner == rhs.output_owner;
-    // clang-format on
-}
-
 std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
 {
     return os << "public_input: " << tx.public_input << "\n"

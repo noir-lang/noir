@@ -35,13 +35,12 @@ struct join_split_tx {
     barretenberg::fr input_owner;
     barretenberg::fr output_owner;
 
-    // bool operator==(join_split_tx const&) const = default;
+    bool operator==(join_split_tx const&) const = default;
 };
 
 void read(uint8_t const*& it, join_split_tx& tx);
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx);
 
-bool operator==(join_split_tx const& lhs, join_split_tx const& rhs);
 std::ostream& operator<<(std::ostream& os, join_split_tx const& tx);
 
 } // namespace join_split

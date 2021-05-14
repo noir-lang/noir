@@ -6,6 +6,8 @@
 #include "../proofs/root_rollup/compute_circuit_data.hpp"
 #include "../proofs/root_rollup/root_rollup_tx.hpp"
 #include "../proofs/root_rollup/verify.hpp"
+#include "../proofs/claim/get_circuit_data.hpp"
+#include "../proofs/claim/verify.hpp"
 #include <common/timer.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
@@ -26,6 +28,7 @@ join_split::circuit_data js_cd;
 account::circuit_data account_cd;
 tx_rollup::circuit_data tx_rollup_cd;
 root_rollup::circuit_data root_rollup_cd;
+circuit_data claim_cd;
 } // namespace
 
 bool create_tx_rollup()
@@ -112,6 +115,28 @@ bool create_root_rollup()
     return result.verified;
 }
 
+bool create_claim()
+{
+    claim::claim_tx claim_tx;
+    std::cerr << "Reading claim tx..." << std::endl;
+    read(std::cin, claim_tx);
+
+    Timer timer;
+    claim_cd.proving_key->reset();
+
+    std::cerr << "Creating root rollup proof..." << std::endl;
+    auto result = verify(claim_tx, root_rollup_cd);
+
+    std::cerr << "Time taken: " << timer.toString() << std::endl;
+    std::cerr << "Verified: " << result.verified << std::endl;
+
+    write(std::cout, result.proof_data);
+    write(std::cout, (uint8_t)result.verified);
+    std::cout << std::flush;
+
+    return result.verified;
+}
+
 int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
@@ -125,6 +150,7 @@ int main(int argc, char** argv)
 
     account_cd = persist ? account::compute_or_load_circuit_data(crs, data_path) : account::compute_circuit_data(crs);
     js_cd = persist ? join_split::compute_or_load_circuit_data(crs, data_path) : join_split::compute_circuit_data(crs);
+    claim_cd = claim::get_circuit_data(crs, data_path, true, persist, persist);
 
     std::cerr << "Reading rollups from standard input..." << std::endl;
     serialize::write(std::cout, true);
@@ -144,6 +170,10 @@ int main(int argc, char** argv)
         }
         case 1: {
             create_root_rollup();
+            break;
+        }
+        case 2: {
+            create_claim();
             break;
         }
         }

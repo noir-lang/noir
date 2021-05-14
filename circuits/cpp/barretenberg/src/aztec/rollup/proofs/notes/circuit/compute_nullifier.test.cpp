@@ -19,7 +19,7 @@ TEST(compute_nullifier_circuit, native_consistency)
     auto native_nullifier = native::compute_nullifier(native_enc_note, 1, priv_key, true);
 
     Composer composer;
-    auto circuit_input_note = circuit::value::witness_data::from_tx_data(composer, native_input_note);
+    auto circuit_input_note = circuit::value::witness_data(composer, native_input_note);
     auto circuit_enc_note = circuit::value::encrypt(circuit_input_note);
     auto circuit_nullifier = circuit::compute_nullifier(circuit_enc_note,
                                                         field_ct(witness_ct(&composer, 1)),

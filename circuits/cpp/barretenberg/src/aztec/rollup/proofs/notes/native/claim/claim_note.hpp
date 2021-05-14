@@ -21,9 +21,27 @@ struct claim_note {
     // binds the claim note to the user - this is a join-split note without the `value` and `asset_id` fields (used by
     // rollup provider to create output notes
     grumpkin::g1::affine_element partial_state;
+
+    bool operator==(claim_note const&) const = default;
 };
 
-grumpkin::g1::affine_element encrypt(claim_note const& note);
+template <typename B> inline void read(B& buf, claim_note& note)
+{
+    using serialize::read;
+    read(buf, note.deposit_value);
+    read(buf, note.bridge_id);
+    read(buf, note.defi_interaction_nonce);
+    read(buf, note.partial_state);
+}
+
+template <typename B> inline void write(B& buf, claim_note const& note)
+{
+    using serialize::write;
+    write(buf, note.deposit_value);
+    write(buf, note.bridge_id);
+    write(buf, note.defi_interaction_nonce);
+    write(buf, note.partial_state);
+}
 
 } // namespace claim
 } // namespace native
