@@ -170,7 +170,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                 is_valid_bridge_id = is_valid_bridge_id || matches;
             }
 
-            is_valid_bridge_id = is_valid_bridge_id || !is_defi_deposit;
+            is_valid_bridge_id = (is_valid_bridge_id || !is_defi_deposit).normalize();
             composer.assert_equal_constant(is_valid_bridge_id.witness_index, 1, "bridge_id_not_in_working_set");
         }
 
@@ -217,6 +217,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
      * (ii) Update the data tree with encryptions of the defi_interaction_notes.
      */
     byte_array_ct hash_input(&composer);
+    auto is_defi_interaction_note_present = bool_ct(&composer, false);
     auto num_interaction_notes = witness_ct(&composer, root_rollup.defi_interaction_notes.size());
     auto defi_interaction_note_leaves = std::vector<byte_array_ct>();
     auto encrypted_defi_interaction_notes = std::vector<point_ct>();
@@ -228,10 +229,15 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         encrypted_defi_interaction_notes.push_back(encrypted_note);
         defi_interaction_note_leaves.push_back(
             byte_array_ct(&composer).write(encrypted_note.x).write(encrypted_note.y));
+        is_defi_interaction_note_present = (is_defi_interaction_note_present || is_real);
     }
 
     const auto hash_output = plonk::stdlib::sha256<Composer>(hash_input);
     const auto previous_defi_interaction_hash = field_ct(byte_array_ct(hash_output));
+
+    field_ct defi_new_data_root = witness_ct(&composer, root_rollup.new_data_root);
+    const auto updated_new_data_root =
+        (defi_new_data_root * is_defi_interaction_note_present) + (new_data_root * !is_defi_interaction_note_present);
 
     // Check defi interaction notes have been inserted into the data tree.
     auto new_data_path = create_witness_hash_path(composer, root_rollup.new_data_path);
@@ -252,22 +258,33 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                             new_data_roots_path,
                             old_data_roots_path,
                             rollup_id,
-                            root_rollup.new_data_root,
+                            updated_new_data_root,
                             new_root_root,
                             old_root_root);
-
-    field_ct updated_new_data_root = witness_ct(&composer, root_rollup.new_data_root);
 
     composer.set_public_input(rollup_id.witness_index);
     composer.set_public_input(rollup_size.witness_index);
     composer.set_public_input(data_start_index.witness_index);
     composer.set_public_input(old_data_root.witness_index);
-    // TODO: Check if the new_data_root is correct after the defi_deposit changes.
     composer.set_public_input(updated_new_data_root.witness_index);
     composer.set_public_input(old_null_root.witness_index);
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_root_root.witness_index);
     composer.set_public_input(new_root_root.witness_index);
+    composer.set_public_input(previous_defi_interaction_hash.witness_index);
+
+    /**
+     * For the defi deposits, we add the following as the public input of the root_rollup circuit:
+     *   (i) encrypted defi_interaction_notes
+     *  (ii) defi_deposit_sums
+     * (iii) previous_defi_interaction_hash
+     */
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(root_rollup.bridge_ids[i].witness_index);
+        composer.set_public_input(defi_deposit_sums[i].witness_index);
+        encrypted_defi_interaction_notes[i].set_public();
+    }
+
     for (auto total_tx_fee : total_tx_fees) {
         composer.set_public_input(total_tx_fee.witness_index);
     }
@@ -280,22 +297,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     for (size_t i = num_proofs; i < outer_rollup_size / inner_rollup_size; ++i) {
         add_padding_public_inputs(composer, inner_rollup_size);
     }
-
-    /**
-     * For the defi deposits, we add the following as the public input of the root_rollup circuit:
-     *   (i) encrypted defi_interaction_notes
-     *  (ii) defi_deposit_sums
-     * (iii) previous_defi_interaction_hash
-     */
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        encrypted_defi_interaction_notes[i].set_public();
-    }
-
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
-        composer.set_public_input(root_rollup.bridge_ids[i].witness_index);
-        composer.set_public_input(defi_deposit_sums[i].witness_index);
-    }
-    composer.set_public_input(previous_defi_interaction_hash.witness_index);
 
     recursion_output.add_proof_outputs_as_public_inputs();
 
