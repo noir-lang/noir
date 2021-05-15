@@ -271,19 +271,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_root_root.witness_index);
     composer.set_public_input(new_root_root.witness_index);
-    composer.set_public_input(previous_defi_interaction_hash.witness_index);
-
-    /**
-     * For the defi deposits, we add the following as the public input of the root_rollup circuit:
-     *   (i) encrypted defi_interaction_notes
-     *  (ii) defi_deposit_sums
-     * (iii) previous_defi_interaction_hash
-     */
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(root_rollup.bridge_ids[i].witness_index);
-        composer.set_public_input(defi_deposit_sums[i].witness_index);
-        encrypted_defi_interaction_notes[i].set_public();
-    }
 
     for (auto total_tx_fee : total_tx_fees) {
         composer.set_public_input(total_tx_fee.witness_index);
@@ -299,6 +286,23 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     }
 
     recursion_output.add_proof_outputs_as_public_inputs();
+
+    /**
+     * For the defi deposits, we add the following as the public input of the root_rollup circuit:
+     *   (i) bridge_ids
+     *  (ii) defi_deposit_sums
+     *  (ii) encrypted_defi_interaction_notes
+     * (iii) previous_defi_interaction_hash
+     *
+     * P.S. Adding the new public inputs post the older order of public inputs to ensure backward-compatibility in our
+     * smart contract.
+     */
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(root_rollup.bridge_ids[i].witness_index);
+        composer.set_public_input(defi_deposit_sums[i].witness_index);
+        encrypted_defi_interaction_notes[i].set_public();
+    }
+    composer.set_public_input(previous_defi_interaction_hash.witness_index);
 
     return recursion_output;
 }
