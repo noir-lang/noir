@@ -9,6 +9,13 @@ edition = "2018"
 [dependencies]
 hex = "0.4.2"
 
+# make these optional
 ark-bn254 = { version = "^0.2.0", default-features = false, features = ["curve"] }
 ark-ff = { version = "^0.2.0", default-features = false }
+
 blake2 = "0.9.1"
+cfg-if = "1.0.0"
+
+[features]
+
+bn254 = []
