@@ -1,4 +1,5 @@
-use ark_bn254::Fr;
+use ark_bn254::{Fr, FrParameters};
+use ark_ff::FpParameters;
 use ark_ff::PrimeField;
 use ark_ff::{to_bytes, Field};
 use ark_ff::{One, Zero};
@@ -59,7 +60,7 @@ impl FieldElement {
     /// But the representation uses 256 bits, so the top two bits are always zero
     /// This method would return 254
     pub fn max_num_bits() -> u32 {
-        254
+        FrParameters::MODULUS_BITS
     }
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
