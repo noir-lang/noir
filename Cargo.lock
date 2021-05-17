@@ -1442,6 +1442,7 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "blake2",
+ "cfg-if 1.0.0",
  "hex",
 ]
 
