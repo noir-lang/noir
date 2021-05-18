@@ -255,16 +255,18 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     }
 }
 
-#[test]
-fn and() {
-    let max = 10_000u32;
+mod test {
+    #[test]
+    fn and() {
+        let max = 10_000u32;
 
-    let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
+        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
 
-    for x in 0..max {
-        let x = FieldElement::from(x as i128);
-        let res = x.and(&x, num_bits);
-        assert_eq!(res.to_bytes(), x.to_bytes());
+        for x in 0..max {
+            let x = crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(x as i128);
+            let res = x.and(&x, num_bits);
+            assert_eq!(res.to_bytes(), x.to_bytes());
+        }
     }
 }
 
