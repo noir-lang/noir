@@ -7,9 +7,8 @@ cfg_if::cfg_if! {
         mod generic_ark;
         pub type FieldElement = generic_ark::FieldElement<ark_bls12_381::Fr>;
     } else {
-        mod generic_ark;
-        pub type FieldElement = generic_ark::FieldElement<ark_bn254::Fr>;
+        compile_error!("please specify a field to compile with");
     }
 }
 #[cfg(all(feature = "bn254", feature = "bls12_381"))]
-compile_error!("feature \"bn254\" and feature \"bls12_381\" cannot be enabled at the same time");
+compile_error!("feature \"bn254\"  and feature \"bls12_381\" cannot be enabled at the same time");
