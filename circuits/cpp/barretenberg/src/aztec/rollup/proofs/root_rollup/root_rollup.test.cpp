@@ -42,6 +42,7 @@ class root_rollup_tests : public ::testing::Test {
         : data_tree(store, DATA_TREE_DEPTH, 0)
         , null_tree(store, NULL_TREE_DEPTH, 1)
         , root_tree(store, ROOT_TREE_DEPTH, 2)
+        , defi_tree(store, DEFI_TREE_DEPTH, 3)
     {
         update_root_tree_with_data_root(0);
         rand_engine = &numeric::random::get_debug_engine(true);
@@ -92,7 +93,7 @@ class root_rollup_tests : public ::testing::Test {
             rollups_data.push_back(rollup_data);
         }
 
-        return root_rollup::create_root_rollup_tx(rollup_id, rollups_data, data_tree, root_tree);
+        return root_rollup::create_root_rollup_tx(rollup_id, rollups_data, data_tree, root_tree, defi_tree);
     }
 
     void update_root_tree_with_data_root(size_t index)
@@ -116,6 +117,7 @@ class root_rollup_tests : public ::testing::Test {
     MerkleTree<MemoryStore> data_tree;
     MerkleTree<MemoryStore> null_tree;
     MerkleTree<MemoryStore> root_tree;
+    MerkleTree<MemoryStore> defi_tree;
 };
 
 /*

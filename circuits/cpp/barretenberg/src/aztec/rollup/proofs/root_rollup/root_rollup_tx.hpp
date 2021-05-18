@@ -6,7 +6,8 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <sstream>
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include "../notes/circuit/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../../constants.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -14,30 +15,43 @@ namespace root_rollup {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
-using namespace notes::circuit::defi_interaction;
+using namespace notes::native::defi_interaction;
 
 struct root_rollup_tx {
+    // The maximum number of inner rollups in this proof.
     uint32_t num_inner_proofs;
+
+    // The rollup id, which increases incrementally.
     uint32_t rollup_id;
+
+    // If the size < num_inner_proofs, it's padded to size num_inner_proofs with the padding proof.
     std::vector<std::vector<uint8_t>> rollups;
+
+    // For updating the tree of data roots.
     fr old_data_roots_root;
     fr new_data_roots_root;
     fr_hash_path old_data_roots_path;
     fr_hash_path new_data_roots_path;
 
-    // We need a new data root since we'd be adding defi_interaction_notes in the data tree.
-    // We intend to add a height 2 subtree of defi_interaction_notes in the last 4 leaves of
-    // the data tree.
-    fr new_data_root;
-    fr_hash_path old_data_path;
-    fr_hash_path new_data_path;
+    // The number of defi interactions in this rollup.
+    uint32_t num_defi_interactions;
 
-    // The bridge_ids and the interaction nonce is passed as private input to the root rollup circuit.
-    // The rollup provider would mix-in the interaction nonce in the claim notes of defi deposits.
-    std::vector<field_ct> bridge_ids;
-    uint32_ct interaction_nonce;
+    // For updating the defi_interaction tree.
+    fr old_defi_interaction_root;
+    fr new_defi_interaction_root;
+    fr_hash_path old_defi_interaction_path;
+    fr_hash_path new_defi_interaction_path;
 
-    // The defi interaction notes would also be private input to a root rollup.
+    // num_defi_interactions bridge ids.
+    // Will be padded to NUM_BRIDGE_CALLS_PER_BLOCK.
+    // All defi deposits must match one of these.
+    std::vector<fr> bridge_ids;
+
+    // The interaction nonce is added to the partial claim notes in the defi deposits.
+    uint32_t interaction_nonce;
+
+    // num_defi_interactions defi_interaction_notes;
+    // Will be padded to NUM_BRIDGE_CALLS_PER_BLOCK.
     std::vector<defi_interaction_note> defi_interaction_notes;
 
     bool operator==(root_rollup_tx const&) const = default;
@@ -53,6 +67,23 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.new_data_roots_root);
     read(buf, tx.old_data_roots_path);
     read(buf, tx.new_data_roots_path);
+    read(buf, tx.old_defi_interaction_root);
+    read(buf, tx.new_defi_interaction_root);
+    read(buf, tx.old_defi_interaction_path);
+    read(buf, tx.new_defi_interaction_path);
+    read(buf, tx.bridge_ids[0]);
+    read(buf, tx.bridge_ids[1]);
+    read(buf, tx.bridge_ids[2]);
+    read(buf, tx.bridge_ids[3]);
+    read(buf, tx.interaction_nonce);
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+        read(buf, tx.defi_interaction_notes[i].bridge_id);
+        read(buf, tx.defi_interaction_notes[i].interaction_nonce);
+        read(buf, tx.defi_interaction_notes[i].total_input_value);
+        read(buf, tx.defi_interaction_notes[i].total_output_a_value);
+        read(buf, tx.defi_interaction_notes[i].total_output_b_value);
+        read(buf, tx.defi_interaction_notes[i].interaction_result);
+    }
 }
 
 template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
@@ -65,6 +96,23 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.new_data_roots_root);
     write(buf, tx.old_data_roots_path);
     write(buf, tx.new_data_roots_path);
+    write(buf, tx.old_defi_interaction_root);
+    write(buf, tx.new_defi_interaction_root);
+    write(buf, tx.old_defi_interaction_path);
+    write(buf, tx.new_defi_interaction_path);
+    write(buf, tx.bridge_ids[0]);
+    write(buf, tx.bridge_ids[1]);
+    write(buf, tx.bridge_ids[2]);
+    write(buf, tx.bridge_ids[3]);
+    write(buf, tx.interaction_nonce);
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+        write(buf, tx.defi_interaction_notes[i].bridge_id);
+        write(buf, tx.defi_interaction_notes[i].interaction_nonce);
+        write(buf, tx.defi_interaction_notes[i].total_input_value);
+        write(buf, tx.defi_interaction_notes[i].total_output_a_value);
+        write(buf, tx.defi_interaction_notes[i].total_output_b_value);
+        write(buf, tx.defi_interaction_notes[i].interaction_result);
+    }
 }
 
 inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
@@ -79,6 +127,29 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
     os << "new_data_roots_root: " << tx.new_data_roots_root << "\n";
     os << "old_data_roots_path: " << tx.old_data_roots_path << "\n";
     os << "new_data_roots_path: " << tx.new_data_roots_path << "\n";
+
+    os << "old_defi_interaction_root: " << tx.old_defi_interaction_root << "\n";
+    os << "new_defi_interaction_root: " << tx.new_defi_interaction_root << "\n";
+    os << "old_defi_interaction_path: " << tx.old_defi_interaction_path << "\n";
+    os << "new_defi_interaction_path: " << tx.new_defi_interaction_path << "\n";
+
+    os << "bridge_ids:\n";
+    for (auto bridge_id : tx.bridge_ids) {
+        os << bridge_id << "\n";
+    }
+    os << "interaction_nonce: " << tx.interaction_nonce << "\n";
+
+    size_t i = 0;
+    for (auto defi_note : tx.defi_interaction_notes) {
+        os << "defi_interaction_" << i << ":\n";
+        os << "    bridge_id: " << defi_note.bridge_id << "\n";
+        os << "    interaction_nonce: " << defi_note.interaction_nonce << "\n";
+        os << "    total_input_value: " << defi_note.total_input_value << "\n";
+        os << "    total_output_a_value: " << defi_note.total_output_a_value << "\n";
+        os << "    total_output_b_value: " << defi_note.total_output_b_value << "\n";
+        os << "    interaction_result: " << defi_note.interaction_result << "\n";
+    }
+
     return os;
 }
 

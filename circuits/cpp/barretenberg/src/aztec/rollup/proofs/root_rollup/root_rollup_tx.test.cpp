@@ -2,7 +2,9 @@
 #include "../../constants.hpp"
 #include <gtest/gtest.h>
 
+using namespace rollup;
 using namespace rollup::proofs::root_rollup;
+using namespace rollup::proofs::notes::native::defi_interaction;
 using namespace barretenberg;
 
 TEST(root_rollup_tx, test_serialization)
@@ -16,8 +18,19 @@ TEST(root_rollup_tx, test_serialization)
 
     rollup.old_data_roots_root = fr::random_element();
     rollup.new_data_roots_root = fr::random_element();
-    rollup.old_data_roots_path = fr_hash_path(28, random_pair);
-    rollup.new_data_roots_path = fr_hash_path(28, random_pair);
+    rollup.old_data_roots_path = fr_hash_path(ROOT_TREE_DEPTH, random_pair);
+    rollup.new_data_roots_path = fr_hash_path(ROOT_TREE_DEPTH, random_pair);
+
+    rollup.num_defi_interactions = 0;
+    rollup.old_defi_interaction_root = fr::random_element();
+    rollup.new_defi_interaction_root = fr::random_element();
+    rollup.old_defi_interaction_path = fr_hash_path(DEFI_TREE_DEPTH, random_pair);
+    rollup.new_defi_interaction_path = fr_hash_path(DEFI_TREE_DEPTH, random_pair);
+    rollup.interaction_nonce = 0;
+
+    rollup.bridge_ids = { 0, 1, 2, 3 };
+    defi_interaction_note defi_native_note = { 0, 0, 0, 0, 0, false };
+    rollup.defi_interaction_notes = { defi_native_note, defi_native_note, defi_native_note, defi_native_note };
 
     auto buf = to_buffer(rollup);
     auto result = from_buffer<root_rollup_tx>(buf);

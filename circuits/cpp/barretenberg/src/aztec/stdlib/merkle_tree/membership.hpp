@@ -90,15 +90,6 @@ void update_membership(Composer& composer,
 
     // Check that the new_value, is in the tree given by new_root, at index.
     assert_check_membership(composer, new_root, old_hashes, new_value, index, true, msg + "_new_value");
-
-    // Check that the old and new values, are actually in the same tree.
-    //    for (size_t i = 0; i < new_hashes.size(); ++i) {
-    //        bool_t path_bit = index.get_bit(i);
-    //        bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;
-    //        bool_t share_right = (old_hashes[i].second == new_hashes[i].second) & !path_bit;
-    //        composer.assert_equal_constant(
-    //            (share_left ^ share_right).witness_index, barretenberg::fr::one(), msg + "_same_tree");
-    //    }
 }
 
 template <typename Composer>

@@ -12,6 +12,13 @@ namespace root_rollup {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
+inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
+{
+    rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
+    rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+}
+
 inline bool pairing_check(recursion_output<bn254> recursion_output, std::shared_ptr<waffle::verification_key> const& vk)
 {
     g1::affine_element P[2];
@@ -32,7 +39,7 @@ inline bool verify_logic(root_rollup_tx& rollup, circuit_data const& circuit_dat
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
         // Pad the rollup if necessary.
-        rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
+        pad_rollup_tx(rollup, circuit_data);
 
         auto recursion_output = root_rollup_circuit(composer,
                                                     rollup,
@@ -70,7 +77,7 @@ inline verify_result verify(root_rollup_tx& rollup, circuit_data const& circuit_
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
         // Pad the rollup if necessary.
-        rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
+        pad_rollup_tx(rollup, circuit_data);
 
         root_rollup_circuit(composer,
                             rollup,

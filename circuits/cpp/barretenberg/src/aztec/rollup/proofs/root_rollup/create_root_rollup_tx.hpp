@@ -15,7 +15,8 @@ using Tree = MerkleTree<MemoryStore>;
 inline root_rollup_tx create_root_rollup_tx(uint32_t rollup_id,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
                                             Tree& data_tree,
-                                            Tree& root_tree)
+                                            Tree& root_tree,
+                                            Tree& defi_tree)
 {
     auto root_index = root_tree.size();
 
@@ -29,6 +30,12 @@ inline root_rollup_tx create_root_rollup_tx(uint32_t rollup_id,
     root_tree.update_element(root_index, data_root);
     tx_data.new_data_roots_root = root_tree.root();
     tx_data.new_data_roots_path = root_tree.get_hash_path(root_index);
+
+    tx_data.num_defi_interactions = 0;
+    tx_data.old_defi_interaction_root = defi_tree.root();
+    tx_data.old_defi_interaction_path = defi_tree.get_hash_path(defi_tree.size());
+    tx_data.new_defi_interaction_root = defi_tree.root();
+    tx_data.new_defi_interaction_path = defi_tree.get_hash_path(defi_tree.size());
 
     return tx_data;
 }
