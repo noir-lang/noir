@@ -1,5 +1,5 @@
 use acvm::acir::circuit::Circuit;
-use acvm::BackendPointer;
+use acvm::ConcreteBackend;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::DiagnosableError;
@@ -28,10 +28,10 @@ impl Driver {
 
     // This is here for backwards compatibility
     // with the restricted version which only uses one file
-    pub fn compile_file(root_file: PathBuf, backend: BackendPointer) -> CompiledProgram {
+    pub fn compile_file(root_file: PathBuf) -> CompiledProgram {
         let mut driver = Driver::new();
         driver.create_local_crate(root_file, CrateType::Binary);
-        driver.into_compiled_program(backend)
+        driver.into_compiled_program()
     }
 
     /// Compiles a file and returns true if compilation was successful
@@ -154,7 +154,7 @@ impl Driver {
         Some(abi)
     }
 
-    pub fn into_compiled_program(mut self, backend: BackendPointer) -> CompiledProgram {
+    pub fn into_compiled_program(mut self) -> CompiledProgram {
         self.build();
         // First find the local crate
         // There is always a local crate
@@ -181,7 +181,7 @@ impl Driver {
         let evaluator = Evaluator::new(main_function, &self.context);
 
         // Compile Program
-        let circuit = match evaluator.compile(backend) {
+        let circuit = match evaluator.compile() {
             Ok(circuit) => circuit,
             Err(err) => {
                 // The FileId here will be the file id of the file with the main file

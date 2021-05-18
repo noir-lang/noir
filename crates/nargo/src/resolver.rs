@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::BackendPointer;
+use acvm::ConcreteBackend;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateType};
 
@@ -48,28 +48,11 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn default_backend() -> BackendPointer {
-        acvm::fetch_by_name("csat_3_plonk_aztec").unwrap()
-    }
-
-    fn resolve_backend(name: Option<&str>) -> BackendPointer {
-        match name {
-            None => Resolver::default_backend(),
-            Some(name) => {
-                let backend = acvm::fetch_by_name(&name);
-                match backend {
-                    None => write_stderr(&format!("unknown backend: {}", name)),
-                    Some(backend) => backend,
-                }
-            }
-        }
-    }
-
     /// Returns the Driver and the backend to use
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path) -> (Driver, BackendPointer) {
+    pub fn resolve_root_config(dir_path: &std::path::Path) -> Driver {
         let mut driver = Driver::new();
 
         let (entry_path, crate_type) = super::lib_or_bin(&dir_path);
@@ -77,14 +60,12 @@ impl<'a> Resolver<'a> {
         let cfg_path = super::find_package_config(&dir_path);
         let cfg = super::toml::parse(cfg_path);
 
-        let backend = Resolver::resolve_backend(cfg.package.backend.as_deref());
-
         let crate_id = driver.create_local_crate(entry_path, crate_type);
 
         let mut resolver = Resolver::with_driver(&mut driver);
         resolver.resolve_config(crate_id, cfg);
 
-        (driver, backend)
+        driver
     }
 
     // Resolves a config file by recursively resolving the dependencies in the config
