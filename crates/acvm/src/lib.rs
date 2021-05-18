@@ -2,27 +2,11 @@
 // Org name is needed because more than one implementation of the same proof system may arise
 
 pub(crate) mod backends;
+pub use backends::ConcreteBackend;
 pub mod compiler;
 pub mod pwg;
 
 use std::collections::BTreeMap;
-
-cfg_if::cfg_if! {
-    if #[cfg(feature = "plonk")] {
-        // CSAT_3_PLONK_AZTEC
-
-        pub use backends::csat_3_plonk_aztec::Plonk as ConcreteBackend;
-
-    } else if #[cfg(feature = "marlin")] {
-        // R1CS_MARLIN_ARKWORKS
-        pub use backends::r1cs_marlin_arkworks::Marlin as ConcreteBackend;
-    } else {
-        compile_error!("please specify a backend to compile with");
-    }
-}
-// XXX: This works  because there are only two features, we want to say only one of these can be enabled. (feature xor)
-#[cfg(all(feature = "plonk", feature = "marlin"))]
-compile_error!("feature \"plonk\"  and feature \"marlin\" cannot be enabled at the same time");
 
 use acir::{
     circuit::{Circuit, Gate},
@@ -32,7 +16,7 @@ use acir::{
 
 // re-export acir
 pub use acir;
-use noir_field::FieldElement;
+use acir::FieldElement;
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
 
