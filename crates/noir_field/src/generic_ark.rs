@@ -255,6 +255,7 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     }
 }
 
+#[cfg(test)]
 mod test {
     #[test]
     fn and() {
