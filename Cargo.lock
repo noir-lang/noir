@@ -17,6 +17,7 @@ dependencies = [
  "arkworks_backend",
  "aztec_backend",
  "blake2",
+ "cfg-if 1.0.0",
  "hex",
  "k256",
  "noir_field",
