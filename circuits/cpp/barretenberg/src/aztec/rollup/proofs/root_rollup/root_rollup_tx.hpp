@@ -67,23 +67,14 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.new_data_roots_root);
     read(buf, tx.old_data_roots_path);
     read(buf, tx.new_data_roots_path);
+    read(buf, tx.num_defi_interactions);
     read(buf, tx.old_defi_interaction_root);
     read(buf, tx.new_defi_interaction_root);
     read(buf, tx.old_defi_interaction_path);
     read(buf, tx.new_defi_interaction_path);
-    read(buf, tx.bridge_ids[0]);
-    read(buf, tx.bridge_ids[1]);
-    read(buf, tx.bridge_ids[2]);
-    read(buf, tx.bridge_ids[3]);
+    read(buf, tx.bridge_ids);
+    read(buf, tx.defi_interaction_notes);
     read(buf, tx.interaction_nonce);
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
-        read(buf, tx.defi_interaction_notes[i].bridge_id);
-        read(buf, tx.defi_interaction_notes[i].interaction_nonce);
-        read(buf, tx.defi_interaction_notes[i].total_input_value);
-        read(buf, tx.defi_interaction_notes[i].total_output_a_value);
-        read(buf, tx.defi_interaction_notes[i].total_output_b_value);
-        read(buf, tx.defi_interaction_notes[i].interaction_result);
-    }
 }
 
 template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
@@ -96,23 +87,14 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.new_data_roots_root);
     write(buf, tx.old_data_roots_path);
     write(buf, tx.new_data_roots_path);
+    write(buf, tx.num_defi_interactions);
     write(buf, tx.old_defi_interaction_root);
     write(buf, tx.new_defi_interaction_root);
     write(buf, tx.old_defi_interaction_path);
     write(buf, tx.new_defi_interaction_path);
-    write(buf, tx.bridge_ids[0]);
-    write(buf, tx.bridge_ids[1]);
-    write(buf, tx.bridge_ids[2]);
-    write(buf, tx.bridge_ids[3]);
+    write(buf, tx.bridge_ids);
+    write(buf, tx.defi_interaction_notes);
     write(buf, tx.interaction_nonce);
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
-        write(buf, tx.defi_interaction_notes[i].bridge_id);
-        write(buf, tx.defi_interaction_notes[i].interaction_nonce);
-        write(buf, tx.defi_interaction_notes[i].total_input_value);
-        write(buf, tx.defi_interaction_notes[i].total_output_a_value);
-        write(buf, tx.defi_interaction_notes[i].total_output_b_value);
-        write(buf, tx.defi_interaction_notes[i].interaction_result);
-    }
 }
 
 inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
@@ -128,6 +110,7 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
     os << "old_data_roots_path: " << tx.old_data_roots_path << "\n";
     os << "new_data_roots_path: " << tx.new_data_roots_path << "\n";
 
+    os << "num_defi_interactions: " << tx.num_defi_interactions << "\n";
     os << "old_defi_interaction_root: " << tx.old_defi_interaction_root << "\n";
     os << "new_defi_interaction_root: " << tx.new_defi_interaction_root << "\n";
     os << "old_defi_interaction_path: " << tx.old_defi_interaction_path << "\n";
