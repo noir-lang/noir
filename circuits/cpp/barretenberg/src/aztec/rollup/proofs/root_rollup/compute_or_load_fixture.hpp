@@ -22,10 +22,10 @@ inline std::vector<uint8_t> compute_or_load_fixture(std::string const& path,
     // Tests are being run from build directory.
     auto filename = path + "/" + name;
     if (exists(filename)) {
-        error("Loading ", filename);
         auto stream = std::ifstream(filename);
         std::vector<uint8_t> data;
         read(stream, data);
+        error("Loaded fixture: ", filename);
         return data;
     } else {
         error("Computing ", name, "...");

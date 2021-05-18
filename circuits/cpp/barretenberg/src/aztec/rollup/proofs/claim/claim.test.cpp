@@ -87,10 +87,6 @@ class claim_tests : public ::testing::Test {
         tx.output_value_b = ((uint512_t(claim_note.deposit_value) * uint512_t(interaction_note.total_output_b_value)) /
                              uint512_t(interaction_note.total_input_value))
                                 .lo;
-        // tx.output_value_a =
-        //     claim_note.deposit_value * interaction_note.total_output_a_value / interaction_note.total_input_value;
-        // tx.output_value_b =
-        //     claim_note.deposit_value * interaction_note.total_output_b_value / interaction_note.total_input_value;
         return tx;
     }
 

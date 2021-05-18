@@ -25,7 +25,9 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
                                      std::string const& key_path,
                                      bool compute = true,
                                      bool save = true,
-                                     bool load = true)
+                                     bool load = true,
+                                     bool pk = true,
+                                     bool vk = true)
 {
     auto rollup_size = num_inner_rollups * rollup_circuit_data.rollup_size;
     auto floor = 1UL << numeric::get_msb(rollup_size);
@@ -61,10 +63,11 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
                             rollup_circuit_data.verification_key);
     };
 
-    auto cd = proofs::get_circuit_data(name, srs, key_path, compute, save, load, false, build_circuit);
+    auto cd = proofs::get_circuit_data(name, srs, key_path, compute, save, load, pk, vk, false, build_circuit);
 
     circuit_data data;
     data.num_gates = cd.num_gates;
+    data.verifier_crs = cd.verifier_crs;
     data.padding_proof = cd.padding_proof;
     data.proving_key = cd.proving_key;
     data.verification_key = cd.verification_key;

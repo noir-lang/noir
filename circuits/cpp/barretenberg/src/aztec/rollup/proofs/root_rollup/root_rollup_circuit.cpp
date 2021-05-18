@@ -4,7 +4,6 @@
 #include "../inner_proof_data.hpp"
 #include "../rollup/rollup_proof_data.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
-#include <common/throw_or_abort.hpp>
 #include <stdlib/hash/sha256/sha256.hpp>
 #include "../notes/constants.hpp"
 #include "../notes/circuit/pedersen_note.hpp"
