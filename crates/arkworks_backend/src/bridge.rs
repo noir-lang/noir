@@ -37,11 +37,6 @@ pub struct AcirArithGate<F: Field> {
     pub(crate) constant_term: F,
 }
 
-// XXX: This is in place, until we make noir_field generic.
-use ark_bn254::Fr;
-pub type Bn254Acir = AcirCircuit<Fr>;
-pub type Bn254AcirArithGate = AcirArithGate<Fr>;
-
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for AcirCircuit<ConstraintF> {
     fn generate_constraints(
         self,

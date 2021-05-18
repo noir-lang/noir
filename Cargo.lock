@@ -248,6 +248,7 @@ name = "arkworks_backend"
 version = "0.1.0"
 dependencies = [
  "acir",
+ "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
  "ark-marlin",
@@ -257,6 +258,7 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "blake2",
+ "cfg-if 1.0.0",
  "noir_field",
 ]
 

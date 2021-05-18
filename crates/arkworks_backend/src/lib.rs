@@ -1,19 +1,19 @@
 use acir::circuit::Circuit;
-use ark_bn254::{Bn254, Fr};
 use ark_ff::Zero;
 use ark_marlin::{Marlin, Proof};
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::marlin_pc::MarlinKZG10;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use blake2::Blake2s;
 use noir_field::FieldElement;
 use serialiser::serialise;
 
 pub mod bridge;
+mod concrete_cfg;
+pub use concrete_cfg::{Curve, Fr};
 pub mod serialiser;
 
-type MultiPC = MarlinKZG10<Bn254, DensePolynomial<Fr>>;
-type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
+type MultiPC = MarlinKZG10<Curve, DensePolynomial<Fr>>;
+type MarlinInst = Marlin<Fr, MultiPC, blake2::Blake2s>;
 type MarlinBn254Proof = Proof<Fr, MultiPC>;
 
 // Creates a proof using the Marlin proving system
@@ -29,16 +29,16 @@ pub fn prove(acir: Circuit, values: Vec<&FieldElement>) -> Vec<u8> {
         .map(|x| x.into_repr())
         .collect();
 
-    let bn254_circ = serialise(acir, values);
+    let concrete_circ = serialise(acir, values);
 
     // XXX: This should not be used in production
     let rng = &mut ark_std::test_rng();
 
     let universal_srs = MarlinInst::universal_setup(num_constraints, num_vars, 100, rng).unwrap();
 
-    let (index_pk, _) = MarlinInst::index(&universal_srs, bn254_circ.clone()).unwrap();
+    let (index_pk, _) = MarlinInst::index(&universal_srs, concrete_circ.clone()).unwrap();
 
-    let proof = MarlinInst::prove(&index_pk, bn254_circ, rng).unwrap();
+    let proof = MarlinInst::prove(&index_pk, concrete_circ, rng).unwrap();
 
     // Serialise proof
     let mut bytes = Vec::new();
@@ -49,13 +49,13 @@ pub fn prove(acir: Circuit, values: Vec<&FieldElement>) -> Vec<u8> {
 pub fn verify(acir: Circuit, proof: &[u8], public_inputs: Vec<FieldElement>) -> bool {
     let num_vars = acir.num_vars() as usize;
     let num_constraints = compute_num_constraints(&acir);
-    let bn254_circ = serialise(acir, vec![Fr::zero(); num_vars]);
+    let concrete_circ = serialise(acir, vec![Fr::zero(); num_vars]);
 
     let rng = &mut ark_std::test_rng();
 
     let universal_srs = MarlinInst::universal_setup(num_constraints, num_vars, 100, rng).unwrap();
 
-    let (_, index_vk) = MarlinInst::index(&universal_srs, bn254_circ).unwrap();
+    let (_, index_vk) = MarlinInst::index(&universal_srs, concrete_circ).unwrap();
 
     let public_inputs: Vec<_> = public_inputs.into_iter().map(|x| x.into_repr()).collect();
     let proof = MarlinBn254Proof::deserialize(proof).unwrap();
