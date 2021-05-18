@@ -4,14 +4,25 @@
 pub(crate) mod backends;
 pub mod compiler;
 pub mod pwg;
-mod tier_one;
-mod tier_three;
-mod tier_two;
+
 use std::collections::BTreeMap;
 
-use tier_one::{TierOne, TIER_ONE_MAP};
-use tier_three::{TierThree, TIER_THREE_MAP};
-use tier_two::{TierTwo, TIER_TWO_MAP};
+cfg_if::cfg_if! {
+    if #[cfg(feature = "plonk")] {
+        // CSAT_3_PLONK_AZTEC
+
+        pub use backends::csat_3_plonk_aztec::Plonk as ConcreteBackend;
+
+    } else if #[cfg(feature = "marlin")] {
+        // R1CS_MARLIN_ARKWORKS
+        pub use backends::r1cs_marlin_arkworks::Marlin as ConcreteBackend;
+    } else {
+        compile_error!("please specify a backend to compile with");
+    }
+}
+// XXX: This works  because there are only two features, we want to say only one of these can be enabled. (feature xor)
+#[cfg(all(feature = "plonk", feature = "marlin"))]
+compile_error!("feature \"plonk\"  and feature \"marlin\" cannot be enabled at the same time");
 
 use acir::{
     circuit::{Circuit, Gate},
@@ -22,46 +33,6 @@ use acir::{
 // re-export acir
 pub use acir;
 use noir_field::FieldElement;
-
-#[derive(Debug, Copy, Clone)]
-pub enum BackendPointer {
-    One(TierOne),
-    Two(TierTwo),
-    Three(TierThree),
-}
-
-impl Default for BackendPointer {
-    fn default() -> BackendPointer {
-        const AZTEC_BACKEND: &str = "csat_3_plonk_aztec";
-        fetch_by_name(AZTEC_BACKEND).expect("expected the default backend to be available")
-    }
-}
-
-impl BackendPointer {
-    pub fn backend(&self) -> Box<dyn Backend> {
-        match self {
-            BackendPointer::One(x) => x.fetch_backend(),
-            BackendPointer::Two(x) => x.fetch_backend(),
-            BackendPointer::Three(x) => x.fetch_backend(),
-        }
-    }
-}
-
-// Fetches a backend marker given it's full name
-// Returning the enum avoids the need to return a Trait
-pub fn fetch_by_name(string: &str) -> Option<BackendPointer> {
-    // Check each map to see if we can find the backend name
-
-    if let Some((_, target)) = TIER_ONE_MAP.iter().find(|(name, _)| name == &string) {
-        return Some(BackendPointer::One(*target));
-    };
-    if let Some((_, target)) = TIER_TWO_MAP.iter().find(|(name, _)| name == &string) {
-        return Some(BackendPointer::Two(*target));
-    };
-
-    let (_, target) = TIER_THREE_MAP.iter().find(|(name, _)| name == &string)?;
-    Some(BackendPointer::Three(*target))
-}
 
 pub trait Backend: SmartContract + ProofSystemCompiler + PartialWitnessGenerator {}
 

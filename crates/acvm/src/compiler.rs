@@ -6,10 +6,10 @@ use acir::{
     optimiser::{CSatOptimiser, GeneralOptimiser},
 };
 
-use crate::BackendPointer;
+use crate::{ConcreteBackend, ProofSystemCompiler};
 
-pub fn compile(acir: Circuit, backend: BackendPointer) -> Circuit {
-    let backend = backend.backend();
+pub fn compile(acir: Circuit) -> Circuit {
+    let backend = ConcreteBackend;
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same
     let optimiser = match backend.np_language() {
