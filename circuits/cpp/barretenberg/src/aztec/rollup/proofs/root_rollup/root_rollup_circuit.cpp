@@ -253,16 +253,8 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         is_defi_interaction_note_present = (is_defi_interaction_note_present || is_real);
     }
 
-    packed_byte_array_ct foo(&composer, std::vector<uint8_t>(16, 1));
-    info("foo ", foo);
-
-    info("circuit input: ", hash_input);
-    info("circuit input size: ", hash_input.size());
-    const auto hash_output = plonk::stdlib::sha256<Composer>(foo);
-    info("circuit buf: ", hash_output);
-
-    const auto hash_buffer = byte_array_ct(hash_output);
-    const auto previous_defi_interaction_hash = field_ct(hash_buffer);
+    const auto hash_output = plonk::stdlib::sha256<Composer>(hash_input);
+    const auto previous_defi_interaction_hash = field_ct(byte_array_ct(hash_output));
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
     check_tree_updated(composer,
