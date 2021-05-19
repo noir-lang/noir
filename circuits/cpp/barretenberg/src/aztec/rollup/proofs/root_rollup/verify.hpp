@@ -10,12 +10,14 @@ namespace root_rollup {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-bool verify_logic(root_rollup_tx& rollup, circuit_data const& circuit_data);
-
 struct verify_result {
     bool verified;
+    bool logic_verified;
+    std::vector<fr> public_inputs;
     std::vector<uint8_t> proof_data;
 };
+
+verify_result verify_logic(root_rollup_tx& rollup, circuit_data const& circuit_data);
 
 verify_result verify(root_rollup_tx& rollup, circuit_data const& circuit_data);
 

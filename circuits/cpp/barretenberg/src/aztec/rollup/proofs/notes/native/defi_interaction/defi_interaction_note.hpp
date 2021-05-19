@@ -21,6 +21,22 @@ struct defi_interaction_note {
     bool interaction_result;
 
     bool operator==(defi_interaction_note const&) const = default;
+
+    // Returns a byte array where all input fields are treated as 32 bytes.
+    // Used for generating the previous_defi_interaction_hash.
+    std::vector<uint8_t> to_byte_array() const
+    {
+        std::vector<uint8_t> buf;
+
+        write(buf, bridge_id);
+        write(buf, uint256_t(interaction_nonce));
+        write(buf, total_input_value);
+        write(buf, total_output_a_value);
+        write(buf, total_output_b_value);
+        write(buf, uint256_t(interaction_result));
+
+        return buf;
+    }
 };
 
 inline std::ostream& operator<<(std::ostream& os, defi_interaction_note const& note)

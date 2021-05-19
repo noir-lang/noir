@@ -1,5 +1,6 @@
 #include "sha256.hpp"
 #include <common/test.hpp>
+#include <crypto/sha256/sha256.hpp>
 #include <plonk/composer/standard_composer.hpp>
 #include <plonk/composer/plookup_tables/plookup_tables.hpp>
 #include <stdlib/types/turbo.hpp>
@@ -403,6 +404,26 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
+}
+
+TEST(stdlib_sha256, test_bug_len_multiple_of_16)
+{
+    Composer composer = Composer();
+
+    // FAILS IF LEN(INPUT_STRING) is a multiple of 16.
+    // auto input_buf = std::vector<uint8_t>(32, 1);
+    std::string input_str = "abcdbcdecdefdefaagggshsjbdjdsksgabcdbcdecdefdefaagggshsjbdjdsksg";
+    std::cout << "len(input) = " << input_str.length() << std::endl;
+    auto input_buf = std::vector<uint8_t>(input_str.begin(), input_str.end());
+
+    byte_array_ct input(&composer, input_buf);
+    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+
+    auto circuit_output = output_bits.get_value();
+
+    auto expected = sha256::sha256(input_buf);
+
+    EXPECT_EQ(circuit_output, expected);
 }
 
 } // namespace test_stdlib_sha256
