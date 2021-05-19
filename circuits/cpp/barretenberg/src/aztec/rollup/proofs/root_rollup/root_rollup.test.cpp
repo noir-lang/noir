@@ -55,12 +55,14 @@ class root_rollup_tests : public ::testing::Test {
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
 
         if (recreate) {
+            // If no fixtures dir, recreate all proving keys, verification keys, padding proofs etc.
             account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
             join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
             tx_rollup_cd = rollup::get_circuit_data(
                 INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
             root_rollup_cd = get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
         } else {
+            // Otherwise we should only need the inner proofs verification key for logic tests.
             tx_rollup_cd = rollup::get_circuit_data(
                 INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, false, false, true, false, true);
             root_rollup_cd = get_circuit_data(
@@ -105,8 +107,17 @@ class root_rollup_tests : public ::testing::Test {
 
     std::vector<uint8_t> compute_or_load_rollup(std::string const& name, rollup::rollup_tx& rollup)
     {
-        return compute_or_load_fixture(
-            TEST_PROOFS_PATH, name, [&] { return rollup::verify_rollup(rollup, tx_rollup_cd).proof_data; });
+        return compute_or_load_fixture(TEST_PROOFS_PATH, name, [&] {
+            // We need to ensure we have a proving key to build the inner proof fixtures.
+            if (!tx_rollup_cd.proving_key) {
+                account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+                join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+                tx_rollup_cd = rollup::get_circuit_data(
+                    INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
+                root_rollup_cd.inner_rollup_circuit_data = tx_rollup_cd;
+            }
+            return rollup::verify_rollup(rollup, tx_rollup_cd).proof_data;
+        });
     }
 
     rollup::rollup_tx create_rollup_tx(std::vector<std::vector<uint8_t>> const& txs)

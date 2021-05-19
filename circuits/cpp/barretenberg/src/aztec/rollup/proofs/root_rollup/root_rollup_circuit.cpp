@@ -239,9 +239,9 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
      * (ii) Update the data tree with encryptions of the defi_interaction_notes.
      */
     byte_array_ct hash_input(&composer);
-    auto is_defi_interaction_note_present = bool_ct(&composer, false);
-    auto defi_interaction_note_leaves = std::vector<byte_array_ct>();
-    auto encrypted_defi_interaction_notes = std::vector<point_ct>();
+    bool_ct is_defi_interaction_note_present(&composer, false);
+    std::vector<byte_array_ct> defi_interaction_note_leaves;
+    std::vector<point_ct> encrypted_defi_interaction_notes;
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         auto is_real = uint32_ct(i) < num_defi_interactions;
         hash_input.write(defi_interaction_notes[i].to_byte_array(composer, is_real));
@@ -292,24 +292,18 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         add_padding_public_inputs(composer, inner_rollup_size);
     }
 
-    /**
-     * For the defi deposits, we add the following as the public input of the root_rollup circuit:
-     *   (i) bridge_ids
-     *  (ii) defi_deposit_sums
-     *  (ii) encrypted_defi_interaction_notes
-     * (iii) previous_defi_interaction_hash
-     *
-     * P.S. Adding the new public inputs post the older order of public inputs to ensure backward-compatibility in our
-     * smart contract.
-     */
+    recursion_output.add_proof_outputs_as_public_inputs();
+
+    // The root rollup has the same public input structure as the inner rollup, until this point.
+    // The following public inputs support the defi bridge.
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         composer.set_public_input(bridge_ids[i].witness_index);
         composer.set_public_input(defi_deposit_sums[i].witness_index);
+    }
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         encrypted_defi_interaction_notes[i].set_public();
     }
     composer.set_public_input(previous_defi_interaction_hash.witness_index);
-
-    recursion_output.add_proof_outputs_as_public_inputs();
 
     return recursion_output;
 }

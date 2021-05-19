@@ -1,7 +1,7 @@
 #include "verify.hpp"
 #include "root_rollup_circuit.hpp"
 #include "create_root_rollup_tx.hpp"
-#include "../rollup/rollup_proof_data.hpp"
+#include "root_rollup_proof_data.hpp"
 #include <stdlib/types/turbo.hpp>
 
 namespace rollup {
@@ -28,6 +28,11 @@ bool verify_internal(Composer& composer, root_rollup_tx& tx, circuit_data const&
 {
     if (!circuit_data.inner_rollup_circuit_data.verification_key) {
         error("Inner verification key not provided.");
+        return false;
+    }
+
+    if (circuit_data.inner_rollup_circuit_data.padding_proof.size() == 0) {
+        error("Inner padding proof not provided.");
         return false;
     }
 
@@ -76,9 +81,7 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
     auto proof = prover.construct_proof();
 
     // Pairing check.
-    auto data = rollup::rollup_proof_data(proof.proof_data);
-    info(data.recursion_output[0]);
-    info(data.recursion_output[1]);
+    auto data = rollup::root_rollup_proof_data(proof.proof_data);
     auto pairing = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
                        data.recursion_output, circuit_data.verifier_crs->get_precomputed_g2_lines(), 2) ==
                    barretenberg::fq12::one();

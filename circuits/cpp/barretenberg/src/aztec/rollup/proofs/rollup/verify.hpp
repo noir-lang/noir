@@ -63,6 +63,21 @@ inline verify_rollup_result verify_rollup(rollup_tx& rollup, circuit_data const&
 #ifndef __wasm__
     try {
 #endif
+        if (!circuit_data.proving_key) {
+            error("Proving key not provided.");
+            return { false, {} };
+        }
+
+        if (!circuit_data.verification_key) {
+            error("Verification key not provided.");
+            return { false, {} };
+        }
+
+        if (!circuit_data.join_split_circuit_data.padding_proof.size()) {
+            error("Tx padding proof not provided.");
+            return { false, {} };
+        }
+
         Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
         pad_rollup_tx(rollup, circuit_data.num_txs, circuit_data.join_split_circuit_data.padding_proof);
