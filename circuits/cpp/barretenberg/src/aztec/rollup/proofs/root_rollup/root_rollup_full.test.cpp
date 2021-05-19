@@ -127,7 +127,6 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     EXPECT_EQ(rollup_data.new_data_root, data_tree.root());
     EXPECT_EQ(rollup_data.new_null_root, null_tree.root());
     EXPECT_EQ(rollup_data.new_data_roots_root, root_tree.root());
-    EXPECT_EQ(rollup_data.num_txs, 0U);
 
     auto inner_data = rollup_data.inner_proofs[3];
     EXPECT_EQ(inner_data.public_input, uint256_t(0));
@@ -167,7 +166,6 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
     EXPECT_EQ(rollup_data.new_data_root, data_tree.root());
     EXPECT_EQ(rollup_data.new_null_root, null_tree.root());
     EXPECT_EQ(rollup_data.new_data_roots_root, root_tree.root());
-    EXPECT_EQ(rollup_data.num_txs, 0U);
 
     for (size_t i = 1; i < rollup_data.inner_proofs.size(); ++i) {
         auto inner_data = rollup_data.inner_proofs[i];

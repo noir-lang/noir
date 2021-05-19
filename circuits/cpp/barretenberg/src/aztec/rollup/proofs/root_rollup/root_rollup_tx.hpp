@@ -45,7 +45,7 @@ struct root_rollup_tx {
     // num_defi_interactions bridge ids.
     // Will be padded to NUM_BRIDGE_CALLS_PER_BLOCK.
     // All defi deposits must match one of these.
-    std::vector<fr> bridge_ids;
+    std::vector<uint256_t> bridge_ids;
 
     // The interaction nonce is added to the partial claim notes in the defi deposits.
     uint32_t interaction_nonce;

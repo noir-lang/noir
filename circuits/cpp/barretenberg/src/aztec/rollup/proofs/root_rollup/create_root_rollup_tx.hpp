@@ -12,6 +12,13 @@ namespace root_rollup {
 
 using Tree = MerkleTree<MemoryStore>;
 
+inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
+{
+    rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
+    rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+}
+
 inline root_rollup_tx create_root_rollup_tx(uint32_t rollup_id,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
                                             Tree& data_tree,

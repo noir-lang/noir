@@ -40,7 +40,6 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
             fr_hash_path(ROOT_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
         auto gibberish_defi_path =
             fr_hash_path(DEFI_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
-        notes::native::defi_interaction::defi_interaction_note defi_native_note = { 0, 0, 0, 0, 0, false };
 
         root_rollup_tx root_rollup;
         root_rollup.rollup_id = 0;
@@ -49,13 +48,14 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
         root_rollup.old_data_roots_path = gibberish_roots_path;
         root_rollup.new_data_roots_path = gibberish_roots_path;
         root_rollup.rollups.resize(num_inner_rollups, rollup_circuit_data.padding_proof);
+        root_rollup.num_defi_interactions = 0;
         root_rollup.old_defi_interaction_root = fr::random_element();
         root_rollup.new_defi_interaction_root = fr::random_element();
         root_rollup.old_defi_interaction_path = gibberish_defi_path;
         root_rollup.new_defi_interaction_path = gibberish_defi_path;
-        root_rollup.bridge_ids = { 0, 1, 2, 3 };
+        root_rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
         root_rollup.interaction_nonce = 0;
-        root_rollup.defi_interaction_notes = { defi_native_note, defi_native_note, defi_native_note, defi_native_note };
+        root_rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
         root_rollup_circuit(composer,
                             root_rollup,
                             rollup_circuit_data.rollup_size,

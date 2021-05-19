@@ -1,5 +1,6 @@
 #include "verify.hpp"
 #include "root_rollup_circuit.hpp"
+#include "create_root_rollup_tx.hpp"
 #include "../rollup/rollup_proof_data.hpp"
 #include <stdlib/types/turbo.hpp>
 
@@ -9,13 +10,6 @@ namespace root_rollup {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
-
-void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
-{
-    rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
-    rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
-    rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
-}
 
 bool pairing_check(recursion_output<bn254> recursion_output,
                    std::shared_ptr<waffle::VerifierReferenceString> const& srs)
@@ -81,20 +75,21 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
     auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
-    if (!verifier.verify_proof(proof)) {
-        error("Proof validation failed.");
+    // Pairing check.
+    auto data = rollup::rollup_proof_data(proof.proof_data);
+    info(data.recursion_output[0]);
+    info(data.recursion_output[1]);
+    auto pairing = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
+                       data.recursion_output, circuit_data.verifier_crs->get_precomputed_g2_lines(), 2) ==
+                   barretenberg::fq12::one();
+    if (!pairing) {
+        error("Proof data pairing check failed.");
         return { false, {} };
     }
 
-    // Pairing check.
-    auto data = rollup::rollup_proof_data(proof.proof_data);
-    auto pairing =
-        barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
-            data.recursion_output, circuit_data.verification_key->reference_string->get_precomputed_g2_lines(), 2) ==
-        barretenberg::fq12::one();
-    if (!pairing) {
-        error("Proof data pairing check failed.");
+    auto verifier = composer.create_verifier();
+    if (!verifier.verify_proof(proof)) {
+        error("Proof validation failed.");
         return { false, {} };
     }
 

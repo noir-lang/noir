@@ -241,7 +241,6 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 1UL);
 
     auto tx_data = inner_proof_data(join_split_proof);
@@ -287,7 +286,6 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 2UL);
 
     auto tx_data = inner_proof_data(join_split_proof);
@@ -336,7 +334,6 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee * 2 : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
@@ -387,7 +384,6 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), txs.size());
 
     for (size_t i = 0; i < txs.size(); ++i) {
@@ -435,7 +431,6 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
     for (size_t i = 0; i < rollup_data.total_tx_fees.size(); ++i) {
         EXPECT_EQ(rollup_data.total_tx_fees[i], i == asset_id ? tx_fee : 0UL);
     }
-    EXPECT_EQ(rollup_data.num_txs, 0UL);
     EXPECT_EQ(rollup_data.inner_proofs.size(), 4UL);
 
     auto tx_data = inner_proof_data(join_split_proof);

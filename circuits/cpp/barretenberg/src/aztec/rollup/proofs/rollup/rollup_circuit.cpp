@@ -205,7 +205,6 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     for (auto total_tx_fee : total_tx_fees) {
         composer.set_public_input(total_tx_fee.witness_index);
     }
-    composer.set_public_input(witness_ct(&composer, 0).witness_index);
     for (auto& inner : inner_public_inputs) {
         propagate_inner_proof_public_inputs(composer, inner);
     }

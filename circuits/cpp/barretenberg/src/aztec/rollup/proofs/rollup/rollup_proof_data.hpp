@@ -20,7 +20,7 @@ enum {
     OLD_DATA_ROOTS_ROOT = 7,
     NEW_DATA_ROOTS_ROOT = 8,
     TOTAL_TX_FEES = 9,
-    INNER_PROOFS_DATA = 10 + NUM_ASSETS,
+    INNER_PROOFS_DATA = TOTAL_TX_FEES + NUM_ASSETS,
 };
 } // namespace RollupProofFields
 
@@ -64,7 +64,6 @@ struct rollup_proof_data {
     fr old_data_roots_root;
     fr new_data_roots_root;
     std::vector<uint256_t> total_tx_fees;
-    uint32_t num_txs;
     std::vector<propagated_inner_proof_data> inner_proofs;
     g1::affine_element recursion_output[2];
 
