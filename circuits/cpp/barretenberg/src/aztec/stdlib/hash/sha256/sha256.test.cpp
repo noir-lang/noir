@@ -406,24 +406,68 @@ HEAVY_TEST(stdlib_sha256, test_NIST_vector_five)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(stdlib_sha256, test_bug_len_multiple_of_16)
+TEST(stdlib_sha256, test_input_len_multiple)
 {
     Composer composer = Composer();
 
-    // FAILS IF LEN(INPUT_STRING) is a multiple of 16.
-    // auto input_buf = std::vector<uint8_t>(32, 1);
-    std::string input_str = "abcdbcdecdefdefaagggshsjbdjdsksgabcdbcdecdefdefaagggshsjbdjdsksg";
-    std::cout << "len(input) = " << input_str.length() << std::endl;
-    auto input_buf = std::vector<uint8_t>(input_str.begin(), input_str.end());
+    std::vector<uint32_t> input_sizes = { 1, 7, 15, 16, 30, 32, 55, 64, 90, 128, 512, 700 };
 
-    byte_array_ct input(&composer, input_buf);
-    byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+    for (auto& inp : input_sizes) {
+        auto input_buf = std::vector<uint8_t>(inp, 1);
 
-    auto circuit_output = output_bits.get_value();
+        byte_array_ct input(&composer, input_buf);
+        byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
 
-    auto expected = sha256::sha256(input_buf);
+        auto circuit_output = output_bits.get_value();
 
-    EXPECT_EQ(circuit_output, expected);
+        auto expected = sha256::sha256(input_buf);
+
+        EXPECT_EQ(circuit_output, expected);
+    }
+}
+
+TEST(stdlib_sha256, test_input_str_len_multiple)
+{
+    Composer composer = Composer();
+
+    std::vector<std::string> input_strings = {
+        "y",                                                                                          // 1
+        "rjvrbuh",                                                                                    // 7
+        "mrrozctemyvkntd",                                                                            // 15
+        "wzazugetudtuezxa",                                                                           // 16
+        "dbxldszbrgdmyvncpeifhnelmlulqo",                                                             // 30
+        "qdnsbdlamrivgzbktsyyijethtvuzzrk",                                                           // 32
+        "qhpqepdogwsiuyfwqgbqcikeywbgyjznoswitwddhytzkrkdjykvflg",                                    // 55
+        "fmsityhwkevuctwwsosjyrznibbpfcawmkoatqaaojeahnldcnrwijqpwiuvdeyp",                           // 64
+        "utszdtjhsqjeakhczzusnntdrtxbljvhqdndaybosjgaufvnjxmnidcvvedgszbspaycosgwauyttmbdvqogakiktp", // 90
+        "enbgynwxnnymvqeqbojewmzwowfbpetrerntwtkgwnvtdopjssnddzxjnkqwicthufgpbwrmmhiwpyxlpskxgarmrtvketlvkmdvnsqgdftfhw"
+        "dvgmlfjrqoviqrhuon", // 128
+        "nngsypjgwnazpjdxovbqnevgrqxwzuljdqqiahpgwvvmgjdzfwjsjwwxcadhluzqxezlrznuoiuobpmkhqibphwvfjicmpxkshiizlgpyloxyx"
+        "fljwgwlazfidiylowazmguxxxjzimizxrzllescpactcpzeaeuyhjxgkmktkqslxripwwgragpvwknphwifojuqatlraacymbwfaohhhzstnil"
+        "tqvukrienivisigkoefkqejdagylahffwvloqtqjkmtgxenxviqutsjjgffmolrwqbwgigyrhbpqsnyyzmvvyehcsyzxxskkyxiuqvagakutcu"
+        "lqowtykszgnpmeebrksyaqezflhdbrgswpwnrknjnfhnfqfwquooxazubnccawwvldpihkhjkwmwceuvorfeuwvzjzzceywuimfzunordhixpo"
+        "rqveoywjgdbnmgiywcwwcybhoqvhentbwxfvouauviyqbnphtfotgwtitxutdfxjforuyaau", // 512
+        "lbfeywyqvybssdvmorkyltmgxvjezwltijsqfnpaexqyzfppmnpsxlhqwdojjqsqlfybpxskexswevngctedgvhbdwszxqxqoqbhmshmpmdrpy"
+        "akejsoevkfrtvgfzcvockujdynvxfaxsdavmwlpxfwftczoduqdfxrkksnqygdsarhaszezxndalitvvsziyeklymrytdkunnxpvwvkzldrrzw"
+        "ccxghwdnufkxsvpumhhszzjpmwuxvfjxfccltjqlwkyleyoydzpqqfnkkuvdgbvuqqsnpexuoqupakvhvqfucbkzoyzehocvkzsngtwkyqklhk"
+        "qdtszsbtyzxzdeipjsbmzrpqlkhlkqimoiiblhrrymyafvtdbrmbixuzwhvnkcroanyvxvbaaznpgoadhmltgcweqajbnnkzuxihlcqurjzkxb"
+        "pxqjyvutmgqquavwpkdgkppctvybdikwvqxgifgfbgzywijqtcyvfqdsbbxsknqejhrwuhlnqjgdcpipxxwbguzgsjygbdgqczmqxcnzieoyok"
+        "oraykfcqzctnjgjcdyhnxnuorvaxhsdbeosqhvqebccfxiefubecprupofnkkpafpmlzcqbcnojbelemuqlxoiqqwhtrddqqwurvgyretfvhuh"
+        "fzkbvfywmrqpjqxdrvlrmvlbmmfeldmwvxmpohle" // 700
+    };
+
+    for (auto& input_str : input_strings) {
+        auto input_buf = std::vector<uint8_t>(input_str.begin(), input_str.end());
+
+        byte_array_ct input(&composer, input_buf);
+        byte_array_ct output_bits = plonk::stdlib::sha256<Composer>(input);
+
+        auto circuit_output = output_bits.get_value();
+
+        auto expected = sha256::sha256(input_buf);
+
+        EXPECT_EQ(circuit_output, expected);
+    }
 }
 
 } // namespace test_stdlib_sha256
