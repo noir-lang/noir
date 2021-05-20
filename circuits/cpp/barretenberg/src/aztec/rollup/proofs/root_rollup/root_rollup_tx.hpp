@@ -42,9 +42,6 @@ struct root_rollup_tx {
     fr_hash_path old_defi_interaction_path;
     fr_hash_path new_defi_interaction_path;
 
-    // The interaction nonce is added to the partial claim notes in the defi deposits.
-    uint32_t interaction_nonce;
-
     // num_defi_interactions bridge ids.
     // Will be padded to NUM_BRIDGE_CALLS_PER_BLOCK.
     // All defi deposits must match one of these.
@@ -72,7 +69,6 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.new_defi_interaction_root);
     read(buf, tx.old_defi_interaction_path);
     read(buf, tx.new_defi_interaction_path);
-    read(buf, tx.interaction_nonce);
     read(buf, tx.bridge_ids);
     read(buf, tx.defi_interaction_notes);
 }
@@ -92,7 +88,6 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.new_defi_interaction_root);
     write(buf, tx.old_defi_interaction_path);
     write(buf, tx.new_defi_interaction_path);
-    write(buf, tx.interaction_nonce);
     write(buf, tx.bridge_ids);
     write(buf, tx.defi_interaction_notes);
 }

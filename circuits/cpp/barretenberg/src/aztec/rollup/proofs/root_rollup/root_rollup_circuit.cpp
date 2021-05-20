@@ -54,7 +54,6 @@ void check_root_tree_updated(Composer& composer,
 }
 
 void check_tree_updated(Composer& composer,
-                        size_t num_leaves,
                         field_ct const& new_root,
                         merkle_tree::hash_path const& new_path,
                         field_ct const& old_root,
@@ -62,7 +61,7 @@ void check_tree_updated(Composer& composer,
                         std::vector<byte_array_ct> const& new_values,
                         field_ct const& start_index)
 {
-    size_t height = numeric::get_msb(num_leaves);
+    size_t height = numeric::get_msb(new_values.size());
     auto zero_subtree_root = field_ct(zero_hash_at_height(height));
 
     auto rollup_root = compute_tree_root(new_values);
@@ -120,7 +119,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto defi_interaction_notes = map_vector<defi_interaction_note>(root_rollup.defi_interaction_notes, [&](auto& n) {
         return defi_interaction_note({ composer, n });
     });
-    field_ct defi_interaction_nonce = rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
+    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
 
     auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct::from_witness_index(&composer, composer.zero_idx));
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
@@ -193,7 +192,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                 note_defi_interaction_nonce += (field_ct(&composer, k) * matches);
             }
             auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
-            info("num_matched ", num_matched);
             composer.assert_equal_constant(
                 is_valid_bridge_id.witness_index, 1, "proof bridge id must match a single bridge id");
 
@@ -271,14 +269,14 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     const auto previous_defi_interaction_hash = field_ct(byte_array_ct(hash_output));
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
+    // The defi_interaction_nonce represents the insertion location.
     check_tree_updated(composer,
-                       NUM_BRIDGE_CALLS_PER_BLOCK,
                        new_defi_interaction_root,
                        new_defi_interaction_path,
                        old_defi_interaction_root,
                        old_defi_interaction_path,
                        defi_interaction_note_leaves,
-                       rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK);
+                       defi_interaction_nonce);
 
     // Check data root tree is updated with latest data root.
     check_root_tree_updated(

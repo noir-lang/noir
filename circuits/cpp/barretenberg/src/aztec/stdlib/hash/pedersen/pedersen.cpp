@@ -185,9 +185,9 @@ point<C> pedersen<C>::hash_single(const field_t& in,
         reconstructed_scalar.witness_index = add_quad.d;
         field_t lhs = reconstructed_scalar * in;
         field_t rhs = in * in;
-        ctx->assert_equal(lhs.witness_index, rhs.witness_index);
+        ctx->assert_equal(lhs.witness_index, rhs.witness_index, "pedersen lhs != rhs");
     } else {
-        ctx->assert_equal(add_quad.d, in.witness_index);
+        ctx->assert_equal(add_quad.d, in.witness_index, "pedersen d != in");
     }
 
     if (validate_input_is_in_field) {
