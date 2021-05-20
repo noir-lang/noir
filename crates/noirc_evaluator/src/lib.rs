@@ -11,7 +11,6 @@ use acvm::acir::circuit::{
     Circuit, PublicInputs,
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
-use acvm::ConcreteBackend;
 use environment::{Environment, FuncContext};
 use errors::RuntimeErrorKind;
 use noir_field::FieldElement;

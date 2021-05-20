@@ -1,5 +1,4 @@
 use acvm::acir::circuit::Circuit;
-use acvm::ConcreteBackend;
 use fm::FileType;
 use noirc_abi::Abi;
 use noirc_errors::DiagnosableError;

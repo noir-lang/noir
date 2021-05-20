@@ -3,14 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::ConcreteBackend;
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateType};
 
-use crate::{
-    toml::{Config, Dependency},
-    write_stderr,
-};
+use crate::toml::{Config, Dependency};
 
 /// Creates a unique folder name for a GitHub repo
 /// by using it's URL and tag
