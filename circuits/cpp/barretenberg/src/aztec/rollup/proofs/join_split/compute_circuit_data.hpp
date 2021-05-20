@@ -9,6 +9,8 @@ namespace join_split {
 
 join_split_tx noop_tx();
 
+join_split_tx noop_defi_tx(fr defi_deposit_amount, fr change_amount);
+
 struct circuit_data {
     std::shared_ptr<waffle::proving_key> proving_key;
     std::shared_ptr<waffle::verification_key> verification_key;

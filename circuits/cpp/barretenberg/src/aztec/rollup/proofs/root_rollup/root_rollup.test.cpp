@@ -1,3 +1,4 @@
+#include <crypto/sha256/sha256.hpp>
 #include "../../fixtures/user_context.hpp"
 #include "../../constants.hpp"
 #include "../rollup/verify.hpp"
@@ -26,6 +27,7 @@ account::circuit_data account_cd;
 rollup::circuit_data tx_rollup_cd;
 circuit_data root_rollup_cd;
 std::vector<std::vector<uint8_t>> js_proofs;
+std::vector<std::vector<uint8_t>> defi_js_proofs;
 } // namespace
 
 class root_rollup_tests : public ::testing::Test {
@@ -78,6 +80,17 @@ class root_rollup_tests : public ::testing::Test {
             });
             js_proofs.push_back(js_proof);
         }
+
+        // // Create 3 defi deposit proofs to play with.
+        // std::vector<uint32_t> deposit_amounts = { 100, 20, 60 };
+        // std::vector<uint32_t> change_amounts = { 10, 70, 80 };
+        // for (size_t i = 0; i < 3; i++) {
+        //     auto defi_js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("defi_js", i), [&] {
+        //         return create_noop_join_split_proof(
+        //             join_split_cd, data_tree.root(), true, deposit_amounts[i], change_amounts[i]);
+        //     });
+        //     defi_js_proofs.push_back(defi_js_proof);
+        // }
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
@@ -140,31 +153,31 @@ class root_rollup_tests : public ::testing::Test {
 TEST_F(root_rollup_tests, test_root_rollup_1_real_2_padding)
 {
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_TRUE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
 }
 
 TEST_F(root_rollup_tests, test_root_rollup_2_real_1_padding)
 {
     auto tx_data = create_root_rollup_tx("root_211", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_TRUE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
 }
 
 TEST_F(root_rollup_tests, test_root_rollup_3_real_0_padding)
 {
     auto tx_data = create_root_rollup_tx(
         "root_221", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] }, { js_proofs[4] } });
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_TRUE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
 }
 
 TEST_F(root_rollup_tests, test_incorrect_new_data_root_fails)
 {
     auto tx_data = create_root_rollup_tx("bad_new_data_root_fail", 0, { { js_proofs[0] } });
     tx_data.new_data_roots_root = fr::random_element();
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
 }
 
 TEST_F(root_rollup_tests, test_inner_rollups_out_of_order_fail)
@@ -173,8 +186,8 @@ TEST_F(root_rollup_tests, test_inner_rollups_out_of_order_fail)
         create_root_rollup_tx("root_221", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] } });
     std::swap(tx_data.rollups[0], tx_data.rollups[1]);
 
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
 }
 
 TEST_F(root_rollup_tests, test_invalid_padding_proof_fail)
@@ -182,17 +195,72 @@ TEST_F(root_rollup_tests, test_invalid_padding_proof_fail)
     auto tx_data = create_root_rollup_tx(
         "root_221", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] }, { js_proofs[4] } });
     tx_data.num_inner_proofs = 2;
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
 }
 
 TEST_F(root_rollup_tests, test_invalid_last_proof_fail)
 {
     auto tx_data = create_root_rollup_tx("root_221", 0, { { js_proofs[0], js_proofs[1] } });
     tx_data.num_inner_proofs = 2;
-    auto verified = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(verified);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
 }
+
+TEST_F(root_rollup_tests, valid_previous_defi_hash_for_0_interactions)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
+
+    auto previous_defi_interaction_hash = result.public_inputs.back();
+
+    std::vector<uint8_t> sha256_input;
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+        notes::native::defi_interaction::defi_interaction_note note = { 0, 0, 0, 0, 0, false };
+        auto buf = note.to_byte_array();
+        sha256_input.insert(sha256_input.end(), buf.begin(), buf.end());
+    }
+    auto expected = sha256::sha256(sha256_input);
+
+    ASSERT_EQ(from_buffer<fr>(expected), previous_defi_interaction_hash);
+}
+
+TEST_F(root_rollup_tests, test_bridge_ids_with_0_interactions_always_succeeds)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.num_defi_interactions = 0;
+    tx_data.bridge_ids = { 0, 123, 56, 178 };
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_zero_bridge_id_fails)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.num_defi_interactions = 4;
+    tx_data.bridge_ids = { 0, 123, 56, 178 };
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_interactions_greater_than_num_bridge_ids_fails)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.bridge_ids = { 123, 56, 0, 0 };
+    tx_data.num_defi_interactions = 3;
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+// TEST_F(root_rollup_tests, test_repeating_bridge_ids_fails)
+// {
+//     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+//     tx_data.bridge_ids = { 123, 123, 45, 12 };
+//     tx_data.num_defi_interactions = 4;
+//     auto result = verify_logic(tx_data, root_rollup_cd);
+//     ASSERT_FALSE(result.logic_verified);
+// }
 
 } // namespace root_rollup
 } // namespace proofs

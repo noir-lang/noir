@@ -24,21 +24,23 @@ bool pairing_check(recursion_output<bn254> recursion_output,
     return inner_proof_result == barretenberg::fq12::one();
 }
 
-bool verify_internal(Composer& composer, root_rollup_tx& tx, circuit_data const& circuit_data)
+verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_data const& circuit_data)
 {
+    verify_result result = { false, false, {}, {} };
+
     if (!circuit_data.inner_rollup_circuit_data.verification_key) {
         error("Inner verification key not provided.");
-        return false;
+        return result;
     }
 
     if (circuit_data.inner_rollup_circuit_data.padding_proof.size() == 0) {
         error("Inner padding proof not provided.");
-        return false;
+        return result;
     }
 
     if (!circuit_data.verifier_crs) {
         error("Verifier crs not provided.");
-        return false;
+        return result;
     }
 
     // Pad the rollup if necessary.
@@ -52,18 +54,23 @@ bool verify_internal(Composer& composer, root_rollup_tx& tx, circuit_data const&
 
     if (composer.failed) {
         error("Circuit logic failed: " + composer.err);
-        return false;
+        return result;
     }
 
     if (!pairing_check(recursion_output, circuit_data.verifier_crs)) {
         error("Native pairing check failed.");
-        return false;
+        return result;
     }
 
-    return true;
+    for (uint32_t i = 0; i < composer.get_num_public_inputs(); ++i) {
+        result.public_inputs.push_back(composer.get_public_input(i));
+    }
+
+    result.logic_verified = true;
+    return result;
 }
 
-bool verify_logic(root_rollup_tx& tx, circuit_data const& circuit_data)
+verify_result verify_logic(root_rollup_tx& tx, circuit_data const& circuit_data)
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
     return verify_internal(composer, tx, circuit_data);
@@ -73,12 +80,15 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
 {
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);
 
-    if (!verify_internal(composer, tx, circuit_data)) {
-        return { false, {} };
+    auto result = verify_internal(composer, tx, circuit_data);
+
+    if (!result.logic_verified) {
+        return result;
     }
 
     auto prover = composer.create_prover();
     auto proof = prover.construct_proof();
+    result.proof_data = proof.proof_data;
 
     // Pairing check.
     auto data = rollup::root_rollup_proof_data(proof.proof_data);
@@ -87,16 +97,18 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
                    barretenberg::fq12::one();
     if (!pairing) {
         error("Proof data pairing check failed.");
-        return { false, {} };
+        return result;
     }
 
     auto verifier = composer.create_verifier();
-    if (!verifier.verify_proof(proof)) {
+    result.verified = verifier.verify_proof(proof);
+
+    if (!result.verified) {
         error("Proof validation failed.");
-        return { false, {} };
+        return result;
     }
 
-    return { true, proof.proof_data };
+    return result;
 }
 
 } // namespace root_rollup

@@ -120,7 +120,6 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
     for (auto bridge_id : tx.bridge_ids) {
         os << bridge_id << "\n";
     }
-    os << "interaction_nonce: " << tx.interaction_nonce << "\n";
 
     size_t i = 0;
     for (auto defi_note : tx.defi_interaction_notes) {

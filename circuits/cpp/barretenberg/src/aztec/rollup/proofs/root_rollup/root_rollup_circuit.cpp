@@ -112,7 +112,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto old_data_roots_path = create_witness_hash_path(composer, root_rollup.old_data_roots_path);
     // Defi witnesses.
     field_ct num_defi_interactions = witness_ct(&composer, root_rollup.num_defi_interactions);
-    field_ct defi_interaction_nonce = witness_ct(&composer, root_rollup.interaction_nonce);
     field_ct old_defi_interaction_root = witness_ct(&composer, root_rollup.old_defi_interaction_root);
     field_ct new_defi_interaction_root = witness_ct(&composer, root_rollup.new_defi_interaction_root);
     auto old_defi_interaction_path = create_witness_hash_path(composer, root_rollup.old_defi_interaction_path);
@@ -121,12 +120,21 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto defi_interaction_notes = map_vector<defi_interaction_note>(root_rollup.defi_interaction_notes, [&](auto& n) {
         return defi_interaction_note({ composer, n });
     });
+    field_ct defi_interaction_nonce = rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
 
     auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct::from_witness_index(&composer, composer.zero_idx));
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
 
     auto defi_deposit_sums =
         std::vector<field_ct>(NUM_BRIDGE_CALLS_PER_BLOCK, field_ct::from_witness_index(&composer, composer.zero_idx));
+
+    // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
+    for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+        auto in_scope = uint32_ct(i) < num_defi_interactions;
+        bridge_ids[i] *= in_scope;
+        auto valid = !in_scope || bridge_ids[i] != 0;
+        composer.assert_equal_constant(valid.witness_index, 1, "bridge_id out of scope");
+    }
 
     for (size_t i = 0; i < num_proofs; ++i) {
         auto recursive_verification_key =
@@ -169,31 +177,37 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
             const auto bridge_id = public_inputs[public_input_start_idx + InnerProofFields::ASSET_ID];
             const auto deposit_value = public_inputs[public_input_start_idx + InnerProofFields::PUBLIC_OUTPUT];
             const auto is_defi_deposit = proof_id == field_ct(DEFI_BRIDGE_DEPOSIT);
-            auto is_valid_bridge_id = bool_ct(&composer, false);
+
+            // Accumulate the sum of defi deposits for each bridge id.
+            // The "real" bridge_ids and the defi_interaction_notes must be contiguous in the respective vectors.
+            field_ct note_defi_interaction_nonce = defi_interaction_nonce;
+            field_ct num_matched(&composer, 0);
+            for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
+                auto is_real = uint32_ct(k) < num_defi_interactions;
+
+                // We can only ever match one bridge id (bridge ids are unique).
+                const auto matches = bridge_id == bridge_ids[k] && is_real;
+                num_matched += matches;
+
+                defi_deposit_sums[k] += deposit_value * is_defi_deposit * matches;
+                note_defi_interaction_nonce += (field_ct(&composer, k) * matches);
+            }
+            auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
+            info("num_matched ", num_matched);
+            composer.assert_equal_constant(
+                is_valid_bridge_id.witness_index, 1, "proof bridge id must match a single bridge id");
 
             // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
             point_ct encrypted_claim_note{ public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X],
                                            public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] };
             encrypted_claim_note = notes::circuit::conditionally_hash_and_accumulate<32>(
                 encrypted_claim_note,
-                (defi_interaction_nonce * is_defi_deposit),
+                (note_defi_interaction_nonce * is_defi_deposit),
                 notes::GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_DEFI_INTERACTION_NONCE);
             recursion_output.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X] =
                 encrypted_claim_note.x;
             recursion_output.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] =
                 encrypted_claim_note.y;
-
-            // Accumulate the sum of defi deposits for each bridge id.
-            // The "real" bridge_ids and the defi_interaction_notes must be contiguous in the respective vectors.
-            for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
-                auto is_real = uint32_ct(k) < num_defi_interactions;
-                const auto matches = bridge_id == bridge_ids[k] && is_real;
-                defi_deposit_sums[k] += deposit_value * is_defi_deposit * matches;
-                is_valid_bridge_id = is_valid_bridge_id || matches;
-            }
-
-            is_valid_bridge_id = (is_valid_bridge_id || !is_defi_deposit).normalize();
-            composer.assert_equal_constant(is_valid_bridge_id.witness_index, 1, "bridge_id_not_in_working_set");
         }
 
         for (size_t j = 0; j < NUM_ASSETS; ++j) {
