@@ -82,7 +82,7 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
 
     auto result = verify_internal(composer, tx, circuit_data);
 
-    if (!result.verified) {
+    if (!result.logic_verified) {
         return result;
     }
 
