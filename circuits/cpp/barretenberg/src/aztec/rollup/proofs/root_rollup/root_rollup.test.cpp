@@ -27,6 +27,7 @@ account::circuit_data account_cd;
 rollup::circuit_data tx_rollup_cd;
 circuit_data root_rollup_cd;
 std::vector<std::vector<uint8_t>> js_proofs;
+std::vector<std::vector<uint8_t>> defi_js_proofs;
 } // namespace
 
 class root_rollup_tests : public ::testing::Test {
@@ -79,6 +80,17 @@ class root_rollup_tests : public ::testing::Test {
             });
             js_proofs.push_back(js_proof);
         }
+
+        // // Create 3 defi deposit proofs to play with.
+        // std::vector<uint32_t> deposit_amounts = { 100, 20, 60 };
+        // std::vector<uint32_t> change_amounts = { 10, 70, 80 };
+        // for (size_t i = 0; i < 3; i++) {
+        //     auto defi_js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("defi_js", i), [&] {
+        //         return create_noop_join_split_proof(
+        //             join_split_cd, data_tree.root(), true, deposit_amounts[i], change_amounts[i]);
+        //     });
+        //     defi_js_proofs.push_back(defi_js_proof);
+        // }
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
@@ -213,6 +225,42 @@ TEST_F(root_rollup_tests, valid_previous_defi_hash_for_0_interactions)
 
     ASSERT_EQ(from_buffer<fr>(expected), previous_defi_interaction_hash);
 }
+
+TEST_F(root_rollup_tests, test_bridge_ids_with_0_interactions_always_succeeds)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.num_defi_interactions = 0;
+    tx_data.bridge_ids = { 0, 123, 56, 178 };
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_zero_bridge_id_fails)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.num_defi_interactions = 4;
+    tx_data.bridge_ids = { 0, 123, 56, 178 };
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_interactions_greater_than_num_bridge_ids_fails)
+{
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.bridge_ids = { 123, 56, 0, 0 };
+    tx_data.num_defi_interactions = 3;
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+// TEST_F(root_rollup_tests, test_repeating_bridge_ids_fails)
+// {
+//     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+//     tx_data.bridge_ids = { 123, 123, 45, 12 };
+//     tx_data.num_defi_interactions = 4;
+//     auto result = verify_logic(tx_data, root_rollup_cd);
+//     ASSERT_FALSE(result.logic_verified);
+// }
 
 } // namespace root_rollup
 } // namespace proofs

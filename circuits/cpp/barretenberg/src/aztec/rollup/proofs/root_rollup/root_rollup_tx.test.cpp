@@ -26,7 +26,6 @@ TEST(root_rollup_tx, test_serialization)
     rollup.new_defi_interaction_root = fr::random_element();
     rollup.old_defi_interaction_path = fr_hash_path(DEFI_TREE_DEPTH, random_pair);
     rollup.new_defi_interaction_path = fr_hash_path(DEFI_TREE_DEPTH, random_pair);
-    rollup.interaction_nonce = 8;
 
     rollup.bridge_ids = { 0, 1, 2, 3 };
     defi_interaction_note defi_native_note = { 0, 0, 0, 0, 0, false };
@@ -45,7 +44,6 @@ TEST(root_rollup_tx, test_serialization)
     EXPECT_EQ(result.new_defi_interaction_path, rollup.new_defi_interaction_path);
     EXPECT_EQ(result.old_defi_interaction_root, rollup.old_defi_interaction_root);
     EXPECT_EQ(result.old_defi_interaction_path, rollup.old_defi_interaction_path);
-    EXPECT_EQ(result.interaction_nonce, rollup.interaction_nonce);
     EXPECT_EQ(result.num_defi_interactions, rollup.num_defi_interactions);
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         EXPECT_EQ(result.bridge_ids[i], rollup.bridge_ids[i]);

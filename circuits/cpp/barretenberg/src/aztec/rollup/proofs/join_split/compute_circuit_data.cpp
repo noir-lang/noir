@@ -60,6 +60,48 @@ join_split_tx noop_tx()
     return tx;
 }
 
+join_split_tx noop_defi_tx(fr defi_deposit_amount, fr change_amount)
+{
+    grumpkin::fr priv_key = grumpkin::fr::random_element();
+    grumpkin::g1::affine_element pub_key = grumpkin::g1::one * priv_key;
+    native::value::value_note gibberish_note = { 0, 0, 0, pub_key, fr::random_element() };
+    gibberish_note.secret.data[3] = gibberish_note.secret.data[3] & 0x03FFFFFFFFFFFFFFULL;
+    gibberish_note.secret = gibberish_note.secret.to_montgomery_form();
+    auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
+
+    join_split_tx tx;
+    tx.public_input = 0;
+    tx.public_output = 0;
+    tx.asset_id = 0;
+    tx.num_input_notes = 0;
+    tx.input_index = { 0, 1 };
+    tx.old_data_root = fr::random_element();
+    tx.input_path = { gibberish_path, gibberish_path };
+    tx.input_note = { gibberish_note, gibberish_note };
+    tx.output_note = { gibberish_note, gibberish_note };
+    tx.claim_note = { 0, 0, 0, 0 };
+    tx.account_index = 0;
+    tx.account_path = gibberish_path;
+    tx.signing_pub_key = pub_key;
+    tx.account_private_key = priv_key;
+    tx.alias_hash = 0;
+    tx.nonce = 0;
+
+    tx.input_owner = fr::random_element();
+    tx.output_owner = fr::random_element();
+
+    // Updates for defi deposit proofs
+    tx.input_note[0].value = defi_deposit_amount + change_amount;
+    tx.output_note[1].value = change_amount;
+    tx.claim_note.deposit_value = defi_deposit_amount;
+
+    notes::native::bridge_id bridge_id_native = { 0, 2, tx.asset_id, 0, 0 };
+    tx.claim_note.bridge_id = bridge_id_native.to_uint256_t();
+
+    tx.signature = sign_join_split_tx(tx, { priv_key, pub_key });
+    return tx;
+}
+
 circuit_data load_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
                                std::string const& join_split_key_path)
 {
