@@ -10,11 +10,13 @@ constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
 enum GeneratorIndex {
     JOIN_SPLIT_NULLIFIER_HASH_INPUTS, // encrypt. 4 inputs. 0-7.
     ACCOUNT_NOTE_HASH_INPUTS = 4,     // encrypt. 3 inputs. 8-13.
+    ACCOUNT_ALIAS_ID_NULLIFIER = 7,   // compress. 4 inputs. 14-21.
+    ACCOUNT_GIBBERISH_NULLIFIER = 11, // compress. 2 inputs. 22-25.
 
-    JOIN_SPLIT_NOTE_OWNER = 7,               // compress_to_point. left(14, 15), right(16, 17)
-    JOIN_SPLIT_CLAIM_NOTE_PARTIAL_STATE = 9, // compress_to_point. left(18, 19), right(20, 21)
+    JOIN_SPLIT_NOTE_OWNER = 13,               // compress_to_point. 26-29.
+    JOIN_SPLIT_CLAIM_NOTE_PARTIAL_STATE = 15, // compress_to_point. 30-33.
 
-    JOIN_SPLIT_NOTE_VALUE = 22,
+    JOIN_SPLIT_NOTE_VALUE = 34,
     JOIN_SPLIT_NOTE_SECRET,
     JOIN_SPLIT_NOTE_ASSET_ID,
     JOIN_SPLIT_NOTE_NONCE,
@@ -22,8 +24,6 @@ enum GeneratorIndex {
     JOIN_SPLIT_CLAIM_NOTE_VALUE,
     JOIN_SPLIT_CLAIM_NOTE_BRIDGE_ID,
     JOIN_SPLIT_CLAIM_NOTE_DEFI_INTERACTION_NONCE,
-    ACCOUNT_ALIAS_ID_NULLIFIER,
-    ACCOUNT_GIBBERISH_NULLIFIER,
     DEFI_INTERACTION_NOTE_TOTAL_INPUT_VALUE,
     DEFI_INTERACTION_NOTE_BRIDGE_ID,
     DEFI_INTERACTION_NOTE_TOTAL_OUTPUT_A_VALUE,
