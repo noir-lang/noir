@@ -47,6 +47,7 @@ int main(int argc, char** argv)
     Tree data_tree(store, ::rollup::DATA_TREE_DEPTH, 0);
     Tree null_tree(store, ::rollup::NULL_TREE_DEPTH, 1);
     Tree root_tree(store, ::rollup::ROOT_TREE_DEPTH, 2);
+    Tree defi_tree(store, ::rollup::DEFI_TREE_DEPTH, 3);
 
     std::vector<std::string> args(argv, argv + argc);
 
@@ -107,7 +108,7 @@ int main(int argc, char** argv)
         rollups_data.push_back(proof_data);
     }
 
-    auto root_rollup = root_rollup::create_root_rollup_tx(0, rollups_data, data_tree, root_tree);
+    auto root_rollup = root_rollup::create_root_rollup_tx(0, rollups_data, data_tree, root_tree, defi_tree);
     write(std::cout, (uint32_t)1);
     write(std::cout, (uint32_t)inner_rollup_size);
     write(std::cout, (uint32_t)outer_rollup_size);

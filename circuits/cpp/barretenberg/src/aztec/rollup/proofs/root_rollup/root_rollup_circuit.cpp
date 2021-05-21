@@ -54,7 +54,6 @@ void check_root_tree_updated(Composer& composer,
 }
 
 void check_tree_updated(Composer& composer,
-                        size_t num_leaves,
                         field_ct const& new_root,
                         merkle_tree::hash_path const& new_path,
                         field_ct const& old_root,
@@ -62,7 +61,7 @@ void check_tree_updated(Composer& composer,
                         std::vector<byte_array_ct> const& new_values,
                         field_ct const& start_index)
 {
-    size_t height = numeric::get_msb(num_leaves);
+    size_t height = numeric::get_msb(new_values.size());
     auto zero_subtree_root = field_ct(zero_hash_at_height(height));
 
     auto rollup_root = compute_tree_root(new_values);
@@ -272,8 +271,8 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     const auto previous_defi_interaction_hash = field_ct(byte_array_ct(hash_output));
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
+    // The defi_interaction_nonce represents the insertion location.
     check_tree_updated(composer,
-                       NUM_BRIDGE_CALLS_PER_BLOCK,
                        new_defi_interaction_root,
                        new_defi_interaction_path,
                        old_defi_interaction_root,

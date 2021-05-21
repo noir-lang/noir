@@ -44,7 +44,6 @@ TEST(root_rollup_tx, test_serialization)
     EXPECT_EQ(result.new_defi_interaction_path, rollup.new_defi_interaction_path);
     EXPECT_EQ(result.old_defi_interaction_root, rollup.old_defi_interaction_root);
     EXPECT_EQ(result.old_defi_interaction_path, rollup.old_defi_interaction_path);
-    EXPECT_EQ(result.num_defi_interactions, rollup.num_defi_interactions);
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         EXPECT_EQ(result.bridge_ids[i], rollup.bridge_ids[i]);
         EXPECT_EQ(result.defi_interaction_notes[i], rollup.defi_interaction_notes[i]);
