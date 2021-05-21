@@ -8,10 +8,7 @@ namespace proofs {
 namespace join_split {
 
 std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data,
-                                                  barretenberg::fr const& merkle_root,
-                                                  bool const is_defi_deposit = false,
-                                                  fr defi_deposit_amount = 0,
-                                                  fr change_amount = 0);
+                                                  barretenberg::fr const& merkle_root);
 
 } // namespace join_split
 } // namespace proofs

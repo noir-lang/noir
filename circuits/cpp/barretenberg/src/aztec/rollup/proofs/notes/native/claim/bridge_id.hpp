@@ -41,6 +41,8 @@ struct bridge_id {
         return result;
     }
 
+    operator uint256_t() { return to_uint256_t(); }
+
     bool operator==(bridge_id const&) const = default;
 };
 

@@ -120,7 +120,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto defi_interaction_notes = map_vector<defi_interaction_note>(root_rollup.defi_interaction_notes, [&](auto& n) {
         return defi_interaction_note({ composer, n });
     });
-    field_ct defi_interaction_nonce = rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
+    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
 
     auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct::from_witness_index(&composer, composer.zero_idx));
     auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
@@ -193,7 +193,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                 note_defi_interaction_nonce += (field_ct(&composer, k) * matches);
             }
             auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
-            info("num_matched ", num_matched);
             composer.assert_equal_constant(
                 is_valid_bridge_id.witness_index, 1, "proof bridge id must match a single bridge id");
 
@@ -278,7 +277,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                        old_defi_interaction_root,
                        old_defi_interaction_path,
                        defi_interaction_note_leaves,
-                       rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK);
+                       defi_interaction_nonce);
 
     // Check data root tree is updated with latest data root.
     check_root_tree_updated(

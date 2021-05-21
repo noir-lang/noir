@@ -3,6 +3,8 @@
 #include "../../constants.hpp"
 #include "../rollup/verify.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
+#include "../join_split/sign_join_split_tx.hpp"
+#include "../join_split/join_split_circuit.hpp"
 #include "compute_or_load_fixture.hpp"
 #include "compute_circuit_data.hpp"
 #include "root_rollup_circuit.hpp"
@@ -26,8 +28,6 @@ join_split::circuit_data join_split_cd;
 account::circuit_data account_cd;
 rollup::circuit_data tx_rollup_cd;
 circuit_data root_rollup_cd;
-std::vector<std::vector<uint8_t>> js_proofs;
-std::vector<std::vector<uint8_t>> defi_js_proofs;
 } // namespace
 
 class root_rollup_tests : public ::testing::Test {
@@ -71,26 +71,125 @@ class root_rollup_tests : public ::testing::Test {
                 ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, false, false, false, false, false);
         }
 
-        MemoryStore store;
-        MerkleTree<MemoryStore> data_tree(store, DATA_TREE_DEPTH, 0);
-        // Create 5 js proofs to play with.
-        for (size_t i = 0; i < 5; ++i) {
-            auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
-                return create_noop_join_split_proof(join_split_cd, data_tree.root());
-            });
-            js_proofs.push_back(js_proof);
-        }
+        // TODO: REMOVE ME
+        join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+    }
 
-        // // Create 3 defi deposit proofs to play with.
-        // std::vector<uint32_t> deposit_amounts = { 100, 20, 60 };
-        // std::vector<uint32_t> change_amounts = { 10, 70, 80 };
-        // for (size_t i = 0; i < 3; i++) {
-        //     auto defi_js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("defi_js", i), [&] {
-        //         return create_noop_join_split_proof(
-        //             join_split_cd, data_tree.root(), true, deposit_amounts[i], change_amounts[i]);
-        //     });
-        //     defi_js_proofs.push_back(defi_js_proof);
-        // }
+    join_split_tx create_join_split_tx(std::array<uint32_t, 2> in_note_idx,
+                                       std::array<uint32_t, 2> in_note_value,
+                                       std::array<uint32_t, 2> out_note_value,
+                                       uint32_t public_input)
+    {
+        uint32_t asset_id = 0;
+        uint32_t nonce = 0;
+        value::value_note input_note1 = { in_note_value[0], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value::value_note input_note2 = { in_note_value[1], asset_id, nonce, user.owner.public_key, user.note_secret };
+        value::value_note output_note1 = {
+            out_note_value[0], asset_id, nonce, user.owner.public_key, user.note_secret
+        };
+        value::value_note output_note2 = {
+            out_note_value[1], asset_id, nonce, user.owner.public_key, user.note_secret
+        };
+
+        join_split_tx tx;
+        tx.public_input = public_input;
+        tx.public_output = 0;
+        tx.asset_id = 0;
+        tx.num_input_notes = 0;
+        tx.input_index = { in_note_idx[0], in_note_idx[1] };
+        tx.old_data_root = data_tree.root();
+        tx.input_path = { data_tree.get_hash_path(in_note_idx[0]), data_tree.get_hash_path(in_note_idx[1]) };
+        tx.input_note = { input_note1, input_note2 };
+        tx.output_note = { output_note1, output_note2 };
+        tx.account_index = 0;
+        tx.account_path = data_tree.get_hash_path(0);
+        tx.signing_pub_key = user.owner.public_key;
+        tx.account_private_key = user.owner.private_key;
+        tx.alias_hash = 0;
+        tx.nonce = 0;
+        tx.input_owner = fr::random_element();
+        tx.output_owner = fr::random_element();
+        tx.claim_note = { 0, 0, user.note_secret, 0 };
+
+        return tx;
+    }
+
+    std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
+                                                 std::array<uint32_t, 2> in_note_value,
+                                                 std::array<uint32_t, 2> out_note_value,
+                                                 uint32_t public_input)
+    {
+        auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, public_input);
+        tx.signature = sign_join_split_tx(tx, user.owner);
+
+        auto fixture_name = format("js_",
+                                   in_note_idx[0],
+                                   "_",
+                                   in_note_idx[1],
+                                   "_",
+                                   in_note_value[0],
+                                   "_",
+                                   in_note_value[1],
+                                   "_",
+                                   out_note_value[0],
+                                   "_",
+                                   out_note_value[1],
+                                   "_",
+                                   public_input);
+
+        return compute_or_load_fixture(TEST_PROOFS_PATH, fixture_name, [&] {
+            Composer composer =
+                Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
+
+            join_split::join_split_circuit(composer, tx);
+            if (composer.failed) {
+                std::cout << "Join-split logic failed: " << composer.err << std::endl;
+            }
+            auto prover = composer.create_unrolled_prover();
+            auto join_split_proof = prover.construct_proof();
+
+            return join_split_proof.proof_data;
+        });
+    }
+
+    std::vector<uint8_t> create_defi_proof(std::array<uint32_t, 2> in_note_idx,
+                                           std::array<uint32_t, 2> in_note_value,
+                                           std::array<uint32_t, 2> out_note_value,
+                                           uint256_t bridge_id)
+    {
+        auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, 0);
+        tx.num_input_notes = 2;
+        tx.output_note[0].value = 0;
+        tx.claim_note.bridge_id = bridge_id;
+        tx.claim_note.deposit_value = tx.output_note[0].value;
+        tx.signature = sign_join_split_tx(tx, user.owner);
+
+        auto fixture_name = format("defi_js_",
+                                   in_note_idx[0],
+                                   "_",
+                                   in_note_idx[1],
+                                   "_",
+                                   in_note_value[0],
+                                   "_",
+                                   in_note_value[1],
+                                   "_",
+                                   out_note_value[0],
+                                   "_",
+                                   out_note_value[1]);
+
+        return compute_or_load_fixture(TEST_PROOFS_PATH, fixture_name, [&] {
+            Composer composer =
+                Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
+
+            join_split::join_split_circuit(composer, tx);
+            if (composer.failed) {
+                throw std::runtime_error(format("Defi join-split logic failed: ", composer.err));
+            }
+            auto prover = composer.create_unrolled_prover();
+            auto join_split_proof = prover.construct_proof();
+
+            return join_split_proof.proof_data;
+        });
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
@@ -101,9 +200,9 @@ class root_rollup_tests : public ::testing::Test {
         std::vector<std::vector<uint8_t>> rollups_data;
 
         for (auto tx_proofs : rollup_structure) {
-            auto name = format(test_name, "_rollup", rollups.size() + 1);
-            auto rollup = create_rollup_tx(tx_proofs);
-            auto rollup_data = compute_or_load_rollup(name, rollup);
+            auto rollup = rollup::create_rollup(tx_proofs, data_tree, null_tree, root_tree, INNER_ROLLUP_TXS);
+            auto fixture_name = format(test_name, "_rollup", rollups.size() + 1);
+            auto rollup_data = compute_or_load_rollup(fixture_name, rollup);
             ASSERT(!rollup_data.empty());
             rollups.push_back(rollup);
             rollups_data.push_back(rollup_data);
@@ -133,9 +232,15 @@ class root_rollup_tests : public ::testing::Test {
         });
     }
 
-    rollup::rollup_tx create_rollup_tx(std::vector<std::vector<uint8_t>> const& txs)
+    // Create and return n deposit join split proofs.
+    auto get_js_proofs(uint32_t n)
     {
-        return rollup::create_rollup(txs, data_tree, null_tree, root_tree, INNER_ROLLUP_TXS);
+        std::vector<std::vector<uint8_t>> proofs;
+        for (uint32_t i = 0; i < n * 2; i += 2) {
+            auto js_proof = create_join_split_proof({ i, i + 1 }, { 0, 0 }, { 100, 50 }, 150);
+            proofs.push_back(js_proof);
+        }
+        return proofs;
     }
 
     MemoryStore store;
@@ -152,6 +257,7 @@ class root_rollup_tests : public ::testing::Test {
  */
 TEST_F(root_rollup_tests, test_root_rollup_1_real_2_padding)
 {
+    auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
@@ -159,6 +265,7 @@ TEST_F(root_rollup_tests, test_root_rollup_1_real_2_padding)
 
 TEST_F(root_rollup_tests, test_root_rollup_2_real_1_padding)
 {
+    auto js_proofs = get_js_proofs(3);
     auto tx_data = create_root_rollup_tx("root_211", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
@@ -166,6 +273,7 @@ TEST_F(root_rollup_tests, test_root_rollup_2_real_1_padding)
 
 TEST_F(root_rollup_tests, test_root_rollup_3_real_0_padding)
 {
+    auto js_proofs = get_js_proofs(5);
     auto tx_data = create_root_rollup_tx(
         "root_221", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] }, { js_proofs[4] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
@@ -174,6 +282,7 @@ TEST_F(root_rollup_tests, test_root_rollup_3_real_0_padding)
 
 TEST_F(root_rollup_tests, test_incorrect_new_data_root_fails)
 {
+    auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("bad_new_data_root_fail", 0, { { js_proofs[0] } });
     tx_data.new_data_roots_root = fr::random_element();
     auto result = verify_logic(tx_data, root_rollup_cd);
@@ -182,6 +291,7 @@ TEST_F(root_rollup_tests, test_incorrect_new_data_root_fails)
 
 TEST_F(root_rollup_tests, test_inner_rollups_out_of_order_fail)
 {
+    auto js_proofs = get_js_proofs(4);
     auto tx_data =
         create_root_rollup_tx("root_221", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] } });
     std::swap(tx_data.rollups[0], tx_data.rollups[1]);
@@ -192,6 +302,7 @@ TEST_F(root_rollup_tests, test_inner_rollups_out_of_order_fail)
 
 TEST_F(root_rollup_tests, test_invalid_padding_proof_fail)
 {
+    auto js_proofs = get_js_proofs(5);
     auto tx_data = create_root_rollup_tx(
         "root_221", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] }, { js_proofs[4] } });
     tx_data.num_inner_proofs = 2;
@@ -201,6 +312,7 @@ TEST_F(root_rollup_tests, test_invalid_padding_proof_fail)
 
 TEST_F(root_rollup_tests, test_invalid_last_proof_fail)
 {
+    auto js_proofs = get_js_proofs(2);
     auto tx_data = create_root_rollup_tx("root_221", 0, { { js_proofs[0], js_proofs[1] } });
     tx_data.num_inner_proofs = 2;
     auto result = verify_logic(tx_data, root_rollup_cd);
@@ -209,6 +321,7 @@ TEST_F(root_rollup_tests, test_invalid_last_proof_fail)
 
 TEST_F(root_rollup_tests, valid_previous_defi_hash_for_0_interactions)
 {
+    auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
@@ -228,6 +341,7 @@ TEST_F(root_rollup_tests, valid_previous_defi_hash_for_0_interactions)
 
 TEST_F(root_rollup_tests, test_bridge_ids_with_0_interactions_always_succeeds)
 {
+    auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
     tx_data.num_defi_interactions = 0;
     tx_data.bridge_ids = { 0, 123, 56, 178 };
@@ -237,6 +351,7 @@ TEST_F(root_rollup_tests, test_bridge_ids_with_0_interactions_always_succeeds)
 
 TEST_F(root_rollup_tests, test_zero_bridge_id_fails)
 {
+    auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
     tx_data.num_defi_interactions = 4;
     tx_data.bridge_ids = { 0, 123, 56, 178 };
@@ -246,6 +361,7 @@ TEST_F(root_rollup_tests, test_zero_bridge_id_fails)
 
 TEST_F(root_rollup_tests, test_interactions_greater_than_num_bridge_ids_fails)
 {
+    auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
     tx_data.bridge_ids = { 123, 56, 0, 0 };
     tx_data.num_defi_interactions = 3;
@@ -253,14 +369,29 @@ TEST_F(root_rollup_tests, test_interactions_greater_than_num_bridge_ids_fails)
     ASSERT_FALSE(result.logic_verified);
 }
 
-// TEST_F(root_rollup_tests, test_repeating_bridge_ids_fails)
-// {
-//     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-//     tx_data.bridge_ids = { 123, 123, 45, 12 };
-//     tx_data.num_defi_interactions = 4;
-//     auto result = verify_logic(tx_data, root_rollup_cd);
-//     ASSERT_FALSE(result.logic_verified);
-// }
+TEST_F(root_rollup_tests, test_repeating_bridge_ids_fails)
+{
+    auto js_proofs = get_js_proofs(1);
+    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    tx_data.bridge_ids = { 123, 123, 45, 12 };
+    tx_data.num_defi_interactions = 4;
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_root_rollup_with_defi_proof)
+{
+    auto js_proofs = get_js_proofs(1);
+    create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    update_root_tree_with_data_root(1);
+
+    bridge_id bid = { 0, 2, 0, 0, 0 };
+    auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
+    auto tx_data = create_root_rollup_tx("test_root_rollup_with_defi_proof", 1, { { defi_proof1 } });
+    auto result = verify_logic(tx_data, root_rollup_cd);
+
+    ASSERT_TRUE(result.logic_verified);
+}
 
 } // namespace root_rollup
 } // namespace proofs
