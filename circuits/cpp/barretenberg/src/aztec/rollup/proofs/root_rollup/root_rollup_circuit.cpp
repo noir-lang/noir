@@ -112,6 +112,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto old_data_roots_path = create_witness_hash_path(composer, root_rollup.old_data_roots_path);
     // Defi witnesses.
     field_ct num_defi_interactions = witness_ct(&composer, root_rollup.num_defi_interactions);
+    field_ct num_previous_defi_interactions = witness_ct(&composer, root_rollup.num_previous_defi_interactions);
     field_ct old_defi_interaction_root = witness_ct(&composer, root_rollup.old_defi_interaction_root);
     field_ct new_defi_interaction_root = witness_ct(&composer, root_rollup.new_defi_interaction_root);
     auto old_defi_interaction_path = create_witness_hash_path(composer, root_rollup.old_defi_interaction_path);
@@ -193,8 +194,9 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                 note_defi_interaction_nonce += (field_ct(&composer, k) * matches);
             }
             auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
-            composer.assert_equal_constant(
-                is_valid_bridge_id.witness_index, 1, "proof bridge id must match a single bridge id");
+            composer.assert_equal_constant(is_valid_bridge_id.witness_index,
+                                           1,
+                                           format("proof bridge id matched ", uint64_t(num_matched.get_value())));
 
             // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
             point_ct encrypted_claim_note{ public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X],
@@ -256,7 +258,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     std::vector<byte_array_ct> defi_interaction_note_leaves;
     std::vector<point_ct> encrypted_defi_interaction_notes;
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
-        auto is_real = uint32_ct(i) < num_defi_interactions;
+        auto is_real = uint32_ct(i) < num_previous_defi_interactions;
         hash_input.write(defi_interaction_notes[i].to_byte_array(composer, is_real));
         const point_ct encrypted_note = { defi_interaction_notes[i].encrypted.x * is_real,
                                           defi_interaction_notes[i].encrypted.y * is_real };

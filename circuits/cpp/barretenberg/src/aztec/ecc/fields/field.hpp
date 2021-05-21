@@ -72,6 +72,12 @@ template <class Params> struct alignas(32) field {
     constexpr field(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t d) noexcept
         : data{ a, b, c, d } {};
 
+    constexpr explicit operator uint64_t()
+    {
+        field out = from_montgomery_form();
+        return out.data[0];
+    }
+
     constexpr explicit operator uint128_t()
     {
         field out = from_montgomery_form();

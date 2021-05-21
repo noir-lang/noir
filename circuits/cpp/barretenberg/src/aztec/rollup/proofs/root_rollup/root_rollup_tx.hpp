@@ -33,25 +33,24 @@ struct root_rollup_tx {
     fr_hash_path old_data_roots_path;
     fr_hash_path new_data_roots_path;
 
-    // The number of defi interactions in this rollup.
-    uint32_t num_defi_interactions;
-
     // For updating the defi_interaction tree.
     fr old_defi_interaction_root;
     fr new_defi_interaction_root;
     fr_hash_path old_defi_interaction_path;
     fr_hash_path new_defi_interaction_path;
 
-    // num_defi_interactions bridge ids.
-    // Will be padded to NUM_BRIDGE_CALLS_PER_BLOCK.
     // All defi deposits must match one of these.
     std::vector<uint256_t> bridge_ids;
 
-    // num_defi_interactions defi_interaction_notes;
-    // Will be padded to NUM_BRIDGE_CALLS_PER_BLOCK.
+    // Defi interactions from the previous rollup, to be inserted into defi tree.
     std::vector<defi_interaction_note> defi_interaction_notes;
 
     bool operator==(root_rollup_tx const&) const = default;
+
+    // These are not serialized or known about externally.
+    // They are populated before the tx is padded.
+    size_t num_defi_interactions;
+    size_t num_previous_defi_interactions;
 };
 
 template <typename B> inline void read(B& buf, root_rollup_tx& tx)
@@ -64,7 +63,6 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.new_data_roots_root);
     read(buf, tx.old_data_roots_path);
     read(buf, tx.new_data_roots_path);
-    read(buf, tx.num_defi_interactions);
     read(buf, tx.old_defi_interaction_root);
     read(buf, tx.new_defi_interaction_root);
     read(buf, tx.old_defi_interaction_path);
@@ -83,7 +81,6 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.new_data_roots_root);
     write(buf, tx.old_data_roots_path);
     write(buf, tx.new_data_roots_path);
-    write(buf, tx.num_defi_interactions);
     write(buf, tx.old_defi_interaction_root);
     write(buf, tx.new_defi_interaction_root);
     write(buf, tx.old_defi_interaction_path);
@@ -105,7 +102,6 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
     os << "old_data_roots_path: " << tx.old_data_roots_path << "\n";
     os << "new_data_roots_path: " << tx.new_data_roots_path << "\n";
 
-    os << "num_defi_interactions: " << tx.num_defi_interactions << "\n";
     os << "old_defi_interaction_root: " << tx.old_defi_interaction_root << "\n";
     os << "new_defi_interaction_root: " << tx.new_defi_interaction_root << "\n";
     os << "old_defi_interaction_path: " << tx.old_defi_interaction_path << "\n";

@@ -15,7 +15,9 @@ using Tree = MerkleTree<MemoryStore>;
 inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
 {
     rollup.rollups.resize(circuit_data.num_inner_rollups, circuit_data.inner_rollup_circuit_data.padding_proof);
+    rollup.num_defi_interactions = rollup.bridge_ids.size();
     rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.num_previous_defi_interactions = rollup.defi_interaction_notes.size();
     rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
 }
 

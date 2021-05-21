@@ -114,28 +114,24 @@ class root_rollup_tests : public ::testing::Test {
         return tx;
     }
 
-    std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
-                                                 std::array<uint32_t, 2> in_note_value,
-                                                 std::array<uint32_t, 2> out_note_value,
-                                                 uint32_t public_input)
+    std::vector<uint8_t> create_proof(join_split_tx const& tx)
     {
-        auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, public_input);
-        tx.signature = sign_join_split_tx(tx, user.owner);
-
         auto fixture_name = format("js_",
-                                   in_note_idx[0],
+                                   tx.input_index[0],
                                    "_",
-                                   in_note_idx[1],
+                                   tx.input_index[1],
                                    "_",
-                                   in_note_value[0],
+                                   uint32_t(tx.input_note[0].value),
                                    "_",
-                                   in_note_value[1],
+                                   uint32_t(tx.input_note[1].value),
                                    "_",
-                                   out_note_value[0],
+                                   uint32_t(tx.output_note[0].value),
                                    "_",
-                                   out_note_value[1],
+                                   uint32_t(tx.output_note[1].value),
                                    "_",
-                                   public_input);
+                                   uint32_t(tx.public_input),
+                                   "_",
+                                   uint32_t(tx.claim_note.deposit_value));
 
         return compute_or_load_fixture(TEST_PROOFS_PATH, fixture_name, [&] {
             Composer composer =
@@ -143,13 +139,23 @@ class root_rollup_tests : public ::testing::Test {
 
             join_split::join_split_circuit(composer, tx);
             if (composer.failed) {
-                std::cout << "Join-split logic failed: " << composer.err << std::endl;
+                throw std::runtime_error(format("Join-split logic failed: ", composer.err));
             }
             auto prover = composer.create_unrolled_prover();
             auto join_split_proof = prover.construct_proof();
 
             return join_split_proof.proof_data;
         });
+    }
+
+    std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
+                                                 std::array<uint32_t, 2> in_note_value,
+                                                 std::array<uint32_t, 2> out_note_value,
+                                                 uint32_t public_input)
+    {
+        auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, public_input);
+        tx.signature = sign_join_split_tx(tx, user.owner);
+        return create_proof(tx);
     }
 
     std::vector<uint8_t> create_defi_proof(std::array<uint32_t, 2> in_note_idx,
@@ -159,37 +165,11 @@ class root_rollup_tests : public ::testing::Test {
     {
         auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, 0);
         tx.num_input_notes = 2;
-        tx.output_note[0].value = 0;
         tx.claim_note.bridge_id = bridge_id;
         tx.claim_note.deposit_value = tx.output_note[0].value;
+        tx.output_note[0].value = 0;
         tx.signature = sign_join_split_tx(tx, user.owner);
-
-        auto fixture_name = format("defi_js_",
-                                   in_note_idx[0],
-                                   "_",
-                                   in_note_idx[1],
-                                   "_",
-                                   in_note_value[0],
-                                   "_",
-                                   in_note_value[1],
-                                   "_",
-                                   out_note_value[0],
-                                   "_",
-                                   out_note_value[1]);
-
-        return compute_or_load_fixture(TEST_PROOFS_PATH, fixture_name, [&] {
-            Composer composer =
-                Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
-
-            join_split::join_split_circuit(composer, tx);
-            if (composer.failed) {
-                throw std::runtime_error(format("Defi join-split logic failed: ", composer.err));
-            }
-            auto prover = composer.create_unrolled_prover();
-            auto join_split_proof = prover.construct_proof();
-
-            return join_split_proof.proof_data;
-        });
+        return create_proof(tx);
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
@@ -243,6 +223,22 @@ class root_rollup_tests : public ::testing::Test {
         return proofs;
     }
 
+    void add_rollup_with_1_js()
+    {
+        auto js_proofs = get_js_proofs(1);
+        create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+        update_root_tree_with_data_root(1);
+    }
+
+    auto create_rollup_tx_with_1_defi()
+    {
+        bridge_id bid = { 0, 2, 0, 0, 0 };
+        auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
+        auto tx = create_root_rollup_tx("test_root_rollup_with_defi_proof", 1, { { defi_proof1 } });
+        tx.bridge_ids = { bid };
+        return tx;
+    }
+
     MemoryStore store;
     MerkleTree<MemoryStore> data_tree;
     MerkleTree<MemoryStore> null_tree;
@@ -255,7 +251,7 @@ class root_rollup_tests : public ::testing::Test {
  * i.e. If a rollup has a structure shorter than its name suggests, it's because it can reuse the fixtures from
  * the longer rollup structure due to them having the same leading structure.
  */
-TEST_F(root_rollup_tests, test_root_rollup_1_real_2_padding)
+TEST_F(root_rollup_tests, test_1_real_2_padding)
 {
     auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
@@ -263,7 +259,7 @@ TEST_F(root_rollup_tests, test_root_rollup_1_real_2_padding)
     ASSERT_TRUE(result.logic_verified);
 }
 
-TEST_F(root_rollup_tests, test_root_rollup_2_real_1_padding)
+TEST_F(root_rollup_tests, test_2_real_1_padding)
 {
     auto js_proofs = get_js_proofs(3);
     auto tx_data = create_root_rollup_tx("root_211", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
@@ -271,7 +267,7 @@ TEST_F(root_rollup_tests, test_root_rollup_2_real_1_padding)
     ASSERT_TRUE(result.logic_verified);
 }
 
-TEST_F(root_rollup_tests, test_root_rollup_3_real_0_padding)
+TEST_F(root_rollup_tests, test_3_real_0_padding)
 {
     auto js_proofs = get_js_proofs(5);
     auto tx_data = create_root_rollup_tx(
@@ -319,11 +315,12 @@ TEST_F(root_rollup_tests, test_invalid_last_proof_fail)
     ASSERT_FALSE(result.logic_verified);
 }
 
-TEST_F(root_rollup_tests, valid_previous_defi_hash_for_0_interactions)
+TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
 {
     auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
+
     ASSERT_TRUE(result.logic_verified);
 
     auto previous_defi_interaction_hash = result.public_inputs.back();
@@ -339,59 +336,48 @@ TEST_F(root_rollup_tests, valid_previous_defi_hash_for_0_interactions)
     ASSERT_EQ(from_buffer<fr>(expected), previous_defi_interaction_hash);
 }
 
-TEST_F(root_rollup_tests, test_bridge_ids_with_0_interactions_always_succeeds)
+TEST_F(root_rollup_tests, test_defi_proof_in_rollup)
 {
-    auto js_proofs = get_js_proofs(1);
-    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-    tx_data.num_defi_interactions = 0;
-    tx_data.bridge_ids = { 0, 123, 56, 178 };
-    auto result = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_TRUE(result.logic_verified);
-}
-
-TEST_F(root_rollup_tests, test_zero_bridge_id_fails)
-{
-    auto js_proofs = get_js_proofs(1);
-    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-    tx_data.num_defi_interactions = 4;
-    tx_data.bridge_ids = { 0, 123, 56, 178 };
-    auto result = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(result.logic_verified);
-}
-
-TEST_F(root_rollup_tests, test_interactions_greater_than_num_bridge_ids_fails)
-{
-    auto js_proofs = get_js_proofs(1);
-    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-    tx_data.bridge_ids = { 123, 56, 0, 0 };
-    tx_data.num_defi_interactions = 3;
-    auto result = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(result.logic_verified);
-}
-
-TEST_F(root_rollup_tests, test_repeating_bridge_ids_fails)
-{
-    auto js_proofs = get_js_proofs(1);
-    auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-    tx_data.bridge_ids = { 123, 123, 45, 12 };
-    tx_data.num_defi_interactions = 4;
-    auto result = verify_logic(tx_data, root_rollup_cd);
-    ASSERT_FALSE(result.logic_verified);
-}
-
-TEST_F(root_rollup_tests, test_root_rollup_with_defi_proof)
-{
-    auto js_proofs = get_js_proofs(1);
-    create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-    update_root_tree_with_data_root(1);
-
-    bridge_id bid = { 0, 2, 0, 0, 0 };
-    auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
-    auto tx_data = create_root_rollup_tx("test_root_rollup_with_defi_proof", 1, { { defi_proof1 } });
+    add_rollup_with_1_js();
+    auto tx_data = create_rollup_tx_with_1_defi();
     auto result = verify_logic(tx_data, root_rollup_cd);
 
     ASSERT_TRUE(result.logic_verified);
 }
+
+TEST_F(root_rollup_tests, test_defi_bridge_id_zero_fails)
+{
+    add_rollup_with_1_js();
+    auto tx_data = create_rollup_tx_with_1_defi();
+    tx_data.bridge_ids = { 0 };
+    auto result = verify_logic(tx_data, root_rollup_cd);
+
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_defi_bridge_id_repeated_fails)
+{
+    add_rollup_with_1_js();
+    auto tx_data = create_rollup_tx_with_1_defi();
+    tx_data.bridge_ids.push_back(tx_data.bridge_ids[0]);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_defi_bridge_id_unmatched_fails)
+{
+    add_rollup_with_1_js();
+    auto tx_data = create_rollup_tx_with_1_defi();
+    tx_data.bridge_ids[0] = { 1, 2, 0, 0 };
+    auto result = verify_logic(tx_data, root_rollup_cd);
+
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_defi_claim_notes_added_interaction_nonce) {}
+
+TEST_F(root_rollup_tests, test_defi_interaction_notes_added_to_defi_tree) {}
 
 } // namespace root_rollup
 } // namespace proofs
