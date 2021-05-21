@@ -12,7 +12,7 @@ pub(crate) fn run(_args: ArgMatches) {
 }
 // This is exposed so that we can run the examples and verify that they pass
 pub fn build_from_path<P: AsRef<Path>>(p: P) {
-    let (mut driver, _) = Resolver::resolve_root_config(p.as_ref());
+    let mut driver = Resolver::resolve_root_config(p.as_ref());
     driver.build();
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(x) = driver.compute_abi() {

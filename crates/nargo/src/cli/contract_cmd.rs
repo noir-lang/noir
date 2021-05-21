@@ -1,5 +1,6 @@
 use super::{create_dir, write_to_file, CONTRACT_DIR};
 use crate::resolver::Resolver;
+use acvm::SmartContract;
 use clap::ArgMatches;
 use std::path::PathBuf;
 
@@ -10,12 +11,11 @@ pub(crate) fn run(args: ArgMatches) {
         Some(path) => std::path::PathBuf::from(path),
         None => std::env::current_dir().unwrap(),
     };
-    let (driver, backend_ptr) = Resolver::resolve_root_config(&package_dir);
-    let compiled_program = driver.into_compiled_program(backend_ptr);
+    let driver = Resolver::resolve_root_config(&package_dir);
+    let compiled_program = driver.into_compiled_program();
 
-    let smart_contract_string = backend_ptr
-        .backend()
-        .eth_contract_from_cs(compiled_program.circuit);
+    let backend = acvm::ConcreteBackend;
+    let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
     let mut contract_path = create_contract_dir();
     contract_path.push("plonk_vk");

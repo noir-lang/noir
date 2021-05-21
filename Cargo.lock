@@ -17,6 +17,7 @@ dependencies = [
  "arkworks_backend",
  "aztec_backend",
  "blake2",
+ "cfg-if 1.0.0",
  "hex",
  "k256",
  "noir_field",
@@ -78,6 +79,17 @@ name = "arena"
 version = "0.1.0"
 dependencies = [
  "generational-arena",
+]
+
+[[package]]
+name = "ark-bls12-381"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70e1c2ad76c4f725520440b981df3ce2d635f2baa1122750c757c0cf0f3d4b74"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
 ]
 
 [[package]]
@@ -236,6 +248,7 @@ name = "arkworks_backend"
 version = "0.1.0"
 dependencies = [
  "acir",
+ "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
  "ark-marlin",
@@ -245,6 +258,7 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "blake2",
+ "cfg-if 1.0.0",
  "noir_field",
 ]
 
@@ -1439,9 +1453,11 @@ dependencies = [
 name = "noir_field"
 version = "0.1.0"
 dependencies = [
+ "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
  "blake2",
+ "cfg-if 1.0.0",
  "hex",
 ]
 

@@ -75,13 +75,12 @@ impl Dependency {
 
 impl CrateGraph {
     pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
-        let roots_with_file_id: Vec<_> = self
+        let mut roots_with_file_id = self
             .arena
             .iter()
-            .filter(|(_, crate_data)| crate_data.root_file_id == file_id)
-            .collect();
+            .filter(|(_, crate_data)| crate_data.root_file_id == file_id);
         assert!(
-            roots_with_file_id.is_empty(),
+            roots_with_file_id.next().is_none(),
             "you cannot add the same file id twice"
         );
 

@@ -11,6 +11,7 @@ ark-serialize = { version = "0.2.0", default-features = false, features = ["deri
 ark-std = { version = "0.2.0", default-features = false }
 ark-ff = { version = "0.2.0", default-features = false }
 ark-bn254 = { version = "0.2.0", default-features = false, features = ["curve"] }
+ark-bls12-381 = { version = "0.2.0", default-features = false, features = ["curve"] }
 acir = { path = "../acir" }
 noir_field = { path = "../noir_field" }
 ark-marlin = { version = "0.2.0", default-features = false }
@@ -18,3 +19,11 @@ ark-poly-commit = { version = "0.2.0", default-features = false }
 ark-poly = { version = "0.2.0", default-features = false }
 ark-relations = { version = "0.2.0", default-features = false }
 blake2 = { version = "0.9", default-features = false }
+cfg-if = "1.0.0"
+
+[features]
+# XXX: We probably want to use the re-exported field in acir
+# which means we need to add config flags for that dependency too
+default = ["bn254"]
+bn254 = ["noir_field/bn254"]
+bls12_381 = ["noir_field/bls12_381"]

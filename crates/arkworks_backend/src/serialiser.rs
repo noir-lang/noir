@@ -1,15 +1,14 @@
-use crate::bridge::{Bn254Acir, Bn254AcirArithGate};
+use crate::concrete_cfg::{from_fe, CurveAcir, CurveAcirArithGate, Fr};
 use acir::{circuit::Circuit, native_types::Arithmetic};
-use ark_bn254::Fr;
 
 /// Converts an ACIR into an ACIR struct that
 /// the arkworks backend can consume
-pub fn serialise(acir: Circuit, values: Vec<Fr>) -> Bn254Acir {
+pub fn serialise(acir: Circuit, values: Vec<Fr>) -> CurveAcir {
     (acir, values).into()
 }
 
-impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
-    fn from(circ_val: (Circuit, Vec<Fr>)) -> Bn254Acir {
+impl From<(Circuit, Vec<Fr>)> for CurveAcir {
+    fn from(circ_val: (Circuit, Vec<Fr>)) -> CurveAcir {
         // Currently non-arithmetic gates are not supported
         // so we extract all of the arithmetic gates only
         let circ = circ_val.0;
@@ -17,13 +16,13 @@ impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
             .gates
             .into_iter()
             .filter(|gate| gate.is_arithmetic())
-            .map(|gate| Bn254AcirArithGate::from(gate.arithmetic()))
+            .map(|gate| CurveAcirArithGate::from(gate.arithmetic()))
             .collect();
 
         let values = circ_val.1;
 
         let num_vars = (circ.current_witness_index + 1) as usize;
-        Bn254Acir {
+        CurveAcir {
             gates: arith_gates,
             values,
             num_variables: num_vars,
@@ -32,24 +31,24 @@ impl From<(Circuit, Vec<Fr>)> for Bn254Acir {
     }
 }
 
-impl From<Arithmetic> for Bn254AcirArithGate {
-    fn from(arith_gate: Arithmetic) -> Bn254AcirArithGate {
+impl From<Arithmetic> for CurveAcirArithGate {
+    fn from(arith_gate: Arithmetic) -> CurveAcirArithGate {
         let converted_mul_terms: Vec<_> = arith_gate
             .mul_terms
             .into_iter()
-            .map(|(coeff, l_var, r_var)| (coeff.into_repr(), l_var, r_var))
+            .map(|(coeff, l_var, r_var)| (from_fe(coeff), l_var, r_var))
             .collect();
 
         let converted_linear_combinations: Vec<_> = arith_gate
             .linear_combinations
             .into_iter()
-            .map(|(coeff, var)| (coeff.into_repr(), var))
+            .map(|(coeff, var)| (from_fe(coeff), var))
             .collect();
 
-        Bn254AcirArithGate {
+        CurveAcirArithGate {
             mul_terms: converted_mul_terms,
             add_terms: converted_linear_combinations,
-            constant_term: arith_gate.q_c.into_repr(),
+            constant_term: from_fe(arith_gate.q_c),
         }
     }
 }

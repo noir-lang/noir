@@ -1,6 +1,7 @@
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 use crate::resolver::Resolver;
 use crate::write_stderr;
+use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
@@ -30,8 +31,8 @@ pub(crate) fn run(args: ArgMatches) {
 
 fn verify(proof_name: &str) -> bool {
     let curr_dir = std::env::current_dir().unwrap();
-    let (driver, backend_ptr) = Resolver::resolve_root_config(&curr_dir);
-    let compiled_program = driver.into_compiled_program(backend_ptr);
+    let driver = Resolver::resolve_root_config(&curr_dir);
+    let compiled_program = driver.into_compiled_program();
 
     let mut proof_path = curr_dir;
     proof_path.push(Path::new("proofs"));
@@ -62,10 +63,8 @@ fn verify(proof_name: &str) -> bool {
     let proof_hex: Vec<_> = std::fs::read(proof_path).unwrap();
     // XXX: Instead of unwrap, return a ProofNotValidError
     let proof = hex::decode(proof_hex).unwrap();
-
-    backend_ptr
-        .backend()
-        .verify_from_cs(&proof, public_inputs, compiled_program.circuit)
+    let backend = acvm::ConcreteBackend;
+    backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit)
 }
 
 fn process_abi_with_verifier_input(
