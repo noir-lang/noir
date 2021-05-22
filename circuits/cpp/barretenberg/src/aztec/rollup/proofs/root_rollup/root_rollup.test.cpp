@@ -1,4 +1,6 @@
 #include <crypto/sha256/sha256.hpp>
+#include <common/test.hpp>
+#include <common/throw_or_abort.hpp>
 #include "../../fixtures/user_context.hpp"
 #include "../../constants.hpp"
 #include "../rollup/verify.hpp"
@@ -10,7 +12,6 @@
 #include "root_rollup_circuit.hpp"
 #include "create_root_rollup_tx.hpp"
 #include "verify.hpp"
-#include <common/test.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -139,7 +140,7 @@ class root_rollup_tests : public ::testing::Test {
 
             join_split::join_split_circuit(composer, tx);
             if (composer.failed) {
-                throw std::runtime_error(format("Join-split logic failed: ", composer.err));
+                throw_or_abort(format("Join-split logic failed: ", composer.err));
             }
             auto prover = composer.create_unrolled_prover();
             auto join_split_proof = prover.construct_proof();
