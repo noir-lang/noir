@@ -40,8 +40,7 @@ void check_root_tree_updated(Composer& composer,
 {
     auto empty_tree_value = byte_array_ct(&composer, 64);
     auto new_data_root_arr = byte_array_ct(new_data_root);
-    auto one = field_ct(witness_ct(&composer, 1));
-    auto index = byte_array_ct(rollup_id + one);
+    auto index = byte_array_ct(rollup_id + 1);
     update_membership(composer,
                       new_data_roots_root,
                       new_data_roots_path,
@@ -51,31 +50,6 @@ void check_root_tree_updated(Composer& composer,
                       empty_tree_value,
                       index,
                       __FUNCTION__);
-}
-
-void check_tree_updated(Composer& composer,
-                        field_ct const& new_root,
-                        merkle_tree::hash_path const& new_path,
-                        field_ct const& old_root,
-                        merkle_tree::hash_path const& old_path,
-                        std::vector<byte_array_ct> const& new_values,
-                        field_ct const& start_index)
-{
-    size_t height = numeric::get_msb(new_values.size());
-    auto zero_subtree_root = field_ct(zero_hash_at_height(height));
-
-    auto rollup_root = compute_tree_root(new_values);
-
-    update_subtree_membership(composer,
-                              new_root,
-                              new_path,
-                              rollup_root,
-                              old_root,
-                              old_path,
-                              zero_subtree_root,
-                              byte_array_ct(start_index),
-                              height,
-                              __FUNCTION__);
 }
 
 template <typename T, typename U, typename Op> std::vector<T> map_vector(std::vector<U> const& in, Op const& op)
@@ -272,13 +246,13 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
     // The defi_interaction_nonce represents the insertion location.
-    check_tree_updated(composer,
-                       new_defi_interaction_root,
-                       new_defi_interaction_path,
-                       old_defi_interaction_root,
-                       old_defi_interaction_path,
-                       defi_interaction_note_leaves,
-                       defi_interaction_nonce);
+    batch_update_membership(composer,
+                            new_defi_interaction_root,
+                            old_defi_interaction_root,
+                            old_defi_interaction_path,
+                            defi_interaction_note_leaves,
+                            defi_interaction_nonce,
+                            "check_defi_tree_updated");
 
     // Check data root tree is updated with latest data root.
     check_root_tree_updated(

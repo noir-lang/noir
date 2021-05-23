@@ -148,6 +148,32 @@ void assert_check_tree(Composer& composer,
     composer.assert_equal_constant(valid.witness_index, fr::one());
 }
 
+template <typename Composer>
+void batch_update_membership(Composer& composer,
+                             field_t<Composer> const& new_root,
+                             field_t<Composer> const& old_root,
+                             hash_path<Composer> const& old_path,
+                             std::vector<byte_array<Composer>> const& new_values,
+                             field_t<Composer> const& start_index,
+                             std::string const& msg = "batch_update_membership")
+{
+    size_t height = numeric::get_msb(new_values.size());
+    auto zero_subtree_root = field_t<Composer>(zero_hash_at_height(height));
+
+    auto rollup_root = compute_tree_root(new_values);
+
+    update_subtree_membership(composer,
+                              new_root,
+                              old_path,
+                              rollup_root,
+                              old_root,
+                              old_path,
+                              zero_subtree_root,
+                              byte_array<Composer>(start_index),
+                              height,
+                              msg);
+}
+
 } // namespace merkle_tree
 } // namespace stdlib
 } // namespace plonk

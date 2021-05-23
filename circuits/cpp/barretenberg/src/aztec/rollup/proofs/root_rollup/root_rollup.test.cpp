@@ -228,7 +228,6 @@ class root_rollup_tests : public ::testing::Test {
     {
         auto js_proofs = get_js_proofs(1);
         create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
-        update_root_tree_with_data_root(1);
     }
 
     auto create_rollup_tx_with_1_defi()
