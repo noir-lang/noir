@@ -63,13 +63,15 @@ void check_root_tree_updated(Composer& composer,
  * - Modify the claim note encryptions (output_note_1 encryption) to add the relevant interaction nonce to it.
  */
 auto process_defi_deposits(Composer& composer,
+                           field_ct const& rollup_id,
                            size_t num_inner_txs_pow2,
                            std::vector<field_ct>& public_inputs,
                            std::vector<field_ct> const& bridge_ids,
                            std::vector<field_ct>& defi_deposit_sums,
-                           field_ct const& defi_interaction_nonce,
                            field_ct const& num_defi_interactions)
 {
+    field_ct defi_interaction_nonce = ((rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
+
     for (size_t j = 0; j < num_inner_txs_pow2; j++) {
         const auto public_input_start_idx =
             RollupProofFields::INNER_PROOFS_DATA + (j * InnerProofFields::NUM_PUBLISHED);
@@ -244,7 +246,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto defi_interaction_notes = map_vector<defi_interaction_note>(root_rollup.defi_interaction_notes, [&](auto& n) {
         return defi_interaction_note({ composer, n });
     });
-    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
 
     // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
@@ -278,22 +279,17 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
             inp *= is_real;
         }
 
-        // Accumulate tx public inputs.
-        for (size_t j = 0; j < InnerProofFields::NUM_PUBLISHED * num_inner_txs_pow2; ++j) {
-            tx_proof_public_inputs.push_back(public_inputs[RollupProofFields::INNER_PROOFS_DATA + j]);
-        }
-
         // Accumulate tx fees.
         for (size_t j = 0; j < NUM_ASSETS; ++j) {
             total_tx_fees[j] += public_inputs[RollupProofFields::TOTAL_TX_FEES + j];
         }
 
         process_defi_deposits(composer,
+                              rollup_id,
                               num_inner_txs_pow2,
                               public_inputs,
                               bridge_ids,
                               defi_deposit_sums,
-                              defi_interaction_nonce,
                               num_defi_interactions);
 
         assert_inner_proof_sequential(composer,
@@ -307,6 +303,11 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                       old_root_root,
                                       public_inputs,
                                       is_real);
+
+        // Accumulate tx public inputs.
+        for (size_t j = 0; j < InnerProofFields::NUM_PUBLISHED * num_inner_txs_pow2; ++j) {
+            tx_proof_public_inputs.push_back(public_inputs[RollupProofFields::INNER_PROOFS_DATA + j]);
+        }
     }
 
     // Check defi interaction notes are inserted and computes previous_defi_interaction_hash.
