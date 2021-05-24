@@ -2,6 +2,8 @@ use noir_field::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use std::fmt;
 
+use crate::lexer::errors::LexerErrorKind;
+
 impl PartialEq<SpannedToken> for Token {
     fn eq(&self, other: &SpannedToken) -> bool {
         self == &other.0.contents
@@ -118,7 +120,6 @@ pub enum Token {
     Underscore,
     // =
     Assign,
-    Error(String),
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 }
@@ -165,7 +166,6 @@ impl fmt::Display for Token {
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
             Token::Underscore => write!(f, "_"),
-            Token::Error(ref err) => write!(f, "Error: {}", err),
             Token::EOF => write!(f, ""),
         }
     }
@@ -265,7 +265,10 @@ impl fmt::Display for IntType {
 }
 
 impl IntType {
-    pub(crate) fn lookup_int_type(word: &str) -> Option<Token> {
+    // XXX: Result<Option<Token, LexerErrorKind>
+    // Is not the best API. We could split this into two functions. One that checks if the the
+    // word is a integer, which only returns an Option
+    pub(crate) fn lookup_int_type(word: &str, span: Span) -> Result<Option<Token>, LexerErrorKind> {
         // Check if the first string is a 'u' or 'i'
 
         let is_signed = if word.starts_with('i') {
@@ -273,28 +276,33 @@ impl IntType {
         } else if word.starts_with('u') {
             false
         } else {
-            return None;
+            return Ok(None);
         };
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
-        let str_as_u32 = word[1..].parse::<u32>().ok()?;
+
+        let str_as_u32 = match word[1..].parse::<u32>() {
+            Ok(str_as_u32) => str_as_u32,
+            Err(_) => return Ok(None),
+        };
 
         let max_bits = noir_field::FieldElement::max_num_bits();
 
         if str_as_u32 > max_bits {
-            panic!(
-                "The maximum number of bits need to represent a field is {}, {} is too much ",
-                max_bits, str_as_u32
-            );
+            return Err(LexerErrorKind::TooManyBits {
+                span,
+                max: max_bits,
+                got: str_as_u32,
+            });
         }
         if (str_as_u32 % 2 == 1) && (str_as_u32 > 1) {
             todo!("Barretenberg currently panics on odd integers bit widths such as u3, u5. u1 works as it is a type alias for bool, so we can use a bool gate for it");
         }
 
         if is_signed {
-            Some(Token::IntType(IntType::Signed(str_as_u32)))
+            Ok(Some(Token::IntType(IntType::Signed(str_as_u32))))
         } else {
-            Some(Token::IntType(IntType::Unsigned(str_as_u32)))
+            Ok(Some(Token::IntType(IntType::Unsigned(str_as_u32))))
         }
     }
 }
@@ -320,24 +328,33 @@ impl fmt::Display for Attribute {
 impl Attribute {
     /// If the string is a fixed attribute return that, else
     /// return the custom attribute
-    pub(crate) fn lookup_attribute(word: &str) -> Token {
+    pub(crate) fn lookup_attribute(word: &str, span: Span) -> Result<Token, LexerErrorKind> {
         let word_segments: Vec<&str> = word
             .split(|c| c == '(' || c == ')')
             .filter(|string_segment| !string_segment.is_empty())
             .collect();
 
         if word_segments.len() != 2 {
-            panic!("Malformed function attribute. An example of an attribute is #[foreign(sha256)]")
+            return Err(LexerErrorKind::MalformedFuncAttribute {
+                span,
+                found: word.to_owned(),
+            });
         }
 
         let attribute_type = word_segments[0];
         let attribute_name = word_segments[1];
 
-        match attribute_type {
+        let tok = match attribute_type {
             "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
             "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            _ => panic!("unknown attribute type"),
-        }
+            _ => {
+                return Err(LexerErrorKind::MalformedFuncAttribute {
+                    span,
+                    found: word.to_owned(),
+                })
+            }
+        };
+        Ok(tok)
     }
 
     pub fn builtin(&self) -> Option<&str> {

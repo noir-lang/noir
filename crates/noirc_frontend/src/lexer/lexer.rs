@@ -4,11 +4,10 @@ use super::{
 };
 use fm::File;
 use noir_field::FieldElement;
-use noirc_errors::Position;
+use noirc_errors::{Position, Span};
 use std::iter::Peekable;
 use std::str::Chars;
 // XXX(low) : We could probably use Bytes, but I cannot see the advantage yet. I don't think Unicode will be implemented
-// XXX(low) : Currently the Lexer does not return Result. It would be more idiomatic to do this, instead of returning Token::Error
 // XXX(low) : We may need to implement a TokenStream struct which wraps the lexer. This is then passed to the Parser
 // XXX(low) : Possibly use &str instead of String when applicable
 
@@ -95,7 +94,7 @@ impl<'a> Lexer<'a> {
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('"') => Ok(self.eat_string_literal()),
-            Some('#') => Ok(self.eat_attribute()),
+            Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 let span = self.position.mark().into_span();
@@ -157,7 +156,7 @@ impl<'a> Lexer<'a> {
                     // Okay to unwrap here because we already peeked to
                     // see that we have a character
                     let curr_char = self.next_char().unwrap();
-                    return Ok(self.eat_word(curr_char));
+                    return Ok(self.eat_word(curr_char)?);
                 }
 
                 Ok(spanned_prev_token)
@@ -208,26 +207,29 @@ impl<'a> Lexer<'a> {
 
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
-            'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)),
-            '0'..='9' => Ok(self.eat_digit(initial_char)),
+            'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
+            '0'..='9' => self.eat_digit(initial_char),
             _ => {
                 let span = self.position.mark().into_span();
                 Err(LexerErrorKind::UnexpectedCharacter {
                     span,
                     found: initial_char,
+                    expected: "an alpha numeric character".to_owned(),
                 })
             }
         }
     }
 
-    fn eat_attribute(&mut self) -> SpannedToken {
+    fn eat_attribute(&mut self) -> SpannedTokenResult {
         if !self.peek_char_is('[') {
-            let err_msg = format!(
-                "Lexer expected a '[' character after the '#' character, instead got {}",
-                self.next_char().unwrap()
-            );
-            let err = Token::Error(err_msg);
-            return err.into_single_span(self.position.mark());
+            let start = self.position.mark();
+            let end = start;
+
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span { start, end },
+                found: self.next_char().unwrap(),
+                expected: "[".to_owned(),
+            });
         }
         self.next_char();
 
@@ -237,51 +239,80 @@ impl<'a> Lexer<'a> {
         });
 
         if !self.peek_char_is(']') {
-            let err_msg = format!(
-                "Lexer expected a trailing ']' character instead got {}",
-                self.next_char().unwrap()
-            );
-            return Token::Error(err_msg).into_single_span(self.position.mark());
+            let start = self.position.mark();
+            let end = start;
+            return Err(LexerErrorKind::UnexpectedCharacter {
+                span: Span { start, end },
+                expected: "]".to_owned(),
+                found: self.next_char().unwrap(),
+            });
         }
         self.next_char();
 
-        let attribute = Attribute::lookup_attribute(&word);
+        let attribute = Attribute::lookup_attribute(
+            &word,
+            Span {
+                start: start_span,
+                end: end_span,
+            },
+        )?;
 
         // Move start position backwards to cover the left bracket
         // Move end position forwards to cover the right bracket
-        attribute.into_span(start_span.backward(), end_span.forward())
+        Ok(attribute.into_span(start_span.backward(), end_span.forward()))
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilise some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
-    fn eat_word(&mut self, initial_char: char) -> SpannedToken {
+    fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
         let (word, start_span, end_span) = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
 
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
-            return keyword_token.into_span(start_span, end_span);
+            return Ok(keyword_token.into_span(start_span, end_span));
         }
+
         // Check if word an int type
-        if let Some(int_type_token) = IntType::lookup_int_type(&word) {
-            return int_type_token.into_span(start_span, end_span);
+        // if no error occurred, then it is either a valid integer type or it is not an int type
+        let parsed_token = IntType::lookup_int_type(
+            &word,
+            Span {
+                start: start_span,
+                end: end_span,
+            },
+        )?;
+
+        // Check if it is an int type
+        if let Some(int_type_token) = parsed_token {
+            return Ok(int_type_token.into_span(start_span, end_span));
         }
+
+        // Else it is just an identifier
         let ident_token = Token::Ident(word);
-        ident_token.into_span(start_span, end_span)
+        Ok(ident_token.into_span(start_span, end_span))
     }
-    fn eat_digit(&mut self, initial_char: char) -> SpannedToken {
+    fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
         let (integer_str, start_span, end_span) = self.eat_while(Some(initial_char), |ch| {
             ch.is_digit(10) | ch.is_digit(16) | (ch == 'x')
         });
 
         let integer = match FieldElement::try_from_str(&integer_str) {
-            None => panic!("could not parse integer literal"),
+            None => {
+                return Err(LexerErrorKind::InvalidIntegerLiteral {
+                    span: Span {
+                        start: start_span,
+                        end: end_span,
+                    },
+                    found: integer_str,
+                })
+            }
             Some(integer) => integer,
         };
 
         let integer_token = Token::Int(integer);
-        integer_token.into_span(start_span, end_span)
+        Ok(integer_token.into_span(start_span, end_span))
     }
     fn eat_string_literal(&mut self) -> SpannedToken {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
