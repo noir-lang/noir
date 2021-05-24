@@ -156,7 +156,7 @@ impl<'a> Lexer<'a> {
                     // Okay to unwrap here because we already peeked to
                     // see that we have a character
                     let curr_char = self.next_char().unwrap();
-                    return Ok(self.eat_word(curr_char)?);
+                    return self.eat_word(curr_char);
                 }
 
                 Ok(spanned_prev_token)
