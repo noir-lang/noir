@@ -2,7 +2,8 @@ use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::write_stderr;
+use crate::errors::CliError;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub package: Package,
@@ -50,15 +51,19 @@ pub enum Dependency {
 /// Parses a Nargo.toml file from it's path
 /// The path to the toml file must be present.
 /// Calling this function without this guarantee is an ICE.
-pub fn parse<P: AsRef<Path>>(path_to_toml: P) -> Config {
+pub fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<Config, CliError> {
     let toml_as_string =
         std::fs::read_to_string(&path_to_toml).expect("ice: path given for toml file is invalid");
 
     match parse_toml_str(&toml_as_string) {
-        Ok(cfg) => cfg,
+        Ok(cfg) => Ok(cfg),
         Err(msg) => {
             let path = path_to_toml.as_ref();
-            write_stderr(&format!("{}\n Location: {}", msg, path.display()))
+            Err(CliError::Generic(format!(
+                "{}\n Location: {}",
+                msg,
+                path.display()
+            )))
         }
     }
 }

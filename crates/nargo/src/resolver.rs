@@ -6,7 +6,10 @@ use std::{
 use noirc_driver::Driver;
 use noirc_frontend::graph::{CrateId, CrateType};
 
-use crate::toml::{Config, Dependency};
+use crate::{
+    errors::CliError,
+    toml::{Config, Dependency},
+};
 
 /// Creates a unique folder name for a GitHub repo
 /// by using it's URL and tag
@@ -48,20 +51,20 @@ impl<'a> Resolver<'a> {
     /// Note that the backend is ignored in the dependencies.
     /// Since Noir is backend agnostic, this is okay to do.
     /// XXX: Need to handle when a local package changes!
-    pub fn resolve_root_config(dir_path: &std::path::Path) -> Driver {
+    pub fn resolve_root_config(dir_path: &std::path::Path) -> Result<Driver, CliError> {
         let mut driver = Driver::new();
 
-        let (entry_path, crate_type) = super::lib_or_bin(&dir_path);
+        let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
 
-        let cfg_path = super::find_package_config(&dir_path);
-        let cfg = super::toml::parse(cfg_path);
+        let cfg_path = super::find_package_config(&dir_path)?;
+        let cfg = super::toml::parse(cfg_path)?;
 
         let crate_id = driver.create_local_crate(entry_path, crate_type);
 
         let mut resolver = Resolver::with_driver(&mut driver);
-        resolver.resolve_config(crate_id, cfg);
+        resolver.resolve_config(crate_id, cfg)?;
 
-        driver
+        Ok(driver)
     }
 
     // Resolves a config file by recursively resolving the dependencies in the config
@@ -70,18 +73,18 @@ impl<'a> Resolver<'a> {
     // We do not need to add stdlib, as it's implicitly
     // imported. However, it may be helpful to have the stdlib imported by the
     // package manager.
-    fn resolve_config(&mut self, parent_crate: CrateId, cfg: Config) {
+    fn resolve_config(&mut self, parent_crate: CrateId, cfg: Config) -> Result<(), CliError> {
         // First download and add these top level dependencies crates to the Driver
         for (dep_pkg_name, pkg_src) in cfg.dependencies.iter() {
-            let (dir_path, dep_meta) = Resolver::cache_dep2(pkg_src);
+            let (dir_path, dep_meta) = Resolver::cache_dep2(pkg_src)?;
 
             let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
 
             if crate_type == &CrateType::Binary {
-                super::write_stderr(&format!(
+                return Err(CliError::Generic(format!(
                     "{} is a binary package and so it cannot be depended upon. src : {:?}",
                     dep_pkg_name, pkg_src
-                ));
+                )));
             }
 
             let crate_id = self.driver.create_non_local_crate(&entry_path, *crate_type);
@@ -93,14 +96,15 @@ impl<'a> Resolver<'a> {
         // Resolve all transitive dependencies
         for (dir_path, (crate_id, dep_meta)) in self.cached_packages.iter() {
             if dep_meta.remote && cfg.has_local_path() {
-                super::write_stderr(&format!(
+                return Err(CliError::Generic(format!(
                     "remote(git) dependency depends on a local path. \ndependency located at {}",
                     dir_path.display()
-                ))
+                )));
             }
             let mut new_res = Resolver::with_driver(self.driver);
-            new_res.resolve_config(*crate_id, dep_meta.cfg.clone());
+            new_res.resolve_config(*crate_id, dep_meta.cfg.clone())?;
         }
+        Ok(())
     }
 
     /// If the dependency is remote, download the dependency
@@ -109,33 +113,33 @@ impl<'a> Resolver<'a> {
     ///
     /// If it's a local path, the same applies, however it will not
     /// be downloaded
-    fn cache_dep2(dep: &Dependency) -> (PathBuf, CachedDep) {
-        fn retrieve_meta(dir_path: &Path, remote: bool) -> CachedDep {
-            let (entry_path, crate_type) = super::lib_or_bin(&dir_path);
-            let cfg_path = super::find_package_config(&dir_path);
-            let cfg = super::toml::parse(cfg_path);
-            CachedDep {
+    fn cache_dep2(dep: &Dependency) -> Result<(PathBuf, CachedDep), CliError> {
+        fn retrieve_meta(dir_path: &Path, remote: bool) -> Result<CachedDep, CliError> {
+            let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
+            let cfg_path = super::find_package_config(&dir_path)?;
+            let cfg = super::toml::parse(cfg_path)?;
+            Ok(CachedDep {
                 entry_path,
                 crate_type,
                 cfg,
                 remote,
-            }
+            })
         }
 
         match dep {
             Dependency::Github { git, tag } => {
-                let dir_path = Resolver::resolve_git_dep(git, tag);
-                let meta = retrieve_meta(&dir_path, true);
-                (dir_path, meta)
+                let dir_path = Resolver::resolve_git_dep(git, tag)?;
+                let meta = retrieve_meta(&dir_path, true)?;
+                Ok((dir_path, meta))
             }
             Dependency::Path { path: _ } => todo!(),
         }
     }
 
-    pub fn resolve_git_dep(url: &str, tag: &str) -> PathBuf {
+    pub fn resolve_git_dep(url: &str, tag: &str) -> Result<PathBuf, CliError> {
         match super::git::clone_git_repo(url, tag) {
-            Ok(path) => path,
-            Err(msg) => crate::write_stderr(&msg),
+            Ok(path) => Ok(path),
+            Err(msg) => Err(CliError::Generic(msg)),
         }
     }
 }

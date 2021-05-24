@@ -6,6 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::errors::CliError;
+
 mod build_cmd;
 mod contract_cmd;
 mod new_cmd;
@@ -61,14 +63,17 @@ pub fn start_cli() {
         )
         .get_matches();
 
-    match matches.subcommand_name() {
+    let result = match matches.subcommand_name() {
         Some("new") => new_cmd::run(matches),
         Some("build") => build_cmd::run(matches),
         Some("contract") => contract_cmd::run(matches),
         Some("prove") => prove_cmd::run(matches),
         Some("verify") => verify_cmd::run(matches),
-        None => println!("No subcommand was used"),
-        Some(x) => println!("unknown command : {}", x),
+        None => Err(CliError::Generic("No subcommand was used".to_owned())),
+        Some(x) => Err(CliError::Generic(format!("unknown command : {}", x))),
+    };
+    if let Err(err) = result {
+        err.write()
     }
 }
 

@@ -1,8 +1,10 @@
+use crate::errors::CliError;
+
 use super::{create_dir, write_to_file, PKG_FILE, SRC_DIR};
 use clap::ArgMatches;
 use std::path::{Path, PathBuf};
 
-pub(crate) fn run(args: ArgMatches) {
+pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let cmd = args.subcommand_matches("new").unwrap();
 
     let package_name = cmd.value_of("package_name").unwrap();
@@ -13,11 +15,11 @@ pub(crate) fn run(args: ArgMatches) {
     };
     package_dir.push(Path::new(package_name));
     if package_dir.exists() {
-        println!(
+        let msg = format!(
             "error: destination {} already exists",
             package_dir.display()
         );
-        std::process::exit(1)
+        return Err(CliError::DestinationAlreadyExists(msg));
     }
 
     let src_dir = package_dir.join(Path::new(SRC_DIR));
@@ -43,6 +45,7 @@ pub(crate) fn run(args: ArgMatches) {
         "Project successfully created! Binary located at {}",
         package_dir.display()
     );
+    Ok(())
 }
 
 fn create_src_dir<P: AsRef<Path>>(p: P) -> PathBuf {
