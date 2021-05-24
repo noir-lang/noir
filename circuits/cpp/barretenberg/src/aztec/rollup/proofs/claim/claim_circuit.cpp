@@ -5,8 +5,8 @@
 #include "../notes/circuit/defi_interaction/defi_interaction_note.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
-// #pragma GCC diagnostic ignored "-Wunused-variable"
-// #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace claim {
@@ -25,11 +25,11 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     // Create witnesses.
     const auto proof_id = field_ct(witness_ct(&composer, 3));
     const auto data_root = field_ct(witness_ct(&composer, tx.data_root));
+    const auto defi_root = field_ct(witness_ct(&composer, tx.defi_root));
     const auto claim_note_index = witness_ct(&composer, tx.claim_note_index);
     const auto claim_note_path = create_witness_hash_path(composer, tx.claim_note_path);
     const auto claim_note_data = notes::circuit::claim::claim_note_witness_data(composer, tx.claim_note);
     const auto claim_note = notes::circuit::claim::claim_note(claim_note_data);
-    const auto defi_interaction_note_index = witness_ct(&composer, tx.defi_interaction_note_index);
     const auto defi_interaction_note_path = create_witness_hash_path(composer, tx.defi_interaction_note_path);
     const auto defi_interaction_note =
         notes::circuit::defi_interaction::defi_interaction_note({ composer, tx.defi_interaction_note });
@@ -81,23 +81,21 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
     // Check defi interaction note exists.
     const auto din_exists = check_membership(composer,
-                                             data_root,
+                                             defi_root,
                                              defi_interaction_note_path,
                                              byte_array_ct(defi_interaction_note),
-                                             byte_array_ct(defi_interaction_note_index));
+                                             byte_array_ct(defi_interaction_note.interaction_nonce));
     composer.assert_equal_constant(din_exists.witness_index, 1, "defi interaction note not a member");
 
     // Force unused public inputs to 0.
     const auto public_input = witness_ct(&composer, 0);
     const auto public_output = witness_ct(&composer, 0);
     const auto nullifier2 = witness_ct(&composer, 0);
-    const auto input_owner = witness_ct(&composer, 0);
     const auto output_owner = witness_ct(&composer, 0);
     const auto tx_fee = witness_ct(&composer, 0);
     composer.assert_equal(public_input.witness_index, composer.zero_idx);
     composer.assert_equal(public_output.witness_index, composer.zero_idx);
     composer.assert_equal(nullifier2.witness_index, composer.zero_idx);
-    composer.assert_equal(input_owner.witness_index, composer.zero_idx);
     composer.assert_equal(output_owner.witness_index, composer.zero_idx);
     composer.assert_equal(tx_fee.witness_index, composer.zero_idx);
 
@@ -110,7 +108,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     output_note2.set_public();
     composer.set_public_input(nullifier1.witness_index);
     composer.set_public_input(nullifier2.witness_index);
-    composer.set_public_input(input_owner.witness_index);
+    composer.set_public_input(defi_root.witness_index);
     composer.set_public_input(output_owner.witness_index);
     composer.set_public_input(data_root.witness_index);
     composer.set_public_input(tx_fee.witness_index);
