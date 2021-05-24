@@ -25,7 +25,7 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
     auto build_circuit = [&](Composer& composer) {
         claim_tx claim_tx;
         claim_tx.claim_note_path.resize(DATA_TREE_DEPTH);
-        claim_tx.defi_interaction_note_path.resize(DATA_TREE_DEPTH);
+        claim_tx.defi_interaction_note_path.resize(DEFI_TREE_DEPTH);
         claim_circuit(composer, claim_tx);
     };
 

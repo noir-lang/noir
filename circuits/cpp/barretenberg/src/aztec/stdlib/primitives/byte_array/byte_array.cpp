@@ -29,7 +29,7 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, const s
  * Create a byte array out of a vector of uint8_t bytes.
  * This constructor will instantiate each byte as a circuit witness, NOT a circuit constant.
  * Do not use this method if the input needs to be hardcoded for a specific circuit
- **/ 
+ **/
 template <typename ComposerContext>
 byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::vector<uint8_t> const& input)
     : context(parent_context)
@@ -45,16 +45,17 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::ve
 
 /**
  * Create a byte_array out of a field element
- * 
+ *
  * The length of the byte array will default to 32 bytes, but shorter lengths can be specified.
  * If a shorter length is used, the circuit will NOT truncate the input to fit the reduced length.
  * Instead, the circuit adds constraints that VALIDATE the input is smaller than the specified length
- * 
+ *
  * e.g. if this constructor is used on a 16-bit input witness, where `num_bytes` is 1, the resulting proof will fail
- **/ 
+ **/
 template <typename ComposerContext>
-byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, const size_t num_bytes)
+byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input_base, const size_t num_bytes)
 {
+    const field_t<ComposerContext> input = input_base.normalize();
     uint256_t value = input.get_value();
     values.resize(num_bytes);
     context = input.get_context();
@@ -67,35 +68,33 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, c
         field_t<ComposerContext> validator(context, 0);
 
         field_t<ComposerContext> shifted_high_limb(context, 0); // will equal high 128 bits, left shifted by 128 bits
-        for (size_t i = 0; i < num_bytes; ++i)
-        {
-            barretenberg::fr byte_val = value.slice((num_bytes - i - 1)* 8, (num_bytes - i) * 8);
+        for (size_t i = 0; i < num_bytes; ++i) {
+            barretenberg::fr byte_val = value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8);
             field_t<ComposerContext> byte = witness_t(context, byte_val);
             context->create_range_constraint(byte.witness_index, 8);
             barretenberg::fr scaling_factor_value = byte_shift.pow(static_cast<uint64_t>(num_bytes - 1 - i));
             field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
             validator = validator + (scaling_factor * byte);
             values[i] = byte;
-            if (i == 15)
-            {
+            if (i == 15) {
                 shifted_high_limb = field_t<ComposerContext>(validator);
             }
         }
         context->assert_equal(validator.witness_index, input.witness_index);
 
         // validate input bytes < p
-        if (num_bytes >= 32)
-        {
+        if (num_bytes >= 32) {
             constexpr uint256_t modulus = fr::modulus;
             const fr p_lo = modulus.slice(0, 128);
             const fr p_hi = modulus.slice(128, 256);
             const fr shift = fr(uint256_t(1) << 128);
             field_t<ComposerContext> y_lo = (-validator) + (p_lo + shift);
             y_lo += shifted_high_limb;
-            
+
             const auto low_accumulators = context->create_range_constraint(y_lo.normalize().witness_index, 130);
-            field_t<ComposerContext> y_borrow = -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
-            
+            field_t<ComposerContext> y_borrow =
+                -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
+
             field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
             y_hi -= y_borrow;
             context->create_range_constraint(y_hi.witness_index, 128);
@@ -149,7 +148,7 @@ byte_array<ComposerContext>& byte_array<ComposerContext>::operator=(byte_array&&
  * The byte array is represented as a big integer, that is then converted into a field element.
  * The transformation is only injective if the byte array is < 32 bytes.
  * Larger byte arrays can still be cast to a single field element, but the value will wrap around the circuit modulus
- **/ 
+ **/
 template <typename ComposerContext> byte_array<ComposerContext>::operator field_t<ComposerContext>() const
 {
     const size_t bytes = values.size();
@@ -179,7 +178,7 @@ template <typename ComposerContext> byte_array<ComposerContext> byte_array<Compo
 
 /**
  * Slice `length` bytes from the byte array, starting at `offset`. Does not add any constraints
- **/ 
+ **/
 template <typename ComposerContext>
 byte_array<ComposerContext> byte_array<ComposerContext>::slice(size_t offset, size_t length) const
 {
@@ -192,13 +191,13 @@ byte_array<ComposerContext> byte_array<ComposerContext>::slice(size_t offset, si
 
 /**
  * Reverse the bytes in the byte array
- **/ 
+ **/
 template <typename ComposerContext> byte_array<ComposerContext> byte_array<ComposerContext>::reverse() const
 {
     bytes_t bytes(values.size());
     size_t offset = bytes.size() - 1;
     for (size_t i = 0; i < bytes.size(); i += 1, offset -= 1) {
-            bytes[offset] = values[i];
+        bytes[offset] = values[i];
     }
     return byte_array(context, bytes);
 }
@@ -222,11 +221,11 @@ template <typename ComposerContext> std::string byte_array<ComposerContext>::get
 
 /**
  * Extract a bit from the byte array.
- * 
+ *
  * get_bit treats the array as a little-endian integer
  * e.g. get_bit(1) corresponds to the second bit in the last, 'least significant' byte in the array.
- * 
- **/ 
+ *
+ **/
 template <typename ComposerContext>
 bool_t<ComposerContext> byte_array<ComposerContext>::get_bit(size_t index_reversed) const
 {
@@ -238,17 +237,18 @@ bool_t<ComposerContext> byte_array<ComposerContext>::get_bit(size_t index_revers
 
 /**
  * Set a bit in the byte array
- * 
+ *
  * set_bit treats the array as a little-endian integer
  * e.g. set_bit(0) will set the first bit in the last, 'least significant' byte in the array
- * 
+ *
  * For example, if we have a 64-byte array filled with zeroes, `set_bit(0, true)` will set `values[63]` to 1,
  *              and set_bit(511, true) will set `values[0]` to 128
- * 
+ *
  * Previously we did not reverse the bit index, but we have modified the behaviour to be consistent with `get_bit`
- * 
- * The rationale behind reversing the bit index is so that we can more naturally contain integers inside byte arrays and perform bit manipulation
- **/ 
+ *
+ * The rationale behind reversing the bit index is so that we can more naturally contain integers inside byte arrays and
+ *perform bit manipulation
+ **/
 template <typename ComposerContext>
 void byte_array<ComposerContext>::set_bit(size_t index_reversed, bool_t<ComposerContext> const& new_bit)
 {
@@ -257,16 +257,17 @@ void byte_array<ComposerContext>::set_bit(size_t index_reversed, bool_t<Composer
     const size_t byte_index = index / 8UL;
     const size_t bit_index = 7UL - (index % 8UL);
 
-    field_t<ComposerContext> scaled_new_bit = field_t<ComposerContext>(new_bit) * barretenberg::fr(uint256_t(1) << bit_index);
+    field_t<ComposerContext> scaled_new_bit =
+        field_t<ComposerContext>(new_bit) * barretenberg::fr(uint256_t(1) << bit_index);
     const auto new_value = slice.low.add_two(slice.high, scaled_new_bit).normalize();
     values[byte_index] = new_value;
 }
 
 /**
  * Split a byte at the target bit index, return [low slice, high slice, isolated bit]
- * 
+ *
  * This is a private method used by `get_bit` and `set_bit`
- **/ 
+ **/
 template <typename ComposerContext>
 typename byte_array<ComposerContext>::byte_slice byte_array<ComposerContext>::split_byte(const size_t index) const
 {
@@ -282,8 +283,7 @@ typename byte_array<ComposerContext>::byte_slice byte_array<ComposerContext>::sp
     const uint64_t low_value = value & ((1ULL << num_low_bits) - 1ULL);
     const uint64_t high_value = (bit_index == 7) ? 0ULL : (value >> (8 - num_high_bits));
 
-    if (byte.is_constant())
-    {
+    if (byte.is_constant()) {
         field_t<ComposerContext> low(context, low_value);
         field_t<ComposerContext> high(context, high_value);
         bool_t<ComposerContext> bit(context, static_cast<bool>(bit_value));
@@ -293,21 +293,15 @@ typename byte_array<ComposerContext>::byte_slice byte_array<ComposerContext>::sp
     field_t<ComposerContext> high = witness_t<ComposerContext>(context, high_value);
     bool_t<ComposerContext> bit = witness_t<ComposerContext>(context, static_cast<bool>(bit_value));
 
-    if (num_low_bits > 0)
-    {
+    if (num_low_bits > 0) {
         context->create_range_constraint(low.witness_index, static_cast<size_t>(num_low_bits));
-    }
-    else
-    {
+    } else {
         context->assert_equal(low.witness_index, context->zero_idx);
     }
 
-    if (num_high_bits > 0)
-    {
+    if (num_high_bits > 0) {
         context->create_range_constraint(high.witness_index, static_cast<size_t>(num_high_bits));
-    }
-    else
-    {
+    } else {
         context->assert_equal(high.witness_index, context->zero_idx);
     }
 

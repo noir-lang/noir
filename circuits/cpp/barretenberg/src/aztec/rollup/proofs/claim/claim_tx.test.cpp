@@ -19,7 +19,6 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.claim_note.deposit_value = 345;
     tx.claim_note.partial_state = grumpkin::g1::element::random_element();
 
-    tx.defi_interaction_note_index = 1;
     tx.defi_interaction_note_path =
         merkle_tree::fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
 
