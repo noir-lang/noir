@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
-use crate::write_stderr;
 use acvm::acir::native_types::Witness;
 use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
@@ -8,27 +7,27 @@ use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
 
-use crate::resolver::Resolver;
+use crate::{errors::CliError, resolver::Resolver};
 
 use super::{create_dir, write_to_file, PROOFS_DIR, PROOF_EXT, PROVER_INPUT_FILE};
 
-pub(crate) fn run(args: ArgMatches) {
+pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let proof_name = args
         .subcommand_matches("prove")
         .unwrap()
         .value_of("proof_name")
         .unwrap();
 
-    prove(proof_name);
+    prove(proof_name)
 }
 
 /// In Barretenberg, the proof system adds a zero witness in the first index,
 /// So when we add witness values, their index start from 1.
 const WITNESS_OFFSET: u32 = 1;
 
-fn prove(proof_name: &str) {
+fn prove(proof_name: &str) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
-    let driver = Resolver::resolve_root_config(&curr_dir);
+    let driver = Resolver::resolve_root_config(&curr_dir)?;
     let compiled_program = driver.into_compiled_program();
 
     // Parse the initial witness values
@@ -46,16 +45,16 @@ fn prove(proof_name: &str) {
     }
 
     let abi = compiled_program.abi.unwrap();
-    let mut solved_witness = process_abi_with_input(abi, witness_map);
+    let mut solved_witness = process_abi_with_input(abi, witness_map)?;
 
     let backend = acvm::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
-    match solver_res {
-        Ok(_) => {}
-        Err(opcode) => write_stderr(&format!(
+
+    if let Err(opcode) = solver_res {
+        return Err(CliError::Generic(format!(
             "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
             opcode
-        )),
+        )));
     }
 
     let backend = acvm::ConcreteBackend;
@@ -68,7 +67,8 @@ fn prove(proof_name: &str) {
     println!("proof : {}", hex::encode(&proof));
 
     let path = write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
-    println!("Proof successfully created and located at {}", path)
+    println!("Proof successfully created and located at {}", path);
+    Ok(())
 }
 
 fn create_proof_dir() -> PathBuf {
@@ -80,7 +80,7 @@ fn create_proof_dir() -> PathBuf {
 fn process_abi_with_input(
     abi: Abi,
     witness_map: BTreeMap<String, InputValue>,
-) -> BTreeMap<Witness, FieldElement> {
+) -> Result<BTreeMap<Witness, FieldElement>, CliError> {
     let mut solved_witness = BTreeMap::new();
 
     let mut index = 0;
@@ -97,7 +97,7 @@ fn process_abi_with_input(
             .clone();
 
         if !value.matches_abi(param_type) {
-            write_stderr(&format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name))
+            return Err(CliError::Generic(format!("The parameters in the main do not match the parameters in the {}.toml file. \n Please check `{}` parameter ", PROVER_INPUT_FILE,param_name)));
         }
 
         match value {
@@ -117,5 +117,5 @@ fn process_abi_with_input(
             }
         }
     }
-    solved_witness
+    Ok(solved_witness)
 }

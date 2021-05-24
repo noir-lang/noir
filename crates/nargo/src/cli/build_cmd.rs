@@ -1,18 +1,19 @@
 use clap::ArgMatches;
 use std::path::{Path, PathBuf};
 
-use crate::resolver::Resolver;
+use crate::{errors::CliError, resolver::Resolver};
 
 use super::{write_to_file, PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
-pub(crate) fn run(_args: ArgMatches) {
+pub(crate) fn run(_args: ArgMatches) -> Result<(), CliError> {
     let package_dir = std::env::current_dir().unwrap();
-    build_from_path(package_dir);
-    println!("Constraint system successfully built!")
+    build_from_path(package_dir)?;
+    println!("Constraint system successfully built!");
+    Ok(())
 }
 // This is exposed so that we can run the examples and verify that they pass
-pub fn build_from_path<P: AsRef<Path>>(p: P) {
-    let mut driver = Resolver::resolve_root_config(p.as_ref());
+pub fn build_from_path<P: AsRef<Path>>(p: P) -> Result<(), CliError> {
+    let mut driver = Resolver::resolve_root_config(p.as_ref())?;
     driver.build();
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some(x) = driver.compute_abi() {
@@ -39,4 +40,5 @@ pub fn build_from_path<P: AsRef<Path>>(p: P) {
     } else {
         // This means that this is a library. Libraries do not have ABIs.
     }
+    Ok(())
 }
