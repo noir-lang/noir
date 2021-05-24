@@ -74,7 +74,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                           "note asset ids not equal to tx asset id");
     auto valid_claim_note_asset_id =
         inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
-    composer.assert_equal_constant(valid_claim_note_asset_id.witness_index, 1, "bridge asset ids don't match");
+    composer.assert_equal_constant(
+        valid_claim_note_asset_id.witness_index, 1, "input note and claim note asset ids don't match");
 
     // Check the claim note interaction nonce is 0 (will be added by the rollup circuit).
     composer.assert_equal_constant(claim_note.defi_interaction_nonce.witness_index, 0, "interaction nonce must be 0");

@@ -173,22 +173,29 @@ class root_rollup_tests : public ::testing::Test {
         tx.claim_note.deposit_value = tx.output_note[0].value;
         tx.output_note[0].value = 0;
         tx.signature = sign_join_split_tx(tx, user.owner);
-        info(tx.old_data_root);
         return create_proof(tx);
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
                                          uint32_t rollup_id,
-                                         RollupStructure const& rollup_structure)
+                                         RollupStructure const& rollup_structure,
+                                         std::vector<std::vector<uint32_t>> const& data_roots_indicies_ = { {} })
     {
+        auto data_roots_indicies = data_roots_indicies_;
+        data_roots_indicies.resize(rollup_structure.size());
+
         std::vector<rollup::rollup_tx> rollups;
         std::vector<std::vector<uint8_t>> rollups_data;
 
-        for (auto tx_proofs : rollup_structure) {
-            auto rollup = rollup::create_rollup(tx_proofs, data_tree, null_tree, root_tree, INNER_ROLLUP_TXS);
+        for (size_t i = 0; i < rollup_structure.size(); ++i) {
+            auto tx_proofs = rollup_structure[i];
+            auto rollup = rollup::create_rollup(
+                tx_proofs, data_tree, null_tree, root_tree, INNER_ROLLUP_TXS, data_roots_indicies[i]);
             auto fixture_name = format(test_name, "_rollup", rollup_id, "_inner", rollups.size());
             auto rollup_data = compute_or_load_rollup(fixture_name, rollup);
-            ASSERT(!rollup_data.empty());
+            if (rollup_data.empty()) {
+                throw std::runtime_error("Failed to create inner rollup proof.");
+            }
             rollups.push_back(rollup);
             rollups_data.push_back(rollup_data);
         }
@@ -349,22 +356,6 @@ TEST_F(root_rollup_tests, test_defi_proof_in_rollup)
     ASSERT_TRUE(result.logic_verified);
 }
 
-// TEST_F(root_rollup_tests, test_two_defi_proofs_in_rollup)
-// {
-//     auto js_proofs = get_js_proofs(2);
-//     auto tx1 = create_root_rollup_tx("test_two_defi_proofs_in_rollup", 0, { { js_proofs[0], js_proofs[1] } });
-//     auto result1 = verify_logic(tx1, root_rollup_cd);
-//     ASSERT_TRUE(result1.logic_verified);
-
-//     bridge_id bid = { 0, 2, 0, 0, 0 };
-//     auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
-//     auto defi_proof2 = create_defi_proof({ 2, 3 }, { 100, 50 }, { 30, 120 }, bid);
-//     auto tx2 = create_root_rollup_tx("test_two_defi_proofs_in_rollup", 1, { { defi_proof1, defi_proof2 } });
-//     tx2.bridge_ids = { bid };
-//     auto result2 = verify_logic(tx2, root_rollup_cd);
-//     ASSERT_TRUE(result2.logic_verified);
-// }
-
 TEST_F(root_rollup_tests, test_defi_bridge_id_zero_fails)
 {
     add_rollup_with_1_js();
@@ -417,6 +408,66 @@ TEST_F(root_rollup_tests, test_defi_claim_notes_added_interaction_nonce)
 
     EXPECT_EQ(result_encrypted_claim_note.x.get_value(), expected.x);
     EXPECT_EQ(result_encrypted_claim_note.y.get_value(), expected.y);
+}
+
+TEST_F(root_rollup_tests, test_two_defi_proofs_in_rollup)
+{
+    auto js_proofs = get_js_proofs(4);
+    auto tx1 = create_root_rollup_tx(
+        "test_two_defi_proofs_in_rollup", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
+    auto result1 = verify_logic(tx1, root_rollup_cd);
+    ASSERT_TRUE(result1.logic_verified);
+
+    bridge_id bid1 = { 0, 2, 0, 0, 0 };
+    bridge_id bid2 = { 1, 2, 0, 0, 0 };
+    auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid1);
+    auto defi_proof2 = create_defi_proof({ 2, 3 }, { 100, 50 }, { 30, 120 }, bid1);
+    auto defi_proof3 = create_defi_proof({ 4, 5 }, { 100, 50 }, { 20, 130 }, bid2);
+    auto tx2 = create_root_rollup_tx("test_two_defi_proofs_in_rollup",
+                                     1,
+                                     { { js_proofs[3], defi_proof1 }, { defi_proof2, defi_proof3 } },
+                                     { { 0 } });
+    tx2.bridge_ids = { bid1, bid2 };
+    auto result2 = verify_logic(tx2, root_rollup_cd);
+    ASSERT_TRUE(result2.logic_verified);
+
+    // Check correct defi deposit_sums.
+    const auto defi_info_public_inputs = result2.public_inputs.size() - 17;
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs]), bid1.to_uint256_t());
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 1]), 70);
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 2]), bid2.to_uint256_t());
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 3]), 20);
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 4]), 0);
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 5]), 0);
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 6]), 0);
+    EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 7]), 0);
+
+    // TODO: Check regular join-split unchanged.
+
+    // Check correct interaction nonce in claim notes.
+    auto check_defi_proof = [&](verify_result const& result, uint32_t i, uint32_t claim_note_interaction_nonce) {
+        const auto public_input_start_idx =
+            rollup::RollupProofFields::INNER_PROOFS_DATA + (i * InnerProofFields::NUM_PUBLISHED);
+        const auto output_note1_x = result.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X];
+        const auto output_note1_y = result.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y];
+        const auto deposit_value = result.public_inputs[public_input_start_idx + InnerProofFields::PUBLIC_OUTPUT];
+        const auto bid = result.public_inputs[public_input_start_idx + InnerProofFields::ASSET_ID];
+
+        auto partial_state = claim::create_partial_value_note(user.note_secret, user.owner.public_key, 0);
+        notes::native::claim::claim_note claim_note = {
+            deposit_value, bid, claim_note_interaction_nonce, partial_state
+        };
+        auto expected = encrypt(claim_note);
+
+        point_ct result_encrypted_claim_note{ output_note1_x, output_note1_y };
+
+        EXPECT_EQ(result_encrypted_claim_note.x.get_value(), expected.x);
+        EXPECT_EQ(result_encrypted_claim_note.y.get_value(), expected.y);
+    };
+
+    check_defi_proof(result2, 1, 0);
+    check_defi_proof(result2, 2, 0);
+    check_defi_proof(result2, 3, 1);
 }
 
 TEST_F(root_rollup_tests, test_defi_interaction_notes_added_to_defi_tree) {}
