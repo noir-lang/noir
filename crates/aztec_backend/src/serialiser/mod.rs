@@ -195,12 +195,10 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         // The rest of the input is the message
                         let mut message = Vec::new();
-                        while let Some(msg) = inputs_iter.next() {
+                        for msg in inputs_iter {
                             let msg_byte_index = msg.witness.witness_index() as i32;
                             message.push(msg_byte_index);
                         }
-
-                        assert!(inputs_iter.next().is_none());
 
                         // result
                         let result = gadget_call.outputs[0].witness_index() as i32;
@@ -282,12 +280,10 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
 
                         // The rest of the input is the message
                         let mut hashed_message = Vec::new();
-                        while let Some(msg) = inputs_iter.next() {
+                        for msg in inputs_iter {
                             let msg_byte_index = msg.witness.witness_index() as i32;
                             hashed_message.push(msg_byte_index);
                         }
-
-                        assert!(inputs_iter.next().is_none());
 
                         // result
                         let result = gadget_call.outputs[0].witness_index() as i32;
