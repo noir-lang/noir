@@ -89,6 +89,7 @@ template <typename Curve> struct verification_key {
                                                           const std::shared_ptr<waffle::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
+        key->base_key = input_key;
         key->n = witness_t<Composer>(ctx, barretenberg::fr(input_key->n));
         key->num_public_inputs = witness_t<Composer>(ctx, input_key->num_public_inputs);
         key->domain = evaluation_domain<Composer>::from_witness(ctx, input_key->domain);
@@ -109,6 +110,7 @@ template <typename Curve> struct verification_key {
                                                             const std::shared_ptr<waffle::verification_key>& input_key)
     {
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
+        key->base_key = input_key;
         key->n = field_t<Composer>(ctx, input_key->n);
         key->num_public_inputs = field_t<Composer>(ctx, input_key->num_public_inputs);
 
@@ -238,6 +240,8 @@ template <typename Curve> struct verification_key {
     std::vector<waffle::PolynomialDescriptor> polynomial_manifest;
 
     size_t program_width = 4;
+
+    std::shared_ptr<waffle::verification_key> base_key;
 };
 
 } // namespace recursion

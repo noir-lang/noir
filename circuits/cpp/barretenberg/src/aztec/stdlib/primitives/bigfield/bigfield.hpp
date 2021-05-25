@@ -45,11 +45,24 @@ template <typename Composer, typename T> class bigfield {
     bigfield(const field_t<Composer>& low_bits, const field_t<Composer>& high_bits, const bool can_overflow = false);
     bigfield(Composer* parent_context = nullptr);
     bigfield(Composer* parent_context, const uint256_t& value);
-    bigfield(const witness_t<Composer>& a,
-             const witness_t<Composer>& b,
-             const witness_t<Composer>& c,
-             const witness_t<Composer>& d,
-             const bool can_overflow = false);
+    bigfield(const field_t<Composer>& a,
+             const field_t<Composer>& b,
+             const field_t<Composer>& c,
+             const field_t<Composer>& d,
+             const bool can_overflow = false)
+        : bigfield((a + b * shift_1).normalize(), (c + d * shift_1).normalize(), can_overflow)
+    {
+        const auto limb_range_checks = [](const field_t<Composer>& limb, const bool overflow) {
+            if (limb.is_constant()) {
+                limb.get_context()->create_range_constraint(limb.get_witness_index(),
+                                                            overflow ? NUM_LIMB_BITS : NUM_LAST_LIMB_BITS);
+            }
+        };
+        limb_range_checks(a, true);
+        limb_range_checks(b, true);
+        limb_range_checks(c, true);
+        limb_range_checks(d, can_overflow);
+    }
     bigfield(const byte_array<Composer>& bytes);
     bigfield(const bigfield& other);
     bigfield(bigfield&& other);
@@ -65,16 +78,17 @@ template <typename Composer, typename T> class bigfield {
 
     bigfield& operator=(const bigfield& other);
     bigfield& operator=(bigfield&& other);
-//code assumes modulus is at most 256 bits so good to define it via a uint256_t
+    // code assumes modulus is at most 256 bits so good to define it via a uint256_t
     static constexpr uint256_t modulus = (uint256_t(T::modulus_0, T::modulus_1, T::modulus_2, T::modulus_3));
     static constexpr uint512_t modulus_u512 = uint512_t(modulus);
-    static constexpr uint64_t NUM_LIMB_BITS = 68;//should be smaller than quarter of log of brg::fr, because one of constructors
+    static constexpr uint64_t NUM_LIMB_BITS =
+        68; // should be smaller than quarter of log of brg::fr, because one of constructors
     static constexpr uint64_t NUM_LAST_LIMB_BITS = modulus_u512.get_msb() + 1 - (NUM_LIMB_BITS * 3);
     static constexpr uint256_t DEFAULT_MAXIMUM_LIMB = (uint256_t(1) << NUM_LIMB_BITS) - uint256_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB =
         (uint256_t(1) << NUM_LAST_LIMB_BITS) - uint256_t(1);
     static constexpr uint64_t LOG2_BINARY_MODULUS = NUM_LIMB_BITS * 4;
-    static constexpr bool is_composite = true;//false only when fr is native
+    static constexpr bool is_composite = true; // false only when fr is native
 
     static constexpr uint256_t prime_basis_maximum_limb =
         uint256_t(modulus_u512.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4));
@@ -183,11 +197,12 @@ template <typename Composer, typename T> class bigfield {
     }
     // a (currently generous) upper bound on the log of number of fr additions in any of the class operations
     static constexpr uint64_t MAX_ADDITION_LOG = 10;
-    // the rationale of the expression is we should not overflow Fr when applying any bigfield operation (e.g. *) and starting with
-    // this max limb size
-    static constexpr uint64_t MAX_UNREDUCED_LIMB_SIZE = (barretenberg::fr::modulus.get_msb() + 1 )/2 - MAX_ADDITION_LOG;
+    // the rationale of the expression is we should not overflow Fr when applying any bigfield operation (e.g. *) and
+    // starting with this max limb size
+    static constexpr uint64_t MAX_UNREDUCED_LIMB_SIZE =
+        (barretenberg::fr::modulus.get_msb() + 1) / 2 - MAX_ADDITION_LOG;
 
-    static constexpr uint256_t get_maximum_unreduced_limb_value() {return uint256_t(1) << MAX_UNREDUCED_LIMB_SIZE  ; }
+    static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << MAX_UNREDUCED_LIMB_SIZE; }
 
     Composer* context;
     mutable Limb binary_basis_limbs[4];

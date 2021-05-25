@@ -34,8 +34,7 @@ void check_root_tree_updated(Composer& composer,
 {
     auto empty_tree_value = byte_array_ct(&composer, 64);
     auto new_data_root_arr = byte_array_ct(new_data_root);
-    auto one = field_ct(witness_ct(&composer, 1));
-    auto index = byte_array_ct(rollup_id + one);
+    auto index = byte_array_ct(rollup_id + 1);
     update_membership(composer,
                       new_data_roots_root,
                       new_data_roots_path,
@@ -100,7 +99,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         }
 
         for (size_t j = 0; j < NUM_ASSETS; ++j) {
-            total_tx_fees[j] += public_inputs[9 + j];
+            total_tx_fees[j] += public_inputs[9 + j] * is_real;
         }
 
         // Every real inner proof should use the root tree root we've input.

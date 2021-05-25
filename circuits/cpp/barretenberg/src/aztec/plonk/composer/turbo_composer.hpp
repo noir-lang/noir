@@ -62,10 +62,10 @@ class TurboComposer : public ComposerBase {
         }
         contains_recursive_proof = true;
 
-      for (const auto& idx : proof_output_witness_indices) {
+        for (const auto& idx : proof_output_witness_indices) {
             set_public_input(idx);
             recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
-        }  
+        }
     }
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
@@ -209,7 +209,7 @@ class TurboComposer : public ComposerBase {
                   20,
                   true),
               transcript::Manifest::RoundManifest(
-                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 2) });
+                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 3) });
         return output;
     }
 };
