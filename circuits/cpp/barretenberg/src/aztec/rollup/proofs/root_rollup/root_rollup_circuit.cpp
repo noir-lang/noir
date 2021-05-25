@@ -78,7 +78,7 @@ auto process_defi_deposits(Composer& composer,
         const auto proof_id = public_inputs[public_input_start_idx + InnerProofFields::PROOF_ID];
         const auto bridge_id = public_inputs[public_input_start_idx + InnerProofFields::ASSET_ID];
         const auto deposit_value = public_inputs[public_input_start_idx + InnerProofFields::PUBLIC_OUTPUT];
-        const auto is_defi_deposit = proof_id == field_ct(DEFI_BRIDGE_DEPOSIT);
+        const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
 
         field_ct note_defi_interaction_nonce = defi_interaction_nonce;
         field_ct num_matched(&composer, 0);
@@ -108,6 +108,27 @@ auto process_defi_deposits(Composer& composer,
 
         public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X] = encrypted_claim_note.x;
         public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] = encrypted_claim_note.y;
+    }
+}
+
+/**
+ * Check that claim proofs are using the correct defi root.
+ */
+auto process_claims(Composer& composer,
+                    size_t num_inner_txs_pow2,
+                    std::vector<field_ct>& public_inputs,
+                    field_ct const& old_defi_root)
+{
+    for (size_t j = 0; j < num_inner_txs_pow2; j++) {
+        const auto public_input_start_idx =
+            RollupProofFields::INNER_PROOFS_DATA + (j * InnerProofFields::NUM_PUBLISHED);
+        const auto proof_id = public_inputs[public_input_start_idx + InnerProofFields::PROOF_ID];
+        // For claim proofs, defi root is output in field named PUBLIC_OWNER.
+        const auto defi_root = public_inputs[public_input_start_idx + InnerProofFields::INPUT_OWNER];
+        const auto is_claim = proof_id == field_ct(ProofIds::DEFI_CLAIM);
+
+        auto valid = defi_root == old_defi_root || !is_claim;
+        composer.assert_equal_constant(valid.witness_index, 1, format("claim proof has unmatched defi root"));
     }
 }
 

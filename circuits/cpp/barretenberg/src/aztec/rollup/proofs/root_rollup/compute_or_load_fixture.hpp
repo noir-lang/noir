@@ -28,7 +28,7 @@ inline std::vector<uint8_t> compute_or_load_fixture(std::string const& path,
         error("Loaded fixture: ", filename);
         return data;
     } else {
-        error("Computing ", name, "...");
+        error("Computing fixture: ", name, "...");
         auto data = f();
         mkdir(path.c_str(), 0700);
         auto stream = std::ofstream(filename);

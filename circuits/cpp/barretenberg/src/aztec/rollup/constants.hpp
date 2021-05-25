@@ -15,6 +15,9 @@ constexpr size_t NUM_ASSETS_BIT_LENGTH = 2;
 constexpr size_t NUM_ASSETS = 1 << NUM_ASSETS_BIT_LENGTH;
 
 constexpr size_t NUM_BRIDGE_CALLS_PER_BLOCK = 4;
-constexpr size_t DEFI_BRIDGE_DEPOSIT = 2;
+
+namespace ProofIds {
+enum { JOIN_SPLIT = 0, ACCOUNT = 1, DEFI_DEPOSIT = 2, DEFI_CLAIM = 3 };
+};
 
 } // namespace rollup

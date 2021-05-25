@@ -8,6 +8,7 @@
 #include "../join_split/sign_join_split_tx.hpp"
 #include "../join_split/join_split_circuit.hpp"
 #include "../notes/circuit/claim/claim_note.hpp"
+#include "../notes/native/value/encrypt.hpp"
 #include "../notes/native/claim/create_partial_value_note.hpp"
 #include "../notes/native/claim/encrypt.hpp"
 #include "compute_or_load_fixture.hpp"
@@ -118,9 +119,10 @@ class root_rollup_tests : public ::testing::Test {
         return tx;
     }
 
-    std::vector<uint8_t> create_proof(join_split_tx const& tx)
+    std::vector<uint8_t> create_proof(join_split_tx const& tx, std::string const& fixture_prefix)
     {
-        auto fixture_name = format("js_",
+        auto fixture_name = format(fixture_prefix,
+                                   "_",
                                    tx.input_index[0],
                                    "_",
                                    tx.input_index[1],
@@ -155,17 +157,19 @@ class root_rollup_tests : public ::testing::Test {
     std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
                                                  std::array<uint32_t, 2> in_note_value,
                                                  std::array<uint32_t, 2> out_note_value,
-                                                 uint32_t public_input)
+                                                 uint32_t public_input,
+                                                 std::string const& fixture_prefix = "js")
     {
         auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, public_input);
         tx.signature = sign_join_split_tx(tx, user.owner);
-        return create_proof(tx);
+        return create_proof(tx, fixture_prefix);
     }
 
     std::vector<uint8_t> create_defi_proof(std::array<uint32_t, 2> in_note_idx,
                                            std::array<uint32_t, 2> in_note_value,
                                            std::array<uint32_t, 2> out_note_value,
-                                           uint256_t bridge_id)
+                                           uint256_t bridge_id,
+                                           std::string const& fixture_prefix = "defi")
     {
         auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, 0);
         tx.num_input_notes = 2;
@@ -173,7 +177,7 @@ class root_rollup_tests : public ::testing::Test {
         tx.claim_note.deposit_value = tx.output_note[0].value;
         tx.output_note[0].value = 0;
         tx.signature = sign_join_split_tx(tx, user.owner);
-        return create_proof(tx);
+        return create_proof(tx, fixture_prefix);
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
@@ -238,14 +242,14 @@ class root_rollup_tests : public ::testing::Test {
     void add_rollup_with_1_js()
     {
         auto js_proofs = get_js_proofs(1);
-        create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+        create_root_rollup_tx(__FUNCTION__, 0, { { js_proofs[0] } });
     }
 
     auto create_rollup_tx_with_1_defi()
     {
         bridge_id bid = { 0, 2, 0, 0, 0 };
         auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
-        auto tx = create_root_rollup_tx("test_root_rollup_with_defi_proof", 1, { { defi_proof1 } });
+        auto tx = create_root_rollup_tx(__FUNCTION__, 1, { { defi_proof1 } });
         tx.bridge_ids = { bid };
         return tx;
     }
@@ -330,6 +334,8 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
 {
     auto js_proofs = get_js_proofs(1);
     auto tx_data = create_root_rollup_tx("root_1", 0, { { js_proofs[0] } });
+    // This note should be ignored (rollup 0)
+    // TODO: tx_data.defi_interaction_notes.push_back()
     auto result = verify_logic(tx_data, root_rollup_cd);
 
     ASSERT_TRUE(result.logic_verified);
@@ -410,23 +416,21 @@ TEST_F(root_rollup_tests, test_defi_claim_notes_added_interaction_nonce)
     EXPECT_EQ(result_encrypted_claim_note.y.get_value(), expected.y);
 }
 
-TEST_F(root_rollup_tests, test_two_defi_proofs_in_rollup)
+TEST_F(root_rollup_tests, test_process_defi_deposits)
 {
+    auto test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     auto js_proofs = get_js_proofs(4);
-    auto tx1 = create_root_rollup_tx(
-        "test_two_defi_proofs_in_rollup", 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
+    auto tx1 = create_root_rollup_tx(test_name, 0, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
     auto result1 = verify_logic(tx1, root_rollup_cd);
     ASSERT_TRUE(result1.logic_verified);
 
     bridge_id bid1 = { 0, 2, 0, 0, 0 };
     bridge_id bid2 = { 1, 2, 0, 0, 0 };
-    auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid1);
-    auto defi_proof2 = create_defi_proof({ 2, 3 }, { 100, 50 }, { 30, 120 }, bid1);
-    auto defi_proof3 = create_defi_proof({ 4, 5 }, { 100, 50 }, { 20, 130 }, bid2);
-    auto tx2 = create_root_rollup_tx("test_two_defi_proofs_in_rollup",
-                                     1,
-                                     { { js_proofs[3], defi_proof1 }, { defi_proof2, defi_proof3 } },
-                                     { { 0 } });
+    auto defi_proof1 = create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid1, test_name);
+    auto defi_proof2 = create_defi_proof({ 2, 3 }, { 100, 50 }, { 30, 120 }, bid1, test_name);
+    auto defi_proof3 = create_defi_proof({ 4, 5 }, { 100, 50 }, { 20, 130 }, bid2, test_name);
+    auto tx2 =
+        create_root_rollup_tx(test_name, 1, { { js_proofs[3], defi_proof1 }, { defi_proof2, defi_proof3 } }, { { 0 } });
     tx2.bridge_ids = { bid1, bid2 };
     auto result2 = verify_logic(tx2, root_rollup_cd);
     ASSERT_TRUE(result2.logic_verified);
@@ -442,7 +446,14 @@ TEST_F(root_rollup_tests, test_two_defi_proofs_in_rollup)
     EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 6]), 0);
     EXPECT_EQ(uint256_t(result2.public_inputs[defi_info_public_inputs + 7]), 0);
 
-    // TODO: Check regular join-split unchanged.
+    // Check regular join-split output note1 unchanged (as we change it for defi deposits).
+    const auto public_input_start_idx = rollup::RollupProofFields::INNER_PROOFS_DATA;
+    const auto output_note1_x = result2.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X];
+    const auto output_note1_y = result2.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y];
+    notes::native::value::value_note value_note = { 100, 0, 0, user.owner.public_key, user.note_secret };
+    auto expected = encrypt(value_note);
+    EXPECT_EQ(output_note1_x, expected.x);
+    EXPECT_EQ(output_note1_y, expected.y);
 
     // Check correct interaction nonce in claim notes.
     auto check_defi_proof = [&](verify_result const& result, uint32_t i, uint32_t claim_note_interaction_nonce) {
@@ -459,10 +470,8 @@ TEST_F(root_rollup_tests, test_two_defi_proofs_in_rollup)
         };
         auto expected = encrypt(claim_note);
 
-        point_ct result_encrypted_claim_note{ output_note1_x, output_note1_y };
-
-        EXPECT_EQ(result_encrypted_claim_note.x.get_value(), expected.x);
-        EXPECT_EQ(result_encrypted_claim_note.y.get_value(), expected.y);
+        EXPECT_EQ(output_note1_x, expected.x);
+        EXPECT_EQ(output_note1_y, expected.y);
     };
 
     check_defi_proof(result2, 1, 0);
@@ -471,6 +480,8 @@ TEST_F(root_rollup_tests, test_two_defi_proofs_in_rollup)
 }
 
 TEST_F(root_rollup_tests, test_defi_interaction_notes_added_to_defi_tree) {}
+
+TEST_F(root_rollup_tests, test_claim_proof_has_valid_defi_root) {}
 
 } // namespace root_rollup
 } // namespace proofs
