@@ -156,7 +156,9 @@ inline rollup_tx create_rollup(WorldState& world_state,
 
     for (size_t i = 0; i < nullifier_indicies.size(); ++i) {
         old_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
-        null_tree.update_element(nullifier_indicies[i], nullifier_value);
+        if (nullifier_indicies[i]) {
+            null_tree.update_element(nullifier_indicies[i], nullifier_value);
+        }
         new_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
         new_null_roots.push_back(null_tree.root());
     }

@@ -71,12 +71,21 @@ class root_rollup_tests : public ::testing::Test {
         if (recreate) {
             // If no fixtures dir, recreate all proving keys, verification keys, padding proofs etc.
             tx_rollup_cd = rollup::get_circuit_data(
-                INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
+                INNER_ROLLUP_TXS, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
             root_rollup_cd = get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
         } else {
             // Otherwise we should only need the inner proofs verification key for logic tests.
-            tx_rollup_cd = rollup::get_circuit_data(
-                INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, false, false, true, false, true);
+            tx_rollup_cd = rollup::get_circuit_data(INNER_ROLLUP_TXS,
+                                                    join_split_cd,
+                                                    account_cd,
+                                                    claim_cd,
+                                                    srs,
+                                                    FIXTURE_PATH,
+                                                    false,
+                                                    false,
+                                                    true,
+                                                    false,
+                                                    true);
             root_rollup_cd = get_circuit_data(
                 ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, false, false, false, false, false);
         }
@@ -255,7 +264,7 @@ class root_rollup_tests : public ::testing::Test {
                 account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
                 join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
                 tx_rollup_cd = rollup::get_circuit_data(
-                    INNER_ROLLUP_TXS, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
+                    INNER_ROLLUP_TXS, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
                 root_rollup_cd.inner_rollup_circuit_data = tx_rollup_cd;
             }
             return rollup::verify(rollup, tx_rollup_cd).proof_data;

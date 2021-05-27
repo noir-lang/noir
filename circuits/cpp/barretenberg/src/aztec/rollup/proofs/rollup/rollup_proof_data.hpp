@@ -67,6 +67,10 @@ struct rollup_proof_data {
     std::vector<propagated_inner_proof_data> inner_proofs;
     g1::affine_element recursion_output[2];
 
+    fr new_defi_root;
+    std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_ids;
+    std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
+
     rollup_proof_data(std::vector<uint8_t> const& proof_data);
     rollup_proof_data(std::vector<fr> const& fields);
 

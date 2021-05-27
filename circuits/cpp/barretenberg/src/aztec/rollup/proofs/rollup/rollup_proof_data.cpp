@@ -20,7 +20,7 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
     ptr += 60;
     read(ptr, rollup_size);
 
-    auto num_fields = RollupProofFields::INNER_PROOFS_DATA + (rollup_size * InnerProofFields::NUM_PUBLISHED) + 16;
+    auto num_fields = RollupProofFields::INNER_PROOFS_DATA + (rollup_size * InnerProofFields::NUM_PUBLISHED) + 16 + 8;
     std::vector<fr> fields(num_fields);
 
     ptr = proof_data.data();
@@ -78,6 +78,12 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
         }
         *coord = limb[0] + (uint256_t(1) << 68) * limb[1] + (uint256_t(1) << 136) * limb[2] +
                  (uint256_t(1) << 204) * limb[3];
+    }
+
+    new_defi_root = fields[offset++];
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        bridge_ids[i] = fields[offset++];
+        deposit_sums[i] = fields[offset++];
     }
 }
 

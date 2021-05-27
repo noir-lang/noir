@@ -6,6 +6,7 @@
 #include "../rollup/verify.hpp"
 #include "../rollup/rollup_proof_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
+#include "../claim/get_circuit_data.hpp"
 #include "compute_or_load_fixture.hpp"
 #include "compute_circuit_data.hpp"
 #include "root_rollup_circuit.hpp"
@@ -27,6 +28,7 @@ numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
 join_split::circuit_data join_split_cd;
 account::circuit_data account_cd;
+proofs::claim::circuit_data claim_cd;
 std::vector<std::vector<uint8_t>> js_proofs;
 } // namespace
 
@@ -49,6 +51,7 @@ class root_rollup_full_tests : public ::testing::Test {
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
         join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+        claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH, true, false, false);
 
         MemoryStore store;
         MerkleTree<MemoryStore> data_tree(store, DATA_TREE_DEPTH, 0);
@@ -90,8 +93,8 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     static constexpr auto inner_rollup_txs = 2U;
     static constexpr auto rollups_per_rollup = 3U;
 
-    auto tx_rollup_cd =
-        rollup::get_circuit_data(inner_rollup_txs, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
+    auto tx_rollup_cd = rollup::get_circuit_data(
+        inner_rollup_txs, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
     auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, false, false);
 
     auto old_data_root = world_state.data_tree.root();
@@ -130,8 +133,8 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
     static constexpr auto inner_rollup_txs = 3U;
     static constexpr auto rollups_per_rollup = 2U;
 
-    auto tx_rollup_cd =
-        rollup::get_circuit_data(inner_rollup_txs, join_split_cd, account_cd, srs, FIXTURE_PATH, true, true, true);
+    auto tx_rollup_cd = rollup::get_circuit_data(
+        inner_rollup_txs, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
     auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, false, false);
 
     auto old_data_root = world_state.data_tree.root();

@@ -11,6 +11,7 @@
 #include "../notes/native/value/encrypt.hpp"
 #include "../notes/native/account/encrypt.hpp"
 #include "../join_split/compute_circuit_data.hpp"
+#include "../claim/get_circuit_data.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include "../inner_proof_data.hpp"
 #include "../../constants.hpp"
@@ -35,6 +36,7 @@ namespace {
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 join_split::circuit_data join_split_cd;
 account::circuit_data account_cd;
+claim::circuit_data claim_cd;
 std::vector<uint8_t> padding_proof;
 } // namespace
 
@@ -174,7 +176,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
     auto result = verify(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -219,7 +221,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
     auto result = verify(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -267,7 +269,7 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     auto rollup = create_rollup(world_state, rollup_size, txs);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
     auto result = verify(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -316,7 +318,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     auto rollup = create_rollup(world_state, rollup_size, txs);
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
     auto result = verify(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);
@@ -363,7 +365,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
     auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
-        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, srs, "", true, false, false);
+        rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
     auto result = verify(rollup, rollup_circuit_data);
 
     ASSERT_TRUE(result.verified);

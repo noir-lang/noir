@@ -7,6 +7,9 @@
 #include "../join_split/join_split.hpp"
 #include "../join_split/join_split_circuit.hpp"
 #include "../join_split/create_proof.hpp"
+#include "../claim/create_proof.hpp"
+#include "../claim/claim_tx_factory.hpp"
+#include "../claim/get_circuit_data.hpp"
 #include "../account/account.hpp"
 #include "../account/account_tx_factory.hpp"
 #include "../account/create_proof.hpp"
@@ -17,6 +20,7 @@
 #include "../notes/native/claim/bridge_id.hpp"
 #include "../notes/native/claim/encrypt.hpp"
 #include "../notes/native/claim/create_partial_value_note.hpp"
+#include "../notes/native/defi_interaction/encrypt.hpp"
 #include "../notes/constants.hpp"
 #include "../join_split/join_split_tx_factory.hpp"
 #include "../join_split/compute_circuit_data.hpp"
@@ -25,6 +29,7 @@
 #include "../../constants.hpp"
 #include "../../world_state/world_state.hpp"
 #include <common/test.hpp>
+#include <common/map.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 
@@ -38,11 +43,13 @@ using namespace notes::native::account;
 using WorldState = world_state::WorldState<MemoryStore>;
 
 namespace {
-join_split::circuit_data join_split_cd;
+join_split::circuit_data js_cd;
 account::circuit_data account_cd;
+claim::circuit_data claim_cd;
 rollup::circuit_data rollup_1_keyless;
 rollup::circuit_data rollup_2_keyless;
 rollup::circuit_data rollup_3_keyless;
+rollup::circuit_data rollup_4_keyless;
 } // namespace
 
 class rollup_tests : public ::testing::Test {
@@ -52,6 +59,7 @@ class rollup_tests : public ::testing::Test {
         , user(fixtures::create_user_context(rand_engine))
         , js_tx_factory(world_state, user)
         , account_tx_factory(world_state, user)
+        , claim_tx_factory(world_state, user)
     {}
 
     static void SetUpTestCase()
@@ -59,10 +67,12 @@ class rollup_tests : public ::testing::Test {
         std::string CRS_PATH = "../srs_db";
         auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         account_cd = account::compute_circuit_data(srs);
-        join_split_cd = join_split::compute_circuit_data(srs);
-        rollup_1_keyless = rollup::get_circuit_data(1, join_split_cd, account_cd, srs, "", false, false, false);
-        rollup_2_keyless = rollup::get_circuit_data(2, join_split_cd, account_cd, srs, "", false, false, false);
-        rollup_3_keyless = rollup::get_circuit_data(3, join_split_cd, account_cd, srs, "", false, false, false);
+        js_cd = join_split::compute_circuit_data(srs);
+        claim_cd = claim::get_circuit_data(srs, "", true, false, false);
+        rollup_1_keyless = rollup::get_circuit_data(1, js_cd, account_cd, claim_cd, srs, "", false, false, false);
+        rollup_2_keyless = rollup::get_circuit_data(2, js_cd, account_cd, claim_cd, srs, "", false, false, false);
+        rollup_3_keyless = rollup::get_circuit_data(3, js_cd, account_cd, claim_cd, srs, "", false, false, false);
+        rollup_4_keyless = rollup::get_circuit_data(4, js_cd, account_cd, claim_cd, srs, "", false, false, false);
     }
 
     void append_notes(std::vector<uint32_t> const& values, uint32_t asset_id = 0)
@@ -111,7 +121,7 @@ class rollup_tests : public ::testing::Test {
                                                      asset_id,
                                                      nonce);
         auto signer = nonce ? user.signing_keys[0] : user.owner;
-        return join_split::create_proof(tx, signer, join_split_cd);
+        return join_split::create_proof(tx, signer, js_cd);
     }
 
     std::vector<uint8_t> create_defi_proof(std::array<uint32_t, 2> in_note_idx,
@@ -124,7 +134,7 @@ class rollup_tests : public ::testing::Test {
 
         auto tx = js_tx_factory.create_defi_deposit_tx(in_note_idx, in_note_value, out_note_value, bridge_id, asset_id);
         auto signer = nonce ? user.signing_keys[0] : user.owner;
-        return join_split::create_proof(tx, signer, join_split_cd);
+        return join_split::create_proof(tx, signer, js_cd);
     }
 
     std::vector<uint8_t> create_account_proof(uint32_t nonce = 0, uint32_t account_note_idx = 0)
@@ -145,25 +155,41 @@ class rollup_tests : public ::testing::Test {
         return create_rollup(world_state, 1, { defi_proof1 }, { bid });
     }
 
+    auto create_tx_with_3_defi()
+    {
+        append_notes({ 100, 50, 100, 50, 100, 50, 100, 50 });
+        world_state.update_root_tree_with_data_root();
+
+        notes::native::bridge_id bid1 = { 0, 2, 0, 0, 0 };
+        notes::native::bridge_id bid2 = { 1, 2, 0, 0, 0 };
+        auto js_proof = create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
+        auto defi_proof1 = create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 110 }, bid1);
+        auto defi_proof2 = create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 120 }, bid1);
+        auto defi_proof3 = create_defi_proof({ 6, 7 }, { 100, 50 }, { 20, 130 }, bid2);
+
+        return create_rollup(world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 });
+    }
+
     numeric::random::Engine* rand_engine;
     WorldState world_state;
     fixtures::user_context user;
     join_split::JoinSplitTxFactory<WorldState> js_tx_factory;
     account::AccountTxFactory<WorldState> account_tx_factory;
+    claim::ClaimTxFactory<WorldState> claim_tx_factory;
 };
 
 TEST_F(rollup_tests, test_padding_proof)
 {
-    Composer composer = Composer(join_split_cd.proving_key, join_split_cd.verification_key, join_split_cd.num_gates);
+    Composer composer = Composer(js_cd.proving_key, js_cd.verification_key, js_cd.num_gates);
     join_split::join_split_circuit(composer, join_split::noop_tx());
     auto verifier = composer.create_unrolled_verifier();
-    EXPECT_TRUE(verifier.verify_proof({ join_split_cd.padding_proof }));
+    EXPECT_TRUE(verifier.verify_proof({ js_cd.padding_proof }));
 }
 
 TEST_F(rollup_tests, test_1_deposit_proof_in_1_rollup)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(join_split_cd, world_state.data_tree.root());
+    auto join_split_proof = create_noop_join_split_proof(js_cd, world_state.data_tree.root());
 
     auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
     auto result = verify_logic(rollup, rollup_1_keyless);
@@ -289,7 +315,7 @@ TEST_F(rollup_tests, test_reuse_spent_note_fails)
 TEST_F(rollup_tests, test_max_num_txs)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(join_split_cd, world_state.data_tree.root());
+    auto join_split_proof = create_noop_join_split_proof(js_cd, world_state.data_tree.root());
 
     auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
     rollup.num_txs = (uint32_t(1) << MAX_TXS_BIT_LENGTH) - 1;
@@ -301,7 +327,7 @@ TEST_F(rollup_tests, test_max_num_txs)
 TEST_F(rollup_tests, test_overflow_num_txs_fails)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(join_split_cd, world_state.data_tree.root());
+    auto join_split_proof = create_noop_join_split_proof(js_cd, world_state.data_tree.root());
 
     auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
     rollup.num_txs = uint32_t(1) << MAX_TXS_BIT_LENGTH;
@@ -512,106 +538,83 @@ TEST_F(rollup_tests, test_defi_bridge_id_unmatched_fails)
     ASSERT_FALSE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_defi_claim_notes_added_interaction_nonce)
+TEST_F(rollup_tests, test_defi_deposit_sums_accumulated)
 {
-    auto tx = create_tx_with_1_defi();
-    auto result = verify_logic(tx, rollup_1_keyless);
-
+    auto tx = create_tx_with_3_defi();
+    auto result = verify_logic(tx, rollup_4_keyless);
     ASSERT_TRUE(result.logic_verified);
 
     auto rollup_data = rollup_proof_data(result.public_inputs);
-    auto js_data = rollup_data.inner_proofs[0];
-    const auto bid = tx.bridge_ids[0];
-
-    auto partial_state = notes::native::claim::create_partial_value_note(user.note_secret, user.owner.public_key, 0);
-    notes::native::claim::claim_note claim_note = { js_data.public_output, js_data.asset_id, 4, partial_state };
-    auto expected = encrypt(claim_note);
-
-    EXPECT_EQ(js_data.new_note1, expected);
-}
-
-/*
-TEST_F(rollup_tests, test_process_defi_deposits)
-{
-    auto tx = create_root_rollup_tx_with_3_defi();
-    auto result = verify_logic(tx, root_rollup_cd);
-    assert(result.logic_verified);
 
     // Check correct defi deposit_sums.
-    const auto defi_info_public_inputs = result.public_inputs.size() - 17;
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs]), tx.bridge_ids[0]);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 1]), 70);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 2]), tx.bridge_ids[1]);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 3]), 20);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 4]), 0);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 5]), 0);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 6]), 0);
-    EXPECT_EQ(uint256_t(result.public_inputs[defi_info_public_inputs + 7]), 0);
+    EXPECT_EQ(rollup_data.bridge_ids[0], tx.bridge_ids[0]);
+    EXPECT_EQ(rollup_data.bridge_ids[1], tx.bridge_ids[1]);
+    EXPECT_EQ(rollup_data.bridge_ids[2], 0);
+    EXPECT_EQ(rollup_data.bridge_ids[3], 0);
+    EXPECT_EQ(rollup_data.deposit_sums[0], 70);
+    EXPECT_EQ(rollup_data.deposit_sums[1], 20);
+    EXPECT_EQ(rollup_data.deposit_sums[2], 0);
+    EXPECT_EQ(rollup_data.deposit_sums[3], 0);
+}
+
+TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
+{
+    auto tx = create_tx_with_3_defi();
+    auto result = verify_logic(tx, rollup_4_keyless);
+    ASSERT_TRUE(result.logic_verified);
+
+    auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
-    const auto public_input_start_idx = rollup::RollupProofFields::INNER_PROOFS_DATA;
-    const auto output_note1_x = result.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X];
-    const auto output_note1_y = result.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y];
-    notes::native::value::value_note value_note = { 100, 0, 0, user.owner.public_key, user.note_secret };
+    notes::native::value::value_note value_note = { 70, 0, 0, user.owner.public_key, user.note_secret };
     auto expected = encrypt(value_note);
-    EXPECT_EQ(output_note1_x, expected.x);
-    EXPECT_EQ(output_note1_y, expected.y);
+    EXPECT_EQ(rollup_data.inner_proofs[0].new_note1, expected);
 
     // Check correct interaction nonce in claim notes.
-    auto check_defi_proof = [&](verify_result const& result, uint32_t i, uint32_t claim_note_interaction_nonce) {
-        const auto public_input_start_idx =
-            rollup::RollupProofFields::INNER_PROOFS_DATA + (i * InnerProofFields::NUM_PUBLISHED);
-        const auto output_note1_x = result.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X];
-        const auto output_note1_y = result.public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y];
-        const auto deposit_value = result.public_inputs[public_input_start_idx + InnerProofFields::PUBLIC_OUTPUT];
-        const auto bid = result.public_inputs[public_input_start_idx + InnerProofFields::ASSET_ID];
+    auto check_defi_proof = [&](uint32_t i, uint32_t claim_note_interaction_nonce) {
+        auto defi_proof = rollup_data.inner_proofs[i];
+        auto deposit_value = defi_proof.public_output;
+        auto bid = defi_proof.asset_id;
 
         auto partial_state =
             notes::native::claim::create_partial_value_note(user.note_secret, user.owner.public_key, 0);
         notes::native::claim::claim_note claim_note = {
             deposit_value, bid, claim_note_interaction_nonce, partial_state
         };
-        info(claim_note);
         auto expected = encrypt(claim_note);
 
-        EXPECT_EQ(output_note1_x, expected.x);
-        EXPECT_EQ(output_note1_y, expected.y);
+        EXPECT_EQ(defi_proof.new_note1, expected);
     };
 
-    check_defi_proof(result, 1, 4);
-    check_defi_proof(result, 2, 4);
-    check_defi_proof(result, 3, 5);
+    check_defi_proof(1, 4);
+    check_defi_proof(2, 4);
+    check_defi_proof(3, 5);
 }
 
-TEST_F(rollup_tests, test_claim_proof_has_valid_defi_root)
+TEST_F(rollup_tests, test_defi_claim_proofs)
 {
-    auto test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    auto rollup1_tx = create_root_rollup_tx_with_3_defi();
-    auto result = verify_logic(rollup1_tx, root_rollup_cd);
-    assert(result.logic_verified);
+    auto rollup1_tx = create_tx_with_3_defi();
+    auto bids = rollup1_tx.bridge_ids;
+    auto result = verify_logic(rollup1_tx, rollup_4_keyless);
+    ASSERT_TRUE(result.logic_verified);
+
+    // Update root tree to simulate creation of root rollup.
+    world_state.update_root_tree_with_data_root();
 
     rollup::rollup_proof_data data(result.public_inputs);
-    auto bids = rollup1_tx.bridge_ids;
 
-    // Create defi interaction notes for interactions in rollup 1, to insert in rollup 2.
+    // Create defi interaction notes for interactions in rollup 1.
     uint32_t din_insertion_index = data.rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
     std::vector<notes::native::defi_interaction::defi_interaction_note> dins = {
-        { bids[0], din_insertion_index, 70, 700, 7000, true }, { bids[1], din_insertion_index + 1, 0, 0, 0, true }
+        { bids[0], din_insertion_index, 70, 700, 7000, true }, { bids[1], din_insertion_index + 1, 20, 2, 3, true }
     };
-
-    // We need to add interaction notes before creating claim notes, so record the old state of the tree.
-    auto& defi_tree = world_state.defi_tree;
-    auto old_defi_root = defi_tree.root();
-    auto old_defi_path = defi_tree.get_hash_path(0);
     world_state.add_defi_notes(dins);
-    auto new_defi_root = defi_tree.root();
-    auto new_defi_path = defi_tree.get_hash_path(0);
 
     // TODO: Publish on deposit and extract directly.
     auto partial_state = notes::native::claim::create_partial_value_note(user.note_secret, user.owner.public_key, 0);
 
+    // Create claim proofs for each claim note in previous rollup.
     auto claim_proofs = mapi(data.inner_proofs, [&](auto inner, auto i) {
-        // We only inserted defi deposits in rollup 1.
         if (inner.proof_id != ProofIds::DEFI_DEPOSIT) {
             return std::vector<uint8_t>();
         }
@@ -622,24 +625,52 @@ TEST_F(rollup_tests, test_claim_proof_has_valid_defi_root)
         }
         auto nonce = din_insertion_index + bid_index;
         auto claim_note_index = data.data_start_index + uint32_t(2 * i);
-        info("rollup 1 deposit proof ", i, " claim_note_index = ", claim_note_index);
         notes::native::claim::claim_note claim_note = { inner.public_output, inner.asset_id, nonce, partial_state };
-        info(claim_note);
-        info(encrypt(claim_note));
-        return create_claim_proof(new_defi_root, claim_note_index, claim_note, dins[bid_index]);
+        auto tx = claim_tx_factory.create_claim_tx(
+            world_state.defi_tree.root(), claim_note_index, claim_note, dins[bid_index]);
+        return claim::create_proof(tx, claim_cd);
     });
 
-    auto rollup2_tx =
-        create_root_rollup_tx(test_name, 2, { { claim_proofs[1], claim_proofs[2] }, { claim_proofs[3] } });
-    rollup2_tx.num_defi_interactions = dins.size();
-    rollup2_tx.old_defi_interaction_root = old_defi_root;
-    rollup2_tx.old_defi_interaction_path = old_defi_path;
-    rollup2_tx.new_defi_interaction_root = new_defi_root;
-    rollup2_tx.new_defi_interaction_path = new_defi_path;
-    auto result2 = verify_logic(rollup2_tx, root_rollup_cd);
+    auto rollup2_tx = create_rollup(world_state, 4, { claim_proofs[1], claim_proofs[2], claim_proofs[3] }, bids);
+    auto result2 = verify_logic(rollup2_tx, rollup_4_keyless);
     EXPECT_TRUE(result2.logic_verified);
 }
-*/
+
+TEST_F(rollup_tests, test_defi_claim_proof_has_valid_defi_root)
+{
+    auto rollup1_tx = create_tx_with_3_defi();
+    auto bids = rollup1_tx.bridge_ids;
+    auto result = verify_logic(rollup1_tx, rollup_4_keyless);
+    ASSERT_TRUE(result.logic_verified);
+
+    // Update root tree to simulate creation of root rollup.
+    world_state.update_root_tree_with_data_root();
+
+    rollup::rollup_proof_data data(result.public_inputs);
+
+    // Create defi interaction notes for interactions in rollup 1.
+    uint32_t din_insertion_index = data.rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
+    std::vector<notes::native::defi_interaction::defi_interaction_note> dins = {
+        { bids[0], din_insertion_index, 70, 700, 7000, true }, { bids[1], din_insertion_index + 1, 20, 2, 3, true }
+    };
+    world_state.add_defi_notes(dins);
+
+    auto partial_state = notes::native::claim::create_partial_value_note(user.note_secret, user.owner.public_key, 0);
+    auto inner = data.inner_proofs[1];
+    notes::native::claim::claim_note claim_note = {
+        inner.public_output, inner.asset_id, din_insertion_index, partial_state
+    };
+
+    // Create claim proof with trash defi root.
+    auto tx = claim_tx_factory.create_claim_tx(world_state.defi_tree.root(), 10, claim_note, dins[0]);
+    tx.defi_root = fr::random_element();
+    auto claim_proof = claim::create_proof(tx, claim_cd);
+
+    auto rollup2_tx = create_rollup(world_state, 4, { claim_proof }, bids);
+    auto result2 = verify_logic(rollup2_tx, rollup_4_keyless);
+    EXPECT_FALSE(result2.logic_verified);
+}
+
 } // namespace rollup
 } // namespace proofs
 } // namespace rollup

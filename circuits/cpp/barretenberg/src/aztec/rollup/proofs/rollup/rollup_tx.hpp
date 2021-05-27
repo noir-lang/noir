@@ -98,6 +98,7 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
 
 inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
 {
+    os << "rollup_id: " << tx.rollup_id << "\n";
     os << "num_txs: " << tx.num_txs << "\n";
     os << "data_start_index: " << tx.data_start_index << "\n";
     os << "proof_data:\n";
@@ -131,10 +132,9 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     for (auto e : tx.data_roots_paths) {
         os << e << "\n";
     }
-    os << "data_roots_indicies:\n";
-    for (auto e : tx.data_roots_indicies) {
-        os << e << "\n";
-    }
+    os << "data_roots_indicies: " << tx.data_roots_indicies;
+    os << "new_defi_root: " << tx.new_defi_root << "\n";
+    os << "bridge_ids: " << tx.bridge_ids;
     return os;
 }
 

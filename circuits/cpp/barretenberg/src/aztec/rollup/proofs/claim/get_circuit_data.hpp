@@ -13,6 +13,8 @@ namespace claim {
 
 using namespace plonk::stdlib::merkle_tree;
 
+using circuit_data = proofs::circuit_data;
+
 inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
                                      std::string const& key_path,
                                      bool compute = true,

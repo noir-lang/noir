@@ -43,7 +43,7 @@ field_ct check_nullifiers_inserted(Composer& composer,
     for (size_t i = 0; i < new_null_indicies.size(); ++i) {
         auto new_null_root = field_ct(witness_ct(&composer, new_null_roots[i]));
 
-        auto is_real = num_txs > uint32_ct(&composer, i / 2);
+        auto is_real = num_txs > uint32_ct(&composer, i / 2) && new_null_indicies[i] != 0;
 
         // This makes padding transactions act as noops.
         auto index = (new_null_indicies[i] * is_real);
@@ -300,6 +300,13 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     // Publish pairing coords limbs as public inputs.
     recursion_output.add_proof_outputs_as_public_inputs();
+
+    // Defi public inputs.
+    composer.set_public_input(new_defi_root.witness_index);
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(bridge_ids[i].witness_index);
+        composer.set_public_input(defi_deposit_sums[i].witness_index);
+    }
 
     return recursion_output;
 }

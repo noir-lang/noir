@@ -4,6 +4,7 @@
 #include "../compute_circuit_data.hpp"
 #include "../join_split/compute_circuit_data.hpp"
 #include "../account/compute_circuit_data.hpp"
+#include "../claim/get_circuit_data.hpp"
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 
@@ -21,6 +22,7 @@ struct circuit_data : proofs::circuit_data {
 inline circuit_data get_circuit_data(size_t rollup_size,
                                      join_split::circuit_data const& join_split_circuit_data,
                                      account::circuit_data const& account_circuit_data,
+                                     claim::circuit_data const& claim_circuit_data,
                                      std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
                                      std::string const& key_path,
                                      bool compute = true,
@@ -34,11 +36,10 @@ inline circuit_data get_circuit_data(size_t rollup_size,
     std::cerr << "Getting tx rollup circuit data: (txs: " << rollup_size << ", size: " << rollup_size_pow2 << ")"
               << std::endl;
     auto name = "rollup_" + std::to_string(rollup_size);
-    auto verification_keys = {
-        join_split_circuit_data.verification_key,
-        account_circuit_data.verification_key,
-        join_split_circuit_data.verification_key // defi deposit
-    };
+    auto verification_keys = { join_split_circuit_data.verification_key,
+                               account_circuit_data.verification_key,
+                               join_split_circuit_data.verification_key, // defi deposit
+                               claim_circuit_data.verification_key };
 
     auto build_circuit = [&](Composer& composer) {
         auto rollup = create_padding_rollup(rollup_size, join_split_circuit_data.padding_proof);
