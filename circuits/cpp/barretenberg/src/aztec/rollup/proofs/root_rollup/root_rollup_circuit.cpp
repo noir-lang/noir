@@ -1,15 +1,12 @@
 #include "../../constants.hpp"
-#include "../rollup/rollup_circuit.hpp"
-#include "./root_rollup_circuit.hpp"
+#include "../rollup/index.hpp"
 #include "../inner_proof_data.hpp"
-#include "../rollup/rollup_proof_data.hpp"
-#include <stdlib/merkle_tree/membership.hpp>
+#include "../notes/constants.hpp"
+#include "../notes/circuit/index.hpp"
+#include "root_rollup_circuit.hpp"
+#include <stdlib/merkle_tree/index.hpp>
 #include <stdlib/hash/sha256/sha256.hpp>
 #include <common/map.hpp>
-#include "../notes/constants.hpp"
-#include "../notes/circuit/pedersen_note.hpp"
-#include "../notes/circuit/defi_interaction/defi_interaction_note.hpp"
-#include "../notes/circuit/claim/complete_partial_claim_note.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -21,7 +18,7 @@ using namespace rollup;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
-using notes::circuit::defi_interaction::defi_interaction_note;
+using namespace notes;
 
 void add_padding_public_inputs(Composer& composer, size_t inner_size)
 {
@@ -144,7 +141,7 @@ field_ct process_defi_interaction_notes(Composer& composer,
                                         field_ct const& old_defi_interaction_root,
                                         merkle_tree::hash_path const& old_defi_interaction_path,
                                         field_ct const& num_previous_defi_interactions,
-                                        std::vector<defi_interaction_note> const& defi_interaction_notes,
+                                        std::vector<circuit::defi_interaction::note> const& defi_interaction_notes,
                                         std::vector<point_ct>& encrypted_defi_interaction_notes)
 {
     byte_array_ct hash_input(&composer);
@@ -259,7 +256,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     auto new_defi_interaction_path = create_witness_hash_path(composer, root_rollup.new_defi_interaction_path);
     auto bridge_ids = map(root_rollup.bridge_ids, [&](auto bid) { return field_ct(witness_ct(&composer, bid)); });
     auto defi_interaction_notes = map(root_rollup.defi_interaction_notes, [&](auto n) {
-        return defi_interaction_note({ composer, n });
+        return circuit::defi_interaction::note(circuit::defi_interaction::witness_data(composer, n));
     });
 
     // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.

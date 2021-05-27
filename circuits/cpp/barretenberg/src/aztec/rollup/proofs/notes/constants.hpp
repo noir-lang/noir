@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include "../../constants.hpp"
 
 namespace rollup {
 namespace proofs {

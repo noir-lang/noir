@@ -3,10 +3,8 @@
 #include "../inner_proof_data.hpp"
 #include "../../constants.hpp"
 #include "../../world_state/world_state.hpp"
-#include "../notes/native/claim/complete_partial_claim_note.hpp"
-#include <stdlib/merkle_tree/merkle_tree.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/memory_tree.hpp>
+#include "../notes/native/claim/index.hpp"
+#include <stdlib/merkle_tree/index.hpp>
 
 namespace rollup {
 namespace proofs {

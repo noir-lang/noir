@@ -6,7 +6,7 @@ namespace rollup {
 namespace proofs {
 namespace claim {
 
-std::vector<uint8_t> create_proof(claim_tx& tx, circuit_data const& cd)
+inline std::vector<uint8_t> create_proof(claim_tx& tx, circuit_data const& cd)
 {
     Composer composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
 

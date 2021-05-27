@@ -12,7 +12,7 @@ namespace defi_interaction {
 
 using namespace plonk::stdlib::types::turbo;
 
-struct defi_interaction_note {
+struct note {
 
     // compress bridge_id to field
     field_ct bridge_id;
@@ -35,7 +35,7 @@ struct defi_interaction_note {
     // encrypted defi_interaction_note
     point_ct encrypted;
 
-    defi_interaction_note(witness_data const& note)
+    note(witness_data const& note)
         : bridge_id(note.bridge_id_data.to_field())
         , interaction_nonce(note.interaction_nonce)
         , total_input_value(note.total_input_value)

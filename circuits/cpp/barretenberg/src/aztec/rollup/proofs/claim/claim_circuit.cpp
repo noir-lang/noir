@@ -1,17 +1,16 @@
 #include "claim_circuit.hpp"
 #include "ratio_check.hpp"
-#include "../notes/circuit/claim/claim_note.hpp"
-#include "../notes/circuit/claim/complete_partial_value_note.hpp"
-#include "../notes/circuit/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/circuit/index.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace claim {
 
 using namespace plonk::stdlib::merkle_tree;
+using namespace notes;
 
 field_ct compute_nullifier(point_ct const& encrypted_note, field_ct const& tree_index)
 {
@@ -28,18 +27,17 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto defi_root = field_ct(witness_ct(&composer, tx.defi_root));
     const auto claim_note_index = witness_ct(&composer, tx.claim_note_index);
     const auto claim_note_path = create_witness_hash_path(composer, tx.claim_note_path);
-    const auto claim_note_data = notes::circuit::claim::claim_note_witness_data(composer, tx.claim_note);
-    const auto claim_note = notes::circuit::claim::claim_note(claim_note_data);
+    const auto claim_note_data = circuit::claim::claim_note_witness_data(composer, tx.claim_note);
+    const auto claim_note = circuit::claim::claim_note(claim_note_data);
     const auto defi_interaction_note_path = create_witness_hash_path(composer, tx.defi_interaction_note_path);
-    const auto defi_interaction_note =
-        notes::circuit::defi_interaction::defi_interaction_note({ composer, tx.defi_interaction_note });
+    const auto defi_interaction_note = circuit::defi_interaction::note({ composer, tx.defi_interaction_note });
     const auto output_value_a = field_ct(witness_ct(&composer, tx.output_value_a));
     const auto output_value_b = field_ct(witness_ct(&composer, tx.output_value_b));
     const auto two_output_notes = claim_note_data.bridge_id_data.num_output_notes == field_ct(2);
 
     // Ratio checks.
     const auto in_out_diff = defi_interaction_note.total_input_value - claim_note.deposit_value;
-    composer.create_range_constraint(in_out_diff.witness_index, notes::NOTE_VALUE_BIT_LENGTH);
+    composer.create_range_constraint(in_out_diff.witness_index, NOTE_VALUE_BIT_LENGTH);
     ratio_check(composer,
                 { .total_in = defi_interaction_note.total_input_value,
                   .total_out = defi_interaction_note.total_output_a_value,
@@ -53,11 +51,11 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
     // Compute output notes. Second note is zeroed if not used.
     // If defi interaction result is 0, refund original value.
-    auto output_note1 = notes::circuit::claim::complete_partial_value_note(
+    auto output_note1 = circuit::claim::complete_partial_value_note(
         claim_note.partial_state, output_value_a, claim_note_data.bridge_id_data.output_asset_id_a);
-    auto output_note2 = notes::circuit::claim::complete_partial_value_note(
+    auto output_note2 = circuit::claim::complete_partial_value_note(
         claim_note.partial_state, output_value_b, claim_note_data.bridge_id_data.output_asset_id_b);
-    auto refund_note = notes::circuit::claim::complete_partial_value_note(
+    auto refund_note = circuit::claim::complete_partial_value_note(
         claim_note.partial_state, claim_note_data.deposit_value, claim_note_data.bridge_id_data.input_asset_id);
     auto interaction_success = defi_interaction_note.interaction_result;
     output_note1.x = output_note1.x * interaction_success + refund_note.x * !interaction_success;

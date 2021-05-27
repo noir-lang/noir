@@ -1,6 +1,6 @@
 #pragma once
 #include <common/serialize.hpp>
-#include "../../constants.hpp"
+#include "../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 

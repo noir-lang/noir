@@ -2,7 +2,7 @@
 #include <stdlib/types/turbo.hpp>
 #include "../../constants.hpp"
 #include "../pedersen_note.hpp"
-#include "bridge_id.hpp"
+#include "../bridge_id.hpp"
 
 namespace rollup {
 namespace proofs {

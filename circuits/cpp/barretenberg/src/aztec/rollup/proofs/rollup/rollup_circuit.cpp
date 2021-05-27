@@ -1,9 +1,8 @@
 #include "rollup_circuit.hpp"
 #include "../../constants.hpp"
 #include "../inner_proof_data.hpp"
-#include "../notes/circuit/claim/complete_partial_claim_note.hpp"
-#include <stdlib/merkle_tree/membership.hpp>
-#include <common/throw_or_abort.hpp>
+#include "../notes/circuit/claim/index.hpp"
+#include <stdlib/merkle_tree/index.hpp>
 #include <common/map.hpp>
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"

@@ -1,19 +1,10 @@
 #include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
-#include "claim_circuit.hpp"
-#include "get_circuit_data.hpp"
-#include "verify.hpp"
-#include "ratio_check.hpp"
+#include "index.hpp"
 #include "../inner_proof_data.hpp"
-#include "../notes/native/defi_interaction/defi_interaction_note.hpp"
-#include "../notes/native/defi_interaction/encrypt.hpp"
-#include "../notes/native/claim/create_partial_value_note.hpp"
-#include "../notes/native/claim/compute_nullifier.hpp"
-#include "../notes/native/claim/encrypt.hpp"
-#include "../notes/native/value/encrypt.hpp"
+#include "../notes/native/index.hpp"
 #include <common/test.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/index.hpp>
 #include <numeric/random/engine.hpp>
 
 using namespace barretenberg;

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib/merkle_tree/merkle_tree.hpp>
 #include "../proofs/notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../constants.hpp"
 
 namespace rollup {
 namespace world_state {

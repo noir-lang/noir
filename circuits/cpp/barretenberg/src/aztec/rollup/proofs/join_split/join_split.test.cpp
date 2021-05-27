@@ -1,20 +1,15 @@
 #include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "../inner_proof_data.hpp"
-#include "join_split.hpp"
-#include "join_split_circuit.hpp"
-#include "sign_join_split_tx.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/claim/claim_note.hpp"
-#include "../notes/native/claim/encrypt.hpp"
-#include "../notes/native/claim/create_partial_value_note.hpp"
-#include "../notes/native/compute_nullifier.hpp"
-#include "../notes/native/account/encrypt.hpp"
+#include "index.hpp"
+#include "../notes/native/index.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <crypto/schnorr/schnorr.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/index.hpp>
+
+namespace rollup {
+namespace proofs {
+namespace join_split {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
@@ -24,7 +19,6 @@ using namespace rollup::proofs::notes::native;
 using namespace rollup::proofs::notes::native::claim;
 using namespace rollup::proofs::notes::native::value;
 using namespace rollup::proofs::notes::native::account;
-using namespace rollup::proofs::join_split;
 
 std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
 {
@@ -633,3 +627,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 
     EXPECT_TRUE(verify_proof(proof));
 }
+
+} // namespace join_split
+} // namespace proofs
+} // namespace rollup

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../pedersen_note.hpp"
-#include "bridge_id.hpp"
+#include "../bridge_id.hpp"
 #include "witness_data.hpp"
 #include "create_partial_value_note.hpp"
 #include "encrypt.hpp"

@@ -1,25 +1,6 @@
-#include "compute_circuit_data.hpp"
-#include "create_rollup.hpp"
-#include "rollup_proof_data.hpp"
-#include "verify.hpp"
-#include "../../fixtures/user_context.hpp"
-#include "../inner_proof_data.hpp"
-#include "../join_split/join_split.hpp"
-#include "../join_split/sign_join_split_tx.hpp"
-#include "../join_split/join_split_circuit.hpp"
-#include "../account/account.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/account/encrypt.hpp"
-#include "../join_split/compute_circuit_data.hpp"
-#include "../claim/get_circuit_data.hpp"
-#include "../join_split/create_noop_join_split_proof.hpp"
-#include "../inner_proof_data.hpp"
-#include "../../constants.hpp"
+#include "index.hpp"
+#include "../notes/native/index.hpp"
 #include <common/test.hpp>
-#include <stdlib/merkle_tree/merkle_tree.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/memory_tree.hpp>
-#include <stdlib/merkle_tree/membership.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -28,9 +9,8 @@ namespace rollup {
 using namespace barretenberg;
 using namespace notes::native::value;
 using namespace notes::native::account;
-using namespace plonk::stdlib::merkle_tree;
 using namespace notes::native::value;
-using namespace notes::native::account;
+using namespace plonk::stdlib::merkle_tree;
 
 namespace {
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;

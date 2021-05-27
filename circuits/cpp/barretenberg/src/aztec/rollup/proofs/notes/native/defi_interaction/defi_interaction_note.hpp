@@ -2,7 +2,7 @@
 #include <common/serialize.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
-#include "../claim/bridge_id.hpp"
+#include "../bridge_id.hpp"
 
 namespace rollup {
 namespace proofs {

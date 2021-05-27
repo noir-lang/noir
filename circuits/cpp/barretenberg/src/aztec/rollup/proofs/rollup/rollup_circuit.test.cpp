@@ -1,37 +1,7 @@
-#include "compute_circuit_data.hpp"
-#include "create_rollup.hpp"
-#include "rollup_proof_data.hpp"
-#include "verify.hpp"
-#include "../../fixtures/user_context.hpp"
-#include "../inner_proof_data.hpp"
-#include "../join_split/join_split.hpp"
-#include "../join_split/join_split_circuit.hpp"
-#include "../join_split/create_proof.hpp"
-#include "../claim/create_proof.hpp"
-#include "../claim/claim_tx_factory.hpp"
-#include "../claim/get_circuit_data.hpp"
-#include "../account/account.hpp"
-#include "../account/account_tx_factory.hpp"
-#include "../account/create_proof.hpp"
-#include "../join_split/sign_join_split_tx.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/account/encrypt.hpp"
-#include "../notes/native/account/compute_account_alias_id_nullifier.hpp"
-#include "../notes/native/claim/bridge_id.hpp"
-#include "../notes/native/claim/encrypt.hpp"
-#include "../notes/native/claim/create_partial_value_note.hpp"
-#include "../notes/native/defi_interaction/encrypt.hpp"
-#include "../notes/constants.hpp"
-#include "../join_split/join_split_tx_factory.hpp"
-#include "../join_split/compute_circuit_data.hpp"
-#include "../join_split/create_noop_join_split_proof.hpp"
-#include "../inner_proof_data.hpp"
-#include "../../constants.hpp"
-#include "../../world_state/world_state.hpp"
+#include "index.hpp"
+#include "../notes/native/index.hpp"
 #include <common/test.hpp>
 #include <common/map.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/membership.hpp>
 
 namespace rollup {
 namespace proofs {

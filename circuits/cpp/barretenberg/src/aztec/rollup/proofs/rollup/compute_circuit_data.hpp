@@ -2,9 +2,9 @@
 #include "create_rollup.hpp"
 #include "rollup_circuit.hpp"
 #include "../compute_circuit_data.hpp"
-#include "../join_split/compute_circuit_data.hpp"
-#include "../account/compute_circuit_data.hpp"
-#include "../claim/get_circuit_data.hpp"
+#include "../join_split/index.hpp"
+#include "../account/index.hpp"
+#include "../claim/index.hpp"
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 

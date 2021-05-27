@@ -3,7 +3,7 @@
 #include "../../native/claim/claim_note.hpp"
 #include "../../native/claim/claim_note_tx_data.hpp"
 #include "../../constants.hpp"
-#include "bridge_id.hpp"
+#include "../bridge_id.hpp"
 
 namespace rollup {
 namespace proofs {

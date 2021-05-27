@@ -1,22 +1,21 @@
 #include "../../fixtures/user_context.hpp"
-#include "escape_hatch.hpp"
-#include "escape_hatch_circuit.hpp"
-#include "escape_hatch_tx.hpp"
-#include "../join_split/sign_join_split_tx.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/account/encrypt.hpp"
-#include "../notes/native/compute_nullifier.hpp"
+#include "index.hpp"
+#include "../join_split/index.hpp"
+#include "../notes/native/index.hpp"
 #include "../../constants.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <crypto/schnorr/schnorr.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/index.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
+
+namespace rollup {
+namespace proofs {
+namespace escape_hatch {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
+using namespace rollup::proofs;
 using namespace rollup::proofs::join_split;
 using namespace rollup::proofs::escape_hatch;
 using namespace rollup::proofs::notes::native;
@@ -341,3 +340,7 @@ HEAVY_TEST_F(escape_hatch_tests, test_2_input_notes_full_test)
     escape_hatch_tx tx = simple_setup();
     EXPECT_TRUE(sign_and_verify(tx, user.signing_keys[0].private_key));
 }
+
+} // namespace escape_hatch
+} // namespace proofs
+} // namespace rollup

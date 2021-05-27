@@ -1,29 +1,12 @@
-#include <crypto/sha256/sha256.hpp>
 #include <common/test.hpp>
 #include <common/map.hpp>
 #include <common/throw_or_abort.hpp>
-#include "../../fixtures/user_context.hpp"
-#include "../../constants.hpp"
-#include "../rollup/verify.hpp"
-#include "../rollup/rollup_proof_data.hpp"
-#include "../join_split/create_noop_join_split_proof.hpp"
-#include "../join_split/sign_join_split_tx.hpp"
-#include "../join_split/join_split_circuit.hpp"
-#include "../claim/claim_circuit.hpp"
-#include "../claim/get_circuit_data.hpp"
-#include "../notes/circuit/claim/claim_note.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/claim/create_partial_value_note.hpp"
-#include "../notes/native/claim/encrypt.hpp"
-#include "../../world_state/world_state.hpp"
-#include "compute_or_load_fixture.hpp"
-#include "compute_circuit_data.hpp"
-#include "root_rollup_circuit.hpp"
-#include "create_root_rollup_tx.hpp"
-#include "verify.hpp"
+#include "index.hpp"
+#include "../rollup/index.hpp"
+#include "../notes/native/index.hpp"
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+// #pragma GCC diagnostic ignored "-Wunused-variable"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 namespace rollup {
 namespace proofs {
 namespace root_rollup {
@@ -37,7 +20,7 @@ std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
 join_split::circuit_data join_split_cd;
-account::circuit_data account_cd;
+proofs::account::circuit_data account_cd;
 proofs::circuit_data claim_cd;
 rollup::circuit_data tx_rollup_cd;
 circuit_data root_rollup_cd;
@@ -64,7 +47,7 @@ class root_rollup_tests : public ::testing::Test {
         auto recreate = !exists(FIXTURE_PATH);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
 
-        account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+        account_cd = proofs::account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
         join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
         claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH);
 
@@ -261,7 +244,7 @@ class root_rollup_tests : public ::testing::Test {
         return compute_or_load_fixture(TEST_PROOFS_PATH, name, [&] {
             // We need to ensure we have a proving key to build the inner proof fixtures.
             if (!tx_rollup_cd.proving_key) {
-                account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+                account_cd = proofs::account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
                 join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
                 tx_rollup_cd = rollup::get_circuit_data(
                     INNER_ROLLUP_TXS, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);

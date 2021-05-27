@@ -8,10 +8,10 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
-std::vector<uint8_t> create_proof(join_split_tx& tx,
-                                  fixtures::grumpkin_key_pair const& signer,
-                                  circuit_data const& cd,
-                                  numeric::random::Engine* rand_engine = nullptr)
+inline std::vector<uint8_t> create_proof(join_split_tx& tx,
+                                         fixtures::grumpkin_key_pair const& signer,
+                                         circuit_data const& cd,
+                                         numeric::random::Engine* rand_engine = nullptr)
 {
     tx.signature = sign_join_split_tx(tx, signer, rand_engine);
 

@@ -1,18 +1,10 @@
 // Uncomment to simulate running in CI.
 // #define DISABLE_HEAVY_TESTS
 
-#include "../../fixtures/user_context.hpp"
-#include "../../constants.hpp"
-#include "../rollup/verify.hpp"
-#include "../rollup/rollup_proof_data.hpp"
-#include "../join_split/create_noop_join_split_proof.hpp"
-#include "../claim/get_circuit_data.hpp"
-#include "compute_or_load_fixture.hpp"
-#include "compute_circuit_data.hpp"
-#include "root_rollup_circuit.hpp"
-#include "create_root_rollup_tx.hpp"
-#include "verify.hpp"
 #include <common/test.hpp>
+#include "index.hpp"
+#include "../rollup/index.hpp"
+#include "../notes/native/index.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -27,7 +19,7 @@ std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
 join_split::circuit_data join_split_cd;
-account::circuit_data account_cd;
+proofs::account::circuit_data account_cd;
 proofs::claim::circuit_data claim_cd;
 std::vector<std::vector<uint8_t>> js_proofs;
 } // namespace
@@ -49,7 +41,7 @@ class root_rollup_full_tests : public ::testing::Test {
     static void SetUpTestCase()
     {
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
-        account_cd = account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+        account_cd = proofs::account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
         join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
         claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH, true, false, false);
 

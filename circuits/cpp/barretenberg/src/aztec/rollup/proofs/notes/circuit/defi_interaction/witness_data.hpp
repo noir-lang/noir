@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../../native/defi_interaction/defi_interaction_note.hpp"
-#include "../claim/bridge_id.hpp"
+#include "../bridge_id.hpp"
 
 namespace rollup {
 namespace proofs {
