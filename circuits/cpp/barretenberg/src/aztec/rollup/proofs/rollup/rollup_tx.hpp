@@ -15,6 +15,7 @@ using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
 
 struct rollup_tx {
+    uint32_t rollup_id;
     uint32_t num_txs;
     uint32_t data_start_index;
     std::vector<std::vector<uint8_t>> txs;
@@ -33,7 +34,16 @@ struct rollup_tx {
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint32_t> data_roots_indicies;
 
+    // The defi root after inserting the interaction notes.
+    fr new_defi_root;
+
+    // All defi deposits must match one of these.
+    std::vector<uint256_t> bridge_ids;
+
     bool operator==(rollup_tx const&) const = default;
+
+    // Not serialized or known about externally. Populated before the tx is padded.
+    size_t num_defi_interactions;
 };
 
 template <typename B> inline void read(B& buf, rollup_tx& tx)
@@ -56,6 +66,9 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.data_roots_root);
     read(buf, tx.data_roots_paths);
     read(buf, tx.data_roots_indicies);
+
+    read(buf, tx.new_defi_root);
+    read(buf, tx.bridge_ids);
 }
 
 template <typename B> inline void write(B& buf, rollup_tx const& tx)
@@ -78,6 +91,9 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.data_roots_root);
     write(buf, tx.data_roots_paths);
     write(buf, tx.data_roots_indicies);
+
+    write(buf, tx.new_defi_root);
+    write(buf, tx.bridge_ids);
 }
 
 inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)

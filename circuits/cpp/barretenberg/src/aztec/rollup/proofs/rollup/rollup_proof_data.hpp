@@ -68,6 +68,10 @@ struct rollup_proof_data {
     g1::affine_element recursion_output[2];
 
     rollup_proof_data(std::vector<uint8_t> const& proof_data);
+    rollup_proof_data(std::vector<fr> const& fields);
+
+  private:
+    void populate_from_fields(std::vector<fr> const& fields);
 };
 
 } // namespace rollup

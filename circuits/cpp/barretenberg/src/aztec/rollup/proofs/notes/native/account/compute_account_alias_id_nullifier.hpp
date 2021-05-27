@@ -10,10 +10,13 @@ namespace account {
 
 using namespace barretenberg;
 
-inline grumpkin::g1::affine_element encrypt(account_note const& note)
+inline fr compute_account_alias_id_nullifier(fr const& account_alias_id)
 {
-    std::vector<barretenberg::fr> hash_elements{ note.account_alias_id, note.owner_key.x, note.signing_key.x };
-    return crypto::pedersen::encrypt_native(hash_elements, GeneratorIndex::ACCOUNT_NOTE_HASH_INPUTS);
+    const std::vector<fr> hash_elements{
+        fr(ProofIds::ACCOUNT),
+        account_alias_id,
+    };
+    return crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 } // namespace account

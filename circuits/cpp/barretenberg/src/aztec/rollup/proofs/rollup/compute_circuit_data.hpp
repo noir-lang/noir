@@ -56,6 +56,7 @@ inline circuit_data get_circuit_data(size_t rollup_size,
     data.num_txs = rollup_size;
     data.rollup_size = rollup_size_pow2;
     data.join_split_circuit_data = join_split_circuit_data;
+    data.verifier_crs = cd.verifier_crs;
 
     return data;
 }

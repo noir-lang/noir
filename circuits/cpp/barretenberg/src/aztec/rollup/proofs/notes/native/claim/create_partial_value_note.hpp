@@ -2,6 +2,7 @@
 #include <common/serialize.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "../../constants.hpp"
 
 namespace rollup {
 namespace proofs {

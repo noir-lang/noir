@@ -2,15 +2,16 @@
 #include "compute_circuit_data.hpp"
 #include "verify.hpp"
 #include "../inner_proof_data.hpp"
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include "../notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/native/defi_interaction/encrypt.hpp"
+#include "../../world_state/world_state.hpp"
 #include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/memory_tree.hpp>
 
 namespace rollup {
 namespace proofs {
 namespace root_rollup {
 
-using Tree = MerkleTree<MemoryStore>;
+using WorldState = world_state::WorldState<MemoryStore>;
 
 inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_data)
 {
@@ -23,10 +24,12 @@ inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_da
 
 inline root_rollup_tx create_root_rollup_tx(uint32_t rollup_id,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
-                                            Tree& data_tree,
-                                            Tree& root_tree,
-                                            Tree& defi_tree)
+                                            WorldState& world_state)
 {
+    auto& data_tree = world_state.data_tree;
+    auto& root_tree = world_state.root_tree;
+    auto& defi_tree = world_state.defi_tree;
+
     auto root_index = root_tree.size();
 
     root_rollup_tx tx_data;

@@ -5,9 +5,11 @@
 #include "../rollup/rollup_proof_data.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 #include <stdlib/hash/sha256/sha256.hpp>
+#include <common/map.hpp>
 #include "../notes/constants.hpp"
 #include "../notes/circuit/pedersen_note.hpp"
 #include "../notes/circuit/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/circuit/claim/complete_partial_claim_note.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -70,7 +72,7 @@ auto process_defi_deposits(Composer& composer,
                            std::vector<field_ct>& defi_deposit_sums,
                            field_ct const& num_defi_interactions)
 {
-    field_ct defi_interaction_nonce = ((rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
+    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
 
     for (size_t j = 0; j < num_inner_txs_pow2; j++) {
         const auto public_input_start_idx =
@@ -92,6 +94,7 @@ auto process_defi_deposits(Composer& composer,
             defi_deposit_sums[k] += deposit_value * is_defi_deposit * matches;
             note_defi_interaction_nonce += (field_ct(&composer, k) * matches);
         }
+        note_defi_interaction_nonce *= is_defi_deposit;
 
         // Assert this proof matched a single bridge_id.
         auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
@@ -101,10 +104,8 @@ auto process_defi_deposits(Composer& composer,
         // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
         point_ct encrypted_claim_note{ public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X],
                                        public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] };
-        encrypted_claim_note = notes::circuit::conditionally_hash_and_accumulate<32>(
-            encrypted_claim_note,
-            (note_defi_interaction_nonce * is_defi_deposit),
-            notes::GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_DEFI_INTERACTION_NONCE);
+        encrypted_claim_note =
+            notes::circuit::claim::complete_partial_claim_note(encrypted_claim_note, note_defi_interaction_nonce);
 
         public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X] = encrypted_claim_note.x;
         public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] = encrypted_claim_note.y;
@@ -223,13 +224,6 @@ void assert_inner_proof_sequential(Composer& composer,
     }
 }
 
-template <typename T, typename U, typename Op> std::vector<T> map_vector(std::vector<U> const& in, Op const& op)
-{
-    std::vector<T> result;
-    std::transform(in.begin(), in.end(), std::back_inserter(result), op);
-    return result;
-}
-
 recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                             root_rollup_tx const& root_rollup,
                                             size_t num_inner_txs_pow2,
@@ -263,8 +257,8 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     field_ct new_defi_interaction_root = witness_ct(&composer, root_rollup.new_defi_interaction_root);
     auto old_defi_interaction_path = create_witness_hash_path(composer, root_rollup.old_defi_interaction_path);
     auto new_defi_interaction_path = create_witness_hash_path(composer, root_rollup.new_defi_interaction_path);
-    auto bridge_ids = map_vector<field_ct>(root_rollup.bridge_ids, [&](auto i) { return witness_ct(&composer, i); });
-    auto defi_interaction_notes = map_vector<defi_interaction_note>(root_rollup.defi_interaction_notes, [&](auto& n) {
+    auto bridge_ids = map(root_rollup.bridge_ids, [&](auto bid) { return field_ct(witness_ct(&composer, bid)); });
+    auto defi_interaction_notes = map(root_rollup.defi_interaction_notes, [&](auto n) {
         return defi_interaction_note({ composer, n });
     });
 

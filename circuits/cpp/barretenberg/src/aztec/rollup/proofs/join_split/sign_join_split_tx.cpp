@@ -16,7 +16,7 @@ using namespace notes::native;
 using namespace notes::native::claim;
 using namespace notes::native::value;
 
-signature sign_join_split_tx(proofs::join_split::join_split_tx const& tx,
+signature sign_join_split_tx(join_split_tx const& tx,
                              key_pair<grumpkin::fr, grumpkin::g1> const& keys,
                              numeric::random::Engine* engine)
 {

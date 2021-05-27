@@ -43,6 +43,19 @@ template <typename B> inline void write(B& buf, claim_note const& note)
     write(buf, note.partial_state);
 }
 
+inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
+{
+    return os << format("{ deposit_value: ",
+                        note.deposit_value,
+                        ", bridge_id: ",
+                        note.bridge_id,
+                        ", interaction_nonce: ",
+                        note.defi_interaction_nonce,
+                        ", partial_state: ",
+                        note.partial_state,
+                        " }");
+}
+
 } // namespace claim
 } // namespace native
 } // namespace notes
