@@ -55,8 +55,9 @@ contract TurboVerifier {
     using Bn254Crypto for Types.G2Point;
     using TranscriptLibrary for TranscriptLibrary.Transcript;
 
+    // The first parameter is the proof and the second parameter is the public inputs
     function verify(bytes calldata, bytes calldata) public view returns (bool) {
-        // extract the correct rollup verification key
+        
         Types.VerificationKey memory vk = get_verification_key();
         uint256 num_public_inputs = vk.num_inputs;
 
