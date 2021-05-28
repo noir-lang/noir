@@ -1,6 +1,6 @@
 #pragma once
 #include "../notes/native/claim/claim_note.hpp"
-#include "../notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/native/defi_interaction/note.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <stdlib/types/turbo.hpp>
 
@@ -19,7 +19,7 @@ struct claim_tx {
     notes::native::claim::claim_note claim_note;
 
     merkle_tree::fr_hash_path defi_interaction_note_path;
-    notes::native::defi_interaction::defi_interaction_note defi_interaction_note;
+    notes::native::defi_interaction::note defi_interaction_note;
 
     fr output_value_a;
     fr output_value_b;

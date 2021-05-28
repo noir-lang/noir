@@ -153,7 +153,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     world_state.update_root_tree_with_data_root();
 
     auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 50 }, 30, 60);
-    auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
+    auto rollup = create_rollup_tx(world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
         rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
@@ -198,7 +198,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     append_notes({ 100, 50 });
     world_state.update_root_tree_with_data_root();
     auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
-    auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
+    auto rollup = create_rollup_tx(world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
         rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
@@ -246,7 +246,7 @@ HEAVY_TEST_F(rollup_tests_full, test_2_proofs_in_2_rollup_full_proof)
     auto join_split_proof2 = create_join_split_proof({ 6, 7 }, { 80, 60 }, { 70, 70 });
     auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof1, join_split_proof2 };
 
-    auto rollup = create_rollup(world_state, rollup_size, txs);
+    auto rollup = create_rollup_tx(world_state, rollup_size, txs);
 
     auto rollup_circuit_data =
         rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
@@ -295,7 +295,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     auto join_split_proof = create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 50 }, 30, 60);
     auto account_proof = create_account_proof();
     auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof, account_proof };
-    auto rollup = create_rollup(world_state, rollup_size, txs);
+    auto rollup = create_rollup_tx(world_state, rollup_size, txs);
 
     auto rollup_circuit_data =
         rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
@@ -342,7 +342,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_3_of_4_rollup_full_proof)
     append_notes({ 100, 50 });
     world_state.update_root_tree_with_data_root();
     auto join_split_proof = create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 });
-    auto rollup = create_rollup(world_state, rollup_size, { join_split_proof });
+    auto rollup = create_rollup_tx(world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
         rollup::get_circuit_data(rollup_size, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);

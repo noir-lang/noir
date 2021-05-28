@@ -19,7 +19,7 @@ template <typename WorldState> class ClaimTxFactory {
     auto create_claim_tx(barretenberg::fr const& defi_root,
                          uint32_t claim_note_index,
                          notes::native::claim::claim_note const& claim_note,
-                         notes::native::defi_interaction::defi_interaction_note const& defi_interaction_note)
+                         notes::native::defi_interaction::note const& defi_interaction_note)
     {
         claim_tx tx;
         tx.data_root = world_state.data_tree.root();

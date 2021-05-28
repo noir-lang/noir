@@ -2,7 +2,7 @@
 #include "compute_circuit_data.hpp"
 #include "verify.hpp"
 #include "../inner_proof_data.hpp"
-#include "../notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/native/defi_interaction/note.hpp"
 #include "../notes/native/defi_interaction/encrypt.hpp"
 #include "../../world_state/world_state.hpp"
 #include <stdlib/merkle_tree/memory_store.hpp>

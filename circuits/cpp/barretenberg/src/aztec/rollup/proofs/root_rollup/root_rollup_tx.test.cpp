@@ -4,7 +4,7 @@
 
 using namespace rollup;
 using namespace rollup::proofs::root_rollup;
-using namespace rollup::proofs::notes::native::defi_interaction;
+using namespace rollup::proofs::notes;
 using namespace barretenberg;
 
 TEST(root_rollup_tx, test_serialization)
@@ -28,8 +28,8 @@ TEST(root_rollup_tx, test_serialization)
     rollup.new_defi_interaction_path = fr_hash_path(DEFI_TREE_DEPTH, random_pair);
 
     rollup.bridge_ids = { 0, 1, 2, 3 };
-    defi_interaction_note defi_native_note = { 0, 0, 0, 0, 0, false };
-    rollup.defi_interaction_notes = std::vector<defi_interaction_note>(4, defi_native_note);
+    native::defi_interaction::note defi_native_note = { 0, 0, 0, 0, 0, false };
+    rollup.defi_interaction_notes = { 4, defi_native_note };
 
     auto buf = to_buffer(rollup);
     auto result = from_buffer<root_rollup_tx>(buf);

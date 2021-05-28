@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/merkle_tree/merkle_tree.hpp>
-#include "../proofs/notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../proofs/notes/native/defi_interaction/note.hpp"
 #include "../constants.hpp"
 
 namespace rollup {
@@ -30,7 +30,7 @@ template <typename Store> class WorldState {
 
     template <typename T> void append_data_note(T const& note) { append_note(note, data_tree); }
 
-    void add_defi_notes(std::vector<defi_interaction::defi_interaction_note> const& din)
+    void add_defi_notes(std::vector<defi_interaction::note> const& din)
     {
         for (auto& interaction_note : din) {
             insert_note(interaction_note, interaction_note.interaction_nonce, defi_tree);

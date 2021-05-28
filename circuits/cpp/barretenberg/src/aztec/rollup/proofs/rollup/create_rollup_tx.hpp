@@ -81,11 +81,11 @@ inline rollup_tx create_padding_rollup(size_t rollup_size, std::vector<uint8_t> 
     return rollup;
 }
 
-inline rollup_tx create_rollup(WorldState& world_state,
-                               size_t rollup_size,
-                               std::vector<std::vector<uint8_t>> const& txs,
-                               std::vector<uint256_t> bridge_ids = {},
-                               std::vector<uint32_t> const& data_roots_indicies_ = {})
+inline rollup_tx create_rollup_tx(WorldState& world_state,
+                                  size_t rollup_size,
+                                  std::vector<std::vector<uint8_t>> const& txs,
+                                  std::vector<uint256_t> bridge_ids = {},
+                                  std::vector<uint32_t> const& data_roots_indicies_ = {})
 {
     auto& data_tree = world_state.data_tree;
     auto& null_tree = world_state.null_tree;

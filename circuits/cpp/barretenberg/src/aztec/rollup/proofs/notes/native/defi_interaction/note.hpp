@@ -10,7 +10,7 @@ namespace notes {
 namespace native {
 namespace defi_interaction {
 
-struct defi_interaction_note {
+struct note {
     uint256_t bridge_id;
     uint32_t interaction_nonce;
     uint256_t total_input_value;
@@ -20,7 +20,7 @@ struct defi_interaction_note {
     // did the rollup smart contract call to the defi bridge succeed or fail?
     bool interaction_result;
 
-    bool operator==(defi_interaction_note const&) const = default;
+    bool operator==(note const&) const = default;
 
     // Returns a byte array where all input fields are treated as 32 bytes.
     // Used for generating the previous_defi_interaction_hash.
@@ -39,7 +39,7 @@ struct defi_interaction_note {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, defi_interaction_note const& note)
+inline std::ostream& operator<<(std::ostream& os, note const& note)
 {
     os << "{ bridge_id: " << note.bridge_id << ", total_input_value: " << note.total_input_value
        << ", total_output_a_value: " << note.total_output_a_value
@@ -48,7 +48,7 @@ inline std::ostream& operator<<(std::ostream& os, defi_interaction_note const& n
     return os;
 }
 
-template <typename B> inline void read(B& buf, defi_interaction_note& note)
+template <typename B> inline void read(B& buf, note& note)
 {
     using serialize::read;
     read(buf, note.bridge_id);
@@ -59,7 +59,7 @@ template <typename B> inline void read(B& buf, defi_interaction_note& note)
     read(buf, note.interaction_result);
 }
 
-template <typename B> inline void write(B& buf, defi_interaction_note const& note)
+template <typename B> inline void write(B& buf, note const& note)
 {
     using serialize::write;
     write(buf, note.bridge_id);

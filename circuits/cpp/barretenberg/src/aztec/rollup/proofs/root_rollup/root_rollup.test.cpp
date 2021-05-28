@@ -175,11 +175,10 @@ class root_rollup_tests : public ::testing::Test {
         return create_proof(tx, fixture_prefix);
     }
 
-    std::vector<uint8_t> create_claim_proof(
-        barretenberg::fr const& defi_root,
-        uint32_t claim_note_index,
-        notes::native::claim::claim_note const& claim_note,
-        notes::native::defi_interaction::defi_interaction_note const& defi_interaction_note)
+    std::vector<uint8_t> create_claim_proof(barretenberg::fr const& defi_root,
+                                            uint32_t claim_note_index,
+                                            notes::native::claim::claim_note const& claim_note,
+                                            notes::native::defi_interaction::note const& defi_interaction_note)
     {
         proofs::claim::claim_tx tx;
         tx.data_root = world_state.data_tree.root();
@@ -222,11 +221,11 @@ class root_rollup_tests : public ::testing::Test {
 
         for (size_t i = 0; i < rollup_structure.size(); ++i) {
             auto tx_proofs = rollup_structure[i];
-            auto rollup = rollup::create_rollup(world_state,
-                                                INNER_ROLLUP_TXS,
-                                                tx_proofs,
-                                                {},
-                                                data_roots_indicies[i]); //, claim_note_nonces[i]);
+            auto rollup = rollup::create_rollup_tx(world_state,
+                                                   INNER_ROLLUP_TXS,
+                                                   tx_proofs,
+                                                   {},
+                                                   data_roots_indicies[i]); //, claim_note_nonces[i]);
             auto fixture_name = format(test_name, "_rollup", rollup_id, "_inner", rollups.size());
             auto rollup_data = compute_or_load_rollup(fixture_name, rollup);
             if (rollup_data.empty()) {
@@ -387,7 +386,7 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
-        notes::native::defi_interaction::defi_interaction_note note = { 0, 0, 0, 0, 0, false };
+        notes::native::defi_interaction::note note = { 0, 0, 0, 0, 0, false };
         auto buf = note.to_byte_array();
         sha256_input.insert(sha256_input.end(), buf.begin(), buf.end());
     }
@@ -525,9 +524,8 @@ TEST_F(root_rollup_tests, test_claim_proof_has_valid_defi_root)
 
     // Create defi interaction notes for interactions in rollup 1, to insert in rollup 2.
     uint32_t din_insertion_index = data.rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
-    std::vector<notes::native::defi_interaction::defi_interaction_note> dins = {
-        { bids[0], din_insertion_index, 70, 700, 7000, true }, { bids[1], din_insertion_index + 1, 0, 0, 0, true }
-    };
+    std::vector<notes::native::defi_interaction::note> dins = { { bids[0], din_insertion_index, 70, 700, 7000, true },
+                                                                { bids[1], din_insertion_index + 1, 0, 0, 0, true } };
 
     // We need to add interaction notes before creating claim notes, so record the old state of the tree.
     auto& defi_tree = world_state.defi_tree;

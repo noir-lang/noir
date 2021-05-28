@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/defi_interaction/defi_interaction_note.hpp"
+#include "../../native/defi_interaction/note.hpp"
 #include "../pedersen_note.hpp"
 #include "witness_data.hpp"
 

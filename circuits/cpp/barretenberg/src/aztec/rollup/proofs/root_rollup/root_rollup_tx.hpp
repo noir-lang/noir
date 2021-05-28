@@ -6,7 +6,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <sstream>
 #include <stdlib/merkle_tree/hash_path.hpp>
-#include "../notes/native/defi_interaction/defi_interaction_note.hpp"
+#include "../notes/native/defi_interaction/note.hpp"
 #include "../../constants.hpp"
 
 namespace rollup {
@@ -15,7 +15,7 @@ namespace root_rollup {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::merkle_tree;
-using namespace notes::native::defi_interaction;
+using namespace notes;
 
 struct root_rollup_tx {
     // The maximum number of inner rollups in this proof.
@@ -43,7 +43,7 @@ struct root_rollup_tx {
     std::vector<uint256_t> bridge_ids;
 
     // Defi interactions from the previous rollup, to be inserted into defi tree.
-    std::vector<defi_interaction_note> defi_interaction_notes;
+    std::vector<native::defi_interaction::note> defi_interaction_notes;
 
     bool operator==(root_rollup_tx const&) const = default;
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "create_rollup.hpp"
+#include "create_rollup_tx.hpp"
 #include "rollup_circuit.hpp"
 #include "../compute_circuit_data.hpp"
 #include "../join_split/index.hpp"
