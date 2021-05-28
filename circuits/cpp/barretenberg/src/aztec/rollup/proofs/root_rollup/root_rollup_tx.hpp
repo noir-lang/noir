@@ -35,12 +35,7 @@ struct root_rollup_tx {
 
     // For updating the defi_interaction tree.
     fr old_defi_interaction_root;
-    fr new_defi_interaction_root;
     fr_hash_path old_defi_interaction_path;
-    fr_hash_path new_defi_interaction_path;
-
-    // All defi deposits must match one of these.
-    std::vector<uint256_t> bridge_ids;
 
     // Defi interactions from the previous rollup, to be inserted into defi tree.
     std::vector<native::defi_interaction::note> defi_interaction_notes;
@@ -49,7 +44,6 @@ struct root_rollup_tx {
 
     // These are not serialized or known about externally.
     // They are populated before the tx is padded.
-    size_t num_defi_interactions;
     size_t num_previous_defi_interactions;
 };
 
@@ -64,10 +58,7 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.old_data_roots_path);
     read(buf, tx.new_data_roots_path);
     read(buf, tx.old_defi_interaction_root);
-    read(buf, tx.new_defi_interaction_root);
     read(buf, tx.old_defi_interaction_path);
-    read(buf, tx.new_defi_interaction_path);
-    read(buf, tx.bridge_ids);
     read(buf, tx.defi_interaction_notes);
 }
 
@@ -82,10 +73,7 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.old_data_roots_path);
     write(buf, tx.new_data_roots_path);
     write(buf, tx.old_defi_interaction_root);
-    write(buf, tx.new_defi_interaction_root);
     write(buf, tx.old_defi_interaction_path);
-    write(buf, tx.new_defi_interaction_path);
-    write(buf, tx.bridge_ids);
     write(buf, tx.defi_interaction_notes);
 }
 
@@ -103,14 +91,7 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
     os << "new_data_roots_path: " << tx.new_data_roots_path << "\n";
 
     os << "old_defi_interaction_root: " << tx.old_defi_interaction_root << "\n";
-    os << "new_defi_interaction_root: " << tx.new_defi_interaction_root << "\n";
     os << "old_defi_interaction_path: " << tx.old_defi_interaction_path << "\n";
-    os << "new_defi_interaction_path: " << tx.new_defi_interaction_path << "\n";
-
-    os << "bridge_ids:\n";
-    for (auto bridge_id : tx.bridge_ids) {
-        os << bridge_id << "\n";
-    }
 
     size_t i = 0;
     for (auto defi_note : tx.defi_interaction_notes) {
