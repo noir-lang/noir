@@ -202,13 +202,15 @@ library TranscriptLibrary {
             // using calldatacopy
             mstore(m_ptr, old_challenge)
             m_ptr := add(m_ptr, 0x20)
-            let inputs_start := add(calldataload(0x04), 0x24)
-            // num_calldata_bytes = public input size + 256 bytes for the 4 wire commitments
-            let num_calldata_bytes := add(0x100, mul(num_public_inputs, 0x20))
+            let inputs_start := add(calldataload(0x24), 0x24) // start of call data
+            let num_calldata_bytes := mul(num_public_inputs, 0x20)
             calldatacopy(m_ptr, inputs_start, num_calldata_bytes)
 
+            inputs_start := add(calldataload(0x04), 0x24) // start of proof data
+            calldatacopy(add(m_ptr, num_calldata_bytes), inputs_start, 0x100)
+
             let start := mload(0x40)
-            let length := add(num_calldata_bytes, 0x20)
+            let length := add(num_calldata_bytes, 0x120)
 
             challenge := keccak256(start, length)
             reduced_challenge := mod(challenge, p)
@@ -252,12 +254,6 @@ library TranscriptLibrary {
         uint256 calldata_ptr;
         assembly {
             calldata_ptr := add(calldataload(0x04), 0x24)
-        }
-        {
-            uint256 num_public_inputs = self.num_public_inputs;
-            assembly {
-                calldata_ptr := add(calldata_ptr, mul(num_public_inputs, 0x20))
-            }
         }
         // There are NINE G1 group elements added into the transcript in the `beta` round, that we need to skip over
         assembly {

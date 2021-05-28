@@ -124,7 +124,7 @@ library PolynomialEval {
         // it scales with the number of public inputs
         uint256 p = Bn254Crypto.r_mod;
         assembly {
-            public_inputs := add(calldataload(0x04), 0x24)
+            public_inputs := add(calldataload(0x24), 0x24)
 
             // get public inputs from calldata. N.B. If Contract ABI Changes this code will need to be updated!
             endpoint := add(endpoint, public_inputs)

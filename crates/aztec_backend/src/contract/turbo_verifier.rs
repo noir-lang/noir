@@ -55,7 +55,7 @@ contract TurboVerifier {
     using Bn254Crypto for Types.G2Point;
     using TranscriptLibrary for TranscriptLibrary.Transcript;
 
-    function verify(bytes calldata) public view returns (bool) {
+    function verify(bytes calldata, bytes calldata) public view returns (bool) {
         // extract the correct rollup verification key
         Types.VerificationKey memory vk = get_verification_key();
         uint256 num_public_inputs = vk.num_inputs;
@@ -371,7 +371,7 @@ contract TurboVerifier {
             uint256 x1 = 0;
             uint256 y1 = 0;
             assembly {
-                index_counter := add(index_counter, data_ptr)
+                index_counter := add(index_counter, add(calldataload(0x24), 0x04))
                 x0 := calldataload(index_counter)
                 x0 := add(x0, shl(68, calldataload(add(index_counter, 0x20))))
                 x0 := add(x0, shl(136, calldataload(add(index_counter, 0x40))))
@@ -394,10 +394,7 @@ contract TurboVerifier {
             proof.recursive_P2 = Bn254Crypto.new_g1(x1, y1);
         }
 
-        assembly {
-            let public_input_byte_length := mul(num_public_inputs, 0x20)
-            data_ptr := add(data_ptr, public_input_byte_length)
-  
+        assembly {  
             // proof.W1
             mstore(mload(proof_ptr), mod(calldataload(add(data_ptr, 0x20)), q))
             mstore(add(mload(proof_ptr), 0x20), mod(calldataload(data_ptr), q))
