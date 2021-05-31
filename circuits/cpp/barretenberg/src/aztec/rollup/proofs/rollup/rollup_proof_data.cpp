@@ -47,7 +47,14 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
     new_null_root = fields[RollupProofFields::NEW_NULL_ROOT];
     old_data_roots_root = fields[RollupProofFields::OLD_DATA_ROOTS_ROOT];
     new_data_roots_root = fields[RollupProofFields::NEW_DATA_ROOTS_ROOT];
-    total_tx_fees.resize(NUM_ASSETS);
+    old_defi_root = fields[RollupProofFields::OLD_DEFI_ROOT];
+    new_defi_root = fields[RollupProofFields::NEW_DEFI_ROOT];
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        bridge_ids[i] = fields[RollupProofFields::DEFI_BRIDGE_IDS + i];
+    }
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        deposit_sums[i] = fields[RollupProofFields::DEFI_BRIDGE_DEPOSITS + i];
+    }
     for (size_t i = 0; i < NUM_ASSETS; ++i) {
         total_tx_fees[i] = fields[RollupProofFields::TOTAL_TX_FEES + i];
     }
@@ -78,12 +85,6 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
         }
         *coord = limb[0] + (uint256_t(1) << 68) * limb[1] + (uint256_t(1) << 136) * limb[2] +
                  (uint256_t(1) << 204) * limb[3];
-    }
-
-    new_defi_root = fields[offset++];
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        bridge_ids[i] = fields[offset++];
-        deposit_sums[i] = fields[offset++];
     }
 }
 

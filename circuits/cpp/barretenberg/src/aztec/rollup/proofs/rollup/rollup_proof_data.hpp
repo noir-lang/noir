@@ -10,16 +10,20 @@ using namespace plonk::stdlib::types::turbo;
 
 namespace RollupProofFields {
 enum {
-    ROLLUP_ID = 0,
-    ROLLUP_SIZE = 1,
-    DATA_START_INDEX = 2,
-    OLD_DATA_ROOT = 3,
-    NEW_DATA_ROOT = 4,
-    OLD_NULL_ROOT = 5,
-    NEW_NULL_ROOT = 6,
-    OLD_DATA_ROOTS_ROOT = 7,
-    NEW_DATA_ROOTS_ROOT = 8,
-    TOTAL_TX_FEES = 9,
+    ROLLUP_ID,
+    ROLLUP_SIZE,
+    DATA_START_INDEX,
+    OLD_DATA_ROOT,
+    NEW_DATA_ROOT,
+    OLD_NULL_ROOT,
+    NEW_NULL_ROOT,
+    OLD_DATA_ROOTS_ROOT,
+    NEW_DATA_ROOTS_ROOT,
+    OLD_DEFI_ROOT,
+    NEW_DEFI_ROOT,
+    DEFI_BRIDGE_IDS,
+    DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_IDS + NUM_BRIDGE_CALLS_PER_BLOCK,
+    TOTAL_TX_FEES = DEFI_BRIDGE_DEPOSITS + NUM_BRIDGE_CALLS_PER_BLOCK,
     INNER_PROOFS_DATA = TOTAL_TX_FEES + NUM_ASSETS,
 };
 } // namespace RollupProofFields
@@ -35,6 +39,10 @@ enum {
     NEW_NULL_ROOT = RollupProofFields::NEW_NULL_ROOT * 32,
     OLD_DATA_ROOTS_ROOT = RollupProofFields::OLD_DATA_ROOTS_ROOT * 32,
     NEW_DATA_ROOTS_ROOT = RollupProofFields::NEW_DATA_ROOTS_ROOT * 32,
+    OLD_DEFI_ROOT = RollupProofFields::OLD_DEFI_ROOT * 32,
+    NEW_DEFI_ROOT = RollupProofFields::NEW_DEFI_ROOT * 32,
+    DEFI_BRIDGE_IDS = RollupProofFields::DEFI_BRIDGE_IDS * 32,
+    DEFI_BRIDGE_DEPOSITS = RollupProofFields::DEFI_BRIDGE_DEPOSITS * 32,
     TOTAL_TX_FEES = RollupProofFields::TOTAL_TX_FEES * 32,
     INNER_PROOFS_DATA = RollupProofFields::INNER_PROOFS_DATA * 32,
 };
@@ -63,13 +71,13 @@ struct rollup_proof_data {
     fr new_null_root;
     fr old_data_roots_root;
     fr new_data_roots_root;
-    std::vector<uint256_t> total_tx_fees;
-    std::vector<propagated_inner_proof_data> inner_proofs;
-    g1::affine_element recursion_output[2];
-
+    fr old_defi_root;
     fr new_defi_root;
     std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_ids;
     std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
+    std::array<uint256_t, NUM_ASSETS> total_tx_fees;
+    std::vector<propagated_inner_proof_data> inner_proofs;
+    g1::affine_element recursion_output[2];
 
     rollup_proof_data(std::vector<uint8_t> const& proof_data);
     rollup_proof_data(std::vector<fr> const& fields);

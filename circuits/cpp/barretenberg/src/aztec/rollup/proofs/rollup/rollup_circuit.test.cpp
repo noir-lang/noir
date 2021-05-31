@@ -371,7 +371,6 @@ TEST_F(rollup_tests, test_nullifier_hash_path_consistency)
     auto rollup = create_rollup_tx(context.world_state, rollup_size, txs);
 
     std::swap(rollup.new_null_roots[2], rollup.new_null_roots[3]);
-    std::swap(rollup.new_null_paths[2], rollup.new_null_paths[3]);
     std::swap(rollup.old_null_paths[2], rollup.old_null_paths[3]);
 
     auto result = verify_logic(rollup, rollup_2_keyless);

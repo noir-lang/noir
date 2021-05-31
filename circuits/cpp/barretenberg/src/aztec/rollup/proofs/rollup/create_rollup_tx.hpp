@@ -24,7 +24,6 @@ inline void pad_rollup_tx(rollup_tx& rollup, size_t rollup_size, std::vector<uin
     rollup.txs.resize(rollup_size, padding_proof);
     rollup.new_null_roots.resize(rollup_size * 2, rollup.new_null_roots.back());
     rollup.old_null_paths.resize(rollup_size * 2, rollup.old_null_paths.back());
-    rollup.new_null_paths.resize(rollup_size * 2, rollup.new_null_paths.back());
     rollup.data_roots_paths.resize(rollup_size, rollup.data_roots_paths.back());
     rollup.data_roots_indicies.resize(rollup_size, 0);
     rollup.num_defi_interactions = rollup.bridge_ids.size();
@@ -48,24 +47,22 @@ template <typename T> inline rollup_tx create_empty_rollup(T& world_state)
     auto zero_roots_path = world_state.root_tree.get_hash_path(0);
 
     // Compose our rollup.
-    rollup_tx rollup = { 0,
-                         num_txs,
-                         data_start_index,
-                         {},
-                         data_root,
-                         data_root,
-                         zero_data_path,
-                         zero_data_path,
-                         null_root,
-                         { null_root },
-                         { zero_null_path },
-                         { zero_null_path },
-                         roots_root,
-                         { zero_roots_path },
-                         { 0 },
-                         world_state.defi_tree.root(),
-                         {},
-                         0 };
+    rollup_tx rollup = { .rollup_id = 0,
+                         .num_txs = num_txs,
+                         .data_start_index = data_start_index,
+                         .txs = {},
+                         .old_data_root = data_root,
+                         .new_data_root = data_root,
+                         .old_data_path = zero_data_path,
+                         .old_null_root = null_root,
+                         .new_null_roots = { null_root },
+                         .old_null_paths = { zero_null_path },
+                         .data_roots_root = roots_root,
+                         .data_roots_paths = { zero_roots_path },
+                         .data_roots_indicies = { 0 },
+                         .new_defi_root = world_state.defi_tree.root(),
+                         .bridge_ids = {},
+                         .num_defi_interactions = 0 };
 
     return rollup;
 }
@@ -165,13 +162,10 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
     auto root_tree_root = root_tree.root();
 
     // Compose our rollup.
-    rollup_tx rollup = {
-        rollup_id,      num_txs,          data_start_index,    txs,
-        old_data_root,  data_tree.root(), old_data_path,       data_tree.get_hash_path(data_start_index),
-        old_null_root,  new_null_roots,   old_null_paths,      new_null_paths,
-        root_tree_root, data_roots_paths, data_roots_indicies, defi_tree.root(),
-        bridge_ids,     bridge_ids.size()
-    };
+    rollup_tx rollup = { rollup_id,           num_txs,          data_start_index, txs,
+                         old_data_root,       data_tree.root(), old_data_path,    old_null_root,
+                         new_null_roots,      old_null_paths,   root_tree_root,   data_roots_paths,
+                         data_roots_indicies, defi_tree.root(), bridge_ids,       bridge_ids.size() };
 
     // Add nullifier 0 index padding data if necessary.
     if (num_txs < rollup_size) {
@@ -179,7 +173,6 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
 
         auto zero_null_path = null_tree.get_hash_path(0);
         rollup.old_null_paths.push_back(zero_null_path);
-        rollup.new_null_paths.push_back(zero_null_path);
     }
 
     return rollup;

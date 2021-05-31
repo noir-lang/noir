@@ -74,7 +74,7 @@ class root_rollup_full_tests : public ::testing::Test {
             rollups_data.push_back(rollup_data);
         }
 
-        return root_rollup::create_root_rollup_tx(rollup_id, rollups_data, world_state);
+        return root_rollup::create_root_rollup_tx(world_state, rollup_id, world_state.defi_tree.root(), rollups_data);
     }
 
     world_state::WorldState<MemoryStore> world_state;

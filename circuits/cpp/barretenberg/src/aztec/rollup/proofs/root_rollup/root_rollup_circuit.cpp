@@ -33,7 +33,6 @@ void add_padding_public_inputs(Composer& composer, size_t inner_size)
  * Inserts the latest data root into the root tree at location rollup_id + 1.
  */
 void check_root_tree_updated(Composer& composer,
-                             merkle_tree::hash_path const& new_data_roots_path,
                              merkle_tree::hash_path const& old_data_roots_path,
                              field_ct const& rollup_id,
                              field_ct const& new_data_root,
@@ -45,89 +44,13 @@ void check_root_tree_updated(Composer& composer,
     auto index = byte_array_ct(rollup_id + 1);
     update_membership(composer,
                       new_data_roots_root,
-                      new_data_roots_path,
+                      {},
                       new_data_root_arr,
                       old_data_roots_root,
                       old_data_roots_path,
                       empty_tree_value,
                       index,
                       __FUNCTION__);
-}
-
-/**
- * Processes defi deposit proofs within an inner proofs.
- * - We only process join split proofs with a proof_id == defi_deposit_proof_id (otherwise noop).
- * - For the defi deposit proofs, ensure that the bridge_id matches one within the of set of bridge_ids.
- * - Accumulate the deposit value in defi_deposit_sums. These will become public inputs.
- * - Modify the claim note encryptions (output_note_1 encryption) to add the relevant interaction nonce to it.
- */
-auto process_defi_deposits(Composer& composer,
-                           field_ct const& rollup_id,
-                           size_t num_inner_txs_pow2,
-                           std::vector<field_ct>& public_inputs,
-                           std::vector<field_ct> const& bridge_ids,
-                           std::vector<field_ct>& defi_deposit_sums,
-                           field_ct const& num_defi_interactions)
-{
-    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
-
-    for (size_t j = 0; j < num_inner_txs_pow2; j++) {
-        const auto public_input_start_idx =
-            RollupProofFields::INNER_PROOFS_DATA + (j * InnerProofFields::NUM_PUBLISHED);
-        const auto proof_id = public_inputs[public_input_start_idx + InnerProofFields::PROOF_ID];
-        const auto bridge_id = public_inputs[public_input_start_idx + InnerProofFields::ASSET_ID];
-        const auto deposit_value = public_inputs[public_input_start_idx + InnerProofFields::PUBLIC_OUTPUT];
-        const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
-
-        field_ct note_defi_interaction_nonce = defi_interaction_nonce;
-        field_ct num_matched(&composer, 0);
-
-        for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
-            auto is_real = uint32_ct(k) < num_defi_interactions;
-
-            const auto matches = bridge_id == bridge_ids[k] && is_real;
-            num_matched += matches;
-
-            defi_deposit_sums[k] += deposit_value * is_defi_deposit * matches;
-            note_defi_interaction_nonce += (field_ct(&composer, k) * matches);
-        }
-        note_defi_interaction_nonce *= is_defi_deposit;
-
-        // Assert this proof matched a single bridge_id.
-        auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
-        composer.assert_equal_constant(
-            is_valid_bridge_id.witness_index, 1, format("proof bridge id matched ", uint64_t(num_matched.get_value())));
-
-        // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
-        point_ct encrypted_claim_note{ public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X],
-                                       public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] };
-        encrypted_claim_note =
-            notes::circuit::claim::complete_partial_claim_note(encrypted_claim_note, note_defi_interaction_nonce);
-
-        public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_X] = encrypted_claim_note.x;
-        public_inputs[public_input_start_idx + InnerProofFields::NEW_NOTE1_Y] = encrypted_claim_note.y;
-    }
-}
-
-/**
- * Check that claim proofs are using the correct defi root.
- */
-auto process_claims(Composer& composer,
-                    size_t num_inner_txs_pow2,
-                    std::vector<field_ct>& public_inputs,
-                    field_ct const& old_defi_root)
-{
-    for (size_t j = 0; j < num_inner_txs_pow2; j++) {
-        const auto public_input_start_idx =
-            RollupProofFields::INNER_PROOFS_DATA + (j * InnerProofFields::NUM_PUBLISHED);
-        const auto proof_id = public_inputs[public_input_start_idx + InnerProofFields::PROOF_ID];
-        // For claim proofs, defi root is output in field named PUBLIC_OWNER.
-        const auto defi_root = public_inputs[public_input_start_idx + InnerProofFields::INPUT_OWNER];
-        const auto is_claim = proof_id == field_ct(ProofIds::DEFI_CLAIM);
-
-        auto valid = defi_root == old_defi_root || !is_claim;
-        composer.assert_equal_constant(valid.witness_index, 1, format("claim proof has unmatched defi root"));
-    }
 }
 
 /**
@@ -168,53 +91,71 @@ field_ct process_defi_interaction_notes(Composer& composer,
                             insertion_index,
                             "check_defi_tree_updated");
 
-    const auto hash_output = plonk::stdlib::sha256<Composer>(hash_input);
-    return field_ct(byte_array_ct(hash_output));
+    auto hash_output = byte_array_ct(plonk::stdlib::sha256<Composer>(hash_input));
+    // Zero the first 4 bits to ensure field conversion doesn't wrap around prime.
+    for (size_t i = 252; i < 256; ++i) {
+        hash_output.set_bit(i, false);
+    }
+    return field_ct(hash_output);
 }
 
 void assert_inner_proof_sequential(Composer& composer,
-                                   size_t num_inner_txs_pow2,
-                                   uint32_t i,
+                                   size_t const num_inner_txs_pow2,
+                                   uint32_t const i,
+                                   field_ct const& rollup_id,
                                    field_ct& data_start_index,
                                    field_ct& old_data_root,
                                    field_ct& new_data_root,
                                    field_ct& old_null_root,
                                    field_ct& new_null_root,
-                                   field_ct& old_root_root,
+                                   field_ct const& old_root_root,
+                                   field_ct const& new_defi_root,
+                                   std::vector<field_ct> const& bridge_ids,
                                    std::vector<field_ct> const& public_inputs,
                                    bool_ct const& is_real)
 {
+    auto rollup_id_inner = public_inputs[RollupProofFields::ROLLUP_ID];
     auto data_start_index_inner = public_inputs[RollupProofFields::DATA_START_INDEX];
     auto old_data_root_inner = public_inputs[RollupProofFields::OLD_DATA_ROOT];
     auto new_data_root_inner = public_inputs[RollupProofFields::NEW_DATA_ROOT];
     auto old_null_root_inner = public_inputs[RollupProofFields::OLD_NULL_ROOT];
     auto new_null_root_inner = public_inputs[RollupProofFields::NEW_NULL_ROOT];
     auto old_root_root_inner = public_inputs[RollupProofFields::OLD_DATA_ROOTS_ROOT];
+    auto new_defi_root_inner = public_inputs[RollupProofFields::NEW_DEFI_ROOT];
+
+    // Check every real inner proof has matching bridge ids.
+    for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; ++j) {
+        auto valid_bid = !is_real || public_inputs[RollupProofFields::DEFI_BRIDGE_IDS + j] == bridge_ids[j];
+        composer.assert_equal_constant(valid_bid, 1, format("inconsistent_bridge_id_", j));
+    }
 
     // Every real inner proof should use the root tree root we've input.
-    auto valid_root_root = (!is_real || old_root_root_inner == old_root_root).normalize();
-    composer.assert_equal_constant(valid_root_root.witness_index, 1, format("inconsistent_root_roots_", i));
+    auto valid_root_root = !is_real || old_root_root_inner == old_root_root;
+    composer.assert_equal_constant(valid_root_root, 1, format("inconsistent_roots_root_", i));
+
+    // Every real inner proof should use the defi root we've input.
+    auto valid_defi_root = !is_real || new_defi_root_inner == new_defi_root;
+    composer.assert_equal_constant(valid_defi_root, 1, format("inconsistent_defi_root_", i));
 
     if (i == 0) {
         // The first proof should always be real.
-        composer.assert_equal_constant(is_real.witness_index, 1);
+        composer.assert_equal_constant(is_real, 1);
         data_start_index = data_start_index_inner;
         old_data_root = old_data_root_inner;
         new_data_root = new_data_root_inner;
         old_null_root = old_null_root_inner;
         new_null_root = new_null_root_inner;
     } else {
+        auto valid_rollup_id = !is_real || rollup_id_inner == rollup_id;
         auto valid_data_start_index =
             !is_real || data_start_index_inner == (data_start_index + (i * num_inner_txs_pow2 * 2));
         auto valid_old_data_root = !is_real || old_data_root_inner == new_data_root;
         auto valid_old_null_root = !is_real || old_null_root_inner == new_null_root;
 
-        composer.assert_equal_constant(
-            valid_data_start_index.normalize().witness_index, 1, format("incorrect_data_start_index_", i));
-        composer.assert_equal_constant(
-            valid_old_data_root.normalize().witness_index, 1, format("inconsistent_data_roots_", i));
-        composer.assert_equal_constant(
-            valid_old_null_root.normalize().witness_index, 1, format("inconsistent_null_roots_", i));
+        composer.assert_equal_constant(valid_rollup_id, 1, format("incorrect_rollup_id_", i));
+        composer.assert_equal_constant(valid_data_start_index, 1, format("incorrect_data_start_index_", i));
+        composer.assert_equal_constant(valid_old_data_root, 1, format("inconsistent_old_data_root_", i));
+        composer.assert_equal_constant(valid_old_null_root, 1, format("inconsistent_old_null_root_", i));
 
         new_data_root = (new_data_root_inner * is_real) + (new_data_root * !is_real);
         new_null_root = (new_null_root_inner * is_real) + (new_null_root * !is_real);
@@ -222,50 +163,39 @@ void assert_inner_proof_sequential(Composer& composer,
 }
 
 recursion_output<bn254> root_rollup_circuit(Composer& composer,
-                                            root_rollup_tx const& root_rollup,
+                                            root_rollup_tx const& tx,
                                             size_t num_inner_txs_pow2,
                                             size_t num_outer_txs_pow2,
                                             std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
+    auto max_num_inner_proofs = tx.rollups.size();
 
-    auto max_num_inner_proofs = root_rollup.rollups.size();
-    field_ct rollup_size = witness_ct(&composer, num_outer_txs_pow2);
-    composer.assert_equal_constant(rollup_size.witness_index, num_outer_txs_pow2);
+    // Witnesses.
+    const auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));
+    const auto rollup_size_pow2 = field_ct(witness_ct(&composer, num_outer_txs_pow2));
+    composer.assert_equal_constant(rollup_size_pow2, num_outer_txs_pow2);
+    const auto num_inner_proofs = uint32_ct(witness_ct(&composer, tx.num_inner_proofs));
+    const auto old_root_root = field_ct(witness_ct(&composer, tx.old_data_roots_root));
+    const auto new_root_root = field_ct(witness_ct(&composer, tx.new_data_roots_root));
+    const auto old_root_path = create_witness_hash_path(composer, tx.old_data_roots_path);
+    const auto old_defi_root = field_ct(witness_ct(&composer, tx.old_defi_root));
+    const auto new_defi_root = field_ct(witness_ct(&composer, tx.new_defi_root));
+    const auto old_defi_path = create_witness_hash_path(composer, tx.old_defi_path);
+    const auto bridge_ids = map(tx.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
+    const auto defi_interaction_notes = map(tx.defi_interaction_notes, [&](auto n) {
+        return circuit::defi_interaction::note(circuit::defi_interaction::witness_data(composer, n));
+    });
+    const auto num_previous_defi_interactions = field_ct(witness_ct(&composer, tx.num_previous_defi_interactions));
+    const auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
+    const auto recursive_verification_key =
+        plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
 
-    uint32_ct num_inner_proofs = witness_ct(&composer, root_rollup.num_inner_proofs);
-    field_ct rollup_id = witness_ct(&composer, root_rollup.rollup_id);
+    // To be extracted from inner proofs.
     field_ct data_start_index = witness_ct(&composer, 0);
     field_ct old_data_root = witness_ct(&composer, 0);
     field_ct new_data_root = witness_ct(&composer, 0);
     field_ct old_null_root = witness_ct(&composer, 0);
     field_ct new_null_root = witness_ct(&composer, 0);
-    field_ct old_root_root = witness_ct(&composer, root_rollup.old_data_roots_root);
-    field_ct new_root_root = witness_ct(&composer, root_rollup.new_data_roots_root);
-    auto new_data_roots_path = create_witness_hash_path(composer, root_rollup.new_data_roots_path);
-    auto old_data_roots_path = create_witness_hash_path(composer, root_rollup.old_data_roots_path);
-    auto recursive_manifest = Composer::create_unrolled_manifest(inner_verification_key->num_public_inputs);
-    auto recursive_verification_key =
-        plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
-
-    // Defi witnesses.
-    field_ct num_defi_interactions = witness_ct(&composer, root_rollup.num_defi_interactions);
-    field_ct num_previous_defi_interactions = witness_ct(&composer, root_rollup.num_previous_defi_interactions);
-    field_ct old_defi_interaction_root = witness_ct(&composer, root_rollup.old_defi_interaction_root);
-    field_ct new_defi_interaction_root = witness_ct(&composer, root_rollup.new_defi_interaction_root);
-    auto old_defi_interaction_path = create_witness_hash_path(composer, root_rollup.old_defi_interaction_path);
-    auto new_defi_interaction_path = create_witness_hash_path(composer, root_rollup.new_defi_interaction_path);
-    auto bridge_ids = map(root_rollup.bridge_ids, [&](auto bid) { return field_ct(witness_ct(&composer, bid)); });
-    auto defi_interaction_notes = map(root_rollup.defi_interaction_notes, [&](auto n) {
-        return circuit::defi_interaction::note(circuit::defi_interaction::witness_data(composer, n));
-    });
-
-    // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
-    for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
-        auto in_scope = uint32_ct(i) < num_defi_interactions;
-        bridge_ids[i] *= in_scope;
-        auto valid = !in_scope || bridge_ids[i] != 0;
-        composer.assert_equal_constant(valid.witness_index, 1, "bridge_id out of scope");
-    }
 
     // Loop accumulators.
     recursion_output<bn254> recursion_output;
@@ -281,7 +211,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
             verify_proof<bn254, recursive_turbo_verifier_settings<bn254>>(&composer,
                                                                           recursive_verification_key,
                                                                           recursive_manifest,
-                                                                          waffle::plonk_proof{ root_rollup.rollups[i] },
+                                                                          waffle::plonk_proof{ tx.rollups[i] },
                                                                           recursion_output);
 
         auto& public_inputs = recursion_output.public_inputs;
@@ -296,23 +226,23 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
             total_tx_fees[j] += public_inputs[RollupProofFields::TOTAL_TX_FEES + j];
         }
 
-        process_defi_deposits(composer,
-                              rollup_id,
-                              num_inner_txs_pow2,
-                              public_inputs,
-                              bridge_ids,
-                              defi_deposit_sums,
-                              num_defi_interactions);
+        // Accumulate defi deposits.
+        for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; ++j) {
+            defi_deposit_sums[j] += public_inputs[RollupProofFields::DEFI_BRIDGE_DEPOSITS + j];
+        }
 
         assert_inner_proof_sequential(composer,
                                       num_inner_txs_pow2,
                                       i,
+                                      rollup_id,
                                       data_start_index,
                                       old_data_root,
                                       new_data_root,
                                       old_null_root,
                                       new_null_root,
                                       old_root_root,
+                                      new_defi_root,
+                                      bridge_ids,
                                       public_inputs,
                                       is_real);
 
@@ -326,20 +256,19 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     std::vector<point_ct> encrypted_defi_interaction_notes;
     auto previous_defi_interaction_hash = process_defi_interaction_notes(composer,
                                                                          rollup_id,
-                                                                         new_defi_interaction_root,
-                                                                         old_defi_interaction_root,
-                                                                         old_defi_interaction_path,
+                                                                         new_defi_root,
+                                                                         old_defi_root,
+                                                                         old_defi_path,
                                                                          num_previous_defi_interactions,
                                                                          defi_interaction_notes,
                                                                          encrypted_defi_interaction_notes);
 
     // Check data root tree is updated with latest data root.
-    check_root_tree_updated(
-        composer, new_data_roots_path, old_data_roots_path, rollup_id, new_data_root, new_root_root, old_root_root);
+    check_root_tree_updated(composer, old_root_path, rollup_id, new_data_root, new_root_root, old_root_root);
 
     // Publish public inputs.
     composer.set_public_input(rollup_id.witness_index);
-    composer.set_public_input(rollup_size.witness_index);
+    composer.set_public_input(rollup_size_pow2.witness_index);
     composer.set_public_input(data_start_index.witness_index);
     composer.set_public_input(old_data_root.witness_index);
     composer.set_public_input(new_data_root.witness_index);
@@ -347,15 +276,20 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_root_root.witness_index);
     composer.set_public_input(new_root_root.witness_index);
-
+    composer.set_public_input(old_defi_root.witness_index);
+    composer.set_public_input(new_defi_root.witness_index);
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(bridge_ids[i].witness_index);
+    }
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(defi_deposit_sums[i].witness_index);
+    }
     for (auto total_tx_fee : total_tx_fees) {
         composer.set_public_input(total_tx_fee.witness_index);
     }
-
     for (auto& inp : tx_proof_public_inputs) {
         composer.set_public_input(inp.witness_index);
     }
-
     for (size_t i = max_num_inner_proofs; i < num_outer_txs_pow2 / num_inner_txs_pow2; ++i) {
         add_padding_public_inputs(composer, num_inner_txs_pow2);
     }
@@ -363,11 +297,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     recursion_output.add_proof_outputs_as_public_inputs();
 
     // The root rollup has the same public input structure as the inner rollup, until this point.
-    // The following public inputs support the defi bridge.
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(bridge_ids[i].witness_index);
-        composer.set_public_input(defi_deposit_sums[i].witness_index);
-    }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         encrypted_defi_interaction_notes[i].set_public();
     }

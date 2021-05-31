@@ -90,6 +90,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     // Check public values.
     composer.create_range_constraint(inputs.public_input.witness_index, NOTE_VALUE_BIT_LENGTH);
     composer.create_range_constraint(inputs.public_output.witness_index, NOTE_VALUE_BIT_LENGTH);
+    composer.create_range_constraint(inputs.claim_note.deposit_value.witness_index, DEFI_DEPOSIT_VALUE_BIT_LENGTH);
 
     // Derive tx_fee.
     field_ct total_in_value = inputs.input_note1.value + inputs.input_note2.value + public_input;

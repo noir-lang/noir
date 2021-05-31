@@ -24,12 +24,10 @@ struct escape_hatch_tx {
     fr old_null_root;
     std::vector<fr> new_null_roots;
     std::vector<fr_hash_path> old_null_paths;
-    std::vector<fr_hash_path> new_null_paths;
 
     fr old_data_roots_root;
     fr new_data_roots_root;
     fr_hash_path old_data_roots_path;
-    fr_hash_path new_data_roots_path;
 
     bool operator==(escape_hatch_tx const& rhs) const = default;
 };

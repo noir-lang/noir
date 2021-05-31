@@ -22,26 +22,28 @@ void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_c
     }
 }
 
+void add_zero_public_input(Composer& composer)
+{
+    auto zero = witness_ct(&composer, 0);
+    composer.assert_equal_constant(zero.witness_index, 0);
+    composer.set_public_input(zero.witness_index);
+}
+
 void add_padding_public_inputs(Composer& composer)
 {
     for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED; ++i) {
-        auto zero = witness_ct(&composer, 0);
-        composer.assert_equal_constant(zero.witness_index, 0);
-        composer.set_public_input(zero.witness_index);
+        add_zero_public_input(composer);
     }
 }
 
 field_ct check_nullifiers_inserted(Composer& composer,
-                                   std::vector<fr> const& new_null_roots,
-                                   std::vector<fr_hash_path> const& old_null_paths,
-                                   std::vector<fr_hash_path> const& new_null_paths,
+                                   std::vector<field_ct> const& new_null_roots,
+                                   std::vector<merkle_tree::hash_path> const& old_null_paths,
                                    uint32_ct const& num_txs,
                                    field_ct latest_null_root,
                                    std::vector<field_ct> const& new_null_indicies)
 {
     for (size_t i = 0; i < new_null_indicies.size(); ++i) {
-        auto new_null_root = field_ct(witness_ct(&composer, new_null_roots[i]));
-
         auto is_real = num_txs > uint32_ct(&composer, i / 2) && new_null_indicies[i] != 0;
 
         // This makes padding transactions act as noops.
@@ -49,20 +51,18 @@ field_ct check_nullifiers_inserted(Composer& composer,
         auto old_nullifier_value = byte_array_ct(&composer, 64);
         auto new_nullifier_value = byte_array_ct(&composer, 64);
         new_nullifier_value.set_bit(0, is_real);
-        auto new_null_path = create_witness_hash_path(composer, new_null_paths[i]);
-        auto old_null_path = create_witness_hash_path(composer, old_null_paths[i]);
 
         update_membership(composer,
-                          new_null_root,
-                          new_null_path,
+                          new_null_roots[i],
+                          {},
                           new_nullifier_value,
                           latest_null_root,
-                          old_null_path,
+                          old_null_paths[i],
                           old_nullifier_value,
                           byte_array_ct(index),
                           format(__FUNCTION__, "_", i));
 
-        latest_null_root = new_null_root;
+        latest_null_root = new_null_roots[i];
     }
 
     return latest_null_root;
@@ -70,7 +70,6 @@ field_ct check_nullifiers_inserted(Composer& composer,
 
 void check_data_tree_updated(Composer& composer,
                              size_t rollup_size,
-                             merkle_tree::hash_path const& new_data_path,
                              merkle_tree::hash_path const& old_data_path,
                              std::vector<byte_array_ct> const& new_data_values,
                              field_ct const& old_data_root,
@@ -84,7 +83,7 @@ void check_data_tree_updated(Composer& composer,
 
     update_subtree_membership(composer,
                               new_data_root,
-                              new_data_path,
+                              {},
                               rollup_root,
                               old_data_root,
                               old_data_path,
@@ -163,23 +162,33 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                        std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,
                                        size_t max_num_txs)
 {
-    // Witnesses.
-    auto floor_rollup_size = 1UL << numeric::get_msb(max_num_txs);
-    auto rollup_size_pow2_ = floor_rollup_size << (max_num_txs != floor_rollup_size);
-    auto rollup_size_pow2 = field_ct(witness_ct(&composer, rollup_size_pow2_));
+    // Compute a constant witness of the next power of 2 > max_num_txs.
+    const auto floor_rollup_size = 1UL << numeric::get_msb(max_num_txs);
+    const auto rollup_size_pow2_ = floor_rollup_size << (max_num_txs != floor_rollup_size);
+    const auto rollup_size_pow2 = field_ct(witness_ct(&composer, rollup_size_pow2_));
     composer.assert_equal_constant(rollup_size_pow2.witness_index, rollup_size_pow2_);
-    auto rollup_id = field_ct(witness_ct(&composer, rollup.rollup_id));
-    auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
+
+    // Witnesses from rollup_tx data.
+    const auto rollup_id = field_ct(witness_ct(&composer, rollup.rollup_id));
+    const auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
     composer.create_range_constraint(num_txs.get_witness_index(), MAX_TXS_BIT_LENGTH);
-    auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
-    auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
-    auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
-    auto old_null_root = field_ct(witness_ct(&composer, rollup.old_null_root));
-    auto data_roots_root = field_ct(witness_ct(&composer, rollup.data_roots_root));
-    auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
-    auto num_defi_interactions = field_ct(witness_ct(&composer, rollup.num_defi_interactions));
-    auto new_defi_root = field_ct(witness_ct(&composer, rollup.new_defi_root));
-    auto bridge_ids = map(rollup.bridge_ids, [&](auto bid) { return field_ct(witness_ct(&composer, bid)); });
+    const auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
+    const auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
+    const auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
+    const auto old_data_path = create_witness_hash_path(composer, rollup.old_data_path);
+    const auto old_null_root = field_ct(witness_ct(&composer, rollup.old_null_root));
+    const auto new_null_roots = map(rollup.new_null_roots, [&](auto& r) { return field_ct(witness_ct(&composer, r)); });
+    const auto old_null_paths =
+        map(rollup.old_null_paths, [&](auto& p) { return create_witness_hash_path(composer, p); });
+    const auto data_roots_root = field_ct(witness_ct(&composer, rollup.data_roots_root));
+    const auto data_roots_paths =
+        map(rollup.data_roots_paths, [&](auto& p) { return create_witness_hash_path(composer, p); });
+    const auto data_root_indicies =
+        map(rollup.data_roots_indicies, [&](auto& i) { return field_ct(witness_ct(&composer, i)); });
+    const auto new_defi_root = field_ct(witness_ct(&composer, rollup.new_defi_root));
+    const auto num_defi_interactions = field_ct(witness_ct(&composer, rollup.num_defi_interactions));
+    auto bridge_ids = map(rollup.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
+    const auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
 
     // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
@@ -238,12 +247,11 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
         // Check this proofs data root exists in the data root tree (unless a padding entry).
         auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];
-        auto data_roots_path = create_witness_hash_path(composer, rollup.data_roots_paths[i]);
-        auto data_root_index = uint32_ct(witness_ct(&composer, rollup.data_roots_indicies[i]));
-        bool_ct valid =
-            data_root != 0 &&
-            check_membership(
-                composer, data_roots_root, data_roots_path, byte_array_ct(data_root), byte_array_ct(data_root_index));
+        bool_ct valid = data_root != 0 && check_membership(composer,
+                                                           data_roots_root,
+                                                           data_roots_paths[i],
+                                                           byte_array_ct(data_root),
+                                                           byte_array_ct(data_root_indicies[i]));
         composer.assert_equal(is_real.witness_index, valid.witness_index, format("data_root_for_proof_", i));
 
         // Accumulate tx fee.
@@ -256,25 +264,12 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         inner_public_inputs.push_back(public_inputs);
     }
 
-    auto new_data_path = create_witness_hash_path(composer, rollup.new_data_path);
-    auto old_data_path = create_witness_hash_path(composer, rollup.old_data_path);
     new_data_values.resize(rollup_size_pow2_ * 2, byte_array_ct(&composer, 64));
-    check_data_tree_updated(composer,
-                            rollup_size_pow2_,
-                            new_data_path,
-                            old_data_path,
-                            new_data_values,
-                            old_data_root,
-                            new_data_root,
-                            data_start_index);
+    check_data_tree_updated(
+        composer, rollup_size_pow2_, old_data_path, new_data_values, old_data_root, new_data_root, data_start_index);
 
-    auto new_null_root = check_nullifiers_inserted(composer,
-                                                   rollup.new_null_roots,
-                                                   rollup.old_null_paths,
-                                                   rollup.new_null_paths,
-                                                   num_txs,
-                                                   old_null_root,
-                                                   new_null_indicies);
+    auto new_null_root =
+        check_nullifiers_inserted(composer, new_null_roots, old_null_paths, num_txs, old_null_root, new_null_indicies);
 
     // Publish public inputs.
     composer.set_public_input(rollup_id.witness_index);
@@ -286,26 +281,26 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(data_roots_root.witness_index);
     composer.set_public_input(witness_ct(&composer, rollup.data_roots_root).witness_index);
+    add_zero_public_input(composer); // old_defi_root
+    composer.set_public_input(new_defi_root.witness_index);
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(bridge_ids[i].witness_index);
+    }
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        composer.set_public_input(defi_deposit_sums[i].witness_index);
+    }
     for (auto total_tx_fee : total_tx_fees) {
         composer.set_public_input(total_tx_fee.witness_index);
     }
     for (auto& inner : inner_public_inputs) {
         propagate_inner_proof_public_inputs(composer, inner);
     }
-
     for (size_t i = max_num_txs; i < rollup_size_pow2_; ++i) {
         add_padding_public_inputs(composer);
     }
 
     // Publish pairing coords limbs as public inputs.
     recursion_output.add_proof_outputs_as_public_inputs();
-
-    // Defi public inputs.
-    composer.set_public_input(new_defi_root.witness_index);
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(bridge_ids[i].witness_index);
-        composer.set_public_input(defi_deposit_sums[i].witness_index);
-    }
 
     return recursion_output;
 }

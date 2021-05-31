@@ -91,7 +91,7 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
     result.proof_data = proof.proof_data;
 
     // Pairing check.
-    auto data = rollup::root_rollup_proof_data(proof.proof_data);
+    auto data = root_rollup_proof_data(proof.proof_data);
     auto pairing = barretenberg::pairing::reduced_ate_pairing_batch_precomputed(
                        data.recursion_output, circuit_data.verifier_crs->get_precomputed_g2_lines(), 2) ==
                    barretenberg::fq12::one();

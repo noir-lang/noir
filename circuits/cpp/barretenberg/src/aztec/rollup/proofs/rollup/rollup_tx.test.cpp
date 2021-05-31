@@ -18,12 +18,10 @@ TEST(rollup_tx, test_serialization)
     rollup.old_data_root = fr::random_element();
     rollup.new_data_root = fr::random_element();
     rollup.old_data_path = fr_hash_path(32, random_pair);
-    rollup.new_data_path = fr_hash_path(32, random_pair);
 
     rollup.old_null_root = fr::random_element();
     rollup.new_null_roots = std::vector(rollup.num_txs * 2, fr::random_element());
     rollup.old_null_paths = std::vector(rollup.num_txs * 2, fr_hash_path(rollup::NULL_TREE_DEPTH, random_pair));
-    rollup.new_null_paths = std::vector(rollup.num_txs * 2, fr_hash_path(rollup::NULL_TREE_DEPTH, random_pair));
 
     rollup.data_roots_root = fr::random_element();
     rollup.data_roots_paths = std::vector(rollup.num_txs, fr_hash_path(28, random_pair));
@@ -43,12 +41,10 @@ TEST(rollup_tx, test_serialization)
     EXPECT_EQ(result.old_data_root, rollup.old_data_root);
     EXPECT_EQ(result.new_data_root, rollup.new_data_root);
     EXPECT_EQ(result.old_data_path, rollup.old_data_path);
-    EXPECT_EQ(result.new_data_path, rollup.new_data_path);
 
     EXPECT_EQ(result.old_null_root, rollup.old_null_root);
     EXPECT_EQ(result.new_null_roots, rollup.new_null_roots);
     EXPECT_EQ(result.old_null_paths, rollup.old_null_paths);
-    EXPECT_EQ(result.new_null_paths, rollup.new_null_paths);
 
     EXPECT_EQ(result.data_roots_root, rollup.data_roots_root);
     EXPECT_EQ(result.data_roots_paths, rollup.data_roots_paths);

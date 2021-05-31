@@ -1,6 +1,5 @@
 #pragma once
 #include "../rollup/compute_circuit_data.hpp"
-#include "../account/compute_circuit_data.hpp"
 #include "root_rollup_tx.hpp"
 #include "root_rollup_circuit.hpp"
 #include <plonk/proof_system/proving_key/proving_key.hpp>
@@ -11,7 +10,6 @@ namespace proofs {
 namespace root_rollup {
 
 using namespace join_split;
-using namespace account;
 
 struct circuit_data : proofs::circuit_data {
     size_t num_inner_rollups;
@@ -42,19 +40,16 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
             fr_hash_path(DEFI_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
 
         root_rollup_tx root_rollup;
-        root_rollup.rollup_id = 0;
         root_rollup.old_data_roots_root = fr::random_element();
         root_rollup.new_data_roots_root = fr::random_element();
         root_rollup.old_data_roots_path = gibberish_roots_path;
-        root_rollup.new_data_roots_path = gibberish_roots_path;
         root_rollup.rollups.resize(num_inner_rollups, rollup_circuit_data.padding_proof);
-        root_rollup.num_defi_interactions = 0;
-        root_rollup.old_defi_interaction_root = fr::random_element();
-        root_rollup.new_defi_interaction_root = fr::random_element();
-        root_rollup.old_defi_interaction_path = gibberish_defi_path;
-        root_rollup.new_defi_interaction_path = gibberish_defi_path;
+        root_rollup.old_defi_root = fr::random_element();
+        root_rollup.new_defi_root = fr::random_element();
+        root_rollup.old_defi_path = gibberish_defi_path;
         root_rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
         root_rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+        root_rollup.num_previous_defi_interactions = 0;
         root_rollup_circuit(composer,
                             root_rollup,
                             rollup_circuit_data.rollup_size,

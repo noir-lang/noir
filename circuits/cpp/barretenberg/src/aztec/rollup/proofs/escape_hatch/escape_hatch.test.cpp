@@ -174,7 +174,6 @@ class escape_hatch_tests : public ::testing::Test {
         auto data_root = to_buffer(data_tree.root());
         root_tree.update_element(root_tree_index, data_root);
         tx.new_data_roots_root = root_tree.root();
-        tx.new_data_roots_path = root_tree.get_hash_path(root_tree_index);
 
         auto nullifier1 = uint256_t(
             compute_nullifier(encrypt(tx.js_tx.input_note[0]), tx.js_tx.input_index[0], user.owner.private_key, true));
@@ -186,18 +185,15 @@ class escape_hatch_tests : public ::testing::Test {
 
         tx.old_null_root = null_tree.root();
         tx.old_null_paths.resize(2);
-        tx.new_null_paths.resize(2);
         tx.new_null_roots.resize(2);
 
         tx.old_null_paths[0] = null_tree.get_hash_path(nullifier1);
         null_tree.update_element(nullifier1, nullifier_value);
         tx.new_null_roots[0] = null_tree.root();
-        tx.new_null_paths[0] = null_tree.get_hash_path(nullifier1);
 
         tx.old_null_paths[1] = null_tree.get_hash_path(nullifier2);
         null_tree.update_element(nullifier2, nullifier_value);
         tx.new_null_roots[1] = null_tree.root();
-        tx.new_null_paths[1] = null_tree.get_hash_path(nullifier2);
 
         return tx;
     }
@@ -263,21 +259,6 @@ TEST_F(escape_hatch_tests, wrong_null_merkle_root_fails)
 {
     escape_hatch_tx tx = simple_setup();
     tx.old_null_root = fr::random_element();
-    EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
-}
-
-TEST_F(escape_hatch_tests, switch_current_new_null_paths_fails)
-{
-    escape_hatch_tx tx = simple_setup();
-    auto new_paths_copy = tx.new_null_paths;
-
-    // n.b. simply swapping the hash paths will now produce a valid proof. The
-    // circuit only extracts one item out of each hash path index - the partner hash.
-    // This partner hash does not change when performing a state update, so both old/new paths are valid.
-    tx.new_null_paths = tx.old_null_paths;
-    tx.old_null_paths = new_paths_copy;
-
-    std::swap(tx.old_null_paths[0], tx.old_null_paths[1]);
     EXPECT_FALSE((sign_and_verify_logic(tx, user.signing_keys[0].private_key)));
 }
 

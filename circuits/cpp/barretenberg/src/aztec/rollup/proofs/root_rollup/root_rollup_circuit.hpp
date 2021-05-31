@@ -12,7 +12,6 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 
 void check_root_tree_updated(Composer& composer,
-                             merkle_tree::hash_path const& new_data_roots_path,
                              merkle_tree::hash_path const& old_data_roots_path,
                              field_ct const& rollup_id,
                              field_ct const& new_data_root,

@@ -7,6 +7,7 @@ namespace proofs {
 namespace notes {
 
 constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
+constexpr size_t DEFI_DEPOSIT_VALUE_BIT_LENGTH = 254 - MAX_TXS_BIT_LENGTH;
 
 enum GeneratorIndex {
     JOIN_SPLIT_NULLIFIER_HASH_INPUTS, // encrypt. 4 inputs. 0-7.

@@ -57,8 +57,8 @@ class TestContext {
         world_state.nullify(native::account::compute_account_alias_id_nullifier(account_alias_id));
     }
 
-    std::vector<uint8_t> create_join_split_proof(std::array<uint32_t, 2> in_note_idx,
-                                                 std::array<uint32_t, 2> in_note_value,
+    std::vector<uint8_t> create_join_split_proof(std::vector<uint32_t> in_note_idx,
+                                                 std::vector<uint32_t> in_note_value,
                                                  std::array<uint32_t, 2> out_note_value,
                                                  uint256_t public_input = 0,
                                                  uint256_t public_output = 0,
@@ -80,8 +80,8 @@ class TestContext {
         return join_split::create_proof(tx, signer, js_cd);
     }
 
-    std::vector<uint8_t> create_defi_proof(std::array<uint32_t, 2> in_note_idx,
-                                           std::array<uint32_t, 2> in_note_value,
+    std::vector<uint8_t> create_defi_proof(std::vector<uint32_t> in_note_idx,
+                                           std::vector<uint32_t> in_note_value,
                                            std::array<uint32_t, 2> out_note_value,
                                            uint256_t bridge_id,
                                            uint32_t asset_id = 0,
