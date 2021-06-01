@@ -15,9 +15,9 @@ void write(std::vector<uint8_t>& buf, escape_hatch_tx const& tx)
 
     write(buf, tx.rollup_id);
     write(buf, tx.data_start_index);
+
     write(buf, tx.new_data_root);
     write(buf, tx.old_data_path);
-    write(buf, tx.new_data_path);
 
     write(buf, tx.old_null_root);
     write(buf, tx.new_null_roots);
@@ -35,9 +35,9 @@ void read(uint8_t const*& buf, escape_hatch_tx& tx)
 
     read(buf, tx.rollup_id);
     read(buf, tx.data_start_index);
+
     read(buf, tx.new_data_root);
     read(buf, tx.old_data_path);
-    read(buf, tx.new_data_path);
 
     read(buf, tx.old_null_root);
     read(buf, tx.new_null_roots);

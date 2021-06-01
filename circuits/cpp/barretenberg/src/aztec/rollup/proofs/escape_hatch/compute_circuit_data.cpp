@@ -37,7 +37,6 @@ escape_hatch_tx dummy_tx()
 
     tx.new_data_root = fr::random_element();
     tx.old_data_path = data_gibberish_path;
-    tx.new_data_path = data_gibberish_path;
 
     tx.old_null_root = fr::random_element();
     tx.new_null_roots = { fr::random_element(), fr::random_element() };

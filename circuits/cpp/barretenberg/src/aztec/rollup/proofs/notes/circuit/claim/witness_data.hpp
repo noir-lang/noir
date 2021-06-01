@@ -54,6 +54,13 @@ struct claim_note_tx_witness_data {
     }
 };
 
+inline std::ostream& operator<<(std::ostream& os, claim_note_tx_witness_data const& tx)
+{
+    return os << "{ deposit_value: " << tx.deposit_value << ", bridge_id: " << tx.bridge_id_data.to_field()
+              << ", owner: " << tx.owner << ", owner_nonce: " << tx.owner_nonce
+              << ", interaction_nonce: " << tx.defi_interaction_nonce << " }";
+}
+
 } // namespace claim
 } // namespace circuit
 } // namespace notes

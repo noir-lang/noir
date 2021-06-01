@@ -222,7 +222,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.
     composer.set_public_input(inputs.merkle_root.witness_index);
     composer.set_public_input(outputs.tx_fee.witness_index);
-} // namespace join_split
+}
 
 } // namespace join_split
 } // namespace proofs

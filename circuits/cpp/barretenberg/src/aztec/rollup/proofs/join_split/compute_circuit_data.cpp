@@ -1,6 +1,5 @@
 #include "compute_circuit_data.hpp"
 #include "join_split_circuit.hpp"
-// #include "../notes/native/sign_notes.hpp"
 #include "sign_join_split_tx.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
@@ -33,7 +32,7 @@ join_split_tx noop_tx()
     native::value::value_note gibberish_note = { 0, 0, 0, pub_key, fr::random_element() };
     gibberish_note.secret.data[3] = gibberish_note.secret.data[3] & 0x03FFFFFFFFFFFFFFULL;
     gibberish_note.secret = gibberish_note.secret.to_montgomery_form();
-    auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_path = fr_hash_path(DATA_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
 
     join_split_tx tx;
     tx.public_input = 0;
