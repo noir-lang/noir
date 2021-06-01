@@ -59,23 +59,13 @@ impl PedersenGadget {
         let mut inputs: Vec<GadgetInput> = Vec::new();
 
         for element in arr.contents.into_iter() {
-            let witness = match element {
-                Object::Integer(integer) => (integer.witness),
-                Object::Linear(lin) => {
-                    if !lin.is_unit() {
-                        unimplemented!(
-                            "Pedersen logic for non unit witnesses is currently not implemented"
-                        )
-                    }
-                    lin.witness
-                }
-                k => unimplemented!("Pedersen logic for {:?} is not implemented yet", k),
-            };
+            let gadget_inp = object_to_wit_bits(&element);
+            assert_eq!(
+                gadget_inp.num_bits,
+                noir_field::FieldElement::max_num_bits()
+            );
 
-            inputs.push(GadgetInput {
-                witness,
-                num_bits: noir_field::FieldElement::max_num_bits(),
-            });
+            inputs.push(gadget_inp);
         }
 
         Ok(inputs)

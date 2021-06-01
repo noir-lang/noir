@@ -1,4 +1,5 @@
 use super::GadgetCaller;
+use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Integer, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
@@ -68,20 +69,7 @@ impl Blake2sGadget {
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(arr.contents.len());
 
         for element in arr.contents.into_iter() {
-            let (witness, num_bits) = match element {
-                Object::Integer(integer) => (integer.witness, integer.num_bits),
-                Object::Linear(lin) => {
-                    if !lin.is_unit() {
-                        unimplemented!(
-                            "Blake2s Logic for non unit witnesses is currently not implemented"
-                        )
-                    }
-                    (lin.witness, noir_field::FieldElement::max_num_bits())
-                }
-                k => unimplemented!("Blake2s logic for {:?} is not implemented yet", k),
-            };
-
-            inputs.push(GadgetInput { witness, num_bits });
+            inputs.push(object_to_wit_bits(&element));
         }
 
         Ok(inputs)

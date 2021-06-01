@@ -12,19 +12,17 @@ mod pedersen;
 mod schnorr;
 mod sha256;
 
+use super::RuntimeErrorKind;
+use acvm::acir::OPCODE;
 use blake2s::Blake2sGadget;
 use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use fixed_based_scalar_mul::FixedBaseScalarMulGadget;
 use hash_to_field::HashToFieldGadget;
 use merkle_membership::MerkleMembershipGadget;
+use noirc_frontend::hir_def::expr::HirCallExpression;
 use pedersen::PedersenGadget;
 use schnorr::SchnorrVerifyGadget;
 use sha256::Sha256Gadget;
-
-use noirc_frontend::hir_def::expr::HirCallExpression;
-
-use super::RuntimeErrorKind;
-use acvm::acir::OPCODE;
 
 pub trait GadgetCaller {
     fn name() -> acvm::acir::OPCODE;
@@ -73,4 +71,19 @@ pub fn call_low_level(
             })
         }
     }
+}
+
+pub(crate) fn object_to_wit_bits(obj: &Object) -> GadgetInput {
+    let (witness, num_bits) = match obj {
+        Object::Integer(integer) => (integer.witness, integer.num_bits),
+        Object::Linear(lin) => {
+            if !lin.is_unit() {
+                unimplemented!("Logic for non unit witnesses is currently not implemented")
+            }
+            (lin.witness, noir_field::FieldElement::max_num_bits())
+        }
+        k => unimplemented!("logic for {:?} is not implemented yet", k),
+    };
+
+    GadgetInput { witness, num_bits }
 }
