@@ -1,4 +1,4 @@
-use super::GadgetCaller;
+use super::{object_to_wit_bits, GadgetCaller};
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};

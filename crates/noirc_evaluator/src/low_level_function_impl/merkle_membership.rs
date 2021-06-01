@@ -1,5 +1,6 @@
 use super::GadgetCaller;
 use super::RuntimeErrorKind;
+use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};

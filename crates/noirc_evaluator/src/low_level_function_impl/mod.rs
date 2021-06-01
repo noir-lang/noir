@@ -13,6 +13,7 @@ mod schnorr;
 mod sha256;
 
 use super::RuntimeErrorKind;
+use acvm::acir::circuit::gate::GadgetInput;
 use acvm::acir::OPCODE;
 use blake2s::Blake2sGadget;
 use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
