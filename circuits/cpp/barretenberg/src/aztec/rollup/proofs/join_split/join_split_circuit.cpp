@@ -52,7 +52,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto input_note2 = value::value_note(inputs.input_note2);
     auto output_note1 = value::value_note(inputs.output_note1);
     auto output_note2 = value::value_note(inputs.output_note2);
-    auto claim_note = claim::claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
+    auto claim_note = claim::claim_note(inputs.claim_note);
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
     point_ct encrypted_output_note1 = {
         output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
