@@ -1,5 +1,6 @@
 use super::GadgetCaller;
 use super::RuntimeErrorKind;
+use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
@@ -83,23 +84,13 @@ impl MerkleMembershipGadget {
         });
 
         for element in hash_path.contents.into_iter() {
-            let witness = match element {
-                Object::Integer(integer) => (integer.witness),
-                Object::Linear(lin) => {
-                    if !lin.is_unit() {
-                        unimplemented!(
-                            "Merkle membership Logic for non unit witnesses is currently not implemented"
-                        )
-                    }
-                    lin.witness
-                }
-                k => unimplemented!("Merkle membership logic for {:?} is not implemented yet", k),
-            };
+            let gadget_inp = object_to_wit_bits(&element);
+            assert_eq!(
+                gadget_inp.num_bits,
+                noir_field::FieldElement::max_num_bits()
+            );
 
-            inputs.push(GadgetInput {
-                witness,
-                num_bits: noir_field::FieldElement::max_num_bits(),
-            });
+            inputs.push(gadget_inp);
         }
 
         Ok(inputs)

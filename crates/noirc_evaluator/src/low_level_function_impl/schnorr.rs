@@ -1,4 +1,5 @@
 use super::GadgetCaller;
+use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
@@ -73,42 +74,16 @@ impl SchnorrVerifyGadget {
         // XXX: Technical debt: refactor so this functionality,
         // is not repeated across many gadgets
         for element in signature.contents.into_iter() {
-            let witness = match element {
-                Object::Integer(integer) => (integer.witness),
-                Object::Linear(lin) => {
-                    if !lin.is_unit() {
-                        unimplemented!(
-                            "Schnorr logic for non unit witnesses is currently not implemented"
-                        )
-                    }
-                    lin.witness
-                }
-                k => unimplemented!("Schnorr logic for {:?} is not implemented yet", k),
-            };
+            let gadget_inp = object_to_wit_bits(&element);
+            assert_eq!(gadget_inp.num_bits, 8);
 
-            inputs.push(GadgetInput {
-                witness,
-                num_bits: 8,
-            });
+            inputs.push(gadget_inp);
         }
         for element in message.contents.into_iter() {
-            let witness = match element {
-                Object::Integer(integer) => (integer.witness),
-                Object::Linear(lin) => {
-                    if !lin.is_unit() {
-                        unimplemented!(
-                            "Schnorr logic for non unit witnesses is currently not implemented"
-                        )
-                    }
-                    lin.witness
-                }
-                k => unimplemented!("Schnorr logic for {:?} is not implemented yet", k),
-            };
+            let gadget_inp = object_to_wit_bits(&element);
+            assert_eq!(gadget_inp.num_bits, 8);
 
-            inputs.push(GadgetInput {
-                witness,
-                num_bits: 8,
-            });
+            inputs.push(gadget_inp);
         }
 
         Ok(inputs)
