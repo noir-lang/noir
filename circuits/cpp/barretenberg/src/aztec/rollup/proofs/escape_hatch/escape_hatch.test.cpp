@@ -147,6 +147,8 @@ class escape_hatch_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = user.alias_hash;
         tx.nonce = nonce;
+        tx.claim_note.owner = user.owner.public_key;
+        tx.claim_note.owner_nonce = nonce;
         tx.claim_note.defi_interaction_nonce = 0;
         return tx;
     }

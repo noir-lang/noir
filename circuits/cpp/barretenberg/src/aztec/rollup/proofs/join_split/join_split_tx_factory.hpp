@@ -76,6 +76,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.nonce = nonce;
         tx.claim_note.deposit_value = 0;
         tx.claim_note.owner = receiver;
+        tx.claim_note.owner_nonce = nonce;
         tx.claim_note.defi_interaction_nonce = 0;
         tx.input_owner = fr::zero();
         tx.output_owner = fr::zero();
