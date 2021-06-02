@@ -177,6 +177,8 @@ class join_split_tests : public ::testing::Test {
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
         tx.claim_note.defi_interaction_nonce = 0;
+        tx.claim_note.owner = user.owner.public_key;
+        tx.claim_note.owner_nonce = 0;
         return tx;
     }
 

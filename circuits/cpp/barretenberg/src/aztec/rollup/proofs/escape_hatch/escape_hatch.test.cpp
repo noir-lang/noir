@@ -166,7 +166,6 @@ class escape_hatch_tests : public ::testing::Test {
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note1));
         data_tree.update_element(data_tree.size(), create_leaf_data(enc_note2));
         tx.new_data_root = data_tree.root();
-        tx.new_data_path = data_tree.get_hash_path(tx.data_start_index);
 
         auto root_tree_index = root_tree.size();
         tx.old_data_roots_root = root_tree.root();

@@ -18,8 +18,6 @@ using namespace plonk::stdlib::merkle_tree;
 
 namespace {
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
-numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
-fixtures::user_context user = fixtures::create_user_context(rand_engine);
 join_split::circuit_data js_cd;
 proofs::account::circuit_data account_cd;
 proofs::circuit_data claim_cd;
@@ -81,7 +79,7 @@ class root_rollup_tests : public ::testing::Test {
             auto fixture_name = format(test_name, "_rollup", rollup_id, "_inner", inner_data.size());
             auto proof_data = compute_or_load_rollup(fixture_name, rollup);
             if (proof_data.empty()) {
-                throw std::runtime_error("Failed to create inner rollup proof.");
+                throw_or_abort("Failed to create inner rollup proof.");
             }
             inner_data.push_back(proof_data);
         }
@@ -186,13 +184,10 @@ TEST_F(root_rollup_tests, test_invalid_last_proof_fail)
 TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
 {
     auto tx_data = create_root_rollup_tx("root_1", { { js_proofs[0] } });
-    // This note should be ignored (rollup 0)
-    // TODO: tx_data.defi_interaction_notes.push_back()
     auto result = verify_logic(tx_data, root_rollup_cd);
-
     ASSERT_TRUE(result.logic_verified);
 
-    auto previous_defi_interaction_hash = result.public_inputs.back();
+    root_rollup_proof_data rollup_data(result.public_inputs);
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
@@ -204,7 +199,7 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     // Zero the first 4 bits as the value computed in the circuit cannot wrap around the prime.
     expected[0] &= 0xF;
 
-    ASSERT_EQ(from_buffer<fr>(expected), previous_defi_interaction_hash);
+    ASSERT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<uint256_t>(expected));
 }
 
 TEST_F(root_rollup_tests, test_defi_logic)
