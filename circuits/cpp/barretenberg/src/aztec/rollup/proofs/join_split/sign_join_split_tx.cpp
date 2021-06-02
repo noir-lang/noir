@@ -32,7 +32,7 @@ signature sign_join_split_tx(join_split_tx const& tx,
     auto public_output = is_defi ? tx.claim_note.deposit_value : tx.public_output;
 
     auto partial_state =
-        create_partial_value_note(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
+        create_partial_value_note(tx.claim_note.note_secret, tx.claim_note.owner, tx.claim_note.owner_nonce);
     claim_note claim_note = {
         tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
     };

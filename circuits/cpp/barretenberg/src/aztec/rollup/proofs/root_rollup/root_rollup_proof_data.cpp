@@ -25,7 +25,9 @@ root_rollup_proof_data::root_rollup_proof_data(std::vector<fr> const& public_inp
 {
     auto offset = rollup::RollupProofFields::INNER_PROOFS_DATA + (rollup_size * InnerProofFields::NUM_PUBLISHED) + (16);
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        defi_interaction_notes[i] = { public_inputs[offset++], public_inputs[offset++] };
+        auto x = public_inputs[offset++];
+        auto y = public_inputs[offset++];
+        defi_interaction_notes[i] = { x, y };
     }
     previous_defi_interaction_hash = public_inputs[offset];
 }

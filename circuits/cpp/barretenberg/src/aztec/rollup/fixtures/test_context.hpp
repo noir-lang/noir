@@ -104,9 +104,9 @@ class TestContext {
     {
         uint32_t interaction_nonce = 0;
         // Assume this claim note was created against the most recent matching bridge id interaction.
-        for (size_t i = defi_interactions.size() - 1; i >= 0; --i) {
-            if (defi_interactions[i].bridge_id == bridge_id) {
-                interaction_nonce = static_cast<uint32_t>(i);
+        for (size_t i = defi_interactions.size(); i > 0; --i) {
+            if (defi_interactions[i - 1].bridge_id == bridge_id) {
+                interaction_nonce = static_cast<uint32_t>(i - 1);
                 break;
             }
         }

@@ -75,6 +75,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.alias_hash = 0;
         tx.nonce = nonce;
         tx.claim_note.deposit_value = 0;
+        tx.claim_note.owner = receiver;
         tx.claim_note.defi_interaction_nonce = 0;
         tx.input_owner = fr::zero();
         tx.output_owner = fr::zero();
@@ -89,7 +90,6 @@ template <typename WorldState> class JoinSplitTxFactory {
                                 uint32_t asset_id = 0)
     {
         auto tx = create_join_split_tx(in_note_idx, in_note_value, out_note_value, 0, 0, 0, 0, asset_id);
-        tx.num_input_notes = 2;
         tx.claim_note.bridge_id = bridge_id;
         tx.claim_note.deposit_value = tx.output_note[0].value;
         tx.claim_note.note_secret = user.note_secret;
