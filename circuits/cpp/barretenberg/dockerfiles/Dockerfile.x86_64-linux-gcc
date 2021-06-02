@@ -10,8 +10,7 @@ WORKDIR /usr/src/barretenberg
 COPY . .
 RUN cd ./srs_db && ./download_ignition.sh 0
 RUN mkdir build && cd build && cmake -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
-# Skip running tests. Fixtures built in clang don't work in gcc, and if things pass in clang that's good enough for now.
-#RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
+RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
 
 FROM alpine:3.13
 RUN apk update && apk add libstdc++ libgomp

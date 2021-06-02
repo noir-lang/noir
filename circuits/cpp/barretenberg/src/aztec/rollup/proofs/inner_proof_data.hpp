@@ -67,5 +67,25 @@ struct inner_proof_data {
     inner_proof_data(std::vector<uint8_t> const& proof_data);
 };
 
+inline std::ostream& operator<<(std::ostream& os, inner_proof_data const& data)
+{
+    // clang-format off
+    return os << "{\n"
+        << "  proof_id: " << data.proof_id << "\n"
+        << "  public_input: " << data.public_input << "\n"
+        << "  public_output: " << data.public_output << "\n"
+        << "  asset_id: " << data.asset_id << "\n"
+        << "  new_note1: " << data.new_note1 << "\n"
+        << "  new_note2: " << data.new_note2 << "\n"
+        << "  nullifier1: " << data.nullifier1 << "\n"
+        << "  nullifier2: " << data.nullifier2 << "\n"
+        << "  input_owner: " << data.input_owner << "\n"
+        << "  output_owner: " << data.output_owner << "\n"
+        << "  merkle_root: " << data.merkle_root << "\n"
+        << "  tx_fee: " << data.tx_fee << "\n"
+        << "}";
+    // clang-format on
+}
+
 } // namespace proofs
 } // namespace rollup

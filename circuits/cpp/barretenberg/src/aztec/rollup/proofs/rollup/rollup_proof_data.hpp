@@ -86,6 +86,28 @@ struct rollup_proof_data {
     void populate_from_fields(std::vector<fr> const& fields);
 };
 
+inline std::ostream& operator<<(std::ostream& os, rollup_proof_data const& data)
+{
+    // clang-format off
+    return os << "{\n"
+        << "  data_start_index: " << data.data_start_index << "\n"
+        << "  old_data_root: " << data.old_data_root << "\n"
+        << "  new_data_root: " << data.new_data_root << "\n"
+        << "  old_null_root: " << data.old_null_root << "\n"
+        << "  new_null_root: " << data.new_null_root << "\n"
+        << "  old_data_roots_root: " << data.old_data_roots_root << "\n"
+        << "  new_data_roots_root: " << data.new_data_roots_root << "\n"
+        << "  old_defi_root: " << data.old_defi_root << "\n"
+        << "  new_defi_root: " << data.new_defi_root << "\n"
+        << "  bridge_ids: " << data.bridge_ids << "\n"
+        << "  deposit_sums: " << data.deposit_sums << "\n"
+        << "  total_tx_fees: " << data.total_tx_fees << "\n"
+        // << "  inner_proofs: " << data.inner_proofs << "\n"
+        // << "  recursion_output: " << data.recursion_output << "\n"
+        << "}";
+    // clang-format on
+}
+
 } // namespace rollup
 } // namespace proofs
 } // namespace rollup

@@ -107,7 +107,6 @@ class root_rollup_tests : public ::testing::Test {
         std::vector<std::vector<uint8_t>> proofs;
         for (uint32_t i = 0; i < n; ++i) {
             auto js_proof = context.create_join_split_proof({}, {}, { 100, 50 }, 150);
-            // auto js_proof = create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
             proofs.push_back(js_proof);
         }
         return proofs;

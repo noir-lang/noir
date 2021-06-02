@@ -175,7 +175,7 @@ template <typename B, typename Params> inline void write(B& it, uintx<Params> co
 
 template <class base_uint> inline std::ostream& operator<<(std::ostream& os, uintx<base_uint> const& a)
 {
-    os << a.lo << " , " << a.hi << std::endl;
+    os << a.lo << ", " << a.hi << std::endl;
     return os;
 }
 

@@ -4,42 +4,37 @@
 #include "../uintx/uintx.hpp"
 #include "stdint.h"
 #include "unistd.h"
-#include <random>
 
 namespace numeric {
 namespace random {
 
 class Engine {
   public:
-    Engine();
+    virtual uint8_t get_random_uint8() = 0;
 
-    Engine(std::seed_seq& seed);
+    virtual uint32_t get_random_uint32() = 0;
 
-    Engine(const Engine& other);
+    virtual uint64_t get_random_uint64() = 0;
 
-    Engine(Engine&& other);
+    virtual uint128_t get_random_uint128() = 0;
 
-    Engine& operator=(const Engine& other);
+    virtual uint256_t get_random_uint256() = 0;
 
-    Engine& operator=(Engine&& other);
+    uint512_t get_random_uint512()
+    {
+        // Do not inline in constructor call. Evaluation order is important for cross-compiler consistency.
+        auto lo = get_random_uint256();
+        auto hi = get_random_uint256();
+        return uint512_t(lo, hi);
+    }
 
-    uint8_t get_random_uint8();
-
-    uint32_t get_random_uint32();
-
-    uint64_t get_random_uint64();
-
-    uint128_t get_random_uint128();
-
-    uint256_t get_random_uint256();
-
-    uint512_t get_random_uint512();
-
-    uint1024_t get_random_uint1024();
-
-    std::mt19937_64 engine;
-    std::uniform_int_distribution<uint64_t> dist = std::uniform_int_distribution<uint64_t>{ 0ULL, UINT64_MAX };
-    bool is_debug = false;
+    uint1024_t get_random_uint1024()
+    {
+        // Do not inline in constructor call. Evaluation order is important for cross-compiler consistency.
+        auto lo = get_random_uint512();
+        auto hi = get_random_uint512();
+        return uint1024_t(lo, hi);
+    }
 };
 
 Engine& get_debug_engine(bool reset = false);
