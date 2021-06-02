@@ -53,15 +53,16 @@ class rollup_tests : public ::testing::Test {
 
     auto create_tx_with_3_defi()
     {
-        context.append_value_notes({ 100, 50, 100, 50, 100, 50, 100, 50 });
+        context.append_value_notes({ 100, 50, 100, 50, 100, 50 });
+        context.append_value_notes({ 200, 40 }, 1);
         context.start_next_root_rollup();
 
         notes::native::bridge_id bid1 = { 0, 2, 0, 0, 0 };
-        notes::native::bridge_id bid2 = { 1, 2, 0, 0, 0 };
+        notes::native::bridge_id bid2 = { 1, 2, 1, 0, 0 };
         auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
         auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 110 }, bid1);
         auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 120 }, bid1);
-        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 100, 50 }, { 20, 130 }, bid2);
+        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 220 }, bid2, 1);
 
         return create_rollup_tx(
             context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 });
@@ -458,9 +459,13 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
-    notes::native::value::value_note value_note = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret };
-    auto expected = encrypt(value_note);
-    EXPECT_EQ(rollup_data.inner_proofs[0].new_note1, expected);
+    notes::native::value::value_note note1 = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret };
+    auto expected1 = encrypt(note1);
+    EXPECT_EQ(rollup_data.inner_proofs[0].new_note1, expected1);
+
+    notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret };
+    auto expected2 = encrypt(note2);
+    EXPECT_EQ(rollup_data.inner_proofs[0].new_note2, expected2);
 
     // Check correct interaction nonce in claim notes.
     auto check_defi_proof = [&](uint32_t i, uint32_t claim_note_interaction_nonce) {
@@ -496,6 +501,11 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
 
     rollup::rollup_proof_data data(result.public_inputs);
 
+    // js and defi proofs to be rolled up with claim proofs
+    auto js_proof = context.create_join_split_proof({}, {}, { 100, 30 }, 130);
+    auto defi_proof1 = context.create_defi_proof(
+        { data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bids[0]);
+
     // Create claim proofs for each claim note in previous rollup.
     auto claim_proofs = mapi(data.inner_proofs, [&](auto inner, auto i) {
         if (inner.proof_id != ProofIds::DEFI_DEPOSIT) {
@@ -506,7 +516,7 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     });
 
     auto rollup2_tx =
-        create_rollup_tx(context.world_state, 4, { claim_proofs[1], claim_proofs[2], claim_proofs[3] }, bids);
+        create_rollup_tx(context.world_state, 4, { js_proof, claim_proofs[1], defi_proof1, claim_proofs[2] }, bids);
     auto result2 = verify_logic(rollup2_tx, rollup_4_keyless);
     EXPECT_TRUE(result2.logic_verified);
 }
