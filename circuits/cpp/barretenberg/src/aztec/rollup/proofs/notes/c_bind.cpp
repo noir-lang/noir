@@ -1,4 +1,8 @@
 #include "c_bind.h"
+#include "native/claim/claim_note_tx_data.hpp"
+#include "native/claim/create_partial_value_note.hpp"
+#include "native/claim/encrypt.hpp"
+#include "native/claim/compute_nullifier.hpp"
 #include "native/value/encrypt.hpp"
 #include "native/compute_nullifier.hpp"
 
@@ -26,6 +30,28 @@ WASM_EXPORT void notes__compute_nullifier(
     auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
     auto acc_pk = from_buffer<uint256_t>(acc_pk_buffer);
     auto nullifier = compute_nullifier(enc_note, index, acc_pk, is_real);
+    write(output, nullifier);
+}
+
+WASM_EXPORT void notes__encrypt_claim_note(uint8_t const* note_buffer,
+                                           uint8_t* public_key_buffer,
+                                           uint32_t nonce,
+                                           uint8_t* output)
+{
+    auto tx = from_buffer<claim::claim_note_tx_data>(note_buffer);
+    auto public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
+    claim::claim_note note = { tx.deposit_value,
+                               tx.bridge_id,
+                               tx.defi_interaction_nonce,
+                               claim::create_partial_value_note(tx.note_secret, public_key, nonce) };
+    auto encrypted = claim::encrypt(note);
+    write(output, encrypted);
+}
+
+WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buffer, uint32_t index, uint8_t* output)
+{
+    auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
+    auto nullifier = claim::compute_nullifier(enc_note, index);
     write(output, nullifier);
 }
 
