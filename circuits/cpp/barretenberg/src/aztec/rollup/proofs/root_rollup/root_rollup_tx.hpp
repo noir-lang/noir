@@ -61,8 +61,8 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.new_data_roots_root);
     read(buf, tx.old_data_roots_path);
 
-    read(buf, tx.new_defi_root);
     read(buf, tx.old_defi_root);
+    read(buf, tx.new_defi_root);
     read(buf, tx.old_defi_path);
 
     read(buf, tx.bridge_ids);
@@ -80,8 +80,8 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.new_data_roots_root);
     write(buf, tx.old_data_roots_path);
 
-    write(buf, tx.new_defi_root);
     write(buf, tx.old_defi_root);
+    write(buf, tx.new_defi_root);
     write(buf, tx.old_defi_path);
 
     write(buf, tx.bridge_ids);
