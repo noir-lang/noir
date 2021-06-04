@@ -64,17 +64,13 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     output_note2.y = output_note2.y * two_output_notes * interaction_success;
 
     // Check claim note and interaction note are related.
-    composer.assert_equal(claim_note.bridge_id.witness_index,
-                          defi_interaction_note.bridge_id.witness_index,
-                          "note bridge ids don't match");
-    composer.assert_equal(claim_note.defi_interaction_nonce.witness_index,
-                          defi_interaction_note.interaction_nonce.witness_index,
-                          "note nonces don't match");
+    claim_note.bridge_id.assert_equal(defi_interaction_note.bridge_id, "note bridge ids don't match");
+    claim_note.defi_interaction_nonce.assert_equal(defi_interaction_note.interaction_nonce, "note nonces don't match");
 
     // Check claim note exists and compute nullifier.
     auto claim_exists = check_membership(
         composer, data_root, claim_note_path, byte_array_ct(claim_note), byte_array_ct(claim_note_index));
-    composer.assert_equal_constant(claim_exists.witness_index, 1, "claim note not a member");
+    claim_exists.assert_equal(true, "claim note not a member");
     const auto nullifier1 = compute_nullifier(claim_note.encrypted, claim_note_index);
 
     // Check defi interaction note exists.
@@ -83,19 +79,19 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
                                              defi_interaction_note_path,
                                              byte_array_ct(defi_interaction_note),
                                              byte_array_ct(defi_interaction_note.interaction_nonce));
-    composer.assert_equal_constant(din_exists.witness_index, 1, "defi interaction note not a member");
+    din_exists.assert_equal(true, "defi interaction note not a member");
 
     // Force unused public inputs to 0.
-    const auto public_input = witness_ct(&composer, 0);
-    const auto public_output = witness_ct(&composer, 0);
-    const auto nullifier2 = witness_ct(&composer, 0);
-    const auto output_owner = witness_ct(&composer, 0);
-    const auto tx_fee = witness_ct(&composer, 0);
-    composer.assert_equal(public_input.witness_index, composer.zero_idx);
-    composer.assert_equal(public_output.witness_index, composer.zero_idx);
-    composer.assert_equal(nullifier2.witness_index, composer.zero_idx);
-    composer.assert_equal(output_owner.witness_index, composer.zero_idx);
-    composer.assert_equal(tx_fee.witness_index, composer.zero_idx);
+    const field_ct public_input = witness_ct(&composer, 0);
+    const field_ct public_output = witness_ct(&composer, 0);
+    const field_ct nullifier2 = witness_ct(&composer, 0);
+    const field_ct output_owner = witness_ct(&composer, 0);
+    const field_ct tx_fee = witness_ct(&composer, 0);
+    public_input.assert_is_zero();
+    public_output.assert_is_zero();
+    nullifier2.assert_is_zero();
+    output_owner.assert_is_zero();
+    tx_fee.assert_is_zero();
 
     // The following make up the public inputs to the circuit.
     composer.set_public_input(proof_id.witness_index);

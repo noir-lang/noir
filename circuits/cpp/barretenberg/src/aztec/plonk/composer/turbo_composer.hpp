@@ -98,6 +98,9 @@ class TurboComposer : public ComposerBase {
         create_add_gate(gate_coefficients);
     }
 
+    /**
+     * For any type other than uint32_t (presumed to be a witness index), we call normalize first.
+     */
     template <typename T>
     void assert_equal_constant(T const& in, const barretenberg::fr& b, std::string const& msg = "assert_equal_constant")
     {

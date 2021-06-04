@@ -45,7 +45,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);
-    composer.assert_equal(outputs.tx_fee.witness_index, composer.zero_idx, "tx_fee");
+    outputs.tx_fee.assert_is_zero("tx_fee not zero");
 
     auto one = uint32_ct(1);
     auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));

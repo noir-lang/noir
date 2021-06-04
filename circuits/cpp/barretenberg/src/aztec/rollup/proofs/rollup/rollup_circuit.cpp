@@ -24,8 +24,8 @@ void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_c
 
 void add_zero_public_input(Composer& composer)
 {
-    auto zero = witness_ct(&composer, 0);
-    composer.assert_equal_constant(zero.witness_index, 0);
+    auto zero = field_ct(witness_ct(&composer, 0));
+    zero.assert_is_zero();
     composer.set_public_input(zero.witness_index);
 }
 
@@ -129,10 +129,9 @@ auto process_defi_deposit(Composer& composer,
     note_defi_interaction_nonce *= is_defi_deposit;
 
     // Assert this proof matched a single bridge_id.
-    auto is_valid_bridge_id = (num_matched == 1 || !is_defi_deposit).normalize();
-    composer.assert_equal_constant(is_valid_bridge_id.witness_index,
-                                   1,
-                                   format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times."));
+    auto is_valid_bridge_id = num_matched == 1 || !is_defi_deposit;
+    is_valid_bridge_id.assert_equal(true,
+                                    format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times."));
 
     // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
     point_ct encrypted_claim_note{ public_inputs[InnerProofFields::NEW_NOTE1_X],
@@ -147,14 +146,14 @@ auto process_defi_deposit(Composer& composer,
 /**
  * Check that claim proofs are using the correct defi root.
  */
-auto process_claims(Composer& composer, std::vector<field_ct>& public_inputs, field_ct const& new_defi_root)
+auto process_claims(std::vector<field_ct>& public_inputs, field_ct const& new_defi_root)
 {
     const auto is_claim = public_inputs[InnerProofFields::PROOF_ID] == field_ct(ProofIds::DEFI_CLAIM);
-    // For claim proofs, defi root is output in field named PUBLIC_OWNER.
+    // For claim proofs, defi root is output in field named INPUT_OWNER.
     const auto defi_root = public_inputs[InnerProofFields::INPUT_OWNER];
 
     auto valid = defi_root == new_defi_root || !is_claim;
-    composer.assert_equal_constant(valid.witness_index, 1, format("claim proof has unmatched defi root"));
+    valid.assert_equal(true, format("claim proof has unmatched defi root"));
 }
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
@@ -166,7 +165,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     const auto floor_rollup_size = 1UL << numeric::get_msb(max_num_txs);
     const auto rollup_size_pow2_ = floor_rollup_size << (max_num_txs != floor_rollup_size);
     const auto rollup_size_pow2 = field_ct(witness_ct(&composer, rollup_size_pow2_));
-    composer.assert_equal_constant(rollup_size_pow2.witness_index, rollup_size_pow2_);
+    rollup_size_pow2.assert_equal(rollup_size_pow2_, format("rollup size != ", rollup_size_pow2_));
 
     // Witnesses from rollup_tx data.
     const auto rollup_id = field_ct(witness_ct(&composer, rollup.rollup_id));
@@ -195,7 +194,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         auto in_scope = uint32_ct(i) < num_defi_interactions;
         bridge_ids[i] *= in_scope;
         auto valid = !in_scope || bridge_ids[i] != 0;
-        composer.assert_equal_constant(valid.witness_index, 1, "bridge_id out of scope");
+        valid.assert_equal(true, "bridge_id out of scope");
     }
 
     // Loop accumulators.
@@ -231,7 +230,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         }
 
         process_defi_deposit(composer, rollup_id, public_inputs, bridge_ids, defi_deposit_sums, num_defi_interactions);
-        process_claims(composer, public_inputs, new_defi_root);
+        process_claims(public_inputs, new_defi_root);
 
         // Add the proofs data values to the list.
         new_data_values.push_back(byte_array_ct(&composer)
@@ -252,7 +251,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                                            data_roots_paths[i],
                                                            byte_array_ct(data_root),
                                                            byte_array_ct(data_root_indicies[i]));
-        composer.assert_equal(is_real.witness_index, valid.witness_index, format("data_root_for_proof_", i));
+        is_real.assert_equal(valid, format("data_root_for_proof_", i));
 
         // Accumulate tx fee.
         auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
