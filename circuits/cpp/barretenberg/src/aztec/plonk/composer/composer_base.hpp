@@ -110,13 +110,14 @@ enum ComposerType {
 
 class ComposerBase {
   public:
-    static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
     struct SelectorProperties {
         std::string name;
         bool use_mid_for_selectorfft = false;           // use middomain instead of large for selectorfft
         bool requires_lagrange_base_polynomial = false; // does the prover need the raw lagrange-base selector values?
     };
 
+    static constexpr uint32_t IS_CONSTANT =
+        UINT32_MAX; // indicates whether a witness index actually contains a constant
     static constexpr uint32_t REAL_VARIABLE = UINT32_MAX - 1;
     static constexpr uint32_t FIRST_VARIABLE_IN_CLASS = UINT32_MAX - 2;
     static constexpr size_t NUM_RESERVED_GATES = 4; // this must be >= num_roots_cut_out_of_vanishing_polynomial

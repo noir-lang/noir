@@ -6,7 +6,7 @@ namespace test_stlib_turbo_uint {
 
 using namespace barretenberg;
 using namespace plonk;
-
+using plonk::stdlib::IS_CONSTANT;
 namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
@@ -445,7 +445,7 @@ TEST(stdlib_turbo_uint32, test_gt)
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
             b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
-                                                              : a_val - const_b + const_a + 1;
+                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
         }
@@ -499,7 +499,7 @@ TEST(stdlib_turbo_uint32, test_lt)
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
             b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
-                                                              : a_val - const_b + const_a + 1;
+                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
         }
@@ -552,8 +552,8 @@ TEST(stdlib_turbo_uint32, test_gte)
         } else if (force_lt) {
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
-            b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
-                                                              : a_val - const_b + const_a + 1;
+            b_val = (a_val + const_a - const_b) == plonk::stdlib::IS_CONSTANT ? const_a - const_b + (a_val--)
+                                                                              : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
         }
@@ -606,7 +606,7 @@ TEST(stdlib_turbo_uint32, test_lte)
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
             b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
-                                                              : a_val - const_b + const_a + 1;
+                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
         }
@@ -660,7 +660,7 @@ TEST(stdlib_turbo_uint32, test_equality_operator)
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
             b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
-                                                              : a_val - const_b + const_a + 1;
+                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
         }
@@ -714,7 +714,7 @@ TEST(stdlib_turbo_uint32, test_not_equality_operator)
             b_val = (a_val + const_a - const_b) ? a_val + const_a - const_b - 1 : const_a - const_b + (a_val++);
         } else if (force_gt) {
             b_val = (a_val + const_a - const_b) == IS_CONSTANT ? const_a - const_b + (a_val--)
-                                                              : a_val - const_b + const_a + 1;
+                                                               : a_val - const_b + const_a + 1;
         } else {
             b_val = engine.get_random_uint32();
         }

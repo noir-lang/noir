@@ -1,10 +1,11 @@
 #pragma once
+#include <plonk/composer/composer_base.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 
 namespace plonk {
-    static constexpr uint32_t IS_CONSTANT = UINT32_MAX;
 namespace stdlib {
 
+static constexpr uint32_t IS_CONSTANT = waffle::ComposerBase::IS_CONSTANT;
 template <typename ComposerContext> class witness_t {
   public:
     witness_t() = default;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <plonk/proof_system/constants.hpp>
 #include <ecc/curves/bn254/fq.hpp>
 #include <ecc/curves/bn254/fr.hpp>
 #include <numeric/uint256/uint256.hpp>
@@ -81,8 +82,7 @@ template <typename Composer, typename T> class bigfield {
     // code assumes modulus is at most 256 bits so good to define it via a uint256_t
     static constexpr uint256_t modulus = (uint256_t(T::modulus_0, T::modulus_1, T::modulus_2, T::modulus_3));
     static constexpr uint512_t modulus_u512 = uint512_t(modulus);
-    static constexpr uint64_t NUM_LIMB_BITS =
-        68; // should be smaller than quarter of log of brg::fr, because one of constructors
+    static constexpr uint64_t NUM_LIMB_BITS = waffle::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
     static constexpr uint64_t NUM_LAST_LIMB_BITS = modulus_u512.get_msb() + 1 - (NUM_LIMB_BITS * 3);
     static constexpr uint256_t DEFAULT_MAXIMUM_LIMB = (uint256_t(1) << NUM_LIMB_BITS) - uint256_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB =
