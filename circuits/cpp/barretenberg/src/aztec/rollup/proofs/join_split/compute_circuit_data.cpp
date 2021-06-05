@@ -1,6 +1,5 @@
 #include "compute_circuit_data.hpp"
 #include "join_split_circuit.hpp"
-// #include "../notes/native/sign_notes.hpp"
 #include "sign_join_split_tx.hpp"
 #include <stdlib/merkle_tree/hash_path.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
@@ -33,7 +32,7 @@ join_split_tx noop_tx()
     native::value::value_note gibberish_note = { 0, 0, 0, pub_key, fr::random_element() };
     gibberish_note.secret.data[3] = gibberish_note.secret.data[3] & 0x03FFFFFFFFFFFFFFULL;
     gibberish_note.secret = gibberish_note.secret.to_montgomery_form();
-    auto gibberish_path = fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
+    auto gibberish_path = fr_hash_path(DATA_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
 
     join_split_tx tx;
     tx.public_input = 0;
@@ -45,7 +44,7 @@ join_split_tx noop_tx()
     tx.input_path = { gibberish_path, gibberish_path };
     tx.input_note = { gibberish_note, gibberish_note };
     tx.output_note = { gibberish_note, gibberish_note };
-    tx.claim_note = { 0, 0, 0, 0 };
+    tx.claim_note = { 0, 0, pub_key, 0, gibberish_note.secret, 0 };
     tx.account_index = 0;
     tx.account_path = gibberish_path;
     tx.signing_pub_key = pub_key;

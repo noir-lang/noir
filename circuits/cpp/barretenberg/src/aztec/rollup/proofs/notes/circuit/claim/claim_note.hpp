@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../pedersen_note.hpp"
-#include "bridge_id.hpp"
+#include "../bridge_id.hpp"
 #include "witness_data.hpp"
 #include "create_partial_value_note.hpp"
 #include "encrypt.hpp"
@@ -29,12 +29,12 @@ struct claim_note {
         , encrypted(encrypt(deposit_value, bridge_id, defi_interaction_nonce, partial_state))
     {}
 
-    claim_note(claim_note_tx_witness_data const& data, point_ct const& owner, field_ct const& nonce)
+    claim_note(claim_note_tx_witness_data const& data)
     {
         deposit_value = data.deposit_value;
         bridge_id = data.bridge_id_data.to_field();
         defi_interaction_nonce = data.defi_interaction_nonce;
-        partial_state = create_partial_value_note(data.note_secret, nonce, owner);
+        partial_state = create_partial_value_note(data.note_secret, data.owner_nonce, data.owner);
         encrypted = encrypt(deposit_value, bridge_id, defi_interaction_nonce, partial_state);
     }
 

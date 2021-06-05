@@ -2,12 +2,9 @@
 #include "account.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/constants.hpp"
-#include "../notes/native/account/account_note.hpp"
-#include "../notes/native/account/encrypt.hpp"
+#include "../notes/native/index.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <crypto/schnorr/schnorr.hpp>
-#include <crypto/blake2s/blake2s.hpp>
 #include <stdlib/merkle_tree/memory_store.hpp>
 #include <stdlib/merkle_tree/merkle_tree.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>

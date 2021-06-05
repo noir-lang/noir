@@ -16,6 +16,7 @@ struct circuit_data {
         : num_gates(0)
     {}
 
+    std::shared_ptr<waffle::VerifierReferenceString> verifier_crs;
     std::shared_ptr<waffle::proving_key> proving_key;
     std::shared_ptr<waffle::verification_key> verification_key;
     size_t num_gates;
@@ -37,10 +38,13 @@ circuit_data get_circuit_data(std::string const& name,
                               bool compute,
                               bool save,
                               bool load,
+                              bool pk,
+                              bool vk,
                               bool padding,
                               F const& build_circuit)
 {
     circuit_data data;
+    data.verifier_crs = srs->get_verifier_crs();
     Composer composer = Composer(srs);
 
     auto circuit_key_path = key_path + "/" + name;
@@ -61,7 +65,7 @@ circuit_data get_circuit_data(std::string const& name,
         mkdir(circuit_key_path.c_str(), 0700);
     }
 
-    {
+    if (pk) {
         auto pk_dir = circuit_key_path + "/proving_key";
         mkdir(pk_dir.c_str(), 0700);
         if (exists(pk_path) && load) {
@@ -95,14 +99,14 @@ circuit_data get_circuit_data(std::string const& name,
             }
         }
     }
-    {
+
+    if (vk) {
         if (exists(vk_path) && load) {
             std::cerr << "Loading verification key from: " << vk_path << std::endl;
             auto vk_stream = std::ifstream(vk_path);
             waffle::verification_key_data vk_data;
             read(vk_stream, vk_data);
-            data.verification_key =
-                std::make_shared<waffle::verification_key>(std::move(vk_data), srs->get_verifier_crs());
+            data.verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), data.verifier_crs);
         } else if (compute) {
             std::cerr << "Computing verification key..." << std::endl;
             Timer timer;

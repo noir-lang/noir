@@ -31,7 +31,7 @@ point<Composer> create_point_witness(Composer& composer, E const& p, const bool 
         auto on_curve = x * x;
         on_curve = on_curve * x + grumpkin::g1::curve_b; // x^3 - 17
         on_curve = y.madd(y, -on_curve);                 // on_curve = y^2 - (x^3 - 17) == 0
-        on_curve.assert_is_zero();
+        on_curve.assert_is_zero("create_point_witness: point not on curve");
     }
     return { x, y };
 }

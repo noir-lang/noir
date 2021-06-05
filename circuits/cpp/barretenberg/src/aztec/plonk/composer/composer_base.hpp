@@ -257,6 +257,8 @@ class ComposerBase {
         return variables[real_variable_index[index]];
     }
 
+    barretenberg::fr get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
+
     virtual uint32_t add_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);

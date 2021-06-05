@@ -2,13 +2,13 @@
 #include <crypto/pedersen/pedersen.hpp>
 #include "../../constants.hpp"
 
-using namespace barretenberg;
-
 namespace rollup {
 namespace proofs {
 namespace notes {
 namespace native {
 namespace account {
+
+using namespace barretenberg;
 
 inline grumpkin::g1::affine_element encrypt(account_note const& note)
 {

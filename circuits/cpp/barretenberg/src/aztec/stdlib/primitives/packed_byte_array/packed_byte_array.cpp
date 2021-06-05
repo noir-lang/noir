@@ -182,7 +182,7 @@ void packed_byte_array<Composer>::append(const field_pt& to_append, const size_t
     if (num_bytes_for_new_limb > 0) {
         field_pt to_add;
         to_add = is_constant ? field_pt(context, append_next) : witness_t(context, append_next);
-        limbs.emplace_back(to_add * field_pt(context, next_padding));
+        limbs.emplace_back(to_add * field_pt(context, uint256_t(1) << next_padding));
 
         reconstructed += to_add * field_pt(context, uint256_t(1) << uint256_t(num_bytes_for_current_limb * 8));
     }

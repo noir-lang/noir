@@ -32,11 +32,10 @@ field_ct process_input_note(Composer& composer,
 {
     auto exists =
         merkle_tree::check_membership(composer, merkle_root, hash_path, byte_array_ct(note), byte_array_ct(index));
-    auto good = exists || !is_real;
-    composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
+    (exists || !is_real).assert_equal(true, "input note not a member");
 
-    bool_ct valid_value = note.value == field_ct(&composer, 0) || is_real;
-    composer.assert_equal_constant(valid_value.witness_index, 1, "padding note non zero");
+    bool_ct valid_value = note.value == 0 || is_real;
+    valid_value.assert_equal(true, "padding note non zero");
 
     return compute_nullifier(note.encrypted, index, account_private_key, is_real);
 }
@@ -46,70 +45,64 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
     auto is_defi_bridge = (!not_defi_bridge).normalize();
     auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
-    auto public_input = inputs.public_input * not_defi_bridge;
     auto public_output = inputs.claim_note.deposit_value + (inputs.public_output * not_defi_bridge);
     auto input_note1 = value::value_note(inputs.input_note1);
     auto input_note2 = value::value_note(inputs.input_note2);
     auto output_note1 = value::value_note(inputs.output_note1);
     auto output_note2 = value::value_note(inputs.output_note2);
-    auto claim_note = claim::claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
+    auto claim_note = claim::claim_note(inputs.claim_note);
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
     point_ct encrypted_output_note1 = {
         output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
         output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge
     };
 
+    // Check public input/output are zero when in defi mode.
+    (not_defi_bridge || inputs.public_input == 0).assert_equal(true, "public input not zero");
+    (not_defi_bridge || inputs.public_output == 0).assert_equal(true, "public output not zero");
+
     // Verify all notes have a consistent asset id
-    composer.assert_equal(inputs.input_note1.asset_id.witness_index,
-                          inputs.input_note2.asset_id.witness_index,
-                          "input note asset ids don't match");
-    composer.assert_equal(inputs.output_note1.asset_id.witness_index,
-                          inputs.output_note2.asset_id.witness_index,
-                          "output note asset ids don't match");
-    composer.assert_equal(inputs.input_note1.asset_id.witness_index,
-                          inputs.output_note1.asset_id.witness_index,
-                          "input/output note asset ids don't match");
-    composer.assert_equal(inputs.input_note1.asset_id.witness_index,
-                          inputs.asset_id.witness_index,
-                          "note asset ids not equal to tx asset id");
+    inputs.input_note1.asset_id.assert_equal(inputs.input_note2.asset_id, "input note asset ids don't match");
+    inputs.output_note1.asset_id.assert_equal(inputs.output_note2.asset_id, "output note asset ids don't match");
+    inputs.input_note1.asset_id.assert_equal(inputs.output_note1.asset_id, "input/output note asset ids don't match");
+    inputs.input_note1.asset_id.assert_equal(inputs.asset_id, "note asset ids not equal to tx asset id");
+
     auto valid_claim_note_asset_id =
         inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
-    composer.assert_equal_constant(valid_claim_note_asset_id.witness_index, 1, "bridge asset ids don't match");
+    valid_claim_note_asset_id.assert_equal(true, "input note and claim note asset ids don't match");
 
     // Check the claim note interaction nonce is 0 (will be added by the rollup circuit).
-    composer.assert_equal_constant(claim_note.defi_interaction_nonce.witness_index, 0, "interaction nonce must be 0");
+    claim_note.defi_interaction_nonce.assert_is_zero("interaction nonce must be 0");
 
     // Verify the asset id is less than the total number of assets.
     composer.create_range_constraint(inputs.asset_id.witness_index, NUM_ASSETS_BIT_LENGTH);
 
     // Check we're not joining the same input note.
-    bool_ct indicies_equal = inputs.input_note1_index == inputs.input_note2_index;
-    composer.assert_equal_constant(indicies_equal.witness_index, 0, "joining same note");
+    (inputs.input_note1_index == inputs.input_note2_index).assert_equal(false, "joining same note");
 
     // Check public values.
     composer.create_range_constraint(inputs.public_input.witness_index, NOTE_VALUE_BIT_LENGTH);
     composer.create_range_constraint(inputs.public_output.witness_index, NOTE_VALUE_BIT_LENGTH);
+    composer.create_range_constraint(inputs.claim_note.deposit_value.witness_index, DEFI_DEPOSIT_VALUE_BIT_LENGTH);
 
     // Derive tx_fee.
-    field_ct total_in_value = inputs.input_note1.value + inputs.input_note2.value + public_input;
+    field_ct total_in_value = inputs.input_note1.value + inputs.input_note2.value + inputs.public_input;
     field_ct total_out_value = inputs.output_note1.value + inputs.output_note2.value + public_output;
-    field_ct tx_fee = (total_in_value - total_out_value).normalize();
+    field_ct tx_fee = total_in_value - total_out_value;
     composer.create_range_constraint(tx_fee.witness_index, TX_FEE_BIT_LENGTH);
 
     // Verify input notes have the same account value id.
     auto note1 = inputs.input_note1;
     auto note2 = inputs.input_note2;
-    composer.assert_equal(note1.owner.x.witness_index, note2.owner.x.witness_index, "input note owners don't match");
-    composer.assert_equal(note1.owner.y.witness_index, note2.owner.y.witness_index, "input note owners don't match");
-    composer.assert_equal(note1.nonce.witness_index, note2.nonce.witness_index, "input note nonce don't match");
+    note1.owner.x.assert_equal(note2.owner.x, "input note owners don't match");
+    note1.owner.y.assert_equal(note2.owner.y, "input note owners don't match");
+    note1.nonce.assert_equal(note2.nonce, "input note nonce don't match");
 
     // Verify input notes are owned by account private key and nonce.
     auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
-    composer.assert_equal(
-        account_public_key.x.witness_index, note1.owner.x.witness_index, "account_private_key incorrect");
-    composer.assert_equal(
-        account_public_key.y.witness_index, note1.owner.y.witness_index, "account_private_key incorrect");
-    composer.assert_equal(inputs.nonce.witness_index, note1.nonce.witness_index, "nonce incorrect");
+    account_public_key.x.assert_equal(note1.owner.x, "account_private_key incorrect");
+    account_public_key.y.assert_equal(note1.owner.y, "account_private_key incorrect");
+    inputs.nonce.assert_equal(note1.nonce, "nonce incorrect");
 
     // Verify that the given signature was signed over all 4 notes and output owner using
     // -> the account public key if nonce == 0
@@ -123,18 +116,16 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     // Verify that the account exists if nonce > 0
     auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
     auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
-    auto exists = merkle_tree::check_membership(composer,
-                                                inputs.merkle_root,
-                                                inputs.account_path,
-                                                byte_array_ct(account_note_data),
-                                                byte_array_ct(inputs.account_index));
-    auto signing_key_registered_or_zero_nonce = exists || zero_nonce;
-    composer.assert_equal_constant(
-        signing_key_registered_or_zero_nonce.witness_index, 1, "account check_membership failed");
+    auto signing_key_exists = merkle_tree::check_membership(composer,
+                                                            inputs.merkle_root,
+                                                            inputs.account_path,
+                                                            byte_array_ct(account_note_data),
+                                                            byte_array_ct(inputs.account_index));
+    (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
 
     // Verify each input note exists in the tree, and compute nullifiers.
-    bool_ct note_1_valid = (!field_ct(inputs.num_input_notes).is_zero()).normalize();
-    bool_ct note_2_valid = field_ct(inputs.num_input_notes) == field_ct(&composer, 2);
+    bool_ct note_1_valid = !inputs.num_input_notes.is_zero();
+    bool_ct note_2_valid = inputs.num_input_notes == 2;
     field_ct nullifier1 = process_input_note(composer,
                                              inputs.account_private_key,
                                              inputs.merkle_root,
@@ -150,7 +141,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                                              input_note2,
                                              note_2_valid);
 
-    verify_signature(public_input,
+    verify_signature(inputs.public_input,
                      public_output,
                      asset_id,
                      encrypted_output_note1,
@@ -163,14 +154,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      inputs.output_owner,
                      inputs.signature);
 
-    return { proof_id,
-             nullifier1,
-             nullifier2,
-             tx_fee,
-             public_input,
-             public_output,
-             encrypted_output_note1,
-             output_note2.encrypted,
+    return { proof_id, nullifier1, nullifier2, tx_fee, public_output, encrypted_output_note1, output_note2.encrypted,
              asset_id };
 }
 
@@ -206,7 +190,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 
     // The following make up the public inputs to the circuit.
     composer.set_public_input(outputs.proof_id.witness_index);
-    composer.set_public_input(inputs.public_input.get_witness_index());
+    composer.set_public_input(inputs.public_input.witness_index);
     composer.set_public_input(outputs.public_output.witness_index);
     composer.set_public_input(outputs.asset_id.witness_index);
     outputs.output_note1.set_public();
@@ -220,7 +204,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.
     composer.set_public_input(inputs.merkle_root.witness_index);
     composer.set_public_input(outputs.tx_fee.witness_index);
-} // namespace join_split
+}
 
 } // namespace join_split
 } // namespace proofs

@@ -15,7 +15,7 @@ struct join_split_inputs {
     field_ct public_input;
     field_ct public_output;
     field_ct asset_id;
-    uint32_ct num_input_notes;
+    field_ct num_input_notes;
     field_ct input_note1_index;
     field_ct input_note2_index;
     notes::circuit::value::witness_data input_note1;
@@ -42,7 +42,6 @@ struct join_split_outputs {
     field_ct nullifier1;
     field_ct nullifier2;
     field_ct tx_fee;
-    field_ct public_input;
     field_ct public_output;
     point_ct output_note1;
     point_ct output_note2;

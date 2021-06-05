@@ -29,6 +29,14 @@ template <typename ComposerContext> class field_t {
         witness_index = IS_CONSTANT;
     }
 
+    field_t(const unsigned int value)
+        : context(nullptr)
+    {
+        additive_constant = barretenberg::fr(value);
+        multiplicative_constant = barretenberg::fr(0);
+        witness_index = IS_CONSTANT;
+    }
+
     field_t(const unsigned long value)
         : context(nullptr)
     {
@@ -216,8 +224,8 @@ template <typename ComposerContext> class field_t {
      **/
     bool_t<ComposerContext> is_zero() const;
 
-    void assert_is_not_zero() const;
-    void assert_is_zero() const;
+    void assert_is_not_zero(std::string const& msg = "field_t::assert_is_not_zero") const;
+    void assert_is_zero(std::string const& msg = "field_t::assert_is_zero") const;
     bool is_constant() const { return witness_index == IS_CONSTANT; }
 
     uint32_t get_witness_index() const { return witness_index; }

@@ -13,6 +13,8 @@ namespace claim {
 
 using namespace plonk::stdlib::merkle_tree;
 
+using circuit_data = proofs::circuit_data;
+
 inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
                                      std::string const& key_path,
                                      bool compute = true,
@@ -25,11 +27,11 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
     auto build_circuit = [&](Composer& composer) {
         claim_tx claim_tx;
         claim_tx.claim_note_path.resize(DATA_TREE_DEPTH);
-        claim_tx.defi_interaction_note_path.resize(DATA_TREE_DEPTH);
+        claim_tx.defi_interaction_note_path.resize(DEFI_TREE_DEPTH);
         claim_circuit(composer, claim_tx);
     };
 
-    return proofs::get_circuit_data(name, srs, key_path, compute, save, load, false, build_circuit);
+    return proofs::get_circuit_data(name, srs, key_path, compute, save, load, true, true, false, build_circuit);
 }
 
 } // namespace claim

@@ -1,6 +1,6 @@
 #pragma once
 #include <common/serialize.hpp>
-#include "../../constants.hpp"
+#include "../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 
@@ -40,6 +40,8 @@ struct bridge_id {
 
         return result;
     }
+
+    operator uint256_t() { return to_uint256_t(); }
 
     bool operator==(bridge_id const&) const = default;
 };

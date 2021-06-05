@@ -26,7 +26,6 @@ std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_da
 
     auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
-
     return proof.proof_data;
 }
 

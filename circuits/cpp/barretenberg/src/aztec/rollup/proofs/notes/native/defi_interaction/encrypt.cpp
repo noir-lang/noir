@@ -1,4 +1,4 @@
-#include "defi_interaction_note.hpp"
+#include "note.hpp"
 #include "../../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 
@@ -8,7 +8,7 @@ namespace notes {
 namespace native {
 namespace defi_interaction {
 
-grumpkin::g1::affine_element encrypt(defi_interaction_note const& note)
+grumpkin::g1::affine_element encrypt(note const& note)
 {
     grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
         note.total_input_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_INPUT_VALUE);

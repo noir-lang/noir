@@ -1,20 +1,15 @@
 #include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "../inner_proof_data.hpp"
-#include "join_split.hpp"
-#include "join_split_circuit.hpp"
-#include "sign_join_split_tx.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/claim/claim_note.hpp"
-#include "../notes/native/claim/encrypt.hpp"
-#include "../notes/native/claim/create_partial_value_note.hpp"
-#include "../notes/native/compute_nullifier.hpp"
-#include "../notes/native/account/encrypt.hpp"
+#include "index.hpp"
+#include "../notes/native/index.hpp"
 #include <common/streams.hpp>
 #include <common/test.hpp>
-#include <crypto/schnorr/schnorr.hpp>
-#include <stdlib/merkle_tree/memory_store.hpp>
-#include <stdlib/merkle_tree/merkle_tree.hpp>
+#include <stdlib/merkle_tree/index.hpp>
+
+namespace rollup {
+namespace proofs {
+namespace join_split {
 
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
@@ -24,7 +19,6 @@ using namespace rollup::proofs::notes::native;
 using namespace rollup::proofs::notes::native::claim;
 using namespace rollup::proofs::notes::native::value;
 using namespace rollup::proofs::notes::native::account;
-using namespace rollup::proofs::join_split;
 
 std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
 {
@@ -131,6 +125,8 @@ class join_split_tests : public ::testing::Test {
         tx.alias_hash = !nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
         tx.nonce = nonce;
         tx.claim_note.defi_interaction_nonce = 0;
+        tx.claim_note.owner = user.owner.public_key;
+        tx.claim_note.owner_nonce = nonce;
         return tx;
     }
 
@@ -181,6 +177,8 @@ class join_split_tests : public ::testing::Test {
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
         tx.claim_note.defi_interaction_nonce = 0;
+        tx.claim_note.owner = user.owner.public_key;
+        tx.claim_note.owner_nonce = 0;
         return tx;
     }
 
@@ -562,6 +560,34 @@ TEST_F(join_split_tests, test_invalid_bridge_id)
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
+TEST_F(join_split_tests, test_defi_non_zero_public_input_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value = 0;
+    tx.output_note[1].value = 100;
+    tx.claim_note.deposit_value = 50;
+    tx.public_input = 1;
+
+    bridge_id bridge_id = { 0, 2, tx.asset_id, 0, 0 };
+    tx.claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_defi_non_zero_public_output_fails)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value = 0;
+    tx.output_note[1].value = 100;
+    tx.claim_note.deposit_value = 50;
+    tx.public_output = 1;
+
+    bridge_id bridge_id = { 0, 2, tx.asset_id, 0, 0 };
+    tx.claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
 HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
@@ -633,3 +659,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 
     EXPECT_TRUE(verify_proof(proof));
 }
+
+} // namespace join_split
+} // namespace proofs
+} // namespace rollup

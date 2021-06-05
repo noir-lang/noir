@@ -9,7 +9,7 @@ namespace claim {
 
 using namespace barretenberg;
 
-fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note, uint32_t index)
+inline fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note, uint32_t index)
 {
     std::vector<uint8_t> buf;
     write(buf, encrypted_note.x);

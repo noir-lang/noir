@@ -90,15 +90,6 @@ void update_membership(Composer& composer,
 
     // Check that the new_value, is in the tree given by new_root, at index.
     assert_check_membership(composer, new_root, old_hashes, new_value, index, true, msg + "_new_value");
-
-    // Check that the old and new values, are actually in the same tree.
-    //    for (size_t i = 0; i < new_hashes.size(); ++i) {
-    //        bool_t path_bit = index.get_bit(i);
-    //        bool_t share_left = (old_hashes[i].first == new_hashes[i].first) & path_bit;
-    //        bool_t share_right = (old_hashes[i].second == new_hashes[i].second) & !path_bit;
-    //        composer.assert_equal_constant(
-    //            (share_left ^ share_right).witness_index, barretenberg::fr::one(), msg + "_same_tree");
-    //    }
 }
 
 template <typename Composer>
@@ -155,6 +146,32 @@ void assert_check_tree(Composer& composer,
 {
     auto valid = check_tree(root, values);
     composer.assert_equal_constant(valid.witness_index, fr::one());
+}
+
+template <typename Composer>
+void batch_update_membership(Composer& composer,
+                             field_t<Composer> const& new_root,
+                             field_t<Composer> const& old_root,
+                             hash_path<Composer> const& old_path,
+                             std::vector<byte_array<Composer>> const& new_values,
+                             field_t<Composer> const& start_index,
+                             std::string const& msg = "batch_update_membership")
+{
+    size_t height = numeric::get_msb(new_values.size());
+    auto zero_subtree_root = field_t<Composer>(zero_hash_at_height(height));
+
+    auto rollup_root = compute_tree_root(new_values);
+
+    update_subtree_membership(composer,
+                              new_root,
+                              old_path,
+                              rollup_root,
+                              old_root,
+                              old_path,
+                              zero_subtree_root,
+                              byte_array<Composer>(start_index),
+                              height,
+                              msg);
 }
 
 } // namespace merkle_tree

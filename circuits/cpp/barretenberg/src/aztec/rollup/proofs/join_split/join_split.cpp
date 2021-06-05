@@ -1,5 +1,6 @@
 #include "join_split.hpp"
 #include "join_split_circuit.hpp"
+#include "compute_circuit_data.hpp"
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 
@@ -16,10 +17,7 @@ static std::shared_ptr<waffle::verification_key> verification_key;
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
 {
     // Junk data required just to create proving key.
-    join_split_tx tx;
-    tx.input_path[0].resize(32);
-    tx.input_path[1].resize(32);
-    tx.account_path.resize(32);
+    join_split_tx tx = noop_tx();
 
     Composer composer(std::move(crs_factory));
     join_split_circuit(composer, tx);
@@ -67,7 +65,7 @@ bool verify_proof(waffle::plonk_proof const& proof)
     UnrolledVerifier verifier(verification_key,
                               Composer::create_unrolled_manifest(verification_key->num_public_inputs));
 
-    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>> kate_commitment_scheme =
         std::make_unique<waffle::KateCommitmentScheme<waffle::unrolled_turbo_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 

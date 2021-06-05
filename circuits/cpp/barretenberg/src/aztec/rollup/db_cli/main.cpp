@@ -24,7 +24,8 @@ class WorldStateDb {
         , data_tree_(store_, rollup::DATA_TREE_DEPTH, 0)
         , nullifier_tree_(store_, rollup::NULL_TREE_DEPTH, 1)
         , root_tree_(store_, rollup::ROOT_TREE_DEPTH, 2)
-        , trees_({ &data_tree_, &nullifier_tree_, &root_tree_ })
+        , defi_tree_(store_, rollup::DEFI_TREE_DEPTH, 3)
+        , trees_({ &data_tree_, &nullifier_tree_, &root_tree_, &defi_tree_ })
     {
         if (root_tree_.size() == 0) {
             root_tree_.update_element(0, to_buffer(data_tree_.root()));
@@ -34,6 +35,7 @@ class WorldStateDb {
         std::cerr << "Data root: " << data_tree_.root() << " size: " << data_tree_.size() << std::endl;
         std::cerr << "Null root: " << nullifier_tree_.root() << " size: " << nullifier_tree_.size() << std::endl;
         std::cerr << "Root root: " << root_tree_.root() << " size: " << root_tree_.size() << std::endl;
+        std::cerr << "Defi root: " << defi_tree_.root() << " size: " << defi_tree_.size() << std::endl;
     }
 
     void write_metadata(std::ostream& os)
@@ -41,9 +43,11 @@ class WorldStateDb {
         write(os, data_tree_.root());
         write(os, nullifier_tree_.root());
         write(os, root_tree_.root());
+        write(os, defi_tree_.root());
         write(os, data_tree_.size());
         write(os, nullifier_tree_.size());
         write(os, root_tree_.size());
+        write(os, defi_tree_.size());
     }
 
     void get(std::istream& is, std::ostream& os)
@@ -107,7 +111,8 @@ class WorldStateDb {
     LevelDbTree data_tree_;
     LevelDbTree nullifier_tree_;
     LevelDbTree root_tree_;
-    std::array<LevelDbTree*, 3> trees_;
+    LevelDbTree defi_tree_;
+    std::array<LevelDbTree*, 4> trees_;
 };
 
 int main(int argc, char** argv)

@@ -28,7 +28,7 @@ join_split::circuit_data js_cd;
 account::circuit_data account_cd;
 tx_rollup::circuit_data tx_rollup_cd;
 root_rollup::circuit_data root_rollup_cd;
-circuit_data claim_cd;
+claim::circuit_data claim_cd;
 } // namespace
 
 bool create_tx_rollup()
@@ -38,7 +38,8 @@ bool create_tx_rollup()
 
     if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
         tx_rollup_cd.proving_key.reset();
-        tx_rollup_cd = tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, crs, data_path, true, persist, persist);
+        tx_rollup_cd =
+            tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
     }
 
     tx_rollup::rollup_tx rollup;
@@ -56,7 +57,7 @@ bool create_tx_rollup()
     tx_rollup_cd.proving_key->reset();
 
     std::cerr << "Creating tx rollup proof..." << std::endl;
-    auto result = verify_rollup(rollup, tx_rollup_cd);
+    auto result = verify(rollup, tx_rollup_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
@@ -77,7 +78,8 @@ bool create_root_rollup()
 
     if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
         tx_rollup_cd.proving_key.reset();
-        tx_rollup_cd = tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, crs, data_path, true, persist, persist);
+        tx_rollup_cd =
+            tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
     }
 
     if (!root_rollup_cd.proving_key || root_rollup_cd.num_inner_rollups != num_proofs) {

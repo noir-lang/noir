@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../../native/defi_interaction/defi_interaction_note.hpp"
+#include "../../native/defi_interaction/note.hpp"
+#include "../pedersen_note.hpp"
 #include "witness_data.hpp"
 
 namespace rollup {
@@ -11,7 +12,7 @@ namespace defi_interaction {
 
 using namespace plonk::stdlib::types::turbo;
 
-struct defi_interaction_note {
+struct note {
 
     // compress bridge_id to field
     field_ct bridge_id;
@@ -34,7 +35,7 @@ struct defi_interaction_note {
     // encrypted defi_interaction_note
     point_ct encrypted;
 
-    defi_interaction_note(witness_data const& note)
+    note(witness_data const& note)
         : bridge_id(note.bridge_id_data.to_field())
         , interaction_nonce(note.interaction_nonce)
         , total_input_value(note.total_input_value)
@@ -45,6 +46,20 @@ struct defi_interaction_note {
     {}
 
     operator byte_array_ct() const { return byte_array_ct(encrypted.x).write(encrypted.y); }
+
+    byte_array_ct to_byte_array(Composer& composer, bool_ct is_real = 1) const
+    {
+        byte_array_ct arr(&composer);
+
+        arr.write((bridge_id * is_real).normalize());
+        arr.write((interaction_nonce * is_real).normalize());
+        arr.write((total_input_value * is_real).normalize());
+        arr.write((total_output_a_value * is_real).normalize());
+        arr.write((total_output_b_value * is_real).normalize());
+        arr.write((field_ct(interaction_result) * is_real).normalize());
+
+        return arr;
+    }
 
   private:
     point_ct encrypt()

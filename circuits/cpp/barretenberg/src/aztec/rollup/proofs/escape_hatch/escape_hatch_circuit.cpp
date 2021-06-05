@@ -3,6 +3,7 @@
 #include "../join_split/join_split_circuit.hpp"
 #include "../rollup/rollup_circuit.hpp"
 #include "../root_rollup/root_rollup_circuit.hpp"
+#include <common/map.hpp>
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -44,7 +45,7 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     };
 
     auto outputs = join_split_circuit_component(composer, inputs);
-    composer.assert_equal(outputs.tx_fee.witness_index, composer.zero_idx, "tx_fee");
+    outputs.tx_fee.assert_is_zero("tx_fee not zero");
 
     auto one = uint32_ct(1);
     auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));
@@ -54,17 +55,13 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     auto new_data_roots_root = field_ct(witness_ct(&composer, tx.new_data_roots_root));
     auto old_null_root = field_ct(witness_ct(&composer, tx.old_null_root));
     auto data_start_index = field_ct(witness_ct(&composer, tx.data_start_index));
+    const auto new_null_roots = map(tx.new_null_roots, [&](auto& r) { return field_ct(witness_ct(&composer, r)); });
+    const auto old_null_paths = map(tx.old_null_paths, [&](auto& p) { return create_witness_hash_path(composer, p); });
 
-    auto new_null_root = rollup::check_nullifiers_inserted(composer,
-                                                           tx.new_null_roots,
-                                                           tx.old_null_paths,
-                                                           tx.new_null_paths,
-                                                           one,
-                                                           old_null_root,
-                                                           { outputs.nullifier1, outputs.nullifier2 });
+    auto new_null_root = rollup::check_nullifiers_inserted(
+        composer, new_null_roots, old_null_paths, one, old_null_root, { outputs.nullifier1, outputs.nullifier2 });
 
     root_rollup::check_root_tree_updated(composer,
-                                         create_witness_hash_path(composer, tx.new_data_roots_path),
                                          create_witness_hash_path(composer, tx.old_data_roots_path),
                                          rollup_id,
                                          new_data_root,
@@ -74,7 +71,6 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     rollup::check_data_tree_updated(
         composer,
         1,
-        create_witness_hash_path(composer, tx.new_data_path),
         create_witness_hash_path(composer, tx.old_data_path),
         { byte_array_ct(&composer).write(outputs.output_note1.x).write(outputs.output_note1.y),
           byte_array_ct(&composer).write(outputs.output_note2.x).write(outputs.output_note2.y) },

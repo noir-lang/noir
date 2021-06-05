@@ -22,17 +22,19 @@ inline std::vector<uint8_t> compute_or_load_fixture(std::string const& path,
     // Tests are being run from build directory.
     auto filename = path + "/" + name;
     if (exists(filename)) {
-        error("Loading ", filename);
         auto stream = std::ifstream(filename);
         std::vector<uint8_t> data;
         read(stream, data);
+        error("Loaded fixture: ", filename);
         return data;
     } else {
-        error("Computing ", name, "...");
+        error("Computing fixture: ", name, "...");
         auto data = f();
-        mkdir(path.c_str(), 0700);
-        auto stream = std::ofstream(filename);
-        write(stream, data);
+        if (data.size()) {
+            mkdir(path.c_str(), 0700);
+            auto stream = std::ofstream(filename);
+            write(stream, data);
+        }
         return data;
     }
 }

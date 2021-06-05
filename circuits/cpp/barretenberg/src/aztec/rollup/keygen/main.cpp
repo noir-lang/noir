@@ -2,6 +2,7 @@
 #include "../proofs/rollup/compute_circuit_data.hpp"
 #include "../proofs/root_rollup/compute_circuit_data.hpp"
 #include "../proofs/rollup/rollup_tx.hpp"
+#include "../proofs/claim/index.hpp"
 #include <common/timer.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
@@ -39,10 +40,11 @@ int main(int argc, char** argv)
     }
 
     auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
-    auto account_circuit_data = account::compute_circuit_data(srs);
-    auto join_split_circuit_data = join_split::compute_circuit_data(srs);
+    auto account_cd = account::compute_circuit_data(srs);
+    auto join_split_cd = join_split::compute_circuit_data(srs);
+    auto claim_cd = claim::get_circuit_data(srs, "./data");
     auto rollup_circuit_data = tx_rollup::get_circuit_data(
-        inner_txs, join_split_circuit_data, account_circuit_data, srs, "./data", true, persist, persist);
+        inner_txs, join_split_cd, account_cd, claim_cd, srs, "./data", true, persist, persist);
 
     // Release memory held by proving key, we don't need it.
     rollup_circuit_data.proving_key.reset();

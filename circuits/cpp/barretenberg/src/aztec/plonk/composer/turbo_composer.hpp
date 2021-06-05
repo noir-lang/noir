@@ -62,10 +62,10 @@ class TurboComposer : public ComposerBase {
         }
         contains_recursive_proof = true;
 
-      for (const auto& idx : proof_output_witness_indices) {
+        for (const auto& idx : proof_output_witness_indices) {
             set_public_input(idx);
             recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
-        }  
+        }
     }
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
@@ -96,6 +96,15 @@ class TurboComposer : public ComposerBase {
             a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
         };
         create_add_gate(gate_coefficients);
+    }
+
+    /**
+     * For any type other than uint32_t (presumed to be a witness index), we call normalize first.
+     */
+    template <typename T>
+    void assert_equal_constant(T const& in, const barretenberg::fr& b, std::string const& msg = "assert_equal_constant")
+    {
+        assert_equal_constant(in.normalize().witness_index, b, msg);
     }
 
     // these are variables that we have used a gate on, to enforce that they are equal to a defined value
