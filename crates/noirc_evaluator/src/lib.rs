@@ -223,7 +223,7 @@ impl<'a> Evaluator<'a> {
                                     "signed integers are currently not supported"
                                 );
 
-                                let integer = Integer::from_witness(witness, width);
+                                let integer = Integer::from_witness_unconstrained(witness, width);
                                 integer.constrain(self)?;
                                 Object::Integer(integer)
                             }
@@ -262,7 +262,7 @@ impl<'a> Evaluator<'a> {
                         "signed integers are currently not supported"
                     );
 
-                    let integer = Integer::from_witness(witness, width);
+                    let integer = Integer::from_witness_unconstrained(witness, width);
                     integer.constrain(self)?;
 
                     env.store(param_name, Object::Integer(integer));

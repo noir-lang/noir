@@ -84,7 +84,7 @@ pub fn maybe_equal(
     evaluator.gates.push(Gate::Arithmetic(gate));
 
     // We know that y is a boolean
-    let bool_y = Integer::from_witness(y, 1);
+    let bool_y = Integer::from_witness_unconstrained(y, 1);
 
     Ok(Object::Integer(bool_y))
 }
