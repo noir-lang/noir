@@ -41,7 +41,7 @@ impl GadgetCaller for Sha256Gadget {
         evaluator.gates.push(Gate::GadgetCall(sha256_gate));
 
         let arr = Array {
-            length: 2,
+            length: contents.len() as u128,
             contents,
         };
 

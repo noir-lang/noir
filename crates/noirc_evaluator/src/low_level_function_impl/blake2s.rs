@@ -43,7 +43,7 @@ impl GadgetCaller for Blake2sGadget {
         evaluator.gates.push(Gate::GadgetCall(blake2s_gate));
 
         let arr = Array {
-            length: 2,
+            length: contents.len() as u128,
             contents,
         };
 
