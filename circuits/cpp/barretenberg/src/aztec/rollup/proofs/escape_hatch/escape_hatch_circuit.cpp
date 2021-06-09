@@ -88,11 +88,20 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     composer.set_public_input(new_null_root.witness_index);
     composer.set_public_input(old_data_roots_root.witness_index);
     composer.set_public_input(new_data_roots_root.witness_index);
+    public_witness_ct(&composer, 0); // old_defi_root.
+    public_witness_ct(&composer, 0); // new_defi_root.
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        auto zero_bridge_id = public_witness_ct(&composer, 0);
+        composer.assert_equal_constant(zero_bridge_id.witness_index, 0);
+    }
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        auto zero_deposit_sum = public_witness_ct(&composer, 0);
+        composer.assert_equal_constant(zero_deposit_sum.witness_index, 0);
+    }
     for (size_t j = 0; j < NUM_ASSETS; ++j) {
         auto zero_fee = public_witness_ct(&composer, 0);
         composer.assert_equal_constant(zero_fee.witness_index, 0);
     }
-    public_witness_ct(&composer, 1); // num_txs.
 
     // "Inner proof".
     public_witness_ct(&composer, 0); // proof_id.
@@ -107,6 +116,14 @@ void escape_hatch_circuit(Composer& composer, escape_hatch_tx const& tx)
     composer.set_public_input(outputs.nullifier2.witness_index);
     public_witness_ct(&composer, tx.js_tx.input_owner);
     public_witness_ct(&composer, tx.js_tx.output_owner);
+
+    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
+        auto empty_interaction_note_x = public_witness_ct(&composer, 0);
+        auto empty_interaction_note_y = public_witness_ct(&composer, 0);
+        composer.assert_equal_constant(empty_interaction_note_x.witness_index, 0);
+        composer.assert_equal_constant(empty_interaction_note_y.witness_index, 0);
+    }
+    public_witness_ct(&composer, 0); // previous_defi_interaction_hash
 }
 
 } // namespace escape_hatch

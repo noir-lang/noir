@@ -33,17 +33,20 @@ WASM_EXPORT void notes__compute_nullifier(
     write(output, nullifier);
 }
 
-WASM_EXPORT void notes__encrypt_claim_note(uint8_t const* note_buffer,
-                                           uint8_t* public_key_buffer,
-                                           uint32_t nonce,
-                                           uint8_t* output)
+WASM_EXPORT void notes__create_partial_value_note(uint8_t const* note_buffer,
+                                                  uint8_t* public_key_buffer,
+                                                  uint32_t nonce,
+                                                  uint8_t* output)
 {
     auto tx = from_buffer<claim::claim_note_tx_data>(note_buffer);
     auto public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
-    claim::claim_note note = { tx.deposit_value,
-                               tx.bridge_id,
-                               tx.defi_interaction_nonce,
-                               claim::create_partial_value_note(tx.note_secret, public_key, nonce) };
+    auto partial_state = claim::create_partial_value_note(tx.note_secret, public_key, nonce);
+    write(output, partial_state);
+}
+
+WASM_EXPORT void notes__encrypt_claim_note(uint8_t const* note_buffer, uint8_t* output)
+{
+    auto note = from_buffer<claim::claim_note>(note_buffer);
     auto encrypted = claim::encrypt(note);
     write(output, encrypted);
 }
