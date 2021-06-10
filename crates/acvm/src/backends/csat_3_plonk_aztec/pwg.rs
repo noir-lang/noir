@@ -27,7 +27,7 @@ impl PartialWitnessGenerator for Plonk {
         for gate in gates.into_iter() {
             let unsolved = match &gate {
                 Gate::Arithmetic(arith) => {
-                    ArithmeticSolver::solve(initial_witness, &arith).is_some()
+                    ArithmeticSolver::solve(initial_witness, arith).is_some()
                 }
                 Gate::Range(_, _) => {
                     // We do not need to solve for this gate, we have passed responsibility to the underlying

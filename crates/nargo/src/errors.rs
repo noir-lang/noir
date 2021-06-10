@@ -10,8 +10,8 @@ pub enum CliError {
 impl CliError {
     pub(crate) fn write(&self) -> ! {
         match self {
-            CliError::Generic(msg) => CliError::write_msg_exit(&msg),
-            CliError::DestinationAlreadyExists(msg) => CliError::write_msg_exit(&msg),
+            CliError::Generic(msg) => CliError::write_msg_exit(msg),
+            CliError::DestinationAlreadyExists(msg) => CliError::write_msg_exit(msg),
         }
     }
 

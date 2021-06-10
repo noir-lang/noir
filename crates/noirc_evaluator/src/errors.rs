@@ -80,8 +80,8 @@ impl DiagnosableError for RuntimeErrorKind {
                 ),
                 *span,
             ),
-            RuntimeErrorKind::Spanless(message) => Diagnostic::from_message(&message),
-            RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(&message),
+            RuntimeErrorKind::Spanless(message) => Diagnostic::from_message(message),
+            RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(message),
             RuntimeErrorKind::FunctionNonMainContext { func_name, span } => {
                 Diagnostic::simple_error(
                     "cannot call function outside of main".to_owned(),

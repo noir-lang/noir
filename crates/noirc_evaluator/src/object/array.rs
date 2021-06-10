@@ -1,7 +1,6 @@
 use super::RuntimeErrorKind;
 use crate::{binary_op::maybe_equal, object::Object};
 use crate::{Environment, Evaluator};
-use acvm::acir::native_types::Witness;
 use noir_field::FieldElement;
 use noirc_errors::Span;
 use noirc_frontend::hir_def::expr::HirArrayLiteral;
@@ -132,10 +131,10 @@ impl Array {
     ) -> Result<(), RuntimeErrorKind> {
         let length = Array::check_arr_len(&lhs, &rhs)?;
 
-        let mut predicates: Vec<Witness> = Vec::with_capacity(length);
+        let mut predicates: Vec<Object> = Vec::with_capacity(length);
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
             let pred_i = maybe_equal(lhs_element, rhs_element, evaluator)?;
-            predicates.push(pred_i.witness);
+            predicates.push(pred_i);
         }
 
         // We now have a predicates vector, where 1 represents the elements were the same
@@ -145,15 +144,12 @@ impl Array {
         // Then constrain the product to be equal to 0
 
         let mut predicates_iter = predicates.into_iter();
-        let mut result = Object::from_witness(
-            predicates_iter
-                .next()
-                .expect("ice: arrays must have at least one element in them"),
-        );
+        let mut result = predicates_iter
+            .next()
+            .expect("ice: arrays must have at least one element in them");
 
         for pred in predicates_iter {
-            result =
-                crate::binary_op::handle_mul_op(result, Object::from_witness(pred), evaluator)?;
+            result = crate::binary_op::handle_mul_op(result, pred, evaluator)?;
         }
 
         crate::binary_op::handle_equal_op(

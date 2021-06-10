@@ -16,7 +16,7 @@ use crate::{
 pub(crate) fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     let mut folder_name = base.domain().unwrap().to_owned();
     folder_name.push_str(base.path());
-    folder_name.push_str(&tag);
+    folder_name.push_str(tag);
     folder_name
 }
 
@@ -54,9 +54,9 @@ impl<'a> Resolver<'a> {
     pub fn resolve_root_config(dir_path: &std::path::Path) -> Result<Driver, CliError> {
         let mut driver = Driver::new();
 
-        let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
+        let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
-        let cfg_path = super::find_package_config(&dir_path)?;
+        let cfg_path = super::find_package_config(dir_path)?;
         let cfg = super::toml::parse(cfg_path)?;
 
         let crate_id = driver.create_local_crate(entry_path, crate_type);
@@ -115,8 +115,8 @@ impl<'a> Resolver<'a> {
     /// be downloaded
     fn cache_dep2(dep: &Dependency) -> Result<(PathBuf, CachedDep), CliError> {
         fn retrieve_meta(dir_path: &Path, remote: bool) -> Result<CachedDep, CliError> {
-            let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
-            let cfg_path = super::find_package_config(&dir_path)?;
+            let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
+            let cfg_path = super::find_package_config(dir_path)?;
             let cfg = super::toml::parse(cfg_path)?;
             Ok(CachedDep {
                 entry_path,

@@ -29,7 +29,7 @@ impl GadgetCaller for Blake2sGadget {
         let mut contents = Vec::with_capacity(32);
         for _ in 0..32 {
             let witness = evaluator.add_witness_to_cs();
-            let object = Object::Integer(Integer::from_witness(witness, 8));
+            let object = Object::Integer(Integer::from_witness_unconstrained(witness, 8));
             outputs.push(witness);
             contents.push(object);
         }
@@ -43,7 +43,7 @@ impl GadgetCaller for Blake2sGadget {
         evaluator.gates.push(Gate::GadgetCall(blake2s_gate));
 
         let arr = Array {
-            length: 2,
+            length: contents.len() as u128,
             contents,
         };
 

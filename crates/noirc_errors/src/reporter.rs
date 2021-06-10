@@ -90,7 +90,7 @@ impl Reporter {
                 &mut writer.lock(),
                 &config,
                 files.as_simple_files(),
-                &diagnostic,
+                diagnostic,
             )
             .unwrap();
         }

@@ -69,7 +69,7 @@ pub fn parse<P: AsRef<Path>>(path_to_toml: P) -> Result<Config, CliError> {
 }
 
 fn parse_toml_str(toml_as_string: &str) -> Result<Config, String> {
-    match toml::from_str::<Config>(&toml_as_string) {
+    match toml::from_str::<Config>(toml_as_string) {
         Ok(cfg) => Ok(cfg),
         Err(err) => {
             let mut message = "input.toml file is badly formed, could not parse\n\n".to_owned();

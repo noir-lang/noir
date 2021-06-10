@@ -189,7 +189,7 @@ fn resolve_functions(
                 Err(errs) => {
                     collected_errors
                         .errors
-                        .extend(errs.into_iter().map(|err| err.into_diagnostic(&interner)));
+                        .extend(errs.into_iter().map(|err| err.into_diagnostic(interner)));
                 }
             }
         }

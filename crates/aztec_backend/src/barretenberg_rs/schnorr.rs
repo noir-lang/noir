@@ -6,7 +6,7 @@ use super::Barretenberg;
 impl Barretenberg {
     pub fn construct_signature(&mut self, message: &[u8], private_key: [u8; 32]) -> [u8; 64] {
         self.transfer_to_heap(&private_key, 64);
-        self.transfer_to_heap(&message, 96);
+        self.transfer_to_heap(message, 96);
         let message_len = Value::I32(message.len() as i32);
         self.call_multiple(
             "construct_signature",
@@ -38,7 +38,7 @@ impl Barretenberg {
         self.transfer_to_heap(&pub_key, 0);
         self.transfer_to_heap(&sig[0..32], 64);
         self.transfer_to_heap(&sig[32..64], 96);
-        self.transfer_to_heap(&message, 128);
+        self.transfer_to_heap(message, 128);
 
         let wasm_value = self.call_multiple(
             "verify_signature",

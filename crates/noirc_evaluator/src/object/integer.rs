@@ -16,7 +16,7 @@ pub struct Integer {
 // We can put this inside of the Analyser instead
 
 impl Integer {
-    pub fn from_witness(witness: Witness, num_bits: u32) -> Integer {
+    pub fn from_witness_unconstrained(witness: Witness, num_bits: u32) -> Integer {
         Integer { witness, num_bits }
     }
 
@@ -53,7 +53,7 @@ impl Integer {
         let rhs_arith = Arithmetic::from(intermediate.linear().unwrap());
         evaluator.gates.push(Gate::Arithmetic(&arith - &rhs_arith));
 
-        Integer::from_witness(witness, num_bits)
+        Integer::from_witness_unconstrained(witness, num_bits)
     }
 
     /// Constrains the integer to be equal to zero

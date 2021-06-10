@@ -72,9 +72,9 @@ pub fn resolve_path_to_ns(
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
             // Resolve from the root of the crate
-            resolve_path_from_crate_root(def_map, &import_path, def_maps)
+            resolve_path_from_crate_root(def_map, import_path, def_maps)
         }
-        crate::ast::PathKind::Dep => resolve_external_dep(def_map, &import_directive, def_maps),
+        crate::ast::PathKind::Dep => resolve_external_dep(def_map, import_directive, def_maps),
         crate::ast::PathKind::Plain => {
             // Plain paths are only used to import children modules. It's possible to allow import of external deps, but maybe this distinction is better?
             // In Rust they can also point to external Dependencies, if no children can be found with the specified name
@@ -113,7 +113,7 @@ fn resolve_name_in_module(
     let first_segment = import_path
         .next()
         .expect("ice: could not fetch first segment");
-    let mut current_ns = current_mod.scope.find_name(&first_segment);
+    let mut current_ns = current_mod.scope.find_name(first_segment);
     if current_ns.is_none() {
         return PathResolution::Unresolved(first_segment.clone());
     }
@@ -131,7 +131,7 @@ fn resolve_name_in_module(
         };
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
         // Check if namespace
-        let found_ns = current_mod.scope.find_name(&segment);
+        let found_ns = current_mod.scope.find_name(segment);
         if found_ns.is_none() {
             return PathResolution::Unresolved(segment.clone());
         }
