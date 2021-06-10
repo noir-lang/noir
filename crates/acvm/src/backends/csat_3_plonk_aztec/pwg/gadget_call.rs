@@ -142,7 +142,7 @@ impl GadgetCaller {
                     Some(assignment) => assignment,
                 };
                 let mut barretenberg = Barretenberg::new();
-                let (pub_x, pub_y) = barretenberg.fixed_base(&scalar);
+                let (pub_x, pub_y) = barretenberg.fixed_base(scalar);
 
                 initial_witness.insert(gadget_call.outputs[0], pub_x);
                 initial_witness.insert(gadget_call.outputs[1], pub_y);

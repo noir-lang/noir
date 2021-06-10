@@ -381,8 +381,8 @@ impl Attribute {
 impl AsRef<str> for Attribute {
     fn as_ref(&self) -> &str {
         match self {
-            Attribute::Foreign(string) => &string,
-            Attribute::Builtin(string) => &string,
+            Attribute::Foreign(string) => string,
+            Attribute::Builtin(string) => string,
         }
     }
 }

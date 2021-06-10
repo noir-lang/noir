@@ -95,7 +95,7 @@ mod ecdsa_secp256k1 {
             let signature_bytes: &[u8] = signature.as_ref();
             assert!(Signature::try_from(signature_bytes).unwrap() == signature);
             dbg!(x, y, digest, signature);
-            verify_prehashed(&digest, &x, &y, signature_bytes).unwrap();
+            verify_prehashed(&digest, x, y, signature_bytes).unwrap();
         } else {
             unreachable!();
         }
@@ -153,7 +153,7 @@ mod ecdsa_secp256k1 {
             .to_affine();
 
         if let Coordinates::Uncompressed { x, y: _ } = R.to_encoded_point(false).coordinates() {
-            if Scalar::from_bytes_reduced(&x).eq(&r) {
+            if Scalar::from_bytes_reduced(x).eq(&r) {
                 return Ok(());
             }
         }

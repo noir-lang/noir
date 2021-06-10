@@ -26,9 +26,9 @@ impl ArithmeticSolver {
         gate: &'a Arithmetic,
     ) -> Option<&'a Arithmetic> {
         // Evaluate multiplication term
-        let mul_result = ArithmeticSolver::solve_mul_term(&gate, &initial_witness);
+        let mul_result = ArithmeticSolver::solve_mul_term(gate, initial_witness);
         // Evaluate the fan-in terms
-        let gate_status = ArithmeticSolver::solve_fan_in_term(&gate, &initial_witness);
+        let gate_status = ArithmeticSolver::solve_fan_in_term(gate, initial_witness);
 
         match (mul_result, gate_status) {
             (MulTerm::TooManyUnknowns, _) => Some(gate),
