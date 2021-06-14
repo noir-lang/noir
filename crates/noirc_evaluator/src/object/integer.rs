@@ -32,10 +32,7 @@ impl Integer {
         } else if self.num_bits == FieldElement::max_num_bits() {
             // Don't apply any constraints if the range is for the maximum number of bits
             let message = format!("All Witnesses are by default u{}. Applying this type does not apply any constraints.",FieldElement::max_num_bits());
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         } else {
             // Note if the number of bits is odd, then Barretenberg will panic
             evaluator
@@ -80,10 +77,7 @@ impl Integer {
                     "tried to convert a {} into an integer. This is not possible.",
                     k.r#type()
                 );
-                Err(RuntimeErrorKind::UnstructuredError {
-                    span: Default::default(),
-                    message,
-                })
+                Err(RuntimeErrorKind::UnstructuredError { message })
             }
         }
     }
@@ -194,10 +188,7 @@ impl Integer {
                 "Both integers must have the same integer type. Expected u{}, got u{}",
                 self.num_bits, num_bits
             );
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         }
 
         let res =
@@ -223,10 +214,7 @@ fn extract_witness_and_num_bits(
                 "Woops expected an integer or a field element with known bit size, but got {:?}",
                 k
             );
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         }
     };
     Ok((object, bits))

@@ -9,7 +9,6 @@ pub fn handle_xor_op(
         (Object::Integer(x), Object::Integer(y)) => Ok(Object::Integer(x.xor(y, evaluator)?)),
         (x, y) => {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
                 message: format!(
                     "bitwise operations are only available on integers, found types : {} and {}",
                     x.r#type(),

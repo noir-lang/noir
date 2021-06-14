@@ -34,7 +34,6 @@ pub fn handle_mul_op(
 
 fn err_cannot_mul(first_type: &'static str, second_type: &'static str) -> RuntimeErrorKind {
     RuntimeErrorKind::UnsupportedOp {
-        span: Default::default(),
         op: "mul".to_owned(),
         first_type: first_type.to_owned(),
         second_type: second_type.to_owned(),

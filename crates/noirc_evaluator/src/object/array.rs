@@ -31,12 +31,11 @@ impl Array {
             length: arr_lit.length,
         })
     }
-    pub fn get(&self, index: u128, span: Span) -> Result<Object, RuntimeErrorKind> {
+    pub fn get(&self, index: u128) -> Result<Object, RuntimeErrorKind> {
         if index >= self.length {
             return Err(RuntimeErrorKind::ArrayOutOfBounds {
                 index,
                 bound: self.length,
-                span,
             });
         };
 
@@ -92,7 +91,6 @@ impl Array {
         let rhs_len = rhs.num_elements();
         if lhs_len != rhs_len {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Span::default(),
                 message: format!(
                     "arrays must contain the same number of elements. lhs : {} , rhs : {}",
                     lhs_len, rhs_len
@@ -102,7 +100,6 @@ impl Array {
 
         if lhs_len == 0 {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Span::default(),
                 message: "arrays must contain at least one element".to_string(),
             });
         }

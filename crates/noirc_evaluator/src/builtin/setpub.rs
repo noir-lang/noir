@@ -25,7 +25,7 @@ impl BuiltInCaller for SetPub {
                 .def_interner
                 .function_meta(&call_expr.func_id)
                 .name;
-            return Err(RuntimeErrorKind::FunctionNonMainContext { func_name, span });
+            return Err(RuntimeErrorKind::FunctionNonMainContext { func_name });
         }
 
         let witness = object.witness().expect("expected a witness");

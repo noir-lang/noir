@@ -340,7 +340,6 @@ impl<'a> Evaluator<'a> {
             rhs_poly
                 .extract_private_witness()
                 .ok_or(RuntimeErrorKind::UnstructuredError {
-                    span: Default::default(),
                     message: "only witnesses can be used in a private statement".to_string(),
                 })?;
         self.gates
@@ -543,7 +542,7 @@ impl<'a> Evaluator<'a> {
                 };
                 //
                 let index_as_u128 = index_as_constant.to_u128();
-                arr.get(index_as_u128, ident_span)
+                arr.get(index_as_u128)
             }
             HirExpression::Call(call_expr) => {
 

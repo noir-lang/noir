@@ -53,7 +53,6 @@ pub fn handle_add_op(
 
 fn handle_cannot_add(typ: &'static str) -> RuntimeErrorKind {
     RuntimeErrorKind::UnstructuredError {
-        span: Default::default(),
         message: format!("{} cannot be used in an addition", typ),
     }
 }

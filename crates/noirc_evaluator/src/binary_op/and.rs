@@ -8,7 +8,7 @@ pub fn handle_and_op(
     match (left, right) {
         (Object::Integer(x), Object::Integer(y)) => Ok(Object::Integer(x.and(y, evaluator)?)),
         (x, y) => {
-            let err=  RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("currently we only support bitwise operations on ranged operations, found types {} and {}", x.r#type(), y.r#type())};
+            let err=  RuntimeErrorKind::UnstructuredError{ message : format!("currently we only support bitwise operations on ranged operations, found types {} and {}", x.r#type(), y.r#type())};
             Err(err)
         }
     }

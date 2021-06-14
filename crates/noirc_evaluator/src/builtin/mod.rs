@@ -46,10 +46,7 @@ pub fn call_builtin(
                 "cannot find a builtin function with the attribute name {}",
                 builtin_name
             );
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         }
         Some(func) => func,
     };
