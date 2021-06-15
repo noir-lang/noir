@@ -1,8 +1,8 @@
 use super::RuntimeErrorKind;
+use crate::errors::RuntimeError;
 use crate::{binary_op::maybe_equal, object::Object};
 use crate::{Environment, Evaluator};
 use noir_field::FieldElement;
-use noirc_errors::Span;
 use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
 
@@ -17,12 +17,14 @@ impl Array {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         arr_lit: HirArrayLiteral,
-    ) -> Result<Array, RuntimeErrorKind> {
+    ) -> Result<Array, RuntimeError> {
         // Take each element in the array and turn it into an object
         // We do not check that the array is homogeneous, this is done by the type checker.
         // We could double check here, however with appropriate tests, it should not be needed.
         let (objects, mut errs) = evaluator.expression_list_to_objects(env, &arr_lit.contents);
         if !errs.is_empty() {
+            // XXX Should we make this return an RunTimeError? The problem is that we do not want the OPCODES
+            // to return RunTimeErrors, because we do not want to deal with span there
             return Err(errs.pop().unwrap());
         }
 
@@ -169,11 +171,14 @@ impl Array {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         expr_id: &ExprId,
-    ) -> Result<Array, RuntimeErrorKind> {
+    ) -> Result<Array, RuntimeError> {
         let object = evaluator.expression_to_object(env, expr_id)?;
         match object {
             Object::Array(arr) => Ok(arr),
-            _ => Err(RuntimeErrorKind::expected_type("array", object.r#type())),
+            _ => {
+                let span = evaluator.context.def_interner.expr_span(expr_id);
+                Err(RuntimeErrorKind::expected_type("array", object.r#type()).add_span(span))
+            }
         }
     }
 }
