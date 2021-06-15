@@ -54,10 +54,16 @@ impl SchnorrVerifyGadget {
         let message = call_expr.arguments.pop().unwrap();
         let signature = call_expr.arguments.pop().unwrap();
 
-        let signature = Array::from_expression(evaluator, env, &signature)?;
-        let message = Array::from_expression(evaluator, env, &message)?;
-        let pub_key_x = evaluator.expression_to_object(env, &pub_key_x)?;
-        let pub_key_y = evaluator.expression_to_object(env, &pub_key_y)?;
+        let signature =
+            Array::from_expression(evaluator, env, &signature).map_err(|err| err.remove_span())?;
+        let message =
+            Array::from_expression(evaluator, env, &message).map_err(|err| err.remove_span())?;
+        let pub_key_x = evaluator
+            .expression_to_object(env, &pub_key_x)
+            .map_err(|err| err.remove_span())?;
+        let pub_key_y = evaluator
+            .expression_to_object(env, &pub_key_y)
+            .map_err(|err| err.remove_span())?;
 
         let pub_key_x_witness = pub_key_x.witness().unwrap();
         let pub_key_y_witness = pub_key_y.witness().unwrap();

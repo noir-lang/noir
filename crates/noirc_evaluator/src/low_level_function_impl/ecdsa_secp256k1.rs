@@ -54,10 +54,14 @@ impl EcdsaSecp256k1Gadget {
         let message = call_expr.arguments.pop().unwrap();
         let signature = call_expr.arguments.pop().unwrap();
 
-        let signature = Array::from_expression(evaluator, env, &signature)?;
-        let message = Array::from_expression(evaluator, env, &message)?;
-        let pub_key_x = Array::from_expression(evaluator, env, &pub_key_x)?;
-        let pub_key_y = Array::from_expression(evaluator, env, &pub_key_y)?;
+        let signature =
+            Array::from_expression(evaluator, env, &signature).map_err(|err| err.remove_span())?;
+        let message =
+            Array::from_expression(evaluator, env, &message).map_err(|err| err.remove_span())?;
+        let pub_key_x =
+            Array::from_expression(evaluator, env, &pub_key_x).map_err(|err| err.remove_span())?;
+        let pub_key_y =
+            Array::from_expression(evaluator, env, &pub_key_y).map_err(|err| err.remove_span())?;
 
         let mut inputs: Vec<GadgetInput> = Vec::new();
 
