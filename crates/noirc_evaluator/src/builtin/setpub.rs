@@ -18,7 +18,9 @@ impl BuiltInCaller for SetPub {
         assert_eq!(call_expr.arguments.len(), 1);
         let expr = call_expr.arguments.pop().unwrap();
 
-        let object = evaluator.expression_to_object(env, &expr)?;
+        let object = evaluator
+            .expression_to_object(env, &expr)
+            .map_err(|err| err.remove_span())?;
 
         // This can only be called in the main context
         if env.func_context != FuncContext::Main {

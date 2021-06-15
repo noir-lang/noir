@@ -49,7 +49,8 @@ impl HashToFieldGadget {
         };
 
         // "HashToField should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
-        let arr = Array::from_expression(evaluator, env, &arr_expr)?;
+        let arr =
+            Array::from_expression(evaluator, env, &arr_expr).map_err(|err| err.remove_span())?;
 
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(arr.contents.len());
 
