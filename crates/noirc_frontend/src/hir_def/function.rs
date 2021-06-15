@@ -1,4 +1,5 @@
 use noirc_abi::Abi;
+use noirc_errors::Span;
 
 use super::expr::{HirBlockExpression, HirExpression};
 use crate::node_interner::{ExprId, IdentId, NodeInterner};
@@ -53,6 +54,22 @@ impl Parameters {
             })
             .collect();
         noirc_abi::Abi { parameters }
+    }
+
+    pub fn span(&self, interner: &NodeInterner) -> Span {
+        assert!(!self.is_empty());
+        let mut spans: Vec<_> = self
+            .0
+            .iter()
+            .map(|param| interner.ident_span(&param.0))
+            .collect();
+
+        let merged_span = spans.pop().unwrap();
+        for span in spans {
+            merged_span.merge(span);
+        }
+
+        merged_span
     }
 
     pub fn len(&self) -> usize {
