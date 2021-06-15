@@ -6,7 +6,7 @@ use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
-use super::RuntimeErrorKind;
+use super::RuntimeError;
 
 pub struct FixedBaseScalarMulGadget;
 
@@ -19,7 +19,7 @@ impl GadgetCaller for FixedBaseScalarMulGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let inputs = FixedBaseScalarMulGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         let witness_pubkey_x = evaluator.add_witness_to_cs();
@@ -50,16 +50,14 @@ impl FixedBaseScalarMulGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
-    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
+    ) -> Result<Vec<GadgetInput>, RuntimeError> {
         let expr = {
             // we expect a single input which should be a Field
             assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()
         };
 
-        let object = evaluator
-            .expression_to_object(env, &expr)
-            .map_err(|err| err.remove_span())?;
+        let object = evaluator.expression_to_object(env, &expr)?;
 
         Ok(vec![object_to_wit_bits(&object)])
     }

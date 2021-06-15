@@ -6,7 +6,7 @@ use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
-use super::RuntimeErrorKind;
+use super::RuntimeError;
 
 // XXX(TD): Reconcile all byte based hash functions in the C++ code, in the WASM binding and also in the compiler
 
@@ -21,7 +21,7 @@ impl GadgetCaller for Blake2sGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let inputs = Blake2sGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create 32 fresh variables that will link to the Blake2s output
@@ -56,7 +56,7 @@ impl Blake2sGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
-    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
+    ) -> Result<Vec<GadgetInput>, RuntimeError> {
         let arr_expr = {
             // For Blake2s, we expect a single input which should be an array
             assert_eq!(call_expr.arguments.len(), 1);
@@ -64,8 +64,7 @@ impl Blake2sGadget {
         };
 
         // "Blake2s should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase";
-        let arr =
-            Array::from_expression(evaluator, env, &arr_expr).map_err(|err| err.remove_span())?;
+        let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         let mut inputs: Vec<GadgetInput> = Vec::with_capacity(arr.contents.len());
 

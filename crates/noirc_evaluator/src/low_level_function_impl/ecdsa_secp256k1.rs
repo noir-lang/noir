@@ -6,7 +6,7 @@ use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
-use super::RuntimeErrorKind;
+use super::RuntimeError;
 
 pub struct EcdsaSecp256k1Gadget;
 
@@ -19,7 +19,7 @@ impl GadgetCaller for EcdsaSecp256k1Gadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let inputs = EcdsaSecp256k1Gadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Prepare output
@@ -46,7 +46,7 @@ impl EcdsaSecp256k1Gadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
-    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
+    ) -> Result<Vec<GadgetInput>, RuntimeError> {
         assert_eq!(call_expr.arguments.len(), 4);
 
         let pub_key_y = call_expr.arguments.pop().unwrap();
@@ -54,14 +54,10 @@ impl EcdsaSecp256k1Gadget {
         let message = call_expr.arguments.pop().unwrap();
         let signature = call_expr.arguments.pop().unwrap();
 
-        let signature =
-            Array::from_expression(evaluator, env, &signature).map_err(|err| err.remove_span())?;
-        let message =
-            Array::from_expression(evaluator, env, &message).map_err(|err| err.remove_span())?;
-        let pub_key_x =
-            Array::from_expression(evaluator, env, &pub_key_x).map_err(|err| err.remove_span())?;
-        let pub_key_y =
-            Array::from_expression(evaluator, env, &pub_key_y).map_err(|err| err.remove_span())?;
+        let signature = Array::from_expression(evaluator, env, &signature)?;
+        let message = Array::from_expression(evaluator, env, &message)?;
+        let pub_key_x = Array::from_expression(evaluator, env, &pub_key_x)?;
+        let pub_key_y = Array::from_expression(evaluator, env, &pub_key_y)?;
 
         let mut inputs: Vec<GadgetInput> = Vec::new();
 
