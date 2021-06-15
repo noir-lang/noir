@@ -50,8 +50,7 @@ impl PedersenGadget {
             call_expr.arguments.pop().unwrap()
         };
 
-        let arr =
-            Array::from_expression(evaluator, env, &arr_expr).map_err(|err| err.remove_span())?;
+        let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         // XXX: Instead of panics, return a user error here
         if arr.contents.is_empty() {

@@ -57,9 +57,7 @@ impl FixedBaseScalarMulGadget {
             call_expr.arguments.pop().unwrap()
         };
 
-        let object = evaluator
-            .expression_to_object(env, &expr)
-            .map_err(|err| err.remove_span())?;
+        let object = evaluator.expression_to_object(env, &expr)?;
 
         Ok(vec![object_to_wit_bits(&object)])
     }

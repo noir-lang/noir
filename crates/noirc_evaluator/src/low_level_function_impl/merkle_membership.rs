@@ -51,17 +51,10 @@ impl MerkleMembershipGadget {
         let leaf = call_expr.arguments.pop().unwrap();
         let root = call_expr.arguments.pop().unwrap();
 
-        let hash_path =
-            Array::from_expression(evaluator, env, &hash_path).map_err(|err| err.remove_span())?;
-        let index = evaluator
-            .expression_to_object(env, &index)
-            .map_err(|err| err.remove_span())?;
-        let leaf = evaluator
-            .expression_to_object(env, &leaf)
-            .map_err(|err| err.remove_span())?;
-        let root = evaluator
-            .expression_to_object(env, &root)
-            .map_err(|err| err.remove_span())?;
+        let hash_path = Array::from_expression(evaluator, env, &hash_path)?;
+        let index = evaluator.expression_to_object(env, &index)?;
+        let leaf = evaluator.expression_to_object(env, &leaf)?;
+        let root = evaluator.expression_to_object(env, &root)?;
 
         let index_witness = index.witness().unwrap();
         let leaf_witness = leaf.witness().unwrap();

@@ -23,8 +23,7 @@ impl BuiltInCaller for ArrayProd {
         };
 
         // ArrayProd should only take a single parameter, which is an array. This should have been caught by the compiler in the analysis phase
-        let arr =
-            Array::from_expression(evaluator, env, &arr_expr).map_err(|err| err.remove_span())?;
+        let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         let mut result = arr.get(0).map_err(|kind| kind.add_span(span))?;
         for i in 1..arr.contents.len() {
