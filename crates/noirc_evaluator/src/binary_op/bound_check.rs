@@ -38,7 +38,6 @@ fn bound_check(
                 lower_bound
                     .to_arithmetic()
                     .ok_or(RuntimeErrorKind::UnstructuredError {
-                        span: Default::default(),
                         message: "invalid lower bound being used in bound check".to_string(),
                     })?;
 
@@ -57,7 +56,7 @@ fn bound_check(
             Integer::from_object(k, max_bound_bits, evaluator)
         }
         (_, y) => {
-            let err = RuntimeErrorKind::UnstructuredError{span : Default::default(), message : format!("You can only apply the < or > op, if the upper bound is not an integer or an constant. Found type {}", y.r#type())};
+            let err = RuntimeErrorKind::UnstructuredError{ message : format!("You can only apply the < or > op, if the upper bound is not an integer or an constant. Found type {}", y.r#type())};
             return Err(err);
         }
     }?;

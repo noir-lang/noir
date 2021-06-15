@@ -12,7 +12,7 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
 use environment::{Environment, FuncContext};
-use errors::RuntimeErrorKind;
+use errors::{RuntimeError, RuntimeErrorKind};
 use noir_field::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::{
@@ -84,7 +84,7 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self) -> Result<Circuit, RuntimeErrorKind> {
+    pub fn compile(mut self) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
@@ -117,13 +117,12 @@ impl<'a> Evaluator<'a> {
         self.gates.push(Gate::Arithmetic(constraint));
         (inter_var_object, inter_var_witness)
     }
-
     pub fn evaluate_infix_expression(
         &mut self,
         lhs: Object,
         rhs: Object,
         op: HirBinaryOp,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         match op.kind {
             HirBinaryOpKind::Add => binary_op::handle_add_op(lhs, rhs, self),
             HirBinaryOpKind::Subtract => binary_op::handle_sub_op(lhs, rhs, self),
@@ -150,7 +149,7 @@ impl<'a> Evaluator<'a> {
                 let err = RuntimeErrorKind::Unimplemented("The Or operation is currently not implemented. First implement in Barretenberg.".to_owned());
                 Err(err)
             }
-        }
+        }.map_err(|kind|kind.add_span(op.span))
     }
 
     // When we evaluate an identifier , it will be a linear polynomial
@@ -163,7 +162,7 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Compiles the AST into the intermediate format by evaluating the main function
-    pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
+    pub fn evaluate_main(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
         self.parse_abi(env)?;
 
         // Now call the main function
@@ -181,13 +180,16 @@ impl<'a> Evaluator<'a> {
     /// Noted in the noirc_abi, it is possible to convert Toml -> NoirTypes
     /// However, this intermediate representation is useful as it allows us to have
     /// intermediate Types which the core type system does not know about like Strings.
-    fn parse_abi(&mut self, env: &mut Environment) -> Result<(), RuntimeErrorKind> {
+    fn parse_abi(&mut self, env: &mut Environment) -> Result<(), RuntimeError> {
         // XXX: Currently, the syntax only supports public witnesses
         // u8 and arrays are assumed to be private
         // This is not a short-coming of the ABI, but of the grammar
         // The new grammar has been conceived, and will be implemented.
 
         let func_meta = self.context.def_interner.function_meta(&self.main_function);
+        // XXX: We make the span very general here, so an error will underline all of the parameters in the span
+        // This maybe not be desireable in the long run, because we want to point to the exact place
+        let param_span = func_meta.parameters.span(&self.context.def_interner);
 
         let abi = func_meta.parameters.into_abi(&self.context.def_interner);
 
@@ -224,7 +226,9 @@ impl<'a> Evaluator<'a> {
                                 );
 
                                 let integer = Integer::from_witness_unconstrained(witness, width);
-                                integer.constrain(self)?;
+                                integer
+                                    .constrain(self)
+                                    .map_err(|kind| kind.add_span(param_span))?;
                                 Object::Integer(integer)
                             }
                             noirc_abi::AbiType::Field(noirc_abi::AbiFEType::Private) => {
@@ -263,7 +267,9 @@ impl<'a> Evaluator<'a> {
                     );
 
                     let integer = Integer::from_witness_unconstrained(witness, width);
-                    integer.constrain(self)?;
+                    integer
+                        .constrain(self)
+                        .map_err(|kind| kind.add_span(param_span))?;
 
                     env.store(param_name, Object::Integer(integer));
                 }
@@ -282,7 +288,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         stmt_id: &StmtId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let statement = self.context.def_interner.statement(stmt_id);
         match statement {
             HirStatement::Private(x) => self.handle_private_statement(env, x),
@@ -293,7 +299,10 @@ impl<'a> Evaluator<'a> {
                 let variable_name: String = self.context.def_interner.ident_name(&x.identifier);
                 // const can only be integers/Field elements, cannot involve the witness, so we can possibly move this to
                 // analysis. Right now it would not make a difference, since we are not compiling to an intermediate Noir format
-                let value = self.evaluate_integer(env, &x.expression)?;
+                let span = self.context.def_interner.expr_span(&x.expression);
+                let value = self
+                    .evaluate_integer(env, &x.expression)
+                    .map_err(|kind| kind.add_span(span))?;
 
                 env.store(variable_name, value);
                 Ok(Object::Null)
@@ -317,7 +326,8 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         x: HirPrivateStatement,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
+        let rhs_span = self.context.def_interner.expr_span(&x.expression);
         let rhs_poly = self.expression_to_object(env, &x.expression)?;
 
         let variable_name = self.context.def_interner.ident_name(&x.identifier);
@@ -336,13 +346,12 @@ impl<'a> Evaluator<'a> {
         }
 
         // This is a private statement, which is why we extract only a witness type from the object
-        let rhs_as_witness =
-            rhs_poly
-                .extract_private_witness()
-                .ok_or(RuntimeErrorKind::UnstructuredError {
-                    span: Default::default(),
-                    message: "only witnesses can be used in a private statement".to_string(),
-                })?;
+        let rhs_as_witness = rhs_poly
+            .extract_private_witness()
+            .ok_or(RuntimeErrorKind::UnstructuredError {
+                message: "only witnesses can be used in a private statement".to_string(),
+            })
+            .map_err(|kind| kind.add_span(rhs_span))?;
         self.gates
             .push(Gate::Arithmetic(&rhs_as_witness - &witness));
 
@@ -378,7 +387,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         constrain_stmt: HirConstrainStatement,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let lhs_poly = self.expression_to_object(env, &constrain_stmt.0.lhs)?;
         let rhs_poly = self.expression_to_object(env, &constrain_stmt.0.rhs)?;
 
@@ -427,7 +436,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         let_stmt: HirLetStatement,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         // Convert the LHS into an identifier
         let variable_name = self.context.def_interner.ident_name(&let_stmt.identifier);
 
@@ -457,10 +466,12 @@ impl<'a> Evaluator<'a> {
         // XXX: We preferably need to introduce public integers and private integers, so that we can
         // loop securely on constants. This requires `constant as u128`, analysis will take care of the rest
         let start = self
-            .expression_to_object(env, &for_expr.start_range)?
+            .expression_to_object(env, &for_expr.start_range)
+            .map_err(|err| err.remove_span())?
             .constant()?;
         let end = self
-            .expression_to_object(env, &for_expr.end_range)?
+            .expression_to_object(env, &for_expr.end_range)
+            .map_err(|err| err.remove_span())?
             .constant()?;
         let ranged_object = RangedObject::new(start, end)?;
 
@@ -475,7 +486,9 @@ impl<'a> Evaluator<'a> {
 
             let block = self.expression_to_block(&for_expr.block);
             let statements = block.statements();
-            let return_typ = self.eval_block(env, statements)?;
+            let return_typ = self
+                .eval_block(env, statements)
+                .map_err(|err| err.remove_span())?;
             contents.push(return_typ);
 
             env.end_for_loop();
@@ -497,7 +510,9 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         expr_id: &ExprId,
     ) -> Result<Object, RuntimeErrorKind> {
-        let polynomial = self.expression_to_object(env, expr_id)?;
+        let polynomial = self
+            .expression_to_object(env, expr_id)
+            .map_err(|err| err.remove_span())?;
 
         if polynomial.is_constant() {
             return Ok(polynomial);
@@ -508,12 +523,13 @@ impl<'a> Evaluator<'a> {
         ));
     }
 
-    pub fn expression_to_object(
+    pub(crate) fn expression_to_object(
         &mut self,
         env: &mut Environment,
         expr_id: &ExprId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let expr = self.context.def_interner.expression(expr_id);
+        let span = self.context.def_interner.expr_span(expr_id);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(x)) => Ok(Object::Constants(x)),
             HirExpression::Literal(HirLiteral::Array(arr_lit)) => {
@@ -527,13 +543,13 @@ impl<'a> Evaluator<'a> {
             }
             HirExpression::Cast(cast_expr) => {
                 let lhs = self.expression_to_object(env, &cast_expr.lhs)?;
-                binary_op::handle_cast_op(self,lhs, cast_expr.r#type)
+                binary_op::handle_cast_op(self,lhs, cast_expr.r#type).map_err(|kind|kind.add_span(span))
             }
             HirExpression::Index(indexed_expr) => {
                 // Currently these only happen for arrays
                 let arr_name = self.context.def_interner.ident_name(&indexed_expr.collection_name);
                 let ident_span = self.context.def_interner.ident_span(&indexed_expr.collection_name);
-                let arr = env.get_array(&arr_name)?;
+                let arr = env.get_array(&arr_name).map_err(|kind|kind.add_span(ident_span))?;
                 //
                 // Evaluate the index expression
                 let index_as_obj = self.expression_to_object(env, &indexed_expr.index)?;
@@ -543,7 +559,7 @@ impl<'a> Evaluator<'a> {
                 };
                 //
                 let index_as_u128 = index_as_constant.to_u128();
-                arr.get(index_as_u128, ident_span)
+                arr.get(index_as_u128).map_err(|kind|kind.add_span(span))
             }
             HirExpression::Call(call_expr) => {
 
@@ -557,16 +573,16 @@ impl<'a> Evaluator<'a> {
                     FunctionKind::LowLevel => {
                         let attribute = func_meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
                         let opcode_name = attribute.foreign().expect("ice: function marked as foreign, but attribute kind does not match this");
-                        low_level_function_impl::call_low_level(self, env, opcode_name, call_expr)
+                        low_level_function_impl::call_low_level(self, env, opcode_name, call_expr).map_err(|kind|kind.add_span(span))
                     },
                     FunctionKind::Builtin => {
                         let attribute = func_meta.attributes.expect("all builtin functions must contain an attribute which contains the function name which it links to");
                         let builtin_name = attribute.builtin().expect("ice: function marked as a builtin, but attribute kind does not match this");
-                        builtin::call_builtin(self, env, builtin_name, call_expr)
+                        builtin::call_builtin(self, env, builtin_name, call_expr).map_err(|kind|kind.add_span(span))
                     },
                 }
             }
-            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr),
+            HirExpression::For(for_expr) => self.handle_for_expr(env,for_expr).map_err(|kind|kind.add_span(span)),
             HirExpression::If(_) => todo!(),
             HirExpression::Prefix(_) => todo!(),
             HirExpression::Predicate(_) => todo!(),
@@ -580,7 +596,7 @@ impl<'a> Evaluator<'a> {
         env: &mut Environment,
         call_expr: &HirCallExpression,
         func_id: FuncId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         // Create a new environment for this function
         // This is okay because functions are not stored in the environment
         // We need to add the arguments into the environment though
@@ -590,6 +606,7 @@ impl<'a> Evaluator<'a> {
         if !errors.is_empty() {
             // XXX: We could have an error variant to return multiple errors here
             // As long as we can guarantee that each expression does not affect the proceeding, this should be fine
+            //
             return Err(errors.pop().unwrap());
         }
 
@@ -611,7 +628,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         func_id: &FuncId,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let function = self.context.def_interner.function(func_id);
         let block = function.block(&self.context.def_interner);
         self.eval_block(env, block.statements())
@@ -621,7 +638,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         block: &[StmtId],
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let mut result = Object::Null;
         for stmt in block {
             result = self.evaluate_statement(env, stmt)?;
@@ -633,7 +650,7 @@ impl<'a> Evaluator<'a> {
         &mut self,
         env: &mut Environment,
         exprs: &[ExprId],
-    ) -> (Vec<Object>, Vec<RuntimeErrorKind>) {
+    ) -> (Vec<Object>, Vec<RuntimeError>) {
         let (objects, errors): (Vec<_>, Vec<_>) = exprs
             .iter()
             .map(|expr| self.expression_to_object(env, expr))

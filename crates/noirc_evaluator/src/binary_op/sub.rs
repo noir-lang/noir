@@ -11,7 +11,6 @@ pub fn handle_sub_op(
     let negated_right = match right {
         Object::Null => {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
                 message: "cannot do an operation with the null object".to_string(),
             })
         }
@@ -24,7 +23,6 @@ pub fn handle_sub_op(
                 Some(left_int) => return Ok(Object::Integer(left_int.sub(right, evaluator)?)),
                 None => {
                     return Err(RuntimeErrorKind::UnstructuredError {
-                        span: Default::default(),
                         message: "rhs is an integer, however the lhs is not".to_string(),
                     })
                 }
@@ -38,7 +36,6 @@ pub fn handle_sub_op(
                 }
                 None => {
                     return Err(RuntimeErrorKind::UnstructuredError {
-                        span: Default::default(),
                         message: "rhs is an integer, however the lhs is not".to_string(),
                     })
                 }

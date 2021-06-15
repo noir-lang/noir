@@ -238,28 +238,19 @@ impl RangedObject {
         let start_bits = start.num_bits();
         if start_bits > 252 {
             let message = format!("Currently, we only allow integers to be represented by a u252, start range needs {} bits to be represented", start_bits);
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         };
 
         let end_bits = end.num_bits();
         if end_bits > 252 {
             let message = format!("Currently, we only allow integers to be represented by a u252, end range needs {} bits to be represented", end_bits);
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         };
 
         // We only allow ascending ranges
         if (end - start).num_bits() > 252 {
             let message = "We currently only allow ranges to be ascending. For example `0..10` is  valid, however `10..0` is not".to_string();
-            return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
-                message,
-            });
+            return Err(RuntimeErrorKind::UnstructuredError { message });
         };
 
         Ok(RangedObject { start, end })

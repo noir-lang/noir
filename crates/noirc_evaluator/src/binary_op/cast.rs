@@ -9,7 +9,6 @@ pub fn handle_cast_op(
         Type::Integer(_, _sign, num_bits) => num_bits,
         _ => {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
                 message: "currently we do not support type casting to non integers".to_string(),
             })
         }
@@ -23,7 +22,6 @@ pub fn handle_cast_op(
         }
         Object::Constants(_) => {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
                 message: "currently we do not support casting constants to a type".to_string(),
             })
         }
@@ -48,7 +46,6 @@ pub fn handle_cast_op(
         }
         x => {
             return Err(RuntimeErrorKind::UnstructuredError {
-                span: Default::default(),
                 message: format!("cannot cast {} to an integer", x.r#type()),
             })
         }
