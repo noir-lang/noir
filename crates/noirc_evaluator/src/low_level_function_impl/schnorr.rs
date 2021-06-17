@@ -6,7 +6,7 @@ use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
-use super::RuntimeErrorKind;
+use super::RuntimeError;
 
 pub struct SchnorrVerifyGadget;
 
@@ -19,7 +19,7 @@ impl GadgetCaller for SchnorrVerifyGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let inputs = SchnorrVerifyGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Prepare output
@@ -46,7 +46,7 @@ impl SchnorrVerifyGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
-    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
+    ) -> Result<Vec<GadgetInput>, RuntimeError> {
         assert_eq!(call_expr.arguments.len(), 4);
 
         let pub_key_y = call_expr.arguments.pop().unwrap();
@@ -54,16 +54,10 @@ impl SchnorrVerifyGadget {
         let message = call_expr.arguments.pop().unwrap();
         let signature = call_expr.arguments.pop().unwrap();
 
-        let signature =
-            Array::from_expression(evaluator, env, &signature).map_err(|err| err.remove_span())?;
-        let message =
-            Array::from_expression(evaluator, env, &message).map_err(|err| err.remove_span())?;
-        let pub_key_x = evaluator
-            .expression_to_object(env, &pub_key_x)
-            .map_err(|err| err.remove_span())?;
-        let pub_key_y = evaluator
-            .expression_to_object(env, &pub_key_y)
-            .map_err(|err| err.remove_span())?;
+        let signature = Array::from_expression(evaluator, env, &signature)?;
+        let message = Array::from_expression(evaluator, env, &message)?;
+        let pub_key_x = evaluator.expression_to_object(env, &pub_key_x)?;
+        let pub_key_y = evaluator.expression_to_object(env, &pub_key_y)?;
 
         let pub_key_x_witness = pub_key_x.witness().unwrap();
         let pub_key_y_witness = pub_key_y.witness().unwrap();

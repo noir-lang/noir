@@ -6,7 +6,7 @@ use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
-use super::RuntimeErrorKind;
+use super::RuntimeError;
 
 pub struct PedersenGadget;
 
@@ -19,7 +19,7 @@ impl GadgetCaller for PedersenGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let inputs = PedersenGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create a Witness which will be the output of the pedersen hash
@@ -43,15 +43,14 @@ impl PedersenGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
-    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
+    ) -> Result<Vec<GadgetInput>, RuntimeError> {
         let arr_expr = {
             // For pedersen gadget, we expect a single input which should be an array
             assert_eq!(call_expr.arguments.len(), 1);
             call_expr.arguments.pop().unwrap()
         };
 
-        let arr =
-            Array::from_expression(evaluator, env, &arr_expr).map_err(|err| err.remove_span())?;
+        let arr = Array::from_expression(evaluator, env, &arr_expr)?;
 
         // XXX: Instead of panics, return a user error here
         if arr.contents.is_empty() {

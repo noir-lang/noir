@@ -1,5 +1,5 @@
 use super::GadgetCaller;
-use super::RuntimeErrorKind;
+use super::RuntimeError;
 use crate::low_level_function_impl::object_to_wit_bits;
 use crate::object::{Array, Object};
 use crate::{Environment, Evaluator};
@@ -18,7 +18,7 @@ impl GadgetCaller for MerkleMembershipGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         call_expr: HirCallExpression,
-    ) -> Result<Object, RuntimeErrorKind> {
+    ) -> Result<Object, RuntimeError> {
         let inputs = MerkleMembershipGadget::prepare_inputs(evaluator, env, call_expr)?;
 
         // Create a fresh variable which will be the root
@@ -43,7 +43,7 @@ impl MerkleMembershipGadget {
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
-    ) -> Result<Vec<GadgetInput>, RuntimeErrorKind> {
+    ) -> Result<Vec<GadgetInput>, RuntimeError> {
         assert_eq!(call_expr.arguments.len(), 4);
 
         let hash_path = call_expr.arguments.pop().unwrap();
@@ -51,17 +51,10 @@ impl MerkleMembershipGadget {
         let leaf = call_expr.arguments.pop().unwrap();
         let root = call_expr.arguments.pop().unwrap();
 
-        let hash_path =
-            Array::from_expression(evaluator, env, &hash_path).map_err(|err| err.remove_span())?;
-        let index = evaluator
-            .expression_to_object(env, &index)
-            .map_err(|err| err.remove_span())?;
-        let leaf = evaluator
-            .expression_to_object(env, &leaf)
-            .map_err(|err| err.remove_span())?;
-        let root = evaluator
-            .expression_to_object(env, &root)
-            .map_err(|err| err.remove_span())?;
+        let hash_path = Array::from_expression(evaluator, env, &hash_path)?;
+        let index = evaluator.expression_to_object(env, &index)?;
+        let leaf = evaluator.expression_to_object(env, &leaf)?;
+        let root = evaluator.expression_to_object(env, &root)?;
 
         let index_witness = index.witness().unwrap();
         let leaf_witness = leaf.witness().unwrap();
