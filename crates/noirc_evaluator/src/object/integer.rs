@@ -90,11 +90,13 @@ impl Integer {
         // You can only sub an integer from an integer and they must have the same number of bits
         let (witness_rhs, num_bits) = extract_witness_and_num_bits(self.num_bits, poly)?;
 
-        assert_eq!(
-            self.num_bits, num_bits,
-            "Both integers must have the same integer type. Expected u{}, got u{}",
-            self.num_bits, num_bits
-        );
+        if self.num_bits != num_bits {
+            let err = RuntimeErrorKind::Spanless(format!(
+                "Both integers must have the same integer type. Expected u{}, got u{}",
+                self.num_bits, num_bits
+            ));
+            return Err(err);
+        }
 
         let res =
             binary_op::handle_add_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;

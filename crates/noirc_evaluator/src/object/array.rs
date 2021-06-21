@@ -133,7 +133,7 @@ impl Array {
         let mut predicates: Vec<Object> = Vec::with_capacity(length);
         for (lhs_element, rhs_element) in lhs.contents.into_iter().zip(rhs.contents.into_iter()) {
             let pred_i = maybe_equal(lhs_element, rhs_element, evaluator)?;
-            predicates.push(pred_i);
+            predicates.push(Object::from_witness(pred_i.witness));
         }
 
         // We now have a predicates vector, where 1 represents the elements were the same
