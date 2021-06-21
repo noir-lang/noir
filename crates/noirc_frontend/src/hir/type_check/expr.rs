@@ -153,6 +153,7 @@ pub(crate) fn type_check_expression(
             // Check function call arity is correct
             let param_len = func_meta.parameters.len();
             let arg_len = call_expr.arguments.len();
+
             if param_len != arg_len {
                 let span = interner.expr_span(expr_id);
                 return Err(TypeCheckError::ArityMisMatch {
@@ -171,7 +172,7 @@ pub(crate) fn type_check_expression(
 
             // Check for argument param equality
             for (param, arg) in func_meta.parameters.iter().zip(arg_types) {
-                check_param_argument(interner, param, &arg)?
+                check_param_argument(interner, *expr_id, param, &arg)?
             }
 
             // The type of the call expression is the return type of the function being called
@@ -340,18 +341,18 @@ fn field_type_rules(lhs: &FieldElementType, rhs: &FieldElementType) -> FieldElem
 
 fn check_param_argument(
     interner: &NodeInterner,
+    expr_id: ExprId,
     param: &Param,
     arg_type: &Type,
 ) -> Result<(), TypeCheckError> {
     let param_type = &param.1;
-    let param_id = param.0;
 
     if arg_type.is_variable_sized_array() {
         unreachable!("arg type type cannot be a variable sized array. This is not supported.")
     }
 
     if !param_type.is_super_type_of(arg_type) {
-        let span = interner.ident_span(&param_id);
+        let span = interner.expr_span(&expr_id);
         return Err(TypeCheckError::TypeMismatch {
             expected_typ: param_type.to_string(),
             expr_typ: arg_type.to_string(),
