@@ -58,7 +58,7 @@ pub fn maybe_equal(
     a: Object,
     b: Object,
     evaluator: &mut Evaluator,
-) -> Result<Object, RuntimeErrorKind> {
+) -> Result<Integer, RuntimeErrorKind> {
     const ICE_STR: &str = "ice: this method should only be called for arithmetic gates";
     let a_arith = a.to_arithmetic().expect(ICE_STR);
     let b_arith = b.to_arithmetic().expect(ICE_STR);
@@ -86,5 +86,5 @@ pub fn maybe_equal(
     // We know that y is a boolean
     let bool_y = Integer::from_witness_unconstrained(y, 1);
 
-    Ok(Object::Integer(bool_y))
+    Ok(bool_y)
 }
