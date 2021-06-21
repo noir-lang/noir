@@ -218,7 +218,7 @@ class TurboComposer : public ComposerBase {
                   20,
                   true),
               transcript::Manifest::RoundManifest(
-                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 2) });
+                  { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 3) });
         return output;
     }
 };

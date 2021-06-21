@@ -41,8 +41,8 @@ class root_rollup_full_tests : public ::testing::Test {
     static void SetUpTestCase()
     {
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
-        account_cd = proofs::account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
-        join_split_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
+        account_cd = proofs::account::compute_circuit_data(srs);
+        join_split_cd = join_split::compute_circuit_data(srs);
         claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH, true, false, false);
 
         MemoryStore store;
@@ -159,6 +159,44 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
         EXPECT_EQ(inner_data.input_owner, fr(0));
         EXPECT_EQ(inner_data.output_owner, fr(0));
     }
+}
+
+HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
+{
+    static constexpr auto inner_rollup_txs = 2U;
+    static constexpr auto rollups_per_rollup = 1U;
+
+    // Create a bad js proof.
+    auto bad_proof = create_noop_join_split_proof(join_split_cd, world_state.data_tree.root(), false);
+
+    // Our inner rollup should fail.
+    auto tx_rollup_cd = rollup::get_circuit_data(
+        inner_rollup_txs, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
+    auto inner_rollup_tx = rollup::create_rollup_tx(world_state, tx_rollup_cd.rollup_size, { js_proofs[0], bad_proof });
+    Composer inner_composer = Composer(tx_rollup_cd.proving_key, tx_rollup_cd.verification_key, tx_rollup_cd.num_gates);
+    rollup::rollup_circuit(inner_composer, inner_rollup_tx, tx_rollup_cd.verification_keys, tx_rollup_cd.num_txs);
+    ASSERT_FALSE(inner_composer.failed);
+    auto inner_prover = inner_composer.create_unrolled_prover();
+    auto inner_proof = inner_prover.construct_proof();
+    auto inner_verifier = inner_composer.create_unrolled_verifier();
+    ASSERT_FALSE(inner_verifier.verify_proof(inner_proof));
+
+    // Root rollup should fail.
+    auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, false, false);
+    auto root_rollup_tx =
+        root_rollup::create_root_rollup_tx(world_state, 0, world_state.defi_tree.root(), { inner_proof.proof_data });
+    Composer root_composer =
+        Composer(root_rollup_cd.proving_key, root_rollup_cd.verification_key, root_rollup_cd.num_gates);
+    root_rollup_circuit(root_composer,
+                        root_rollup_tx,
+                        root_rollup_cd.inner_rollup_circuit_data.rollup_size,
+                        root_rollup_cd.rollup_size,
+                        root_rollup_cd.inner_rollup_circuit_data.verification_key);
+    ASSERT_FALSE(root_composer.failed);
+    auto root_prover = root_composer.create_prover();
+    auto root_proof = root_prover.construct_proof();
+    auto root_verifier = root_composer.create_verifier();
+    ASSERT_FALSE(root_verifier.verify_proof(root_proof));
 }
 
 } // namespace root_rollup

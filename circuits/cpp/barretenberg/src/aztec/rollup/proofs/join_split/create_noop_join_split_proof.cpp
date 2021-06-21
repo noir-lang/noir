@@ -12,9 +12,10 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 
-std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data, fr const& merkle_root)
+std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_data, fr const& merkle_root, bool valid)
 {
     join_split_tx tx = noop_tx();
+    tx.num_input_notes = valid ? 0 : 1;
     tx.old_data_root = merkle_root;
 
     Composer composer = Composer(circuit_data.proving_key, circuit_data.verification_key, circuit_data.num_gates);

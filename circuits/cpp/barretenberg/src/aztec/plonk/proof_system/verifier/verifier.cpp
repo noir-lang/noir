@@ -1,3 +1,4 @@
+#include <plonk/proof_system/constants.hpp>
 #include "./verifier.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/linearizer.hpp"
@@ -184,7 +185,9 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
                 const uint256_t l2 = inputs[idx2];
                 const uint256_t l3 = inputs[idx3];
 
-                const uint256_t limb = l0 + (l1 << 68) + (l2 << 136) + (l3 << 204);
+                const uint256_t limb = l0 + (l1 << NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
+                                       (l2 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
+                                       (l3 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
                 return barretenberg::fq(limb);
             };
 

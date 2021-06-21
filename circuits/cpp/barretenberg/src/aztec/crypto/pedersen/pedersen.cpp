@@ -76,7 +76,7 @@ static bool inited = false;
  * Specifically,
  *
  *  1. For j=0,...,126, hash_ladders[i][j]=ladders[2*i][j] (i.e. generator 2 * i)
- *  2. For j=127,128  hash_ladders[i][j]=ladders[2*i][j] (i.e. generator 2 * i + 1)
+ *  2. For j=127,128  hash_ladders[i][j]=ladders[2*i+1][j] (i.e. generator 2 * i + 1)
  *
  * This is sufficient to create an injective hash for 256 bit strings
  * The reason we need 127 elements to hash 252 bits, or equivalently 126 quads, is that the first element of the ladder

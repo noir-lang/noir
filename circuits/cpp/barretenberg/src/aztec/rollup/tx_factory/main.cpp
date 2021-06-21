@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     while (num_txs > 0) {
         auto rollup_num = rollups_data.size();
         auto n = std::min(num_txs, inner_rollup_size);
-        auto name = format("rollup_", rollup_num, "_", n, "txs.dat");
+        auto name = format("rollup_", inner_rollup_size, "x", outer_rollup_size, "_", rollup_num, "_", n, ".dat");
         num_txs -= n;
 
         auto rollup = create_inner_rollup(
