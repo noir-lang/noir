@@ -283,6 +283,7 @@ impl<'a> Resolver<'a> {
                 let stmt = HirStatement::Semi(self.resolve_expression(expr));
                 self.interner.push_stmt(stmt)
             }
+            Statement::Assign(_) => todo!("Need to implement assign operator"),
         }
     }
 

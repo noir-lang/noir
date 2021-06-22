@@ -63,6 +63,7 @@ pub enum Statement {
     Constrain(ConstrainStatement),
     Private(PrivateStatement),
     Expression(Expression),
+    Assign(AssignStatement),
     // This is an expression with a trailing semi-colon
     // terminology Taken from rustc
     Semi(Expression),
@@ -160,6 +161,12 @@ pub struct ConstStatement {
 pub struct PrivateStatement {
     pub identifier: Ident,
     pub r#type: Type,
+    pub expression: Expression,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AssignStatement {
+    pub identifier: Ident,
     pub expression: Expression,
 }
 

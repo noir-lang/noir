@@ -45,6 +45,7 @@ pub(crate) fn type_check(
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt)
         }
+        HirStatement::Assign(_) => todo!("implement assign statement"),
     }
 }
 

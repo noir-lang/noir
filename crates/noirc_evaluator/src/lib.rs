@@ -316,6 +316,7 @@ impl<'a> Evaluator<'a> {
 
                 Ok(Object::Null)
             }
+            HirStatement::Assign(_) => todo!("assign statement not implemented"),
         }
     }
 
