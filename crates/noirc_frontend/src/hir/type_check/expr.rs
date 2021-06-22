@@ -285,10 +285,10 @@ pub fn infix_operand_type_rules(
             (Type::Integer(lhs_field_type,sign_x, bit_width_x), Type::Integer(rhs_field_type,sign_y, bit_width_y)) => {
                 let field_type = field_type_rules(lhs_field_type, rhs_field_type);
                 if sign_x != sign_y {
-                    return Err(format!("Integers must have the same signedness LHS is {:?}, LHS is {:?} ", sign_x, sign_y))
+                    return Err(format!("Integers must have the same signedness LHS is {:?}, RHS is {:?} ", sign_x, sign_y))
                 }
                 if bit_width_x != bit_width_y {
-                    return Err(format!("Integers must have the same bit width LHS is {}, LHS is {} ", bit_width_x, bit_width_y))
+                    return Err(format!("Integers must have the same bit width LHS is {}, RHS is {} ", bit_width_x, bit_width_y))
                 }
                 Ok(Type::Integer(field_type,*sign_x, *bit_width_x))
             }
