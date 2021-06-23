@@ -10,7 +10,10 @@ WASM_EXPORT void notes__sign_4_notes(uint8_t* pk_buffer,
                                      uint8_t const* tx_fee_buffer,
                                      uint8_t* output);
 
-WASM_EXPORT void notes__encrypt_note(uint8_t const* note_buffer, uint8_t* output);
+WASM_EXPORT void notes__encrypt_value_note(uint8_t const* note_buffer, uint8_t* output);
+
+WASM_EXPORT void notes__compute_value_note_nullifier(
+    uint8_t const* enc_note_buffer, uint8_t* acc_pk_buffer, uint32_t index, bool is_real, uint8_t* output);
 
 WASM_EXPORT void notes__create_partial_value_note(uint8_t const* note_buffer,
                                                   uint8_t* public_key_buffer,
@@ -20,4 +23,6 @@ WASM_EXPORT void notes__create_partial_value_note(uint8_t const* note_buffer,
 WASM_EXPORT void notes__encrypt_claim_note(uint8_t const* note_buffer, uint8_t* output);
 
 WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buffer, uint32_t index, uint8_t* output);
+
+WASM_EXPORT void notes__encrypt_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output);
 }

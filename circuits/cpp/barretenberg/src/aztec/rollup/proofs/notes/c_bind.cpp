@@ -3,6 +3,7 @@
 #include "native/claim/create_partial_value_note.hpp"
 #include "native/claim/encrypt.hpp"
 #include "native/claim/compute_nullifier.hpp"
+#include "native/defi_interaction/encrypt.hpp"
 #include "native/value/encrypt.hpp"
 #include "native/compute_nullifier.hpp"
 
@@ -17,14 +18,14 @@ using namespace rollup::proofs::notes::native;
 
 extern "C" {
 
-WASM_EXPORT void notes__encrypt_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__encrypt_value_note(uint8_t const* note_buffer, uint8_t* output)
 {
     auto note = from_buffer<value::value_note>(note_buffer);
     auto encrypted = value::encrypt(note);
     write(output, encrypted);
 }
 
-WASM_EXPORT void notes__compute_nullifier(
+WASM_EXPORT void notes__compute_value_note_nullifier(
     uint8_t const* enc_note_buffer, uint8_t* acc_pk_buffer, uint32_t index, bool is_real, uint8_t* output)
 {
     auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
@@ -56,6 +57,13 @@ WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buf
     auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
     auto nullifier = claim::compute_nullifier(enc_note, index);
     write(output, nullifier);
+}
+
+WASM_EXPORT void notes__encrypt_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output)
+{
+    auto note = from_buffer<defi_interaction::note>(note_buffer);
+    auto encrypted = defi_interaction::encrypt(note);
+    write(output, encrypted);
 }
 
 WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffer,
