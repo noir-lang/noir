@@ -316,7 +316,34 @@ impl<'a> Evaluator<'a> {
 
                 Ok(Object::Null)
             }
-            HirStatement::Assign(_) => todo!("assign statement not implemented"),
+            HirStatement::Assign(assign_stmt) => {
+                // It's possible to desugar the assign statement in the type checker.
+                // However for clarity, we just match on the type and call the corresponding function.
+                // eg if  we are assigning a witness, we call handle_private_statement
+                let ident_def = self
+                    .context
+                    .def_interner
+                    .ident_def(&assign_stmt.identifier)
+                    .unwrap();
+                let typ = dbg!(self.context.def_interner.id_type(ident_def));
+                if typ.can_be_used_in_priv() {
+                    let stmt = HirPrivateStatement {
+                        identifier: assign_stmt.identifier,
+                        r#type: typ,
+                        expression: assign_stmt.expression,
+                    };
+                    return self.handle_private_statement(env, stmt);
+                } else if typ.can_be_used_in_let() {
+                    let stmt = HirLetStatement {
+                        identifier: assign_stmt.identifier,
+                        r#type: typ,
+                        expression: assign_stmt.expression,
+                    };
+                    return self.handle_let_statement(env, stmt);
+                } else {
+                    todo!("compiler currently cannot reassign types {:?}", typ)
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::hir_def::stmt::{
-    HirConstStatement, HirConstrainStatement, HirLetStatement, HirPrivateStatement, HirStatement,
+    HirAssignStatement, HirConstStatement, HirConstrainStatement, HirLetStatement,
+    HirPrivateStatement, HirStatement,
 };
 use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::Type;
@@ -45,10 +46,35 @@ pub(crate) fn type_check(
         HirStatement::Constrain(constrain_stmt) => {
             type_check_constrain_stmt(interner, constrain_stmt)
         }
-        HirStatement::Assign(_) => todo!("implement assign statement"),
+        HirStatement::Assign(assign_stmt) => type_check_assign_stmt(interner, assign_stmt),
     }
 }
 
+fn type_check_assign_stmt(
+    interner: &mut NodeInterner,
+    assign_stmt: HirAssignStatement,
+) -> Result<(), TypeCheckError> {
+    // To get the type of the identifier, we need to get the identifier which defined it
+    // once a variable has a type, it cannot be changed
+    let ident_def = interner
+        .ident_def(&assign_stmt.identifier)
+        .expect("all identifiers that define a variable, should have a type during type checking");
+    let identifier_type = interner.id_type(&ident_def);
+
+    type_check_expression(interner, &assign_stmt.expression)?;
+    let expr_type = interner.id_type(&assign_stmt.expression);
+
+    if expr_type != identifier_type {
+        let expr_span = interner.expr_span(&assign_stmt.expression);
+        return Err(TypeCheckError::TypeMismatch {
+            expected_typ: identifier_type.to_string(),
+            expr_typ: expr_type.to_string(),
+            expr_span,
+        });
+    }
+
+    Ok(())
+}
 fn type_check_priv_stmt(
     interner: &mut NodeInterner,
     priv_stmt: HirPrivateStatement,
