@@ -1,4 +1,5 @@
 mod array;
+mod assign;
 mod block;
 mod constrain;
 mod declaration;
@@ -23,6 +24,7 @@ use name::NameParser;
 use path::PathParser;
 use unary::UnaryParser;
 
+pub use assign::AssignParser;
 pub use constrain::ConstrainParser;
 pub use declaration::DeclarationParser;
 pub use function::FuncParser;

@@ -202,6 +202,13 @@ impl Token {
             ref tok => TokenKind::Token(tok.clone()),
         }
     }
+    pub fn is_ident(&self) -> bool {
+        if let Token::Ident(_) = self {
+            return true;
+        } else {
+            return false;
+        }
+    }
     // Does not work for Keyword or whatever is inside of variant
     // XXX: Review the special case of Keyword
     pub fn is_variant(&self, tok: &Token) -> bool {
