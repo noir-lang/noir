@@ -332,14 +332,14 @@ impl<'a> Evaluator<'a> {
                         r#type: typ,
                         expression: assign_stmt.expression,
                     };
-                    return self.handle_private_statement(env, stmt);
+                    self.handle_private_statement(env, stmt)
                 } else if typ.can_be_used_in_let() {
                     let stmt = HirLetStatement {
                         identifier: assign_stmt.identifier,
                         r#type: typ,
                         expression: assign_stmt.expression,
                     };
-                    return self.handle_let_statement(env, stmt);
+                    self.handle_let_statement(env, stmt)
                 } else {
                     todo!("compiler currently cannot reassign types {:?}", typ)
                 }

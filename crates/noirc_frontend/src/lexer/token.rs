@@ -203,11 +203,7 @@ impl Token {
         }
     }
     pub fn is_ident(&self) -> bool {
-        if let Token::Ident(_) = self {
-            return true;
-        } else {
-            return false;
-        }
+        matches!(self, Token::Ident(_))
     }
     // Does not work for Keyword or whatever is inside of variant
     // XXX: Review the special case of Keyword
