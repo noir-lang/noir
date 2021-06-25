@@ -1,4 +1,3 @@
-#include "../proofs/escape_hatch/compute_circuit_data.hpp"
 #include "../proofs/rollup/compute_circuit_data.hpp"
 #include "../proofs/root_rollup/compute_circuit_data.hpp"
 #include "../proofs/rollup/rollup_tx.hpp"
@@ -21,7 +20,6 @@ int main(int argc, char** argv)
         error("usage: ", args[0], " <inner txs> <max inner num> <output path> [srs path]");
         error("");
         error("Generates solidity contracts containing verification keys for:");
-        error("  - The escape hatch.");
         error("  - Rollup circuits containing n inner circuits of size <inner txs>.");
         error(" Where n=1 and doubles until <max inner num>.");
         return 1;
@@ -31,13 +29,6 @@ int main(int argc, char** argv)
     const std::string output_path = args[3];
     const std::string srs_path = (args.size() >= 5) ? args[4] : "../srs_db/ignition";
     const bool persist = (args.size() >= 6) ? (bool)atoi(args[5].c_str()) : false;
-
-    {
-        auto escape_hatch_circuit_data = escape_hatch::compute_circuit_data(srs_path);
-        auto escape_hatch_class_name = std::string("EscapeHatchVk");
-        std::ofstream os(output_path + "/EscapeHatchVk.sol");
-        output_vk_sol(os, escape_hatch_circuit_data.verification_key, escape_hatch_class_name);
-    }
 
     auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
     auto account_cd = account::compute_circuit_data(srs);
