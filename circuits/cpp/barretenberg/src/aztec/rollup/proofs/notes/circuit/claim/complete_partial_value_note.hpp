@@ -1,7 +1,7 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../../constants.hpp"
-#include "encrypt.hpp"
+#include "commit.hpp"
 
 namespace rollup {
 namespace proofs {

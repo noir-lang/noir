@@ -10,8 +10,8 @@ constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
 constexpr size_t DEFI_DEPOSIT_VALUE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BIT_LENGTH;
 
 enum GeneratorIndex {
-    JOIN_SPLIT_NULLIFIER_HASH_INPUTS, // encrypt. 4 inputs. 0-7.
-    ACCOUNT_NOTE_HASH_INPUTS = 4,     // encrypt. 3 inputs. 8-13.
+    JOIN_SPLIT_NULLIFIER_HASH_INPUTS, // commit. 4 inputs. 0-7.
+    ACCOUNT_NOTE_HASH_INPUTS = 4,     // commit. 3 inputs. 8-13.
     ACCOUNT_ALIAS_ID_NULLIFIER = 7,   // compress. 4 inputs. 14-21.
     ACCOUNT_GIBBERISH_NULLIFIER = 11, // compress. 2 inputs. 22-25.
 

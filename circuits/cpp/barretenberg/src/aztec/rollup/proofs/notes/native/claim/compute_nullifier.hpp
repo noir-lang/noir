@@ -9,10 +9,10 @@ namespace claim {
 
 using namespace barretenberg;
 
-inline fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note, uint32_t index)
+inline fr compute_nullifier(grumpkin::g1::affine_element const& note_commitment, uint32_t index)
 {
     std::vector<uint8_t> buf;
-    write(buf, encrypted_note.x);
+    write(buf, note_commitment.x);
     write(buf, fr(index));
     auto blake_result = blake2::blake2s(buf);
     return from_buffer<fr>(blake_result);

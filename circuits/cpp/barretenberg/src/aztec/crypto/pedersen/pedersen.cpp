@@ -299,7 +299,7 @@ grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right
 #endif
 }
 
-grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
+grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
 {
     std::vector<grumpkin::g1::element> out(inputs.size());
     if (!inited) {
@@ -321,7 +321,7 @@ grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inp
 
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index)
 {
-    return encrypt_native(inputs, hash_index).x;
+    return commit_native(inputs, hash_index).x;
 }
 
 grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)

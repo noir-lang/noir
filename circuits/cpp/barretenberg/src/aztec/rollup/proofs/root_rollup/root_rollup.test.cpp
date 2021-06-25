@@ -232,8 +232,8 @@ TEST_F(root_rollup_tests, test_defi_logic)
     EXPECT_EQ(rollup_data.deposit_sums[1], 20);
     EXPECT_EQ(rollup_data.deposit_sums[2], 0);
     EXPECT_EQ(rollup_data.deposit_sums[3], 0);
-    EXPECT_EQ(rollup_data.defi_interaction_notes[0], encrypt(interaction_notes[0]));
-    EXPECT_EQ(rollup_data.defi_interaction_notes[1], encrypt(interaction_notes[1]));
+    EXPECT_EQ(rollup_data.defi_interaction_notes[0], commit(interaction_notes[0]));
+    EXPECT_EQ(rollup_data.defi_interaction_notes[1], commit(interaction_notes[1]));
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {

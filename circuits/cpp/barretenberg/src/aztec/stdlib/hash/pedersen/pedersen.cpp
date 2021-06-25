@@ -465,10 +465,10 @@ field_t<C> pedersen<C>::compress(const field_t& in_left,
 }
 
 template <typename C>
-point<C> pedersen<C>::encrypt(const std::vector<field_t>& inputs, const size_t hash_index, const bool handle_edge_cases)
+point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t hash_index, const bool handle_edge_cases)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
-        return pedersen_plookup<C>::encrypt(inputs);
+        return pedersen_plookup<C>::commit(inputs);
     }
 
     std::vector<point> to_accumulate;
@@ -491,7 +491,7 @@ field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs,
         // we can defer solving it until we migrate to UltraPlonk
         return pedersen_plookup<C>::compress(inputs);
     }
-    return encrypt(inputs, hash_index, handle_edge_cases).x;
+    return commit(inputs, hash_index, handle_edge_cases).x;
 }
 
 // If the input values are all zero, we return the array length instead of `0`

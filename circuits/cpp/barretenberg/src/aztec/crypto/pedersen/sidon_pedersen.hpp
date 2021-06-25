@@ -31,7 +31,7 @@ template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, 
     return compress_native(in);
 }
 
-grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inputs);
+grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& inputs);
 
 } // namespace sidon
 } // namespace pedersen

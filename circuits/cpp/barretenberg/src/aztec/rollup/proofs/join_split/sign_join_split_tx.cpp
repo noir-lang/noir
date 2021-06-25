@@ -1,6 +1,6 @@
 #include "sign_join_split_tx.hpp"
-#include "../notes/native/value/encrypt.hpp"
-#include "../notes/native/claim/encrypt.hpp"
+#include "../notes/native/value/commit.hpp"
+#include "../notes/native/claim/commit.hpp"
 #include "../notes/native/claim/create_partial_value_note.hpp"
 #include "../notes/native/compute_nullifier.hpp"
 #include <crypto/pedersen/pedersen.hpp>
@@ -36,10 +36,10 @@ signature sign_join_split_tx(join_split_tx const& tx,
     claim_note claim_note = {
         tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
     };
-    const grumpkin::g1::affine_element input_note_1 = encrypt(tx.input_note[0]);
-    const grumpkin::g1::affine_element input_note_2 = encrypt(tx.input_note[1]);
-    const grumpkin::g1::affine_element output_note_1 = is_defi ? encrypt(claim_note) : encrypt(tx.output_note[0]);
-    const grumpkin::g1::affine_element output_note_2 = encrypt(tx.output_note[1]);
+    const grumpkin::g1::affine_element input_note_1 = commit(tx.input_note[0]);
+    const grumpkin::g1::affine_element input_note_2 = commit(tx.input_note[1]);
+    const grumpkin::g1::affine_element output_note_1 = is_defi ? commit(claim_note) : commit(tx.output_note[0]);
+    const grumpkin::g1::affine_element output_note_2 = commit(tx.output_note[1]);
 
     const auto nullifier1 =
         compute_nullifier(input_note_1, tx.input_index[0], tx.account_private_key, tx.num_input_notes >= 1);

@@ -10,7 +10,7 @@ namespace circuit {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-field_ct compute_nullifier(point_ct const& encrypted_note,
+field_ct compute_nullifier(point_ct const& note_commitment,
                            field_ct const& tree_index,
                            field_ct const& account_private_key,
                            bool_ct const& is_real_note)
@@ -26,13 +26,13 @@ field_ct compute_nullifier(point_ct const& encrypted_note,
                                                           GeneratorIndex::JOIN_SPLIT_NULLIFIER_ACCOUNT_PRIVATE_KEY);
 
     std::vector<field_ct> hash_inputs{
-        encrypted_note.x,
+        note_commitment.x,
         hashed_pk.x,
         hashed_pk.y,
         modified_index,
     };
 
-    const auto result = pedersen::encrypt(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER_HASH_INPUTS, true);
+    const auto result = pedersen::commit(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER_HASH_INPUTS, true);
 
     // Blake2s hash the compressed result. Without this it's possible to leak info from the pedersen compression.
     auto blake_input = byte_array_ct(result.x).write(byte_array_ct(result.y));

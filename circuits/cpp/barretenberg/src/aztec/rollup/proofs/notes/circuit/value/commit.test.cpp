@@ -1,6 +1,6 @@
-#include "encrypt.hpp"
+#include "commit.hpp"
 #include "../../../../fixtures/user_context.hpp"
-#include "../../native/value/encrypt.hpp"
+#include "../../native/value/commit.hpp"
 #include "../../constants.hpp"
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace rollup::proofs::notes;
 using namespace rollup::proofs::notes::circuit::value;
 
-TEST(encrypt_note, encrypts)
+TEST(commit_note, commits)
 {
     auto user = rollup::fixtures::create_user_context();
     Composer composer = Composer();
@@ -24,10 +24,10 @@ TEST(encrypt_note, encrypts)
     native::value::value_note note = {
         note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret
     };
-    grumpkin::g1::element expected = native::value::encrypt(note);
+    grumpkin::g1::element expected = native::value::commit(note);
     witness_data plaintext(composer, note);
 
-    point_ct result = encrypt(plaintext);
+    point_ct result = commit(plaintext);
     composer.assert_equal_constant(result.x.witness_index, expected.x);
     composer.assert_equal_constant(result.y.witness_index, expected.y);
 
@@ -43,7 +43,7 @@ TEST(encrypt_note, encrypts)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(encrypt_note, encrypts_with_0_value)
+TEST(commit_note, commits_with_0_value)
 {
     auto user = rollup::fixtures::create_user_context();
     Composer composer = Composer();
@@ -55,10 +55,10 @@ TEST(encrypt_note, encrypts_with_0_value)
     native::value::value_note note = {
         note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret
     };
-    grumpkin::g1::element expected = native::value::encrypt(note);
+    grumpkin::g1::element expected = native::value::commit(note);
     witness_data plaintext(composer, note);
 
-    point_ct result = encrypt(plaintext);
+    point_ct result = commit(plaintext);
     composer.assert_equal_constant(result.x.witness_index, expected.x);
     composer.assert_equal_constant(result.y.witness_index, expected.y);
 

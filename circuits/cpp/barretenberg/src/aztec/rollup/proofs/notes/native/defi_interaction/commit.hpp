@@ -1,15 +1,14 @@
-#pragma once
-#include "value_note.hpp"
+#include "note.hpp"
 
 namespace rollup {
 namespace proofs {
 namespace notes {
 namespace native {
-namespace value {
+namespace defi_interaction {
 
-grumpkin::g1::affine_element encrypt(value_note const& note);
+grumpkin::g1::affine_element commit(note const& note);
 
-}
+} // namespace defi_interaction
 } // namespace native
 } // namespace notes
 } // namespace proofs

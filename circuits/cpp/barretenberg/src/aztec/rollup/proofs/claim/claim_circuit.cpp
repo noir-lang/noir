@@ -12,9 +12,9 @@ namespace claim {
 using namespace plonk::stdlib::merkle_tree;
 using namespace notes;
 
-field_ct compute_nullifier(point_ct const& encrypted_note, field_ct const& tree_index)
+field_ct compute_nullifier(point_ct const& note_commitment, field_ct const& tree_index)
 {
-    auto blake_input = byte_array_ct(encrypted_note.x).write(byte_array_ct(tree_index));
+    auto blake_input = byte_array_ct(note_commitment.x).write(byte_array_ct(tree_index));
     auto blake_result = plonk::stdlib::blake2s(blake_input);
     return field_ct(blake_result);
 }
@@ -71,7 +71,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     auto claim_exists = check_membership(
         composer, data_root, claim_note_path, byte_array_ct(claim_note), byte_array_ct(claim_note_index));
     claim_exists.assert_equal(true, "claim note not a member");
-    const auto nullifier1 = compute_nullifier(claim_note.encrypted, claim_note_index);
+    const auto nullifier1 = compute_nullifier(claim_note.commitment, claim_note_index);
 
     // Check defi interaction note exists.
     const auto din_exists = check_membership(composer,

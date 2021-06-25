@@ -460,11 +460,11 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
     notes::native::value::value_note note1 = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret };
-    auto expected1 = encrypt(note1);
+    auto expected1 = commit(note1);
     EXPECT_EQ(rollup_data.inner_proofs[0].new_note1, expected1);
 
     notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret };
-    auto expected2 = encrypt(note2);
+    auto expected2 = commit(note2);
     EXPECT_EQ(rollup_data.inner_proofs[0].new_note2, expected2);
 
     // Check correct interaction nonce in claim notes.
@@ -478,7 +478,7 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
         notes::native::claim::claim_note claim_note = {
             deposit_value, bid, claim_note_interaction_nonce, partial_state
         };
-        auto expected = encrypt(claim_note);
+        auto expected = commit(claim_note);
 
         EXPECT_EQ(defi_proof.new_note1, expected);
     };

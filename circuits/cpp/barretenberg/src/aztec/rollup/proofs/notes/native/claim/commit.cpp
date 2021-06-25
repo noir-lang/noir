@@ -8,7 +8,7 @@ namespace notes {
 namespace native {
 namespace claim {
 
-grumpkin::g1::affine_element encrypt(claim_note const& note)
+grumpkin::g1::affine_element commit(claim_note const& note)
 {
     grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
         note.deposit_value, GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_VALUE);

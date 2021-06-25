@@ -4,4 +4,4 @@
 #include "complete_partial_claim_note.hpp"
 #include "compute_nullifier.hpp"
 #include "create_partial_value_note.hpp"
-#include "encrypt.hpp"
+#include "commit.hpp"

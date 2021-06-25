@@ -37,7 +37,7 @@ field_ct process_input_note(Composer& composer,
     bool_ct valid_value = note.value == 0 || is_real;
     valid_value.assert_equal(true, "padding note non zero");
 
-    return compute_nullifier(note.encrypted, index, account_private_key, is_real);
+    return compute_nullifier(note.commitment, index, account_private_key, is_real);
 }
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
@@ -52,9 +52,9 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto output_note2 = value::value_note(inputs.output_note2);
     auto claim_note = claim::claim_note(inputs.claim_note);
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
-    point_ct encrypted_output_note1 = {
-        output_note1.encrypted.x * not_defi_bridge + claim_note.encrypted.x * is_defi_bridge,
-        output_note1.encrypted.y * not_defi_bridge + claim_note.encrypted.y * is_defi_bridge
+    point_ct commitment_output_note1 = {
+        output_note1.commitment.x * not_defi_bridge + claim_note.commitment.x * is_defi_bridge,
+        output_note1.commitment.y * not_defi_bridge + claim_note.commitment.y * is_defi_bridge
     };
 
     // Check public input/output are zero when in defi mode.
@@ -144,8 +144,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     verify_signature(inputs.public_input,
                      public_output,
                      asset_id,
-                     encrypted_output_note1,
-                     output_note2.encrypted,
+                     commitment_output_note1,
+                     output_note2.commitment,
                      nullifier1,
                      nullifier2,
                      tx_fee,
@@ -154,7 +154,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      inputs.output_owner,
                      inputs.signature);
 
-    return { proof_id, nullifier1, nullifier2, tx_fee, public_output, encrypted_output_note1, output_note2.encrypted,
+    return { proof_id, nullifier1, nullifier2, tx_fee, public_output, commitment_output_note1, output_note2.commitment,
              asset_id };
 }
 

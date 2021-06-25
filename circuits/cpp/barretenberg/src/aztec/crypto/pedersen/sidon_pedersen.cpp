@@ -156,14 +156,14 @@ grumpkin::g1::element tree_compress(const std::vector<grumpkin::fq>& inputs)
     return (compress_single(previous_leaves[0], false) + compress_single(previous_leaves[1], true));
 }
 
-grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& inputs)
+grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& inputs)
 {
     return grumpkin::g1::affine_element(tree_compress(inputs));
 }
 
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs)
 {
-    return encrypt_native(inputs).x;
+    return commit_native(inputs).x;
 }
 
 } // namespace sidon

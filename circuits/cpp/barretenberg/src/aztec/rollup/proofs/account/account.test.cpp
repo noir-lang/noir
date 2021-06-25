@@ -52,7 +52,7 @@ class account_tests : public ::testing::Test {
                                                   grumpkin::g1::affine_element const& owner_key,
                                                   grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = encrypt({ account_alias_id, owner_key, signing_key });
+        auto enc_note = commit({ account_alias_id, owner_key, signing_key });
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);

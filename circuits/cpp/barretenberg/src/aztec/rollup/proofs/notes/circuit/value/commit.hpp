@@ -8,7 +8,7 @@ namespace notes {
 namespace circuit {
 namespace value {
 
-inline point_ct encrypt(const witness_data& plaintext)
+inline point_ct commit(const witness_data& plaintext)
 {
     point_ct accumulator =
         group_ct::fixed_base_scalar_mul<254>(plaintext.secret, GeneratorIndex::JOIN_SPLIT_NOTE_SECRET);

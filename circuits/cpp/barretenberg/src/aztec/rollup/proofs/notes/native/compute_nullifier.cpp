@@ -10,7 +10,7 @@ namespace native {
 
 using namespace barretenberg;
 
-fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note,
+fr compute_nullifier(grumpkin::g1::affine_element const& note_commitment,
                      const uint32_t tree_index,
                      grumpkin::fr const& account_private_key,
                      const bool is_real_note)
@@ -19,12 +19,12 @@ fr compute_nullifier(grumpkin::g1::affine_element const& encrypted_note,
         fr(account_private_key), GeneratorIndex::JOIN_SPLIT_NULLIFIER_ACCOUNT_PRIVATE_KEY);
 
     std::vector<barretenberg::fr> buf{
-        encrypted_note.x,
+        note_commitment.x,
         hashed_pk.x,
         hashed_pk.y,
         barretenberg::fr(uint256_t((uint64_t)tree_index) + (uint256_t(is_real_note) << 64)),
     };
-    auto result = crypto::pedersen::encrypt_native(buf, GeneratorIndex::JOIN_SPLIT_NULLIFIER_HASH_INPUTS);
+    auto result = crypto::pedersen::commit_native(buf, GeneratorIndex::JOIN_SPLIT_NULLIFIER_HASH_INPUTS);
     auto blake_input = to_buffer(result.x);
     auto blake_input_b = to_buffer(result.y);
     std::copy(blake_input_b.begin(), blake_input_b.end(), std::back_inserter(blake_input));

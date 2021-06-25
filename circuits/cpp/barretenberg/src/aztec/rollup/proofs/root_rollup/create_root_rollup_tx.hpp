@@ -3,7 +3,7 @@
 #include "verify.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/native/defi_interaction/note.hpp"
-#include "../notes/native/defi_interaction/encrypt.hpp"
+#include "../notes/native/defi_interaction/commit.hpp"
 #include "../../world_state/world_state.hpp"
 #include <stdlib/merkle_tree/memory_store.hpp>
 

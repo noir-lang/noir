@@ -48,7 +48,7 @@ template <typename Store> class WorldState {
   private:
     template <typename T> void insert_note(T const& note, uint256_t index, Tree& tree)
     {
-        auto enc_note = encrypt(note);
+        auto enc_note = commit(note);
         tree.update_element(index, to_buffer(enc_note));
     }
 

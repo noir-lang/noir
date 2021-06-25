@@ -12,10 +12,10 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline point_ct encrypt(field_ct const& deposit_value,
-                        field_ct const& bridge_id,
-                        field_ct const& defi_interaction_nonce,
-                        point_ct const& partial_state)
+inline point_ct commit(field_ct const& deposit_value,
+                       field_ct const& bridge_id,
+                       field_ct const& defi_interaction_nonce,
+                       point_ct const& partial_state)
 {
     point_ct accumulator =
         group_ct::fixed_base_scalar_mul<254>(bridge_id, GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_BRIDGE_ID);

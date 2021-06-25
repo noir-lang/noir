@@ -32,7 +32,7 @@ std::vector<uint8_t> create_account_leaf_data(fr const& account_alias_id,
                                               grumpkin::g1::affine_element const& owner_key,
                                               grumpkin::g1::affine_element const& signing_key)
 {
-    auto enc_note = notes::native::account::encrypt({ account_alias_id, owner_key, signing_key });
+    auto enc_note = notes::native::account::commit({ account_alias_id, owner_key, signing_key });
     std::vector<uint8_t> buf;
     write(buf, enc_note.x);
     write(buf, enc_note.y);
@@ -82,7 +82,7 @@ class join_split_tests : public ::testing::Test {
     void preload_value_notes()
     {
         for (auto note : value_notes) {
-            auto enc_note = encrypt(note);
+            auto enc_note = commit(note);
             tree->update_element(tree->size(), create_leaf_data(enc_note));
         }
     }
@@ -90,7 +90,7 @@ class join_split_tests : public ::testing::Test {
     void append_notes(std::vector<value_note> const& notes)
     {
         for (auto note : notes) {
-            auto enc_note = encrypt(note);
+            auto enc_note = commit(note);
             tree->update_element(tree->size(), create_leaf_data(enc_note));
         }
     }
@@ -595,10 +595,10 @@ HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 
     auto proof_data = inner_proof_data(proof.proof_data);
 
-    auto enc_input_note1_raw = encrypt(tx.input_note[0]);
-    auto enc_input_note2_raw = encrypt(tx.input_note[1]);
-    auto enc_output_note1 = encrypt(tx.output_note[0]);
-    auto enc_output_note2 = encrypt(tx.output_note[1]);
+    auto enc_input_note1_raw = commit(tx.input_note[0]);
+    auto enc_input_note2_raw = commit(tx.input_note[1]);
+    auto enc_output_note1 = commit(tx.output_note[0]);
+    auto enc_output_note2 = commit(tx.output_note[1]);
     uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
 
@@ -637,10 +637,10 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
         tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
     };
 
-    auto enc_input_note1_raw = encrypt(tx.input_note[0]);
-    auto enc_input_note2_raw = encrypt(tx.input_note[1]);
-    auto enc_output_note1 = encrypt(claim_note);
-    auto enc_output_note2 = encrypt(tx.output_note[1]);
+    auto enc_input_note1_raw = commit(tx.input_note[0]);
+    auto enc_input_note2_raw = commit(tx.input_note[1]);
+    auto enc_output_note1 = commit(claim_note);
+    auto enc_output_note2 = commit(tx.output_note[1]);
     uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
 

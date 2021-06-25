@@ -32,8 +32,8 @@ struct note {
     // if interaction failed, re-create original deposit note
     bool_ct interaction_result;
 
-    // encrypted defi_interaction_note
-    point_ct encrypted;
+    // commitment to the defi_interaction_note
+    point_ct commitment;
 
     note(witness_data const& note)
         : bridge_id(note.bridge_id_data.to_field())
@@ -42,10 +42,10 @@ struct note {
         , total_output_a_value(note.total_output_a_value)
         , total_output_b_value(note.total_output_b_value)
         , interaction_result(note.interaction_result)
-        , encrypted(encrypt())
+        , commitment(commit())
     {}
 
-    operator byte_array_ct() const { return byte_array_ct(encrypted.x).write(encrypted.y); }
+    operator byte_array_ct() const { return byte_array_ct(commitment.x).write(commitment.y); }
 
     byte_array_ct to_byte_array(Composer& composer, bool_ct is_real = 1) const
     {
@@ -62,7 +62,7 @@ struct note {
     }
 
   private:
-    point_ct encrypt()
+    point_ct commit()
     {
         point_ct accumulator =
             group_ct::fixed_base_scalar_mul<254>(bridge_id, GeneratorIndex::DEFI_INTERACTION_NOTE_BRIDGE_ID);

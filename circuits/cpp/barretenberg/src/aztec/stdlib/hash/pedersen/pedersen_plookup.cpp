@@ -107,7 +107,7 @@ template <typename C> field_t<C> pedersen_plookup<C>::compress(const field_t& le
     return compress_to_point(left, right).x;
 }
 
-template <typename C> point<C> pedersen_plookup<C>::encrypt(const std::vector<field_t>& inputs)
+template <typename C> point<C> pedersen_plookup<C>::commit(const std::vector<field_t>& inputs)
 {
     const size_t num_inputs = inputs.size();
 
@@ -148,7 +148,7 @@ template <typename C> point<C> pedersen_plookup<C>::encrypt(const std::vector<fi
 
 template <typename C> field_t<C> pedersen_plookup<C>::compress(const std::vector<field_t>& inputs)
 {
-    return encrypt(inputs).x;
+    return commit(inputs).x;
 }
 
 template class pedersen_plookup<waffle::PlookupComposer>;

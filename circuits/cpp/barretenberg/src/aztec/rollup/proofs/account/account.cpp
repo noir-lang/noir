@@ -108,10 +108,10 @@ void account_circuit(Composer& composer, account_tx const& tx)
     composer.set_public_input(new_account_public_key.x.witness_index); // public_input but using for owner x.
     composer.set_public_input(new_account_public_key.y.witness_index); // public_output but using for owner y.
     composer.set_public_input(output_account_alias_id.witness_index);  // asset_id
-    composer.set_public_input(output_note_1.encrypted.x.witness_index);
-    composer.set_public_input(output_note_1.encrypted.y.witness_index);
-    composer.set_public_input(output_note_2.encrypted.x.witness_index);
-    composer.set_public_input(output_note_2.encrypted.y.witness_index);
+    composer.set_public_input(output_note_1.commitment.x.witness_index);
+    composer.set_public_input(output_note_1.commitment.y.witness_index);
+    composer.set_public_input(output_note_2.commitment.x.witness_index);
+    composer.set_public_input(output_note_2.commitment.y.witness_index);
     composer.set_public_input(nullifier_1.witness_index);
     composer.set_public_input(nullifier_2.witness_index);
     composer.set_public_input(spending_public_key_1.x.witness_index); // input_owner

@@ -23,7 +23,7 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_
 
 grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index = 0);
 
-grumpkin::g1::affine_element encrypt_native(const std::vector<grumpkin::fq>& elements, const size_t hash_index = 0);
+grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& elements, const size_t hash_index = 0);
 
 grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
                                                       const grumpkin::fq& right,

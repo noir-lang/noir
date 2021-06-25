@@ -1,4 +1,4 @@
-#include "encrypt.hpp"
+#include "commit.hpp"
 #include "../../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 
@@ -10,7 +10,7 @@ namespace notes {
 namespace native {
 namespace value {
 
-grumpkin::g1::affine_element encrypt(value_note const& note)
+grumpkin::g1::affine_element commit(value_note const& note)
 {
     grumpkin::g1::element p_1 = crypto::pedersen::fixed_base_scalar_mul<NOTE_VALUE_BIT_LENGTH>(
         note.value, GeneratorIndex::JOIN_SPLIT_NOTE_VALUE);

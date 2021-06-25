@@ -31,7 +31,7 @@ template <typename ComposerContext> class pedersen_plookup {
         return packed_byte_array({ compress(input.get_limbs()) }, 32);
     };
 
-    static point encrypt(const std::vector<field_t>& inputs);
+    static point commit(const std::vector<field_t>& inputs);
     static point compress_to_point(const field_t& left, const field_t& right);
 };
 

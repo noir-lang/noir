@@ -41,7 +41,7 @@ class claim_tests : public ::testing::Test {
 
     template <typename T, typename Tree> void append_note(T const& note, Tree& tree)
     {
-        auto enc_note = encrypt(note);
+        auto enc_note = commit(note);
         std::vector<uint8_t> buf;
         write(buf, enc_note.x);
         write(buf, enc_note.y);
@@ -199,9 +199,9 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     const value_note expected_output_note2 = {
         tx.output_value_b, bridge_id.output_asset_id_b, 0, user.owner.public_key, user.note_secret
     };
-    auto enc_output_note1 = encrypt(expected_output_note1);
-    auto enc_output_note2 = encrypt(expected_output_note2);
-    uint256_t nullifier1 = compute_nullifier(encrypt(note1), tx.claim_note_index);
+    auto enc_output_note1 = commit(expected_output_note1);
+    auto enc_output_note2 = commit(expected_output_note2);
+    uint256_t nullifier1 = compute_nullifier(commit(note1), tx.claim_note_index);
 
     // Validate public inputs.
     EXPECT_EQ(proof_data.proof_id, 3UL);
@@ -235,9 +235,9 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     const value_note expected_output_note1 = {
         20, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret
     };
-    auto enc_output_note1 = encrypt(expected_output_note1);
+    auto enc_output_note1 = commit(expected_output_note1);
 
-    uint256_t nullifier1 = compute_nullifier(encrypt(note1), tx.claim_note_index);
+    uint256_t nullifier1 = compute_nullifier(commit(note1), tx.claim_note_index);
 
     EXPECT_EQ(proof_data.proof_id, 3UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
@@ -272,9 +272,9 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     const value_note expected_output_note1 = {
         10, bridge_id.input_asset_id, 0, user.owner.public_key, user.note_secret
     };
-    auto enc_output_note1 = encrypt(expected_output_note1);
+    auto enc_output_note1 = commit(expected_output_note1);
 
-    uint256_t nullifier1 = compute_nullifier(encrypt(note1), tx.claim_note_index);
+    uint256_t nullifier1 = compute_nullifier(commit(note1), tx.claim_note_index);
 
     EXPECT_EQ(proof_data.proof_id, 3UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);

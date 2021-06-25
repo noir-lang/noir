@@ -54,8 +54,8 @@ void check_root_tree_updated(Composer& composer,
 }
 
 /**
- * Computes the encryptions of the defi_interaction_notes to be inserted into the defi tree.
- * Checks the defi tree is updated with the encrypted defi_interaction_notes.
+ * Computes the commitments to the defi_interaction_notes to be inserted into the defi tree.
+ * Checks the defi tree is updated with the defi_interaction_notes' commitments.
  * Returns the previous_defi_interaction_hash from the defi_interaction_notes.
  */
 field_ct process_defi_interaction_notes(Composer& composer,
@@ -65,7 +65,7 @@ field_ct process_defi_interaction_notes(Composer& composer,
                                         merkle_tree::hash_path const& old_defi_interaction_path,
                                         field_ct const& num_previous_defi_interactions,
                                         std::vector<circuit::defi_interaction::note> const& defi_interaction_notes,
-                                        std::vector<point_ct>& encrypted_defi_interaction_notes)
+                                        std::vector<point_ct>& defi_interaction_note_commitments)
 {
     byte_array_ct hash_input(&composer);
     std::vector<byte_array_ct> defi_interaction_note_leaves;
@@ -74,11 +74,11 @@ field_ct process_defi_interaction_notes(Composer& composer,
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         auto is_real = uint32_ct(i) < num_previous_defi_interactions && not_first_rollup;
         hash_input.write(defi_interaction_notes[i].to_byte_array(composer, is_real));
-        const point_ct encrypted_note = { defi_interaction_notes[i].encrypted.x * is_real,
-                                          defi_interaction_notes[i].encrypted.y * is_real };
-        encrypted_defi_interaction_notes.push_back(encrypted_note);
+        const point_ct note_commitment = { defi_interaction_notes[i].commitment.x * is_real,
+                                           defi_interaction_notes[i].commitment.y * is_real };
+        defi_interaction_note_commitments.push_back(note_commitment);
         defi_interaction_note_leaves.push_back(
-            byte_array_ct(&composer).write(encrypted_note.x).write(encrypted_note.y));
+            byte_array_ct(&composer).write(note_commitment.x).write(note_commitment.y));
     }
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
@@ -253,7 +253,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     }
 
     // Check defi interaction notes are inserted and computes previous_defi_interaction_hash.
-    std::vector<point_ct> encrypted_defi_interaction_notes;
+    std::vector<point_ct> defi_interaction_note_commitments;
     auto previous_defi_interaction_hash = process_defi_interaction_notes(composer,
                                                                          rollup_id,
                                                                          new_defi_root,
@@ -261,7 +261,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                                                          old_defi_path,
                                                                          num_previous_defi_interactions,
                                                                          defi_interaction_notes,
-                                                                         encrypted_defi_interaction_notes);
+                                                                         defi_interaction_note_commitments);
 
     // Check data root tree is updated with latest data root.
     check_root_tree_updated(composer, old_root_path, rollup_id, new_data_root, new_root_root, old_root_root);
@@ -298,7 +298,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
 
     // The root rollup has the same public input structure as the inner rollup, until this point.
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        encrypted_defi_interaction_notes[i].set_public();
+        defi_interaction_note_commitments[i].set_public();
     }
     composer.set_public_input(previous_defi_interaction_hash.witness_index);
 

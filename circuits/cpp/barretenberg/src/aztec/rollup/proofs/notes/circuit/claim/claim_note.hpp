@@ -4,7 +4,7 @@
 #include "../bridge_id.hpp"
 #include "witness_data.hpp"
 #include "create_partial_value_note.hpp"
-#include "encrypt.hpp"
+#include "commit.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -19,14 +19,14 @@ struct claim_note {
     field_ct bridge_id;
     field_ct defi_interaction_nonce;
     point_ct partial_state;
-    point_ct encrypted;
+    point_ct commitment;
 
     claim_note(claim_note_witness_data const& data)
         : deposit_value(data.deposit_value)
         , bridge_id(data.bridge_id_data.to_field())
         , defi_interaction_nonce(data.defi_interaction_nonce)
         , partial_state(data.partial_state)
-        , encrypted(encrypt(deposit_value, bridge_id, defi_interaction_nonce, partial_state))
+        , commitment(commit(deposit_value, bridge_id, defi_interaction_nonce, partial_state))
     {}
 
     claim_note(claim_note_tx_witness_data const& data)
@@ -35,10 +35,10 @@ struct claim_note {
         bridge_id = data.bridge_id_data.to_field();
         defi_interaction_nonce = data.defi_interaction_nonce;
         partial_state = create_partial_value_note(data.note_secret, data.owner_nonce, data.owner);
-        encrypted = encrypt(deposit_value, bridge_id, defi_interaction_nonce, partial_state);
+        commitment = commit(deposit_value, bridge_id, defi_interaction_nonce, partial_state);
     }
 
-    operator byte_array_ct() const { return byte_array_ct(encrypted.x).write(encrypted.y); }
+    operator byte_array_ct() const { return byte_array_ct(commitment.x).write(commitment.y); }
 };
 
 } // namespace claim

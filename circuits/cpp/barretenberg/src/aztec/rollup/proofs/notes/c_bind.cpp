@@ -1,10 +1,10 @@
 #include "c_bind.h"
 #include "native/claim/claim_note_tx_data.hpp"
 #include "native/claim/create_partial_value_note.hpp"
-#include "native/claim/encrypt.hpp"
+#include "native/claim/commit.hpp"
 #include "native/claim/compute_nullifier.hpp"
-#include "native/defi_interaction/encrypt.hpp"
-#include "native/value/encrypt.hpp"
+#include "native/defi_interaction/commit.hpp"
+#include "native/value/commit.hpp"
 #include "native/compute_nullifier.hpp"
 
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -18,11 +18,11 @@ using namespace rollup::proofs::notes::native;
 
 extern "C" {
 
-WASM_EXPORT void notes__encrypt_value_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__commit_value_note(uint8_t const* note_buffer, uint8_t* output)
 {
     auto note = from_buffer<value::value_note>(note_buffer);
-    auto encrypted = value::encrypt(note);
-    write(output, encrypted);
+    auto note_commitment = value::commit(note);
+    write(output, note_commitment);
 }
 
 WASM_EXPORT void notes__compute_value_note_nullifier(
@@ -45,11 +45,11 @@ WASM_EXPORT void notes__create_partial_value_note(uint8_t const* note_buffer,
     write(output, partial_state);
 }
 
-WASM_EXPORT void notes__encrypt_claim_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__commit_claim_note(uint8_t const* note_buffer, uint8_t* output)
 {
     auto note = from_buffer<claim::claim_note>(note_buffer);
-    auto encrypted = claim::encrypt(note);
-    write(output, encrypted);
+    auto note_commitment = claim::commit(note);
+    write(output, note_commitment);
 }
 
 WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buffer, uint32_t index, uint8_t* output)
@@ -59,13 +59,20 @@ WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buf
     write(output, nullifier);
 }
 
-WASM_EXPORT void notes__encrypt_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__commit_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output)
 {
     auto note = from_buffer<defi_interaction::note>(note_buffer);
-    auto encrypted = defi_interaction::encrypt(note);
-    write(output, encrypted);
+    auto commited = defi_interaction::commit(note);
+    write(output, commited);
 }
 
+/**
+ * This decrypts the AES encryption of the notes using the private keys of a user.
+ * The notes owned by a user are stored in two forms:
+ *   (i) a Pedersen commitment to the note which is inserted in the data tree
+ *  (ii) an AES encryption of the note data
+ * We need the AES encryption of the note to allow users to "view" the notes owned by them.
+ */
 WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffer,
                                             uint8_t* private_key_buffer,
                                             uint32_t numKeys,

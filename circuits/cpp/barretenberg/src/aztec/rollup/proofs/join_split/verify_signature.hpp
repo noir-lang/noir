@@ -10,8 +10,8 @@ using namespace notes;
 inline bool verify_signature(field_ct const& public_input,
                              field_ct const& public_output,
                              field_ct const& asset_id,
-                             point_ct const& encrypted_output_note1,
-                             point_ct const& encrypted_output_note2,
+                             point_ct const& output_note1_commitment,
+                             point_ct const& output_note2_commitment,
                              field_ct const& nullifier1,
                              field_ct const& nullifier2,
                              field_ct const& tx_fee,
@@ -36,10 +36,10 @@ inline bool verify_signature(field_ct const& public_input,
     to_compress.push_back(public_input);
     to_compress.push_back(public_output);
     to_compress.push_back(asset_id);
-    to_compress.push_back(encrypted_output_note1.x);
-    to_compress.push_back(encrypted_output_note1.y);
-    to_compress.push_back(encrypted_output_note2.x);
-    to_compress.push_back(encrypted_output_note2.y);
+    to_compress.push_back(output_note1_commitment.x);
+    to_compress.push_back(output_note1_commitment.y);
+    to_compress.push_back(output_note2_commitment.x);
+    to_compress.push_back(output_note2_commitment.y);
     to_compress.push_back(nullifier1);
     to_compress.push_back(nullifier2);
     to_compress.push_back(input_owner);

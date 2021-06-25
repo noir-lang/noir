@@ -98,7 +98,7 @@ void check_data_tree_updated(Composer& composer,
  * - We only process join split proofs with a proof_id == ProofIds::DEFI_DEPOSIT (otherwise noop).
  * - Ensure that the bridge_id matches one within the of set of bridge_ids.
  * - Accumulate the deposit value in relevant defi_deposit_sums slot. These later become public inputs.
- * - Modify the claim note encryption (output_note_1 encryption) to add the relevant interaction nonce to it.
+ * - Modify the claim note commitment (output_note_1 commitment) to add the relevant interaction nonce to it.
  */
 auto process_defi_deposit(Composer& composer,
                           field_ct const& rollup_id,
@@ -134,13 +134,13 @@ auto process_defi_deposit(Composer& composer,
                                     format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times."));
 
     // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
-    point_ct encrypted_claim_note{ public_inputs[InnerProofFields::NEW_NOTE1_X],
-                                   public_inputs[InnerProofFields::NEW_NOTE1_Y] };
-    encrypted_claim_note =
-        notes::circuit::claim::complete_partial_claim_note(encrypted_claim_note, note_defi_interaction_nonce);
+    point_ct claim_note_commitment{ public_inputs[InnerProofFields::NEW_NOTE1_X],
+                                    public_inputs[InnerProofFields::NEW_NOTE1_Y] };
+    claim_note_commitment =
+        notes::circuit::claim::complete_partial_claim_note(claim_note_commitment, note_defi_interaction_nonce);
 
-    public_inputs[InnerProofFields::NEW_NOTE1_X] = encrypted_claim_note.x;
-    public_inputs[InnerProofFields::NEW_NOTE1_Y] = encrypted_claim_note.y;
+    public_inputs[InnerProofFields::NEW_NOTE1_X] = claim_note_commitment.x;
+    public_inputs[InnerProofFields::NEW_NOTE1_Y] = claim_note_commitment.y;
 }
 
 /**
