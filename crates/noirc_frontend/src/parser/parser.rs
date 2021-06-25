@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_statement(&mut self) -> ParserStmtResult {
-        use crate::parser::prefix_parser::{ConstrainParser, DeclarationParser};
+        use crate::parser::prefix_parser::{AssignParser, ConstrainParser, DeclarationParser};
 
         let stmt = match self.curr_token.token() {
             tk if tk.can_start_declaration() => {
@@ -224,6 +224,9 @@ impl<'a> Parser<'a> {
             }
             Token::Keyword(Keyword::Constrain) => {
                 Statement::Constrain(ConstrainParser::parse_statement(self)?)
+            }
+            tk if tk.is_ident() && self.peek_token == Token::Assign => {
+                Statement::Assign(AssignParser::parse_statement(self)?)
             }
             _ => {
                 let expr = self.parse_expression_statement()?;

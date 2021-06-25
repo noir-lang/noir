@@ -19,6 +19,7 @@ struct ResolverMeta {
 use std::collections::HashMap;
 
 use crate::graph::CrateId;
+use crate::hir_def::stmt::HirAssignStatement;
 use crate::node_interner::{ExprId, FuncId, IdentId, NodeInterner, StmtId};
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -282,6 +283,15 @@ impl<'a> Resolver<'a> {
             Statement::Semi(expr) => {
                 let stmt = HirStatement::Semi(self.resolve_expression(expr));
                 self.interner.push_stmt(stmt)
+            }
+            Statement::Assign(assign_stmt) => {
+                let identifier = self.find_variable(&assign_stmt.identifier);
+                let expression = self.resolve_expression(assign_stmt.expression);
+                let stmt = HirAssignStatement {
+                    identifier,
+                    expression,
+                };
+                self.interner.push_stmt(HirStatement::Assign(stmt))
             }
         }
     }

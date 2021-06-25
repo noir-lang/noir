@@ -30,6 +30,11 @@ pub struct HirPrivateStatement {
     pub r#type: Type,
     pub expression: ExprId,
 }
+#[derive(Debug, Clone)]
+pub struct HirAssignStatement {
+    pub identifier: IdentId,
+    pub expression: ExprId,
+}
 
 #[derive(Debug, Clone)]
 pub struct HirConstrainStatement(pub HirInfixExpression);
@@ -45,6 +50,7 @@ pub enum HirStatement {
     Const(HirConstStatement),
     Constrain(HirConstrainStatement),
     Private(HirPrivateStatement),
+    Assign(HirAssignStatement),
     Expression(ExprId),
     Semi(ExprId),
 }
