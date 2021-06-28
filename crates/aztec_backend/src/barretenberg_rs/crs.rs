@@ -54,130 +54,85 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
     }
 }
 
-// XXX: Below is the logic to download the CRS if it is not already present (taken from the Rust cookbook)
-// This has not been optimised.
+// XXX: Below is the logic to download the CRS if it is not already present
 
-use error_chain::error_chain;
-use reqwest::header::{HeaderValue, CONTENT_LENGTH, RANGE};
-use reqwest::StatusCode;
-use std::fs::File;
-use std::str::FromStr;
+pub fn download_crs(path: std::path::PathBuf) {
+    let file_path = path.join("transcript00.dat");
+    if file_path.exists() {
+        println!("File already exists {:?}", file_path);
+        return;
+    }
+    let url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
+    use downloader::Downloader;
+    let mut downloader = Downloader::builder()
+        .download_folder(path.as_path())
+        .build()
+        .unwrap();
 
-error_chain! {
-    foreign_links {
-        Io(std::io::Error);
-        Reqwest(reqwest::Error);
-        Header(reqwest::header::ToStrError);
+    let dl = downloader::Download::new(url);
+    let dl = dl.progress(SimpleReporter::create());
+    let result = downloader.download(&[dl]).unwrap();
+
+    for r in result {
+        match r {
+            Err(e) => println!("Error: {}", e.to_string()),
+            Ok(s) => println!("File located at: {:?}", &s.file_name),
+        };
     }
 }
-
-struct PartialRangeIter {
-    start: u64,
-    end: u64,
-    buffer_size: u32,
+// Taken from https://github.com/hunger/downloader/blob/main/examples/download.rs
+struct SimpleReporterPrivate {
+    started: std::time::Instant,
+    progress_bar: indicatif::ProgressBar,
+}
+struct SimpleReporter {
+    private: std::sync::Mutex<Option<SimpleReporterPrivate>>,
 }
 
-impl PartialRangeIter {
-    pub fn new(start: u64, end: u64, buffer_size: u32) -> Result<Self> {
-        if buffer_size == 0 {
-            return Err("invalid buffer_size, give a value greater than zero.".into());
-        }
-        Ok(PartialRangeIter {
-            start,
-            end,
-            buffer_size,
+impl SimpleReporter {
+    fn create() -> std::sync::Arc<Self> {
+        std::sync::Arc::new(Self {
+            private: std::sync::Mutex::new(None),
         })
     }
 }
 
-impl Iterator for PartialRangeIter {
-    type Item = HeaderValue;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.start > self.end {
-            None
-        } else {
-            let prev_start = self.start;
-            self.start += std::cmp::min(self.buffer_size as u64, self.end - self.start + 1);
-            Some(
-                HeaderValue::from_str(&format!("bytes={}-{}", prev_start, self.start - 1))
-                    .expect("string provided by format!"),
-            )
+impl downloader::progress::Reporter for SimpleReporter {
+    fn setup(&self, max_progress: Option<u64>, _message: &str) {
+        let bar = indicatif::ProgressBar::new(max_progress.unwrap());
+        bar.set_style(
+            indicatif::ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+                .progress_chars("##-"),
+        );
+
+        let private = SimpleReporterPrivate {
+            started: std::time::Instant::now(),
+            progress_bar: bar,
+        };
+
+        let mut guard = self.private.lock().unwrap();
+        *guard = Some(private);
+    }
+
+    fn progress(&self, current: u64) {
+        if let Some(p) = self.private.lock().unwrap().as_mut() {
+            p.progress_bar.set_position(current);
         }
     }
-}
 
-// XXX: Clean up to handle Errors better and remove the partial file in case we cannot
-// download the whole file
-pub fn download_crs(mut path: std::path::PathBuf) {
-    if path.exists() {
-        println!("File already exists");
-        return;
+    fn set_message(&self, _message: &str) {}
+
+    fn done(&self) {
+        let mut guard = self.private.lock().unwrap();
+        let p = guard.as_mut().unwrap();
+        p.progress_bar.finish();
+        println!("Downloaded the SRS successfully!\n",);
+        println!(
+            "Time Elapsed: {}",
+            indicatif::HumanDuration(p.started.elapsed())
+        );
     }
-
-    // If the path is the path to the 'transcript00.dat' file, pop it off and download the file into the Directory
-    if path.ends_with(std::path::Path::new("transcript00.dat")) {
-        path.pop();
-    }
-
-    let url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
-    const CHUNK_SIZE: u32 = 10240;
-
-    let client = reqwest::blocking::Client::new();
-    let response = client.head(url).send().expect("Expected a response");
-    let length = response
-        .headers()
-        .get(CONTENT_LENGTH)
-        .ok_or("response doesn't include the content length")
-        .expect("Expected the content length");
-    let length = u64::from_str(length.to_str().unwrap())
-        .map_err(|_| "invalid Content-Length header")
-        .unwrap();
-
-    std::fs::create_dir_all(&path)
-        .expect("Failed to create the directory named 'ignition'. Please check your permissions");
-
-    let mut output_file = {
-        let fname = "transcript00.dat";
-
-        println!("Downloading the Default SRS (340MB) : Ignite!");
-        let fname = path.join(fname);
-        println!("\nSRS will be saved at location: '{:?}'", fname);
-
-        File::create(fname).unwrap()
-    };
-
-    // XXX: This progress bar redraws on macos after a minute. It's not
-    // a problem functionally, however it would be nice to fix.
-    let bar = indicatif::ProgressBar::new(length / (CHUNK_SIZE as u64));
-    bar.set_style(
-        indicatif::ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-            .progress_chars("##-"),
-    );
-
-    let started = std::time::Instant::now();
-    for range in PartialRangeIter::new(0, length - 1, CHUNK_SIZE).unwrap() {
-        bar.inc(1);
-
-        let mut response = client.get(url).header(RANGE, range).send().unwrap();
-
-        let status = response.status();
-        if !(status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT) {
-            panic!("Unexpected server response: {}", status);
-        }
-        std::io::copy(&mut response, &mut output_file).unwrap();
-    }
-    bar.finish();
-
-    println!(
-        "Downloading the SRS took {}",
-        indicatif::HumanDuration(started.elapsed())
-    );
-
-    let content = response.text().unwrap();
-    std::io::copy(&mut content.as_bytes(), &mut output_file).unwrap();
-
-    println!("Finished with success!");
 }
 
 #[test]
@@ -209,6 +164,6 @@ fn downloading() {
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
 
-    let file_path = dir.path().join("transcript00.dat");
+    let file_path = dir.path().to_path_buf();
     download_crs(file_path);
 }

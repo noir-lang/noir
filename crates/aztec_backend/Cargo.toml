@@ -7,8 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-noir_field = { path = "../noir_field", features = ["bn254"] }
-acir = { path = "../acir" }
+noir_field = { path="../noir_field", features=["bn254"] }
+acir = { path="../acir" }
 
 wasmer-wasi = "1.0.1"
 
@@ -19,7 +19,8 @@ wasmer-engine-jit = "1.0.1"
 wasmer-cache = "1.0.1"
 
 dirs = "3.0"
-reqwest = { version = "0.11.0", features = ["blocking"] }
+downloader = "0.2.6"
+
 indicatif = "0.15.0"
 error-chain = "0.12.4"
 regex = "1.4.0"
