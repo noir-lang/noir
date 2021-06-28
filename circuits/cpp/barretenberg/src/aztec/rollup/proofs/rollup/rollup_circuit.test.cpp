@@ -1,6 +1,7 @@
 #include "index.hpp"
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
+#include "../join_split/create_noop_join_split_proof.hpp"
 #include <common/test.hpp>
 #include <common/map.hpp>
 
@@ -82,7 +83,7 @@ TEST_F(rollup_tests, test_padding_proof)
 TEST_F(rollup_tests, test_1_deposit_proof_in_1_rollup)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
+    auto join_split_proof = join_split::create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
     auto result = verify_logic(rollup, rollup_1_keyless);
@@ -208,7 +209,7 @@ TEST_F(rollup_tests, test_reuse_spent_note_fails)
 TEST_F(rollup_tests, test_max_num_txs)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
+    auto join_split_proof = join_split::create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
     rollup.num_txs = (uint32_t(1) << MAX_TXS_BIT_LENGTH) - 1;
@@ -220,7 +221,7 @@ TEST_F(rollup_tests, test_max_num_txs)
 TEST_F(rollup_tests, test_overflow_num_txs_fails)
 {
     size_t rollup_size = 1;
-    auto join_split_proof = create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
+    auto join_split_proof = join_split::create_noop_join_split_proof(js_cd, context.world_state.data_tree.root());
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
     rollup.num_txs = uint32_t(1) << MAX_TXS_BIT_LENGTH;

@@ -184,10 +184,10 @@ TEST(stdlib_pedersen, test_pedersen)
     }
 
     grumpkin::g1::affine_element grumpkin_points[4]{
-        crypto::pedersen::get_generator(0),
-        crypto::pedersen::get_generator(1),
-        crypto::pedersen::get_generator(2),
-        crypto::pedersen::get_generator(3),
+        crypto::pedersen::get_generator_data(crypto::pedersen::DEFAULT_GEN_1).generator,
+        crypto::pedersen::get_generator_data(crypto::pedersen::DEFAULT_GEN_1).aux_generator,
+        crypto::pedersen::get_generator_data(crypto::pedersen::DEFAULT_GEN_2).generator,
+        crypto::pedersen::get_generator_data(crypto::pedersen::DEFAULT_GEN_2).aux_generator,
     };
 
     grumpkin::g1::element result_points[4]{
@@ -209,7 +209,7 @@ TEST(stdlib_pedersen, test_pedersen)
 
     EXPECT_EQ(out.get_value(), hash_output.x);
 
-    fr compress_native = crypto::pedersen::compress_native(left.get_value(), right.get_value());
+    fr compress_native = crypto::pedersen::compress_native({ left.get_value(), right.get_value() });
     EXPECT_EQ(out.get_value(), compress_native);
 }
 

@@ -5,7 +5,8 @@
 #include <memory.h>
 
 namespace sha256 {
-namespace internal {
+
+namespace {
 constexpr uint32_t init_constants[8]{ 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                       0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
 
@@ -20,18 +21,23 @@ constexpr uint32_t round_constants[64]{
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-} // namespace internal
+constexpr uint32_t ror(uint32_t val, uint32_t shift)
+{
+    return (val >> (shift & 31U)) | (val << (32U - (shift & 31U)));
+}
+
+} // namespace
 
 void prepare_constants(std::array<uint32_t, 8>& input)
 {
-    input[0] = internal::init_constants[0];
-    input[1] = internal::init_constants[1];
-    input[2] = internal::init_constants[2];
-    input[3] = internal::init_constants[3];
-    input[4] = internal::init_constants[4];
-    input[5] = internal::init_constants[5];
-    input[6] = internal::init_constants[6];
-    input[7] = internal::init_constants[7];
+    input[0] = init_constants[0];
+    input[1] = init_constants[1];
+    input[2] = init_constants[2];
+    input[3] = init_constants[3];
+    input[4] = init_constants[4];
+    input[5] = init_constants[5];
+    input[6] = init_constants[6];
+    input[7] = init_constants[7];
 }
 
 std::array<uint32_t, 8> sha256_block(const std::array<uint32_t, 8>& h_init, const std::array<uint32_t, 16>& input)
@@ -72,7 +78,7 @@ std::array<uint32_t, 8> sha256_block(const std::array<uint32_t, 8>& h_init, cons
     for (size_t i = 0; i < 64; ++i) {
         uint32_t S1 = ror(e, 6U) ^ ror(e, 11U) ^ ror(e, 25U);
         uint32_t ch = (e & f) ^ (~e & g); // === (e & f) ^ (~e & g), `+` op is cheaper
-        uint32_t temp1 = h + S1 + ch + internal::round_constants[i] + w[i];
+        uint32_t temp1 = h + S1 + ch + round_constants[i] + w[i];
         uint32_t S0 = ror(a, 2U) ^ ror(a, 13U) ^ ror(a, 22U);
         uint32_t maj = (a & b) ^ (a & c) ^ (b & c); // (a & (b + c - (T0 * 2))) + T0; // === (a & b) ^ (a & c) ^ (b & c)
         uint32_t temp2 = S0 + maj;
@@ -102,11 +108,11 @@ std::array<uint32_t, 8> sha256_block(const std::array<uint32_t, 8>& h_init, cons
     return output;
 }
 
-std::vector<uint8_t> sha256_block(const std::vector<uint8_t>& input)
+hash sha256_block(const std::vector<uint8_t>& input)
 {
     ASSERT(input.size() == 64);
-    std::array<uint32_t, 8> hash;
-    prepare_constants(hash);
+    std::array<uint32_t, 8> result;
+    prepare_constants(result);
     std::array<uint32_t, 16> hash_input;
     memcpy((void*)&hash_input[0], (void*)&input[0], 64);
     if (is_little_endian()) {
@@ -114,10 +120,10 @@ std::vector<uint8_t> sha256_block(const std::vector<uint8_t>& input)
             hash_input[j] = __builtin_bswap32(hash_input[j]);
         }
     }
-    hash = sha256_block(hash, hash_input);
+    result = sha256_block(result, hash_input);
 
-    std::vector<uint8_t> output(32);
-    memcpy((void*)&output[0], (void*)&hash[0], 32);
+    hash output;
+    memcpy((void*)&output[0], (void*)&result[0], 32);
     if (is_little_endian()) {
         uint32_t* output_uint32 = (uint32_t*)&output[0];
         for (size_t j = 0; j < 8; ++j) {
@@ -128,7 +134,7 @@ std::vector<uint8_t> sha256_block(const std::vector<uint8_t>& input)
     return output;
 }
 
-std::vector<uint8_t> sha256(const std::vector<uint8_t>& input)
+hash sha256(const std::vector<uint8_t>& input)
 {
     std::vector<uint8_t> message_schedule;
 
@@ -159,7 +165,7 @@ std::vector<uint8_t> sha256(const std::vector<uint8_t>& input)
         rolling_hash = sha256_block(rolling_hash, hash_input);
     }
 
-    std::vector<uint8_t> output(32);
+    hash output;
     memcpy((void*)&output[0], (void*)&rolling_hash[0], 32);
     if (is_little_endian()) {
         uint32_t* output_uint32 = (uint32_t*)&output[0];

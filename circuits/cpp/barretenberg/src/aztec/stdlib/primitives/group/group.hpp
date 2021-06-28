@@ -40,25 +40,28 @@ template <typename ComposerContext>
 template <size_t num_bits>
 auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index)
 {
-    const auto ladder = get_ladder(generator_index, num_bits);
-    auto generator = get_generator(generator_index);
-    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder);
+    // we assume for fixed_base_scalar_mul we're interested in the gen at subindex 0
+    generator_index_t index = { generator_index, 0 };
+    auto gen_data = get_generator_data(index);
+    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(
+        in, gen_data.generator, gen_data.get_ladder(num_bits));
 }
 
 /**
  * Perform a fixed base scalar mul over a 258-bit input. Used for schnorr signature verification
- * 
+ *
  * we decompose lo and hi each into a wnaf form, which validates that both `lo` and `hi` are <= 2^129
- * 
+ *
  * total scalar is equal to (lo + hi << 128)
- * 
+ *
  * maximum value is (2^257 + 2^129). Further range constraints are required for more precision
- **/ 
+ **/
 template <typename ComposerContext>
-auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& lo, const field_t<ComposerContext>& hi)
+auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& lo,
+                                                   const field_t<ComposerContext>& hi)
 {
-    // This method does not work if lo or hi are 0. We don't apply the extra constraints to handle this edge case (merely rule it out), because 
-    // we can assume the scalar multipliers for schnorr are uniformly randomly distributed
+    // This method does not work if lo or hi are 0. We don't apply the extra constraints to handle this edge case
+    // (merely rule it out), because we can assume the scalar multipliers for schnorr are uniformly randomly distributed
     (lo * hi).assert_is_not_zero();
     const auto ladder_full = get_g1_ladder(256);
     const auto ladder_low = &ladder_full[64];
@@ -73,7 +76,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext
     const auto lambda = (high.y - low.y) / x_delta;
     const auto x_3 = lambda.madd(lambda, -(high.x + low.x));
     const auto y_3 = lambda.madd((low.x - x_3), -low.y);
-    return point<ComposerContext>{x_3, y_3};
+    return point<ComposerContext>{ x_3, y_3 };
 }
 
 template <typename ComposerContext>
@@ -209,8 +212,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     ctx->create_big_add_gate(add_quad);
     accumulator_witnesses.push_back(add_quad.d);
 
-    if (num_bits >= 254)
-    {
+    if (num_bits >= 254) {
         plonk::stdlib::pedersen<ComposerContext>::validate_wnaf_is_in_field(ctx, accumulator_witnesses, scalar, true);
     }
     aligned_free(multiplication_transcript);

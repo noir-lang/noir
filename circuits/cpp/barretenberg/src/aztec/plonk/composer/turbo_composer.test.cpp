@@ -4,6 +4,7 @@
 #include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
+using namespace crypto::pedersen;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -209,8 +210,9 @@ TEST(turbo_composer, small_scalar_multipliers)
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
     constexpr size_t initial_exponent = ((num_bits & 1) == 1) ? num_bits - 1 : num_bits;
     constexpr uint64_t bit_mask = (1ULL << num_bits) - 1UL;
-    const crypto::pedersen::fixed_base_ladder* ladder = crypto::pedersen::get_ladder(0, num_bits);
-    grumpkin::g1::affine_element generator = crypto::pedersen::get_generator(0);
+    auto gen_data = crypto::pedersen::get_generator_data(DEFAULT_GEN_1);
+    const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_ladder(num_bits);
+    grumpkin::g1::affine_element generator = gen_data.generator;
 
     grumpkin::g1::element origin_points[2];
     origin_points[0] = grumpkin::g1::element(ladder[0].one);
@@ -337,8 +339,9 @@ TEST(turbo_composer, large_scalar_multipliers)
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
 
     constexpr size_t initial_exponent = num_bits; // ((num_bits & 1) == 1) ? num_bits - 1 : num_bits;
-    const crypto::pedersen::fixed_base_ladder* ladder = crypto::pedersen::get_ladder(0, num_bits);
-    grumpkin::g1::affine_element generator = crypto::pedersen::get_generator(0);
+    auto gen_data = crypto::pedersen::get_generator_data(DEFAULT_GEN_1);
+    const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_ladder(num_bits);
+    grumpkin::g1::affine_element generator = gen_data.generator;
 
     grumpkin::g1::element origin_points[2];
     origin_points[0] = grumpkin::g1::element(ladder[0].one);

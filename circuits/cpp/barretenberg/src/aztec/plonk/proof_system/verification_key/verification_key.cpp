@@ -1,3 +1,4 @@
+#include <crypto/sha256/sha256.hpp>
 #include "verification_key.hpp"
 
 namespace waffle {
@@ -62,4 +63,10 @@ verification_key& verification_key::operator=(verification_key&& other)
     recursive_proof_public_input_indices = std::move(other.recursive_proof_public_input_indices);
     return *this;
 }
+
+sha256::hash verification_key::sha256_hash()
+{
+    return sha256::sha256(to_buffer(*this));
+}
+
 } // namespace waffle

@@ -107,11 +107,13 @@ circuit_data get_circuit_data(std::string const& name,
             waffle::verification_key_data vk_data;
             read(vk_stream, vk_data);
             data.verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), data.verifier_crs);
+            std::cerr << "Verification key hash: " << data.verification_key->sha256_hash() << std::endl;
         } else if (compute) {
             std::cerr << "Computing verification key..." << std::endl;
             Timer timer;
             data.verification_key = composer.compute_verification_key();
             std::cerr << "Done: " << timer.toString() << "s" << std::endl;
+            std::cerr << "Verification key hash: " << data.verification_key->sha256_hash() << std::endl;
 
             if (save) {
                 std::ofstream os(vk_path);

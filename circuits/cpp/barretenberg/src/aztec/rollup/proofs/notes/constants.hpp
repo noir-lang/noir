@@ -9,16 +9,17 @@ namespace notes {
 constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
 constexpr size_t DEFI_DEPOSIT_VALUE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BIT_LENGTH;
 
+// Start from 1 to avoid the default generators.
 enum GeneratorIndex {
-    JOIN_SPLIT_NULLIFIER_HASH_INPUTS, // commit. 4 inputs. 0-7.
-    ACCOUNT_NOTE_HASH_INPUTS = 4,     // commit. 3 inputs. 8-13.
-    ACCOUNT_ALIAS_ID_NULLIFIER = 7,   // compress. 4 inputs. 14-21.
-    ACCOUNT_GIBBERISH_NULLIFIER = 11, // compress. 2 inputs. 22-25.
+    JOIN_SPLIT_NULLIFIER_HASH_INPUTS = 1,
+    ACCOUNT_NOTE_HASH_INPUTS,
+    ACCOUNT_ALIAS_ID_NULLIFIER,
+    ACCOUNT_GIBBERISH_NULLIFIER,
 
-    JOIN_SPLIT_NOTE_OWNER = 13,               // compress_to_point. 26-29.
-    JOIN_SPLIT_CLAIM_NOTE_PARTIAL_STATE = 15, // compress_to_point. 30-33.
+    JOIN_SPLIT_NOTE_OWNER,
+    JOIN_SPLIT_CLAIM_NOTE_PARTIAL_STATE,
 
-    JOIN_SPLIT_NOTE_VALUE = 34,
+    JOIN_SPLIT_NOTE_VALUE,
     JOIN_SPLIT_NOTE_SECRET,
     JOIN_SPLIT_NOTE_ASSET_ID,
     JOIN_SPLIT_NOTE_NONCE,

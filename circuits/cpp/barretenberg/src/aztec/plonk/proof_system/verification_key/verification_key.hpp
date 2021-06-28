@@ -2,7 +2,7 @@
 #include <map>
 #include <plonk/reference_string/reference_string.hpp>
 #include <polynomials/evaluation_domain.hpp>
-
+#include <crypto/sha256/sha256.hpp>
 #include "../types/polynomial_manifest.hpp"
 
 namespace waffle {
@@ -55,6 +55,9 @@ struct verification_key {
     verification_key& operator=(verification_key&& other);
 
     ~verification_key() = default;
+
+    sha256::hash sha256_hash();
+
     size_t n;
     size_t num_public_inputs;
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <crypto/pedersen/pedersen.hpp>
 #include "../../primitives/composers/composers_fwd.hpp"
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/point/point.hpp"
@@ -15,7 +16,7 @@ template <typename ComposerContext> class pedersen {
     typedef plonk::stdlib::bool_t<ComposerContext> bool_t;
 
     static point hash_single(const field_t& in,
-                             const size_t hash_index,
+                             const crypto::pedersen::generator_index_t hash_index,
                              const bool validate_edge_cases = false,
                              const bool validate_input_is_in_field = true);
     static point accumulate(const std::vector<point>& to_accumulate);

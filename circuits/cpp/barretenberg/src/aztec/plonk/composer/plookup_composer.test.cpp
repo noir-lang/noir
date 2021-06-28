@@ -4,10 +4,10 @@
 #include <numeric/bitop/get_msb.hpp>
 #include "../proof_system/widgets/transition_widgets/create_dummy_transcript.hpp"
 #include "../proof_system/widgets/random_widgets/plookup_widget.hpp"
-
 #include "./plookup_tables/sha256.hpp"
 
 using namespace barretenberg;
+using namespace crypto::pedersen;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
@@ -37,8 +37,7 @@ TEST(plookup_composer, read_sequence_from_multi_table)
     std::vector<barretenberg::fr> expected_x;
     std::vector<barretenberg::fr> expected_y;
 
-    const size_t num_lookups =
-        (256 + crypto::pedersen::sidon::BITS_PER_TABLE - 1) / crypto::pedersen::sidon::BITS_PER_TABLE;
+    const size_t num_lookups = (256 + sidon::BITS_PER_TABLE - 1) / sidon::BITS_PER_TABLE;
 
     EXPECT_EQ(num_lookups, sequence_indices[0].size());
 
@@ -51,10 +50,10 @@ TEST(plookup_composer, read_sequence_from_multi_table)
         const size_t num_rounds = (num_lookups + 2) / 3;
         uint256_t bits(input_value);
 
-        const auto mask = crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE - 1;
+        const auto mask = sidon::PEDERSEN_TABLE_SIZE - 1;
 
         for (size_t i = 0; i < num_rounds; ++i) {
-            const auto& table = crypto::pedersen::sidon::get_table(i);
+            const auto& table = sidon::get_table(i);
             const size_t index = i * 3;
 
             uint64_t slice_a = ((bits >> (index * 10)) & mask).data[0];
@@ -77,7 +76,7 @@ TEST(plookup_composer, read_sequence_from_multi_table)
     }
 
     for (size_t i = num_lookups - 2; i < num_lookups; --i) {
-        expected_scalars[i] += (expected_scalars[i + 1] * crypto::pedersen::sidon::PEDERSEN_TABLE_SIZE);
+        expected_scalars[i] += (expected_scalars[i + 1] * sidon::PEDERSEN_TABLE_SIZE);
     }
     for (size_t i = 0; i < num_lookups; ++i) {
         EXPECT_EQ(composer.get_variable(sequence_indices[0][i]), expected_scalars[i]);
@@ -128,8 +127,8 @@ TEST(plookup_composer, test_elliptic_gate)
     typedef grumpkin::g1::element element;
     waffle::PlookupComposer composer = waffle::PlookupComposer();
 
-    affine_element p1 = crypto::pedersen::get_generator(0);
-    affine_element p2 = crypto::pedersen::get_generator(1);
+    affine_element p1 = get_generator_data(DEFAULT_GEN_1).generator;
+    affine_element p2 = get_generator_data(DEFAULT_GEN_2).generator;
     affine_element p3(element(p1) + element(p2));
 
     uint32_t x1 = composer.add_variable(p1.x);
@@ -238,7 +237,7 @@ TEST(plookup_composer, non_trivial_tag_permutation_and_cycles)
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     // composer.create_add_gate({ a_idx, b_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     auto prover = composer.create_prover();
-    
+
     auto verifier = composer.create_verifier();
 
     waffle::plonk_proof proof = prover.construct_proof();
@@ -459,7 +458,7 @@ TEST(plookup_composer, range_constraint)
     }
     {
         waffle::PlookupComposer composer = waffle::PlookupComposer();
-        auto indices = add_variables(composer, { 3});
+        auto indices = add_variables(composer, { 3 });
         for (size_t i = 0; i < indices.size(); i++) {
             composer.create_new_range_constraint(indices[i], 3);
         }
@@ -678,11 +677,11 @@ TEST(plookup_composer, composed_range_constraint)
     // }
     {
         waffle::PlookupComposer composer = waffle::PlookupComposer();
-        auto c= fr::random_element();
+        auto c = fr::random_element();
         auto d = uint256_t(c).slice(0, 133);
-        auto e= fr(d);//.slice(0,100))
+        auto e = fr(d); //.slice(0,100))
         auto a_idx = composer.add_variable(fr(e));
-        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx,  1, 0, 0,-fr(e) });
+        composer.create_add_gate({ a_idx, composer.zero_idx, composer.zero_idx, 1, 0, 0, -fr(e) });
         composer.decompose_into_default_range(a_idx, 134);
         composer.process_range_lists();
         auto prover = composer.create_prover();

@@ -56,7 +56,7 @@ grumpkin::fq pedersen_function(const size_t count)
     grumpkin::fq left = grumpkin::fq::random_element();
     grumpkin::fq out = grumpkin::fq::random_element();
     for (size_t i = 0; i < count; ++i) {
-        out = crypto::pedersen::compress_native(left, out);
+        out = crypto::pedersen::compress_native({ left, out });
     }
     return out;
 }

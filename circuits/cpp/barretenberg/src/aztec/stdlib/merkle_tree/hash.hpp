@@ -38,7 +38,7 @@ inline barretenberg::fr hash_value_native(std::vector<uint8_t> const& input, con
 
 inline barretenberg::fr compress_native(barretenberg::fr const& lhs, barretenberg::fr const& rhs)
 {
-    return crypto::pedersen::compress_native(lhs, rhs);
+    return crypto::pedersen::compress_native({ lhs, rhs });
 }
 
 } // namespace merkle_tree

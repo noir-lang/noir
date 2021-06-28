@@ -18,7 +18,7 @@ struct KeccakHasher {
 };
 
 struct Sha256Hasher {
-    static std::vector<uint8_t> hash(const std::vector<uint8_t>& message) { return sha256::sha256(message); }
+    static auto hash(const std::vector<uint8_t>& message) { return sha256::sha256(message); }
 };
 
 struct Blake2sHasher {

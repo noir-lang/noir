@@ -13,7 +13,7 @@ TEST(stdlib_group, test_fixed_base_scalar_mul)
 {
     auto scalar = uint256_t(123, 0, 0, 0);
     auto priv_key = grumpkin::fr(scalar);
-    auto pub_key = crypto::pedersen::get_generator(0) * priv_key;
+    auto pub_key = crypto::pedersen::get_generator_data(crypto::pedersen::DEFAULT_GEN_1).generator * priv_key;
 
     Composer composer;
     auto priv_key_witness = field_ct(witness_ct(&composer, fr(scalar)));

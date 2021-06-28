@@ -27,8 +27,9 @@ tx_rollup::rollup_tx create_inner_rollup(size_t rollup_num,
     auto proofs = std::vector<std::vector<uint8_t>>(num_txs);
     for (size_t i = 0; i < num_txs; ++i) {
         auto name = format("js", rollup_num * rollup_size + i);
-        proofs[i] = root_rollup::compute_or_load_fixture(
-            data_path, name, [&]() { return create_noop_join_split_proof(join_split_circuit_data, data_tree_root); });
+        proofs[i] = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
+            return join_split::create_noop_join_split_proof(join_split_circuit_data, data_tree_root);
+        });
     }
     return tx_rollup::create_rollup_tx(world_state, rollup_size, proofs);
 }

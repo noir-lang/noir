@@ -10,6 +10,7 @@ namespace plonk {
 namespace stdlib {
 
 using namespace barretenberg;
+using namespace crypto::pedersen;
 
 namespace {
 template <typename C> point<C> add_points(const point<C>& first, const point<C>& second)
@@ -38,7 +39,7 @@ template <typename C> point<C> add_points(const point<C>& first, const point<C>&
 
 template <typename C>
 point<C> pedersen<C>::hash_single(const field_t& in,
-                                  const size_t hash_index,
+                                  const generator_index_t hash_index,
                                   const bool validate_edge_cases,
                                   const bool validate_input_is_in_field)
 {
@@ -63,8 +64,9 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
 
     constexpr size_t initial_exponent = num_bits; // ((num_bits & 1) == 1) ? num_bits - 1: num_bits;
-    const crypto::pedersen::fixed_base_ladder* ladder = crypto::pedersen::get_hash_ladder(hash_index, num_bits);
-    grumpkin::g1::affine_element generator = crypto::pedersen::get_generator(hash_index * 2 + 1);
+    const auto gen_data = crypto::pedersen::get_generator_data(hash_index);
+    const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
+    grumpkin::g1::affine_element generator = gen_data.aux_generator;
 
     grumpkin::g1::element origin_points[2];
     origin_points[0] = grumpkin::g1::element(ladder[0].one);
@@ -453,8 +455,10 @@ field_t<C> pedersen<C>::compress(const field_t& in_left,
     }
 
     std::vector<point> accumulators;
-    accumulators.push_back(hash_single(in_left, hash_index, handle_edge_cases, validate_input_is_in_field));
-    accumulators.push_back(hash_single(in_right, hash_index + 1, handle_edge_cases, validate_input_is_in_field));
+    generator_index_t index_1 = { hash_index, 0 };
+    generator_index_t index_2 = { hash_index, 1 };
+    accumulators.push_back(hash_single(in_left, index_1, handle_edge_cases, validate_input_is_in_field));
+    accumulators.push_back(hash_single(in_right, index_2, handle_edge_cases, validate_input_is_in_field));
     if (handle_edge_cases) {
         std::vector<field_t> inputs;
         inputs.push_back(in_left);
@@ -473,7 +477,8 @@ point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t ha
 
     std::vector<point> to_accumulate;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        to_accumulate.push_back(hash_single(inputs[i].normalize(), hash_index + i, handle_edge_cases));
+        generator_index_t index = { hash_index, i };
+        to_accumulate.push_back(hash_single(inputs[i].normalize(), index, handle_edge_cases));
     }
     if (handle_edge_cases) {
         return conditionally_accumulate(to_accumulate, inputs);
@@ -534,8 +539,10 @@ point<C> pedersen<C>::compress_to_point(const field_t& in_left, const field_t& i
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
         return pedersen_plookup<C>::compress_to_point(in_left, in_right);
     }
-    point first = hash_single(in_left, hash_index);
-    point second = hash_single(in_right, hash_index + 1);
+    generator_index_t index_1 = { hash_index, 0 };
+    generator_index_t index_2 = { hash_index, 1 };
+    point first = hash_single(in_left, index_1);
+    point second = hash_single(in_right, index_2);
     return add_points(first, second);
 }
 

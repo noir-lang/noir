@@ -12,7 +12,7 @@ TEST(stdlib_merkle_tree, compress_native_vs_circuit)
     Composer composer = Composer();
     witness_ct y = witness_ct(&composer, x);
     field_ct z = plonk::stdlib::pedersen<Composer>::compress(y, y);
-    auto zz = crypto::pedersen::compress_native(x, x);
+    auto zz = crypto::pedersen::compress_native({ x, x });
     EXPECT_EQ(z.get_value(), zz);
 }
 

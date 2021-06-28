@@ -7,10 +7,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-
 #include "./affine_element.hpp"
 #include "./element.hpp"
+
 namespace barretenberg {
+
 template <typename coordinate_field, typename subgroup_field, typename GroupParams> class group {
   public:
     typedef group_elements::element<coordinate_field, subgroup_field, GroupParams> element;
@@ -45,8 +46,8 @@ template <typename coordinate_field, typename subgroup_field, typename GroupPara
     BBERG_INLINE static void conditional_negate_affine(const affine_element* src,
                                                        affine_element* dest,
                                                        uint64_t predicate);
+};
 
-}; // class group
 } // namespace barretenberg
 
 #ifdef DISABLE_SHENANIGANS

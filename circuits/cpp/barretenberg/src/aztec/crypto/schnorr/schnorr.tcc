@@ -48,7 +48,7 @@ signature_b construct_signature_b(const std::string& message, const key_pair<Fr,
     std::vector<uint8_t> message_buffer;
     std::copy(sig.r.begin(), sig.r.end(), std::back_inserter(message_buffer));
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
-    std::vector<uint8_t> e_vec = Hash::hash(message_buffer);
+    auto e_vec = Hash::hash(message_buffer);
 
     Fr e = Fr::serialize_from_buffer(&e_vec[0]);
     Fr s = account.private_key - (k * e);
@@ -63,7 +63,7 @@ typename G1::affine_element ecrecover(const std::string& message, const signatur
     std::vector<uint8_t> message_buffer;
     std::copy(sig.r.begin(), sig.r.end(), std::back_inserter(message_buffer));
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
-    std::vector e_vec = Hash::hash(message_buffer);
+    auto e_vec = Hash::hash(message_buffer);
     Fr target_e = Fr::serialize_from_buffer(&e_vec[0]);
 
     std::vector<uint8_t> r;
@@ -113,7 +113,7 @@ bool verify_signature(const std::string& message, const typename G1::affine_elem
     std::vector<uint8_t> message_buffer;
     std::copy(r.begin(), r.end(), std::back_inserter(message_buffer));
     std::copy(message.begin(), message.end(), std::back_inserter(message_buffer));
-    std::vector e_vec = Hash::hash(message_buffer);
+    auto e_vec = Hash::hash(message_buffer);
     Fr target_e = Fr::serialize_from_buffer(&e_vec[0]);
 
     return source_e == target_e;

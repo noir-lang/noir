@@ -1,44 +1,30 @@
 #pragma once
 #include <array>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "./generator_data.hpp"
 
 namespace crypto {
 namespace pedersen {
-struct fixed_base_ladder {
-    grumpkin::g1::affine_element one;
-    grumpkin::g1::affine_element three;
-    grumpkin::fq q_x_1;
-    grumpkin::fq q_x_2;
-    grumpkin::fq q_y_1;
-    grumpkin::fq q_y_2;
-};
-void compute_fixed_base_ladder(const grumpkin::g1::affine_element& generator, fixed_base_ladder* ladder);
 
-const fixed_base_ladder* get_g1_ladder(const size_t num_bits);
-const fixed_base_ladder* get_ladder(const size_t generator_index, const size_t num_bits);
-const fixed_base_ladder* get_hash_ladder(const size_t generator_index, const size_t num_bits);
-grumpkin::g1::affine_element get_generator(const size_t generator_index);
+grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t const& index);
 
-grumpkin::g1::element hash_single(const barretenberg::fr& in, const size_t hash_index);
-
-grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right, const size_t hash_index = 0);
+// grumpkin::fq compress_native(const grumpkin::fq& left, const grumpkin::fq& right);
 
 grumpkin::g1::affine_element commit_native(const std::vector<grumpkin::fq>& elements, const size_t hash_index = 0);
-
-grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
-                                                      const grumpkin::fq& right,
-                                                      const size_t hash_index = 0);
 
 grumpkin::fq compress_native(const std::vector<grumpkin::fq>& inputs, const size_t hash_index = 0);
 
 template <size_t T> grumpkin::fq compress_native(const std::array<grumpkin::fq, T>& inputs)
 {
     std::vector<grumpkin::fq> converted(inputs.begin(), inputs.end());
-    return compress_native(converted);
+    return commit_native(converted).x;
 }
 
-grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input);
 std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input);
+
+grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
+                                                      const grumpkin::fq& right,
+                                                      const size_t hash_index = 0);
 
 template <size_t num_bits>
 grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const size_t generator_index)
@@ -49,7 +35,8 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
     constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
 
-    const crypto::pedersen::fixed_base_ladder* ladder = crypto::pedersen::get_ladder(generator_index, num_bits);
+    auto gen_data = get_generator_data({ generator_index, 0 });
+    const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_ladder(num_bits);
 
     barretenberg::fr scalar_multiplier_base = scalar_multiplier.to_montgomery_form();
     if ((scalar_multiplier.data[0] & 1) == 0) {
@@ -63,7 +50,7 @@ grumpkin::g1::element fixed_base_scalar_mul(const barretenberg::fr& in, const si
     grumpkin::g1::element accumulator;
     accumulator = grumpkin::g1::element(ladder[0].one);
     if (skew) {
-        accumulator += crypto::pedersen::get_generator(generator_index);
+        accumulator += gen_data.generator;
     }
 
     for (size_t i = 0; i < num_quads; ++i) {

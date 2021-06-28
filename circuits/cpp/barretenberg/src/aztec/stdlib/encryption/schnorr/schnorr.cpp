@@ -24,8 +24,7 @@ template <typename C> wnaf_record<C> convert_field_into_wnaf(C* context, const f
     field_t<C> one(context, 1);
     field_t<C> accumulator(context, 1);
 
-    for (size_t i = 0; i < 128; ++i)
-    {
+    for (size_t i = 0; i < 128; ++i) {
         uint64_t predicate = (wnaf_entries[i + 1] >> 31U) & 1U;
         bool_t<C> wnaf_bit = witness_t<C>(context, !predicate); // false = -1, true = +1
         wnaf_bits.push_back(wnaf_bit);
@@ -89,8 +88,8 @@ template <typename C> bit_array<C> convert_message(C* context, const std::string
     return message;
 }
 
-
-template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const field_t<C>& low_bits, const field_t<C>& high_bits)
+template <typename C>
+point<C> variable_base_mul(const point<C>& pub_key, const field_t<C>& low_bits, const field_t<C>& high_bits)
 {
     C* context = pub_key.x.context;
 
@@ -105,27 +104,25 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
     return output;
 }
 
-template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accumulator, const wnaf_record<C>& wnaf)
+template <typename C>
+point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accumulator, const wnaf_record<C>& wnaf)
 {
     field_t<C> two(pub_key.x.context, 2);
 
-    grumpkin::g1::affine_element collision_offset = crypto::pedersen::get_generator(0); // todo use hardcoded unique index
+    grumpkin::g1::affine_element collision_offset = crypto::pedersen::get_generator_data(DEFAULT_GEN_1).generator;
     grumpkin::g1::affine_element collision_end = collision_offset * grumpkin::fr(uint256_t(1) << 129);
 
     const bool init = current_accumulator.x.get_value() == pub_key.x.get_value();
 
     // if init == false, check pub_key != collision_offset
     // if init == true we assume this has already been checked
-    if (init)
-    {
+    if (init) {
         field_t<C> zero_test = ((pub_key.x - collision_offset.x) * (pub_key.y - collision_offset.y));
         zero_test.assert_is_not_zero();
     }
-    point<C> accumulator { collision_offset.x, collision_offset.y };
-    for (size_t i = 0; i < 129; ++i)
-    {
-        if (!init && i == 1)
-        {
+    point<C> accumulator{ collision_offset.x, collision_offset.y };
+    for (size_t i = 0; i < 129; ++i) {
+        if (!init && i == 1) {
             field_t<C> x1 = accumulator.x;
             field_t<C> y1 = accumulator.y;
 
@@ -142,7 +139,7 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
         field_t<C> y1 = accumulator.y;
 
         field_t<C> x2 = (i == 0) ? pub_key.x : pub_key.x;
-        field_t<C> y2 = (i == 0) ? pub_key.y :  pub_key.y.madd(field_t<C>(wnaf.bits[i - 1]) * two, -pub_key.y);
+        field_t<C> y2 = (i == 0) ? pub_key.y : pub_key.y.madd(field_t<C>(wnaf.bits[i - 1]) * two, -pub_key.y);
 
         field_t<C> lambda1 = (y2 - y1) / (x2 - x1);
         field_t<C> x3 = lambda1.madd(lambda1, -(x2 + x1));
@@ -155,7 +152,7 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
         accumulator.x = x4;
         accumulator.y = y4;
     }
-    
+
     field_t<C> add_lambda = (accumulator.y + pub_key.y) / (accumulator.x - pub_key.x);
     field_t<C> x_add = add_lambda.madd(add_lambda, -(accumulator.x + pub_key.x));
     field_t<C> y_add = add_lambda.madd((pub_key.x - x_add), pub_key.y);
@@ -168,7 +165,7 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
     field_t<C> lambda = (accumulator.y - collision_mask.y) / (accumulator.x - collision_mask.x);
     field_t<C> x3 = lambda.madd(lambda, -(collision_mask.x + accumulator.x));
     field_t<C> y3 = lambda.madd(collision_mask.x - x3, -collision_mask.y);
-    
+
     accumulator.x = x3.normalize();
     accumulator.y = y3.normalize();
 
@@ -185,7 +182,7 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
     for (size_t i = 0; i < 256; ++i) {
         field_t<C> dbl_lambda = (accumulator.x * accumulator.x * three) / (accumulator.y * two);
         field_t<C> x_dbl = dbl_lambda.madd(dbl_lambda, -(accumulator.x * two));
-        field_t<C> y_dbl = dbl_lambda.madd(accumulator.x - x_dbl, - accumulator.y);
+        field_t<C> y_dbl = dbl_lambda.madd(accumulator.x - x_dbl, -accumulator.y);
 
         accumulator.x = ((x_dbl - accumulator.x).madd(field_t<C>(initialized), accumulator.x));
         accumulator.y = ((y_dbl - accumulator.y).madd(field_t<C>(initialized), accumulator.y));
@@ -194,7 +191,7 @@ template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const 
 
         field_t<C> add_lambda = (accumulator.y - pub_key.y) / (accumulator.x - pub_key.x);
         field_t<C> x_add = add_lambda.madd(add_lambda, -(accumulator.x + pub_key.x));
-        field_t<C> y_add = add_lambda.madd((pub_key.x - x_add), - pub_key.y);
+        field_t<C> y_add = add_lambda.madd((pub_key.x - x_add), -pub_key.y);
 
         bool_t<C> add_predicate = scalar[i] & was_initialized;
         accumulator.x = ((x_add - accumulator.x).madd(field_t<C>(add_predicate), accumulator.x));
@@ -229,19 +226,22 @@ bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     return valid;
 }
 
+template wnaf_record<waffle::TurboComposer> convert_field_into_wnaf<waffle::TurboComposer>(
+    waffle::TurboComposer* context, const field_t<waffle::TurboComposer>& limb);
 
-template wnaf_record<waffle::TurboComposer> convert_field_into_wnaf<waffle::TurboComposer>(waffle::TurboComposer* context, const field_t<waffle::TurboComposer>& limb);
-
-template point<waffle::TurboComposer> variable_base_mul(const point<waffle::TurboComposer>& pub_key, const field_t<waffle::TurboComposer>& low_bits, const field_t<waffle::TurboComposer>& high_bits);
+template point<waffle::TurboComposer> variable_base_mul(const point<waffle::TurboComposer>& pub_key,
+                                                        const field_t<waffle::TurboComposer>& low_bits,
+                                                        const field_t<waffle::TurboComposer>& high_bits);
 
 template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(
-    const point<waffle::TurboComposer>&, const point<waffle::TurboComposer>&, const wnaf_record<waffle::TurboComposer>&);
+    const point<waffle::TurboComposer>&,
+    const point<waffle::TurboComposer>&,
+    const wnaf_record<waffle::TurboComposer>&);
 
 template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(const point<waffle::TurboComposer>&,
                                                                                const bit_array<waffle::TurboComposer>&);
 template point<waffle::PlookupComposer> variable_base_mul<waffle::PlookupComposer>(
     const point<waffle::PlookupComposer>&, const bit_array<waffle::PlookupComposer>&);
-
 
 template bool verify_signature<waffle::TurboComposer>(const byte_array<waffle::TurboComposer>&,
                                                       const point<waffle::TurboComposer>&,
