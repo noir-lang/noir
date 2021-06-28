@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Clean.
+rm -rf ./build
+rm -rf ./build-wasm
+
 # Install formatting git hook.
 echo "cd ./barretenberg && ./format.sh staged" > ../.git/hooks/pre-commit
 chmod +x ../.git/hooks/pre-commit
