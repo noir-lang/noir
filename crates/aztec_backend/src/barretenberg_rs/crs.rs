@@ -56,16 +56,22 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
 
 // XXX: Below is the logic to download the CRS if it is not already present
 
-pub fn download_crs(path: std::path::PathBuf) {
-    let file_path = path.join("transcript00.dat");
-    if file_path.exists() {
-        println!("File already exists {:?}", file_path);
+pub fn download_crs(mut path_to_transcript: std::path::PathBuf) {
+    if path_to_transcript.exists() {
+        println!("File already exists {:?}", path_to_transcript);
         return;
     }
+    // Pop off the transcript component to get just the directory
+    path_to_transcript.pop();
+
+    if !path_to_transcript.exists() {
+        std::fs::create_dir_all(&path_to_transcript).unwrap();
+    }
+
     let url = "http://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat";
     use downloader::Downloader;
     let mut downloader = Downloader::builder()
-        .download_folder(path.as_path())
+        .download_folder(path_to_transcript.as_path())
         .build()
         .unwrap();
 
@@ -164,6 +170,6 @@ fn downloading() {
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
 
-    let file_path = dir.path().to_path_buf();
+    let file_path = dir.path().to_path_buf().join("transcript00.dat");
     download_crs(file_path);
 }
