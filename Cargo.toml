@@ -14,5 +14,6 @@ members = [
     "crates/fm",
     "crates/arena",
     "crates/acvm",
-    "crates/noirc_abi"
+    "crates/noirc_abi",
 ]
+default-members = ["crates/nargo"]
