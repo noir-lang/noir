@@ -82,7 +82,7 @@ pub fn download_crs(mut path_to_transcript: std::path::PathBuf) {
     for r in result {
         match r {
             Err(e) => println!("Error: {}", e.to_string()),
-            Ok(s) => println!("File located at: {:?}", &s.file_name),
+            Ok(s) => println!("\nSRS is located at : {:?}", &s.file_name),
         };
     }
 }
@@ -116,6 +116,7 @@ impl downloader::progress::Reporter for SimpleReporter {
             started: std::time::Instant::now(),
             progress_bar: bar,
         };
+        println!("\nDownloading the Ignite SRS (340MB)\n");
 
         let mut guard = self.private.lock().unwrap();
         *guard = Some(private);
@@ -133,7 +134,7 @@ impl downloader::progress::Reporter for SimpleReporter {
         let mut guard = self.private.lock().unwrap();
         let p = guard.as_mut().unwrap();
         p.progress_bar.finish();
-        println!("Downloaded the SRS successfully!\n",);
+        println!("Downloaded the SRS successfully!");
         println!(
             "Time Elapsed: {}",
             indicatif::HumanDuration(p.started.elapsed())
