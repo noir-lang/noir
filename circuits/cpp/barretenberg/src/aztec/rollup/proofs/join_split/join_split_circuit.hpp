@@ -46,6 +46,8 @@ struct join_split_outputs {
     point_ct output_note1;
     point_ct output_note2;
     field_ct asset_id;
+    field_ct input_owner;
+    field_ct output_owner;
 };
 
 join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs);

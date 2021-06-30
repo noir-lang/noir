@@ -651,8 +651,8 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     EXPECT_EQ(proof_data.new_note2, enc_output_note2);
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.input_owner, tx.input_owner);
-    EXPECT_EQ(proof_data.output_owner, tx.output_owner);
+    EXPECT_EQ(proof_data.input_owner, partial_state.x);
+    EXPECT_EQ(proof_data.output_owner, partial_state.y);
     EXPECT_EQ(proof_data.public_input, tx.public_input);
     EXPECT_EQ(proof_data.public_output, tx.claim_note.deposit_value);
     EXPECT_EQ(proof_data.tx_fee, 0UL);

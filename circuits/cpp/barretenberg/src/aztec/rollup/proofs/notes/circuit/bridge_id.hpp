@@ -87,7 +87,7 @@ inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
        << "  num_output_notes: " << bridge_id.num_output_notes << ",\n"
        << "  input_asset_id: " << bridge_id.input_asset_id << ",\n"
        << "  output_asset_id_a: " << bridge_id.output_asset_id_a << ",\n"
-       << "  output_asset_id_b: " << bridge_id.output_asset_id_a << "\n}";
+       << "  output_asset_id_b: " << bridge_id.output_asset_id_b << "\n}";
     return os;
 }
 

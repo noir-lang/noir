@@ -1,6 +1,7 @@
 #include "c_bind.h"
 #include "native/claim/claim_note_tx_data.hpp"
 #include "native/claim/create_partial_value_note.hpp"
+#include "native/claim/complete_partial_claim_note.hpp"
 #include "native/claim/commit.hpp"
 #include "native/claim/compute_nullifier.hpp"
 #include "native/defi_interaction/commit.hpp"
@@ -57,6 +58,15 @@ WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buf
     auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
     auto nullifier = claim::compute_nullifier(enc_note, index);
     write(output, nullifier);
+}
+
+WASM_EXPORT void notes__complete_partial_claim_note(uint8_t const* note_buffer,
+                                                    uint32_t interaction_nonce,
+                                                    uint8_t* output)
+{
+    auto partial_note = from_buffer<grumpkin::g1::affine_element>(note_buffer);
+    auto enc_note = claim::complete_partial_claim_note(partial_note, interaction_nonce);
+    write(output, enc_note);
 }
 
 WASM_EXPORT void notes__commit_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output)

@@ -126,8 +126,8 @@ bool create_claim()
     Timer timer;
     claim_cd.proving_key->reset();
 
-    std::cerr << "Creating root rollup proof..." << std::endl;
-    auto result = verify(claim_tx, root_rollup_cd);
+    std::cerr << "Creating claim proof..." << std::endl;
+    auto result = verify(claim_tx, claim_cd);
 
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;

@@ -24,5 +24,9 @@ WASM_EXPORT void notes__commit_claim_note(uint8_t const* note_buffer, uint8_t* o
 
 WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buffer, uint32_t index, uint8_t* output);
 
+WASM_EXPORT void notes__complete_partial_claim_note(uint8_t const* note_buffer,
+                                                    uint32_t interaction_nonce,
+                                                    uint8_t* output);
+
 WASM_EXPORT void notes__commit_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output);
 }

@@ -41,10 +41,10 @@ inline verify_result verify(claim_tx const& tx, circuit_data const& circuit_data
         return { false, {} };
     }
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_unrolled_verifier();
     if (!verifier.verify_proof(proof)) {
         error("Proof validation failed.");
         return { false, {} };

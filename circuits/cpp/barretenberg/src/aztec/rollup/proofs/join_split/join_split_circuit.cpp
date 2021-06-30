@@ -52,6 +52,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto output_note2 = value::value_note(inputs.output_note2);
     auto claim_note = claim::claim_note(inputs.claim_note);
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
+    auto input_owner = inputs.input_owner * not_defi_bridge + claim_note.partial_state.x * is_defi_bridge;
+    auto output_owner = inputs.output_owner * not_defi_bridge + claim_note.partial_state.y * is_defi_bridge;
     point_ct commitment_output_note1 = {
         output_note1.commitment.x * not_defi_bridge + claim_note.commitment.x * is_defi_bridge,
         output_note1.commitment.y * not_defi_bridge + claim_note.commitment.y * is_defi_bridge
@@ -154,8 +156,10 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                      inputs.output_owner,
                      inputs.signature);
 
-    return { proof_id, nullifier1, nullifier2, tx_fee, public_output, commitment_output_note1, output_note2.commitment,
-             asset_id };
+    return {
+        proof_id, nullifier1,  nullifier2,  tx_fee, public_output, commitment_output_note1, output_note2.commitment,
+        asset_id, input_owner, output_owner
+    };
 }
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
@@ -197,8 +201,8 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     outputs.output_note2.set_public();
     composer.set_public_input(outputs.nullifier1.witness_index);
     composer.set_public_input(outputs.nullifier2.witness_index);
-    composer.set_public_input(inputs.input_owner.witness_index);
-    composer.set_public_input(inputs.output_owner.witness_index);
+    composer.set_public_input(outputs.input_owner.witness_index);
+    composer.set_public_input(outputs.output_owner.witness_index);
 
     // Any public witnesses exposed from here on, will not be exposed by the rollup, and thus will
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.

@@ -87,7 +87,8 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
         std::vector<uint32_t> high_accumulator;
         if constexpr (C::type == waffle::PLOOKUP) {
             ASSERT(NUM_LIMB_BITS % 2 == 0); // required for one of the intermediate sums giving the third limb
-            high_accumulator = context->decompose_into_default_range(high_bits.witness_index, static_cast<uint32_t>(num_high_limb_bits));
+            high_accumulator = context->decompose_into_default_range(high_bits.witness_index,
+                                                                     static_cast<uint32_t>(num_high_limb_bits));
             size_t mid_index = (NUM_LIMB_BITS / waffle::PlookupComposer::DEFAULT_PLOOKUP_RANGE_BITNUM) / 2 - 1;
             limb_2.witness_index = high_accumulator[mid_index];
             limb_3 = (high_bits - limb_2) * shift_right_1;
@@ -744,8 +745,6 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
     const uint512_t modulus(target_basis.modulus);
 
     const auto [quotient_512, remainder_512] = (diff_val).divmod(modulus);
-    if (remainder_512 != 0)
-        std::cout << "remainder not zero!" << std::endl;
     ASSERT(remainder_512 == 0);
     bigfield quotient;
 
