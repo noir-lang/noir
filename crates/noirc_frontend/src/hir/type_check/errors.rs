@@ -110,7 +110,7 @@ impl TypeCheckError {
             } => {
                 let mut diag = Diagnostic::simple_error(
                     format!(
-                        "Non homogeneous array found at indices ({},{})",
+                        "Non homogeneous array, different element types found at indices ({},{})",
                         first_index, second_index
                     ),
                     format!("found type {}", first_type),
