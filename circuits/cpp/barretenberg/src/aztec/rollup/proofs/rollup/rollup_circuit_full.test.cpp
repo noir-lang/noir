@@ -196,7 +196,6 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     auto account_proof = context.create_account_proof();
     auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof, account_proof };
     auto rollup = create_rollup_tx(context.world_state, rollup_size, txs);
-
     auto rollup_circuit_data =
         rollup::get_circuit_data(rollup_size, js_cd, account_cd, claim_cd, srs, "", true, false, false);
     auto result = verify(rollup, rollup_circuit_data);

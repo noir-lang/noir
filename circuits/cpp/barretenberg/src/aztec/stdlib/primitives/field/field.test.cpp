@@ -364,6 +364,52 @@ TEST(stdlib_field, two_bit_table)
     EXPECT_EQ(result, true);
 }
 
+TEST(stdlib_field, test_slice)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    // 0b11110110101001011
+    //         ^      ^
+    //        msb    lsb
+    //        10      3
+    field_t a(witness_t(&composer, fr(126283)));
+    field_t slice = a.slice(10, 3);
+
+    EXPECT_EQ(slice.get_value(), fr(169));
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_field, test_slice_random)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    uint8_t lsb = 106;
+    uint8_t msb = 189;
+    fr a_ = fr::random_element();
+    field_t a(witness_t(&composer, a_));
+    field_t slice = a.slice(msb, lsb);
+
+    const uint256_t expected = (uint256_t(a_) >> lsb) & ((uint256_t(1) << (uint64_t(msb - lsb) + 1)) - 1);
+
+    EXPECT_EQ(slice.get_value(), fr(expected));
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
 TEST(stdlib_field, three_bit_table)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

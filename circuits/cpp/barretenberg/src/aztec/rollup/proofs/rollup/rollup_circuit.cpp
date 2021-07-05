@@ -4,6 +4,7 @@
 #include "../notes/circuit/claim/index.hpp"
 #include <stdlib/merkle_tree/index.hpp>
 #include <common/map.hpp>
+#include "../notes/constants.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -14,6 +15,7 @@ namespace rollup {
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
+using namespace notes;
 
 void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_ct> const& public_inputs)
 {
@@ -156,6 +158,31 @@ auto process_claims(std::vector<field_ct>& public_inputs, field_ct const& new_de
     valid.assert_equal(true, format("claim proof has unmatched defi root"));
 }
 
+/**
+ * Accumulate tx fees from each inner proof depending on the type of proof.
+ */
+void accumulate_tx_fees(std::vector<field_ct>& total_tx_fees,
+                        field_ct const& proof_id,
+                        field_ct const& asset_id,
+                        field_ct const& tx_fee)
+{
+    const auto is_js_tx = proof_id == field_ct(ProofIds::JOIN_SPLIT);
+    const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
+
+    // asset_id = bridge_id for a defi deposit proof
+    const uint8_t input_asset_id_lsb = (DEFI_BRIDGE_ADDRESS_BIT_LENGTH + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN);
+    const uint8_t input_asset_id_msb = input_asset_id_lsb + DEFI_BRIDGE_INPUT_ASSET_ID_LEN - 1;
+    const field_ct defi_input_asset_id = asset_id.slice(input_asset_id_msb, input_asset_id_lsb);
+
+    // combined asset id of an inner proof
+    const auto input_asset_id = (defi_input_asset_id * is_defi_deposit + asset_id * is_js_tx).normalize();
+
+    // Accumulate tx_fee. Note that tx_fee = 0 for padding proofs.
+    for (size_t j = 0; j < NUM_ASSETS; ++j) {
+        total_tx_fees[j] += tx_fee * (input_asset_id == j);
+    }
+}
+
 recursion_output<bn254> rollup_circuit(Composer& composer,
                                        rollup_tx const& rollup,
                                        std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,
@@ -208,9 +235,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     for (size_t i = 0; i < max_num_txs; ++i) {
         // Pick verification key and check it's permitted.
-        auto proof_id = from_buffer<uint32_t>(rollup.txs[i], InnerProofOffsets::PROOF_ID + 28);
+        auto proof_id_u32 = from_buffer<uint32_t>(rollup.txs[i], InnerProofOffsets::PROOF_ID + 28);
         auto recursive_verification_key =
-            plonk::stdlib::recursion::verification_key<bn254>::from_witness(&composer, verification_keys[proof_id]);
+            plonk::stdlib::recursion::verification_key<bn254>::from_witness(&composer, verification_keys[proof_id_u32]);
         recursive_verification_key->validate_key_is_in_set(verification_keys);
 
         // Verify the inner proof.
@@ -254,11 +281,10 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         is_real.assert_equal(valid, format("data_root_for_proof_", i));
 
         // Accumulate tx fee.
+        auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
         auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
         auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
-        for (size_t j = 0; j < NUM_ASSETS; ++j) {
-            total_tx_fees[j] += tx_fee * is_real * (asset_id == j);
-        }
+        accumulate_tx_fees(total_tx_fees, proof_id, asset_id, tx_fee);
 
         inner_public_inputs.push_back(public_inputs);
     }

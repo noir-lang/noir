@@ -1,6 +1,7 @@
 #include "field.hpp"
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
+#include "pow.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -650,6 +651,32 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
         q_c,
     };
     ctx->create_big_mul_gate(gate_coefficients);
+}
+
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::slice(const uint8_t msb, const uint8_t lsb) const
+{
+    ASSERT(msb > lsb);
+    const field_t lhs = *this;
+    ComposerContext* ctx = lhs.get_context();
+
+    const uint256_t value = uint256_t(get_value());
+    const auto hi_mask = ((uint256_t(1) << (256 - uint64_t(msb))) - 1) << (uint64_t(msb) + 1);
+    const auto hi = value & hi_mask;
+
+    const auto lo_mask = (uint256_t(1) << lsb) - 1;
+    const auto lo = value & lo_mask;
+
+    const auto slice_mask = ((uint256_t(1) << (uint64_t(msb - lsb) + 1)) - 1) << lsb;
+    const auto slice = (value & slice_mask) >> lsb;
+
+    const field_t hi_wit = field_t(witness_t(ctx, hi));
+    const field_t lo_wit = field_t(witness_t(ctx, lo));
+    const field_t slice_wit = field_t(witness_t(ctx, slice));
+
+    assert_equal((hi_wit + lo_wit + (slice_wit * pow<ComposerContext>(field_t(2), lsb))));
+
+    return slice_wit;
 }
 
 INSTANTIATE_STDLIB_TYPE(field_t);

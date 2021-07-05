@@ -218,6 +218,8 @@ template <typename ComposerContext> class field_t {
 
     ComposerContext* get_context() const { return context; }
 
+    field_t slice(const uint8_t msb, const uint8_t lsb) const;
+
     /**
      * is_zero will return a bool_t, and add constraints that enforce its correctness
      * N.B. If you want to ENFORCE that a field_t object is zero, use `assert_is_zero`
