@@ -83,12 +83,6 @@ void Transcript::compute_challenge_map()
 
 void Transcript::add_element(const std::string& element_name, const std::vector<uint8_t>& buffer)
 {
-    // ASSERT(manifest.get_round_manifest(current_round).includes_element(element_name));
-    // printf("adding element %s . size = %lu \n [", element_name.c_str(), buffer.size());
-    // for (size_t i = 0; i < buffer.size(); ++i) {
-    //     printf("%x", buffer[i]);
-    // }
-    // printf("]\n");
     elements.insert({ element_name, buffer });
 }
 
@@ -109,7 +103,9 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     for (auto manifest_element : manifest.get_round_manifest(current_round).elements) {
         ASSERT(elements.count(manifest_element.name) == 1);
         std::vector<uint8_t>& element_data = elements.at(manifest_element.name);
-        ASSERT(manifest_element.num_bytes == element_data.size());
+        if (!manifest_element.derived_by_verifier) {
+            ASSERT(manifest_element.num_bytes == element_data.size());
+        }
         buffer.insert(buffer.end(), element_data.begin(), element_data.end());
     }
 
@@ -260,7 +256,9 @@ std::vector<uint8_t> Transcript::export_transcript() const
         for (auto manifest_element : manifest.get_round_manifest(i).elements) {
             ASSERT(elements.count(manifest_element.name) == 1);
             const std::vector<uint8_t>& element_data = elements.at(manifest_element.name);
-            ASSERT(manifest_element.num_bytes == element_data.size());
+            if (!manifest_element.derived_by_verifier) {
+                ASSERT(manifest_element.num_bytes == element_data.size());
+            }
             if (!manifest_element.derived_by_verifier) {
                 // printf("writing element %s ", manifest_element.name.c_str());
                 // for (size_t j = 0; j < element_data.size(); ++j) {

@@ -33,7 +33,32 @@ TEST(ratio_check, product_check)
     field_ct left2(witness_ct(&composer, a1));
     field_ct right2(witness_ct(&composer, b1));
 
-    product_check(composer, left1, right1, left2, right2, witness_ct(&composer, 0));
+    auto result = product_check(composer, left1, right1, left2, right2, witness_ct(&composer, 0));
+    result.assert_equal(true);
+
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(ratio_check, product_check_with_zeros)
+{
+    uint256_t a = 10;
+    uint256_t b = 0;
+    uint256_t c = 5;
+    uint256_t d = 0;
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    field_ct a1(witness_ct(&composer, a));
+    field_ct b1(witness_ct(&composer, b));
+    field_ct a2(witness_ct(&composer, c));
+    field_ct b2(witness_ct(&composer, d));
+
+    auto result = product_check(composer, a1, b1, a2, b2, witness_ct(&composer, 0));
+    result.assert_equal(true);
 
     waffle::TurboProver prover = composer.create_prover();
     waffle::TurboVerifier verifier = composer.create_verifier();
@@ -60,13 +85,64 @@ TEST(ratio_check, ratio_check)
 
     waffle::TurboComposer composer = waffle::TurboComposer();
 
-    field_ct left1(witness_ct(&composer, a));
-    field_ct right1(witness_ct(&composer, b));
-    field_ct left2(witness_ct(&composer, c));
-    field_ct right2(witness_ct(&composer, d));
+    field_ct a1(witness_ct(&composer, a));
+    field_ct a2(witness_ct(&composer, c));
+    field_ct b1(witness_ct(&composer, d));
+    field_ct b2(witness_ct(&composer, b));
 
-    withdraw_ratios ratios{ .total_in = left2, .total_out = left1, .user_in = right1, .user_out = right2 };
-    ratio_check(composer, ratios);
+    ratios ratios{ a1, a2, b1, b2 };
+    auto result = ratio_check(composer, ratios);
+    result.assert_equal(true);
+
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(ratio_check, bad_ratio_check)
+{
+    uint256_t a = 100;
+    uint256_t b = 10;
+    uint256_t c = 200;
+    uint256_t d = 21;
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    field_ct a1(witness_ct(&composer, a));
+    field_ct a2(witness_ct(&composer, b));
+    field_ct b1(witness_ct(&composer, c));
+    field_ct b2(witness_ct(&composer, d));
+
+    ratios ratios{ a1, a2, b1, b2 };
+    auto result = ratio_check(composer, ratios);
+    result.assert_equal(false);
+
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, true);
+}
+
+TEST(ratio_check, zero_denominator_returns_false)
+{
+    uint256_t a = 10;
+    uint256_t b = 0;
+    uint256_t c = 5;
+    uint256_t d = 0;
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    field_ct a1(witness_ct(&composer, a));
+    field_ct a2(witness_ct(&composer, d));
+    field_ct b1(witness_ct(&composer, c));
+    field_ct b2(witness_ct(&composer, b));
+
+    ratios ratios{ a1, a2, b1, b2 };
+    auto result = ratio_check(composer, ratios);
+    result.assert_equal(false);
 
     waffle::TurboProver prover = composer.create_prover();
     waffle::TurboVerifier verifier = composer.create_verifier();

@@ -3,6 +3,10 @@
 template <class base_uint>
 constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod(const uintx& b) const
 {
+    if (b == 0) {
+        throw_or_abort("divmod: divide by zero");
+    }
+
     if (*this == 0 || b == 0) {
         return { uintx(0), uintx(0) };
     } else if (b == 1) {

@@ -6,35 +6,13 @@ The structured reference string contains monomials up to x^{2^20}. This SRS was 
 
 ### Dependencies
 
-cmake version 3.16 or later
-clang 9 or gcc 9 or later
-
-### Installing Dependencies (Linux)
-
-(you may need to `sudo` to move clang into `/usr/local`. An alternative is to update PATH to point to a different directory)
-
-```
-apt-get update && apt-get install -y \
-  xz-utils \
-  build-essential \
-  curl \
-  && curl -SL http://releases.llvm.org/9.0.0/clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz | tar -xJC . \
-  && mv clang+llvm-9.0.0-x86_64-linux-gnu-ubuntu-18.04 /usr/local/clang_9.0.0
-
-export PATH="/usr/local/clang_9.0.0/bin:$PATH"
-export LD_LIBRARY_PATH="/usr/local/clang_9.0.0/lib:$LD_LIBRARY_PATH"
-```
-
-### Installing Dependencies (Mac)
-
-```
-brew install cmake
-brew install llvm
-```
+- cmake >= 3.16
+- clang >= 10 or gcc >= 10
+- clang-format
 
 ### Getting started
 
-Just run the bootstrap script.
+Run the bootstrap script.
 
 ```
 ./bootstrap.sh
@@ -42,32 +20,26 @@ Just run the bootstrap script.
 
 ### Parallelise the build
 
-Make sure your MAKEFLAGS environment variable is set to run jobs equal to number of cores. e.g. `MAKEFLAGS=-j32`.
+Make sure your MAKEFLAGS environment variable is set to run jobs equal to number of cores. e.g. `MAKEFLAGS=-j$(nproc)`.
 
 ### Formatting
 
+Code is formatted using `clang-format` and the `./format.sh` script which is called via a git pre-commit hook.
 If you've installed the C++ Vscode extension you should configure it to format on save.
-If you've run the bootstrap script, a pre-commit hook is installed to ensure code is formatted before committing.
-Ensure `clang-format` is installed. You can also format manually using the format script.
-To format the entire codebase:
 
-```
-./format.sh
-```
+### Testing
 
-To format only staged changes:
-
-```
-./format.sh staged
-```
-
-### Tests
-
-Each module has its own tests. To build and run, for example `ecc` tests:
+Each module has its own tests. e.g. To build and run `ecc` tests:
 
 ```
 make ecc_tests
 ./src/aztec/ecc/ecc_tests
+```
+
+A shorthand for the above is:
+
+```
+make run_ecc_tests
 ```
 
 Running the entire suite of tests using `ctest`:
@@ -76,9 +48,11 @@ Running the entire suite of tests using `ctest`:
 make test
 ```
 
-To compile without tests and benchmarks, use `cmake .. -DTESTING=OFF -DBENCHMARKS=OFF`
+You can run specific tests, e.g.
 
-To select a test, run `<path_to_module_tests> --gtest_filter=<test_filter>*`
+```
+./src/aztec/ecc/ecc_tests --gtest_filter=scalar_multiplication.*
+```
 
 ### Benchmarks
 
@@ -95,21 +69,17 @@ A shorthand for the above is:
 make run_ecc_bench
 ```
 
-### Debug build
+### CMake Build Options
 
-```
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE="Debug" ..
-make
-```
+CMake can be passed various build options on it's command line:
 
-### Build without x64 assembly:
-
-```
-mkdir build && cd build
-cmake -DDISABLE_ASM=ON ..
-make
-```
+- `-DCMAKE_BUILD_TYPE=Debug | Release | RelWithAssert`: Build types.
+- `-DDISABLE_ASM=ON | OFF`: Enable/disable x86 assembly.
+- `-DDISABLE_ADX=ON | OFF`: Enable/disable ADX assembly instructions (for older cpu support).
+- `-DMULTITHREADING=ON | OFF`: Enable/disable multithreading using OpenMP.
+- `-DTESTING=ON | OFF`: Enable/disable building of tests.
+- `-DBENCHMARK=ON | OFF`: Enable/disable building of benchmarks.
+- `-DTOOLCHAIN=<filename in ./cmake/toolchains>`: Use one of the preconfigured toolchains.
 
 ### WASM build
 
@@ -117,13 +87,11 @@ To build:
 
 ```
 mkdir build-wasm && cd build-wasm
-cmake -DWASM=ON ..
+cmake -DTOOLCHAIN=wasm-linux-clang ..
 make barretenberg.wasm
 ```
 
-There will be a binary at `./src/aztec/barretenberg.wasm` that can be copied to `barretenberg.js` for use in node and the browser.
-
-#### Testing
+The resulting wasm binary will be at `./src/aztec/barretenberg.wasm`.
 
 To run the tests, you'll need to install `wasmtime`.
 
@@ -131,9 +99,9 @@ To run the tests, you'll need to install `wasmtime`.
 curl https://wasmtime.dev/install.sh -sSf | bash
 ```
 
-The WASM build does not currently support `ctest` meaning you must run each modules tests individually.
-Tests can be run like:
+Tests can be built and run like:
 
 ```
+make ecc_tests
 wasmtime --dir=.. ./src/aztec/ecc/ecc_tests
 ```

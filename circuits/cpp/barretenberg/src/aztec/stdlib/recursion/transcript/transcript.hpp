@@ -84,7 +84,7 @@ template <typename Composer> class Transcript {
     {
         for (size_t i = 0; i < challenge_keys.size(); ++i) {
             if (challenge_keys[i] == challenge_name) {
-                ASSERT(challenge_values[i].size() < challenge_idx);
+                ASSERT(challenge_values[i].size() > challenge_idx);
                 return static_cast<int>(i);
             }
         }

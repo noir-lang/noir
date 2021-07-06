@@ -8,6 +8,7 @@ RUN apk update \
         git \
         curl \
         perl
+# libomp is not available in alpine by default. Download and build.
 RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
   && cd llvm-project && mkdir build-openmp && cd build-openmp \
   && cmake ../openmp -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_ENABLE_SHARED=OFF \
@@ -15,10 +16,11 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
   && make install \
   && cd ../.. && rm -rf llvm-project
 WORKDIR /usr/src/barretenberg
+# From here on layers will likely not be cached, expect these to run for every commit.
 COPY . .
-RUN cd ./srs_db && ./download_ignition.sh 0
-RUN mkdir build && cd build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
-RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
+RUN mkdir build && cd build && cmake -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
+# Not running tests here as we run them in the x86_64-linux-clang-assert build.
+# RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
 
 FROM alpine:3.12
 RUN apk update && apk add llvm10-libs

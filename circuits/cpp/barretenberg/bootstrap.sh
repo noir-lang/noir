@@ -18,7 +18,7 @@ fi
 
 # Build native.
 mkdir -p build && cd build
-cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
+cmake -DCMAKE_BUILD_TYPE=RelWithAssert ..
 cmake --build . --parallel
 cd ..
 
@@ -38,6 +38,6 @@ cd ..
 
 # Build WASM.
 mkdir -p build-wasm && cd build-wasm
-cmake -DWASM=ON ..
+cmake -DTOOLCHAIN=wasm-linux-clang ..
 cmake --build . --parallel --target barretenberg.wasm
 cd ..

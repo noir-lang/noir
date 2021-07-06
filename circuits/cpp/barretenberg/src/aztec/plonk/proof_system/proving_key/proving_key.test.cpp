@@ -8,7 +8,7 @@ using namespace waffle;
 
 polynomial create_polynomial(size_t size)
 {
-    polynomial p;
+    polynomial p(size, size, polynomial::COEFFICIENT_FORM);
     for (size_t i = 0; i < size; ++i) {
         p.add_coefficient(fr::random_element());
     }

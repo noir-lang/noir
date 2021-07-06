@@ -8,41 +8,36 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
-struct withdraw_ratios {
-    field_ct total_in;
-    field_ct total_out;
-    field_ct user_in;
-    field_ct user_out;
+struct ratios {
+    field_ct a1;
+    field_ct a2;
+    field_ct b1;
+    field_ct b2;
 
     field_ct get_residual(Composer& composer) const
     {
-        uint256_t t_in = total_in.get_value();
-        uint256_t t_out = total_out.get_value();
-        uint256_t u_in = user_in.get_value();
+        uint256_t a1_v = a1.get_value();
+        uint256_t a2_v = a2.get_value();
+        uint256_t b2_v = b2.get_value();
 
-        uint256_t u_out = ((uint512_t(t_out) * uint512_t(u_in)) / t_in).lo;
-        uint256_t remainder = ((uint512_t(t_out) * uint512_t(u_in)) % t_in).lo;
+        if (a2_v != 0) {
+            uint256_t remainder = ((uint512_t(b2_v) * uint512_t(a1_v)) % a2_v).lo;
 
-        // if (u_out != uint256_t(user_out.get_value())) {
-        //     std::cout << "hey! these should match!" << std::endl;
-        // }
-
-        // uint512_t left = uint512_t(u_out) * uint512_t(t_in) + remainder;
-        // uint512_t right = uint512_t(t_out) * uint512_t(u_in);
-
-        ASSERT(u_out == uint256_t(user_out.get_value()));
-        field_ct residual = witness_ct(&composer, remainder);
-        return residual;
+            field_ct residual = witness_ct(&composer, remainder);
+            return residual;
+        } else {
+            return witness_ct(&composer, 0);
+        }
     }
 };
 
 // validate that a1 * b1 = a2 * b2 , when (a1, b1, a2, b2) are treated as Integers
-inline void product_check(Composer& composer,
-                          const field_ct& a1,
-                          const field_ct& b1,
-                          const field_ct& a2,
-                          const field_ct& b2,
-                          const field_ct& residual = 0)
+inline bool_ct product_check(Composer& composer,
+                             const field_ct& a1,
+                             const field_ct& b1,
+                             const field_ct& a2,
+                             const field_ct& b2,
+                             const field_ct& residual = 0)
 {
     constexpr barretenberg::fr shift_1 = barretenberg::fr(uint256_t(1) << 68);
     constexpr barretenberg::fr shift_2 = barretenberg::fr(uint256_t(1) << (68 * 2));
@@ -137,16 +132,24 @@ inline void product_check(Composer& composer,
     const auto lhs = compute_product_limbs(left_1, right_1, { 0, 0, 0, 0 }, false);
     const auto rhs = compute_product_limbs(left_2, right_2, residual_limbs, true);
 
+    bool_ct balanced(&composer, true);
     for (size_t i = 0; i < 4; ++i) {
-        lhs[i].assert_equal(rhs[i]);
+        balanced = balanced && lhs[i] == rhs[i];
     }
+
+    return balanced;
 }
 
-inline void ratio_check(Composer& composer, withdraw_ratios const& ratios)
+/**
+ * Will return true if the ratios are the same, false if not or if either denominator is 0.
+ * Effictively: a1 / a2 == b1 / b2
+ */
+inline bool_ct ratio_check(Composer& composer, ratios const& ratios)
 {
     const field_ct residual = ratios.get_residual(composer);
 
-    product_check(composer, ratios.total_out, ratios.user_in, ratios.user_out, ratios.total_in, residual);
+    return (ratios.a2 != 0).normalize() && (ratios.b2 != 0).normalize() &&
+           product_check(composer, ratios.a1, ratios.b2, ratios.b1, ratios.a2, residual);
 }
 
 } // namespace claim

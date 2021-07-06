@@ -17,7 +17,7 @@ constexpr size_t num_generators_per_hash_index = 4;
 constexpr size_t num_indexed_generators = num_hash_indices * num_generators_per_hash_index;
 constexpr size_t size_of_generator_data_array = hash_indices_generator_offset + num_indexed_generators;
 
-std::vector<generator_data*> global_generator_data;
+std::vector<std::unique_ptr<generator_data>> global_generator_data;
 ladder_t g1_ladder;
 bool inited = false;
 
@@ -97,7 +97,7 @@ template <size_t N> inline auto derive_generators()
 auto compute_generator_data(grumpkin::g1::affine_element const& generator,
                             grumpkin::g1::affine_element const& aux_generator)
 {
-    generator_data* gen_data = new generator_data();
+    auto gen_data = std::make_unique<generator_data>();
     gen_data->generator = generator;
     gen_data->aux_generator = aux_generator;
 

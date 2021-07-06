@@ -338,7 +338,6 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
 {
     TURBO_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
-    ASSERT(((num_bits >> 1U) << 1U) == num_bits);
 
     /*
      * The range constraint accumulates base 4 values into a sum.
@@ -413,6 +412,7 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
     std::vector<uint32_t> accumulators;
     fr accumulator = fr::zero();
 
+    uint32_t most_significant_segment = 0;
     for (size_t i = 0; i < num_quads + 1; ++i) {
         uint32_t accumulator_index;
         if (i < forced_zero_threshold) {
@@ -428,6 +428,10 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
 
             accumulator_index = add_variable(accumulator);
             accumulators.emplace_back(accumulator_index);
+
+            if (i == forced_zero_threshold) {
+                most_significant_segment = accumulator_index;
+            }
         }
 
         // hmmmm
@@ -464,6 +468,10 @@ std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witn
     accumulators[accumulators.size() - 1] = witness_index;
 
     n += used_gates;
+
+    if ((num_bits & 1ULL) == 1ULL) {
+        create_bool_gate(most_significant_segment);
+    }
     return accumulators;
 }
 
@@ -743,7 +751,7 @@ TurboProver TurboComposer::create_prover()
     output_state.transition_widgets.emplace_back(std::move(range_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
-    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<turbo_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
@@ -779,7 +787,7 @@ UnrolledTurboProver TurboComposer::create_unrolled_prover()
     output_state.transition_widgets.emplace_back(std::move(range_widget));
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
 
-    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
@@ -793,7 +801,7 @@ TurboVerifier TurboComposer::create_verifier()
 
     TurboVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<turbo_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
@@ -805,7 +813,7 @@ UnrolledTurboVerifier TurboComposer::create_unrolled_verifier()
 {
     compute_verification_key();
 
-    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme = 
+    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
         std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
 
     UnrolledTurboVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));

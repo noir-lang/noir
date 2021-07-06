@@ -33,7 +33,7 @@ int main(int argc, char** argv)
     auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
     auto account_cd = account::compute_circuit_data(srs);
     auto join_split_cd = join_split::compute_circuit_data(srs);
-    auto claim_cd = claim::get_circuit_data(srs, "./data");
+    auto claim_cd = claim::get_circuit_data(srs, "./data", true, persist, persist);
     auto rollup_circuit_data = tx_rollup::get_circuit_data(
         inner_txs, join_split_cd, account_cd, claim_cd, srs, "./data", true, persist, persist);
 

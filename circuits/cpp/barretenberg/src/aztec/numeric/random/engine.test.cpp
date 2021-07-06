@@ -33,7 +33,7 @@ TEST(engine, reset_debug_engine)
 
 TEST(engine, get_expected_debug_value)
 {
-    auto& debug_engine = numeric::random::get_debug_engine();
+    auto& debug_engine = numeric::random::get_debug_engine(true);
     auto a = debug_engine.get_random_uint1024();
     auto expected = from_buffer<uint1024_t>(std::vector<uint8_t>{
         0x69, 0x1f, 0x71, 0xcb, 0xcd, 0xdb, 0x45, 0x74, 0xe5, 0x17, 0x17, 0xa7, 0x29, 0x02, 0x21, 0x4a,

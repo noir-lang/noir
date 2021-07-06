@@ -35,19 +35,27 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto output_value_b = field_ct(witness_ct(&composer, tx.output_value_b));
     const auto two_output_notes = claim_note_data.bridge_id_data.num_output_notes == field_ct(2);
 
-    // Ratio checks.
+    // Ratio checks. Guarantees:
+    // defi_interaction_note.total_input_value != 0
+    // claim_note.deposit_value != 0
     const auto in_out_diff = defi_interaction_note.total_input_value - claim_note.deposit_value;
     composer.create_range_constraint(in_out_diff.witness_index, NOTE_VALUE_BIT_LENGTH);
-    ratio_check(composer,
-                { .total_in = defi_interaction_note.total_input_value,
-                  .total_out = defi_interaction_note.total_output_a_value,
-                  .user_in = claim_note.deposit_value,
-                  .user_out = output_value_a });
-    ratio_check(composer,
-                { .total_in = defi_interaction_note.total_input_value,
-                  .total_out = defi_interaction_note.total_output_b_value,
-                  .user_in = claim_note.deposit_value,
-                  .user_out = output_value_b });
+
+    auto rc1 = ratio_check(composer,
+                           { .a1 = claim_note.deposit_value,
+                             .a2 = defi_interaction_note.total_input_value,
+                             .b1 = output_value_a,
+                             .b2 = defi_interaction_note.total_output_a_value });
+    auto valid1 = (output_value_a == 0 && defi_interaction_note.total_output_a_value == 0) || rc1;
+    valid1.assert_equal(true, "ratio check 1 failed");
+
+    auto rc2 = ratio_check(composer,
+                           { .a1 = claim_note.deposit_value,
+                             .a2 = defi_interaction_note.total_input_value,
+                             .b1 = output_value_b,
+                             .b2 = defi_interaction_note.total_output_b_value });
+    auto valid2 = (output_value_b == 0 && defi_interaction_note.total_output_b_value == 0) || rc2;
+    valid2.assert_equal(true, "ratio check 2 failed");
 
     // Compute output notes. Second note is zeroed if not used.
     // If defi interaction result is 0, refund original value.

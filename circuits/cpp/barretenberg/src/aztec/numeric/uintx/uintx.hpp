@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <common/assert.hpp>
+#include <common/throw_or_abort.hpp>
 #include "../uint256/uint256.hpp"
 
 namespace numeric {

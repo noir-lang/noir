@@ -188,6 +188,26 @@ TEST(standard_composer, range_constraint)
     EXPECT_EQ(result, true);
 }
 
+TEST(standard_composer, range_constraint_fail)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+
+    uint64_t value = 0xffffff;
+    uint32_t witness_index = composer.add_variable(fr(value));
+
+    composer.create_range_constraint(witness_index, 23);
+
+    waffle::Prover prover = composer.create_prover();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    EXPECT_EQ(result, false);
+}
+
 TEST(standard_composer, and_constraint)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

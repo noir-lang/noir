@@ -122,6 +122,22 @@ TEST(stdlib_bool, xor_twin_constants)
     EXPECT_EQ(result, true);
 }
 
+// TEST(stdlib_bool, logical_and)
+// {
+//     waffle::StandardComposer composer = waffle::StandardComposer();
+//     bool_t a = witness_t(&composer, 1);
+//     bool_t b = witness_t(&composer, 1);
+//     (!a) && (!b);
+
+//     waffle::Prover prover = composer.preprocess();
+//     waffle::Verifier verifier = composer.create_verifier();
+
+//     waffle::plonk_proof proof = prover.construct_proof();
+
+//     bool result = verifier.verify_proof(proof);
+//     EXPECT_EQ(result, true);
+// }
+
 TEST(stdlib_bool, and)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

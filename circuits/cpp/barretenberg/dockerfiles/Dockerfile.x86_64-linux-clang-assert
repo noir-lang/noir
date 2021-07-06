@@ -1,21 +1,30 @@
-FROM alpine:3.13 AS builder
+FROM alpine:3.12 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
         build-base \
+        clang \
         cmake \
         git \
-        curl
+        curl \
+        perl
+# libomp is not available in alpine by default. Download and build.
+RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
+  && cd llvm-project && mkdir build-openmp && cd build-openmp \
+  && cmake ../openmp -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_ENABLE_SHARED=OFF \
+  && make -j$(nproc) \
+  && make install \
+  && cd ../.. && rm -rf llvm-project
 WORKDIR /usr/src/barretenberg
 # To prevent continuously downloading, pulling and pushing of ignition, download it *before* copying volatile files.
 COPY ./srs_db ./srs_db
 RUN cd ./srs_db && ./download_ignition.sh 0
 # From here on layers will likely not be cached, expect these to run for every commit.
 COPY . .
-RUN mkdir build && cd build && cmake -DTOOLCHAIN=x86_64-linux-gcc -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
+RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
 RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
 
-FROM alpine:3.13
-RUN apk update && apk add libstdc++ libgomp
+FROM alpine:3.12
+RUN apk update && apk add llvm10-libs
 COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli
 COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli

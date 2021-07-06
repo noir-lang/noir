@@ -1,6 +1,0 @@
-FROM aztecprotocol/mingw:latest
-WORKDIR /usr/src/barretenberg
-COPY . .
-RUN mkdir build && cd build && /usr/src/mxe/usr/bin/x86_64-w64-mingw32.static-cmake -DPROFILING=OFF -Dgtest_disable_pthreads=ON .. && make -j$(nproc)
-RUN cd build && wine ./test/barretenberg_tests.exe
-ENTRYPOINT /bin/bash

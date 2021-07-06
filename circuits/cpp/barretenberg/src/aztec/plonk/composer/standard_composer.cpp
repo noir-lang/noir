@@ -214,25 +214,37 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
 
     std::vector<uint32_t> accumulators;
 
+    size_t num_quads = (num_bits >> 1);
+    num_quads = (num_quads << 1 == num_bits) ? num_quads : num_quads + 1;
+    const auto is_edge_case = [&num_quads, &num_bits](size_t idx) {
+        return (idx == num_quads - 1 && ((num_bits & 1ULL) == 1ULL));
+    };
     constexpr fr four = fr{ 4, 0, 0, 0 }.to_montgomery_form();
     fr accumulator = fr::zero();
     uint32_t accumulator_idx = 0;
-    for (size_t i = num_bits - 1; i < num_bits; i -= 2) {
-        bool hi = target.get_bit(i);
-        bool lo = target.get_bit(i - 1);
+    for (size_t i = num_quads - 1; i < num_quads; --i) {
 
-        uint32_t hi_idx = add_variable(hi ? fr::one() : fr::zero());
+        bool lo = target.get_bit(2 * i);
         uint32_t lo_idx = add_variable(lo ? fr::one() : fr::zero());
-        create_bool_gate(hi_idx);
         create_bool_gate(lo_idx);
 
-        uint64_t quad = (lo ? 1U : 0U) + (hi ? 2U : 0U);
-        uint32_t quad_idx = add_variable(fr{ quad, 0, 0, 0 }.to_montgomery_form());
+        uint32_t quad_idx;
 
-        create_add_gate(
-            add_triple{ lo_idx, hi_idx, quad_idx, fr::one(), fr::one() + fr::one(), fr::neg_one(), fr::zero() });
+        if (is_edge_case(i)) {
+            quad_idx = lo_idx;
+        } else {
+            bool hi = target.get_bit(2 * i + 1);
+            uint32_t hi_idx = add_variable(hi ? fr::one() : fr::zero());
+            create_bool_gate(hi_idx);
 
-        if (i == num_bits - 1) {
+            uint64_t quad = (lo ? 1U : 0U) + (hi ? 2U : 0U);
+            quad_idx = add_variable(fr{ quad, 0, 0, 0 }.to_montgomery_form());
+
+            create_add_gate(
+                add_triple{ lo_idx, hi_idx, quad_idx, fr::one(), fr::one() + fr::one(), fr::neg_one(), fr::zero() });
+        }
+
+        if (i == num_quads - 1) {
             accumulators.push_back(quad_idx);
             accumulator = get_variable(quad_idx);
             accumulator_idx = quad_idx;

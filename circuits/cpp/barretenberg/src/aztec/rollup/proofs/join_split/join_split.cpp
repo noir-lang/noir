@@ -37,7 +37,6 @@ void init_verification_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs
     // Patch the 'nothing' reference string fed to init_proving_key.
     proving_key->reference_string = crs_factory->get_prover_crs(proving_key->n);
     verification_key = waffle::turbo_composer::compute_verification_key(proving_key, crs_factory->get_verifier_crs());
-    info(verification_key->sha256_hash());
 }
 
 void init_verification_key(std::shared_ptr<waffle::VerifierMemReferenceString> const& crs,

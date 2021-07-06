@@ -506,6 +506,26 @@ TEST(turbo_composer, range_constraint)
     EXPECT_EQ(result, true);
 }
 
+TEST(turbo_composer, range_constraint_fail)
+{
+    waffle::TurboComposer composer = waffle::TurboComposer();
+
+    uint64_t value = 0xffffff;
+    uint32_t witness_index = composer.add_variable(fr(value));
+
+    composer.create_range_constraint(witness_index, 23);
+
+    waffle::TurboProver prover = composer.create_prover();
+
+    waffle::TurboVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    EXPECT_EQ(result, false);
+}
+
 TEST(turbo_composer, and_constraint)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();

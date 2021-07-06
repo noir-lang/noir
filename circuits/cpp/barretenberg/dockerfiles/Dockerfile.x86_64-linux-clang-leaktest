@@ -1,6 +1,0 @@
-FROM aztecprotocol/clang:9.0.0
-WORKDIR /usr/src/barretenberg
-COPY . .
-RUN cd srs_db && ./download_ignition.sh 0
-RUN mkdir build && cd build && cmake -DLINUX_CLANG=ON -DMEMORY_CHECKS=ON -DDISABLE_HEAVY_TESTS=ON .. && ASAN_OPTIONS=detect_leaks=0 make -j$(nproc)
-CMD cd build && make test

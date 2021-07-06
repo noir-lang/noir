@@ -3,6 +3,7 @@
 # This is arbitrary, AFAIK, for now.
 cmake_minimum_required(VERSION 3.4.0)
 
+set(WASM ON)
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
 set(CMAKE_SYSTEM_PROCESSOR wasm32)

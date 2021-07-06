@@ -1,4 +1,4 @@
-FROM aztecprotocol/cmake:3.15.4
+FROM ubuntu:latest
 
 RUN apt-get update && apt-get install -y autoconf flex texinfo unzip help2man file gawk libtool-bin ncurses-dev bison python-dev
 

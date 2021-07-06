@@ -108,8 +108,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
     bool left = witness_inverted ^ witness_bool;
     bool right = other.witness_inverted ^ other.witness_bool;
 
-    ASSERT(result.context ||
-           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
+    ASSERT(result.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
     if (witness_index != IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         result.witness_bool = left & right;
         barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
@@ -159,8 +158,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
 {
     bool_t<ComposerContext> result(context == nullptr ? other.context : context);
 
-    ASSERT(result.context ||
-           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
+    ASSERT(result.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     result.witness_bool = (witness_bool ^ witness_inverted) | (other.witness_bool ^ other.witness_inverted);
     barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
@@ -229,8 +227,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
 {
     bool_t<ComposerContext> result(context == nullptr ? other.context : context);
 
-    ASSERT(result.context ||
-           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
+    ASSERT(result.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
 
     result.witness_bool = (witness_bool ^ witness_inverted) ^ (other.witness_bool ^ other.witness_inverted);
     barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
@@ -292,8 +289,7 @@ template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerConte
 template <typename ComposerContext>
 bool_t<ComposerContext> bool_t<ComposerContext>::operator==(const bool_t& other) const
 {
-    ASSERT(context || other.context ||
-           (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
+    ASSERT(context || other.context || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
     if ((other.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
         bool_t<ComposerContext> result(context == nullptr ? other.context : context);
         result.witness_bool = (witness_bool ^ witness_inverted) == (other.witness_bool ^ other.witness_inverted);

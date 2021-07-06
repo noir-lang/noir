@@ -1,15 +1,6 @@
-if(APPLE)
-    include("./cmake/toolchains/x86_64-apple-clang.cmake")
+if(NOT TOOLCHAIN)
+  set(TOOLCHAIN "x86_64-linux-clang" CACHE STRING "Build toolchain." FORCE)
 endif()
+message(STATUS "Toolchain: ${TOOLCHAIN}")
 
-if(LINUX_CLANG)
-    include("./cmake/toolchains/x86_64-linux-clang.cmake")
-endif()
-
-if(ARM)
-    include("./cmake/toolchains/arm64-linux-gcc.cmake")
-endif()
-
-if(WASM)
-    include("./cmake/toolchains/wasm-linux-clang.cmake")
-endif()
+include("./cmake/toolchains/${TOOLCHAIN}.cmake")

@@ -53,15 +53,14 @@ TEST(uintx, div_and_mod)
     uint1024_t a = engine.get_random_uint1024();
     uint1024_t b = 0;
 
-    uint1024_t q = a / b;
-    uint1024_t r = a % b;
-
-    EXPECT_EQ(q, uint1024_t(0));
-    EXPECT_EQ(r, uint1024_t(0));
+#ifndef __wasm__
+    EXPECT_THROW(a / b, std::runtime_error);
+    EXPECT_THROW(a % b, std::runtime_error);
+#endif
 
     b = a;
-    q = a / b;
-    r = a % b;
+    auto q = a / b;
+    auto r = a % b;
 
     EXPECT_EQ(q, uint1024_t(1));
     EXPECT_EQ(r, uint1024_t(0));

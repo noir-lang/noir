@@ -20,6 +20,7 @@ inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> co
 
     // clang-format off
     os <<
+      "// Verification Key Hash: " << key->sha256_hash() << "\n"
       "// SPDX-License-Identifier: GPL-2.0-only\n"
       "// Copyright 2020 Spilsbury Holdings Ltd\n"
       "\n"
