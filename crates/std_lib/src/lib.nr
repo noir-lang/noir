@@ -18,3 +18,13 @@ fn predicate_eq(_x : Field, _y : Field) -> Field{}
 #[builtin(pow_const)]
 fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
 
+// Precondition: x is a boolean
+// returns 1 if x is 0
+// returns 0 if x is 1
+// XXX: This function should ideally take in a u1 and return a u1
+// Then we would not need to state the precondition as it would be 
+// encoded in the type
+// Check issue#105 for the reason it does not.
+fn bool_not(x : Field) -> Field {
+    1 - x
+}
