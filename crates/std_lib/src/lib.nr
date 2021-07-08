@@ -28,3 +28,10 @@ fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
 fn bool_not(x : Field) -> Field {
     1 - x
 }
+
+// Precondition: x and y are booleans
+// Check issue#105 for the reason the input and output
+// is not a u1/bool
+fn bool_or(x : Field, y : Field) -> Field {
+    x + y - (x * y)
+}
