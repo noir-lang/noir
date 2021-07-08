@@ -17,3 +17,4 @@ fn predicate_eq(_x : Field, _y : Field) -> Field{}
 // Note that this function may wrap around
 #[builtin(pow_const)]
 fn pow_const(_base : const Field, _exponent : const Field) -> const Field {}
+
