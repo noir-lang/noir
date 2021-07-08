@@ -3,16 +3,16 @@ use crate::{errors::RuntimeError, Environment, Evaluator, Object, RuntimeErrorKi
 mod arraysum;
 use arraysum::ArraySum;
 mod arrayprod;
-mod pred_eq;
 use arrayprod::ArrayProd;
+mod pred_eq;
+use pred_eq::PredicateEq;
 mod pow_const;
 use pow_const::PowConst;
 mod setpub;
-use noirc_errors::Span;
-use noirc_frontend::hir_def::expr::HirCallExpression;
 use setpub::SetPub;
 
-use self::pred_eq::PredicateEq;
+use noirc_errors::Span;
+use noirc_frontend::hir_def::expr::HirCallExpression;
 
 #[derive(Debug)]
 enum BuiltInFunctions {
