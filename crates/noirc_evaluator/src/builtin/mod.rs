@@ -3,20 +3,23 @@ use crate::{errors::RuntimeError, Environment, Evaluator, Object, RuntimeErrorKi
 mod arraysum;
 use arraysum::ArraySum;
 mod arrayprod;
-mod pred_eq;
 use arrayprod::ArrayProd;
+mod pred_eq;
+use pred_eq::PredicateEq;
+mod pow_const;
+use pow_const::PowConst;
 mod setpub;
-use noirc_errors::Span;
-use noirc_frontend::hir_def::expr::HirCallExpression;
 use setpub::SetPub;
 
-use self::pred_eq::PredicateEq;
+use noirc_errors::Span;
+use noirc_frontend::hir_def::expr::HirCallExpression;
 
 #[derive(Debug)]
 enum BuiltInFunctions {
     ArraySum,
     ArrayProd,
     SetPub,
+    PowConst,
     PredEq,
 }
 
@@ -26,6 +29,7 @@ impl BuiltInFunctions {
             "arraysum" => Some(BuiltInFunctions::ArraySum),
             "arrayprod" => Some(BuiltInFunctions::ArrayProd),
             "set_pub" => Some(BuiltInFunctions::SetPub),
+            "pow_const" => Some(BuiltInFunctions::PowConst),
             "predicate_equal" => Some(BuiltInFunctions::PredEq),
             _ => None,
         }
@@ -62,6 +66,7 @@ pub fn call_builtin(
         BuiltInFunctions::ArraySum => ArraySum::call(evaluator, env, (call_expr, span)),
         BuiltInFunctions::ArrayProd => ArrayProd::call(evaluator, env, (call_expr, span)),
         BuiltInFunctions::SetPub => SetPub::call(evaluator, env, (call_expr, span)),
+        BuiltInFunctions::PowConst => PowConst::call(evaluator, env, (call_expr, span)),
         BuiltInFunctions::PredEq => PredicateEq::call(evaluator, env, (call_expr, span)),
     }
 }

@@ -53,6 +53,10 @@ impl<F: PrimeField> FieldElement<F> {
         self == &Self::one()
     }
 
+    pub fn pow(&self, exponent: &Self) -> Self {
+        FieldElement(self.0.pow(exponent.0.into_repr()))
+    }
+
     /// Maximum number of bits needed to represent a field element
     /// This is not the amount of bits being used to represent a field element
     /// Example, you only need 254 bits to represent a field element in BN256
