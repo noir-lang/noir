@@ -2,8 +2,7 @@ use noirc_errors::Span;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 use super::BuiltInCaller;
-use crate::binary_op;
-use crate::object::{Array, Object};
+use crate::object::Object;
 use crate::{Environment, Evaluator, RuntimeError};
 
 pub struct PowConst;
