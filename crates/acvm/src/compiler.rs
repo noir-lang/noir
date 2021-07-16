@@ -33,7 +33,7 @@ pub fn compile(acir: Circuit) -> Circuit {
                 // Update next_witness counter
                 next_witness_index += intermediate_variables.len() as u32;
 
-                for (wit, gate) in intermediate_variables.into_iter() {
+                for (_, gate) in intermediate_variables.into_iter() {
                     optimised_gates.push(Gate::Arithmetic(gate));
                 }
                 optimised_gates.push(Gate::Arithmetic(arith));
