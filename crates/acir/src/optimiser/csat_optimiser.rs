@@ -1,6 +1,6 @@
 use crate::native_types::{Arithmetic, Witness};
+use indexmap::IndexMap;
 use noir_field::FieldElement;
-use std::collections::BTreeMap;
 
 use super::general_optimiser::GeneralOpt;
 // Optimiser struct with all of the related optimisations to the arithmetic gate
@@ -26,7 +26,7 @@ impl Optimiser {
     pub fn optimise(
         &self,
         gate: Arithmetic,
-        mut intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
+        mut intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
         num_witness: u32,
     ) -> Arithmetic {
         let gate = GeneralOpt::optimise(gate);
@@ -78,10 +78,10 @@ impl Optimiser {
     fn full_gate_scan_optimisation(
         &self,
         mut gate: Arithmetic,
-        intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
+        intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
         num_witness: u32,
     ) -> Arithmetic {
-        // We pass around this intermediate variable BTreeMap, so that we do not create intermediate variables that we have created before
+        // We pass around this intermediate variable IndexMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
 
         // First check that this is not a simple gate which does not need optimisation
@@ -95,7 +95,7 @@ impl Optimiser {
         }
 
         // We now know that this gate has multiple mul terms and can possibly be simplified into multiple full gates
-        // We need to create a (wl, wr) BTreeMap and then check the simplified fan-in to verify if we have terms both with wl and wr
+        // We need to create a (wl, wr) IndexMap and then check the simplified fan-in to verify if we have terms both with wl and wr
         // In general, we can then push more terms into the gate until we are at width-1 then the last variable will be the intermediate variable
         //
 
@@ -162,7 +162,7 @@ impl Optimiser {
                             // nomoreleft = true
                         }
                     }
-                    // Constraint this intermediate_gate to be equal to the temp variable by adding it into the BTreeMap
+                    // Constraint this intermediate_gate to be equal to the temp variable by adding it into the IndexMap
                     // We need a unique name for our intermediate variable
                     // XXX: Another optimisation, which could be applied in another algorithm
                     // If two gates have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
@@ -236,7 +236,7 @@ impl Optimiser {
     fn partial_gate_scan_optimisation(
         &self,
         mut gate: Arithmetic,
-        intermediate_variables: &mut BTreeMap<Witness, Arithmetic>,
+        intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
         num_witness: u32,
     ) -> Arithmetic {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
@@ -338,7 +338,7 @@ fn simple_reduction_smoke_test() {
         q_c: FieldElement::zero(),
     };
 
-    let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
+    let mut intermediate_variables: IndexMap<Witness, Arithmetic> = IndexMap::new();
 
     let num_witness = 4;
 
