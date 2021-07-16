@@ -1,8 +1,6 @@
-use std::collections::BTreeMap;
-
 use crate::native_types::{Arithmetic, Witness};
+use indexmap::IndexMap;
 use noir_field::FieldElement;
-
 pub struct GeneralOpt;
 impl GeneralOpt {
     pub fn optimise(gate: Arithmetic) -> Arithmetic {
@@ -33,7 +31,7 @@ pub fn remove_zero_coefficients(mut gate: Arithmetic) -> Arithmetic {
 
 // Simplifies all mul terms with the same bi-variate variables
 pub fn simplify_mul_terms(mut gate: Arithmetic) -> Arithmetic {
-    let mut hash_map: BTreeMap<(Witness, Witness), FieldElement> = BTreeMap::new();
+    let mut hash_map: IndexMap<(Witness, Witness), FieldElement> = IndexMap::new();
 
     // Canonicalise the ordering of the multiplication, lets just order by variable name
     for (scale, w_l, w_r) in gate.mul_terms.clone().into_iter() {

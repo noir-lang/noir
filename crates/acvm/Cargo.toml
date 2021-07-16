@@ -19,8 +19,14 @@ sha2 = "0.9.3"
 blake2 = "0.9.1"
 hex = "0.4.2"
 cfg-if = "1.0.0"
-k256 = { version = "0.7.2", features = ["ecdsa", "ecdsa-core", "sha256", "digest", "arithmetic"] }
-
+k256 = { version = "0.7.2", features = [
+    "ecdsa",
+    "ecdsa-core",
+    "sha256",
+    "digest",
+    "arithmetic",
+] }
+indexmap = "1.7.0"
 
 [features]
 

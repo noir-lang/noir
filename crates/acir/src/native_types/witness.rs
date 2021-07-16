@@ -23,4 +23,22 @@ impl Witness {
     pub const fn can_defer_constraint(&self) -> bool {
         true
     }
+
+    pub fn to_unknown(self) -> UnknownWitness {
+        UnknownWitness(self.0)
+    }
+}
+
+// This is a witness that is unknown relative to the rest of the witnesses in the arithmetic gate
+// We use this, so that they are pushed to the beginning of the array
+//
+// When they are pushed to the beginning of the array, they are less likely to be used in an intermediate gate
+// by the optimiser, which would mean two unknowns in an equation.
+// See Issue #109
+pub struct UnknownWitness(pub u32);
+
+impl UnknownWitness {
+    pub fn as_witness(&self) -> Witness {
+        Witness(self.0)
+    }
 }

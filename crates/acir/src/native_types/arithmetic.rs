@@ -2,6 +2,8 @@ use crate::native_types::{Linear, Witness};
 use noir_field::FieldElement;
 use std::ops::{Add, Mul, Neg, Sub};
 
+use super::witness::UnknownWitness;
+
 // In the addition polynomial
 // We can have arbitrary fan-in/out, so we need more than wL,wR and wO
 // When looking at the arithmetic gate for the quotient polynomial in standard plonk
@@ -200,6 +202,16 @@ impl Sub<&Witness> for &Arithmetic {
     type Output = Arithmetic;
     fn sub(self, rhs: &Witness) -> Arithmetic {
         self - &Arithmetic::from(rhs)
+    }
+}
+impl Sub<&UnknownWitness> for &Arithmetic {
+    type Output = Arithmetic;
+    fn sub(self, rhs: &UnknownWitness) -> Arithmetic {
+        let mut cloned = self.clone();
+        cloned
+            .linear_combinations
+            .insert(0, (-FieldElement::one(), rhs.as_witness()));
+        cloned
     }
 }
 

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
 
 use acir::{
     circuit::{Circuit, Gate},
@@ -17,31 +17,36 @@ pub fn compile(acir: Circuit) -> Circuit {
         crate::Language::PLONKCSat { width } => CSatOptimiser::new(width),
     };
 
-    let mut intermediate_variables: BTreeMap<Witness, Arithmetic> = BTreeMap::new();
-
     // Optimise the arithmetic gates by reducing them into the correct width and
     // creating intermediate variables when necessary
-    let next_witness_index = acir.current_witness_index + 1;
-    let mut optimised_arith_gates: Vec<_> = acir
-        .gates
-        .into_iter()
-        .map(|gate| match gate {
+    let mut optimised_gates = Vec::new();
+
+    let mut next_witness_index = acir.current_witness_index + 1;
+    for gate in acir.gates {
+        match gate {
             Gate::Arithmetic(arith) => {
+                let mut intermediate_variables: IndexMap<Witness, Arithmetic> = IndexMap::new();
+
                 let arith =
                     optimiser.optimise(arith, &mut intermediate_variables, next_witness_index);
-                Gate::Arithmetic(arith)
-            }
-            other_gates => other_gates,
-        })
-        .collect();
 
-    let current_witness_index = acir.current_witness_index + intermediate_variables.len() as u32;
-    for (_, gate) in intermediate_variables {
-        optimised_arith_gates.push(Gate::Arithmetic(gate));
+                // Update next_witness counter
+                next_witness_index += intermediate_variables.len() as u32;
+
+                for (_, gate) in intermediate_variables.into_iter() {
+                    optimised_gates.push(Gate::Arithmetic(gate));
+                }
+                optimised_gates.push(Gate::Arithmetic(arith));
+            }
+            other_gate => optimised_gates.push(other_gate),
+        }
     }
+
+    let current_witness_index = next_witness_index - 1;
+
     Circuit {
         current_witness_index,
-        gates: optimised_arith_gates,
+        gates: optimised_gates,
         public_inputs: acir.public_inputs, // The optimiser does not add public inputs
     }
 }
