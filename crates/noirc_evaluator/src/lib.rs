@@ -381,7 +381,7 @@ impl<'a> Evaluator<'a> {
             })
             .map_err(|kind| kind.add_span(rhs_span))?;
         self.gates
-            .push(Gate::Arithmetic(&rhs_as_witness - &witness));
+            .push(Gate::Arithmetic(&rhs_as_witness - &witness.to_unknown()));
 
         // Lets go through some possible scenarios to explain why the code is correct
         // 0: priv x = 5;

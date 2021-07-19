@@ -7,9 +7,25 @@ pub fn handle_cast_op(
 ) -> Result<Object, RuntimeErrorKind> {
     let num_bits = match right {
         Type::Integer(_, _sign, num_bits) => num_bits,
-        _ => {
+        Type::FieldElement(_) => {
+            match left.to_arithmetic() {
+                Some(arith) => {
+                    // XXX: Create an intermediate variable for the arithmetic gate
+                    // as we don't have full support for Arithmetic constraints in
+                    // method object_to_wit_bits
+                    let (object, _) = evaluator.create_intermediate_variable(arith);
+                    return Ok(object);
+                }
+                None => {
+                    return Err(RuntimeErrorKind::UnstructuredError {
+                        message: "type cannot be casted to a Field element".to_string(),
+                    })
+                }
+            };
+        }
+        x => {
             return Err(RuntimeErrorKind::UnstructuredError {
-                message: "currently we do not support type casting to non integers".to_string(),
+                message: format!("currently we do not support type casting to {}", x),
             })
         }
     };
