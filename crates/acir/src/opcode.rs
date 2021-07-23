@@ -96,7 +96,7 @@ impl OPCODE {
             OPCODE::Pedersen => GadgetDefinition {
                 name: self.name().into(),
                 input_size: InputSize::Variable,
-                output_size: OutputSize(1),
+                output_size: OutputSize(2),
             },
             OPCODE::EcdsaSecp256k1 => GadgetDefinition {
                 name: self.name().into(),

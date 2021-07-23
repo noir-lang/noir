@@ -221,9 +221,14 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                             inputs.push(scalar_index);
                         }
 
-                        let result = gadget_call.outputs[0].witness_index() as i32;
+                        let result_x = gadget_call.outputs[0].witness_index() as i32;
+                        let result_y = gadget_call.outputs[1].witness_index() as i32;
 
-                        let constraint = PedersenConstraint { inputs, result };
+                        let constraint = PedersenConstraint {
+                            inputs,
+                            result_x,
+                            result_y,
+                        };
 
                         pedersen_constraints.push(constraint);
                     }

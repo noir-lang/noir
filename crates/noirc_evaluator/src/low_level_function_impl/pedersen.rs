@@ -22,19 +22,26 @@ impl GadgetCaller for PedersenGadget {
     ) -> Result<Object, RuntimeError> {
         let inputs = PedersenGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        // Create a Witness which will be the output of the pedersen hash
-        let pedersen_witness = evaluator.add_witness_to_cs();
-        let pedersen_object = Object::from_witness(pedersen_witness);
+        let pedersen_output_x = evaluator.add_witness_to_cs();
+        let object_pedersen_x = Object::from_witness(pedersen_output_x);
+
+        let pedersen_output_y = evaluator.add_witness_to_cs();
+        let object_pedersen_y = Object::from_witness(pedersen_output_y);
 
         let pedersen_gate = GadgetCall {
             name: PedersenGadget::name(),
             inputs,
-            outputs: vec![pedersen_witness],
+            outputs: vec![pedersen_output_x, pedersen_output_y],
         };
 
         evaluator.gates.push(Gate::GadgetCall(pedersen_gate));
 
-        Ok(pedersen_object)
+        let arr = Array {
+            length: 2,
+            contents: vec![object_pedersen_x, object_pedersen_y],
+        };
+
+        Ok(Object::Array(arr))
     }
 }
 

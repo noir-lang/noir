@@ -25,6 +25,24 @@ impl Barretenberg {
         let result_bytes = self.slice_memory(0, 32);
         FieldElement::from_be_bytes_reduce(&result_bytes)
     }
+
+    pub fn encrypt(&mut self, inputs: Vec<FieldElement>) -> (FieldElement, FieldElement) {
+        let input_buf = Assignments(inputs).to_bytes();
+        let input_ptr = self.allocate(&input_buf);
+
+        let result_ptr = Value::I32(32);
+        self.call_multiple("pedersen_encrypt", vec![&input_ptr, &result_ptr]);
+
+        let result_bytes = self.slice_memory(32, 96);
+        let (point_x_bytes, point_y_bytes) = result_bytes.split_at(32);
+        assert!(point_x_bytes.len() == 32);
+        assert!(point_y_bytes.len() == 32);
+
+        let point_x = FieldElement::from_be_bytes_reduce(point_x_bytes);
+        let point_y = FieldElement::from_be_bytes_reduce(point_y_bytes);
+
+        (point_x, point_y)
+    }
 }
 
 #[test]
@@ -64,4 +82,19 @@ fn basic_interop() {
         assert_eq!(got, expected);
         assert_eq!(got, got_many);
     }
+}
+#[test]
+fn pedersen_hash_to_point() {
+    let mut barretenberg = Barretenberg::new();
+    let (x, y) = barretenberg.encrypt(vec![FieldElement::zero(), FieldElement::one()]);
+    let expected_x = FieldElement::from_hex(
+        "0x108800e84e0f1dafb9fdf2e4b5b311fd59b8b08eaf899634c59cc985b490234b",
+    )
+    .unwrap();
+    let expected_y = FieldElement::from_hex(
+        "0x2d43ef68df82e0adf74fed92b1bc950670b9806afcfbcda08bb5baa6497bdf14",
+    )
+    .unwrap();
+    assert_eq!(expected_x, x);
+    assert_eq!(expected_y, y);
 }
