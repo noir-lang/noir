@@ -41,8 +41,8 @@ template <typename C> point<C> pedersen_plookup<C>::add_points(const point& p1, 
     grumpkin::fq x_3_raw = lambda_raw.sqr() - x_2_raw - x_1_raw;
     grumpkin::fq y_3_raw = lambda_raw * (x_1_raw - x_3_raw) - y_1_raw;
 
-    bool p1_constant = (p1.x.witness_index == UINT32_MAX) && (p1.y.witness_index == UINT32_MAX);
-    bool p2_constant = (p2.x.witness_index == UINT32_MAX) && (p2.y.witness_index == UINT32_MAX);
+    bool p1_constant = (p1.x.witness_index == IS_CONSTANT) && (p1.y.witness_index == IS_CONSTANT);
+    bool p2_constant = (p2.x.witness_index == IS_CONSTANT) && (p2.y.witness_index == IS_CONSTANT);
 
     if (p1_constant && p2_constant) {
         return point{ field_t(ctx, x_3_raw), field_t(ctx, y_3_raw) };

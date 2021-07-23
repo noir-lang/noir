@@ -897,7 +897,7 @@ std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
         }
     }
 
-    // Initialise the last `s_randomness` positions in table polynomials with 0. 
+    // Initialise the last `s_randomness` positions in table polynomials with 0.
     // These will be the positions where we will be adding random scalars to add zero knowledge
     // to plookup.
     for (size_t i = 0; i < s_randomness; ++i) {
@@ -989,7 +989,7 @@ std::shared_ptr<program_witness> PlookupComposer::compute_witness()
     }
 
     // Save space for adding random scalars in s polynomial later
-    // We need to make space for adding randomness into witness polynomials and 
+    // We need to make space for adding randomness into witness polynomials and
     // lookup polynomials.
     size_t count = subgroup_size - tables_size - lookups_size - s_randomness;
     for (size_t i = 0; i < count; ++i) {
@@ -1040,7 +1040,7 @@ std::shared_ptr<program_witness> PlookupComposer::compute_witness()
         }
     }
 
-    // Initialise the last `s_randomness` positions in s polynomials with 0. 
+    // Initialise the last `s_randomness` positions in s polynomials with 0.
     // These will be the positions where we will be adding random scalars to add zero knowledge
     // to plookup.
     for (size_t i = 0; i < s_randomness; ++i) {
@@ -1218,7 +1218,7 @@ std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_t
         table.lookup_gates.emplace_back(read_values.key_entries[i]);
 
         const auto first_idx = (i == 0) ? key_a_index : add_variable(read_values.column_1_accumulator_values[i]);
-        const auto second_idx = (i == 0 && key_b_index != UINT32_MAX)
+        const auto second_idx = (i == 0 && key_b_index != IS_CONSTANT)
                                     ? key_b_index
                                     : add_variable(read_values.column_2_accumulator_values[i]);
         const auto third_idx = add_variable(read_values.column_3_accumulator_values[i]);

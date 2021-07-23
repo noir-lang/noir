@@ -219,7 +219,7 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
         if (get_value() == 0) {
             result.additive_constant = 0;
             result.multiplicative_constant = 1;
-            result.witness_index = UINT32_MAX;
+            result.witness_index = IS_CONSTANT;
         } else {
             barretenberg::fr q_m = other.multiplicative_constant;
             barretenberg::fr q_l = other.additive_constant;

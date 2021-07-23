@@ -134,7 +134,7 @@ std::array<field_t<waffle::PlookupComposer>, 64> extend_witness(
 
         field_pt w_out_raw = xor_result.add_two(w_sparse[i - 16].normal, w_sparse[i - 7].normal);
         field_pt w_out;
-        if (w_out_raw.witness_index == UINT32_MAX) {
+        if (w_out_raw.witness_index == IS_CONSTANT) {
             w_out = field_pt(ctx, fr(w_out_raw.get_value().from_montgomery_form().data[0] & (uint64_t)0xffffffffULL));
 
         } else {
@@ -226,7 +226,7 @@ field_t<waffle::PlookupComposer> add_normalize(const field_t<waffle::PlookupComp
 
     waffle::PlookupComposer* ctx = a.get_context() ? a.get_context() : b.get_context();
 
-    if (a.witness_index == UINT32_MAX && b.witness_index == UINT32_MAX) {
+    if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT) {
         auto sum = uint256_t(a.get_value() + b.get_value());
         uint64_t normalized = static_cast<uint32_t>(sum.data[0]);
         return field_pt(ctx, normalized);
@@ -236,7 +236,7 @@ field_t<waffle::PlookupComposer> add_normalize(const field_t<waffle::PlookupComp
 
     uint256_t normalized_sum = static_cast<uint32_t>(sum.data[0]);
 
-    if (a.witness_index == UINT32_MAX && b.witness_index == UINT32_MAX) {
+    if (a.witness_index == IS_CONSTANT && b.witness_index == IS_CONSTANT) {
         return field_pt(ctx, normalized_sum);
     }
 

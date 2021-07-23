@@ -118,7 +118,7 @@ class PlookupComposer : public ComposerBase {
     std::array<std::vector<uint32_t>, 3> read_sequence_from_multi_table(const PlookupMultiTableId& id,
                                                                         const PlookupReadData& read_values,
                                                                         const uint32_t key_a_index,
-                                                                        const uint32_t key_b_index = UINT32_MAX);
+                                                                        const uint32_t key_b_index = IS_CONSTANT);
 
     /**
      * Generalized Permutation Methods

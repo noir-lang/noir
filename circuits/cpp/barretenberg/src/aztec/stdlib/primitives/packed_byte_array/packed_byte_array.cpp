@@ -172,7 +172,7 @@ void packed_byte_array<Composer>::append(const field_pt& to_append, const size_t
 
     const uint64_t current_padding = (current_limb_space - num_bytes_for_current_limb) << 3;
     const uint64_t next_padding = (BYTES_PER_ELEMENT - num_bytes_for_new_limb) << 3;
-    bool is_constant = to_append.witness_index == UINT32_MAX;
+    bool is_constant = to_append.witness_index == IS_CONSTANT;
 
     field_pt to_current;
     to_current = is_constant ? field_pt(context, append_current) : witness_t(context, append_current);
@@ -213,7 +213,7 @@ std::vector<field_t<Composer>> packed_byte_array<Composer>::to_unverified_byte_s
 
             const uint256_t slice = limb_value.slice(start, end);
 
-            if (limbs[i].witness_index != UINT32_MAX) {
+            if (limbs[i].witness_index != IS_CONSTANT) {
                 slices.push_back(witness_t(context, fr(slice)));
             } else {
                 slices.push_back(field_pt(context, fr(slice)));

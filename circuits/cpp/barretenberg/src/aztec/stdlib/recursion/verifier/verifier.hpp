@@ -266,15 +266,15 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         //     std::cout << "error a" << std::endl;
         //     continue; // TODO handle this
         // }
-        if (fr_value.get_value() == 0 && fr_value.witness_index != UINT32_MAX) {
+        if (fr_value.get_value() == 0 && fr_value.witness_index != IS_CONSTANT) {
             std::cout << "bad scalar zero at " << label << std::endl;
         }
-        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        if (fr_value.get_value() == 0 && fr_value.witness_index == IS_CONSTANT) {
             std::cout << "scalar zero at " << label << std::endl;
             continue;
         }
 
-        if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
+        if (fr_value.get_value() == 1 && fr_value.witness_index == IS_CONSTANT) {
             elements_to_add.emplace_back(g1_value);
             continue;
         }
@@ -284,15 +284,15 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_large) {
         const auto& g1_value = kate_g1_elements[label];
-        if (fr_value.get_value() == 0 && fr_value.witness_index != UINT32_MAX) {
+        if (fr_value.get_value() == 0 && fr_value.witness_index != IS_CONSTANT) {
             std::cout << "bad scalar zero at " << label << std::endl;
         }
-        if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        if (fr_value.get_value() == 0 && fr_value.witness_index == IS_CONSTANT) {
             std::cout << "scalar zero at " << label << std::endl;
             continue;
         }
 
-        if (fr_value.get_value() == 1 && fr_value.witness_index == UINT32_MAX) {
+        if (fr_value.get_value() == 1 && fr_value.witness_index == IS_CONSTANT) {
             elements_to_add.emplace_back(g1_value);
             continue;
         }
@@ -302,16 +302,16 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
 
     for (const auto& [label, fr_value] : kate_fr_elements_at_zeta_omega) {
         const auto& g1_value = kate_g1_elements[label];
-        // if (fr_value.get_value() == 0 && fr_value.witness_index != UINT32_MAX   )
+        // if (fr_value.get_value() == 0 && fr_value.witness_index != IS_CONSTANT   )
         // {
         //     std::cout << "bad scalar zero at " << label << std::endl;
         // }
-        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        // if (fr_value.get_value() == 0 && fr_value.witness_index == IS_CONSTANT) {
         //     std::cout << "scalar zero at " << label << std::endl;
         //     continue;
         // }
 
-        // if (fr_value.get_value() == 0 && fr_value.witness_index == UINT32_MAX) {
+        // if (fr_value.get_value() == 0 && fr_value.witness_index == IS_CONSTANT) {
         //     continue;
         // }
         double_opening_scalars.emplace_back(fr_value);

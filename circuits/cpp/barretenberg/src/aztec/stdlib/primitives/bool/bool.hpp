@@ -50,12 +50,12 @@ template <typename ComposerContext> class bool_t {
         const bool_t lhs = *this;
         ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
 
-        if (lhs.witness_index == UINT32_MAX && rhs.witness_index == UINT32_MAX) {
+        if (lhs.witness_index == IS_CONSTANT && rhs.witness_index == IS_CONSTANT) {
             ASSERT(lhs.get_value() == rhs.get_value());
-        } else if (lhs.witness_index == UINT32_MAX) {
+        } else if (lhs.witness_index == IS_CONSTANT) {
             bool_t right = rhs.normalize();
             ctx->assert_equal_constant(right.witness_index, lhs.get_value(), msg);
-        } else if (rhs.witness_index == UINT32_MAX) {
+        } else if (rhs.witness_index == IS_CONSTANT) {
             bool_t left = lhs.normalize();
             ctx->assert_equal_constant(left.witness_index, rhs.get_value(), msg);
         } else {
