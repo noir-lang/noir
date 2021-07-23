@@ -96,16 +96,14 @@ impl GadgetCaller {
                 let inputs_iter = gadget_call.inputs.iter();
 
                 let scalars: Vec<_> = inputs_iter
-                    .map(|input| {
-                        // XXX: Clone is not desirable. Remove on next refactor.
-                        // Although it is just a memcpy
-                        *input_to_value(initial_witness, input)
-                    })
+                    .map(|input| *input_to_value(initial_witness, input))
                     .collect();
 
                 let mut barretenberg = Barretenberg::new();
-                let result = barretenberg.compress_many(scalars);
-                initial_witness.insert(gadget_call.outputs[0], result);
+
+                let (res_x, res_y) = barretenberg.encrypt(scalars);
+                initial_witness.insert(gadget_call.outputs[0], res_x);
+                initial_witness.insert(gadget_call.outputs[1], res_y);
             }
             OPCODE::HashToField => {
                 // Deal with Blake2s -- XXX: It's not possible for pwg to know that it is Blake2s

@@ -300,7 +300,8 @@ impl HashToFieldConstraint {
 #[derive(Clone, Hash, Debug)]
 pub struct PedersenConstraint {
     pub inputs: Vec<i32>,
-    pub result: i32,
+    pub result_x: i32,
+    pub result_y: i32,
 }
 
 impl PedersenConstraint {
@@ -313,7 +314,8 @@ impl PedersenConstraint {
             buffer.extend_from_slice(&constraint.to_be_bytes());
         }
 
-        buffer.extend_from_slice(&self.result.to_be_bytes());
+        buffer.extend_from_slice(&self.result_x.to_be_bytes());
+        buffer.extend_from_slice(&self.result_y.to_be_bytes());
 
         buffer
     }
@@ -699,6 +701,8 @@ fn remove_public_inputs(num_pub_inputs: usize, proof: Vec<u8>) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
+    use wasmer::wasmparser::CodeSectionReader;
+
     use super::*;
 
     #[test]
@@ -990,11 +994,39 @@ mod test {
     fn test_ped_constraints() {
         let constraint = PedersenConstraint {
             inputs: vec![1, 2],
-            result: 3,
+            result_x: 3,
+            result_y: 4,
+        };
+
+        let x_constraint = Constraint {
+            a: 3,
+            b: 3,
+            c: 3,
+            qm: Scalar::zero(),
+            ql: Scalar::one(),
+            qr: Scalar::zero(),
+            qo: Scalar::zero(),
+            qc: -Scalar::from_hex(
+                "0x108800e84e0f1dafb9fdf2e4b5b311fd59b8b08eaf899634c59cc985b490234b",
+            )
+            .unwrap(),
+        };
+        let y_constraint = Constraint {
+            a: 4,
+            b: 4,
+            c: 4,
+            qm: Scalar::zero(),
+            ql: Scalar::one(),
+            qr: Scalar::zero(),
+            qo: Scalar::zero(),
+            qc: -Scalar::from_hex(
+                "0x2d43ef68df82e0adf74fed92b1bc950670b9806afcfbcda08bb5baa6497bdf14",
+            )
+            .unwrap(),
         };
 
         let constraint_system = ConstraintSystem {
-            var_num: 80,
+            var_num: 100,
             public_inputs: vec![],
             logic_constraints: vec![],
             range_constraints: vec![],
@@ -1004,7 +1036,7 @@ mod test {
             blake2s_constraints: vec![],
             pedersen_constraints: vec![constraint],
             hash_to_field_constraints: vec![],
-            constraints: vec![],
+            constraints: vec![x_constraint, y_constraint],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
         };
@@ -1015,7 +1047,7 @@ mod test {
         let mut witness_values = Vec::new();
         witness_values.push(scalar_0);
         witness_values.push(scalar_1);
-        witness_values.push(Scalar::zero());
+        // witness_values.push(Scalar::zero());
 
         let case_1 = WitnessResult {
             witness: Assignments(witness_values),
