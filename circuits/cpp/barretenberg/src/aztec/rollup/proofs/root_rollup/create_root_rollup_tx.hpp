@@ -3,7 +3,6 @@
 #include "verify.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/native/defi_interaction/note.hpp"
-#include "../notes/native/defi_interaction/commit.hpp"
 #include "../../world_state/world_state.hpp"
 #include <stdlib/merkle_tree/memory_store.hpp>
 
@@ -40,7 +39,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
     tx.rollups = inner_rollups;
     tx.old_data_roots_root = root_tree.root();
     tx.old_data_roots_path = root_tree.get_hash_path(root_index);
-    auto data_root = to_buffer(data_tree.root());
+    auto data_root = data_tree.root();
     root_tree.update_element(root_index, data_root);
     tx.new_data_roots_root = root_tree.root();
 

@@ -384,6 +384,12 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     return result;
 }
 
+template <typename ComposerContext>
+void field_t<ComposerContext>::range_constraint(size_t num_bits, std::string const& msg) const
+{
+    context->create_range_constraint(witness_index, num_bits, msg);
+}
+
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero(std::string const& msg) const
 {
     if (get_value() != barretenberg::fr(0)) {

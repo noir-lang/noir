@@ -16,7 +16,6 @@ struct claim_note_tx_data {
     grumpkin::g1::affine_element owner;
     uint32_t owner_nonce;
     uint256_t note_secret;
-    uint32_t defi_interaction_nonce;
 
     bool operator==(claim_note_tx_data const&) const = default;
 };
@@ -24,8 +23,7 @@ struct claim_note_tx_data {
 inline std::ostream& operator<<(std::ostream& os, claim_note_tx_data const& note)
 {
     return os << "{ value: " << note.deposit_value << ", bridge_id: " << note.bridge_id << ", owner: " << note.owner
-              << ", owner_nonce: " << note.owner_nonce << ", secret: " << note.note_secret
-              << ", interaction_nonce: " << note.defi_interaction_nonce << " }";
+              << ", owner_nonce: " << note.owner_nonce << ", secret: " << note.note_secret << " }";
 }
 
 inline void read(uint8_t const*& it, claim_note_tx_data& note)
@@ -36,7 +34,6 @@ inline void read(uint8_t const*& it, claim_note_tx_data& note)
     read(it, note.owner);
     read(it, note.owner_nonce);
     read(it, note.note_secret);
-    read(it, note.defi_interaction_nonce);
 }
 
 inline void write(std::vector<uint8_t>& buf, claim_note_tx_data const& note)
@@ -47,7 +44,6 @@ inline void write(std::vector<uint8_t>& buf, claim_note_tx_data const& note)
     write(buf, note.owner);
     write(buf, note.owner_nonce);
     write(buf, note.note_secret);
-    write(buf, note.defi_interaction_nonce);
 }
 
 } // namespace claim

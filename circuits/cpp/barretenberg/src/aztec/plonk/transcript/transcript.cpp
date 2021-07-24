@@ -122,7 +122,7 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         break;
     }
     case HashType::PedersenBlake2s: {
-        std::vector<uint8_t> compressed_buffer = crypto::pedersen::compress_native(buffer);
+        std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen::compress_native(buffer));
         base_hash = Blake2sHasher::hash(compressed_buffer);
         break;
     }

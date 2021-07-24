@@ -14,8 +14,8 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     uint256_t public_input = 100;
     uint256_t public_output = 20;
     uint256_t asset_id = 1;
-    std::array<uint8_t, 64> note1 = { 0x01 };
-    std::array<uint8_t, 64> note2 = { 0x02 };
+    auto note1 = fr::random_element();
+    auto note2 = fr::random_element();
     auto merkle_root = fr::random_element();
     uint256_t nullifier1 = rand_engine.get_random_uint256();
     uint256_t nullifier2 = rand_engine.get_random_uint256();
@@ -44,6 +44,8 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     EXPECT_EQ(data.public_input, public_input);
     EXPECT_EQ(data.public_output, public_output);
     EXPECT_EQ(data.asset_id, asset_id);
+    EXPECT_EQ(data.note_commitment1, note1);
+    EXPECT_EQ(data.note_commitment2, note2);
     EXPECT_EQ(data.nullifier1, nullifier1);
     EXPECT_EQ(data.nullifier2, nullifier2);
     EXPECT_EQ(data.input_owner, input_owner);

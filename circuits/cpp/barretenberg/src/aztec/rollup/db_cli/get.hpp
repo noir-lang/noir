@@ -1,5 +1,6 @@
 #pragma once
 #include <common/serialize.hpp>
+#include <ecc/curves/bn254/fr.hpp>
 
 struct GetRequest {
     uint8_t tree_id;
@@ -7,7 +8,7 @@ struct GetRequest {
 };
 
 struct GetResponse {
-    std::vector<uint8_t> value;
+    barretenberg::fr value;
 };
 
 void read(std::istream& s, GetRequest& r)

@@ -16,12 +16,10 @@ constexpr size_t DEPTH = 256;
 constexpr size_t MAX = 4096;
 const std::string DB_PATH = "/tmp/leveldb_test";
 
-static std::vector<LevelDbTree::value_t> VALUES = []() {
-    std::vector<LevelDbTree::value_t> values(MAX);
+static std::vector<fr> VALUES = []() {
+    std::vector<fr> values(MAX);
     for (size_t i = 0; i < MAX; ++i) {
-        LevelDbTree::value_t v(64, 0);
-        *(size_t*)v.data() = i;
-        values[i] = v;
+        values[i] = fr(i);
     }
     return values;
 }();

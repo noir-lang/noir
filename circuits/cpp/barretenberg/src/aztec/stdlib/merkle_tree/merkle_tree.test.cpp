@@ -15,12 +15,10 @@ auto& engine = numeric::random::get_debug_engine();
 auto& random_engine = numeric::random::get_engine();
 } // namespace
 
-static std::vector<LevelDbTree::value_t> VALUES = []() {
-    std::vector<LevelDbTree::value_t> values(1024);
+static std::vector<fr> VALUES = []() {
+    std::vector<fr> values(1024);
     for (size_t i = 0; i < 1024; ++i) {
-        LevelDbTree::value_t v(64, 0);
-        *(size_t*)v.data() = i;
-        values[i] = v;
+        values[i] = i;
     }
     return values;
 }();
@@ -47,7 +45,6 @@ TEST(stdlib_merkle_tree, test_kv_memory_vs_memory_consistency)
 
     for (size_t i = 0; i < indicies.size(); ++i) {
         size_t idx = indicies[i];
-        EXPECT_EQ(db.get_element(idx), memdb.get_element(idx));
         EXPECT_EQ(db.get_hash_path(idx), memdb.get_hash_path(idx));
     }
 
@@ -159,7 +156,6 @@ TEST(stdlib_merkle_tree, test_leveldb_vs_memory_consistency)
 
     for (size_t i = 0; i < indicies.size(); ++i) {
         size_t idx = indicies[i];
-        EXPECT_EQ(db.get_element(idx), memdb.get_element(idx));
         EXPECT_EQ(db.get_hash_path(idx), memdb.get_hash_path(idx));
     }
 
@@ -173,6 +169,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
     LevelDbStore::destroy(DB_PATH);
 
     fr root;
+    fr_hash_path path;
     {
         LevelDbStore store(DB_PATH);
         LevelDbTree db(store, 256);
@@ -180,6 +177,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
         db.update_element(1, VALUES[2]);
         db.update_element(2, VALUES[3]);
         root = db.root();
+        path = db.get_hash_path(2);
         store.commit();
     }
     {
@@ -188,9 +186,7 @@ TEST(stdlib_merkle_tree, test_leveldb_persistence)
 
         EXPECT_EQ(db.root(), root);
         EXPECT_EQ(db.size(), 3ULL);
-        EXPECT_EQ(db.get_element(0), VALUES[1]);
-        EXPECT_EQ(db.get_element(1), VALUES[2]);
-        EXPECT_EQ(db.get_element(2), VALUES[3]);
+        EXPECT_EQ(db.get_hash_path(2), path);
     }
 
     LevelDbStore::destroy(DB_PATH);

@@ -226,9 +226,11 @@ template <typename ComposerContext> class field_t {
      **/
     bool_t<ComposerContext> is_zero() const;
 
+    void range_constraint(size_t num_bits, std::string const& msg = "field_t::range_constraint") const;
     void assert_is_not_zero(std::string const& msg = "field_t::assert_is_not_zero") const;
     void assert_is_zero(std::string const& msg = "field_t::assert_is_zero") const;
     bool is_constant() const { return witness_index == IS_CONSTANT; }
+    void set_public() const { context->set_public_input(witness_index); }
 
     uint32_t get_witness_index() const { return witness_index; }
 

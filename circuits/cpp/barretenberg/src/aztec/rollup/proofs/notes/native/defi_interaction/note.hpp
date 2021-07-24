@@ -22,6 +22,17 @@ struct note {
 
     bool operator==(note const&) const = default;
 
+    auto commit() const
+    {
+        return crypto::pedersen::compress_native({ bridge_id,
+                                                   total_input_value,
+                                                   total_output_a_value,
+                                                   total_output_b_value,
+                                                   interaction_nonce,
+                                                   interaction_result },
+                                                 GeneratorIndex::DEFI_INTERACTION_NOTE_COMMITMENT);
+    }
+
     // Returns a byte array where all input fields are treated as 32 bytes.
     // Used for generating the previous_defi_interaction_hash.
     std::vector<uint8_t> to_byte_array() const

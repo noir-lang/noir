@@ -293,13 +293,12 @@ TEST(stdlib_pedersen, test_compress_byte_array)
         input.push_back(engine.get_random_uint8());
     }
 
-    std::vector<uint8_t> native_output = crypto::pedersen::compress_native(input);
+    auto expected = crypto::pedersen::compress_native(input);
 
     byte_array circuit_input(&composer, input);
-    byte_array result = pedersen::compress(circuit_input);
-    byte_array expected(&composer, native_output);
+    auto result = pedersen::compress(circuit_input);
 
-    EXPECT_EQ(result.get_value(), expected.get_value());
+    EXPECT_EQ(result.get_value(), expected);
 
     waffle::UnrolledTurboProver prover = composer.create_unrolled_prover();
 

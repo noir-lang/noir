@@ -30,7 +30,7 @@ MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     zero_hashes_.resize(depth);
 
     // Compute the zero values at each layer.
-    auto current = hash_value_native(value_t(LEAF_BYTES, 0));
+    auto current = fr::neg_one();
     for (size_t i = 0; i < depth; ++i) {
         zero_hashes_[i] = current;
         // std::cout << "zero hash level " << i << ": " << current << std::endl;
@@ -50,7 +50,7 @@ template <typename Store> MerkleTree<Store>::~MerkleTree() {}
 
 template <typename Store> fr MerkleTree<Store>::root() const
 {
-    value_t root;
+    std::vector<uint8_t> root;
     std::vector<uint8_t> key = { tree_id_ };
     bool status = store_.get(key, root);
     return status ? from_buffer<fr>(root) : compress_native(zero_hashes_.back(), zero_hashes_.back());
@@ -58,7 +58,7 @@ template <typename Store> fr MerkleTree<Store>::root() const
 
 template <typename Store> typename MerkleTree<Store>::index_t MerkleTree<Store>::size() const
 {
-    value_t size_buf;
+    std::vector<uint8_t> size_buf;
     std::vector<uint8_t> key = { tree_id_ };
     bool status = store_.get(key, size_buf);
     return status ? from_buffer<index_t>(size_buf, 32) : 0;
@@ -68,7 +68,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
 {
     fr_hash_path path(depth_);
 
-    value_t data;
+    std::vector<uint8_t> data;
     bool status = store_.get(root().to_buffer(), data);
 
     for (size_t i = depth_ - 1; i < depth_; --i) {
@@ -139,29 +139,17 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
     return path;
 }
 
-template <typename Store> typename MerkleTree<Store>::value_t MerkleTree<Store>::get_element(index_t index)
+template <typename Store> fr MerkleTree<Store>::update_element(index_t index, fr const& value)
 {
-    using serialize::write;
-    value_t leaf_key;
-    write(leaf_key, tree_id_);
-    write(leaf_key, index);
-
-    value_t data;
-    auto status = store_.get(leaf_key, data);
-    return status ? data : value_t(64, 0);
-}
-
-template <typename Store> fr MerkleTree<Store>::update_element(index_t index, value_t const& value)
-{
+    auto leaf = (value == 0) ? fr::neg_one() : value;
     // std::cout << "update_element: " << (uint64_t)index << std::endl;
     using serialize::write;
-    value_t leaf_key;
+    std::vector<uint8_t> leaf_key;
     write(leaf_key, tree_id_);
     write(leaf_key, index);
-    store_.put(leaf_key, value);
+    store_.put(leaf_key, to_buffer(leaf));
 
-    fr sha_leaf = hash_value_native(value);
-    auto r = update_element(root(), sha_leaf, index, depth_);
+    auto r = update_element(root(), leaf, index, depth_);
 
     std::vector<uint8_t> meta_key = { tree_id_ };
     std::vector<uint8_t> meta_buf;
@@ -223,7 +211,7 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
         return value;
     }
 
-    value_t data;
+    std::vector<uint8_t> data;
     auto status = store_.get(root.to_buffer(), data);
 
     if (!status) {
@@ -297,7 +285,7 @@ template <typename Store> fr MerkleTree<Store>::compute_zero_path_hash(size_t he
 
 template <typename Store> void MerkleTree<Store>::put(fr const& key, fr const& left, fr const& right)
 {
-    value_t value;
+    std::vector<uint8_t> value;
     write(value, left);
     write(value, right);
     store_.put(key.to_buffer(), value);
@@ -306,7 +294,7 @@ template <typename Store> void MerkleTree<Store>::put(fr const& key, fr const& l
 
 template <typename Store> void MerkleTree<Store>::put_stump(fr const& key, index_t index, fr const& value)
 {
-    value_t buf;
+    std::vector<uint8_t> buf;
     write(buf, value);
     write(buf, index);
     // Add an additional byte, to signify we are a stump.

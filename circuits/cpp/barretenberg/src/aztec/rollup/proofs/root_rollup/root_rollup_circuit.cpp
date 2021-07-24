@@ -20,42 +20,30 @@ using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
 using namespace notes;
 
-void add_padding_public_inputs(Composer& composer, size_t inner_size)
+void add_rollup_padding_public_inputs(Composer& composer, size_t inner_size)
 {
-    for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED * inner_size; ++i) {
-        auto zero = witness_ct(&composer, 0);
-        composer.assert_equal_constant(zero.witness_index, 0);
-        composer.set_public_input(zero.witness_index);
+    for (size_t i = 0; i < inner_size; ++i) {
+        add_tx_padding_public_inputs(composer);
     }
 }
 
 /**
  * Inserts the latest data root into the root tree at location rollup_id + 1.
  */
-void check_root_tree_updated(Composer& composer,
-                             merkle_tree::hash_path const& old_data_roots_path,
+void check_root_tree_updated(merkle_tree::hash_path const& old_data_roots_path,
                              field_ct const& rollup_id,
                              field_ct const& new_data_root,
                              field_ct const& new_data_roots_root,
                              field_ct const& old_data_roots_root)
 {
-    auto empty_tree_value = byte_array_ct(&composer, 64);
-    auto new_data_root_arr = byte_array_ct(new_data_root);
     auto index = byte_array_ct(rollup_id + 1);
-    update_membership(composer,
-                      new_data_roots_root,
-                      {},
-                      new_data_root_arr,
-                      old_data_roots_root,
-                      old_data_roots_path,
-                      empty_tree_value,
-                      index,
-                      __FUNCTION__);
+    update_membership(
+        new_data_roots_root, new_data_root, old_data_roots_root, old_data_roots_path, field_ct(0), index, __FUNCTION__);
 }
 
 /**
  * Computes the commitments to the defi_interaction_notes to be inserted into the defi tree.
- * Checks the defi tree is updated with the defi_interaction_notes' commitments.
+ * Checks the defi tree is updated with the defi_interaction_notes commitments.
  * Returns the previous_defi_interaction_hash from the defi_interaction_notes.
  */
 field_ct process_defi_interaction_notes(Composer& composer,
@@ -65,29 +53,24 @@ field_ct process_defi_interaction_notes(Composer& composer,
                                         merkle_tree::hash_path const& old_defi_interaction_path,
                                         field_ct const& num_previous_defi_interactions,
                                         std::vector<circuit::defi_interaction::note> const& defi_interaction_notes,
-                                        std::vector<point_ct>& defi_interaction_note_commitments)
+                                        std::vector<field_ct>& defi_interaction_note_commitments)
 {
     byte_array_ct hash_input(&composer);
-    std::vector<byte_array_ct> defi_interaction_note_leaves;
     auto not_first_rollup = rollup_id != 0;
 
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         auto is_real = uint32_ct(i) < num_previous_defi_interactions && not_first_rollup;
         hash_input.write(defi_interaction_notes[i].to_byte_array(composer, is_real));
-        const point_ct note_commitment = { defi_interaction_notes[i].commitment.x * is_real,
-                                           defi_interaction_notes[i].commitment.y * is_real };
+        auto note_commitment = defi_interaction_notes[i].commitment * is_real;
         defi_interaction_note_commitments.push_back(note_commitment);
-        defi_interaction_note_leaves.push_back(
-            byte_array_ct(&composer).write(note_commitment.x).write(note_commitment.y));
     }
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
     auto insertion_index = ((rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK * not_first_rollup).normalize();
-    batch_update_membership(composer,
-                            new_defi_interaction_root,
+    batch_update_membership(new_defi_interaction_root,
                             old_defi_interaction_root,
                             old_defi_interaction_path,
-                            defi_interaction_note_leaves,
+                            defi_interaction_note_commitments,
                             insertion_index,
                             "check_defi_tree_updated");
 
@@ -247,13 +230,13 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                       is_real);
 
         // Accumulate tx public inputs.
-        for (size_t j = 0; j < InnerProofFields::NUM_PUBLISHED * num_inner_txs_pow2; ++j) {
+        for (size_t j = 0; j < PropagatedInnerProofFields::NUM_FIELDS * num_inner_txs_pow2; ++j) {
             tx_proof_public_inputs.push_back(public_inputs[RollupProofFields::INNER_PROOFS_DATA + j]);
         }
     }
 
     // Check defi interaction notes are inserted and computes previous_defi_interaction_hash.
-    std::vector<point_ct> defi_interaction_note_commitments;
+    std::vector<field_ct> defi_interaction_note_commitments;
     auto previous_defi_interaction_hash = process_defi_interaction_notes(composer,
                                                                          rollup_id,
                                                                          new_defi_root,
@@ -264,34 +247,34 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                                                          defi_interaction_note_commitments);
 
     // Check data root tree is updated with latest data root.
-    check_root_tree_updated(composer, old_root_path, rollup_id, new_data_root, new_root_root, old_root_root);
+    check_root_tree_updated(old_root_path, rollup_id, new_data_root, new_root_root, old_root_root);
 
     // Publish public inputs.
-    composer.set_public_input(rollup_id.witness_index);
-    composer.set_public_input(rollup_size_pow2.witness_index);
-    composer.set_public_input(data_start_index.witness_index);
-    composer.set_public_input(old_data_root.witness_index);
-    composer.set_public_input(new_data_root.witness_index);
-    composer.set_public_input(old_null_root.witness_index);
-    composer.set_public_input(new_null_root.witness_index);
-    composer.set_public_input(old_root_root.witness_index);
-    composer.set_public_input(new_root_root.witness_index);
-    composer.set_public_input(old_defi_root.witness_index);
-    composer.set_public_input(new_defi_root.witness_index);
+    rollup_id.set_public();
+    rollup_size_pow2.set_public();
+    data_start_index.set_public();
+    old_data_root.set_public();
+    new_data_root.set_public();
+    old_null_root.set_public();
+    new_null_root.set_public();
+    old_root_root.set_public();
+    new_root_root.set_public();
+    old_defi_root.set_public();
+    new_defi_root.set_public();
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(bridge_ids[i].witness_index);
+        bridge_ids[i].set_public();
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(defi_deposit_sums[i].witness_index);
+        defi_deposit_sums[i].set_public();
     }
     for (auto total_tx_fee : total_tx_fees) {
-        composer.set_public_input(total_tx_fee.witness_index);
+        total_tx_fee.set_public();
     }
     for (auto& inp : tx_proof_public_inputs) {
-        composer.set_public_input(inp.witness_index);
+        inp.set_public();
     }
     for (size_t i = max_num_inner_proofs; i < num_outer_txs_pow2 / num_inner_txs_pow2; ++i) {
-        add_padding_public_inputs(composer, num_inner_txs_pow2);
+        add_rollup_padding_public_inputs(composer, num_inner_txs_pow2);
     }
 
     recursion_output.add_proof_outputs_as_public_inputs();
@@ -300,7 +283,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         defi_interaction_note_commitments[i].set_public();
     }
-    composer.set_public_input(previous_defi_interaction_hash.witness_index);
+    previous_defi_interaction_hash.set_public();
 
     return recursion_output;
 }

@@ -1,6 +1,6 @@
-#include "commit.hpp"
+#include "value_note.hpp"
 #include "../../../../fixtures/user_context.hpp"
-#include "../../native/value/commit.hpp"
+#include "../../native/value/value_note.hpp"
 #include "../../constants.hpp"
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace rollup::proofs::notes;
 using namespace rollup::proofs::notes::circuit::value;
 
-TEST(commit_note, commits)
+TEST(value_note, commits)
 {
     auto user = rollup::fixtures::create_user_context();
     Composer composer = Composer();
@@ -24,12 +24,11 @@ TEST(commit_note, commits)
     native::value::value_note note = {
         note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret
     };
-    grumpkin::g1::element expected = native::value::commit(note);
-    witness_data plaintext(composer, note);
+    auto expected = note.commit();
+    auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
-    point_ct result = commit(plaintext);
-    composer.assert_equal_constant(result.x.witness_index, expected.x);
-    composer.assert_equal_constant(result.y.witness_index, expected.y);
+    auto result = circuit_note.commitment;
+    result.assert_equal(expected);
 
     waffle::TurboProver prover = composer.create_prover();
 
@@ -43,7 +42,7 @@ TEST(commit_note, commits)
     EXPECT_EQ(proof_result, true);
 }
 
-TEST(commit_note, commits_with_0_value)
+TEST(value_note, commits_with_0_value)
 {
     auto user = rollup::fixtures::create_user_context();
     Composer composer = Composer();
@@ -55,12 +54,11 @@ TEST(commit_note, commits_with_0_value)
     native::value::value_note note = {
         note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret
     };
-    grumpkin::g1::element expected = native::value::commit(note);
-    witness_data plaintext(composer, note);
+    auto expected = note.commit();
+    auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
-    point_ct result = commit(plaintext);
-    composer.assert_equal_constant(result.x.witness_index, expected.x);
-    composer.assert_equal_constant(result.y.witness_index, expected.y);
+    auto result = circuit_note.commitment;
+    result.assert_equal(expected);
 
     waffle::TurboProver prover = composer.create_prover();
 

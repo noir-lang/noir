@@ -79,7 +79,9 @@ class PlookupComposer : public ComposerBase {
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits);
+    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
+                                                  const size_t num_bits,
+                                                  std::string const& msg = "create_range_constraint");
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,
                                                const size_t num_bits,

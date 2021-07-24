@@ -5,7 +5,6 @@
 #include "../proofs/join_split/index.hpp"
 #include "../proofs/account/index.hpp"
 #include "../proofs/claim/index.hpp"
-#include "../proofs/notes/native/index.hpp"
 #include <stdlib/merkle_tree/index.hpp>
 
 namespace rollup {
@@ -112,7 +111,7 @@ class TestContext {
         }
 
         auto partial_state =
-            notes::native::claim::create_partial_value_note(user.note_secret, user.owner.public_key, 0);
+            notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0);
         notes::native::claim::claim_note claim_note = { deposit_value, bridge_id, interaction_nonce, partial_state };
         return claim_tx_factory.create_claim_tx(
             world_state.defi_tree.root(), claim_note_index, claim_note, defi_interactions[interaction_nonce]);

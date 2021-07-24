@@ -2,6 +2,8 @@
 #include <common/serialize.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "create_partial_commitment.hpp"
+#include "complete_partial_commitment.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -19,6 +21,12 @@ struct value_note {
     barretenberg::fr secret;
 
     bool operator==(value_note const&) const = default;
+
+    auto commit() const
+    {
+        auto partial = create_partial_commitment(secret, owner, nonce);
+        return complete_partial_commitment(partial, value, asset_id);
+    }
 };
 
 inline std::ostream& operator<<(std::ostream& os, value_note const& note)

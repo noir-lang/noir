@@ -25,8 +25,8 @@ field_ct compute_account_alias_id_nullifier(field_ct const& proof_id,
                                             field_ct const& gibberish,
                                             bool_ct migrate)
 {
-    return pedersen::compress(
-        { proof_id, account_alias_id, gibberish * !migrate }, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
+    std::vector<field_ct> to_compress = { proof_id, account_alias_id, gibberish * !migrate };
+    return pedersen::compress(to_compress, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 field_ct compute_gibberish_nullifier(field_ct const& proof_id, field_ct const& gibberish)
@@ -85,11 +85,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     // Check signing account note exists if nonce != 0.
     const auto assert_account_exists = !zero_nonce;
     const auto account_note_data = account_note(account_alias_id, account_public_key, signer);
-    const auto exists = merkle_tree::check_membership(composer,
-                                                      data_tree_root,
-                                                      account_note_path,
-                                                      byte_array_ct(account_note_data),
-                                                      byte_array_ct(account_note_index));
+    const auto exists = merkle_tree::check_membership(
+        data_tree_root, account_note_path, account_note_data.commitment, byte_array_ct(account_note_index));
     composer.assert_equal(exists.normalize().witness_index,
                           assert_account_exists.normalize().witness_index,
                           "account check_membership failed");
@@ -104,20 +101,18 @@ void account_circuit(Composer& composer, account_tx const& tx)
     composer.assert_equal(dummy_tx_fee.witness_index, composer.zero_idx);
 
     // Expose public inputs.
-    composer.set_public_input(proof_id.witness_index);                 // proof_id
-    composer.set_public_input(new_account_public_key.x.witness_index); // public_input but using for owner x.
-    composer.set_public_input(new_account_public_key.y.witness_index); // public_output but using for owner y.
-    composer.set_public_input(output_account_alias_id.witness_index);  // asset_id
-    composer.set_public_input(output_note_1.commitment.x.witness_index);
-    composer.set_public_input(output_note_1.commitment.y.witness_index);
-    composer.set_public_input(output_note_2.commitment.x.witness_index);
-    composer.set_public_input(output_note_2.commitment.y.witness_index);
-    composer.set_public_input(nullifier_1.witness_index);
-    composer.set_public_input(nullifier_2.witness_index);
-    composer.set_public_input(spending_public_key_1.x.witness_index); // input_owner
-    composer.set_public_input(spending_public_key_2.x.witness_index); // output_owner
-    composer.set_public_input(data_tree_root.witness_index);
-    composer.set_public_input(dummy_tx_fee.witness_index);
+    proof_id.set_public();                 // proof_id
+    new_account_public_key.x.set_public(); // public_input but using for owner x.
+    new_account_public_key.y.set_public(); // public_output but using for owner y.
+    output_account_alias_id.set_public();  // asset_id
+    output_note_1.commitment.set_public();
+    output_note_2.commitment.set_public();
+    nullifier_1.set_public();
+    nullifier_2.set_public();
+    spending_public_key_1.x.set_public(); // input_owner
+    spending_public_key_2.x.set_public(); // output_owner
+    data_tree_root.set_public();
+    dummy_tx_fee.set_public();
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)

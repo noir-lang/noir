@@ -24,7 +24,7 @@ template <typename Store> class WorldState {
 
     void update_root_tree_with_data_root()
     {
-        auto data_root = to_buffer(data_tree.root());
+        auto data_root = data_tree.root();
         root_tree.update_element(root_tree.size(), data_root);
     }
 
@@ -48,8 +48,7 @@ template <typename Store> class WorldState {
   private:
     template <typename T> void insert_note(T const& note, uint256_t index, Tree& tree)
     {
-        auto enc_note = commit(note);
-        tree.update_element(index, to_buffer(enc_note));
+        tree.update_element(index, note.commit());
     }
 
     template <typename T> void append_note(T const& note, Tree& tree) { insert_note(note, tree.size(), tree); }

@@ -70,7 +70,9 @@ class TurboComposer : public ComposerBase {
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits);
+    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
+                                                  const size_t num_bits,
+                                                  std::string const& msg = "create_range_contraint");
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,
                                                const size_t num_bits,

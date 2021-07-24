@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     auto crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>("../srs_db/ignition");
     auto join_split_circuit_data = join_split::compute_circuit_data(crs);
     auto data_root = world_state.data_tree.root();
-    world_state.root_tree.update_element(0, to_buffer(data_root));
+    world_state.root_tree.update_element(0, data_root);
 
     uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t inner_rollup_size = static_cast<uint32_t>(std::stoul(args[2]));

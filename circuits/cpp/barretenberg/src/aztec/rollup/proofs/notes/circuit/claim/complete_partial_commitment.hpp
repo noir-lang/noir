@@ -1,7 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../../constants.hpp"
-#include "commit.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -11,10 +10,9 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline point_ct complete_partial_claim_note(point_ct const& claim_note, field_ct const& interaction_nonce)
+inline auto complete_partial_commitment(field_ct const& partial_commitment, field_ct const& interaction_nonce)
 {
-    return notes::circuit::conditionally_hash_and_accumulate<32>(
-        claim_note, interaction_nonce, notes::GeneratorIndex::JOIN_SPLIT_CLAIM_NOTE_DEFI_INTERACTION_NONCE);
+    return pedersen::compress({ partial_commitment, interaction_nonce }, true, GeneratorIndex::CLAIM_NOTE_COMMITMENT);
 }
 
 } // namespace claim

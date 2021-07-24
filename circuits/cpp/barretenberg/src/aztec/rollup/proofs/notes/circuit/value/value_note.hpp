@@ -20,7 +20,7 @@ struct value_note {
     // this asset_id value must be 32 bits or smaller
     field_ct asset_id;
     field_ct nonce;
-    point_ct commitment;
+    field_ct commitment;
 
     value_note(witness_data const& note)
         : owner(note.owner)
@@ -28,10 +28,10 @@ struct value_note {
         , secret(note.secret)
         , asset_id(note.asset_id)
         , nonce(note.nonce)
-        , commitment(commit(note))
+        , commitment(value::commit(note))
     {}
 
-    operator byte_array_ct() const { return byte_array_ct(commitment.x).write(commitment.y); }
+    operator byte_array_ct() const { return byte_array_ct(commitment); }
 };
 
 } // namespace value

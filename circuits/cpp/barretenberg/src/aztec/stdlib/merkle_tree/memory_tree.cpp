@@ -11,11 +11,9 @@ MemoryTree::MemoryTree(size_t depth)
     ASSERT(depth_ >= 1 && depth <= 20);
     total_size_ = 1UL << depth_;
     hashes_.resize(total_size_ * 2 - 2);
-    std::vector<uint8_t> zero_element(64, 0);
-    preimages_.resize(total_size_, zero_element);
 
     // Build the entire tree.
-    auto current = hash_value_native(zero_element);
+    auto current = fr::neg_one();
     size_t layer_size = total_size_;
     for (size_t offset = 0; offset < hashes_.size(); offset += layer_size, layer_size /= 2) {
         // std::cout << "zero: " << current << std::endl;
@@ -44,13 +42,11 @@ fr_hash_path MemoryTree::get_hash_path(size_t index)
     return path;
 }
 
-fr MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
+fr MemoryTree::update_element(size_t index, fr const& value)
 {
-    preimages_[index] = value;
-
     size_t offset = 0;
     size_t layer_size = total_size_;
-    fr current = hash_value_native(value);
+    fr current = value == 0 ? fr::neg_one() : value;
     for (size_t i = 0; i < depth_; ++i) {
         hashes_[offset + index] = current;
         index &= (~0ULL) - 1;
@@ -61,11 +57,6 @@ fr MemoryTree::update_element(size_t index, std::vector<uint8_t> const& value)
     }
     root_ = current;
     return root_;
-}
-
-std::vector<uint8_t> const& MemoryTree::get_element(size_t index)
-{
-    return preimages_[index];
 }
 
 } // namespace merkle_tree

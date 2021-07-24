@@ -1,6 +1,8 @@
 #include "pedersen.hpp"
 #include <common/serialize.hpp>
+#include <common/timer.hpp>
 #include <common/mem.hpp>
+#include <common/streams.hpp>
 #define WASM_EXPORT __attribute__((visibility("default")))
 
 extern "C" {
@@ -37,44 +39,32 @@ WASM_EXPORT void pedersen__compress_with_hash_index(uint8_t const* inputs_buffer
 WASM_EXPORT void pedersen__buffer_to_field(uint8_t const* data, size_t length, uint8_t* r)
 {
     std::vector<uint8_t> to_compress(data, data + length);
-
-    std::vector<uint8_t> output = crypto::pedersen::compress_native(to_compress);
-    auto result = barretenberg::fr::serialize_from_buffer(output.data());
-    barretenberg::fr::serialize_to_buffer(result, r);
+    auto output = crypto::pedersen::compress_native(to_compress);
+    write(r, output);
 }
 
 /**
- * Given a buffer containing 64 byte leaves, return a new buffer containing the leaf hashes and all pairs of nodes that
- * define a merkle tree.
+ * Given a buffer containing 32 byte pedersen leaves, return a new buffer containing the leaves and all pairs of
+ * nodes that define a merkle tree.
+ * e.g.
+ * input:  [1][2][3][4]
+ * output: [1][2][3][4][compress(1,2)][compress(3,4)][compress(5,6)]
  */
-WASM_EXPORT size_t pedersen__hash_values_to_tree(uint8_t const* data, size_t length, uint8_t** output)
+WASM_EXPORT uint8_t* pedersen__hash_to_tree(uint8_t const* data)
 {
-    auto num_leaves = length / 64;
-    std::vector<std::vector<uint8_t>> results;
-    results.reserve(num_leaves * 2 - 2);
+    auto fields = from_buffer<std::vector<grumpkin::fq>>(data);
+    auto num_outputs = fields.size() * 2 - 1;
+    fields.reserve(num_outputs);
 
-    // First compute leaf hashes.
-    for (size_t i = 0; i < length; i += 64) {
-        std::vector<uint8_t> to_compress(data + i, data + i + 64);
-        std::vector<uint8_t> output = crypto::pedersen::compress_native(to_compress);
-        results.push_back(std::move(output));
+    for (size_t i = 0; fields.size() < num_outputs; i += 2) {
+        fields.push_back(crypto::pedersen::compress_native({ fields[i], fields[i + 1] }));
     }
 
-    // Then compute layers of tree node hashes.
-    for (size_t i = 0; i < (num_leaves - 1) * 2; i += 2) {
-        auto lhs = from_buffer<barretenberg::fr>(results[i]);
-        auto rhs = from_buffer<barretenberg::fr>(results[i + 1]);
-        auto r = crypto::pedersen::compress_native({ lhs, rhs });
-        results.push_back(to_buffer(r));
-    }
+    auto buf_size = 4 + num_outputs * sizeof(grumpkin::fq);
+    auto buf = (uint8_t*)aligned_alloc(64, buf_size);
+    auto dst = &buf[0];
+    write(dst, fields);
 
-    size_t buf_size = results.size() * 32;
-    uint8_t* buf = (uint8_t*)aligned_alloc(64, buf_size);
-    for (size_t i = 0; i < results.size(); ++i) {
-        memcpy(&buf[i * 32], results[i].data(), 32);
-    }
-
-    *output = buf;
-    return buf_size;
+    return buf;
 }
 }

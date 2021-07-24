@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include "../../../fixtures/user_context.hpp"
+#include "./compute_nullifier.hpp"
+#include "./value/value_note.hpp"
 #include "../native/compute_nullifier.hpp"
-#include "../native/value/commit.hpp"
-#include "../circuit/compute_nullifier.hpp"
-#include "../circuit/value/commit.hpp"
+#include "../native/value/value_note.hpp"
 #include <stdlib/types/turbo.hpp>
 
 using namespace rollup::proofs::notes;
@@ -15,13 +15,13 @@ TEST(compute_nullifier_circuit, native_consistency)
     auto priv_key = uint256_t(user.owner.private_key);
 
     auto native_input_note = native::value::value_note{ 100, 0, 0, user.owner.public_key, user.note_secret };
-    auto native_enc_note = native::value::commit(native_input_note);
-    auto native_nullifier = native::compute_nullifier(native_enc_note, 1, priv_key, true);
+    auto native_commitment = native_input_note.commit();
+    auto native_nullifier = native::compute_nullifier(native_commitment, 1, priv_key, true);
 
     Composer composer;
-    auto circuit_input_note = circuit::value::witness_data(composer, native_input_note);
-    auto circuit_enc_note = circuit::value::commit(circuit_input_note);
-    auto circuit_nullifier = circuit::compute_nullifier(circuit_enc_note,
+    auto circuit_witness_data = circuit::value::witness_data(composer, native_input_note);
+    auto circuit_input_note = circuit::value::value_note(circuit_witness_data);
+    auto circuit_nullifier = circuit::compute_nullifier(circuit_input_note.commitment,
                                                         field_ct(witness_ct(&composer, 1)),
                                                         field_ct(witness_ct(&composer, priv_key)),
                                                         bool_ct(witness_ct(&composer, true)));

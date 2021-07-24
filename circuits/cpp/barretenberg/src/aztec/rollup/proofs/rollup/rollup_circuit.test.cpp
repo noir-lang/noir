@@ -468,12 +468,10 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
     notes::native::value::value_note note1 = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret };
-    auto expected1 = commit(note1);
-    EXPECT_EQ(rollup_data.inner_proofs[0].new_note1, expected1);
+    EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment1, note1.commit());
 
     notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret };
-    auto expected2 = commit(note2);
-    EXPECT_EQ(rollup_data.inner_proofs[0].new_note2, expected2);
+    EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment2, note2.commit());
 
     // Check correct interaction nonce in claim notes.
     auto check_defi_proof = [&](uint32_t i, uint32_t claim_note_interaction_nonce) {
@@ -482,13 +480,12 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
         auto bid = defi_proof.asset_id;
 
         auto partial_state =
-            notes::native::claim::create_partial_value_note(context.user.note_secret, context.user.owner.public_key, 0);
+            notes::native::value::create_partial_commitment(context.user.note_secret, context.user.owner.public_key, 0);
         notes::native::claim::claim_note claim_note = {
             deposit_value, bid, claim_note_interaction_nonce, partial_state
         };
-        auto expected = commit(claim_note);
 
-        EXPECT_EQ(defi_proof.new_note1, expected);
+        EXPECT_EQ(defi_proof.note_commitment1, claim_note.commit());
     };
 
     check_defi_proof(1, 4);

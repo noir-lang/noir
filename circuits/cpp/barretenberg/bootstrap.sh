@@ -10,11 +10,9 @@ echo "cd ./barretenberg && ./format.sh staged" > ../.git/hooks/pre-commit
 chmod +x ../.git/hooks/pre-commit
 
 # Download ignition transcript 0.
-if [ ! -d ./srs_db/ignition ]; then
-  cd ./srs_db
-  ./download_ignition.sh 0
-  cd ..
-fi
+cd ./srs_db
+./download_ignition.sh 0
+cd ..
 
 # Build native.
 mkdir -p build && cd build

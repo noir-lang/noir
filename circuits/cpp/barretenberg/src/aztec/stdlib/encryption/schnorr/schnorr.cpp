@@ -219,8 +219,8 @@ bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     byte_array<C> output = blake2s(hash_input);
     field_t<C> output_hi(output.slice(0, 16));
     field_t<C> output_lo(output.slice(16, 16));
-    output_lo.assert_equal(sig.e_lo);
-    output_hi.assert_equal(sig.e_hi);
+    output_lo.assert_equal(sig.e_lo, "verify signature failed");
+    output_hi.assert_equal(sig.e_hi, "verify signature failed");
     bool valid = (output_lo.get_value() == sig.e_lo.get_value());
     valid = valid && (output_hi.get_value() == sig.e_hi.get_value());
     return valid;

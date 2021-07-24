@@ -38,7 +38,6 @@ grumpkin::g1::element hash_single(const barretenberg::fr& in, generator_index_t 
 
     for (size_t i = 0; i < num_quads; ++i) {
         uint64_t entry = wnaf_entries[i + 1];
-        ;
         const grumpkin::g1::affine_element& point_to_add =
             ((entry & 0xffffff) == 1) ? ladder[i + 1].three : ladder[i + 1].one;
         uint64_t predicate = (entry >> 31U) & 1U;
@@ -117,37 +116,10 @@ grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)
     return result_fq;
 }
 
-std::vector<uint8_t> compress_native(const std::vector<uint8_t>& input)
+grumpkin::fq compress_native(const std::vector<uint8_t>& input)
 {
-    const auto result_fq = compress_native_buffer_to_field(input);
-    uint256_t result_u256(result_fq);
-    const size_t num_bytes = input.size();
-
     bool is_zero = std::all_of(input.begin(), input.end(), [](auto e) { return e == 0; });
-    if (is_zero) {
-        result_u256 = num_bytes;
-    }
-
-    std::vector<uint8_t> result_buffer(32);
-    for (size_t i = 0; i < 32; ++i) {
-        const uint64_t shift = (31 - i) * 8;
-        uint256_t shifted = result_u256 >> uint256_t(shift);
-        result_buffer[i] = static_cast<uint8_t>(shifted.data[0]);
-    }
-    return result_buffer;
-}
-
-grumpkin::g1::affine_element compress_to_point_native(const grumpkin::fq& left,
-                                                      const grumpkin::fq& right,
-                                                      const size_t hash_index)
-{
-    generator_index_t index_1 = { hash_index, 0 };
-    generator_index_t index_2 = { hash_index, 1 };
-    grumpkin::g1::element first = hash_single(left, index_1);
-    grumpkin::g1::element second = hash_single(right, index_2);
-    first = first + second;
-    first = first.normalize();
-    return { first.x, first.y };
+    return is_zero ? grumpkin::fq(input.size()) : compress_native_buffer_to_field(input);
 }
 
 } // namespace pedersen

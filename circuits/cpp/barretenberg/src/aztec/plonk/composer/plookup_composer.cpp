@@ -480,7 +480,9 @@ void PlookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     ++n;
 }
 
-std::vector<uint32_t> PlookupComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
+std::vector<uint32_t> PlookupComposer::create_range_constraint(const uint32_t witness_index,
+                                                               const size_t num_bits,
+                                                               std::string const& msg)
 {
     PLOOKUP_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
@@ -610,7 +612,7 @@ std::vector<uint32_t> PlookupComposer::create_range_constraint(const uint32_t wi
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
 
-    assert_equal(accumulators[accumulators.size() - 1], witness_index);
+    assert_equal(accumulators[accumulators.size() - 1], witness_index, msg);
     accumulators[accumulators.size() - 1] = witness_index;
 
     n += used_gates;

@@ -502,7 +502,7 @@ field_t<C> pedersen<C>::compress(const std::vector<field_t>& inputs,
 // If the input values are all zero, we return the array length instead of `0`
 // This is because we require the inputs to regular pedersen compression function are nonzero (we use this method to
 // hash the base layer of our merkle trees)
-template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& input)
+template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
 {
     if constexpr (C::type == waffle::ComposerType::PLOOKUP) {
         return pedersen_plookup<C>::compress(packed_byte_array(input));
@@ -530,7 +530,7 @@ template <typename C> byte_array<C> pedersen<C>::compress(const byte_array& inpu
     }
 
     field_t output = field_t(is_zero).madd(field_t(num_bytes) - compressed, compressed);
-    return byte_array(output);
+    return output;
 }
 
 template <typename C>

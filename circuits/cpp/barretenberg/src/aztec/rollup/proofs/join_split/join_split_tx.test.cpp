@@ -47,7 +47,6 @@ TEST(client_proofs_join_split_tx, test_serialization)
     tx.claim_note.owner_nonce = 444;
     tx.claim_note.note_secret = 0xcafebabe;
     tx.claim_note.deposit_value = 666;
-    tx.claim_note.defi_interaction_nonce = 999;
 
     memset(&tx.signature.e, 1, 32);
     memset(&tx.signature.s, 2, 32);

@@ -66,7 +66,9 @@ class MiMCComposer : public StandardComposer {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return StandardComposer::get_num_constant_gates(); }
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index, const size_t num_bits)
+    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
+                                                  const size_t num_bits,
+                                                  std::string const& msg = "create_range_constraint")
     {
         auto& q_mimc_coefficient = selectors[MimcSelectors::QMIMC_COEFF];
         auto& q_mimc_selector = selectors[MimcSelectors::QMIMC_SELEC];
@@ -74,7 +76,7 @@ class MiMCComposer : public StandardComposer {
             create_noop_gate();
         }
         const size_t old_n = n;
-        std::vector<uint32_t> out = StandardComposer::create_range_constraint(witness_index, num_bits);
+        std::vector<uint32_t> out = StandardComposer::create_range_constraint(witness_index, num_bits, msg);
         const size_t new_n = n;
         const size_t diff = new_n - old_n;
         for (size_t i = 0; i < diff; ++i) {

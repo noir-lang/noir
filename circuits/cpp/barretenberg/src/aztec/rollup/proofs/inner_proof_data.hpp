@@ -12,22 +12,20 @@ using namespace barretenberg;
 
 namespace InnerProofFields {
 enum {
-    PROOF_ID = 0,
-    PUBLIC_INPUT = 1,
-    PUBLIC_OUTPUT = 2,
-    ASSET_ID = 3,
-    NEW_NOTE1_X = 4,
-    NEW_NOTE1_Y = 5,
-    NEW_NOTE2_X = 6,
-    NEW_NOTE2_Y = 7,
-    NULLIFIER1 = 8,
-    NULLIFIER2 = 9,
-    INPUT_OWNER = 10,
-    OUTPUT_OWNER = 11,
-    MERKLE_ROOT = 12,
-    TX_FEE = 13,
+    PROOF_ID,
+    PUBLIC_INPUT,
+    PUBLIC_OUTPUT,
+    ASSET_ID,
+    NOTE_COMMITMENT1,
+    NOTE_COMMITMENT2,
+    NULLIFIER1,
+    NULLIFIER2,
+    INPUT_OWNER,
+    OUTPUT_OWNER,
+    MERKLE_ROOT,
+    TX_FEE,
+    NUM_FIELDS
 };
-const size_t NUM_PUBLISHED = 12;
 } // namespace InnerProofFields
 
 namespace InnerProofOffsets {
@@ -36,10 +34,8 @@ enum {
     PUBLIC_INPUT = InnerProofFields::PUBLIC_INPUT * 32,
     PUBLIC_OUTPUT = InnerProofFields::PUBLIC_OUTPUT * 32,
     ASSET_ID = InnerProofFields::ASSET_ID * 32,
-    NEW_NOTE1_X = InnerProofFields::NEW_NOTE1_X * 32,
-    NEW_NOTE1_Y = InnerProofFields::NEW_NOTE1_Y * 32,
-    NEW_NOTE2_X = InnerProofFields::NEW_NOTE2_X * 32,
-    NEW_NOTE2_Y = InnerProofFields::NEW_NOTE2_Y * 32,
+    NOTE_COMMITMENT1 = InnerProofFields::NOTE_COMMITMENT1 * 32,
+    NOTE_COMMITMENT2 = InnerProofFields::NOTE_COMMITMENT2 * 32,
     NULLIFIER1 = InnerProofFields::NULLIFIER1 * 32,
     NULLIFIER2 = InnerProofFields::NULLIFIER2 * 32,
     INPUT_OWNER = InnerProofFields::INPUT_OWNER * 32,
@@ -54,8 +50,8 @@ struct inner_proof_data {
     uint256_t public_input;
     uint256_t public_output;
     uint256_t asset_id;
-    grumpkin::g1::affine_element new_note1;
-    grumpkin::g1::affine_element new_note2;
+    barretenberg::fr note_commitment1;
+    barretenberg::fr note_commitment2;
     uint256_t nullifier1;
     uint256_t nullifier2;
     barretenberg::fr input_owner;
@@ -75,8 +71,8 @@ inline std::ostream& operator<<(std::ostream& os, inner_proof_data const& data)
         << "  public_input: " << data.public_input << "\n"
         << "  public_output: " << data.public_output << "\n"
         << "  asset_id: " << data.asset_id << "\n"
-        << "  new_note1: " << data.new_note1 << "\n"
-        << "  new_note2: " << data.new_note2 << "\n"
+        << "  note_commitment1: " << data.note_commitment1 << "\n"
+        << "  note_commitment2: " << data.note_commitment2 << "\n"
         << "  nullifier1: " << data.nullifier1 << "\n"
         << "  nullifier2: " << data.nullifier2 << "\n"
         << "  input_owner: " << data.input_owner << "\n"

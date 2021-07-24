@@ -28,7 +28,7 @@ class WorldStateDb {
         , trees_({ &data_tree_, &nullifier_tree_, &root_tree_, &defi_tree_ })
     {
         if (root_tree_.size() == 0) {
-            root_tree_.update_element(0, to_buffer(data_tree_.root()));
+            root_tree_.update_element(0, data_tree_.root());
             store_.commit();
         }
 
@@ -55,9 +55,10 @@ class WorldStateDb {
         GetRequest get_request;
         read(is, get_request);
         // std::cerr << get_request << std::endl;
-        std::vector<uint8_t> r = trees_[get_request.tree_id]->get_element(get_request.index);
-        GetResponse get_response = { { r.begin(), r.end() } };
-        write(os, get_response);
+        auto tree = trees_[get_request.tree_id];
+        auto path = tree->get_hash_path(get_request.index);
+        auto leaf = get_request.index & 0x1 ? path[0].second : path[0].first;
+        write(os, leaf == fr::neg_one() ? fr(0) : leaf);
     }
 
     void get_path(std::istream& is, std::ostream& os)
@@ -76,8 +77,7 @@ class WorldStateDb {
         read(is, put_request);
         // std::cerr << put_request << std::endl;
         PutResponse put_response;
-        put_response.root = trees_[put_request.tree_id]->update_element(
-            put_request.index, { put_request.value.begin(), put_request.value.end() });
+        put_response.root = trees_[put_request.tree_id]->update_element(put_request.index, put_request.value);
         write(os, put_response);
     }
 
@@ -86,8 +86,7 @@ class WorldStateDb {
         std::vector<PutRequest> put_requests;
         read(is, put_requests);
         for (auto& put_request : put_requests) {
-            trees_[put_request.tree_id]->update_element(put_request.index,
-                                                        { put_request.value.begin(), put_request.value.end() });
+            trees_[put_request.tree_id]->update_element(put_request.index, put_request.value);
         }
         write_metadata(os);
     }

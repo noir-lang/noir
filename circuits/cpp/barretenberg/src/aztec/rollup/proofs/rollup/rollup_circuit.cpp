@@ -1,9 +1,11 @@
 #include "rollup_circuit.hpp"
+#include "./rollup_proof_data.hpp"
 #include "../../constants.hpp"
 #include "../inner_proof_data.hpp"
 #include "../notes/circuit/claim/index.hpp"
 #include <stdlib/merkle_tree/index.hpp>
 #include <common/map.hpp>
+#include <common/container.hpp>
 #include "../notes/constants.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -17,10 +19,10 @@ using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
 using namespace notes;
 
-void propagate_inner_proof_public_inputs(Composer& composer, std::vector<field_ct> const& public_inputs)
+void propagate_inner_proof_public_inputs(std::vector<field_ct> const& public_inputs)
 {
-    for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED; ++i) {
-        composer.set_public_input(public_inputs[i].witness_index);
+    for (size_t i = 0; i < PropagatedInnerProofFields::NUM_FIELDS; ++i) {
+        public_inputs[i].set_public();
     }
 }
 
@@ -31,9 +33,9 @@ void add_zero_public_input(Composer& composer)
     composer.set_public_input(zero.witness_index);
 }
 
-void add_padding_public_inputs(Composer& composer)
+void add_tx_padding_public_inputs(Composer& composer)
 {
-    for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED; ++i) {
+    for (size_t i = 0; i < PropagatedInnerProofFields::NUM_FIELDS; ++i) {
         add_zero_public_input(composer);
     }
 }
@@ -50,17 +52,12 @@ field_ct check_nullifiers_inserted(Composer& composer,
 
         // This makes padding transactions act as noops.
         auto index = (new_null_indicies[i] * is_real);
-        auto old_nullifier_value = byte_array_ct(&composer, 64);
-        auto new_nullifier_value = byte_array_ct(&composer, 64);
-        new_nullifier_value.set_bit(0, is_real);
 
-        update_membership(composer,
-                          new_null_roots[i],
-                          {},
-                          new_nullifier_value,
+        update_membership(new_null_roots[i],
+                          field_ct(is_real),
                           latest_null_root,
                           old_null_paths[i],
-                          old_nullifier_value,
+                          field_ct(0),
                           byte_array_ct(index),
                           format(__FUNCTION__, "_", i));
 
@@ -68,31 +65,6 @@ field_ct check_nullifiers_inserted(Composer& composer,
     }
 
     return latest_null_root;
-}
-
-void check_data_tree_updated(Composer& composer,
-                             size_t rollup_size,
-                             merkle_tree::hash_path const& old_data_path,
-                             std::vector<byte_array_ct> const& new_data_values,
-                             field_ct const& old_data_root,
-                             field_ct const& new_data_root,
-                             field_ct const& data_start_index)
-{
-    size_t height = numeric::get_msb(rollup_size) + 1;
-    auto zero_subtree_root = field_ct(zero_hash_at_height(height));
-
-    auto rollup_root = compute_tree_root(new_data_values);
-
-    update_subtree_membership(composer,
-                              new_data_root,
-                              {},
-                              rollup_root,
-                              old_data_root,
-                              old_data_path,
-                              zero_subtree_root,
-                              byte_array_ct(data_start_index),
-                              height,
-                              __FUNCTION__);
 }
 
 /**
@@ -135,14 +107,13 @@ auto process_defi_deposit(Composer& composer,
     is_valid_bridge_id.assert_equal(true,
                                     format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times."));
 
-    // Modify the claim note output to mix in the interaction nonce, as the client always leaves it as 0.
-    point_ct claim_note_commitment{ public_inputs[InnerProofFields::NEW_NOTE1_X],
-                                    public_inputs[InnerProofFields::NEW_NOTE1_Y] };
-    claim_note_commitment =
-        notes::circuit::claim::complete_partial_claim_note(claim_note_commitment, note_defi_interaction_nonce);
+    // Complete the claim note output to mix in the interaction nonce.
+    auto note_commitment1 = public_inputs[InnerProofFields::NOTE_COMMITMENT1];
+    auto claim_note_commitment =
+        notes::circuit::claim::complete_partial_commitment(note_commitment1, note_defi_interaction_nonce);
 
-    public_inputs[InnerProofFields::NEW_NOTE1_X] = claim_note_commitment.x;
-    public_inputs[InnerProofFields::NEW_NOTE1_Y] = claim_note_commitment.y;
+    public_inputs[InnerProofFields::NOTE_COMMITMENT1] =
+        note_commitment1 * !is_defi_deposit + claim_note_commitment * is_defi_deposit;
 }
 
 /**
@@ -225,7 +196,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     }
 
     // Loop accumulators.
-    auto new_data_values = std::vector<byte_array_ct>();
+    auto new_data_values = std::vector<field_ct>();
     auto new_null_indicies = std::vector<field_ct>();
     recursion_output<bn254> recursion_output;
     std::vector<std::vector<field_ct>> inner_public_inputs;
@@ -252,7 +223,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         auto& public_inputs = recursion_output.public_inputs;
 
         // Zero padding public inputs.
-        for (size_t i = 0; i < InnerProofFields::NUM_PUBLISHED; ++i) {
+        for (size_t i = 0; i < InnerProofFields::NUM_FIELDS; ++i) {
             public_inputs[i] *= is_real;
         }
 
@@ -260,12 +231,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         process_claims(public_inputs, new_defi_root);
 
         // Add the proofs data values to the list.
-        new_data_values.push_back(byte_array_ct(&composer)
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_X])
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE1_Y]));
-        new_data_values.push_back(byte_array_ct(&composer)
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_X])
-                                      .write(public_inputs[InnerProofFields::NEW_NOTE2_Y]));
+        new_data_values.push_back(public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
+        new_data_values.push_back(public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
 
         // Add nullifiers to the list.
         new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER1]);
@@ -273,11 +240,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
         // Check this proofs data root exists in the data root tree (unless a padding entry).
         auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];
-        bool_ct valid = data_root != 0 && check_membership(composer,
-                                                           data_roots_root,
-                                                           data_roots_paths[i],
-                                                           byte_array_ct(data_root),
-                                                           byte_array_ct(data_root_indicies[i]));
+        bool_ct valid =
+            data_root != 0 &&
+            check_membership(data_roots_root, data_roots_paths[i], data_root, byte_array_ct(data_root_indicies[i]));
         is_real.assert_equal(valid, format("data_root_for_proof_", i));
 
         // Accumulate tx fee.
@@ -289,39 +254,38 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         inner_public_inputs.push_back(public_inputs);
     }
 
-    new_data_values.resize(rollup_size_pow2_ * 2, byte_array_ct(&composer, 64));
-    check_data_tree_updated(
-        composer, rollup_size_pow2_, old_data_path, new_data_values, old_data_root, new_data_root, data_start_index);
+    new_data_values.resize(rollup_size_pow2_ * 2, fr(0));
+    batch_update_membership(new_data_root, old_data_root, old_data_path, new_data_values, data_start_index);
 
     auto new_null_root =
         check_nullifiers_inserted(composer, new_null_roots, old_null_paths, num_txs, old_null_root, new_null_indicies);
 
     // Publish public inputs.
-    composer.set_public_input(rollup_id.witness_index);
-    composer.set_public_input(rollup_size_pow2.witness_index);
-    composer.set_public_input(data_start_index.witness_index);
-    composer.set_public_input(old_data_root.witness_index);
-    composer.set_public_input(new_data_root.witness_index);
-    composer.set_public_input(old_null_root.witness_index);
-    composer.set_public_input(new_null_root.witness_index);
-    composer.set_public_input(data_roots_root.witness_index);
-    composer.set_public_input(witness_ct(&composer, rollup.data_roots_root).witness_index);
+    rollup_id.set_public();
+    rollup_size_pow2.set_public();
+    data_start_index.set_public();
+    old_data_root.set_public();
+    new_data_root.set_public();
+    old_null_root.set_public();
+    new_null_root.set_public();
+    data_roots_root.set_public();
+    public_witness_ct(&composer, rollup.data_roots_root);
     add_zero_public_input(composer); // old_defi_root
-    composer.set_public_input(new_defi_root.witness_index);
+    new_defi_root.set_public();
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(bridge_ids[i].witness_index);
+        bridge_ids[i].set_public();
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        composer.set_public_input(defi_deposit_sums[i].witness_index);
+        defi_deposit_sums[i].set_public();
     }
     for (auto total_tx_fee : total_tx_fees) {
-        composer.set_public_input(total_tx_fee.witness_index);
+        total_tx_fee.set_public();
     }
     for (auto& inner : inner_public_inputs) {
-        propagate_inner_proof_public_inputs(composer, inner);
+        propagate_inner_proof_public_inputs(inner);
     }
     for (size_t i = max_num_txs; i < rollup_size_pow2_; ++i) {
-        add_padding_public_inputs(composer);
+        add_tx_padding_public_inputs(composer);
     }
 
     // Publish pairing coords limbs as public inputs.

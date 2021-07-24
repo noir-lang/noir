@@ -13,10 +13,10 @@ using namespace barretenberg;
 typedef std::vector<std::pair<fr, fr>> fr_hash_path;
 template <typename Ctx> using hash_path = std::vector<std::pair<field_t<Ctx>, field_t<Ctx>>>;
 
-inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t index, std::vector<uint8_t> const& value)
+inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t index, fr const& value)
 {
     fr_hash_path path = old_path;
-    fr current = hash_value_native(value);
+    fr current = value;
     for (size_t i = 0; i < old_path.size(); ++i) {
         bool path_bit = index & 0x1;
         if (path_bit) {
@@ -46,7 +46,7 @@ inline fr get_hash_path_root(fr_hash_path const& input)
 
 inline fr zero_hash_at_height(size_t height)
 {
-    auto current = hash_value_native(std::vector<uint8_t>(64, 0));
+    auto current = fr::neg_one();
     for (size_t i = 0; i < height; ++i) {
         current = compress_native(current, current);
     }

@@ -6,7 +6,7 @@
 struct PutRequest {
     uint8_t tree_id;
     uint256_t index;
-    std::vector<uint8_t> value;
+    barretenberg::fr value;
 };
 
 struct PutResponse {

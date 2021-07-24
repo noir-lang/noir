@@ -208,7 +208,9 @@ void StandardComposer::create_poly_gate(const poly_triple& in)
     ++n;
 }
 
-std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t witness_index, const size_t num_bits)
+std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t witness_index,
+                                                                const size_t num_bits,
+                                                                std::string const& msg)
 {
     fr target = get_variable(witness_index).from_montgomery_form();
 
@@ -261,7 +263,7 @@ std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t w
         }
     }
 
-    assert_equal(witness_index, accumulator_idx);
+    assert_equal(witness_index, accumulator_idx, msg);
     return accumulators;
 }
 

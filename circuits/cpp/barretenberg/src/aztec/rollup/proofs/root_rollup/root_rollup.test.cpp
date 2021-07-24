@@ -106,8 +106,10 @@ class root_rollup_tests : public ::testing::Test {
     {
         std::vector<std::vector<uint8_t>> proofs;
         for (uint32_t i = 0; i < n; ++i) {
-            auto js_proof = context.create_join_split_proof({}, {}, { 100, 50 }, 150);
-            proofs.push_back(js_proof);
+            auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
+                return context.create_join_split_proof({}, {}, { 100, 50 }, 150);
+            });
+            js_proofs.push_back(js_proof);
         }
         return proofs;
     }
@@ -132,7 +134,8 @@ TEST_F(root_rollup_tests, test_1_real_2_padding)
 
 TEST_F(root_rollup_tests, test_2_real_1_padding)
 {
-    auto tx_data = create_root_rollup_tx("root_211", { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
+    auto tx_data =
+        create_root_rollup_tx("root_221", { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 }
@@ -147,7 +150,7 @@ TEST_F(root_rollup_tests, test_3_real_0_padding)
 
 TEST_F(root_rollup_tests, test_incorrect_new_data_root_fails)
 {
-    auto tx_data = create_root_rollup_tx("bad_new_data_root_fail", { { js_proofs[0] } });
+    auto tx_data = create_root_rollup_tx("root_1", { { js_proofs[0] } });
     tx_data.new_data_roots_root = fr::random_element();
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_FALSE(result.logic_verified);
@@ -232,8 +235,8 @@ TEST_F(root_rollup_tests, test_defi_logic)
     EXPECT_EQ(rollup_data.deposit_sums[1], 20);
     EXPECT_EQ(rollup_data.deposit_sums[2], 0);
     EXPECT_EQ(rollup_data.deposit_sums[3], 0);
-    EXPECT_EQ(rollup_data.defi_interaction_notes[0], commit(interaction_notes[0]));
-    EXPECT_EQ(rollup_data.defi_interaction_notes[1], commit(interaction_notes[1]));
+    EXPECT_EQ(rollup_data.defi_interaction_notes[0], interaction_notes[0].commit());
+    EXPECT_EQ(rollup_data.defi_interaction_notes[1], interaction_notes[1].commit());
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {

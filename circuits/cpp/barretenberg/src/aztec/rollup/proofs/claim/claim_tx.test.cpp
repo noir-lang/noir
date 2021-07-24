@@ -17,7 +17,7 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.claim_note.bridge_id = 123;
     tx.claim_note.defi_interaction_nonce = 234;
     tx.claim_note.deposit_value = 345;
-    tx.claim_note.partial_state = grumpkin::g1::element::random_element();
+    tx.claim_note.value_note_partial_commitment = barretenberg::fr::random_element();
 
     tx.defi_interaction_note_path =
         merkle_tree::fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));

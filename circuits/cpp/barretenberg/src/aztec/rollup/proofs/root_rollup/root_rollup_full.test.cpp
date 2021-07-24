@@ -112,8 +112,8 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     auto inner_data = rollup_data.inner_proofs[3];
     EXPECT_EQ(inner_data.public_input, uint256_t(0));
     EXPECT_EQ(inner_data.public_output, uint256_t(0));
-    EXPECT_EQ(inner_data.new_note1, grumpkin::g1::affine_element(0));
-    EXPECT_EQ(inner_data.new_note2, grumpkin::g1::affine_element(0));
+    EXPECT_EQ(inner_data.note_commitment1, fr(0));
+    EXPECT_EQ(inner_data.note_commitment2, fr(0));
     EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
     EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
     EXPECT_EQ(inner_data.input_owner, fr(0));
@@ -152,8 +152,8 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
         auto inner_data = rollup_data.inner_proofs[i];
         EXPECT_EQ(inner_data.public_input, uint256_t(0));
         EXPECT_EQ(inner_data.public_output, uint256_t(0));
-        EXPECT_EQ(inner_data.new_note1, grumpkin::g1::affine_element(0));
-        EXPECT_EQ(inner_data.new_note2, grumpkin::g1::affine_element(0));
+        EXPECT_EQ(inner_data.note_commitment1, fr(0));
+        EXPECT_EQ(inner_data.note_commitment2, fr(0));
         EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
         EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
         EXPECT_EQ(inner_data.input_owner, fr(0));

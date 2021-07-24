@@ -1,13 +1,4 @@
-#include "c_bind.h"
-#include "native/claim/claim_note_tx_data.hpp"
-#include "native/claim/create_partial_value_note.hpp"
-#include "native/claim/complete_partial_claim_note.hpp"
-#include "native/claim/commit.hpp"
-#include "native/claim/compute_nullifier.hpp"
-#include "native/defi_interaction/commit.hpp"
-#include "native/value/commit.hpp"
-#include "native/compute_nullifier.hpp"
-
+#include "native/index.hpp"
 #include <ecc/curves/grumpkin/grumpkin.hpp>
 #include <crypto/sha256/sha256.hpp>
 #include <crypto/aes128/aes128.hpp>
@@ -19,61 +10,61 @@ using namespace rollup::proofs::notes::native;
 
 extern "C" {
 
-WASM_EXPORT void notes__commit_value_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__value_note_partial_commitment(uint8_t const* note_secret_buffer,
+                                                      uint8_t const* public_key_buffer,
+                                                      uint32_t nonce,
+                                                      uint8_t* output)
 {
-    auto note = from_buffer<value::value_note>(note_buffer);
-    auto note_commitment = value::commit(note);
-    write(output, note_commitment);
-}
-
-WASM_EXPORT void notes__compute_value_note_nullifier(
-    uint8_t const* enc_note_buffer, uint8_t* acc_pk_buffer, uint32_t index, bool is_real, uint8_t* output)
-{
-    auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
-    auto acc_pk = from_buffer<uint256_t>(acc_pk_buffer);
-    auto nullifier = compute_nullifier(enc_note, index, acc_pk, is_real);
-    write(output, nullifier);
-}
-
-WASM_EXPORT void notes__create_partial_value_note(uint8_t const* note_buffer,
-                                                  uint8_t* public_key_buffer,
-                                                  uint32_t nonce,
-                                                  uint8_t* output)
-{
-    auto tx = from_buffer<claim::claim_note_tx_data>(note_buffer);
+    auto note_secret = from_buffer<fr>(note_secret_buffer);
     auto public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
-    auto partial_state = claim::create_partial_value_note(tx.note_secret, public_key, nonce);
+    auto partial_state = value::create_partial_commitment(note_secret, public_key, nonce);
     write(output, partial_state);
 }
 
-WASM_EXPORT void notes__commit_claim_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__value_note_commitment(uint8_t const* note_buffer, uint8_t* output)
 {
-    auto note = from_buffer<claim::claim_note>(note_buffer);
-    auto note_commitment = claim::commit(note);
+    auto note = from_buffer<value::value_note>(note_buffer);
+    auto note_commitment = note.commit();
     write(output, note_commitment);
 }
 
-WASM_EXPORT void notes__compute_claim_note_nullifier(uint8_t const* enc_note_buffer, uint32_t index, uint8_t* output)
+WASM_EXPORT void notes__value_note_nullifier(
+    uint8_t const* commitment_buffer, uint8_t* acc_pk_buffer, uint32_t index, bool is_real, uint8_t* output)
 {
-    auto enc_note = from_buffer<grumpkin::g1::affine_element>(enc_note_buffer);
-    auto nullifier = claim::compute_nullifier(enc_note, index);
+    auto commitment = from_buffer<grumpkin::fq>(commitment_buffer);
+    auto acc_pk = from_buffer<uint256_t>(acc_pk_buffer);
+    auto nullifier = compute_nullifier(commitment, index, acc_pk, is_real);
     write(output, nullifier);
 }
 
-WASM_EXPORT void notes__complete_partial_claim_note(uint8_t const* note_buffer,
-                                                    uint32_t interaction_nonce,
-                                                    uint8_t* output)
+WASM_EXPORT void notes__claim_note_partial_commitment(uint8_t const* note_buffer, uint8_t* output)
 {
-    auto partial_note = from_buffer<grumpkin::g1::affine_element>(note_buffer);
-    auto enc_note = claim::complete_partial_claim_note(partial_note, interaction_nonce);
+    auto note = from_buffer<claim::claim_note>(note_buffer);
+    auto note_commitment = note.partial_commit();
+    write(output, note_commitment);
+}
+
+WASM_EXPORT void notes__claim_note_nullifier(uint8_t const* commitment_buffer, uint32_t index, uint8_t* output)
+{
+    auto commitment = from_buffer<grumpkin::fq>(commitment_buffer);
+    auto nullifier = claim::compute_nullifier(commitment, index);
+    write(output, nullifier);
+}
+
+WASM_EXPORT void notes__claim_note_complete_partial_commitment(uint8_t const* commitment_buffer,
+                                                               uint32_t interaction_nonce,
+                                                               uint8_t* output)
+{
+    auto commitment = from_buffer<grumpkin::fq>(commitment_buffer);
+    auto enc_note = claim::complete_partial_commitment(commitment, interaction_nonce);
     write(output, enc_note);
 }
 
-WASM_EXPORT void notes__commit_defi_interaction_note(uint8_t const* note_buffer, uint8_t* output)
+WASM_EXPORT void notes__defi_interaction_note_commitment(uint8_t const* note_buffer, uint8_t* output)
 {
     auto note = from_buffer<defi_interaction::note>(note_buffer);
-    auto commited = defi_interaction::commit(note);
-    write(output, commited);
+    auto commitment = note.commit();
+    write(output, commitment);
 }
 
 /**

@@ -10,16 +10,18 @@ namespace account {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline point_ct commit(field_ct const& account_alias_id,
-                       point_ct const& account_public_key,
-                       point_ct const& signing_pub_key)
+inline auto commit(field_ct const& account_alias_id,
+                   point_ct const& account_public_key,
+                   point_ct const& signing_pub_key)
 {
-    std::vector<field_ct> leaf_elements{
-        account_alias_id,
-        account_public_key.x,
-        signing_pub_key.x,
-    };
-    return pedersen::commit(leaf_elements, GeneratorIndex::ACCOUNT_NOTE_HASH_INPUTS, true);
+    return pedersen::compress(
+        {
+            account_alias_id,
+            account_public_key.x,
+            signing_pub_key.x,
+        },
+        true,
+        GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
 }
 
 } // namespace account

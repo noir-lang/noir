@@ -12,13 +12,6 @@ namespace claim {
 using namespace plonk::stdlib::merkle_tree;
 using namespace notes;
 
-field_ct compute_nullifier(point_ct const& note_commitment, field_ct const& tree_index)
-{
-    auto blake_input = byte_array_ct(note_commitment.x).write(byte_array_ct(tree_index));
-    auto blake_result = plonk::stdlib::blake2s(blake_input);
-    return field_ct(blake_result);
-}
-
 void claim_circuit(Composer& composer, claim_tx const& tx)
 {
     // Create witnesses.
@@ -59,33 +52,31 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
     // Compute output notes. Second note is zeroed if not used.
     // If defi interaction result is 0, refund original value.
-    auto output_note1 = circuit::claim::complete_partial_value_note(
-        claim_note.partial_state, output_value_a, claim_note_data.bridge_id_data.output_asset_id_a);
-    auto output_note2 = circuit::claim::complete_partial_value_note(
-        claim_note.partial_state, output_value_b, claim_note_data.bridge_id_data.output_asset_id_b);
-    auto refund_note = circuit::claim::complete_partial_value_note(
-        claim_note.partial_state, claim_note_data.deposit_value, claim_note_data.bridge_id_data.input_asset_id);
+    auto output_note1 = circuit::value::complete_partial_commitment(
+        claim_note.value_note_partial_commitment, output_value_a, claim_note_data.bridge_id_data.output_asset_id_a);
+    auto output_note2 = circuit::value::complete_partial_commitment(
+        claim_note.value_note_partial_commitment, output_value_b, claim_note_data.bridge_id_data.output_asset_id_b);
+    auto refund_note = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
+                                                                   claim_note_data.deposit_value,
+                                                                   claim_note_data.bridge_id_data.input_asset_id);
     auto interaction_success = defi_interaction_note.interaction_result;
-    output_note1.x = output_note1.x * interaction_success + refund_note.x * !interaction_success;
-    output_note1.y = output_note1.y * interaction_success + refund_note.y * !interaction_success;
-    output_note2.x = output_note2.x * two_output_notes * interaction_success;
-    output_note2.y = output_note2.y * two_output_notes * interaction_success;
+    output_note1 = output_note1 * interaction_success + refund_note * !interaction_success;
+    output_note2 = output_note2 * two_output_notes * interaction_success;
 
     // Check claim note and interaction note are related.
     claim_note.bridge_id.assert_equal(defi_interaction_note.bridge_id, "note bridge ids don't match");
     claim_note.defi_interaction_nonce.assert_equal(defi_interaction_note.interaction_nonce, "note nonces don't match");
 
     // Check claim note exists and compute nullifier.
-    auto claim_exists = check_membership(
-        composer, data_root, claim_note_path, byte_array_ct(claim_note), byte_array_ct(claim_note_index));
+    auto claim_exists =
+        check_membership(data_root, claim_note_path, claim_note.commitment, byte_array_ct(claim_note_index));
     claim_exists.assert_equal(true, "claim note not a member");
-    const auto nullifier1 = compute_nullifier(claim_note.commitment, claim_note_index);
+    const auto nullifier1 = circuit::claim::compute_nullifier(claim_note.commitment, claim_note_index);
 
     // Check defi interaction note exists.
-    const auto din_exists = check_membership(composer,
-                                             defi_root,
+    const auto din_exists = check_membership(defi_root,
                                              defi_interaction_note_path,
-                                             byte_array_ct(defi_interaction_note),
+                                             defi_interaction_note.commitment,
                                              byte_array_ct(defi_interaction_note.interaction_nonce));
     din_exists.assert_equal(true, "defi interaction note not a member");
 
@@ -102,18 +93,18 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     tx_fee.assert_is_zero();
 
     // The following make up the public inputs to the circuit.
-    composer.set_public_input(proof_id.witness_index);
-    composer.set_public_input(public_input.witness_index);
-    composer.set_public_input(public_output.witness_index);
-    composer.set_public_input(claim_note.bridge_id.witness_index);
+    proof_id.set_public();
+    public_input.set_public();
+    public_output.set_public();
+    claim_note.bridge_id.set_public();
     output_note1.set_public();
     output_note2.set_public();
-    composer.set_public_input(nullifier1.witness_index);
-    composer.set_public_input(nullifier2.witness_index);
-    composer.set_public_input(defi_root.witness_index);
-    composer.set_public_input(output_owner.witness_index);
-    composer.set_public_input(data_root.witness_index);
-    composer.set_public_input(tx_fee.witness_index);
+    nullifier1.set_public();
+    nullifier2.set_public();
+    defi_root.set_public();
+    output_owner.set_public();
+    data_root.set_public();
+    tx_fee.set_public();
 }
 
 } // namespace claim

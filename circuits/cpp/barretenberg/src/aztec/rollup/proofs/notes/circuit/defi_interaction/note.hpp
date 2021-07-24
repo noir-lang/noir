@@ -1,7 +1,6 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
 #include "../../native/defi_interaction/note.hpp"
-#include "../pedersen_note.hpp"
 #include "witness_data.hpp"
 
 namespace rollup {
@@ -33,7 +32,7 @@ struct note {
     bool_ct interaction_result;
 
     // commitment to the defi_interaction_note
-    point_ct commitment;
+    field_ct commitment;
 
     note(witness_data const& note)
         : bridge_id(note.bridge_id_data.to_field())
@@ -42,10 +41,10 @@ struct note {
         , total_output_a_value(note.total_output_a_value)
         , total_output_b_value(note.total_output_b_value)
         , interaction_result(note.interaction_result)
-        , commitment(commit())
+        , commitment(compute_commitment())
     {}
 
-    operator byte_array_ct() const { return byte_array_ct(commitment.x).write(commitment.y); }
+    operator byte_array_ct() const { return byte_array_ct(commitment); }
 
     byte_array_ct to_byte_array(Composer& composer, bool_ct is_real = 1) const
     {
@@ -62,23 +61,16 @@ struct note {
     }
 
   private:
-    point_ct commit()
+    field_ct compute_commitment()
     {
-        point_ct accumulator =
-            group_ct::fixed_base_scalar_mul<254>(bridge_id, GeneratorIndex::DEFI_INTERACTION_NOTE_BRIDGE_ID);
-
-        accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(
-            accumulator, total_input_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_INPUT_VALUE);
-        accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(
-            accumulator, total_output_a_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_OUTPUT_A_VALUE);
-        accumulator = conditionally_hash_and_accumulate<NOTE_VALUE_BIT_LENGTH>(
-            accumulator, total_output_b_value, GeneratorIndex::DEFI_INTERACTION_NOTE_TOTAL_OUTPUT_B_VALUE);
-        accumulator = conditionally_hash_and_accumulate<32>(
-            accumulator, interaction_nonce, GeneratorIndex::DEFI_INTERACTION_NOTE_INTERACTION_NONCE);
-        accumulator = conditionally_hash_and_accumulate<2>(
-            accumulator, field_ct(interaction_result), GeneratorIndex::DEFI_INTERACTION_NOTE_INTERACTION_RESULT);
-
-        return accumulator;
+        return pedersen::compress({ bridge_id,
+                                    total_input_value,
+                                    total_output_a_value,
+                                    total_output_b_value,
+                                    interaction_nonce,
+                                    interaction_result },
+                                  true,
+                                  GeneratorIndex::DEFI_INTERACTION_NOTE_COMMITMENT);
     }
 };
 

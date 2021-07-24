@@ -16,27 +16,12 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs;
 using namespace rollup::proofs::notes::native;
-using namespace rollup::proofs::notes::native::claim;
-using namespace rollup::proofs::notes::native::value;
-using namespace rollup::proofs::notes::native::account;
 
-std::vector<uint8_t> create_leaf_data(grumpkin::g1::affine_element const& enc_note)
+auto create_account_leaf_data(fr const& account_alias_id,
+                              grumpkin::g1::affine_element const& owner_key,
+                              grumpkin::g1::affine_element const& signing_key)
 {
-    std::vector<uint8_t> buf;
-    write(buf, enc_note.x);
-    write(buf, enc_note.y);
-    return buf;
-}
-
-std::vector<uint8_t> create_account_leaf_data(fr const& account_alias_id,
-                                              grumpkin::g1::affine_element const& owner_key,
-                                              grumpkin::g1::affine_element const& signing_key)
-{
-    auto enc_note = notes::native::account::commit({ account_alias_id, owner_key, signing_key });
-    std::vector<uint8_t> buf;
-    write(buf, enc_note.x);
-    write(buf, enc_note.y);
-    return buf;
+    return notes::native::account::account_note{ account_alias_id, owner_key, signing_key }.commit();
 }
 
 class join_split_tests : public ::testing::Test {
@@ -82,16 +67,14 @@ class join_split_tests : public ::testing::Test {
     void preload_value_notes()
     {
         for (auto note : value_notes) {
-            auto enc_note = commit(note);
-            tree->update_element(tree->size(), create_leaf_data(enc_note));
+            tree->update_element(tree->size(), note.commit());
         }
     }
 
     void append_notes(std::vector<value_note> const& notes)
     {
         for (auto note : notes) {
-            auto enc_note = commit(note);
-            tree->update_element(tree->size(), create_leaf_data(enc_note));
+            tree->update_element(tree->size(), note.commit());
         }
     }
 
@@ -124,7 +107,6 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = !nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
         tx.nonce = nonce;
-        tx.claim_note.defi_interaction_nonce = 0;
         tx.claim_note.owner = user.owner.public_key;
         tx.claim_note.owner_nonce = nonce;
         return tx;
@@ -176,7 +158,6 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
-        tx.claim_note.defi_interaction_nonce = 0;
         tx.claim_note.owner = user.owner.public_key;
         tx.claim_note.owner_nonce = 0;
         return tx;
@@ -231,6 +212,18 @@ TEST_F(join_split_tests, test_0_input_notes)
     tx.output_note[0].value = 30;
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
+TEST_F(join_split_tests, test_padding_input_note_non_0_value_fails)
+{
+    value_note gibberish = { 10, asset_id, 0, user.owner.public_key, user.note_secret };
+
+    join_split_tx tx = simple_setup();
+    tx.num_input_notes = 0;
+    tx.input_note = { gibberish, gibberish };
+    tx.output_note[0].value = 20;
+
+    EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
 TEST_F(join_split_tests, test_1_input_note)
@@ -595,18 +588,18 @@ HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 
     auto proof_data = inner_proof_data(proof.proof_data);
 
-    auto enc_input_note1_raw = commit(tx.input_note[0]);
-    auto enc_input_note2_raw = commit(tx.input_note[1]);
-    auto enc_output_note1 = commit(tx.output_note[0]);
-    auto enc_output_note2 = commit(tx.output_note[1]);
-    uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
+    auto input_note1_commitment = tx.input_note[0].commit();
+    auto input_note2_commitment = tx.input_note[1].commit();
+    auto output_note1_commitment = tx.output_note[0].commit();
+    auto output_note2_commitment = tx.output_note[1].commit();
+    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, 0, user.owner.private_key, true);
+    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, 1, user.owner.private_key, true);
 
     EXPECT_EQ(proof_data.proof_id, 0UL);
     EXPECT_EQ(proof_data.asset_id, tx.asset_id);
     EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
-    EXPECT_EQ(proof_data.new_note2, enc_output_note2);
+    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
+    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, nullifier2);
     EXPECT_EQ(proof_data.input_owner, tx.input_owner);
@@ -631,28 +624,26 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 
     auto proof_data = inner_proof_data(proof.proof_data);
 
-    auto partial_state =
-        create_partial_value_note(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
-    claim_note claim_note = {
-        tx.claim_note.deposit_value, tx.claim_note.bridge_id, tx.claim_note.defi_interaction_nonce, partial_state
-    };
+    auto partial_commitment =
+        value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
+    claim::claim_note claim_note = { tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, partial_commitment };
 
-    auto enc_input_note1_raw = commit(tx.input_note[0]);
-    auto enc_input_note2_raw = commit(tx.input_note[1]);
-    auto enc_output_note1 = commit(claim_note);
-    auto enc_output_note2 = commit(tx.output_note[1]);
-    uint256_t nullifier1 = compute_nullifier(enc_input_note1_raw, 0, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(enc_input_note2_raw, 1, user.owner.private_key, true);
+    auto input_note1_commitment = tx.input_note[0].commit();
+    auto input_note2_commitment = tx.input_note[1].commit();
+    auto output_note1_commitment = claim_note.partial_commit();
+    auto output_note2_commitment = tx.output_note[1].commit();
+    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, 0, user.owner.private_key, true);
+    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, 1, user.owner.private_key, true);
 
     EXPECT_EQ(proof_data.proof_id, 2UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
-    EXPECT_EQ(proof_data.new_note2, enc_output_note2);
+    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
+    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.input_owner, partial_state.x);
-    EXPECT_EQ(proof_data.output_owner, partial_state.y);
+    EXPECT_EQ(proof_data.input_owner, partial_commitment);
+    EXPECT_EQ(proof_data.output_owner, tx.output_owner);
     EXPECT_EQ(proof_data.public_input, tx.public_input);
     EXPECT_EQ(proof_data.public_output, tx.claim_note.deposit_value);
     EXPECT_EQ(proof_data.tx_fee, 0UL);

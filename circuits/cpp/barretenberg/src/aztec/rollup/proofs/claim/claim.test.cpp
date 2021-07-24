@@ -41,11 +41,7 @@ class claim_tests : public ::testing::Test {
 
     template <typename T, typename Tree> void append_note(T const& note, Tree& tree)
     {
-        auto enc_note = commit(note);
-        std::vector<uint8_t> buf;
-        write(buf, enc_note.x);
-        write(buf, enc_note.y);
-        tree->update_element(tree->size(), buf);
+        tree->update_element(tree->size(), note.commit());
     }
 
     claim_tx create_claim_tx(claim_note const& claim_note,
@@ -80,7 +76,7 @@ class claim_tests : public ::testing::Test {
 
 TEST_F(claim_tests, test_claim)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -91,7 +87,7 @@ TEST_F(claim_tests, test_claim)
 
 TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -103,7 +99,7 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 
 TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -115,7 +111,7 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 
 TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 1, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -126,7 +122,7 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 
 TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 1, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -137,7 +133,7 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 
 TEST_F(claim_tests, test_missing_claim_note_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
@@ -147,7 +143,7 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
 
 TEST_F(claim_tests, test_missing_interaction_note_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
@@ -176,7 +172,7 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
     // Create and add a claim note, and a defi interaction note, to the data tree.
     const claim_note note1 = {
-        input_value, bridge_id.to_uint256_t(), 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0)
+        input_value, bridge_id.to_uint256_t(), 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
     };
     const defi_interaction::note note2 = {
         bridge_id.to_uint256_t(), 0, total_input, total_output_a, total_output_b, 1
@@ -199,16 +195,14 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     const value_note expected_output_note2 = {
         tx.output_value_b, bridge_id.output_asset_id_b, 0, user.owner.public_key, user.note_secret
     };
-    auto enc_output_note1 = commit(expected_output_note1);
-    auto enc_output_note2 = commit(expected_output_note2);
-    uint256_t nullifier1 = compute_nullifier(commit(note1), tx.claim_note_index);
+    uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
     // Validate public inputs.
     EXPECT_EQ(proof_data.proof_id, 3UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
-    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
-    EXPECT_EQ(proof_data.new_note2, enc_output_note2);
+    EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
+    EXPECT_EQ(proof_data.note_commitment2, expected_output_note2.commit());
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
     EXPECT_EQ(proof_data.input_owner, defi_tree->root());
@@ -222,7 +216,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 {
     const bridge_id bridge_id = { 0, 1, 0, 111, 222 };
     const claim_note note1 = {
-        10, bridge_id.to_uint256_t(), 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0)
+        10, bridge_id.to_uint256_t(), 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
     };
     const defi_interaction::note note2 = { bridge_id.to_uint256_t(), 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
@@ -235,15 +229,14 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     const value_note expected_output_note1 = {
         20, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret
     };
-    auto enc_output_note1 = commit(expected_output_note1);
 
-    uint256_t nullifier1 = compute_nullifier(commit(note1), tx.claim_note_index);
+    uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
     EXPECT_EQ(proof_data.proof_id, 3UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
-    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
-    EXPECT_EQ(proof_data.new_note2, grumpkin::g1::affine_element(0, 0));
+    EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
+    EXPECT_EQ(proof_data.note_commitment2, fr(0));
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
     EXPECT_EQ(proof_data.input_owner, defi_tree->root());
@@ -259,7 +252,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 {
     const bridge_id bridge_id = { 0, 1, 0, 111, 222 };
     const claim_note note1 = {
-        10, bridge_id.to_uint256_t(), 0, create_partial_value_note(user.note_secret, user.owner.public_key, 0)
+        10, bridge_id.to_uint256_t(), 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
     };
     const defi_interaction::note note2 = { bridge_id.to_uint256_t(), 0, 100, 200, 300, 0 };
     append_note(note1, data_tree);
@@ -272,15 +265,14 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     const value_note expected_output_note1 = {
         10, bridge_id.input_asset_id, 0, user.owner.public_key, user.note_secret
     };
-    auto enc_output_note1 = commit(expected_output_note1);
 
-    uint256_t nullifier1 = compute_nullifier(commit(note1), tx.claim_note_index);
+    uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
     EXPECT_EQ(proof_data.proof_id, 3UL);
     EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
-    EXPECT_EQ(proof_data.new_note1, enc_output_note1);
-    EXPECT_EQ(proof_data.new_note2, grumpkin::g1::affine_element(0, 0));
+    EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
+    EXPECT_EQ(proof_data.note_commitment2, fr(0));
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
     EXPECT_EQ(proof_data.input_owner, defi_tree->root());

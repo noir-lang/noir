@@ -31,7 +31,7 @@ join_split_tx noop_tx()
     tx.input_path = { gibberish_path, gibberish_path };
     tx.input_note = { gibberish_note, gibberish_note };
     tx.output_note = { gibberish_note, gibberish_note };
-    tx.claim_note = { 0, 0, pub_key, 0, gibberish_note.secret, 0 };
+    tx.claim_note = { 0, 0, pub_key, 0, gibberish_note.secret };
     tx.account_index = 0;
     tx.account_path = gibberish_path;
     tx.signing_pub_key = pub_key;

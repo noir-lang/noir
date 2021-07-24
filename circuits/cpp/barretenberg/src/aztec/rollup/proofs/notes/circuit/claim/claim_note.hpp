@@ -1,10 +1,10 @@
 #pragma once
 #include <stdlib/types/turbo.hpp>
-#include "../pedersen_note.hpp"
 #include "../bridge_id.hpp"
 #include "witness_data.hpp"
-#include "create_partial_value_note.hpp"
-#include "commit.hpp"
+#include "../value/create_partial_commitment.hpp"
+#include "create_partial_commitment.hpp"
+#include "complete_partial_commitment.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -14,31 +14,41 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
+struct partial_claim_note {
+    field_ct deposit_value;
+    field_ct bridge_id;
+    field_ct defi_interaction_nonce;
+    field_ct value_note_partial_commitment;
+    field_ct partial_commitment;
+
+    partial_claim_note(claim_note_tx_witness_data const& data)
+    {
+        deposit_value = data.deposit_value;
+        bridge_id = data.bridge_id_data.to_field();
+        value_note_partial_commitment =
+            value::create_partial_commitment(data.note_secret, data.owner, data.owner_nonce);
+        partial_commitment = create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment);
+    }
+};
+
 struct claim_note {
     field_ct deposit_value;
     field_ct bridge_id;
     field_ct defi_interaction_nonce;
-    point_ct partial_state;
-    point_ct commitment;
+    field_ct value_note_partial_commitment;
+    field_ct commitment;
 
     claim_note(claim_note_witness_data const& data)
         : deposit_value(data.deposit_value)
         , bridge_id(data.bridge_id_data.to_field())
         , defi_interaction_nonce(data.defi_interaction_nonce)
-        , partial_state(data.partial_state)
-        , commitment(commit(deposit_value, bridge_id, defi_interaction_nonce, partial_state))
+        , value_note_partial_commitment(data.value_note_partial_commitment)
+        , commitment(complete_partial_commitment(
+              create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment),
+              defi_interaction_nonce))
     {}
 
-    claim_note(claim_note_tx_witness_data const& data)
-    {
-        deposit_value = data.deposit_value;
-        bridge_id = data.bridge_id_data.to_field();
-        defi_interaction_nonce = data.defi_interaction_nonce;
-        partial_state = create_partial_value_note(data.note_secret, data.owner_nonce, data.owner);
-        commitment = commit(deposit_value, bridge_id, defi_interaction_nonce, partial_state);
-    }
-
-    operator byte_array_ct() const { return byte_array_ct(commitment.x).write(commitment.y); }
+    operator byte_array_ct() const { return byte_array_ct(commitment); }
 };
 
 } // namespace claim

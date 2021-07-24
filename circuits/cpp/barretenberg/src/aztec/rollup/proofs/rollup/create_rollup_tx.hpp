@@ -123,16 +123,14 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                 ++nonce;
             };
             nonce += rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
-            struct_data.new_note1 = notes::native::claim::complete_partial_claim_note(struct_data.new_note1, nonce);
+            struct_data.note_commitment1 =
+                notes::native::claim::complete_partial_commitment(struct_data.note_commitment1, nonce);
         }
 
-        auto data_value1 = to_buffer(struct_data.new_note1);
-        auto data_value2 = to_buffer(struct_data.new_note2);
-
-        data_tree.update_element(data_start_index + i * 2, data_value1);
-        data_tree.update_element(data_start_index + i * 2 + 1, data_value2);
-        rollup_tree.update_element(i * 2, data_value1);
-        rollup_tree.update_element(i * 2 + 1, data_value2);
+        data_tree.update_element(data_start_index + i * 2, struct_data.note_commitment1);
+        data_tree.update_element(data_start_index + i * 2 + 1, struct_data.note_commitment2);
+        rollup_tree.update_element(i * 2, struct_data.note_commitment1);
+        rollup_tree.update_element(i * 2 + 1, struct_data.note_commitment2);
 
         data_roots_paths.push_back(root_tree.get_hash_path(data_roots_indicies[i]));
 
@@ -146,8 +144,7 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
     std::vector<fr_hash_path> old_null_paths;
     std::vector<fr_hash_path> new_null_paths;
 
-    auto nullifier_value = std::vector<uint8_t>(64, 0);
-    nullifier_value[63] = 1;
+    auto nullifier_value = fr(1);
 
     for (size_t i = 0; i < nullifier_indicies.size(); ++i) {
         old_null_paths.push_back(null_tree.get_hash_path(nullifier_indicies[i]));
@@ -169,7 +166,7 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
 
     // Add nullifier 0 index padding data if necessary.
     if (num_txs < rollup_size) {
-        data_tree.update_element(data_start_index + (rollup_size * 2) - 1, std::vector<uint8_t>(64, 0));
+        data_tree.update_element(data_start_index + (rollup_size * 2) - 1, fr(0));
 
         auto zero_null_path = null_tree.get_hash_path(0);
         rollup.old_null_paths.push_back(zero_null_path);

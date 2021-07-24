@@ -48,15 +48,11 @@ class account_tests : public ::testing::Test {
             create_account_leaf_data(account_alias_id, user.owner.public_key, user.signing_keys[1].public_key));
     }
 
-    std::vector<uint8_t> create_account_leaf_data(fr const& account_alias_id,
-                                                  grumpkin::g1::affine_element const& owner_key,
-                                                  grumpkin::g1::affine_element const& signing_key)
+    fr create_account_leaf_data(fr const& account_alias_id,
+                                grumpkin::g1::affine_element const& owner_key,
+                                grumpkin::g1::affine_element const& signing_key)
     {
-        auto enc_note = commit({ account_alias_id, owner_key, signing_key });
-        std::vector<uint8_t> buf;
-        write(buf, enc_note.x);
-        write(buf, enc_note.y);
-        return buf;
+        return account_note{ account_alias_id, owner_key, signing_key }.commit();
     }
 
     uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id, fr const& gibberish, bool migrate_account)
