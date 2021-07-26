@@ -28,6 +28,8 @@ inline void pad_rollup_tx(rollup_tx& rollup, size_t rollup_size, std::vector<uin
     rollup.data_roots_indicies.resize(rollup_size, 0);
     rollup.num_defi_interactions = rollup.bridge_ids.size();
     rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.num_asset_ids = rollup.asset_ids.size();
+    rollup.asset_ids.resize(NUM_ERC20_ASSETS);
 }
 
 /**
@@ -62,7 +64,9 @@ template <typename T> inline rollup_tx create_empty_rollup(T& world_state)
                          .data_roots_indicies = { 0 },
                          .new_defi_root = world_state.defi_tree.root(),
                          .bridge_ids = {},
-                         .num_defi_interactions = 0 };
+                         .asset_ids = {},
+                         .num_defi_interactions = 0,
+                         .num_asset_ids = 0 };
 
     return rollup;
 }
@@ -82,6 +86,7 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                                   size_t rollup_size,
                                   std::vector<std::vector<uint8_t>> const& txs,
                                   std::vector<uint256_t> bridge_ids = {},
+                                  std::vector<uint256_t> asset_ids = {},
                                   std::vector<uint32_t> const& data_roots_indicies_ = {})
 {
     auto& data_tree = world_state.data_tree;
@@ -162,7 +167,8 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
     rollup_tx rollup = { rollup_id,           num_txs,          data_start_index, txs,
                          old_data_root,       data_tree.root(), old_data_path,    old_null_root,
                          new_null_roots,      old_null_paths,   root_tree_root,   data_roots_paths,
-                         data_roots_indicies, defi_tree.root(), bridge_ids,       bridge_ids.size() };
+                         data_roots_indicies, defi_tree.root(), bridge_ids,       asset_ids,
+                         bridge_ids.size(),   asset_ids.size() };
 
     // Add nullifier 0 index padding data if necessary.
     if (num_txs < rollup_size) {

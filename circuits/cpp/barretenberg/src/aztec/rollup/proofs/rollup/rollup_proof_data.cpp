@@ -50,6 +50,9 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
         deposit_sums[i] = fields[RollupProofFields::DEFI_BRIDGE_DEPOSITS + i];
     }
     for (size_t i = 0; i < NUM_ASSETS; ++i) {
+        asset_ids[i] = fields[RollupProofFields::ASSET_IDS + i];
+    }
+    for (size_t i = 0; i < NUM_ASSETS; ++i) {
         total_tx_fees[i] = fields[RollupProofFields::TOTAL_TX_FEES + i];
     }
 

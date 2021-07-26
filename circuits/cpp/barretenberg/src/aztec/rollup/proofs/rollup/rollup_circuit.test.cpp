@@ -54,20 +54,21 @@ class rollup_tests : public ::testing::Test {
 
     auto create_tx_with_3_defi()
     {
-        context.append_value_notes({ 100, 50, 100, 50, 100, 50 });
-        context.append_value_notes({ 200, 40 }, 1);
+        context.append_value_notes({ 100, 50 });
+        context.append_value_notes({ 100, 50, 100, 50 }, 8);
+        context.append_value_notes({ 200, 40 }, 13);
         context.start_next_root_rollup();
 
-        notes::native::bridge_id bid1 = { 0, 2, 0, 0, 0 };
-        notes::native::bridge_id bid2 = { 1, 2, 1, 0, 0 };
+        notes::native::bridge_id bid1 = { 0, 2, 8, 0, 0 };
+        notes::native::bridge_id bid2 = { 1, 2, 13, 0, 0 };
         auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
         // The difference in input and output note values becomes the tx_fee for defi deposits.
-        auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1);
-        auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1);
-        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 207 }, bid2, 1);
+        auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);
+        auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);
+        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 207 }, bid2, 13);
 
         return create_rollup_tx(
-            context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 });
+            context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 }, { 8, 13 });
     }
 
     fixtures::TestContext context;
@@ -133,7 +134,7 @@ TEST_F(rollup_tests, test_1_proof_with_old_root_in_1_rollup)
     context.start_next_root_rollup();
 
     // Create rollup 2 with old join-split.
-    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof }, {}, { data_root_index });
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof }, {}, {}, { data_root_index });
 
     inner_proof_data data(join_split_proof);
     EXPECT_TRUE(data.merkle_root != rollup.old_data_root);
@@ -232,11 +233,11 @@ TEST_F(rollup_tests, test_overflow_num_txs_fails)
     EXPECT_FALSE(result.logic_verified);
 }
 
-// Asset Id
+// Asset Ids
 TEST_F(rollup_tests, test_invalid_asset_id_fails)
 {
     size_t rollup_size = 1;
-    uint32_t invalid_asset_id = NUM_ASSETS;
+    uint32_t invalid_asset_id = MAX_NUM_ASSETS;
 
     context.append_account_notes();
     context.append_value_notes({ 100, 50 }, invalid_asset_id);
@@ -244,10 +245,58 @@ TEST_F(rollup_tests, test_invalid_asset_id_fails)
     auto join_split_proof =
         context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 }, 0, 0, 0, 0, invalid_asset_id);
 
-    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof }, {}, { invalid_asset_id });
     auto result = verify_logic(rollup, rollup_1_keyless);
 
     EXPECT_FALSE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_asset_id_zero_fails)
+{
+    auto tx = create_tx_with_1_defi();
+    tx.asset_ids = { 0 };
+    auto result = verify_logic(tx, rollup_1_keyless);
+
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_asset_id_repeated_fails)
+{
+    auto tx = create_tx_with_3_defi();
+    tx.asset_ids.push_back(tx.asset_ids[0]);
+    auto result = verify_logic(tx, rollup_4_keyless);
+
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_asset_id_unmatched_fails)
+{
+    auto tx = create_tx_with_3_defi();
+    tx.asset_ids[0] = { 1, 2, 0, 0 };
+    auto result = verify_logic(tx, rollup_4_keyless);
+
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_asset_id_output_order)
+{
+    auto tx = create_tx_with_3_defi();
+    auto result = verify_logic(tx, rollup_4_keyless);
+    ASSERT_TRUE(result.logic_verified);
+
+    auto rollup_data = rollup_proof_data(result.public_inputs);
+
+    // Check correct asset ids order.
+    EXPECT_EQ(rollup_data.asset_ids[0], 0);               // asset_id 0
+    EXPECT_EQ(rollup_data.asset_ids[1], tx.asset_ids[0]); // asset_id 8
+    EXPECT_EQ(rollup_data.asset_ids[2], tx.asset_ids[1]); // asset_id 13
+    EXPECT_EQ(rollup_data.asset_ids[3], 0);               // padding
+
+    // Check correct tx_fee accumulation.
+    EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id 0
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 50); // asset_id 8
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 13); // asset_id 13
+    EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // padding
 }
 
 // Account
@@ -452,10 +501,10 @@ TEST_F(rollup_tests, test_defi_deposit_sums_accumulated)
     EXPECT_EQ(rollup_data.deposit_sums[3], 0);
 
     // Check correct tx_fee accumulation.
-    EXPECT_EQ(rollup_data.total_tx_fees[0], (7 + 10 + 40));
-    EXPECT_EQ(rollup_data.total_tx_fees[1], 13);
-    EXPECT_EQ(rollup_data.total_tx_fees[2], 0);
-    EXPECT_EQ(rollup_data.total_tx_fees[3], 0);
+    EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id 0
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 50); // asset_id 8
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 13); // asset_id 13
+    EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // padding
 }
 
 TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
@@ -497,6 +546,7 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
 {
     auto rollup1_tx = create_tx_with_3_defi();
     auto bids = rollup1_tx.bridge_ids;
+    auto asset_ids = rollup1_tx.asset_ids;
     auto result = verify_logic(rollup1_tx, rollup_4_keyless);
     ASSERT_TRUE(result.logic_verified);
 
@@ -510,8 +560,10 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     // js, acc and defi proofs to be rolled up with claim proofs
     auto acc_proof = context.create_account_proof(0, data.data_start_index + 8);
     auto js_proof = context.create_join_split_proof({}, {}, { 100, 30 }, 130);
-    auto defi_proof1 = context.create_defi_proof(
-        { data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bids[0]);
+    notes::native::bridge_id bid1 = { 0, 2, 0, 0, 0 };
+    bids.push_back(bid1);
+    auto defi_proof1 =
+        context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bid1);
 
     // Create claim proofs for each claim note in previous rollup.
     auto claim_proofs = mapi(data.inner_proofs, [&](auto inner, auto i) {
@@ -522,8 +574,8 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
         return context.create_claim_proof(inner.asset_id, inner.public_output, claim_note_index);
     });
 
-    auto rollup2_tx =
-        create_rollup_tx(context.world_state, 4, { js_proof, acc_proof, defi_proof1, claim_proofs[2] }, bids);
+    auto rollup2_tx = create_rollup_tx(
+        context.world_state, 4, { js_proof, acc_proof, defi_proof1, claim_proofs[2] }, bids, asset_ids);
     auto result2 = verify_logic(rollup2_tx, rollup_4_keyless);
     EXPECT_TRUE(result2.logic_verified);
 }

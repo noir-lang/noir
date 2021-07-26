@@ -72,7 +72,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     claim_note.defi_interaction_nonce.assert_is_zero("interaction nonce must be 0");
 
     // Verify the asset id is less than the total number of assets.
-    composer.create_range_constraint(inputs.asset_id.witness_index, NUM_ASSETS_BIT_LENGTH, "asset id too large");
+    composer.create_range_constraint(inputs.asset_id.witness_index, MAX_NUM_ASSETS_BIT_LENGTH, "asset id too large");
 
     // Check we're not joining the same input note.
     (inputs.input_note1_index == inputs.input_note2_index).assert_equal(false, "joining same note");

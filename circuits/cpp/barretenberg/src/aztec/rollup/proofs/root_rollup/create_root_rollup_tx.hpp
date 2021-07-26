@@ -18,6 +18,7 @@ inline void pad_rollup_tx(root_rollup_tx& rollup, circuit_data const& circuit_da
     rollup.num_previous_defi_interactions = rollup.defi_interaction_notes.size();
     rollup.defi_interaction_notes.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
     rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
+    rollup.asset_ids.resize(NUM_ERC20_ASSETS);
 }
 
 inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
@@ -25,6 +26,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
                                             fr old_defi_root,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
                                             std::vector<uint256_t> const& bridge_ids = {},
+                                            std::vector<uint256_t> const& asset_ids = {},
                                             std::vector<native::defi_interaction::note> const& interaction_notes = {})
 {
     auto& data_tree = world_state.data_tree;
@@ -48,6 +50,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
     tx.new_defi_root = defi_tree.root();
 
     tx.bridge_ids = bridge_ids;
+    tx.asset_ids = asset_ids;
     tx.defi_interaction_notes = interaction_notes;
 
     return tx;

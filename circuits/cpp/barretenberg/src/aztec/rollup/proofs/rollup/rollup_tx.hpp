@@ -38,10 +38,16 @@ struct rollup_tx {
     // All defi deposits must match one of these.
     std::vector<uint256_t> bridge_ids;
 
+    // Each asset must match one of these.
+    std::vector<uint256_t> asset_ids;
+
     bool operator==(rollup_tx const&) const = default;
 
     // Not serialized or known about externally. Populated before the tx is padded.
     size_t num_defi_interactions;
+
+    // Not serialized or known about externally. Number of assets (< NUM_ASSETS) allowed in this rollup.
+    size_t num_asset_ids;
 };
 
 template <typename B> inline void read(B& buf, rollup_tx& tx)
@@ -66,6 +72,7 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
 
     read(buf, tx.new_defi_root);
     read(buf, tx.bridge_ids);
+    read(buf, tx.asset_ids);
 }
 
 template <typename B> inline void write(B& buf, rollup_tx const& tx)
@@ -90,6 +97,7 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
 
     write(buf, tx.new_defi_root);
     write(buf, tx.bridge_ids);
+    write(buf, tx.asset_ids);
 }
 
 inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
@@ -126,6 +134,7 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     os << "data_roots_indicies: " << tx.data_roots_indicies;
     os << "new_defi_root: " << tx.new_defi_root << "\n";
     os << "bridge_ids: " << tx.bridge_ids;
+    os << "asset_ids: " << tx.asset_ids;
     return os;
 }
 

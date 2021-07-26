@@ -385,7 +385,7 @@ TEST_F(join_split_tests, test_different_input_output_asset_id_fails)
 
 TEST_F(join_split_tests, test_invalid_asset_id_fails)
 {
-    uint32_t invalid_asset_id = rollup::NUM_ASSETS;
+    uint32_t invalid_asset_id = rollup::MAX_NUM_ASSETS;
     std::vector<value_note> input_notes = { { 100, invalid_asset_id, 0, user.owner.public_key, user.note_secret },
                                             { 50, invalid_asset_id, 0, user.owner.public_key, user.note_secret } };
     append_notes(input_notes);

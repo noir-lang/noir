@@ -132,13 +132,18 @@ auto process_claims(std::vector<field_ct>& public_inputs, field_ct const& new_de
 /**
  * Accumulate tx fees from each inner proof depending on the type of proof.
  */
-void accumulate_tx_fees(std::vector<field_ct>& total_tx_fees,
+void accumulate_tx_fees(Composer& composer,
+                        std::vector<field_ct>& total_tx_fees,
                         field_ct const& proof_id,
                         field_ct const& asset_id,
-                        field_ct const& tx_fee)
+                        field_ct const& tx_fee,
+                        std::vector<field_ct> const& asset_ids,
+                        field_ct const& num_asset_ids)
 {
     const auto is_js_tx = proof_id == field_ct(ProofIds::JOIN_SPLIT);
     const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
+    const auto is_defi_claim = proof_id == field_ct(ProofIds::DEFI_CLAIM);
+    const auto is_defi = (is_defi_deposit || is_defi_claim).normalize();
 
     // asset_id = bridge_id for a defi deposit proof
     const uint8_t input_asset_id_lsb = (DEFI_BRIDGE_ADDRESS_BIT_LENGTH + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN);
@@ -146,12 +151,27 @@ void accumulate_tx_fees(std::vector<field_ct>& total_tx_fees,
     const field_ct defi_input_asset_id = asset_id.slice(input_asset_id_msb, input_asset_id_lsb);
 
     // combined asset id of an inner proof
-    const auto input_asset_id = (defi_input_asset_id * is_defi_deposit + asset_id * is_js_tx).normalize();
+    const auto input_asset_id = (defi_input_asset_id * is_defi + asset_id * is_js_tx).normalize();
 
-    // Accumulate tx_fee. Note that tx_fee = 0 for padding proofs.
-    for (size_t j = 0; j < NUM_ASSETS; ++j) {
-        total_tx_fees[j] += tx_fee * (input_asset_id == j);
+    // Accumulate tx_fee for eth token.
+    auto is_asset_id_zero = input_asset_id.is_zero();
+    total_tx_fees[0] += tx_fee * is_asset_id_zero;
+
+    // Accumulate tx_fee for erc20 tokens. Note that tx_fee = 0 for padding proofs.
+    field_ct num_matched(&composer, 0);
+    for (uint32_t k = 0; k < NUM_ERC20_ASSETS; k++) {
+        auto is_real = uint32_ct(k) < num_asset_ids;
+
+        const auto matches = input_asset_id == asset_ids[k] && is_real;
+        num_matched += matches;
+
+        total_tx_fees[k + 1] += tx_fee * matches;
     }
+
+    // Assert this proof matched a single asset_id.
+    auto is_valid_asset_id = num_matched == 1 || is_asset_id_zero;
+    is_valid_asset_id.assert_equal(true,
+                                   format("proof asset id matched ", uint64_t(num_matched.get_value()), " times."));
 }
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
@@ -186,6 +206,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     const auto num_defi_interactions = field_ct(witness_ct(&composer, rollup.num_defi_interactions));
     auto bridge_ids = map(rollup.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
     const auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
+    const auto num_asset_ids = field_ct(witness_ct(&composer, rollup.num_asset_ids));
+    auto asset_ids = map(rollup.asset_ids, [&](auto& aid) { return field_ct(witness_ct(&composer, aid)); });
 
     // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
@@ -193,6 +215,17 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         bridge_ids[i] *= in_scope;
         auto valid = !in_scope || bridge_ids[i] != 0;
         valid.assert_equal(true, "bridge_id out of scope");
+    }
+
+    // Zero any input asset_ids that are outside scope, and check in scope asset_ids are not zero.
+    // Note that asset_id = 0 denotes ETH token and other ERC-20 tokens have asset_id = erc20_address.
+    // For now, we assume that asset_id = 0 is included by default in our rollup (and use it as a rejection
+    // criteria for other asset_ids).
+    for (uint32_t i = 0; i < NUM_ERC20_ASSETS; i++) {
+        auto in_scope = uint32_ct(i) < num_asset_ids;
+        asset_ids[i] *= in_scope;
+        auto valid = !in_scope || asset_ids[i] != 0;
+        valid.assert_equal(true, "asset_id out of scope");
     }
 
     // Loop accumulators.
@@ -249,7 +282,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
         auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
         auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
-        accumulate_tx_fees(total_tx_fees, proof_id, asset_id, tx_fee);
+        accumulate_tx_fees(composer, total_tx_fees, proof_id, asset_id, tx_fee, asset_ids, num_asset_ids);
 
         inner_public_inputs.push_back(public_inputs);
     }
@@ -277,6 +310,10 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         defi_deposit_sums[i].set_public();
+    }
+    add_zero_public_input(composer); // asset_ids[0] = 0 (ETH)
+    for (size_t i = 0; i < NUM_ERC20_ASSETS; ++i) {
+        composer.set_public_input(asset_ids[i].witness_index);
     }
     for (auto total_tx_fee : total_tx_fees) {
         total_tx_fee.set_public();

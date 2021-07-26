@@ -2,6 +2,7 @@
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
 #include "pow.hpp"
+#include "../../../rollup/constants.hpp"
 
 namespace plonk {
 namespace stdlib {
@@ -667,20 +668,25 @@ field_t<ComposerContext> field_t<ComposerContext>::slice(const uint8_t msb, cons
     ComposerContext* ctx = lhs.get_context();
 
     const uint256_t value = uint256_t(get_value());
-    const auto hi_mask = ((uint256_t(1) << (256 - uint64_t(msb))) - 1) << (uint64_t(msb) + 1);
-    const auto hi = value & hi_mask;
+    const auto msb_plus_one = uint32_t(msb) + 1;
+    const auto hi_mask = ((uint256_t(1) << (256 - uint32_t(msb))) - 1);
+    const auto hi = (value >> msb_plus_one) & hi_mask;
 
     const auto lo_mask = (uint256_t(1) << lsb) - 1;
     const auto lo = value & lo_mask;
 
-    const auto slice_mask = ((uint256_t(1) << (uint64_t(msb - lsb) + 1)) - 1) << lsb;
-    const auto slice = (value & slice_mask) >> lsb;
+    const auto slice_mask = ((uint256_t(1) << (uint32_t(msb - lsb) + 1)) - 1);
+    const auto slice = (value >> lsb) & slice_mask;
 
     const field_t hi_wit = field_t(witness_t(ctx, hi));
     const field_t lo_wit = field_t(witness_t(ctx, lo));
     const field_t slice_wit = field_t(witness_t(ctx, slice));
 
-    assert_equal((hi_wit + lo_wit + (slice_wit * pow<ComposerContext>(field_t(2), lsb))));
+    ctx->create_range_constraint(hi_wit.witness_index, rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb));
+    ctx->create_range_constraint(lo_wit.witness_index, lsb);
+    ctx->create_range_constraint(slice_wit.witness_index, msb_plus_one - lsb);
+    assert_equal(((hi_wit * pow<ComposerContext>(field_t(2), msb_plus_one)) + lo_wit +
+                  (slice_wit * pow<ComposerContext>(field_t(2), lsb))));
 
     return slice_wit;
 }

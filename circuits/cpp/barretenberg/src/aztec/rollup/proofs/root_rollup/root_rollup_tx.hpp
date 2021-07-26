@@ -40,6 +40,9 @@ struct root_rollup_tx {
     // Set of bridge ids. Inner proofs bridge ids must match.
     std::vector<uint256_t> bridge_ids;
 
+    // Set of asset ids. Inner proofs asset ids must match.
+    std::vector<uint256_t> asset_ids;
+
     // Defi interactions from the previous rollup, to be inserted into defi tree.
     std::vector<native::defi_interaction::note> defi_interaction_notes;
 
@@ -66,6 +69,7 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.old_defi_path);
 
     read(buf, tx.bridge_ids);
+    read(buf, tx.asset_ids);
     read(buf, tx.defi_interaction_notes);
 }
 
@@ -85,6 +89,7 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.old_defi_path);
 
     write(buf, tx.bridge_ids);
+    write(buf, tx.asset_ids);
     write(buf, tx.defi_interaction_notes);
 }
 
@@ -101,6 +106,9 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
 
     os << "old_defi_root: " << tx.old_defi_root << "\n";
     os << "old_defi_path: " << tx.old_defi_path << "\n";
+
+    os << "bridge_ids: " << tx.bridge_ids << "\n";
+    os << "asset_ids: " << tx.asset_ids << "\n";
 
     size_t i = 0;
     for (auto defi_note : tx.defi_interaction_notes) {

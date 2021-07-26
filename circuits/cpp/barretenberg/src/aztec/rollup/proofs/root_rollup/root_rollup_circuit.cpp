@@ -27,6 +27,13 @@ void add_rollup_padding_public_inputs(Composer& composer, size_t inner_size)
     }
 }
 
+void add_zero_public_input(Composer& composer)
+{
+    auto zero = field_ct(witness_ct(&composer, 0));
+    zero.assert_is_zero();
+    composer.set_public_input(zero.witness_index);
+}
+
 /**
  * Inserts the latest data root into the root tree at location rollup_id + 1.
  */
@@ -94,6 +101,7 @@ void assert_inner_proof_sequential(Composer& composer,
                                    field_ct const& old_root_root,
                                    field_ct const& new_defi_root,
                                    std::vector<field_ct> const& bridge_ids,
+                                   std::vector<field_ct> const& asset_ids,
                                    std::vector<field_ct> const& public_inputs,
                                    bool_ct const& is_real)
 {
@@ -110,6 +118,14 @@ void assert_inner_proof_sequential(Composer& composer,
     for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; ++j) {
         auto valid_bid = !is_real || public_inputs[RollupProofFields::DEFI_BRIDGE_IDS + j] == bridge_ids[j];
         composer.assert_equal_constant(valid_bid, 1, format("inconsistent_bridge_id_", j));
+    }
+
+    // Check every real inner proof has matching asset ids.
+    auto valid_zero_aid = !is_real || public_inputs[RollupProofFields::ASSET_IDS] == field_ct(0);
+    composer.assert_equal_constant(valid_zero_aid, 1, format("inconsistent_asset_id_", 0));
+    for (size_t j = 1; j < NUM_ASSETS; ++j) {
+        auto valid_aid = !is_real || public_inputs[RollupProofFields::ASSET_IDS + j] == asset_ids[j - 1];
+        composer.assert_equal_constant(valid_aid, 1, format("inconsistent_asset_id_", j));
     }
 
     // Every real inner proof should use the root tree root we've input.
@@ -165,6 +181,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     const auto new_defi_root = field_ct(witness_ct(&composer, tx.new_defi_root));
     const auto old_defi_path = create_witness_hash_path(composer, tx.old_defi_path);
     const auto bridge_ids = map(tx.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
+    const auto asset_ids = map(tx.asset_ids, [&](auto& aid) { return field_ct(witness_ct(&composer, aid)); });
     const auto defi_interaction_notes = map(tx.defi_interaction_notes, [&](auto n) {
         return circuit::defi_interaction::note(circuit::defi_interaction::witness_data(composer, n));
     });
@@ -226,6 +243,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                       old_root_root,
                                       new_defi_root,
                                       bridge_ids,
+                                      asset_ids,
                                       public_inputs,
                                       is_real);
 
@@ -266,6 +284,10 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     }
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         defi_deposit_sums[i].set_public();
+    }
+    add_zero_public_input(composer); // asset_ids[0] = 0 (ETH)
+    for (size_t i = 0; i < NUM_ERC20_ASSETS; ++i) {
+        asset_ids[i].set_public();
     }
     for (auto total_tx_fee : total_tx_fees) {
         total_tx_fee.set_public();

@@ -66,6 +66,7 @@ class root_rollup_tests : public ::testing::Test {
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
                                          RollupStructure const& rollup_structure,
                                          std::vector<uint256_t> bridge_ids = {},
+                                         std::vector<uint256_t> asset_ids = {},
                                          std::vector<native::defi_interaction::note> const& interaction_notes = {})
     {
         uint32_t rollup_id = static_cast<uint32_t>(context.world_state.root_tree.size() - 1);
@@ -75,7 +76,8 @@ class root_rollup_tests : public ::testing::Test {
         std::vector<std::vector<uint8_t>> inner_data;
         for (size_t i = 0; i < rollup_structure.size(); ++i) {
             auto tx_proofs = rollup_structure[i];
-            auto rollup = rollup::create_rollup_tx(context.world_state, INNER_ROLLUP_TXS, tx_proofs, bridge_ids);
+            auto rollup =
+                rollup::create_rollup_tx(context.world_state, INNER_ROLLUP_TXS, tx_proofs, bridge_ids, asset_ids);
             auto fixture_name = format(test_name, "_rollup", rollup_id, "_inner", inner_data.size());
             auto proof_data = compute_or_load_rollup(fixture_name, rollup);
             if (proof_data.empty()) {
@@ -85,7 +87,7 @@ class root_rollup_tests : public ::testing::Test {
         }
 
         return root_rollup::create_root_rollup_tx(
-            context.world_state, rollup_id, old_defi_root, inner_data, bridge_ids, interaction_notes);
+            context.world_state, rollup_id, old_defi_root, inner_data, bridge_ids, asset_ids, interaction_notes);
     }
 
     std::vector<uint8_t> compute_or_load_rollup(std::string const& name, rollup::rollup_tx& rollup)
@@ -206,21 +208,28 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
 
 TEST_F(root_rollup_tests, test_defi_logic)
 {
-    context.append_value_notes({ 100, 50, 100, 50, 100, 50, 100, 50 });
+    uint32_t aid1 = 5;
+    uint32_t aid2 = 252;
+    context.append_value_notes({ 100, 50 });
+    context.append_value_notes({ 100, 50, 100, 50 }, aid1);
+    context.append_value_notes({ 100, 50 }, aid2);
     context.start_next_root_rollup();
 
-    notes::native::bridge_id bid1 = { 0, 2, 0, 0, 0 };
-    notes::native::bridge_id bid2 = { 1, 2, 0, 0, 0 };
+    notes::native::bridge_id bid1 = { 0, 2, aid1, 0, 0 };
+    notes::native::bridge_id bid2 = { 1, 2, aid2, 0, 0 };
     auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 110 }, bid1);
-    auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 120 }, bid1);
-    auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 100, 50 }, { 20, 130 }, bid2);
+    auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, aid1);
+    auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 102 }, bid1, aid1);
+    auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 100, 50 }, { 20, 111 }, bid2, aid2);
 
     // Add some defi interaction notes.
     std::vector<notes::native::defi_interaction::note> interaction_notes = { { 1, 0, 3, 4, 5, false },
                                                                              { 2, 1, 4, 5, 6, true } };
-    auto tx_data = create_root_rollup_tx(
-        "root_defi", { { js_proof, defi_proof1 }, { defi_proof2, defi_proof3 } }, { bid1, bid2 }, interaction_notes);
+    auto tx_data = create_root_rollup_tx("root_defi",
+                                         { { js_proof, defi_proof1 }, { defi_proof2, defi_proof3 } },
+                                         { { bid1, bid2 } },
+                                         { { aid1, aid2 } },
+                                         interaction_notes);
 
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
@@ -237,6 +246,14 @@ TEST_F(root_rollup_tests, test_defi_logic)
     EXPECT_EQ(rollup_data.deposit_sums[3], 0);
     EXPECT_EQ(rollup_data.defi_interaction_notes[0], interaction_notes[0].commit());
     EXPECT_EQ(rollup_data.defi_interaction_notes[1], interaction_notes[1].commit());
+    EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id = 0 (ETH)
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 28); // aid1
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 19); // aid2
+    EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // -
+    EXPECT_EQ(rollup_data.asset_ids[0], 0);
+    EXPECT_EQ(rollup_data.asset_ids[1], aid1);
+    EXPECT_EQ(rollup_data.asset_ids[2], aid2);
+    EXPECT_EQ(rollup_data.asset_ids[3], 0);
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {

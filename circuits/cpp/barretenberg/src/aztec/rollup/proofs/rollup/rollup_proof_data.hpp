@@ -23,7 +23,8 @@ enum {
     NEW_DEFI_ROOT,
     DEFI_BRIDGE_IDS,
     DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_IDS + NUM_BRIDGE_CALLS_PER_BLOCK,
-    TOTAL_TX_FEES = DEFI_BRIDGE_DEPOSITS + NUM_BRIDGE_CALLS_PER_BLOCK,
+    ASSET_IDS = DEFI_BRIDGE_DEPOSITS + NUM_BRIDGE_CALLS_PER_BLOCK,
+    TOTAL_TX_FEES = ASSET_IDS + NUM_ASSETS,
     INNER_PROOFS_DATA = TOTAL_TX_FEES + NUM_ASSETS,
 };
 } // namespace RollupProofFields
@@ -43,6 +44,7 @@ enum {
     NEW_DEFI_ROOT = RollupProofFields::NEW_DEFI_ROOT * 32,
     DEFI_BRIDGE_IDS = RollupProofFields::DEFI_BRIDGE_IDS * 32,
     DEFI_BRIDGE_DEPOSITS = RollupProofFields::DEFI_BRIDGE_DEPOSITS * 32,
+    ASSET_IDS = RollupProofFields::ASSET_IDS * 32,
     TOTAL_TX_FEES = RollupProofFields::TOTAL_TX_FEES * 32,
     INNER_PROOFS_DATA = RollupProofFields::INNER_PROOFS_DATA * 32,
 };
@@ -91,6 +93,7 @@ struct rollup_proof_data {
     fr new_defi_root;
     std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_ids;
     std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
+    std::array<uint256_t, NUM_ASSETS> asset_ids;
     std::array<uint256_t, NUM_ASSETS> total_tx_fees;
     std::vector<propagated_inner_proof_data> inner_proofs;
     g1::affine_element recursion_output[2];
@@ -117,6 +120,7 @@ inline std::ostream& operator<<(std::ostream& os, rollup_proof_data const& data)
         << "  new_defi_root: " << data.new_defi_root << "\n"
         << "  bridge_ids: " << data.bridge_ids << "\n"
         << "  deposit_sums: " << data.deposit_sums << "\n"
+        << "  asset_ids: " << data.asset_ids << "\n"
         << "  total_tx_fees: " << data.total_tx_fees << "\n"
         // << "  inner_proofs: " << data.inner_proofs << "\n"
         // << "  recursion_output: " << data.recursion_output << "\n"
