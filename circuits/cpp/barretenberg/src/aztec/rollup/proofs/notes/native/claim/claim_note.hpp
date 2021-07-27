@@ -16,6 +16,7 @@ struct claim_note {
     uint256_t deposit_value;
     uint256_t bridge_id;
     uint32_t defi_interaction_nonce;
+    uint256_t fee;
     grumpkin::fq value_note_partial_commitment;
 
     bool operator==(claim_note const&) const = default;
@@ -23,7 +24,9 @@ struct claim_note {
     auto commit() const
     {
         return complete_partial_commitment(
-            create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment), defi_interaction_nonce);
+            create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment),
+            defi_interaction_nonce,
+            fee);
     }
 
     auto partial_commit() const
@@ -38,15 +41,15 @@ template <typename B> inline void read(B& buf, claim_note& note)
     read(buf, note.deposit_value);
     read(buf, note.bridge_id);
     read(buf, note.defi_interaction_nonce);
+    read(buf, note.fee);
     read(buf, note.value_note_partial_commitment);
 }
-
 template <typename B> inline void write(B& buf, claim_note const& note)
 {
-    using serialize::write;
     write(buf, note.deposit_value);
     write(buf, note.bridge_id);
     write(buf, note.defi_interaction_nonce);
+    write(buf, note.fee);
     write(buf, note.value_note_partial_commitment);
 }
 
@@ -58,6 +61,8 @@ inline std::ostream& operator<<(std::ostream& os, claim_note const& note)
                         note.bridge_id,
                         ", interaction_nonce: ",
                         note.defi_interaction_nonce,
+                        ", fee: ",
+                        note.fee,
                         ", value_note_partial_commitment: ",
                         note.value_note_partial_commitment,
                         " }");

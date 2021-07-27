@@ -99,7 +99,7 @@ class TestContext {
         return account::create_proof(tx, signer, account_cd);
     }
 
-    auto create_claim_tx(uint256_t bridge_id, uint256_t deposit_value, uint32_t claim_note_index)
+    auto create_claim_tx(uint256_t bridge_id, uint256_t deposit_value, uint32_t claim_note_index, uint256_t fee)
     {
         uint32_t interaction_nonce = 0;
         // Assume this claim note was created against the most recent matching bridge id interaction.
@@ -112,14 +112,19 @@ class TestContext {
 
         auto partial_state =
             notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0);
-        notes::native::claim::claim_note claim_note = { deposit_value, bridge_id, interaction_nonce, partial_state };
+        notes::native::claim::claim_note claim_note = {
+            deposit_value, bridge_id, interaction_nonce, fee, partial_state
+        };
         return claim_tx_factory.create_claim_tx(
             world_state.defi_tree.root(), claim_note_index, claim_note, defi_interactions[interaction_nonce]);
     }
 
-    std::vector<uint8_t> create_claim_proof(uint256_t bridge_id, uint256_t deposit_value, uint32_t claim_note_index)
+    std::vector<uint8_t> create_claim_proof(uint256_t bridge_id,
+                                            uint256_t deposit_value,
+                                            uint32_t claim_note_index,
+                                            uint256_t fee)
     {
-        auto tx = create_claim_tx(bridge_id, deposit_value, claim_note_index);
+        auto tx = create_claim_tx(bridge_id, deposit_value, claim_note_index, fee);
         return claim::create_proof(tx, claim_cd);
     }
 

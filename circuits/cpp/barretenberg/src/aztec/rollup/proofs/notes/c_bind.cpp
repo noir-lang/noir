@@ -53,10 +53,12 @@ WASM_EXPORT void notes__claim_note_nullifier(uint8_t const* commitment_buffer, u
 
 WASM_EXPORT void notes__claim_note_complete_partial_commitment(uint8_t const* commitment_buffer,
                                                                uint32_t interaction_nonce,
+                                                               uint8_t* fee,
                                                                uint8_t* output)
 {
     auto commitment = from_buffer<grumpkin::fq>(commitment_buffer);
-    auto enc_note = claim::complete_partial_commitment(commitment, interaction_nonce);
+    auto claim_fee = from_buffer<uint256_t>(fee);
+    auto enc_note = claim::complete_partial_commitment(commitment, interaction_nonce, claim_fee);
     write(output, enc_note);
 }
 

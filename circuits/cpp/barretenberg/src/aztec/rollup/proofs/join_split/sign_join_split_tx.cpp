@@ -27,7 +27,7 @@ signature sign_join_split_tx(join_split_tx const& tx,
     auto partial_value_note_commitment =
         value::create_partial_commitment(tx.claim_note.note_secret, tx.claim_note.owner, tx.claim_note.owner_nonce);
     claim::claim_note claim_note = {
-        tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, partial_value_note_commitment
+        tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, 0, partial_value_note_commitment
     };
     const grumpkin::fq input_note_1 = tx.input_note[0].commit();
     const grumpkin::fq input_note_2 = tx.input_note[1].commit();

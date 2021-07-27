@@ -107,13 +107,21 @@ auto process_defi_deposit(Composer& composer,
     is_valid_bridge_id.assert_equal(true,
                                     format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times."));
 
-    // Complete the claim note output to mix in the interaction nonce.
+    // Compute claim fee which to be added to the claim note.
+    const auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
+    const auto defi_deposit_fee = tx_fee.slice(TX_FEE_BIT_LENGTH, 1);
+    const auto claim_fee = (tx_fee - defi_deposit_fee) * is_defi_deposit;
+    const auto net_tx_fee = tx_fee * !is_defi_deposit + defi_deposit_fee * is_defi_deposit;
+
+    // Complete the claim note output to mix in the interaction nonce and the claim fee.
     auto note_commitment1 = public_inputs[InnerProofFields::NOTE_COMMITMENT1];
     auto claim_note_commitment =
-        notes::circuit::claim::complete_partial_commitment(note_commitment1, note_defi_interaction_nonce);
+        notes::circuit::claim::complete_partial_commitment(note_commitment1, note_defi_interaction_nonce, claim_fee);
 
     public_inputs[InnerProofFields::NOTE_COMMITMENT1] =
         note_commitment1 * !is_defi_deposit + claim_note_commitment * is_defi_deposit;
+
+    return net_tx_fee;
 }
 
 /**
@@ -260,7 +268,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
             public_inputs[i] *= is_real;
         }
 
-        process_defi_deposit(composer, rollup_id, public_inputs, bridge_ids, defi_deposit_sums, num_defi_interactions);
+        auto tx_fee = process_defi_deposit(
+            composer, rollup_id, public_inputs, bridge_ids, defi_deposit_sums, num_defi_interactions);
         process_claims(public_inputs, new_defi_root);
 
         // Add the proofs data values to the list.
@@ -281,7 +290,6 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         // Accumulate tx fee.
         auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
         auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
-        auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
         accumulate_tx_fees(composer, total_tx_fees, proof_id, asset_id, tx_fee, asset_ids, num_asset_ids);
 
         inner_public_inputs.push_back(public_inputs);

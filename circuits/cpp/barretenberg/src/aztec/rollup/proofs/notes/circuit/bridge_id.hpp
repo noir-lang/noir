@@ -11,18 +11,10 @@ namespace circuit {
 using namespace plonk::stdlib::types::turbo;
 
 struct bridge_id {
-    // TODO: range constrain to be 20 bytes (160 bits)
     field_ct bridge_contract_address;
-    // TODO: range constrain to be 2 bits (1 or 2)
     field_ct num_output_notes;
-
-    // TODO: 32 bit range check
     field_ct input_asset_id;
-
-    // TODO: 32 bit range check
     field_ct output_asset_id_a;
-
-    // TODO: 32 bit range check (this should be 26-bit range check, right?)
     field_ct output_asset_id_b;
 
     static bridge_id from_uint256_t(Composer& composer, uint256_t const& bridge_id)

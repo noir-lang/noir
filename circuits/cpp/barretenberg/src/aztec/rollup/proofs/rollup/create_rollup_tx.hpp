@@ -128,8 +128,9 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                 ++nonce;
             };
             nonce += rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;
+            uint256_t fee = struct_data.tx_fee - (struct_data.tx_fee >> 1);
             struct_data.note_commitment1 =
-                notes::native::claim::complete_partial_commitment(struct_data.note_commitment1, nonce);
+                notes::native::claim::complete_partial_commitment(struct_data.note_commitment1, nonce, fee);
         }
 
         data_tree.update_element(data_start_index + i * 2, struct_data.note_commitment1);

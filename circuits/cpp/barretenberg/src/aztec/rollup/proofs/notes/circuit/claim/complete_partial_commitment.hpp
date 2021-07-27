@@ -10,9 +10,12 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline auto complete_partial_commitment(field_ct const& partial_commitment, field_ct const& interaction_nonce)
+inline auto complete_partial_commitment(field_ct const& partial_commitment,
+                                        field_ct const& interaction_nonce,
+                                        field_ct const& fee)
 {
-    return pedersen::compress({ partial_commitment, interaction_nonce }, true, GeneratorIndex::CLAIM_NOTE_COMMITMENT);
+    return pedersen::compress(
+        { partial_commitment, interaction_nonce, fee }, true, GeneratorIndex::CLAIM_NOTE_COMMITMENT);
 }
 
 } // namespace claim

@@ -68,9 +68,6 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
         inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
     valid_claim_note_asset_id.assert_equal(true, "input note and claim note asset ids don't match");
 
-    // Check the claim note interaction nonce is 0 (will be added by the rollup circuit).
-    claim_note.defi_interaction_nonce.assert_is_zero("interaction nonce must be 0");
-
     // Verify the asset id is less than the total number of assets.
     composer.create_range_constraint(inputs.asset_id.witness_index, MAX_NUM_ASSETS_BIT_LENGTH, "asset id too large");
 

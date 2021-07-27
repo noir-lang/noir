@@ -10,9 +10,11 @@ namespace notes {
 namespace native {
 namespace claim {
 
-inline auto complete_partial_commitment(grumpkin::fq const& claim_note_partial_commitment, uint32_t interaction_nonce)
+inline auto complete_partial_commitment(grumpkin::fq const& claim_note_partial_commitment,
+                                        uint32_t interaction_nonce,
+                                        uint256_t fee)
 {
-    return crypto::pedersen::compress_native({ claim_note_partial_commitment, interaction_nonce },
+    return crypto::pedersen::compress_native({ claim_note_partial_commitment, interaction_nonce, fee },
                                              GeneratorIndex::CLAIM_NOTE_COMMITMENT);
 }
 

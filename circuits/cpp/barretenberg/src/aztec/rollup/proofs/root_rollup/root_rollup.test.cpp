@@ -247,8 +247,8 @@ TEST_F(root_rollup_tests, test_defi_logic)
     EXPECT_EQ(rollup_data.defi_interaction_notes[0], interaction_notes[0].commit());
     EXPECT_EQ(rollup_data.defi_interaction_notes[1], interaction_notes[1].commit());
     EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id = 0 (ETH)
-    EXPECT_EQ(rollup_data.total_tx_fees[1], 28); // aid1
-    EXPECT_EQ(rollup_data.total_tx_fees[2], 19); // aid2
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 14); // aid1
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 9);  // aid2
     EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // -
     EXPECT_EQ(rollup_data.asset_ids[0], 0);
     EXPECT_EQ(rollup_data.asset_ids[1], aid1);

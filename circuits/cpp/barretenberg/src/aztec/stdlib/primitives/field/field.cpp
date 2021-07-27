@@ -682,9 +682,9 @@ field_t<ComposerContext> field_t<ComposerContext>::slice(const uint8_t msb, cons
     const field_t lo_wit = field_t(witness_t(ctx, lo));
     const field_t slice_wit = field_t(witness_t(ctx, slice));
 
-    ctx->create_range_constraint(hi_wit.witness_index, rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb));
-    ctx->create_range_constraint(lo_wit.witness_index, lsb);
-    ctx->create_range_constraint(slice_wit.witness_index, msb_plus_one - lsb);
+    hi_wit.range_constraint(rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb), "slice: hi value too large.");
+    lo_wit.range_constraint(lsb, "slice: lo value too large.");
+    slice_wit.range_constraint(msb_plus_one - lsb, "slice: sliced value too large.");
     assert_equal(((hi_wit * pow<ComposerContext>(field_t(2), msb_plus_one)) + lo_wit +
                   (slice_wit * pow<ComposerContext>(field_t(2), lsb))));
 

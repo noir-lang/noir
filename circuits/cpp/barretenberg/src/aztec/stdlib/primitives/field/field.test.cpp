@@ -392,7 +392,7 @@ TEST(stdlib_field, test_slice_random)
 
     uint8_t lsb = 106;
     uint8_t msb = 189;
-    fr a_ = fr::random_element();
+    fr a_ = fr(uint256_t(fr::random_element()) && ((uint256_t(1) << 252) - 1));
     field_t a(witness_t(&composer, a_));
     field_t slice = a.slice(msb, lsb);
 

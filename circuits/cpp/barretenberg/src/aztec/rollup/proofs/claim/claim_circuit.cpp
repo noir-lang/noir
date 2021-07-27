@@ -85,12 +85,10 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const field_ct public_output = witness_ct(&composer, 0);
     const field_ct nullifier2 = witness_ct(&composer, 0);
     const field_ct output_owner = witness_ct(&composer, 0);
-    const field_ct tx_fee = witness_ct(&composer, 0);
     public_input.assert_is_zero();
     public_output.assert_is_zero();
     nullifier2.assert_is_zero();
     output_owner.assert_is_zero();
-    tx_fee.assert_is_zero();
 
     // The following make up the public inputs to the circuit.
     proof_id.set_public();
@@ -104,7 +102,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     defi_root.set_public();
     output_owner.set_public();
     data_root.set_public();
-    tx_fee.set_public();
+    claim_note.fee.set_public();
 }
 
 } // namespace claim

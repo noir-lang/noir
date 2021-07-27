@@ -294,8 +294,8 @@ TEST_F(rollup_tests, test_asset_id_output_order)
 
     // Check correct tx_fee accumulation.
     EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id 0
-    EXPECT_EQ(rollup_data.total_tx_fees[1], 50); // asset_id 8
-    EXPECT_EQ(rollup_data.total_tx_fees[2], 13); // asset_id 13
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 25); // asset_id 8, net_tx_fee = 50/2
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 6);  // asset_id 13, net_tx_fee = 13/2
     EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // padding
 }
 
@@ -502,8 +502,8 @@ TEST_F(rollup_tests, test_defi_deposit_sums_accumulated)
 
     // Check correct tx_fee accumulation.
     EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id 0
-    EXPECT_EQ(rollup_data.total_tx_fees[1], 50); // asset_id 8
-    EXPECT_EQ(rollup_data.total_tx_fees[2], 13); // asset_id 13
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 25); // asset_id 8
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 6);  // asset_id 13
     EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // padding
 }
 
@@ -522,6 +522,8 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment2, note2.commit());
 
+    std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
+
     // Check correct interaction nonce in claim notes.
     auto check_defi_proof = [&](uint32_t i, uint32_t claim_note_interaction_nonce) {
         auto defi_proof = rollup_data.inner_proofs[i];
@@ -531,7 +533,7 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
         auto partial_state =
             notes::native::value::create_partial_commitment(context.user.note_secret, context.user.owner.public_key, 0);
         notes::native::claim::claim_note claim_note = {
-            deposit_value, bid, claim_note_interaction_nonce, partial_state
+            deposit_value, bid, claim_note_interaction_nonce, claim_fees[i], partial_state
         };
 
         EXPECT_EQ(defi_proof.note_commitment1, claim_note.commit());
@@ -564,6 +566,7 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     bids.push_back(bid1);
     auto defi_proof1 =
         context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bid1);
+    std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
 
     // Create claim proofs for each claim note in previous rollup.
     auto claim_proofs = mapi(data.inner_proofs, [&](auto inner, auto i) {
@@ -571,7 +574,7 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
             return std::vector<uint8_t>();
         }
         auto claim_note_index = data.data_start_index + uint32_t(2 * i);
-        return context.create_claim_proof(inner.asset_id, inner.public_output, claim_note_index);
+        return context.create_claim_proof(inner.asset_id, inner.public_output, claim_note_index, claim_fees[i]);
     });
 
     auto rollup2_tx = create_rollup_tx(
@@ -595,7 +598,7 @@ TEST_F(rollup_tests, test_defi_claim_proof_has_valid_defi_root)
 
     // Create claim proof with trash defi root.
     auto inner = data.inner_proofs[0];
-    auto tx = context.create_claim_tx(inner.asset_id, inner.public_output, 2);
+    auto tx = context.create_claim_tx(inner.asset_id, inner.public_output, 2, 0);
     tx.defi_root = fr::random_element();
     auto claim_proof = claim::create_proof(tx, context.claim_cd);
 

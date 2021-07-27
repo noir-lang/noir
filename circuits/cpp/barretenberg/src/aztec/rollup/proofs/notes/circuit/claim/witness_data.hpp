@@ -17,6 +17,7 @@ struct claim_note_witness_data {
     field_ct deposit_value;
     bridge_id bridge_id_data;
     field_ct defi_interaction_nonce;
+    field_ct fee;
     field_ct value_note_partial_commitment;
 
     claim_note_witness_data(Composer& composer, native::claim::claim_note const& note_data)
@@ -24,10 +25,12 @@ struct claim_note_witness_data {
         deposit_value = witness_ct(&composer, note_data.deposit_value);
         bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
         defi_interaction_nonce = witness_ct(&composer, note_data.defi_interaction_nonce);
+        fee = witness_ct(&composer, note_data.fee);
         value_note_partial_commitment = witness_ct(&composer, note_data.value_note_partial_commitment);
 
-        deposit_value.range_constraint(NOTE_VALUE_BIT_LENGTH);
-        defi_interaction_nonce.range_constraint(32);
+        deposit_value.range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
+        defi_interaction_nonce.range_constraint(32, "defi interaction nonce too large.");
+        fee.range_constraint(TX_FEE_BIT_LENGTH, "claim fee too large.");
     }
 };
 
@@ -46,7 +49,7 @@ struct claim_note_tx_witness_data {
         owner = plonk::stdlib::create_point_witness(composer, note_data.owner);
         owner_nonce = witness_ct(&composer, note_data.owner_nonce);
 
-        deposit_value.range_constraint(NOTE_VALUE_BIT_LENGTH);
+        deposit_value.range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
     }
 };
 

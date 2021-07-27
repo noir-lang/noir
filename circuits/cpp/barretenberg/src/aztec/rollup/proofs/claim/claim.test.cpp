@@ -52,6 +52,7 @@ class claim_tests : public ::testing::Test {
         tx.data_root = data_tree->root();
         tx.claim_note = claim_note;
         tx.claim_note_index = claim_note_index;
+        tx.claim_note.fee = claim_note.fee;
         tx.claim_note_path = data_tree->get_hash_path(claim_note_index);
 
         tx.defi_root = defi_tree->root();
@@ -76,7 +77,7 @@ class claim_tests : public ::testing::Test {
 
 TEST_F(claim_tests, test_claim)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -87,7 +88,7 @@ TEST_F(claim_tests, test_claim)
 
 TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -99,7 +100,8 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 
 TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -111,7 +113,7 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 
 TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 1, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -122,7 +124,7 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 
 TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 1, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -133,7 +135,7 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 
 TEST_F(claim_tests, test_missing_claim_note_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
@@ -143,7 +145,7 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
 
 TEST_F(claim_tests, test_missing_interaction_note_fails)
 {
-    const claim_note note1 = { 10, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
+    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
@@ -171,9 +173,11 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     }
 
     // Create and add a claim note, and a defi interaction note, to the data tree.
-    const claim_note note1 = {
-        input_value, bridge_id.to_uint256_t(), 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
-    };
+    const claim_note note1 = { input_value,
+                               bridge_id.to_uint256_t(),
+                               0,
+                               0,
+                               create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = {
         bridge_id.to_uint256_t(), 0, total_input, total_output_a, total_output_b, 1
     };
@@ -215,9 +219,12 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 TEST_F(claim_tests, test_claim_1_output_full_proof)
 {
     const bridge_id bridge_id = { 0, 1, 0, 111, 222 };
-    const claim_note note1 = {
-        10, bridge_id.to_uint256_t(), 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
-    };
+    const uint32_t claim_fee = 8;
+    const claim_note note1 = { 10,
+                               bridge_id.to_uint256_t(),
+                               0,
+                               claim_fee,
+                               create_partial_commitment(user.note_secret, user.owner.public_key, 0) };
     const defi_interaction::note note2 = { bridge_id.to_uint256_t(), 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -243,7 +250,7 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     EXPECT_EQ(proof_data.output_owner, fr(0));
     EXPECT_EQ(proof_data.public_input, uint256_t(0));
     EXPECT_EQ(proof_data.public_output, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee, 0UL);
+    EXPECT_EQ(proof_data.tx_fee, claim_fee);
 
     EXPECT_TRUE(result.verified);
 }
@@ -252,7 +259,7 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 {
     const bridge_id bridge_id = { 0, 1, 0, 111, 222 };
     const claim_note note1 = {
-        10, bridge_id.to_uint256_t(), 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
+        10, bridge_id.to_uint256_t(), 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0)
     };
     const defi_interaction::note note2 = { bridge_id.to_uint256_t(), 0, 100, 200, 300, 0 };
     append_note(note1, data_tree);

@@ -27,9 +27,9 @@ enum GeneratorIndex {
 
 constexpr uint32_t DEFI_BRIDGE_ADDRESS_BIT_LENGTH = 160;
 constexpr uint32_t DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN = 2;
-constexpr uint32_t DEFI_BRIDGE_INPUT_ASSET_ID_LEN = 32;
-constexpr uint32_t DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN = 32;
-constexpr uint32_t DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN = 26;
+constexpr uint32_t DEFI_BRIDGE_INPUT_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH;
+constexpr uint32_t DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH;
+constexpr uint32_t DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH;
 
 } // namespace notes
 } // namespace proofs

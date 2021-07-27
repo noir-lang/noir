@@ -17,6 +17,7 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.claim_note.bridge_id = 123;
     tx.claim_note.defi_interaction_nonce = 234;
     tx.claim_note.deposit_value = 345;
+    tx.claim_note.fee = 0;
     tx.claim_note.value_note_partial_commitment = barretenberg::fr::random_element();
 
     tx.defi_interaction_note_path =

@@ -615,7 +615,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
     tx.output_note[0].value = 0;
-    tx.output_note[1].value = 100;
+    tx.output_note[1].value = 91;
     tx.claim_note.deposit_value = 50;
 
     bridge_id bridge_id = { 0, 2, tx.asset_id, 0, 0 };
@@ -626,7 +626,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 
     auto partial_commitment =
         value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
-    claim::claim_note claim_note = { tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, partial_commitment };
+    claim::claim_note claim_note = { tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, 0, partial_commitment };
 
     auto input_note1_commitment = tx.input_note[0].commit();
     auto input_note2_commitment = tx.input_note[1].commit();
@@ -646,7 +646,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     EXPECT_EQ(proof_data.output_owner, tx.output_owner);
     EXPECT_EQ(proof_data.public_input, tx.public_input);
     EXPECT_EQ(proof_data.public_output, tx.claim_note.deposit_value);
-    EXPECT_EQ(proof_data.tx_fee, 0UL);
+    EXPECT_EQ(proof_data.tx_fee, 9UL);
 
     EXPECT_TRUE(verify_proof(proof));
 }

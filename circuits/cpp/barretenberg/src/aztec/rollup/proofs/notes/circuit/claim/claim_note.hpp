@@ -17,7 +17,6 @@ using namespace plonk::stdlib::types::turbo;
 struct partial_claim_note {
     field_ct deposit_value;
     field_ct bridge_id;
-    field_ct defi_interaction_nonce;
     field_ct value_note_partial_commitment;
     field_ct partial_commitment;
 
@@ -35,6 +34,7 @@ struct claim_note {
     field_ct deposit_value;
     field_ct bridge_id;
     field_ct defi_interaction_nonce;
+    field_ct fee;
     field_ct value_note_partial_commitment;
     field_ct commitment;
 
@@ -42,10 +42,12 @@ struct claim_note {
         : deposit_value(data.deposit_value)
         , bridge_id(data.bridge_id_data.to_field())
         , defi_interaction_nonce(data.defi_interaction_nonce)
+        , fee(data.fee)
         , value_note_partial_commitment(data.value_note_partial_commitment)
         , commitment(complete_partial_commitment(
               create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment),
-              defi_interaction_nonce))
+              defi_interaction_nonce,
+              fee))
     {}
 
     operator byte_array_ct() const { return byte_array_ct(commitment); }
