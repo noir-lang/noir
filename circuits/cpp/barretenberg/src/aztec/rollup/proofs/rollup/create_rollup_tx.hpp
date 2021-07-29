@@ -29,7 +29,7 @@ inline void pad_rollup_tx(rollup_tx& rollup, size_t rollup_size, std::vector<uin
     rollup.num_defi_interactions = rollup.bridge_ids.size();
     rollup.bridge_ids.resize(NUM_BRIDGE_CALLS_PER_BLOCK);
     rollup.num_asset_ids = rollup.asset_ids.size();
-    rollup.asset_ids.resize(NUM_ERC20_ASSETS);
+    rollup.asset_ids.resize(NUM_ASSETS);
 }
 
 /**
@@ -86,7 +86,7 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                                   size_t rollup_size,
                                   std::vector<std::vector<uint8_t>> const& txs,
                                   std::vector<uint256_t> bridge_ids = {},
-                                  std::vector<uint256_t> asset_ids = {},
+                                  std::vector<uint256_t> asset_ids = { 0 },
                                   std::vector<uint32_t> const& data_roots_indicies_ = {})
 {
     auto& data_tree = world_state.data_tree;

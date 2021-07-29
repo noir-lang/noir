@@ -68,7 +68,7 @@ class rollup_tests : public ::testing::Test {
         auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 207 }, bid2, 13);
 
         return create_rollup_tx(
-            context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 }, { 8, 13 });
+            context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 }, { 0, 8, 13 });
     }
 
     fixtures::TestContext context;
@@ -134,7 +134,8 @@ TEST_F(rollup_tests, test_1_proof_with_old_root_in_1_rollup)
     context.start_next_root_rollup();
 
     // Create rollup 2 with old join-split.
-    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof }, {}, {}, { data_root_index });
+    auto rollup =
+        create_rollup_tx(context.world_state, rollup_size, { join_split_proof }, {}, { 0 }, { data_root_index });
 
     inner_proof_data data(join_split_proof);
     EXPECT_TRUE(data.merkle_root != rollup.old_data_root);
@@ -251,15 +252,6 @@ TEST_F(rollup_tests, test_invalid_asset_id_fails)
     EXPECT_FALSE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_asset_id_zero_fails)
-{
-    auto tx = create_tx_with_1_defi();
-    tx.asset_ids = { 0 };
-    auto result = verify_logic(tx, rollup_1_keyless);
-
-    ASSERT_FALSE(result.logic_verified);
-}
-
 TEST_F(rollup_tests, test_asset_id_repeated_fails)
 {
     auto tx = create_tx_with_3_defi();
@@ -278,6 +270,15 @@ TEST_F(rollup_tests, test_asset_id_unmatched_fails)
     ASSERT_FALSE(result.logic_verified);
 }
 
+TEST_F(rollup_tests, test_asset_id_reordering_works)
+{
+    auto tx = create_tx_with_3_defi();
+    tx.asset_ids = { 8, 0, 13 };
+    auto result = verify_logic(tx, rollup_4_keyless);
+
+    ASSERT_TRUE(result.logic_verified);
+}
+
 TEST_F(rollup_tests, test_asset_id_output_order)
 {
     auto tx = create_tx_with_3_defi();
@@ -287,10 +288,10 @@ TEST_F(rollup_tests, test_asset_id_output_order)
     auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check correct asset ids order.
-    EXPECT_EQ(rollup_data.asset_ids[0], 0);               // asset_id 0
-    EXPECT_EQ(rollup_data.asset_ids[1], tx.asset_ids[0]); // asset_id 8
-    EXPECT_EQ(rollup_data.asset_ids[2], tx.asset_ids[1]); // asset_id 13
-    EXPECT_EQ(rollup_data.asset_ids[3], 0);               // padding
+    EXPECT_EQ(rollup_data.asset_ids[0], tx.asset_ids[0]); // asset_id 0
+    EXPECT_EQ(rollup_data.asset_ids[1], tx.asset_ids[1]); // asset_id 8
+    EXPECT_EQ(rollup_data.asset_ids[2], tx.asset_ids[2]); // asset_id 13
+    EXPECT_EQ(rollup_data.asset_ids[3], MAX_NUM_ASSETS);  // padding
 
     // Check correct tx_fee accumulation.
     EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id 0

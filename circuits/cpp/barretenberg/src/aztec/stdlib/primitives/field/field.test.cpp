@@ -371,6 +371,8 @@ TEST(stdlib_field, test_slice)
     //         ^      ^
     //        msb    lsb
     //        10      3
+    // hi=0x111101, lo=0x011, slice=0x10101001
+    //
     field_t a(witness_t(&composer, fr(126283)));
     field_t slice = a.slice(10, 3);
 

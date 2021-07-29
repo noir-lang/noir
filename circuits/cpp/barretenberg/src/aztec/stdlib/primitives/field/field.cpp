@@ -1,6 +1,7 @@
 #include "field.hpp"
 #include "../bool/bool.hpp"
 #include "../composers/composers.hpp"
+#include "../../../rollup/constants.hpp"
 #include "pow.hpp"
 #include "../../../rollup/constants.hpp"
 

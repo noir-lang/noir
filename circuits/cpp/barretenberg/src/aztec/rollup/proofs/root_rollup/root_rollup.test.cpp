@@ -65,8 +65,10 @@ class root_rollup_tests : public ::testing::Test {
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
                                          RollupStructure const& rollup_structure,
-                                         std::vector<uint256_t> bridge_ids = {},
-                                         std::vector<uint256_t> asset_ids = {},
+                                         std::vector<std::vector<uint256_t>> bridge_ids = { {}, {}, {} },
+                                         std::vector<uint256_t> bridge_ids_union = {},
+                                         std::vector<std::vector<uint256_t>> asset_ids = { { 0 }, { 0 }, { 0 } },
+                                         std::vector<uint256_t> asset_ids_union = { 0 },
                                          std::vector<native::defi_interaction::note> const& interaction_notes = {})
     {
         uint32_t rollup_id = static_cast<uint32_t>(context.world_state.root_tree.size() - 1);
@@ -77,7 +79,7 @@ class root_rollup_tests : public ::testing::Test {
         for (size_t i = 0; i < rollup_structure.size(); ++i) {
             auto tx_proofs = rollup_structure[i];
             auto rollup =
-                rollup::create_rollup_tx(context.world_state, INNER_ROLLUP_TXS, tx_proofs, bridge_ids, asset_ids);
+                rollup::create_rollup_tx(context.world_state, INNER_ROLLUP_TXS, tx_proofs, bridge_ids[i], asset_ids[i]);
             auto fixture_name = format(test_name, "_rollup", rollup_id, "_inner", inner_data.size());
             auto proof_data = compute_or_load_rollup(fixture_name, rollup);
             if (proof_data.empty()) {
@@ -86,8 +88,13 @@ class root_rollup_tests : public ::testing::Test {
             inner_data.push_back(proof_data);
         }
 
-        return root_rollup::create_root_rollup_tx(
-            context.world_state, rollup_id, old_defi_root, inner_data, bridge_ids, asset_ids, interaction_notes);
+        return root_rollup::create_root_rollup_tx(context.world_state,
+                                                  rollup_id,
+                                                  old_defi_root,
+                                                  inner_data,
+                                                  bridge_ids_union,
+                                                  asset_ids_union,
+                                                  interaction_notes);
     }
 
     std::vector<uint8_t> compute_or_load_rollup(std::string const& name, rollup::rollup_tx& rollup)
@@ -108,12 +115,43 @@ class root_rollup_tests : public ::testing::Test {
     {
         std::vector<std::vector<uint8_t>> proofs;
         for (uint32_t i = 0; i < n; ++i) {
-            auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
-                return context.create_join_split_proof({}, {}, { 100, 50 }, 150);
-            });
-            js_proofs.push_back(js_proof);
+            auto js_proof = context.create_join_split_proof({}, {}, { 100, 50 }, 150);
+            proofs.push_back(js_proof);
         }
         return proofs;
+    }
+
+    root_rollup_tx create_full_logic_root_rollup_tx()
+    {
+        uint32_t aid1 = 1, aid2 = 2, aid3 = 3;
+        context.append_value_notes({ 100, 50 });
+        context.append_value_notes({ 100, 50 }, aid1);
+        context.append_value_notes({ 100, 50, 100, 50, 100, 50 }, aid2);
+        context.append_value_notes({ 100, 50 }, aid3);
+        context.start_next_root_rollup();
+
+        notes::native::bridge_id bid2 = { 1, 2, aid2, 0, 0 };
+        notes::native::bridge_id bid3 = { 2, 2, aid3, 0, 0 };
+        auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 }); // fee = 7
+        auto js_proof2 =
+            context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 20, 130 }, 0, 0, 15, 0, aid1); // fee = 15
+        auto js_proof3 =
+            context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 10, 140 }, 0, 0, 9, 0, aid2);      // fee = 9
+        auto defi_proof1 = context.create_defi_proof({ 6, 7 }, { 100, 50 }, { 30, 102 }, bid2, aid2);   // fee = 18
+        auto defi_proof2 = context.create_defi_proof({ 8, 9 }, { 100, 50 }, { 50, 80 }, bid2, aid2);    // fee = 20
+        auto defi_proof3 = context.create_defi_proof({ 10, 11 }, { 100, 50 }, { 20, 111 }, bid3, aid3); // fee = 19
+
+        // Add some defi interaction notes.
+        std::vector<notes::native::defi_interaction::note> interaction_notes = { { 1, 0, 3, 4, 5, false },
+                                                                                 { 2, 1, 4, 5, 6, true } };
+        return create_root_rollup_tx(
+            "root_full_logic",
+            { { js_proof1, js_proof2 }, { defi_proof1, defi_proof3 }, { js_proof3, defi_proof2 } },
+            { {}, { bid2, bid3 }, { bid2 } },
+            { bid2, bid3 },
+            { { 0, aid1 }, { aid2, aid3 }, { aid2 } },
+            { 0, aid1, aid3, aid2 },
+            interaction_notes);
     }
 
     fixtures::TestContext context;
@@ -136,8 +174,7 @@ TEST_F(root_rollup_tests, test_1_real_2_padding)
 
 TEST_F(root_rollup_tests, test_2_real_1_padding)
 {
-    auto tx_data =
-        create_root_rollup_tx("root_221", { { js_proofs[0], js_proofs[1] }, { js_proofs[2], js_proofs[3] } });
+    auto tx_data = create_root_rollup_tx("root_211", { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 }
@@ -152,7 +189,7 @@ TEST_F(root_rollup_tests, test_3_real_0_padding)
 
 TEST_F(root_rollup_tests, test_incorrect_new_data_root_fails)
 {
-    auto tx_data = create_root_rollup_tx("root_1", { { js_proofs[0] } });
+    auto tx_data = create_root_rollup_tx("bad_new_data_root_fail", { { js_proofs[0] } });
     tx_data.new_data_roots_root = fr::random_element();
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_FALSE(result.logic_verified);
@@ -206,54 +243,87 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     ASSERT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<uint256_t>(expected));
 }
 
-TEST_F(root_rollup_tests, test_defi_logic)
+TEST_F(root_rollup_tests, test_asset_ids_missing_fails)
 {
-    uint32_t aid1 = 5;
-    uint32_t aid2 = 252;
-    context.append_value_notes({ 100, 50 });
-    context.append_value_notes({ 100, 50, 100, 50 }, aid1);
-    context.append_value_notes({ 100, 50 }, aid2);
-    context.start_next_root_rollup();
+    auto tx_data = create_full_logic_root_rollup_tx();
+    tx_data.asset_ids[0] = tx_data.asset_ids[1]; // asset_ids = [0, aid3, aid3, aid2]
 
-    notes::native::bridge_id bid1 = { 0, 2, aid1, 0, 0 };
-    notes::native::bridge_id bid2 = { 1, 2, aid2, 0, 0 };
-    auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
-    auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, aid1);
-    auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 102 }, bid1, aid1);
-    auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 100, 50 }, { 20, 111 }, bid2, aid2);
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
 
-    // Add some defi interaction notes.
-    std::vector<notes::native::defi_interaction::note> interaction_notes = { { 1, 0, 3, 4, 5, false },
-                                                                             { 2, 1, 4, 5, 6, true } };
-    auto tx_data = create_root_rollup_tx("root_defi",
-                                         { { js_proof, defi_proof1 }, { defi_proof2, defi_proof3 } },
-                                         { { bid1, bid2 } },
-                                         { { aid1, aid2 } },
-                                         interaction_notes);
+TEST_F(root_rollup_tests, test_asset_ids_repeating_fails)
+{
+    auto tx_data = create_full_logic_root_rollup_tx();
+    tx_data.asset_ids[1] = tx_data.asset_ids[0]; // asset_ids = [0, aid1, aid1, aid2]
 
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_asset_ids_reordering)
+{
+    auto tx_data = create_full_logic_root_rollup_tx();
+    std::swap(tx_data.asset_ids[1], tx_data.asset_ids[2]); // asset_ids = [0, aid1, aid2, aid3]
+
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_bridge_ids_missing_fails)
+{
+    auto tx_data = create_full_logic_root_rollup_tx();
+    tx_data.bridge_ids[0] = tx_data.bridge_ids[1]; // bridge_ids = [bid3, bid3, 0, 0]
+
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_bridge_ids_repeating_fails)
+{
+    auto tx_data = create_full_logic_root_rollup_tx();
+    tx_data.bridge_ids[1] = tx_data.bridge_ids[0]; // bridge_ids = [bid2, bid2, 0, 0]
+
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_FALSE(result.logic_verified);
+}
+
+TEST_F(root_rollup_tests, test_bridge_ids_reordering)
+{
+    auto tx_data = create_full_logic_root_rollup_tx();
+    std::swap(tx_data.bridge_ids[1], tx_data.bridge_ids[0]); // bridge_ids = [bid3, bid2, 0, 0]
+
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
+}
+
+// Full logic tests
+TEST_F(root_rollup_tests, test_full_logic)
+{
+    auto tx_data = create_full_logic_root_rollup_tx();
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 
     root_rollup_proof_data rollup_data(result.public_inputs);
 
-    EXPECT_EQ(rollup_data.bridge_ids[0], bid1.to_uint256_t());
-    EXPECT_EQ(rollup_data.bridge_ids[1], bid2.to_uint256_t());
+    EXPECT_EQ(rollup_data.bridge_ids[0], tx_data.bridge_ids[0]);
+    EXPECT_EQ(rollup_data.bridge_ids[1], tx_data.bridge_ids[1]);
     EXPECT_EQ(rollup_data.bridge_ids[2], 0);
     EXPECT_EQ(rollup_data.bridge_ids[3], 0);
-    EXPECT_EQ(rollup_data.deposit_sums[0], 70);
+    EXPECT_EQ(rollup_data.deposit_sums[0], 80);
     EXPECT_EQ(rollup_data.deposit_sums[1], 20);
     EXPECT_EQ(rollup_data.deposit_sums[2], 0);
     EXPECT_EQ(rollup_data.deposit_sums[3], 0);
-    EXPECT_EQ(rollup_data.defi_interaction_notes[0], interaction_notes[0].commit());
-    EXPECT_EQ(rollup_data.defi_interaction_notes[1], interaction_notes[1].commit());
+    EXPECT_EQ(rollup_data.defi_interaction_notes[0], tx_data.defi_interaction_notes[0].commit());
+    EXPECT_EQ(rollup_data.defi_interaction_notes[1], tx_data.defi_interaction_notes[1].commit());
     EXPECT_EQ(rollup_data.total_tx_fees[0], 7);  // asset_id = 0 (ETH)
-    EXPECT_EQ(rollup_data.total_tx_fees[1], 14); // aid1
-    EXPECT_EQ(rollup_data.total_tx_fees[2], 9);  // aid2
-    EXPECT_EQ(rollup_data.total_tx_fees[3], 0);  // -
-    EXPECT_EQ(rollup_data.asset_ids[0], 0);
-    EXPECT_EQ(rollup_data.asset_ids[1], aid1);
-    EXPECT_EQ(rollup_data.asset_ids[2], aid2);
-    EXPECT_EQ(rollup_data.asset_ids[3], 0);
+    EXPECT_EQ(rollup_data.total_tx_fees[1], 15); // aid1
+    EXPECT_EQ(rollup_data.total_tx_fees[2], 9);  // aid3
+    EXPECT_EQ(rollup_data.total_tx_fees[3], 28); // aid2
+    EXPECT_EQ(rollup_data.asset_ids[0], tx_data.asset_ids[0]);
+    EXPECT_EQ(rollup_data.asset_ids[1], tx_data.asset_ids[1]);
+    EXPECT_EQ(rollup_data.asset_ids[2], tx_data.asset_ids[2]);
+    EXPECT_EQ(rollup_data.asset_ids[3], tx_data.asset_ids[3]);
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {

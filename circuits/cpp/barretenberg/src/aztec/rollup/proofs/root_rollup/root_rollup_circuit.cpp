@@ -89,6 +89,78 @@ field_ct process_defi_interaction_notes(Composer& composer,
     return field_ct(hash_output);
 }
 
+void check_asset_ids_and_accumulate_tx_fees(Composer& composer,
+                                            uint32_t const i,
+                                            std::vector<field_ct>& total_tx_fees,
+                                            std::vector<field_ct> const& asset_ids,
+                                            std::vector<field_ct> const& public_inputs,
+                                            bool_ct const& is_real)
+{
+    // Check every real tx rollup proof has correct asset ids.
+    for (size_t j = 0; j < NUM_ASSETS; j++) {
+
+        field_ct num_matched(&composer, 0);
+        auto inner_asset_id = public_inputs[RollupProofFields::ASSET_IDS + j];
+        auto inner_tx_fee = public_inputs[RollupProofFields::TOTAL_TX_FEES + j];
+        auto is_asset_id_padded = (inner_asset_id == field_ct(MAX_NUM_ASSETS));
+
+        for (uint32_t k = 0; k < NUM_ASSETS; k++) {
+            const auto matches = (inner_asset_id == asset_ids[k]);
+            num_matched += matches;
+
+            // Sum the real tx rollup proof's tx fee according to the matched asset id.
+            total_tx_fees[k] += (inner_tx_fee * matches * !is_asset_id_padded);
+        }
+
+        // Assert that the tx rollup proof's asset_id matched a single asset_id.
+        auto is_valid_asset_id = !is_real || num_matched == 1 || is_asset_id_padded;
+        is_valid_asset_id.assert_equal(true,
+                                       format("rollup proof ",
+                                              i,
+                                              "'s asset id ",
+                                              uint64_t(inner_asset_id.get_value()),
+                                              " matched ",
+                                              uint64_t(num_matched.get_value()),
+                                              " times."));
+    }
+}
+
+void check_bridge_ids_and_accumulate_defi_deposits(Composer& composer,
+                                                   uint32_t const i,
+                                                   std::vector<field_ct>& defi_deposit_sums,
+                                                   std::vector<field_ct> const& bridge_ids,
+                                                   std::vector<field_ct> const& public_inputs,
+                                                   bool_ct const& is_real)
+{
+    // Check every real tx rollup proof has correct bridge id.
+    for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; j++) {
+
+        field_ct num_matched(&composer, 0);
+        auto inner_bridge_id = public_inputs[RollupProofFields::DEFI_BRIDGE_IDS + j];
+        auto inner_defi_deposit_sum = public_inputs[RollupProofFields::DEFI_BRIDGE_DEPOSITS + j];
+        auto is_bridge_id_zero = inner_bridge_id.is_zero();
+
+        for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
+            const auto matches = (inner_bridge_id == bridge_ids[k]);
+            num_matched += matches;
+
+            // Sum the real tx rollup proof's tx fee according to the matched asset id.
+            defi_deposit_sums[k] += (inner_defi_deposit_sum * matches * !is_bridge_id_zero);
+        }
+
+        // Assert that the tx rollup proof's asset_id matched a single asset_id.
+        auto is_valid_bridge_id = !is_real || (num_matched == 1 || is_bridge_id_zero);
+        is_valid_bridge_id.assert_equal(true,
+                                        format("rollup proof ",
+                                               i,
+                                               "'s bridge id at index ",
+                                               j,
+                                               " matched ",
+                                               uint64_t(num_matched.get_value()),
+                                               " times."));
+    }
+}
+
 void assert_inner_proof_sequential(Composer& composer,
                                    size_t const num_inner_txs_pow2,
                                    uint32_t const i,
@@ -100,8 +172,6 @@ void assert_inner_proof_sequential(Composer& composer,
                                    field_ct& new_null_root,
                                    field_ct const& old_root_root,
                                    field_ct const& new_defi_root,
-                                   std::vector<field_ct> const& bridge_ids,
-                                   std::vector<field_ct> const& asset_ids,
                                    std::vector<field_ct> const& public_inputs,
                                    bool_ct const& is_real)
 {
@@ -113,20 +183,6 @@ void assert_inner_proof_sequential(Composer& composer,
     auto new_null_root_inner = public_inputs[RollupProofFields::NEW_NULL_ROOT];
     auto old_root_root_inner = public_inputs[RollupProofFields::OLD_DATA_ROOTS_ROOT];
     auto new_defi_root_inner = public_inputs[RollupProofFields::NEW_DEFI_ROOT];
-
-    // Check every real inner proof has matching bridge ids.
-    for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; ++j) {
-        auto valid_bid = !is_real || public_inputs[RollupProofFields::DEFI_BRIDGE_IDS + j] == bridge_ids[j];
-        composer.assert_equal_constant(valid_bid, 1, format("inconsistent_bridge_id_", j));
-    }
-
-    // Check every real inner proof has matching asset ids.
-    auto valid_zero_aid = !is_real || public_inputs[RollupProofFields::ASSET_IDS] == field_ct(0);
-    composer.assert_equal_constant(valid_zero_aid, 1, format("inconsistent_asset_id_", 0));
-    for (size_t j = 1; j < NUM_ASSETS; ++j) {
-        auto valid_aid = !is_real || public_inputs[RollupProofFields::ASSET_IDS + j] == asset_ids[j - 1];
-        composer.assert_equal_constant(valid_aid, 1, format("inconsistent_asset_id_", j));
-    }
 
     // Every real inner proof should use the root tree root we've input.
     auto valid_root_root = !is_real || old_root_root_inner == old_root_root;
@@ -222,14 +278,11 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
         }
 
         // Accumulate tx fees.
-        for (size_t j = 0; j < NUM_ASSETS; ++j) {
-            total_tx_fees[j] += public_inputs[RollupProofFields::TOTAL_TX_FEES + j];
-        }
+        check_asset_ids_and_accumulate_tx_fees(composer, i, total_tx_fees, asset_ids, public_inputs, is_real);
 
         // Accumulate defi deposits.
-        for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; ++j) {
-            defi_deposit_sums[j] += public_inputs[RollupProofFields::DEFI_BRIDGE_DEPOSITS + j];
-        }
+        check_bridge_ids_and_accumulate_defi_deposits(
+            composer, i, defi_deposit_sums, bridge_ids, public_inputs, is_real);
 
         assert_inner_proof_sequential(composer,
                                       num_inner_txs_pow2,
@@ -242,8 +295,6 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
                                       new_null_root,
                                       old_root_root,
                                       new_defi_root,
-                                      bridge_ids,
-                                      asset_ids,
                                       public_inputs,
                                       is_real);
 
@@ -285,8 +336,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         defi_deposit_sums[i].set_public();
     }
-    add_zero_public_input(composer); // asset_ids[0] = 0 (ETH)
-    for (size_t i = 0; i < NUM_ERC20_ASSETS; ++i) {
+    for (size_t i = 0; i < NUM_ASSETS; ++i) {
         asset_ids[i].set_public();
     }
     for (auto total_tx_fee : total_tx_fees) {
