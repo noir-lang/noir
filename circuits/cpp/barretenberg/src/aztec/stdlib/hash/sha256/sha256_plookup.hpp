@@ -58,7 +58,7 @@ struct sparse_value {
     sparse_value(const field_t<waffle::PlookupComposer>& in = 0)
     {
         normal = in;
-        if (normal.witness_index == UINT32_MAX) {
+        if (normal.witness_index == IS_CONSTANT) {
             sparse = field_t<waffle::PlookupComposer>(
                 in.get_context(),
                 barretenberg::fr(numeric::map_into_sparse_form<16>(uint256_t(in.get_value()).data[0])));

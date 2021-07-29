@@ -114,19 +114,44 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
         barretenberg::fr value = result.witness_bool ? barretenberg::fr::one() : barretenberg::fr::zero();
         result.witness_index = context->add_variable(value);
         result.witness_inverted = false;
-        // (a.b)
-        // (b.(1-a))
-        // (a.(1-b))
-        // (1-a).(1-b)
+
+        /**
+         * A bool can be represented by a witness value `w` and an 'inverted' flag `i`
+         *
+         * A bool's value is defined via the equation:
+         *      w + i - 2.i.w
+         *
+         * | w | i | w + i - 2.i.w |
+         * | - | - | ------------- |
+         * | 0 | 0 |       0       |
+         * | 0 | 1 |       1       |
+         * | 1 | 0 |       1       |
+         * | 1 | 1 |       0       |
+         *
+         * For two bools (w_a, i_a), (w_b, i_b), the & operation is expressed as:
+         *
+         *   (w_a + i_a - 2.i_a.w_a).(w_b + i_b - 2.i_b.w_b)
+         *
+         * This can be rearranged to:
+         *
+         *      w_a.w_b.(1 - 2.i_b - 2.i_a + 4.i_a.i_b)     -> q_m coefficient
+         *    + w_a.(i_b.(1 - 2.i_a))                       -> q_1 coefficient
+         *    + w_b.(i_a.(1 - 2.i_b))                       -> q_2 coefficient
+         *    + i_a.i_b                                     -> q_c coefficient
+         *
+         **/
+
+        int i_a(witness_inverted);
+        int i_b(other.witness_inverted);
+
+        fr qm(1 - 2 * i_b - 2 * i_a + 4 * i_a * i_b);
+        fr q1(i_b * (1 - 2 * i_a));
+        fr q2(i_a * (1 - 2 * i_b));
+        fr q3(-1);
+        fr qc(i_a * i_b);
+
         const waffle::poly_triple gate_coefficients{
-            witness_index,
-            other.witness_index,
-            result.witness_index,
-            (witness_inverted ^ other.witness_inverted) ? barretenberg::fr::neg_one() : barretenberg::fr::one(),
-            other.witness_inverted ? barretenberg::fr::one() : barretenberg::fr::zero(),
-            witness_inverted ? barretenberg::fr::one() : barretenberg::fr::zero(),
-            barretenberg::fr::neg_one(),
-            (witness_inverted & other.witness_inverted) ? barretenberg::fr::one() : barretenberg::fr::zero()
+            witness_index, other.witness_index, result.witness_index, qm, q1, q2, q3, qc,
         };
         context->create_poly_gate(gate_coefficients);
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
@@ -165,30 +190,39 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
     result.witness_inverted = false;
     if ((other.witness_index != IS_CONSTANT) && (witness_index != IS_CONSTANT)) {
         result.witness_index = context->add_variable(value);
-        // result = a + b - ab
-        // (1 - a) + (1 - b) - (1 - a)(1 - b) = 2 - a - b - ab - 1 + a + b = 1 - ab
-        // (1 - a) + b - (1 - a)(b) = 1 - a + b - b +ab = 1 - a + ab
-        // a + (1 - b) - (a)(1 - b) = a - b + ab - a + 1 = 1 - b + ab
+        // result = A + B - AB, where A,B are the "real" values of the variables. But according to whether
+        // witness_inverted flag is true, we need to invert the input. Hence, we look at four cases, and compute the
+        // relevent coefficients of the selector q_1,q_2,q_m,q_c in each case
         barretenberg::fr multiplicative_coefficient;
         barretenberg::fr left_coefficient;
         barretenberg::fr right_coefficient;
         barretenberg::fr constant_coefficient;
+        // a inverted: (1-a) + b - (1-a)b = 1-a+ab
+        // ==> q_1=-1,q_2=0,q_m=1,q_c=1
         if (witness_inverted && !other.witness_inverted) {
             multiplicative_coefficient = barretenberg::fr::one();
             left_coefficient = barretenberg::fr::neg_one();
             right_coefficient = barretenberg::fr::zero();
             constant_coefficient = barretenberg::fr::one();
-        } else if (!witness_inverted && other.witness_inverted) {
+        }
+        // b inverted: a + (1-b) - a(1-b) = 1-b+ab
+        // ==> q_1=0,q_2=-1,q_m=1,q_c=1
+        else if (!witness_inverted && other.witness_inverted) {
             multiplicative_coefficient = barretenberg::fr::one();
             left_coefficient = barretenberg::fr::zero();
             right_coefficient = barretenberg::fr::neg_one();
             constant_coefficient = barretenberg::fr::one();
-        } else if (witness_inverted && other.witness_inverted) {
+        }
+        // Both inverted: (1 - a) + (1 - b) - (1 - a)(1 - b) = 2 - a - b - (1 -a -b +ab) = 1 - ab
+        // ==> q_m=-1,q_1=0,q_2=0,q_c=1
+        else if (witness_inverted && other.witness_inverted) {
             multiplicative_coefficient = barretenberg::fr::neg_one();
             left_coefficient = barretenberg::fr::zero();
             right_coefficient = barretenberg::fr::zero();
             constant_coefficient = barretenberg::fr::one();
-        } else {
+        }
+        // No inversions: a + b - ab ==> q_m=-1,q_1=1,q_2=1,q_c=0
+        else {
             multiplicative_coefficient = barretenberg::fr::neg_one();
             left_coefficient = barretenberg::fr::one();
             right_coefficient = barretenberg::fr::one();
@@ -359,7 +393,7 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator||(const bool_t<Compose
 template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::normalize() const
 {
     bool is_constant = (witness_index == IS_CONSTANT);
-    if (is_constant) {
+    if (is_constant | !witness_inverted) {
         return *this;
     }
 

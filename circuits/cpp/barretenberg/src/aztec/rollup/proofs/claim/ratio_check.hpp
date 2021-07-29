@@ -148,7 +148,7 @@ inline bool_ct ratio_check(Composer& composer, ratios const& ratios)
 {
     const field_ct residual = ratios.get_residual(composer);
 
-    return (ratios.a2 != 0).normalize() && (ratios.b2 != 0).normalize() &&
+    return (ratios.a2 != 0) && (ratios.b2 != 0) &&
            product_check(composer, ratios.a1, ratios.b2, ratios.b1, ratios.a2, residual);
 }
 
