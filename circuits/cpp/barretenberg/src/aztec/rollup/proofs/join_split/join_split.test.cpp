@@ -581,6 +581,19 @@ TEST_F(join_split_tests, test_defi_non_zero_public_output_fails)
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
+TEST_F(join_split_tests, test_defi_non_zero_output_note_1_ignored)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value = 10; // This should be ignored in fee calculation!
+    tx.output_note[1].value = 100;
+    tx.claim_note.deposit_value = 50;
+
+    bridge_id bridge_id = { 0, 2, tx.asset_id, 0, 0 };
+    tx.claim_note.bridge_id = bridge_id.to_uint256_t();
+
+    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+}
+
 HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
@@ -614,7 +627,7 @@ HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
 HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
 {
     join_split_tx tx = simple_setup();
-    tx.output_note[0].value = 0;
+    tx.output_note[0].value = 10; // This should be ignored anyway!
     tx.output_note[1].value = 91;
     tx.claim_note.deposit_value = 50;
 

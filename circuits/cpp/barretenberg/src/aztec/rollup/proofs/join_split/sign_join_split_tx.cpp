@@ -13,16 +13,14 @@ signature sign_join_split_tx(join_split_tx const& tx,
                              key_pair<grumpkin::fr, grumpkin::g1> const& keys,
                              numeric::random::Engine* engine)
 {
-
-    uint256_t total_input_value = tx.input_note[0].value + tx.input_note[1].value + tx.public_input;
-    uint256_t total_output_value =
-        tx.output_note[0].value + tx.output_note[1].value + tx.public_output + tx.claim_note.deposit_value;
-    grumpkin::fq tx_fee = total_input_value - total_output_value;
-
     auto is_defi = tx.claim_note.deposit_value > 0;
     auto asset_id = is_defi ? tx.claim_note.bridge_id : tx.asset_id;
     auto public_input = is_defi ? 0 : tx.public_input;
     auto public_output = is_defi ? tx.claim_note.deposit_value : tx.public_output;
+
+    uint256_t total_input_value = tx.input_note[0].value + tx.input_note[1].value + tx.public_input;
+    uint256_t total_output_value = tx.output_note[0].value * !is_defi + tx.output_note[1].value + public_output;
+    grumpkin::fq tx_fee = total_input_value - total_output_value;
 
     auto partial_value_note_commitment =
         value::create_partial_commitment(tx.claim_note.note_secret, tx.claim_note.owner, tx.claim_note.owner_nonce);

@@ -81,7 +81,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
 
     // Derive tx_fee.
     field_ct total_in_value = inputs.input_note1.value + inputs.input_note2.value + inputs.public_input;
-    field_ct total_out_value = inputs.output_note1.value + inputs.output_note2.value + public_output;
+    field_ct total_out_value = inputs.output_note1.value * not_defi_bridge + inputs.output_note2.value + public_output;
     field_ct tx_fee = total_in_value - total_out_value;
     composer.create_range_constraint(tx_fee.witness_index, TX_FEE_BIT_LENGTH, "tx fee too large");
 
