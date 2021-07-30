@@ -14,7 +14,7 @@ constexpr size_t MAX_NO_WRAP_INTEGER_BIT_LENGTH = 252;
 constexpr size_t MAX_TXS_BIT_LENGTH = 10;
 constexpr size_t TX_FEE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BIT_LENGTH;
 
-constexpr size_t NUM_ASSETS_BIT_LENGTH = 2;
+constexpr size_t NUM_ASSETS_BIT_LENGTH = 4;
 constexpr size_t NUM_ASSETS = 1 << NUM_ASSETS_BIT_LENGTH;
 constexpr size_t MAX_NUM_ASSETS_BIT_LENGTH = 30;
 constexpr size_t MAX_NUM_ASSETS = 1 << MAX_NUM_ASSETS_BIT_LENGTH;
