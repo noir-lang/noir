@@ -1,5 +1,6 @@
 #include "c_bind.h"
 #include "account.hpp"
+#include "compute_signing_data.hpp"
 #include <common/streams.hpp>
 #include <cstdint>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -81,6 +82,13 @@ WASM_EXPORT uint32_t account__get_new_verification_key_data(uint8_t** output)
     memcpy(raw_buf, (void*)buffer.data(), buffer.size());
     *output = raw_buf;
     return static_cast<uint32_t>(buffer.size());
+}
+
+WASM_EXPORT void account__compute_signing_data(uint8_t const* account_buf, uint8_t* output)
+{
+    auto tx = from_buffer<account_tx>(account_buf);
+    auto signing_data = compute_signing_data(tx);
+    barretenberg::fr::serialize_to_buffer(signing_data, output);
 }
 
 WASM_EXPORT void* account__new_prover(uint8_t const* account_buf)

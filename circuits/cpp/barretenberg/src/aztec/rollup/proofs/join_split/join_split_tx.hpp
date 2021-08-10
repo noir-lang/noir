@@ -30,10 +30,11 @@ struct join_split_tx {
     uint32_t account_index;
     merkle_tree::fr_hash_path account_path;
     grumpkin::g1::affine_element signing_pub_key;
-    crypto::schnorr::signature signature;
 
     barretenberg::fr input_owner;
     barretenberg::fr output_owner;
+
+    crypto::schnorr::signature signature;
 
     bool operator==(join_split_tx const&) const = default;
 };

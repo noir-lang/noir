@@ -107,8 +107,6 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = !nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
         tx.nonce = nonce;
-        tx.claim_note.owner = user.owner.public_key;
-        tx.claim_note.owner_nonce = nonce;
         return tx;
     }
 
@@ -158,8 +156,6 @@ class join_split_tests : public ::testing::Test {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
         tx.nonce = 0;
-        tx.claim_note.owner = user.owner.public_key;
-        tx.claim_note.owner_nonce = 0;
         return tx;
     }
 

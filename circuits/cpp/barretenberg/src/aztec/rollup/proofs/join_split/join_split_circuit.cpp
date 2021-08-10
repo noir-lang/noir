@@ -48,7 +48,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto input_note2 = value::value_note(inputs.input_note2);
     auto output_note1 = value::value_note(inputs.output_note1);
     auto output_note2 = value::value_note(inputs.output_note2);
-    auto claim_note = claim::partial_claim_note(inputs.claim_note);
+    auto claim_note = claim::partial_claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
     auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
     auto input_owner = inputs.input_owner * not_defi_bridge + claim_note.value_note_partial_commitment * is_defi_bridge;
     auto output_note1_commitment =

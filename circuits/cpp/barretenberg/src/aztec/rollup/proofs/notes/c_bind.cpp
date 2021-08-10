@@ -123,4 +123,11 @@ WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffe
         output_ptr += 41;
     }
 }
+
+WASM_EXPORT void notes__compute_account_alias_id_nullifier(uint8_t const* id_buffer, uint8_t* output)
+{
+    auto account_alias_id = from_buffer<barretenberg::fr>(id_buffer);
+    auto nullifier = account::compute_account_alias_id_nullifier(account_alias_id);
+    write(output, nullifier);
+}
 }

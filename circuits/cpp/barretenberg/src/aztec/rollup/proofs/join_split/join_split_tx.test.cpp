@@ -43,8 +43,6 @@ TEST(client_proofs_join_split_tx, test_serialization)
     }
 
     tx.claim_note.bridge_id = 0xdeadbeef;
-    tx.claim_note.owner = grumpkin::g1::element::random_element();
-    tx.claim_note.owner_nonce = 444;
     tx.claim_note.note_secret = 0xcafebabe;
     tx.claim_note.deposit_value = 666;
 
