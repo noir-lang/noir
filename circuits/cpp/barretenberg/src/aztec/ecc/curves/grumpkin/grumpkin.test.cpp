@@ -389,5 +389,20 @@ TEST(grumpkin, batch_mul)
         EXPECT_EQ(result[i].y, expected[i].y);
     }
 }
-
+// Checks for "bad points" in terms of sharing a y-coordinate as explained here:
+// https://github.com/AztecProtocol/aztec2-internal/issues/437
+TEST(grumpkin, bad_points)
+{
+    auto beta = grumpkin::fr::beta();
+    auto beta_sqr = beta * beta;
+    bool res = true;
+    grumpkin::fr c(1);
+    for (size_t i = 0; i < 256; i++) {
+        auto val = c / (grumpkin::fr(1) + c);
+        if (val == beta || val == beta_sqr)
+            res = false;
+        c *= grumpkin::fr(4);
+    }
+    EXPECT_TRUE(res);
+}
 } // namespace test_grumpkin
