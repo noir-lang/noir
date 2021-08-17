@@ -39,8 +39,8 @@ join_split_tx noop_tx()
     tx.alias_hash = 0;
     tx.nonce = 0;
 
-    tx.input_owner = fr::random_element();
-    tx.output_owner = fr::random_element();
+    tx.input_owner = fr::zero();
+    tx.output_owner = fr::zero();
 
     tx.signature = sign_join_split_tx(tx, { priv_key, pub_key });
     return tx;
