@@ -288,8 +288,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::mixed_batch_mul(const std::vector<e
         Fr scalar_k1 = witness_t<C>(
             ctx, k1.to_montgomery_form()); // Q:seems we are assuming barret fr and template Fr are same field
         Fr scalar_k2 = witness_t<C>(ctx, k2.to_montgomery_form());
-        ctx->assert_equal((scalar_k1 - scalar_k2 * barretenberg::fr::beta()).witness_index,
-                          scalar.normalize().witness_index);
+        scalar.assert_equal(scalar_k1 - scalar_k2 * barretenberg::fr::beta(),
+                            "biggroup endormorphism scalar split fail?");
         scalars.push_back(scalar_k1);
         endo_scalars.push_back(scalar_k2);
         element point = big_points[i];

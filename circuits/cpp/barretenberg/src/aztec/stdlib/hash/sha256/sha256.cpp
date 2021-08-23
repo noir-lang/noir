@@ -181,6 +181,8 @@ template <typename Composer> packed_byte_array<Composer> sha256(const packed_byt
     return packed_byte_array<Composer>(output, 4);
 }
 
+template byte_array<waffle::StandardComposer> sha256_block(const byte_array<waffle::StandardComposer>& input);
+template packed_byte_array<waffle::StandardComposer> sha256(const packed_byte_array<waffle::StandardComposer>& input);
 template byte_array<waffle::TurboComposer> sha256_block(const byte_array<waffle::TurboComposer>& input);
 template packed_byte_array<waffle::TurboComposer> sha256(const packed_byte_array<waffle::TurboComposer>& input);
 template packed_byte_array<waffle::PlookupComposer> sha256(const packed_byte_array<waffle::PlookupComposer>& input);

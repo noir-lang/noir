@@ -25,7 +25,7 @@ std::vector<uint32_t> uint<Composer, Native>::constrain_accumulators(Composer* c
         }
         return out;
     }
-    return context->create_range_constraint(witness_index, num_bits);
+    return context->decompose_into_base4_accumulators(witness_index, num_bits);
 }
 
 template <typename Composer, typename Native>
@@ -174,7 +174,6 @@ template <typename Context, typename Native> uint<Context, Native>::operator byt
 {
     return byte_array<Context>(static_cast<field_t<Context>>(*this), width / 8);
 }
-
 
 template <typename Composer, typename Native> uint<Composer, Native> uint<Composer, Native>::weak_normalize() const
 {

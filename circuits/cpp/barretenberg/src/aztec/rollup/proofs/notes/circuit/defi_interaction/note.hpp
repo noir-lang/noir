@@ -50,12 +50,12 @@ struct note {
     {
         byte_array_ct arr(&composer);
 
-        arr.write((bridge_id * is_real).normalize());
-        arr.write((interaction_nonce * is_real).normalize());
-        arr.write((total_input_value * is_real).normalize());
-        arr.write((total_output_a_value * is_real).normalize());
-        arr.write((total_output_b_value * is_real).normalize());
-        arr.write((field_ct(interaction_result) * is_real).normalize());
+        arr.write((bridge_id * is_real));
+        arr.write((interaction_nonce * is_real));
+        arr.write((total_input_value * is_real));
+        arr.write((total_output_a_value * is_real));
+        arr.write((total_output_b_value * is_real));
+        arr.write((field_ct(interaction_result) * is_real));
 
         return arr;
     }

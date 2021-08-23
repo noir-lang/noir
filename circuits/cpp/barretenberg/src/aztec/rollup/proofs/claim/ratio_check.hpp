@@ -63,10 +63,10 @@ inline bool_ct product_check(Composer& composer,
         field_ct limb_sum_2 = input - (limbs[3] * shift_3);
         limb_sum_1.assert_equal(limb_sum_2);
 
-        composer.create_range_constraint(limbs[0].get_witness_index(), 68);
-        composer.create_range_constraint(limbs[1].get_witness_index(), 68);
-        composer.create_range_constraint(limbs[2].get_witness_index(), 68);
-        composer.create_range_constraint(limbs[3].get_witness_index(), 68);
+        limbs[0].create_range_constraint(68);
+        limbs[1].create_range_constraint(68);
+        limbs[2].create_range_constraint(68);
+        limbs[3].create_range_constraint(68);
 
         return limbs;
     };
@@ -86,8 +86,8 @@ inline bool_ct product_check(Composer& composer,
         const field_ct lo(witness_ct(&composer, lo_val));
         const field_ct hi(witness_ct(&composer, hi_val));
 
-        composer.create_range_constraint(lo.get_witness_index(), 68 * 2);
-        composer.create_range_constraint(hi.get_witness_index(), 72); // allow for 4 overflow bits
+        lo.create_range_constraint(68 * 2);
+        hi.create_range_constraint(72); // allow for 4 overflow bits
 
         limb.assert_equal(lo + (hi * shift_2));
 

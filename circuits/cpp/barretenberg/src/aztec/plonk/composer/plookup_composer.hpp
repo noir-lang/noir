@@ -79,9 +79,9 @@ class PlookupComposer : public ComposerBase {
 
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
-                                                  const size_t num_bits,
-                                                  std::string const& msg = "create_range_constraint");
+    std::vector<uint32_t> decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                            const size_t num_bits,
+                                                            std::string const& msg = "create_range_constraint");
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,
                                                const size_t num_bits,
@@ -94,13 +94,16 @@ class PlookupComposer : public ComposerBase {
     void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
-    void assert_equal_constant(const uint32_t a_idx, const barretenberg::fr& b, std::string const& = "")
+    void assert_equal_constant(const uint32_t a_idx,
+                               const barretenberg::fr& b,
+                               std::string const& msg = "assert equal constant")
     {
-        ASSERT(variables[a_idx] == b);
-        const add_triple gate_coefficients{
-            a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
-        };
-        create_add_gate(gate_coefficients);
+        if (variables[a_idx] != b && !failed) {
+            failed = true;
+            err = msg;
+        }
+        auto b_idx = put_constant_variable(b);
+        assert_equal(a_idx, b_idx, msg);
     }
 
     /**
@@ -125,9 +128,13 @@ class PlookupComposer : public ComposerBase {
     /**
      * Generalized Permutation Methods
      **/
-    std::vector<uint32_t> decompose_into_default_range(const uint32_t variable_index, const size_t num_bits);
-    std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(const uint32_t variable_index,
-                                                                             const size_t num_bits);
+    std::vector<uint32_t> decompose_into_default_range(const uint32_t variable_index,
+                                                       const size_t num_bits,
+                                                       std::string const& msg = "decompose_into_default_range");
+    std::vector<uint32_t> decompose_into_default_range_better_for_oddlimbnum(
+        const uint32_t variable_index,
+        const size_t num_bits,
+        std::string const& msg = "decompose_into_default_range_better_for_oddlimbnum");
     void create_dummy_constraints(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint(const std::vector<uint32_t>& variable_index);
     void create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,

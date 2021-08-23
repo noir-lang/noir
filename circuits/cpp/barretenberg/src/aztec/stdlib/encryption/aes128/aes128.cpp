@@ -23,15 +23,12 @@ typedef std::pair<field_t, field_t> byte_pair;
 
 field_t normalize_sparse_form(waffle::PlookupComposer*, field_t& byte)
 {
-    byte = byte.normalize();
     auto result = plookup::read_from_1_to_2_table(waffle::AES_NORMALIZE, byte);
     return result;
 }
 
 byte_pair apply_aes_sbox_map(waffle::PlookupComposer*, field_t& input)
 {
-    input = input.normalize();
-
     return plookup::read_pair_from_table(waffle::AES_SBOX, input);
 }
 
@@ -66,7 +63,7 @@ field_t convert_from_sparse_bytes(waffle::PlookupComposer* ctx, field_t* sparse_
     const auto indices = plookup::read_sequence_from_table(waffle::AES_INPUT, result);
 
     for (size_t i = 0; i < 16; ++i) {
-        ctx->assert_equal(sparse_bytes[15 - i].witness_index, indices[1][i].witness_index);
+        sparse_bytes[15 - i].assert_equal(indices[1][i]);
     }
 
     return result;
@@ -128,7 +125,7 @@ std::array<field_t, 176> expand_key(waffle::PlookupComposer* ctx, const field_t&
             temp[3] = apply_aes_sbox_map(ctx, temp[3]).first;
 
             temp[0] = temp[0] + sparse_round_constants[i >> 2];
-            temp[0] = temp[0].normalize();
+            temp[0] = temp[0];
             ++temp_add_counts[0];
         }
 

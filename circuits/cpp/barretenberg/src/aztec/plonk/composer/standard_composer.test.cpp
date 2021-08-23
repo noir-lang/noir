@@ -157,7 +157,7 @@ TEST(standard_composer, range_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        std::vector<uint32_t> accumulators = composer.create_range_constraint(witness_index, 32 + extra_bits);
+        std::vector<uint32_t> accumulators = composer.decompose_into_base4_accumulators(witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
             uint32_t result = (value >> (30U - (2 * j)));
@@ -195,7 +195,7 @@ TEST(standard_composer, range_constraint_fail)
     uint64_t value = 0xffffff;
     uint32_t witness_index = composer.add_variable(fr(value));
 
-    composer.create_range_constraint(witness_index, 23);
+    composer.decompose_into_base4_accumulators(witness_index, 23);
 
     waffle::Prover prover = composer.create_prover();
 
@@ -441,7 +441,7 @@ TEST(standard_composer, test_range_constraint_fail)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
     uint32_t witness_index = composer.add_variable(fr::neg_one());
-    composer.create_range_constraint(witness_index, 32);
+    composer.decompose_into_base4_accumulators(witness_index, 32);
 
     waffle::Prover prover = composer.preprocess();
 

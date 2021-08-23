@@ -26,8 +26,6 @@ enum PolynomialIndex {
     TABLE_4,
     TABLE_INDEX,
     TABLE_TYPE,
-    Q_MIMC_COEFFICIENT,
-    Q_MIMC_SELECTOR,
     Q_ELLIPTIC,
     SIGMA_1,
     SIGMA_2,
@@ -94,7 +92,7 @@ struct PolynomialDescriptor {
 static constexpr PolynomialDescriptor standard_polynomial_manifest[12]{
     PolynomialDescriptor("W_1", "w_1", false, false, WITNESS, W_1),                 //
     PolynomialDescriptor("W_2", "w_2", false, false, WITNESS, W_2),                 //
-    PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                  //
+    PolynomialDescriptor("W_3", "w_3", false, false, WITNESS, W_3),                 //
     PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                         //
     PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                 //
     PolynomialDescriptor("Q_2", "q_2", true, false, SELECTOR, Q_2),                 //
@@ -104,23 +102,6 @@ static constexpr PolynomialDescriptor standard_polynomial_manifest[12]{
     PolynomialDescriptor("SIGMA_1", "sigma_1", false, false, PERMUTATION, SIGMA_1), //
     PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2), //
     PolynomialDescriptor("SIGMA_3", "sigma_3", true, false, PERMUTATION, SIGMA_3),  //
-};
-
-static constexpr PolynomialDescriptor mimc_polynomial_manifest[14]{
-    PolynomialDescriptor("W_1", "w_1", false, false, WITNESS, W_1),                                               //
-    PolynomialDescriptor("W_2", "w_2", false, false, WITNESS, W_2),                                               //
-    PolynomialDescriptor("W_3", "w_3", false, true, WITNESS, W_3),                                                //
-    PolynomialDescriptor("Z", "z", true, true, WITNESS, Z),                                                       //
-    PolynomialDescriptor("Q_1", "q_1", true, false, SELECTOR, Q_1),                                               //
-    PolynomialDescriptor("Q_2", "q_2", true, false, SELECTOR, Q_2),                                               //
-    PolynomialDescriptor("Q_3", "q_3", true, false, SELECTOR, Q_3),                                               //
-    PolynomialDescriptor("Q_M", "q_m", true, false, SELECTOR, Q_M),                                               //
-    PolynomialDescriptor("Q_C", "q_c", true, false, SELECTOR, Q_C),                                               //
-    PolynomialDescriptor("Q_MIMC_COEFFICIENT", "q_mimc_coefficient", false, false, SELECTOR, Q_MIMC_COEFFICIENT), //
-    PolynomialDescriptor("Q_MIMC_SELECTOR", "q_mimc_selector", true, false, SELECTOR, Q_MIMC_SELECTOR),           //
-    PolynomialDescriptor("SIGMA_1", "sigma_1", false, false, PERMUTATION, SIGMA_1),                               //
-    PolynomialDescriptor("SIGMA_2", "sigma_2", false, false, PERMUTATION, SIGMA_2),                               //
-    PolynomialDescriptor("SIGMA_3", "sigma_3", true, false, PERMUTATION, SIGMA_3),                                //
 };
 
 static constexpr PolynomialDescriptor turbo_polynomial_manifest[20]{
@@ -163,7 +144,7 @@ static constexpr PolynomialDescriptor plookup_polynomial_manifest[34]{
     PolynomialDescriptor("Q_C", "q_c", false, false, SELECTOR, Q_C),                                         //
     PolynomialDescriptor("Q_ARITHMETIC_SELECTOR", "q_arith", false, false, SELECTOR, Q_ARITHMETIC_SELECTOR), //
     PolynomialDescriptor("Q_RANGE_SELECTOR", "q_range", true, false, SELECTOR, Q_RANGE_SELECTOR),            //
-    PolynomialDescriptor("Q_SORT_SELECTOR", "q_sort", true, false, SELECTOR, Q_SORT_SELECTOR),            //
+    PolynomialDescriptor("Q_SORT_SELECTOR", "q_sort", true, false, SELECTOR, Q_SORT_SELECTOR),               //
     PolynomialDescriptor("Q_FIXED_BASE_SELECTOR", "q_ecc_1", false, false, SELECTOR, Q_FIXED_BASE_SELECTOR), //
     PolynomialDescriptor("Q_LOGIC_SELECTOR", "q_logic", true, false, SELECTOR, Q_LOGIC_SELECTOR),            //
     PolynomialDescriptor("Q_ELLIPTIC", "q_elliptic", true, false, SELECTOR, Q_ELLIPTIC),                     //

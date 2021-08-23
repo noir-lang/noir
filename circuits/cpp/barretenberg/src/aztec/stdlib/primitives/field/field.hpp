@@ -151,25 +151,7 @@ template <typename ComposerContext> class field_t {
 
     field_t conditional_negate(const bool_t<ComposerContext>& predicate) const;
 
-    void assert_equal(const field_t& rhs, std::string const& msg = "field_t::assert_equal") const
-    {
-        const field_t lhs = *this;
-        ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
-
-        if (lhs.witness_index == IS_CONSTANT && rhs.witness_index == IS_CONSTANT) {
-            ASSERT(lhs.get_value() == rhs.get_value());
-        } else if (lhs.witness_index == IS_CONSTANT) {
-            field_t right = rhs.normalize();
-            ctx->assert_equal_constant(right.witness_index, lhs.get_value(), msg);
-        } else if (rhs.witness_index == IS_CONSTANT) {
-            field_t left = lhs.normalize();
-            ctx->assert_equal_constant(left.witness_index, rhs.get_value(), msg);
-        } else {
-            field_t left = lhs.normalize();
-            field_t right = rhs.normalize();
-            ctx->assert_equal(left.witness_index, right.witness_index, msg);
-        }
-    }
+    void assert_equal(const field_t& rhs, std::string const& msg = "field_t::assert_equal") const;
 
     static std::array<field_t, 4> preprocess_two_bit_table(const field_t& T0,
                                                            const field_t& T1,
@@ -226,11 +208,11 @@ template <typename ComposerContext> class field_t {
      **/
     bool_t<ComposerContext> is_zero() const;
 
-    void range_constraint(size_t num_bits, std::string const& msg = "field_t::range_constraint") const;
+    void create_range_constraint(const size_t num_bits, std::string const& msg = "field_t::range_constraint") const;
     void assert_is_not_zero(std::string const& msg = "field_t::assert_is_not_zero") const;
     void assert_is_zero(std::string const& msg = "field_t::assert_is_zero") const;
     bool is_constant() const { return witness_index == IS_CONSTANT; }
-    void set_public() const { context->set_public_input(witness_index); }
+    void set_public() const { context->set_public_input(normalize().witness_index); }
 
     uint32_t get_witness_index() const { return witness_index; }
 

@@ -386,12 +386,6 @@ template <typename ComposerContext> field_t<ComposerContext> field_t<ComposerCon
     return result;
 }
 
-template <typename ComposerContext>
-void field_t<ComposerContext>::range_constraint(size_t num_bits, std::string const& msg) const
-{
-    context->create_range_constraint(witness_index, num_bits, msg);
-}
-
 template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zero(std::string const& msg) const
 {
     if (get_value() != barretenberg::fr(0)) {
@@ -527,7 +521,7 @@ bool_t<ComposerContext> field_t<ComposerContext>::operator==(const field_t& othe
 
     const field_t t1 = r.madd(-x + 1, x);
     const field_t t2 = diff.madd(t1, r - 1);
-    ctx->assert_equal(t2.witness_index, ctx->zero_idx);
+    t2.assert_equal(0);
 
     return result;
 }
@@ -544,6 +538,41 @@ field_t<ComposerContext> field_t<ComposerContext>::conditional_negate(const bool
     field_t<ComposerContext> predicate_field(predicate);
     field_t<ComposerContext> multiplicand = -(predicate_field + predicate_field);
     return multiplicand.madd(*this, *this);
+}
+
+template <typename ComposerContext>
+void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, std::string const& msg) const
+{
+    if (is_constant()) {
+        ASSERT(uint256_t(get_value()).get_msb() < num_bits);
+    } else {
+        if constexpr (ComposerContext::type == waffle::ComposerType::PLOOKUP) {
+            context->decompose_into_default_range(normalize().get_witness_index(), num_bits, msg);
+        } else {
+            context->decompose_into_base4_accumulators(normalize().get_witness_index(), num_bits, msg);
+        }
+    }
+}
+
+template <typename ComposerContext>
+void field_t<ComposerContext>::assert_equal(const field_t& rhs, std::string const& msg) const
+{
+    const field_t lhs = *this;
+    ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
+
+    if (lhs.is_constant() && rhs.is_constant()) {
+        ASSERT(lhs.get_value() == rhs.get_value());
+    } else if (lhs.is_constant()) {
+        field_t right = rhs.normalize();
+        ctx->assert_equal_constant(right.witness_index, lhs.get_value(), msg);
+    } else if (rhs.is_constant()) {
+        field_t left = lhs.normalize();
+        ctx->assert_equal_constant(left.witness_index, rhs.get_value(), msg);
+    } else {
+        field_t left = lhs.normalize();
+        field_t right = rhs.normalize();
+        ctx->assert_equal(left.witness_index, right.witness_index, msg);
+    }
 }
 
 template <typename ComposerContext>
@@ -566,8 +595,8 @@ std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two
     return table;
 }
 
-// Given T, stores the coefficients of the multilinear polynomial in t0,t1,t2, that on input a binary string b of length
-// 3, equals T_b
+// Given T, stores the coefficients of the multilinear polynomial in t0,t1,t2, that on input a binary string b of
+// length 3, equals T_b
 template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_three_bit_table(const field_t& T0,
                                                                                              const field_t& T1,
@@ -683,9 +712,10 @@ field_t<ComposerContext> field_t<ComposerContext>::slice(const uint8_t msb, cons
     const field_t lo_wit = field_t(witness_t(ctx, lo));
     const field_t slice_wit = field_t(witness_t(ctx, slice));
 
-    hi_wit.range_constraint(rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb), "slice: hi value too large.");
-    lo_wit.range_constraint(lsb, "slice: lo value too large.");
-    slice_wit.range_constraint(msb_plus_one - lsb, "slice: sliced value too large.");
+    hi_wit.create_range_constraint(rollup::MAX_NO_WRAP_INTEGER_BIT_LENGTH - uint32_t(msb),
+                                   "slice: hi value too large.");
+    lo_wit.create_range_constraint(lsb, "slice: lo value too large.");
+    slice_wit.create_range_constraint(msb_plus_one - lsb, "slice: sliced value too large.");
     assert_equal(((hi_wit * pow<ComposerContext>(field_t(2), msb_plus_one)) + lo_wit +
                   (slice_wit * pow<ComposerContext>(field_t(2), lsb))));
 

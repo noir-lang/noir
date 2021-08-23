@@ -22,7 +22,11 @@ template <typename ComposerContext> class byte_array {
     byte_array(ComposerContext* parent_context, ItBegin const& begin, ItEnd const& end)
         : context(parent_context)
         , values(begin, end)
-    {}
+    {
+        for (auto& val : values) {
+            val = val.normalize();
+        }
+    }
 
     byte_array(const byte_array& other);
     byte_array(byte_array&& other);

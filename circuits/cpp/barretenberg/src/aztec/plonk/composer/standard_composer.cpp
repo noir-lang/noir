@@ -208,9 +208,9 @@ void StandardComposer::create_poly_gate(const poly_triple& in)
     ++n;
 }
 
-std::vector<uint32_t> StandardComposer::create_range_constraint(const uint32_t witness_index,
-                                                                const size_t num_bits,
-                                                                std::string const& msg)
+std::vector<uint32_t> StandardComposer::decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                                          const size_t num_bits,
+                                                                          std::string const& msg)
 {
     fr target = get_variable(witness_index).from_montgomery_form();
 
@@ -585,12 +585,14 @@ Prover StandardComposer::create_prover()
     return output_state;
 }
 
-void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, std::string const&)
+void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, std::string const& msg)
 {
-    const add_triple gate_coefficients{
-        a_idx, a_idx, a_idx, fr::one(), fr::zero(), fr::zero(), -b,
-    };
-    create_add_gate(gate_coefficients);
+    if (variables[a_idx] != b && !failed) {
+        failed = true;
+        err = msg;
+    }
+    auto b_idx = put_constant_variable(b);
+    assert_equal(a_idx, b_idx, msg);
 }
 
 } // namespace waffle

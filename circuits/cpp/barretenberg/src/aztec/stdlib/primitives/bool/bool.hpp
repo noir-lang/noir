@@ -45,25 +45,7 @@ template <typename ComposerContext> class bool_t {
 
     void operator^=(const bool_t& other) { *this = operator^(other); }
 
-    void assert_equal(const bool_t& rhs, std::string const& msg = "bool_t::assert_equal") const
-    {
-        const bool_t lhs = *this;
-        ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
-
-        if (lhs.witness_index == IS_CONSTANT && rhs.witness_index == IS_CONSTANT) {
-            ASSERT(lhs.get_value() == rhs.get_value());
-        } else if (lhs.witness_index == IS_CONSTANT) {
-            bool_t right = rhs.normalize();
-            ctx->assert_equal_constant(right.witness_index, lhs.get_value(), msg);
-        } else if (rhs.witness_index == IS_CONSTANT) {
-            bool_t left = lhs.normalize();
-            ctx->assert_equal_constant(left.witness_index, rhs.get_value(), msg);
-        } else {
-            bool_t left = lhs.normalize();
-            bool_t right = rhs.normalize();
-            ctx->assert_equal(left.witness_index, right.witness_index, msg);
-        }
-    }
+    void assert_equal(const bool_t& rhs, std::string const& msg = "bool_t::assert_equal") const;
 
     bool get_value() const { return witness_bool ^ witness_inverted; }
 

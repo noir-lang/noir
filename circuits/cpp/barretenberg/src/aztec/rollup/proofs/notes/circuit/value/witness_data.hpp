@@ -30,8 +30,8 @@ struct witness_data {
         asset_id = witness_ct(&composer, note.asset_id);
         nonce = witness_ct(&composer, note.nonce);
 
-        composer.create_range_constraint(asset_id.witness_index, 32);
-        composer.create_range_constraint(value.witness_index, NOTE_VALUE_BIT_LENGTH);
+        asset_id.create_range_constraint(32);
+        value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }
 };
 

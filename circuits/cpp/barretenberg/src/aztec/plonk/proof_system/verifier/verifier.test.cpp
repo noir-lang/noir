@@ -41,7 +41,6 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
                   { "sigma_2", fr_size, false, 4 },
                   { "r", fr_size, false, 5 },
                   { "z_omega", fr_size, false, -1 },
-                  { "w_3_omega", fr_size, false, 2 },
               },
               "nu",
               7,
@@ -189,7 +188,7 @@ waffle::Prover generate_test_data(const size_t n)
         sigma_3_mapping[i] = (uint32_t)(i + shift) + (1U << 31U);
     }
     // make last permutation the same as identity permutation
-    // we are setting the permutation in the last 4 gates as identity permutation since 
+    // we are setting the permutation in the last 4 gates as identity permutation since
     // we are cutting out 4 roots as of now.
     size_t num_roots_cut_out_of_the_vanishing_polynomial = 4;
     for (uint32_t j = 0; j < num_roots_cut_out_of_the_vanishing_polynomial; ++j) {

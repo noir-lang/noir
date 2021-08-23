@@ -396,8 +396,8 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
     }
 
     if (is_constant()) {
-        const uint32_t constant_idx = ctx->put_constant_variable(additive_constant);
-        ctx->assert_equal(lhs_idx, constant_idx);
+        field_t<Composer>::from_witness_index(ctx, lhs_idx)
+            .assert_equal(additive_constant, "uint32 logic operator assert equal fail");
     } else {
         accumulators = logic_accumulators.left;
         witness_index = accumulators[num_accumulators() - 1];
@@ -405,8 +405,8 @@ uint<Composer, Native> uint<Composer, Native>::logic_operator(const uint& other,
     }
 
     if (other.is_constant()) {
-        const uint32_t constant_idx = ctx->put_constant_variable(other.additive_constant);
-        ctx->assert_equal(rhs_idx, constant_idx);
+        field_t<Composer>::from_witness_index(ctx, rhs_idx)
+            .assert_equal(other.additive_constant, "uint32 logic operator assert equal fail");
     } else {
         other.accumulators = logic_accumulators.right;
         other.witness_index = other.accumulators[num_accumulators() - 1];
@@ -435,9 +435,5 @@ template class uint<waffle::StandardComposer, uint16_t>;
 template class uint<waffle::StandardComposer, uint32_t>;
 template class uint<waffle::StandardComposer, uint64_t>;
 
-template class uint<waffle::MiMCComposer, uint8_t>;
-template class uint<waffle::MiMCComposer, uint16_t>;
-template class uint<waffle::MiMCComposer, uint32_t>;
-template class uint<waffle::MiMCComposer, uint64_t>;
 } // namespace stdlib
 } // namespace plonk

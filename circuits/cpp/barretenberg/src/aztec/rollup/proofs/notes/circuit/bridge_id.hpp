@@ -42,17 +42,17 @@ struct bridge_id {
         field_ct output_asset_id_a_ct = witness_ct(&composer, output_asset_id_a);
         field_ct output_asset_id_b_ct = witness_ct(&composer, output_asset_id_b);
 
-        composer.create_range_constraint(bridge_contract_address_ct.witness_index, DEFI_BRIDGE_ADDRESS_BIT_LENGTH);
-        composer.create_range_constraint(num_output_notes_ct.witness_index, DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN);
-        composer.create_range_constraint(input_asset_id_ct.witness_index, DEFI_BRIDGE_INPUT_ASSET_ID_LEN);
-        composer.create_range_constraint(output_asset_id_a_ct.witness_index, DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN);
-        composer.create_range_constraint(output_asset_id_b_ct.witness_index, DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN);
+        bridge_contract_address_ct.create_range_constraint(DEFI_BRIDGE_ADDRESS_BIT_LENGTH);
+        num_output_notes_ct.create_range_constraint(DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN);
+        input_asset_id_ct.create_range_constraint(DEFI_BRIDGE_INPUT_ASSET_ID_LEN);
+        output_asset_id_a_ct.create_range_constraint(DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN);
+        output_asset_id_b_ct.create_range_constraint(DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN);
 
-        return { bridge_contract_address_ct.normalize(),
-                 num_output_notes_ct.normalize(),
-                 input_asset_id_ct.normalize(),
-                 output_asset_id_a_ct.normalize(),
-                 output_asset_id_b_ct.normalize() };
+        return { bridge_contract_address_ct,
+                 num_output_notes_ct,
+                 input_asset_id_ct,
+                 output_asset_id_a_ct,
+                 output_asset_id_b_ct };
     }
 
     field_ct to_field() const

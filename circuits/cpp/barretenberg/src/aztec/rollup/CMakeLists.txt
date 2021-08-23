@@ -8,3 +8,4 @@ endif()
 
 add_subdirectory(proofs)
 add_subdirectory(decrypt_bench)
+add_subdirectory(standard_plonk_proofkeygen)

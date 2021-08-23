@@ -32,7 +32,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     // defi_interaction_note.total_input_value != 0
     // claim_note.deposit_value != 0
     const auto in_out_diff = defi_interaction_note.total_input_value - claim_note.deposit_value;
-    composer.create_range_constraint(in_out_diff.witness_index, NOTE_VALUE_BIT_LENGTH);
+    in_out_diff.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
 
     auto rc1 = ratio_check(composer,
                            { .a1 = claim_note.deposit_value,

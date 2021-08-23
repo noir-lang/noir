@@ -58,6 +58,7 @@ template <typename B> inline void write(B& buf, claim_tx const& tx)
 inline std::ostream& operator<<(std::ostream& os, claim_tx const& tx)
 {
     return os << "data_root: " << tx.data_root << "\n"
+              << "defi_root: " << tx.defi_root << "\n"
               << "claim_note_index: " << tx.claim_note_index << "\n"
               << "claim_note_path: " << tx.claim_note_path << "\n"
               << "interaction_note_path: " << tx.defi_interaction_note_path << "\n"

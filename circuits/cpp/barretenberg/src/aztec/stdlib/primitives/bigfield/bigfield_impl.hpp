@@ -36,8 +36,10 @@ bigfield<C, T>::bigfield(C* parent_context, const uint256_t& value)
 }
 
 template <typename C, typename T>
-bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits, const bool can_overflow)
+bigfield<C, T>::bigfield(const field_t<C>& low_bits_in, const field_t<C>& high_bits_in, const bool can_overflow)
 {
+    const auto low_bits = low_bits_in.normalize();
+    const auto high_bits = high_bits_in.normalize();
     context = low_bits.context == nullptr ? high_bits.context : low_bits.context;
     field_t<C> limb_0(context);
     field_t<C> limb_1(context);
@@ -57,8 +59,8 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
             limb_1 = (low_bits - limb_0) * shift_right_1;
         } else {
             size_t mid_index;
-            low_accumulator =
-                context->create_range_constraint(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
+            low_accumulator = context->decompose_into_base4_accumulators(low_bits.witness_index,
+                                                                         static_cast<size_t>(NUM_LIMB_BITS * 2));
             mid_index = static_cast<size_t>((NUM_LIMB_BITS / 2) - 1);
             // Turbo plonk range constraint returns an array of partial sums, midpoint will happen to hold the big limb
             // value
@@ -93,8 +95,8 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
             limb_2.witness_index = high_accumulator[mid_index];
             limb_3 = (high_bits - limb_2) * shift_right_1;
         } else {
-            high_accumulator =
-                context->create_range_constraint(high_bits.witness_index, static_cast<size_t>(num_high_limb_bits));
+            high_accumulator = context->decompose_into_base4_accumulators(high_bits.witness_index,
+                                                                          static_cast<size_t>(num_high_limb_bits));
             limb_3.witness_index = high_accumulator[static_cast<size_t>((num_last_limb_bits / 2) - 1)];
             limb_2 = (high_bits - (limb_3 * shift_1));
         }
@@ -717,20 +719,20 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     field_t<C> r2 = modulus_2 - binary_basis_limbs[2].element + static_cast<field_t<C>>(borrow_2) * shift_1 -
                     static_cast<field_t<C>>(borrow_1);
     field_t<C> r3 = modulus_3 - binary_basis_limbs[3].element - static_cast<field_t<C>>(borrow_2);
-    r0 = r0.normalize();
-    r1 = r1.normalize();
-    r2 = r2.normalize();
-    r3 = r3.normalize();
     if constexpr (C::type == waffle::PLOOKUP) {
+        r0 = r0.normalize();
+        r1 = r1.normalize();
+        r2 = r2.normalize();
+        r3 = r3.normalize();
         context->decompose_into_default_range(r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
         context->decompose_into_default_range(r3.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
     } else {
-        context->create_range_constraint(r0.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
-        context->create_range_constraint(r1.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
-        context->create_range_constraint(r2.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
-        context->create_range_constraint(r3.witness_index, static_cast<size_t>(NUM_LIMB_BITS));
+        r0.create_range_constraint(static_cast<size_t>(NUM_LIMB_BITS));
+        r1.create_range_constraint(static_cast<size_t>(NUM_LIMB_BITS));
+        r2.create_range_constraint(static_cast<size_t>(NUM_LIMB_BITS));
+        r3.create_range_constraint(static_cast<size_t>(NUM_LIMB_BITS));
     }
 }
 
@@ -815,7 +817,7 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     if constexpr (C::type == waffle::PLOOKUP) {
         context->decompose_into_default_range(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
     } else {
-        context->create_range_constraint(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
+        quotient_limb.create_range_constraint(static_cast<size_t>(maximum_quotient_bits));
     }
     quotient.binary_basis_limbs[0] = Limb(quotient_limb, uint256_t(1) << maximum_quotient_bits);
     quotient.binary_basis_limbs[1] = Limb(field_t<C>(context, barretenberg::fr(0)), 0);
@@ -984,9 +986,6 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
     // std::cout <<"lowmsb:" << carry_lo_msb << " highmsb:" <<carry_hi_msb <<std::endl;
     if constexpr (C::type == waffle::PLOOKUP) {
         carry_lo = carry_lo.normalize();
-        // std::cout <<"carrylow:" << carry_lo << std::endl;
-        // std::cout <<"carrylowmsb:" << ((uint256_t)ctx->get_variable(carry_lo.witness_index)).get_msb() << " bound:"
-        // << carry_lo_msb <<std::endl;
         carry_hi = carry_hi.normalize();
         ctx->decompose_into_default_range(carry_lo.witness_index, static_cast<size_t>(carry_lo_msb));
         ctx->decompose_into_default_range(carry_hi.witness_index, static_cast<size_t>(carry_hi_msb));
@@ -994,10 +993,11 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
     } else {
         field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
         carry_combined = carry_combined.normalize();
-        const auto accumulators = ctx->create_range_constraint(carry_combined.witness_index,
-                                                               static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-        carry_hi = carry_hi.normalize();
-        ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+        const auto accumulators = ctx->decompose_into_base4_accumulators(
+            carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+        field_t<C> accumulator_midpoint =
+            field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+        carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
     }
 }
 // same as above but when to_mul=1, and no to_adds. Show that left = remainder mod p, by using CRT to show
@@ -1121,10 +1121,11 @@ void bigfield<C, T>::verify_mod(const bigfield& left, const bigfield& quotient, 
     field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
     carry_combined = carry_combined.normalize();
 
-    const auto accumulators =
-        ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-    carry_hi = carry_hi.normalize();
-    ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+    const auto accumulators = ctx->decompose_into_base4_accumulators(carry_combined.witness_index,
+                                                                     static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+    field_t<C> accumulator_midpoint =
+        field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+    carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
 }
 
 template <typename C, typename T>
@@ -1260,15 +1261,12 @@ void bigfield<C, T>::evaluate_square_add(const bigfield& left,
     } else {
         field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
         carry_combined = carry_combined.normalize();
-        const auto accumulators = ctx->create_range_constraint(carry_combined.witness_index,
-                                                               static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-        carry_hi = carry_hi.normalize();
-        ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+        const auto accumulators = ctx->decompose_into_base4_accumulators(
+            carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
+        field_t accumulator_midpoint =
+            field_t<C>::from_witness_index(ctx, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+        carry_hi.assert_equal(accumulator_midpoint, "bigfield multiply range check failed");
     }
-
-    // const auto accumulators =
-    //     ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-    // ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
 }
 
 } // namespace stdlib

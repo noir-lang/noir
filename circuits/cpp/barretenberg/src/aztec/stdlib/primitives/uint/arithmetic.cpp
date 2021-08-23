@@ -204,12 +204,20 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
 
     // We want to force the divisor to be non-zero, as this is an error state
     if (other.is_constant() && other.get_value() == 0) {
-        // TODO: should have an actual error handler!
-        const uint32_t one = ctx->add_variable(fr::one());
-        ctx->assert_equal_constant(one, fr::zero());
+        // ASSERT(other.get_value() != 0);
+        // TODO find some way of enabling the above assert that does not break our tests!
+        ctx->failed = true;
+        ctx->err = (ctx->err != "") ? ctx->err : "uint divide by zero!";
+        // create some failing constraints to make sure this circuit does not enable valid proofs.
+        // TODO: handle this in a more idiomatic way
+        field_t<Composer> one = field_t<Composer>::from_witness_index(context, 1);
+        field_t<Composer> zero = field_t<Composer>::from_witness_index(context, 0);
+        one.assert_equal(1);
+        zero.assert_equal(0);
+        one.assert_equal(zero);
     } else if (!other.is_constant()) {
         const bool_t<Composer> is_divisor_zero = field_t<Composer>(other).is_zero();
-        ctx->assert_equal_constant(is_divisor_zero.witness_index, fr::zero());
+        field_t<Composer>(is_divisor_zero).assert_equal(0);
     }
 
     if (is_constant() && other.is_constant()) {
@@ -264,15 +272,15 @@ std::pair<uint<Composer, Native>, uint<Composer, Native>> uint<Composer, Native>
     ctx->create_add_gate(delta_gate);
 
     // validate delta is in the correct range
-    ctx->create_range_constraint(delta_idx, width);
+    field_t<Composer>::from_witness_index(ctx, delta_idx).create_range_constraint(width);
 
     uint<Composer, Native> quotient(ctx);
-    quotient.accumulators = ctx->create_range_constraint(quotient_idx, width);
+    quotient.accumulators = ctx->decompose_into_base4_accumulators(quotient_idx, width);
     quotient.witness_index = quotient.accumulators[(width >> 1) - 1];
     quotient.witness_status = WitnessStatus::OK;
 
     uint<Composer, Native> remainder(ctx);
-    remainder.accumulators = ctx->create_range_constraint(remainder_idx, width);
+    remainder.accumulators = ctx->decompose_into_base4_accumulators(remainder_idx, width);
     remainder.witness_index = remainder.accumulators[(width >> 1) - 1];
     remainder.witness_status = WitnessStatus::OK;
 
@@ -293,9 +301,5 @@ template class uint<waffle::StandardComposer, uint16_t>;
 template class uint<waffle::StandardComposer, uint32_t>;
 template class uint<waffle::StandardComposer, uint64_t>;
 
-template class uint<waffle::MiMCComposer, uint8_t>;
-template class uint<waffle::MiMCComposer, uint16_t>;
-template class uint<waffle::MiMCComposer, uint32_t>;
-template class uint<waffle::MiMCComposer, uint64_t>;
 } // namespace stdlib
 } // namespace plonk

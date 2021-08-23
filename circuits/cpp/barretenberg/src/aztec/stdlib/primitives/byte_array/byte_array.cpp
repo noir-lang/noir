@@ -38,7 +38,7 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::ve
     for (size_t i = 0; i < input.size(); ++i) {
         uint8_t c = input[i];
         field_t<ComposerContext> value(witness_t(context, (uint64_t)c));
-        context->create_range_constraint(value.witness_index, 8);
+        value.create_range_constraint(8);
         values[i] = value;
     }
 }
@@ -53,9 +53,8 @@ byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, std::ve
  * e.g. if this constructor is used on a 16-bit input witness, where `num_bytes` is 1, the resulting proof will fail
  **/
 template <typename ComposerContext>
-byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input_base, const size_t num_bytes)
+byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, const size_t num_bytes)
 {
-    const field_t<ComposerContext> input = input_base.normalize();
     uint256_t value = input.get_value();
     values.resize(num_bytes);
     context = input.get_context();
@@ -71,7 +70,7 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input_ba
         for (size_t i = 0; i < num_bytes; ++i) {
             barretenberg::fr byte_val = value.slice((num_bytes - i - 1) * 8, (num_bytes - i) * 8);
             field_t<ComposerContext> byte = witness_t(context, byte_val);
-            context->create_range_constraint(byte.witness_index, 8);
+            byte.create_range_constraint(8);
             barretenberg::fr scaling_factor_value = byte_shift.pow(static_cast<uint64_t>(num_bytes - 1 - i));
             field_t<ComposerContext> scaling_factor(context, scaling_factor_value);
             validator = validator + (scaling_factor * byte);
@@ -80,7 +79,7 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input_ba
                 shifted_high_limb = field_t<ComposerContext>(validator);
             }
         }
-        context->assert_equal(validator.witness_index, input.witness_index);
+        validator.assert_equal(input);
 
         // validate input bytes < p
         if (num_bytes >= 32) {
@@ -90,14 +89,14 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input_ba
             const fr shift = fr(uint256_t(1) << 128);
             field_t<ComposerContext> y_lo = (-validator) + (p_lo + shift);
             y_lo += shifted_high_limb;
-
-            const auto low_accumulators = context->create_range_constraint(y_lo.normalize().witness_index, 130);
+            const auto low_accumulators =
+                context->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 130);
             field_t<ComposerContext> y_borrow =
                 -(field_t<ComposerContext>::from_witness_index(context, low_accumulators[0]) - 1);
 
             field_t<ComposerContext> y_hi = -(shifted_high_limb / shift) + (p_hi);
             y_hi -= y_borrow;
-            context->create_range_constraint(y_hi.witness_index, 128);
+            y_hi.create_range_constraint(128);
         }
     }
 }
@@ -295,15 +294,15 @@ typename byte_array<ComposerContext>::byte_slice byte_array<ComposerContext>::sp
     bool_t<ComposerContext> bit = witness_t<ComposerContext>(context, static_cast<bool>(bit_value));
 
     if (num_low_bits > 0) {
-        context->create_range_constraint(low.witness_index, static_cast<size_t>(num_low_bits));
+        low.create_range_constraint(static_cast<size_t>(num_low_bits));
     } else {
-        context->assert_equal(low.witness_index, context->zero_idx);
+        low.assert_equal(0);
     }
 
     if (num_high_bits > 0) {
-        context->create_range_constraint(high.witness_index, static_cast<size_t>(num_high_bits));
+        high.create_range_constraint(static_cast<size_t>(num_high_bits));
     } else {
-        context->assert_equal(high.witness_index, context->zero_idx);
+        high.assert_equal(0);
     }
 
     field_t<ComposerContext> scaled_high = high * barretenberg::fr(uint256_t(1) << (8ULL - num_high_bits));

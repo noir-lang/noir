@@ -17,7 +17,7 @@ void build_circuit(Composer& composer)
     uint32_ct a(witness_ct(&composer, 123));
     uint32_ct b(public_witness_ct(&composer, 456));
     bool_ct r = (a + b) == 579;
-    composer.assert_equal_constant(r.witness_index, 1);
+    r.assert_equal(true);
 }
 
 void init_proving_key(std::unique_ptr<waffle::ReferenceStringFactory>&& crs_factory)
@@ -54,7 +54,7 @@ bool verify_proof(waffle::plonk_proof const& proof)
 {
     Verifier verifier(verification_key, Composer::create_manifest(1));
 
-    std::unique_ptr<waffle::KateCommitmentScheme<waffle::standard_settings>> kate_commitment_scheme = 
+    std::unique_ptr<waffle::KateCommitmentScheme<waffle::standard_settings>> kate_commitment_scheme =
         std::make_unique<waffle::KateCommitmentScheme<waffle::standard_settings>>();
     verifier.commitment_scheme = std::move(kate_commitment_scheme);
 

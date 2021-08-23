@@ -30,7 +30,7 @@ void add_zero_public_input(Composer& composer)
 {
     auto zero = field_ct(witness_ct(&composer, 0));
     zero.assert_is_zero();
-    composer.set_public_input(zero.witness_index);
+    zero.set_public();
 }
 
 void add_tx_padding_public_inputs(Composer& composer)
@@ -81,7 +81,7 @@ auto process_defi_deposit(Composer& composer,
                           std::vector<field_ct>& defi_deposit_sums,
                           field_ct const& num_defi_interactions)
 {
-    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK).normalize();
+    field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK);
 
     const auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
     const auto bridge_id = public_inputs[InnerProofFields::ASSET_ID];
@@ -153,7 +153,7 @@ void accumulate_tx_fees(Composer& composer,
     const auto is_account = proof_id == field_ct(ProofIds::ACCOUNT);
     const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
     const auto is_defi_claim = proof_id == field_ct(ProofIds::DEFI_CLAIM);
-    const auto is_defi = (is_defi_deposit || is_defi_claim).normalize();
+    const auto is_defi = (is_defi_deposit || is_defi_claim);
 
     // asset_id = bridge_id for a defi deposit proof
     const uint8_t input_asset_id_lsb = (DEFI_BRIDGE_ADDRESS_BIT_LENGTH + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN);
@@ -161,7 +161,7 @@ void accumulate_tx_fees(Composer& composer,
     const field_ct defi_input_asset_id = asset_id.slice(input_asset_id_msb, input_asset_id_lsb);
 
     // combined asset id of an inner proof
-    const auto input_asset_id = (defi_input_asset_id * is_defi + asset_id * is_js_tx).normalize();
+    const auto input_asset_id = (defi_input_asset_id * is_defi + asset_id * is_js_tx);
 
     // Accumulate tx_fee for each asset_id. Note that tx_fee = 0 for padding proofs.
     field_ct num_matched(&composer, 0);
@@ -194,7 +194,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     // Witnesses from rollup_tx data.
     const auto rollup_id = field_ct(witness_ct(&composer, rollup.rollup_id));
     const auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
-    composer.create_range_constraint(num_txs.get_witness_index(), MAX_TXS_BIT_LENGTH);
+    field_ct(num_txs).create_range_constraint(MAX_TXS_BIT_LENGTH);
     const auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
     const auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
     const auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
@@ -236,9 +236,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto new_null_indicies = std::vector<field_ct>();
     recursion_output<bn254> recursion_output;
     std::vector<std::vector<field_ct>> inner_public_inputs;
-    auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct::from_witness_index(&composer, composer.zero_idx));
+    auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct(witness_ct::create_constant_witness(&composer, 0)));
     std::vector<field_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
-                                            field_ct::from_witness_index(&composer, composer.zero_idx));
+                                            field_ct(witness_ct::create_constant_witness(&composer, 0)));
 
     for (size_t i = 0; i < max_num_txs; ++i) {
         // Pick verification key and check it's permitted.
@@ -315,7 +315,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         defi_deposit_sums[i].set_public();
     }
     for (size_t i = 0; i < NUM_ASSETS; ++i) {
-        composer.set_public_input(asset_ids[i].witness_index);
+        asset_ids[i].set_public();
     }
     for (auto total_tx_fee : total_tx_fees) {
         total_tx_fee.set_public();

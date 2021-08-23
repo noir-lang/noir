@@ -165,16 +165,12 @@ template <typename Composer> class Transcript {
             const size_t lo_bytes = num_bytes - hi_bytes;
             field_pt lo = witness_t(context, barretenberg::fr(element_u256.slice(0, lo_bytes * 8)));
             field_pt hi = witness_t(context, barretenberg::fr(element_u256.slice(lo_bytes * 8, 256)));
-            context->create_range_constraint(lo.witness_index, lo_bytes * 8);
-            context->create_range_constraint(hi.witness_index, hi_bytes * 8);
+            lo.create_range_constraint(lo_bytes * 8);
+            hi.create_range_constraint(hi_bytes * 8);
             field_pt shift(context, barretenberg::fr(uint256_t(1ULL) << (uint64_t)lo_bytes * 8ULL));
             field_pt sum = lo + (hi * shift);
-            sum = sum.normalize();
-
-            if (element.witness_index != IS_CONSTANT) {
-                context->assert_equal(sum.witness_index, element.witness_index);
-            } else if (sum.witness_index != IS_CONSTANT) {
-                context->assert_equal_constant(sum.witness_index, element.get_value());
+            if (!element.is_constant() || !sum.is_constant()) {
+                sum.assert_equal(element);
             }
             current_byte_counter = (current_byte_counter + num_bytes) % bytes_per_element;
 

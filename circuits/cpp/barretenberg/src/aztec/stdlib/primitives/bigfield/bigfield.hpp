@@ -51,12 +51,11 @@ template <typename Composer, typename T> class bigfield {
              const field_t<Composer>& c,
              const field_t<Composer>& d,
              const bool can_overflow = false)
-        : bigfield((a + b * shift_1).normalize(), (c + d * shift_1).normalize(), can_overflow)
+        : bigfield((a + b * shift_1), (c + d * shift_1), can_overflow)
     {
         const auto limb_range_checks = [](const field_t<Composer>& limb, const bool overflow) {
             if (limb.is_constant()) {
-                limb.get_context()->create_range_constraint(limb.get_witness_index(),
-                                                            overflow ? NUM_LIMB_BITS : NUM_LAST_LIMB_BITS);
+                limb.create_range_constraint(overflow ? NUM_LIMB_BITS : NUM_LAST_LIMB_BITS);
             }
         };
         limb_range_checks(a, true);
@@ -121,9 +120,8 @@ template <typename Composer, typename T> class bigfield {
         byte_array<Composer> result(get_context());
         field_t<Composer> lo = binary_basis_limbs[0].element + (binary_basis_limbs[1].element * shift_1);
         field_t<Composer> hi = binary_basis_limbs[2].element + (binary_basis_limbs[3].element * shift_1);
-        lo = lo.normalize();
-        hi = hi.normalize();
         // n.b. this only works if NUM_LIMB_BITS * 2 is divisible by 8
+        ASSERT((NUM_LIMB_BITS / 8) * 8 == NUM_LIMB_BITS);
         result.write(byte_array<Composer>(hi, 32 - (NUM_LIMB_BITS / 4)));
         result.write(byte_array<Composer>(lo, (NUM_LIMB_BITS / 4)));
         return result;

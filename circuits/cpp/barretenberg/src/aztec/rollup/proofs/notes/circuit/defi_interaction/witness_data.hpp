@@ -28,11 +28,10 @@ struct witness_data {
         total_output_b_value = witness_ct(&composer, note_data.total_output_b_value);
         interaction_result = witness_ct(&composer, note_data.interaction_result);
 
-        composer.create_range_constraint(interaction_nonce.witness_index, 32);
-        composer.create_range_constraint(total_input_value.witness_index, NOTE_VALUE_BIT_LENGTH);
-        composer.create_range_constraint(total_output_a_value.witness_index, NOTE_VALUE_BIT_LENGTH);
-        composer.create_range_constraint(total_output_b_value.witness_index, NOTE_VALUE_BIT_LENGTH);
-        composer.create_range_constraint(interaction_result.witness_index, 1);
+        interaction_nonce.create_range_constraint(32);
+        total_input_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
+        total_output_a_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
+        total_output_b_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }
 };
 

@@ -52,7 +52,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
 
     // alias hash must be 224 bits or fewer
-    composer.create_range_constraint(alias_hash.witness_index, 224);
+    alias_hash.create_range_constraint(224);
     const auto account_alias_id = alias_hash + nonce * pow(field_ct(2), uint32_ct(224));
     const auto output_nonce = nonce + migrate;
     const auto output_account_alias_id = alias_hash + (output_nonce * pow(field_ct(2), uint32_ct(224)));
@@ -67,8 +67,8 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const bool_ct zero_nonce = nonce == field_ct(0);
 
     // Validate that, if nonce == 0 then migrate == 1
-    const bool_ct migrate_check = (migrate || !zero_nonce).normalize();
-    composer.assert_equal_constant(migrate_check.witness_index, 1, "both nonce and migrate are 0");
+    const bool_ct migrate_check = (migrate || !zero_nonce);
+    migrate_check.assert_equal(true, "both nonce and migrate are 0");
     const point_ct signer = { account_public_key.x * zero_nonce + signing_pub_key.x * !zero_nonce,
                               account_public_key.y * zero_nonce + signing_pub_key.y * !zero_nonce };
     std::vector<field_ct> to_compress = { account_alias_id,
@@ -87,18 +87,16 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto account_note_data = account_note(account_alias_id, account_public_key, signer);
     const auto exists = merkle_tree::check_membership(
         data_tree_root, account_note_path, account_note_data.commitment, byte_array_ct(account_note_index));
-    composer.assert_equal(exists.normalize().witness_index,
-                          assert_account_exists.normalize().witness_index,
-                          "account check_membership failed");
+    exists.assert_equal(assert_account_exists, "account check_membership failed");
 
     // Check account public key does not change unless migrating.
     const auto account_keys_equal_or_migrating =
         (account_public_key.x == new_account_public_key.x && account_public_key.y == new_account_public_key.y) ||
         migrate;
-    composer.assert_equal_constant(account_keys_equal_or_migrating.witness_index, 1, "public key should not change");
+    account_keys_equal_or_migrating.assert_equal(1, "public key should not change");
 
     field_ct dummy_tx_fee = witness_ct(&composer, 0);
-    composer.assert_equal(dummy_tx_fee.witness_index, composer.zero_idx);
+    dummy_tx_fee.assert_equal(0);
 
     // Expose public inputs.
     proof_id.set_public();                 // proof_id

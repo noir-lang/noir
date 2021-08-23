@@ -334,9 +334,9 @@ void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg
     ++n;
 }
 
-std::vector<uint32_t> TurboComposer::create_range_constraint(const uint32_t witness_index,
-                                                             const size_t num_bits,
-                                                             std::string const& msg)
+std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                                       const size_t num_bits,
+                                                                       std::string const& msg)
 {
     TURBO_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);

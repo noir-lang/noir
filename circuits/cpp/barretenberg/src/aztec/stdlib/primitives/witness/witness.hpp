@@ -35,6 +35,14 @@ template <typename ComposerContext> class witness_t {
         witness = barretenberg::fr{ static_cast<uint64_t>(in), 0, 0, 0 }.to_montgomery_form();
         witness_index = context->add_variable(witness);
     }
+
+    static witness_t create_constant_witness(ComposerContext* parent_context, const barretenberg::fr& in)
+    {
+        witness_t out(parent_context, in);
+        parent_context->assert_equal_constant(out.witness_index, in);
+        return out;
+    }
+
     barretenberg::fr witness;
     uint32_t witness_index = static_cast<uint32_t>(-1);
     ComposerContext* context = nullptr;

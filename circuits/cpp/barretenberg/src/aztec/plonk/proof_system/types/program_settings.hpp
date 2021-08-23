@@ -4,7 +4,6 @@
 
 #include "../../transcript/transcript_wrappers.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
-#include "../widgets/transition_widgets/mimc_widget.hpp"
 #include "../widgets/transition_widgets/turbo_arithmetic_widget.hpp"
 #include "../widgets/transition_widgets/turbo_fixed_base_widget.hpp"
 #include "../widgets/transition_widgets/turbo_logic_widget.hpp"
@@ -30,7 +29,6 @@ class standard_verifier_settings : public standard_settings {
     static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
     static constexpr bool use_linearisation = true;
     static constexpr bool idpolys = false;
-
 
     static fr append_scalar_multiplication_inputs(verification_key* key,
                                                   const fr& alpha_base,
@@ -94,53 +92,6 @@ class unrolled_standard_verifier_settings : public standard_settings {
 
         return ArithmeticWidget::compute_quotient_evaluation_contribution(
             key, updated_alpha_base, transcript, t_eval, use_linearisation);
-    }
-};
-
-class mimc_verifier_settings : public standard_settings {
-  public:
-    typedef barretenberg::fr fr;
-    typedef barretenberg::g1 g1;
-    typedef transcript::StandardTranscript Transcript;
-    typedef VerifierArithmeticWidget<fr, g1::affine_element, Transcript, standard_settings> ArithmeticWidget;
-    typedef VerifierPermutationWidget<fr, g1::affine_element, Transcript> PermutationWidget;
-    typedef VerifierMiMCWidget<fr, g1::affine_element, Transcript, standard_settings> MiMCWidget;
-
-    static constexpr size_t num_challenge_bytes = 32;
-    static constexpr transcript::HashType hash_type = transcript::HashType::Keccak256;
-    static constexpr bool use_linearisation = true;
-    static constexpr bool idpolys = false;
-
-    static fr append_scalar_multiplication_inputs(verification_key* key,
-                                                  const fr& alpha_base,
-                                                  const Transcript& transcript,
-                                                  std::map<std::string, fr>& scalars)
-    {
-
-        auto updated_alpha = PermutationWidget::append_scalar_multiplication_inputs(
-            key, alpha_base, transcript, scalars, use_linearisation);
-
-        updated_alpha =
-            MiMCWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars, use_linearisation);
-
-        updated_alpha = ArithmeticWidget::append_scalar_multiplication_inputs(
-            key, updated_alpha, transcript, scalars, use_linearisation);
-        return updated_alpha;
-    }
-
-    static fr compute_quotient_evaluation_contribution(verification_key* key,
-                                                       const fr& alpha_base,
-                                                       const Transcript& transcript,
-                                                       fr& t_eval)
-    {
-        auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, use_linearisation);
-        updated_alpha_base = MiMCWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
-
-        updated_alpha_base = ArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
-        return updated_alpha_base;
     }
 };
 

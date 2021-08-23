@@ -45,16 +45,13 @@ point<C> pedersen<C>::hash_single(const field_t& in,
 {
     C* ctx = in.context;
 
-    field_t scalar = in;
+    field_t scalar = in.normalize();
 
     if (in.is_constant()) {
         const auto hash_native = crypto::pedersen::hash_single(in.get_value(), hash_index).normalize();
         return { field_t(ctx, hash_native.x), field_t(ctx, hash_native.y) };
     }
 
-    if (!(in.additive_constant == fr::zero()) || !(in.multiplicative_constant == fr::one())) {
-        scalar = scalar.normalize();
-    }
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
 
@@ -187,9 +184,9 @@ point<C> pedersen<C>::hash_single(const field_t& in,
         reconstructed_scalar.witness_index = add_quad.d;
         field_t lhs = reconstructed_scalar * in;
         field_t rhs = in * in;
-        ctx->assert_equal(lhs.witness_index, rhs.witness_index, "pedersen lhs != rhs");
+        lhs.assert_equal(rhs, "pedersen lhs != rhs");
     } else {
-        ctx->assert_equal(add_quad.d, in.witness_index, "pedersen d != in");
+        field_t::from_witness_index(ctx, add_quad.d).assert_equal(in, "pedersen d != in");
     }
 
     if (validate_input_is_in_field) {
@@ -378,7 +375,7 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
     }
 
     // Validate y.lo is a 128-bit integer
-    const auto y_lo_accumulators = ctx->create_range_constraint(y_lo.normalize().witness_index, 128);
+    const auto y_lo_accumulators = ctx->decompose_into_base4_accumulators(y_lo.normalize().witness_index, 128);
 
     // Extract y.overlap, the 2 most significant bits of y.lo
     field_t y_overlap = field_t::from_witness_index(ctx, y_lo_accumulators[0]) - 1;
@@ -395,7 +392,7 @@ void pedersen<C>::validate_wnaf_is_in_field(C* ctx,
     }
 
     // Validate y.hi is a 128-bit integer
-    ctx->create_range_constraint(y_hi.normalize().witness_index, 128);
+    ctx->decompose_into_base4_accumulators(y_hi.normalize().witness_index, 128);
 }
 
 template <typename C> point<C> pedersen<C>::accumulate(const std::vector<point>& to_accumulate)
@@ -478,7 +475,7 @@ point<C> pedersen<C>::commit(const std::vector<field_t>& inputs, const size_t ha
     std::vector<point> to_accumulate;
     for (size_t i = 0; i < inputs.size(); ++i) {
         generator_index_t index = { hash_index, i };
-        to_accumulate.push_back(hash_single(inputs[i].normalize(), index, handle_edge_cases));
+        to_accumulate.push_back(hash_single(inputs[i], index, handle_edge_cases));
     }
     if (handle_edge_cases) {
         return conditionally_accumulate(to_accumulate, inputs);
@@ -519,7 +516,7 @@ template <typename C> field_t<C> pedersen<C>::compress(const byte_array& input)
         } else {
             bytes_to_slice = bytes_per_element;
         }
-        field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice)).normalize();
+        field_t element = static_cast<field_t>(input.slice(i * bytes_per_element, bytes_to_slice));
         elements.emplace_back(element);
     }
     field_t compressed = compress(elements, true, 0);

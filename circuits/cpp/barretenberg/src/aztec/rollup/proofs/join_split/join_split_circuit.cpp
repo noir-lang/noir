@@ -38,11 +38,11 @@ field_ct process_input_note(field_ct const& account_private_key,
     return compute_nullifier(note.commitment, index, account_private_key, is_real);
 }
 
-join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs)
+join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 {
     auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
-    auto is_defi_bridge = (!not_defi_bridge).normalize();
-    auto proof_id = (field_ct(2) * is_defi_bridge).normalize();
+    auto is_defi_bridge = (!not_defi_bridge);
+    auto proof_id = (field_ct(2) * is_defi_bridge);
     auto public_output = inputs.claim_note.deposit_value + (inputs.public_output * not_defi_bridge);
     auto input_note1 = value::value_note(inputs.input_note1);
     auto input_note2 = value::value_note(inputs.input_note2);
@@ -69,21 +69,21 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     valid_claim_note_asset_id.assert_equal(true, "input note and claim note asset ids don't match");
 
     // Verify the asset id is less than the total number of assets.
-    composer.create_range_constraint(inputs.asset_id.witness_index, MAX_NUM_ASSETS_BIT_LENGTH, "asset id too large");
+    inputs.asset_id.create_range_constraint(MAX_NUM_ASSETS_BIT_LENGTH, "asset id too large");
 
     // Check we're not joining the same input note.
     (inputs.input_note1_index == inputs.input_note2_index).assert_equal(false, "joining same note");
 
     // Check public values.
-    inputs.public_input.range_constraint(NOTE_VALUE_BIT_LENGTH, "public input too large");
-    inputs.public_output.range_constraint(NOTE_VALUE_BIT_LENGTH, "public output too large");
-    inputs.claim_note.deposit_value.range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
+    inputs.public_input.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public input too large");
+    inputs.public_output.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public output too large");
+    inputs.claim_note.deposit_value.create_range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
 
     // Derive tx_fee.
     field_ct total_in_value = inputs.input_note1.value + inputs.input_note2.value + inputs.public_input;
     field_ct total_out_value = inputs.output_note1.value * not_defi_bridge + inputs.output_note2.value + public_output;
     field_ct tx_fee = total_in_value - total_out_value;
-    composer.create_range_constraint(tx_fee.witness_index, TX_FEE_BIT_LENGTH, "tx fee too large");
+    tx_fee.create_range_constraint(TX_FEE_BIT_LENGTH, "tx fee too large");
 
     // Verify input notes have the same account value id.
     auto note1 = inputs.input_note1;
@@ -106,7 +106,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
                         account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
 
     // alias hash must be 224 bits or fewer
-    composer.create_range_constraint(inputs.alias_hash.witness_index, 224, "alias hash too large");
+    inputs.alias_hash.create_range_constraint(224, "alias hash too large");
     // Verify that the account exists if nonce > 0
     auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
     auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
@@ -175,7 +175,7 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         witness_ct(&composer, tx.nonce),
     };
 
-    auto outputs = join_split_circuit_component(composer, inputs);
+    auto outputs = join_split_circuit_component(inputs);
 
     // The following make up the public inputs to the circuit.
     outputs.proof_id.set_public();

@@ -31,7 +31,7 @@ void add_zero_public_input(Composer& composer)
 {
     auto zero = field_ct(witness_ct(&composer, 0));
     zero.assert_is_zero();
-    composer.set_public_input(zero.witness_index);
+    zero.set_public();
 }
 
 /**
@@ -73,7 +73,7 @@ field_ct process_defi_interaction_notes(Composer& composer,
     }
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
-    auto insertion_index = ((rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK * not_first_rollup).normalize();
+    auto insertion_index = ((rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK * not_first_rollup);
     batch_update_membership(new_defi_interaction_root,
                             old_defi_interaction_root,
                             old_defi_interaction_path,
@@ -186,15 +186,15 @@ void assert_inner_proof_sequential(Composer& composer,
 
     // Every real inner proof should use the root tree root we've input.
     auto valid_root_root = !is_real || old_root_root_inner == old_root_root;
-    composer.assert_equal_constant(valid_root_root, 1, format("inconsistent_roots_root_", i));
+    valid_root_root.assert_equal(true, format("inconsistent_roots_root_", i));
 
     // Every real inner proof should use the defi root we've input.
     auto valid_defi_root = !is_real || new_defi_root_inner == new_defi_root;
-    composer.assert_equal_constant(valid_defi_root, 1, format("inconsistent_defi_root_", i));
+    valid_defi_root.assert_equal(true, format("inconsistent_defi_root_", i));
 
     if (i == 0) {
         // The first proof should always be real.
-        composer.assert_equal_constant(is_real, 1);
+        is_real.assert_equal(true, "root rollup first proof is not real");
         data_start_index = data_start_index_inner;
         old_data_root = old_data_root_inner;
         new_data_root = new_data_root_inner;
@@ -207,10 +207,10 @@ void assert_inner_proof_sequential(Composer& composer,
         auto valid_old_data_root = !is_real || old_data_root_inner == new_data_root;
         auto valid_old_null_root = !is_real || old_null_root_inner == new_null_root;
 
-        composer.assert_equal_constant(valid_rollup_id, 1, format("incorrect_rollup_id_", i));
-        composer.assert_equal_constant(valid_data_start_index, 1, format("incorrect_data_start_index_", i));
-        composer.assert_equal_constant(valid_old_data_root, 1, format("inconsistent_old_data_root_", i));
-        composer.assert_equal_constant(valid_old_null_root, 1, format("inconsistent_old_null_root_", i));
+        valid_rollup_id.assert_equal(true, format("incorrect_rollup_id_", i));
+        valid_data_start_index.assert_equal(true, format("incorrect_data_start_index_", i));
+        valid_old_data_root.assert_equal(true, format("inconsistent_old_data_root_", i));
+        valid_old_null_root.assert_equal(true, format("inconsistent_old_null_root_", i));
 
         new_data_root = (new_data_root_inner * is_real) + (new_data_root * !is_real);
         new_null_root = (new_null_root_inner * is_real) + (new_null_root * !is_real);
@@ -228,7 +228,7 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     // Witnesses.
     const auto rollup_id = field_ct(witness_ct(&composer, tx.rollup_id));
     const auto rollup_size_pow2 = field_ct(witness_ct(&composer, num_outer_txs_pow2));
-    composer.assert_equal_constant(rollup_size_pow2, num_outer_txs_pow2);
+    rollup_size_pow2.assert_equal(num_outer_txs_pow2);
     const auto num_inner_proofs = uint32_ct(witness_ct(&composer, tx.num_inner_proofs));
     const auto old_root_root = field_ct(witness_ct(&composer, tx.old_data_roots_root));
     const auto new_root_root = field_ct(witness_ct(&composer, tx.new_data_roots_root));
@@ -256,9 +256,9 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     // Loop accumulators.
     recursion_output<bn254> recursion_output;
     std::vector<field_ct> tx_proof_public_inputs;
-    std::vector<field_ct> total_tx_fees(NUM_ASSETS, field_ct::from_witness_index(&composer, composer.zero_idx));
+    std::vector<field_ct> total_tx_fees(NUM_ASSETS, field_ct(witness_ct::create_constant_witness(&composer, 0)));
     std::vector<field_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
-                                            field_ct::from_witness_index(&composer, composer.zero_idx));
+                                            field_ct(witness_ct::create_constant_witness(&composer, 0)));
 
     for (uint32_t i = 0; i < max_num_inner_proofs; ++i) {
         auto is_real = num_inner_proofs > i;

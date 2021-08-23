@@ -85,10 +85,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
                                                             grumpkin::g1::affine_element const& generator,
                                                             fixed_base_ladder const* ladder)
 {
-    auto scalar = in;
-    if (!(in.additive_constant == fr::zero()) || !(in.multiplicative_constant == fr::one())) {
-        scalar = scalar.normalize();
-    }
+    auto scalar = in.normalize();
     auto ctx = in.context;
     ASSERT(ctx != nullptr);
     fr scalar_multiplier = scalar.get_value().from_montgomery_form();
@@ -226,9 +223,7 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     // We need to conditionally validate that, if k != 0, the constructed scalar multiplier matches our input scalar.
     auto lhs = constructed_scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
     auto rhs = scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
-    lhs.normalize();
-    rhs.normalize();
-    ctx->assert_equal(lhs.witness_index, rhs.witness_index, "scalars unequal");
+    lhs.assert_equal(rhs, "scalars unequal");
 
     point<ComposerContext> result;
     result.x = field_t(ctx);

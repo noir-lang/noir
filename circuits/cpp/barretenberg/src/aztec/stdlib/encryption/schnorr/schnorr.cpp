@@ -166,9 +166,8 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
     field_t<C> x3 = lambda.madd(lambda, -(collision_mask.x + accumulator.x));
     field_t<C> y3 = lambda.madd(collision_mask.x - x3, -collision_mask.y);
 
-    accumulator.x = x3.normalize();
-    accumulator.y = y3.normalize();
-
+    accumulator.x = x3;
+    accumulator.y = y3;
     return accumulator;
 }
 
@@ -212,7 +211,6 @@ bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, con
     (R_1.x - R_2.x).assert_is_not_zero();
     field_t<C> lambda = (R_1.y - R_2.y) / (R_1.x - R_2.x);
     field_t<C> x_3 = lambda * lambda - (R_1.x + R_2.x);
-    x_3 = x_3.normalize();
 
     byte_array<C> hash_input(x_3);
     hash_input.write(message);

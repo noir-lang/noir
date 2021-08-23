@@ -19,7 +19,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
     // value 0 and not a member of the tree) For virtual notes, we set the 65'th bit of modified_index to be true (this
     // cannot overlap with tree index, which we range constrain to be 32 bits)
     barretenberg::fr shift = uint256_t(1) << 64;
-    field_ct modified_index = (tree_index + (static_cast<field_ct>(is_real_note) * shift)).normalize();
+    field_ct modified_index = (tree_index + (static_cast<field_ct>(is_real_note) * shift));
 
     // We hash the account_private_key to ensure that the result is a field (254 bits).
     auto hashed_pk = group_ct::fixed_base_scalar_mul<254>(account_private_key,

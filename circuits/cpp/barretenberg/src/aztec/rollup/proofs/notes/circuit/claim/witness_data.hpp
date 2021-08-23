@@ -28,9 +28,9 @@ struct claim_note_witness_data {
         fee = witness_ct(&composer, note_data.fee);
         value_note_partial_commitment = witness_ct(&composer, note_data.value_note_partial_commitment);
 
-        deposit_value.range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
-        defi_interaction_nonce.range_constraint(32, "defi interaction nonce too large.");
-        fee.range_constraint(TX_FEE_BIT_LENGTH, "claim fee too large.");
+        deposit_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
+        defi_interaction_nonce.create_range_constraint(32, "defi interaction nonce too large.");
+        fee.create_range_constraint(TX_FEE_BIT_LENGTH, "claim fee too large.");
     }
 };
 
@@ -45,7 +45,7 @@ struct claim_note_tx_witness_data {
         bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
         note_secret = witness_ct(&composer, note_data.note_secret);
 
-        deposit_value.range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
+        deposit_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
     }
 };
 

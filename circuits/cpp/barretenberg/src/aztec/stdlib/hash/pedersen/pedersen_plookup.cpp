@@ -64,14 +64,13 @@ template <typename C> point<C> pedersen_plookup<C>::add_points(const point& p1, 
     return p3;
 }
 
-template <typename C> point<C> pedersen_plookup<C>::hash_single(const field_t& in, const bool parity)
+template <typename C> point<C> pedersen_plookup<C>::hash_single(const field_t& scalar, const bool parity)
 {
-    if (in.is_constant()) {
-        C* ctx = in.get_context();
-        const auto hash_native = crypto::pedersen::sidon::compress_single(in.get_value(), parity).normalize();
+    if (scalar.is_constant()) {
+        C* ctx = scalar.get_context();
+        const auto hash_native = crypto::pedersen::sidon::compress_single(scalar.get_value(), parity).normalize();
         return { field_t(ctx, hash_native.x), field_t(ctx, hash_native.y) };
     }
-    field_t scalar = in.normalize();
 
     std::array<std::vector<field_t>, 3> sequence;
     if (parity) {

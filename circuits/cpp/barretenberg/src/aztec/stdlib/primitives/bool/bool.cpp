@@ -390,10 +390,37 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator||(const bool_t<Compose
     return operator|(other);
 }
 
+template <typename ComposerContext>
+void bool_t<ComposerContext>::assert_equal(const bool_t& rhs, std::string const& msg) const
+{
+    const bool_t lhs = *this;
+    ComposerContext* ctx = lhs.get_context() ? lhs.get_context() : rhs.get_context();
+
+    if (lhs.is_constant() && rhs.is_constant()) {
+        ASSERT(lhs.get_value() == rhs.get_value());
+    } else if (lhs.is_constant()) {
+        // if rhs is inverted, flip the value of the lhs constant
+        bool lhs_value = rhs.witness_inverted ? !lhs.get_value() : lhs.get_value();
+        ctx->assert_equal_constant(rhs.witness_index, lhs_value, msg);
+    } else if (rhs.is_constant()) {
+        // if lhs is inverted, flip the value of the rhs constant
+        bool rhs_value = lhs.witness_inverted ? !rhs.get_value() : rhs.get_value();
+        ctx->assert_equal_constant(lhs.witness_index, rhs_value, msg);
+    } else {
+        auto left = lhs;
+        auto right = rhs;
+        // we need to normalize iff lhs or rhs has an inverted witness (but not both)
+        if (lhs.witness_inverted ^ rhs.witness_inverted) {
+            left = left.normalize();
+            right = right.normalize();
+        }
+        ctx->assert_equal(left.witness_index, right.witness_index, msg);
+    }
+}
+
 template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::normalize() const
 {
-    bool is_constant = (witness_index == IS_CONSTANT);
-    if (is_constant | !witness_inverted) {
+    if (is_constant() || !witness_inverted) {
         return *this;
     }
 

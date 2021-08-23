@@ -37,7 +37,6 @@ class StandardComposer : public ComposerBase {
         zero_idx = put_constant_variable(barretenberg::fr::zero());
     };
 
-    // used for enabling MIMCComposer to access ComposerBase constructor
     StandardComposer(const size_t selector_num,
                      const size_t size_hint,
                      const std::vector<SelectorProperties> selector_properties)
@@ -77,7 +76,9 @@ class StandardComposer : public ComposerBase {
     StandardComposer& operator=(StandardComposer&& other) = default;
     ~StandardComposer() {}
 
-    void assert_equal_constant(uint32_t const a_idx, barretenberg::fr const& b, std::string const& msg = "");
+    void assert_equal_constant(uint32_t const a_idx,
+                               barretenberg::fr const& b,
+                               std::string const& msg = "assert equal constant");
 
     virtual std::shared_ptr<proving_key> compute_proving_key() override;
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
@@ -99,9 +100,9 @@ class StandardComposer : public ComposerBase {
     void create_balanced_add_gate(const add_quad& in);
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
-                                                  const size_t num_bits,
-                                                  std::string const& msg = "create_range_constraint");
+    std::vector<uint32_t> decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                            const size_t num_bits,
+                                                            std::string const& msg = "create_range_constraint");
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,
                                                const size_t num_bits,
@@ -150,10 +151,9 @@ class StandardComposer : public ComposerBase {
                       { "sigma_2", fr_size, false, 4 },
                       { "r", fr_size, false, 5 },
                       { "z_omega", fr_size, false, -1 },
-                      { "w_3_omega", fr_size, false, 2 },
                   },
                   "nu",
-                  7,
+                  6,
                   true),
               transcript::Manifest::RoundManifest(
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
@@ -198,7 +198,6 @@ class StandardComposer : public ComposerBase {
                       { "q_c", fr_size, false, 10 },
                       { "z", fr_size, false, 11 },
                       { "z_omega", fr_size, false, -1 },
-                      { "w_3_omega", fr_size, false, 0 },
                   },
                   "nu",
                   12,

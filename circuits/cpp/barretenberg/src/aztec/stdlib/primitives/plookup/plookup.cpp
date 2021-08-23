@@ -14,12 +14,13 @@ using namespace barretenberg;
 template <typename Composer>
 std::array<std::vector<plonk::stdlib::field_t<Composer>>, 3> plookup_base<Composer>::read_sequence_from_table(
     const waffle::PlookupMultiTableId id,
-    const field_t<Composer>& key_a,
-    const field_t<Composer>& key_b,
+    const field_t<Composer>& key_a_in,
+    const field_t<Composer>& key_b_in,
     const bool is_2_to_1_lookup)
 {
+    auto key_a = key_a_in.normalize();
+    auto key_b = key_b_in.normalize();
     Composer* ctx = key_a.get_context() ? key_a.get_context() : key_b.get_context();
-
     const auto sequence_data =
         waffle::plookup::get_table_values(id, key_a.get_value(), key_b.get_value(), is_2_to_1_lookup);
 

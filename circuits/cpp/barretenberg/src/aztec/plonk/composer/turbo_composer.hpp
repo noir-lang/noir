@@ -70,9 +70,9 @@ class TurboComposer : public ComposerBase {
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
 
-    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
-                                                  const size_t num_bits,
-                                                  std::string const& msg = "create_range_contraint");
+    std::vector<uint32_t> decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                            const size_t num_bits,
+                                                            std::string const& msg = "create_range_contraint");
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,
                                                const size_t num_bits,
@@ -89,15 +89,12 @@ class TurboComposer : public ComposerBase {
                                const barretenberg::fr& b,
                                std::string const& msg = "assert_equal_constant")
     {
-        // ASSERT(variables[a_idx] == b);
         if (variables[a_idx] != b && !failed) {
             failed = true;
             err = msg;
         }
-        const add_triple gate_coefficients{
-            a_idx, a_idx, a_idx, barretenberg::fr::one(), barretenberg::fr::zero(), barretenberg::fr::zero(), -b,
-        };
-        create_add_gate(gate_coefficients);
+        auto b_idx = put_constant_variable(b);
+        assert_equal(a_idx, b_idx, msg);
     }
 
     /**

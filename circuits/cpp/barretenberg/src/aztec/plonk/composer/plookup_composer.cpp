@@ -480,9 +480,9 @@ void PlookupComposer::fix_witness(const uint32_t witness_index, const barretenbe
     ++n;
 }
 
-std::vector<uint32_t> PlookupComposer::create_range_constraint(const uint32_t witness_index,
-                                                               const size_t num_bits,
-                                                               std::string const& msg)
+std::vector<uint32_t> PlookupComposer::decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                                         const size_t num_bits,
+                                                                         std::string const& msg)
 {
     PLOOKUP_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
@@ -1289,7 +1289,8 @@ PlookupComposer::RangeList PlookupComposer::create_range_list(const uint64_t tar
 }
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
 std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32_t variable_index,
-                                                                    const size_t num_bits)
+                                                                    const size_t num_bits,
+                                                                    std::string const& msg)
 {
     ASSERT(variable_index != IS_CONSTANT);
     std::vector<uint32_t> sums;
@@ -1348,7 +1349,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
         cur_shift *= second_shift;
         cur_second_shift *= second_shift;
     }
-    assert_equal(sums[sums.size() - 1], variable_index);
+    assert_equal(sums[sums.size() - 1], variable_index, msg);
     return sums;
 }
 void PlookupComposer::create_new_range_constraint(const uint32_t variable_index, const uint64_t target_range)
@@ -1610,7 +1611,8 @@ void PlookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
 std::vector<uint32_t> PlookupComposer::decompose_into_default_range_better_for_oddlimbnum(const uint32_t variable_index,
-                                                                                          const size_t num_bits)
+                                                                                          const size_t num_bits,
+                                                                                          std::string const& msg)
 {
     std::vector<uint32_t> sums;
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
@@ -1674,7 +1676,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range_better_for_o
         cur_second_shift *= second_shift;
     }
     // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[1]) << std::endl;
-    assert_equal(sums[sums.size() - 1], variable_index);
+    assert_equal(sums[sums.size() - 1], variable_index, msg);
     return sums;
 }
 

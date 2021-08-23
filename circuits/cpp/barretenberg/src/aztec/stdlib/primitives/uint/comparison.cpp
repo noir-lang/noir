@@ -15,8 +15,7 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
     field_t<Composer> b(other);
     bool result_witness = uint256_t(a.get_value()) > uint256_t(b.get_value());
 
-    if (is_constant() && other.is_constant())
-    {
+    if (is_constant() && other.is_constant()) {
         return bool_t<Composer>(ctx, result_witness);
     }
 
@@ -28,9 +27,9 @@ bool_t<Composer> uint<Composer, Native>::operator>(const uint& other) const
      * i.e. (a - b - 1)result + (b - a)(1 - result) should be positive
      **/
     const auto diff = a - b;
-    const auto comparison_check = diff.madd(field_t<Composer>(result) * 2 - field_t<Composer>(1), -field_t<Composer>(result));
-
-    ctx->create_range_constraint(comparison_check.witness_index, width);
+    const auto comparison_check =
+        diff.madd(field_t<Composer>(result) * 2 - field_t<Composer>(1), -field_t<Composer>(result));
+    comparison_check.create_range_constraint(width);
 
     return result;
 }
@@ -88,9 +87,5 @@ template class uint<waffle::StandardComposer, uint16_t>;
 template class uint<waffle::StandardComposer, uint32_t>;
 template class uint<waffle::StandardComposer, uint64_t>;
 
-template class uint<waffle::MiMCComposer, uint8_t>;
-template class uint<waffle::MiMCComposer, uint16_t>;
-template class uint<waffle::MiMCComposer, uint32_t>;
-template class uint<waffle::MiMCComposer, uint64_t>;
 } // namespace stdlib
 } // namespace plonk

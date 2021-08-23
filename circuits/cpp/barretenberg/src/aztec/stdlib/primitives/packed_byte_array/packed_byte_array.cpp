@@ -141,7 +141,7 @@ template <typename Composer> packed_byte_array<Composer>::operator byte_array_pt
             const uint64_t bit_shift = (BYTES_PER_ELEMENT - 1 - j) * 8;
             uint64_t byte_val = (limb_value >> bit_shift).data[0] & (uint64_t)(255);
             field_pt byte(witness_t(context, fr(byte_val)));
-            context->create_range_constraint(byte.witness_index, 8);
+            byte.create_range_constraint(8);
             accumulator += (field_pt(byte) * field_pt(context, uint256_t(1) << bit_shift));
             bytes.emplace_back(byte);
         }

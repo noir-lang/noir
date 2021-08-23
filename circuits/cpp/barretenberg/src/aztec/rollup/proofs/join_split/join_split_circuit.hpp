@@ -49,7 +49,7 @@ struct join_split_outputs {
     field_ct input_owner;
 };
 
-join_split_outputs join_split_circuit_component(Composer& composer, join_split_inputs const& inputs);
+join_split_outputs join_split_circuit_component(join_split_inputs const& inputs);
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx);
 
