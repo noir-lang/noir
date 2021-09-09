@@ -10,11 +10,15 @@ namespace stdlib {
 template <typename Composer> class packed_byte_array {
   private:
     typedef field_t<Composer> field_pt;
+    typedef witness_t<Composer> witness_pt;
     typedef bool_t<Composer> bool_pt;
     typedef byte_array<Composer> byte_array_pt;
 
   public:
     packed_byte_array(Composer* parent_context, size_t const num_bytes = 0);
+
+    // THIS CTOR ASSUMES INPUT ELEMENTS HAVE ALREADY BEEN REDUCED TO <16 BYTES PER ELEMENT
+    // Use ::from_field_element_vector for raw vectors of unreduced prime field elements
     packed_byte_array(const std::vector<field_pt>& input, const size_t bytes_per_input = BYTES_PER_ELEMENT);
     packed_byte_array(Composer* parent_context, const std::vector<uint8_t>& input);
     packed_byte_array(Composer* parent_context, const std::string& input);
@@ -30,6 +34,8 @@ template <typename Composer> class packed_byte_array {
 
     std::vector<field_pt> to_unverified_byte_slices(const size_t bytes_per_slice) const;
     std::vector<field_pt> get_limbs() const { return limbs; }
+
+    static packed_byte_array from_field_element_vector(const std::vector<field_pt>& input);
 
     void append(const field_pt& to_append, const size_t bytes_to_append);
 

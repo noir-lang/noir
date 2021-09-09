@@ -153,6 +153,8 @@ template <typename ComposerContext> class field_t {
 
     void assert_equal(const field_t& rhs, std::string const& msg = "field_t::assert_equal") const;
 
+    static field_t conditional_assign(const bool_t<ComposerContext>& predicate, const field_t& lhs, const field_t& rhs);
+
     static std::array<field_t, 4> preprocess_two_bit_table(const field_t& T0,
                                                            const field_t& T1,
                                                            const field_t& T2,
@@ -175,6 +177,8 @@ template <typename ComposerContext> class field_t {
                                                const bool_t<ComposerContext>& t0);
 
     static void evaluate_polynomial_identity(const field_t& a, const field_t& b, const field_t& c, const field_t& d);
+
+    static field_t accumulate(const std::vector<field_t>& to_add);
 
     /**
      * multiply *this by `to_mul` and add `to_add`

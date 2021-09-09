@@ -13,8 +13,8 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
     ptr += 60;
     read(ptr, rollup_size);
 
-    auto num_fields =
-        RollupProofFields::INNER_PROOFS_DATA + (rollup_size * PropagatedInnerProofFields::NUM_FIELDS) + 16;
+    auto num_fields = RollupProofFields::INNER_PROOFS_DATA + (rollup_size * InnerProofFields::NUM_FIELDS) +
+                      16; // TODO WHY DID THIS HAVE A +8?
     std::vector<fr> fields(num_fields);
 
     ptr = proof_data.data();
@@ -27,6 +27,15 @@ rollup_proof_data::rollup_proof_data(std::vector<uint8_t> const& proof_data)
 
 rollup_proof_data::rollup_proof_data(std::vector<fr> const& fields)
 {
+    populate_from_fields(fields);
+}
+
+rollup_proof_data::rollup_proof_data(std::vector<field_ct> const& stdlib_fields)
+{
+    std::vector<fr> fields;
+    for (const auto& stdlib_field : stdlib_fields) {
+        fields.push_back(stdlib_field.get_value());
+    }
     populate_from_fields(fields);
 }
 
@@ -56,6 +65,7 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
         total_tx_fees[i] = fields[RollupProofFields::TOTAL_TX_FEES + i];
     }
 
+    input_hash = fields[RollupProofFields::INPUTS_HASH];
     inner_proofs.resize(rollup_size);
     for (size_t i = 0; i < rollup_size; ++i) {
         auto offset = RollupProofFields::INNER_PROOFS_DATA + (i * PropagatedInnerProofFields::NUM_FIELDS);

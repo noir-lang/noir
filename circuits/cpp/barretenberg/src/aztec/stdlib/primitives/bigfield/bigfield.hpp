@@ -16,9 +16,21 @@ namespace stdlib {
 
 template <typename Composer, typename T> class bigfield {
   public:
+    typedef T TParams;
+    typedef barretenberg::field<T> native;
+
     struct Basis {
         uint512_t modulus;
         size_t num_bits;
+    };
+
+    // used in dual_multiply_add to store the result of one of the multiplications,
+    // as we will likely re-use it
+    struct cached_product {
+        field_t<Composer> lo_cache = field_t<Composer>(0);
+        field_t<Composer> hi_cache = field_t<Composer>(0);
+        field_t<Composer> prime_cache = field_t<Composer>(0);
+        bool cache_exists = false;
     };
 
     struct Limb {
@@ -46,6 +58,8 @@ template <typename Composer, typename T> class bigfield {
     bigfield(const field_t<Composer>& low_bits, const field_t<Composer>& high_bits, const bool can_overflow = false);
     bigfield(Composer* parent_context = nullptr);
     bigfield(Composer* parent_context, const uint256_t& value);
+
+    // we assume the limbs have already been normalized!
     bigfield(const field_t<Composer>& a,
              const field_t<Composer>& b,
              const field_t<Composer>& c,
@@ -66,6 +80,8 @@ template <typename Composer, typename T> class bigfield {
     bigfield(const byte_array<Composer>& bytes);
     bigfield(const bigfield& other);
     bigfield(bigfield&& other);
+
+    static bigfield create_from_u512_as_witness(Composer* ctx, const uint512_t& value, const bool can_overflow = false);
 
     static bigfield from_witness(Composer* ctx, const barretenberg::field<T>& input)
     {
@@ -160,6 +176,21 @@ template <typename Composer, typename T> class bigfield {
     bigfield sqr() const;
     bigfield sqradd(const std::vector<bigfield>& to_add) const;
     bigfield madd(const bigfield& to_mul, const std::vector<bigfield>& to_add) const;
+    static bigfield dual_madd(const bigfield& left_a,
+                              const bigfield& right_a,
+                              const bigfield& left_b,
+                              const bigfield& right_b,
+                              const std::vector<bigfield>& to_add,
+                              cached_product& cache);
+
+    // compute -(mul_left * mul_right + ...to_sub) / (divisor)
+    // We can evaluate this relationship with only one set of quotient/remainder range checks
+    static bigfield msub_div(const std::vector<bigfield>& mul_left,
+                             const std::vector<bigfield>& mul_right,
+                             const bigfield& divisor,
+                             const std::vector<bigfield>& to_sub,
+                             cached_product& cache);
+
     static bigfield div(const std::vector<bigfield>& numerators, const bigfield& denominator);
 
     bigfield conditional_negate(const bool_t<Composer>& predicate) const;
@@ -212,7 +243,13 @@ template <typename Composer, typename T> class bigfield {
                                       const std::vector<bigfield>& to_add,
                                       const bigfield& quotient,
                                       const std::vector<bigfield>& remainders);
-    static void verify_mod(const bigfield& left, const bigfield& quotient, const bigfield& remainder);
+
+    static void evaluate_multiple_multiply_add(const std::vector<bigfield>& input_left,
+                                               const std::vector<bigfield>& input_right,
+                                               const std::vector<bigfield>& to_add,
+                                               const bigfield& input_quotient,
+                                               const std::vector<bigfield>& input_remainders,
+                                               std::vector<cached_product>& caches);
 
     static void evaluate_square_add(const bigfield& left,
                                     const std::vector<bigfield>& to_add,
@@ -224,6 +261,7 @@ template <typename Composer, typename T> class bigfield {
                                  const bigfield& quotient,
                                  const bigfield& remainder);
     void reduction_check() const;
+
 }; // namespace stdlib
 
 template <typename C, typename T> inline std::ostream& operator<<(std::ostream& os, bigfield<T, C> const& v)

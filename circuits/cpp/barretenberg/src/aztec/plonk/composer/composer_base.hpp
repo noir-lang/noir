@@ -294,6 +294,11 @@ class ComposerBase {
         if (does_not_exist) {
             public_inputs.emplace_back(witness_index);
         }
+        ASSERT(does_not_exist);
+        if (!does_not_exist && !failed) {
+            failed = true;
+            err = "Attempted to set a public input that is already public!";
+        }
     }
 
     virtual void assert_equal(const uint32_t a_idx, const uint32_t b_idx, std::string const& msg = "assert_equal");

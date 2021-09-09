@@ -4,6 +4,7 @@
 #include "root_rollup_circuit.hpp"
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
+#include "./root_rollup_proof_data.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -15,6 +16,7 @@ struct circuit_data : proofs::circuit_data {
     size_t num_inner_rollups;
     size_t rollup_size;
     rollup::circuit_data inner_rollup_circuit_data;
+    root_rollup_proof_data root_proof_data;
 };
 
 inline circuit_data get_circuit_data(size_t num_inner_rollups,
@@ -43,6 +45,7 @@ inline circuit_data get_circuit_data(size_t num_inner_rollups,
         root_rollup.old_data_roots_root = fr::random_element();
         root_rollup.new_data_roots_root = fr::random_element();
         root_rollup.old_data_roots_path = gibberish_roots_path;
+        root_rollup.num_inner_proofs = 0;
         root_rollup.rollups.resize(num_inner_rollups, rollup_circuit_data.padding_proof);
         root_rollup.old_defi_root = fr::random_element();
         root_rollup.new_defi_root = fr::random_element();

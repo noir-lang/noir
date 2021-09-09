@@ -118,6 +118,8 @@ grumpkin::fq compress_native_buffer_to_field(const std::vector<uint8_t>& input)
 
 grumpkin::fq compress_native(const std::vector<uint8_t>& input)
 {
+    // If input is all zeroes, set the hash output to equal the length of the input
+    // This is because, in our circuits, we cannot compute a pedersen hash of 0 as it produces a point at infinity
     bool is_zero = std::all_of(input.begin(), input.end(), [](auto e) { return e == 0; });
     return is_zero ? grumpkin::fq(input.size()) : compress_native_buffer_to_field(input);
 }

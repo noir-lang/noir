@@ -110,6 +110,9 @@ bool create_root_rollup()
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
 
+    auto encoded_inputs = result.root_data.encode_proof_data();
+
+    write(std::cout, encoded_inputs);
     write(std::cout, result.proof_data);
     write(std::cout, (uint8_t)result.verified);
     std::cout << std::flush;

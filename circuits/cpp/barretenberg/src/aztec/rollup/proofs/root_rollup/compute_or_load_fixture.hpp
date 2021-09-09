@@ -34,6 +34,9 @@ inline std::vector<uint8_t> compute_or_load_fixture(std::string const& path,
             mkdir(path.c_str(), 0700);
             auto stream = std::ofstream(filename);
             write(stream, data);
+            if (!stream.good()) {
+                throw_or_abort(format("Failed to write: ", filename));
+            }
         }
         return data;
     }

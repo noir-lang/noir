@@ -3,12 +3,15 @@
 #include "../bigfield/bigfield.hpp"
 #include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"
+#include <ecc/curves/bn254/g1.hpp>
+
+#include "../composers/composers_fwd.hpp"
 
 namespace plonk {
 namespace stdlib {
 
 // ( ͡° ͜ʖ ͡°)
-template <typename Composer, class Fq, class Fr, class NativeGroup> class element {
+template <class Composer, class Fq, class Fr, class NativeGroup> class element {
   public:
     element();
     element(const typename NativeGroup::affine_element& input);
@@ -67,6 +70,16 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
         result.y = -result.y;
         return result;
     }
+    element operator+=(const element& other)
+    {
+        *this = *this + other;
+        return *this;
+    }
+    element operator-=(const element& other)
+    {
+        *this = *this - other;
+        return *this;
+    }
 
     element operator*(const Fr& other) const;
 
@@ -85,8 +98,54 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
         return result;
     }
 
+    element reduce() const
+    {
+        element result(*this);
+        result.x.self_reduce();
+        result.y.self_reduce();
+        return result;
+    }
+
     element dbl() const;
+
+    // we use this data structure to add together a sequence of points.
+    // By tracking the previous values of x_1, y_1, \lambda, we can avoid
+    // computing the output y-coordinate of intermediate additions
+    struct chain_add_accumulator {
+        Fq x1_prev;
+        Fq y1_prev;
+        Fq lambda_prev;
+        Fq x3_prev;
+        Fq y3_prev;
+        bool is_element = false;
+
+        chain_add_accumulator(){};
+        explicit chain_add_accumulator(element& input)
+        {
+            x3_prev = input.x;
+            y3_prev = input.y;
+            is_element = true;
+        }
+        chain_add_accumulator(const chain_add_accumulator& other) = default;
+        chain_add_accumulator(chain_add_accumulator&& other) = default;
+        chain_add_accumulator& operator=(const chain_add_accumulator& other) = default;
+        chain_add_accumulator& operator=(chain_add_accumulator&& other) = default;
+    };
+
+    /**
+     * We can chain repeated point additions together, where we only require 2 non-native field multiplications per
+     * point addition, instead of 3
+     **/
+    static chain_add_accumulator chain_add_start(const element& p1, const element& p2);
+    static chain_add_accumulator chain_add(const element& p1, const chain_add_accumulator& accumulator);
+    static element chain_add_end(const chain_add_accumulator& accumulator);
+
     element montgomery_ladder(const element& other) const;
+    element montgomery_ladder(const chain_add_accumulator& accumulator);
+    element double_montgomery_ladder(const element& add1, const element& add2) const;
+    element double_montgomery_ladder(const chain_add_accumulator& add1, const element& add2) const;
+    element double_montgomery_ladder(const chain_add_accumulator& add1, const chain_add_accumulator& add2) const;
+    element double_into_montgomery_ladder(const element& to_add) const;
 
     typename NativeGroup::affine_element get_value() const
     {
@@ -95,9 +154,35 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
         return typename NativeGroup::affine_element(x_val.lo, y_val.lo);
     }
 
+    // compute a multi-scalar-multiplication by creating a precomputed lookup table for each point,
+    // splitting each scalar multiplier up into a 4-bit sliding window wNAF.
+    // more efficient than batch_mul if num_points < 4
+    // only works with Plookup!
+    // template <size_t max_num_bits = 0>
+    // static element wnaf_batch_mul(const std::vector<element>& points, const std::vector<Fr>& scalars);
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
                              const size_t max_num_bits = 0);
+
+    // we want to conditionally compile this method iff our curve params are the BN254 curve.
+    // This is a bit tricky to do with `std::enable_if`, because `bn254_endo_batch_mul` is a member function of a
+    // class
+    // template
+    // && the compiler can't perform partial template specialization on member functions of class templates
+    // => our template parameter cannot be a value but must instead by a type
+    // Our input to `std::enable_if` is a comparison between two types (NativeGroup and barretenberg::g1), which
+    // resolves to either `true/false`.
+    // If `std::enable_if` resolves to `true`, it resolves to a `typedef` that equals `void`
+    // If `std::enable_if` resolves to `false`, there is no member typedef
+    // We want to take the *type* of the output typedef of `std::enable_if`
+    // i.e. for the bn254 curve, the template param is `typename = void`
+    // for any other curve, there is no template param
+    template <typename X = NativeGroup, typename = typename std::enable_if_t<std::is_same<X, barretenberg::g1>::value>>
+    static element bn254_endo_batch_mul(const std::vector<element>& big_points,
+                                        const std::vector<Fr>& big_scalars,
+                                        const std::vector<element>& small_points,
+                                        const std::vector<Fr>& small_scalars,
+                                        const size_t max_num_small_bits);
 
     static element mixed_batch_mul(const std::vector<element>& big_points,
                                    const std::vector<Fr>& big_scalars,
@@ -106,6 +191,9 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
                                    const size_t max_num_small_bits);
 
     static std::vector<bool_t<Composer>> compute_naf(const Fr& scalar, const size_t max_num_bits = 0);
+
+    template <size_t max_num_bits = 0, size_t WNAF_SIZE = 4>
+    static std::vector<field_t<Composer>> compute_wnaf(const Fr& scalar);
 
     Composer* get_context() const
     {
@@ -132,6 +220,7 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
         if (other.y.context != nullptr) {
             return other.y.context;
         }
+        return nullptr;
     }
 
     Fq x;
@@ -508,6 +597,67 @@ template <typename Composer, class Fq, class Fr, class NativeGroup> class elemen
             return result;
         }
 
+        chain_add_accumulator get_chain_initial_entry() const
+        {
+            std::vector<element> add_accumulator;
+            for (size_t i = 0; i < num_quads; ++i) {
+                add_accumulator.push_back(quad_tables[i][0]);
+            }
+            if (has_twin) {
+                add_accumulator.push_back(twin_tables[0][0]);
+            }
+            if (has_triple) {
+                add_accumulator.push_back(triple_tables[0][0]);
+            }
+            if (has_singleton) {
+                add_accumulator.push_back(singletons[0]);
+            }
+            if (add_accumulator.size() >= 2) {
+                chain_add_accumulator output = element::chain_add_start(add_accumulator[0], add_accumulator[1]);
+                for (size_t i = 2; i < add_accumulator.size(); ++i) {
+                    output = element::chain_add(add_accumulator[i], output);
+                }
+                return output;
+            }
+            return chain_add_accumulator(add_accumulator[0]);
+        }
+
+        element::chain_add_accumulator get_chain_add_accumulator(std::vector<bool_t<Composer>>& naf_entries) const
+        {
+            std::vector<element> round_accumulator;
+            for (size_t j = 0; j < num_quads; ++j) {
+                round_accumulator.push_back(quad_tables[j].get(
+                    naf_entries[4 * j], naf_entries[4 * j + 1], naf_entries[4 * j + 2], naf_entries[4 * j + 3]));
+            }
+
+            if (has_triple) {
+                round_accumulator.push_back(triple_tables[0].get(
+                    naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1], naf_entries[num_quads * 4 + 2]));
+            }
+            if (has_twin) {
+                round_accumulator.push_back(
+                    twin_tables[0].get(naf_entries[num_quads * 4], naf_entries[num_quads * 4 + 1]));
+            }
+            if (has_singleton) {
+                round_accumulator.push_back(singletons[0].conditional_negate(naf_entries[num_points - 1]));
+            }
+
+            element::chain_add_accumulator accumulator;
+            if (round_accumulator.size() == 1) {
+                accumulator.x3_prev = round_accumulator[0].x;
+                accumulator.y3_prev = round_accumulator[0].y;
+                accumulator.is_element = true;
+                return accumulator;
+            } else if (round_accumulator.size() == 2) {
+                return element::chain_add_start(round_accumulator[0], round_accumulator[1]);
+            } else {
+                accumulator = element::chain_add_start(round_accumulator[0], round_accumulator[1]);
+                for (size_t j = 2; j < round_accumulator.size(); ++j) {
+                    accumulator = element::chain_add(round_accumulator[j], accumulator);
+                }
+            }
+            return (accumulator);
+        }
         std::vector<quad_lookup_table> quad_tables;
         std::vector<triple_lookup_table> triple_tables;
         std::vector<twin_lookup_table> twin_tables;

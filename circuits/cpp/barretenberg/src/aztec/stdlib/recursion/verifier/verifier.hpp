@@ -382,7 +382,7 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
         rhs_scalars.push_back(recursion_separator_challenge);
     }
     auto opening_result =
-        g1_ct::mixed_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
+        g1_ct::bn254_endo_batch_mul(big_opening_elements, big_opening_scalars, opening_elements, opening_scalars, 128);
     opening_result = opening_result + double_opening_result;
     for (const auto& to_add : elements_to_add) {
         opening_result = opening_result + to_add;

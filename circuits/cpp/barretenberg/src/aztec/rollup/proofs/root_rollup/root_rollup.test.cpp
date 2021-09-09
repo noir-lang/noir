@@ -228,8 +228,7 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 
-    root_rollup_proof_data rollup_data(result.public_inputs);
-
+    root_rollup_proof_data rollup_data = result.root_data;
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         notes::native::defi_interaction::note note = { 0, 0, 0, 0, 0, false };
@@ -241,6 +240,25 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     expected[0] &= 0xF;
 
     ASSERT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<uint256_t>(expected));
+}
+
+TEST_F(root_rollup_tests, test_encode_inputs)
+{
+    auto tx_data = create_root_rollup_tx("root_211", { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
+    auto result = verify_logic(tx_data, root_rollup_cd);
+    ASSERT_TRUE(result.logic_verified);
+
+    root_rollup_proof_data rollup_data = result.root_data;
+
+    EXPECT_EQ(rollup_data, root_rollup_proof_data(rollup_data.encode_proof_data()));
+    const auto hash_output = rollup_data.compute_hash_from_encoded_inputs(); // rollup_data.encode_proof_data()
+
+    const uint256_t result_hash = result.public_inputs[0];
+    uint256_t expected_hash;
+    const uint8_t* ptr = &hash_output[0];
+    numeric::read(ptr, expected_hash);
+
+    EXPECT_EQ(fr(result_hash), fr(expected_hash));
 }
 
 TEST_F(root_rollup_tests, test_asset_ids_missing_fails)
@@ -303,9 +321,7 @@ TEST_F(root_rollup_tests, test_full_logic)
     auto tx_data = create_full_logic_root_rollup_tx();
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
-
-    root_rollup_proof_data rollup_data(result.public_inputs);
-
+    root_rollup_proof_data rollup_data = result.root_data;
     EXPECT_EQ(rollup_data.bridge_ids[0], tx_data.bridge_ids[0]);
     EXPECT_EQ(rollup_data.bridge_ids[1], tx_data.bridge_ids[1]);
     EXPECT_EQ(rollup_data.bridge_ids[2], 0);

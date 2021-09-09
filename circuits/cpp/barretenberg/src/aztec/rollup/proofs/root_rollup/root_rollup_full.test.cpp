@@ -48,6 +48,7 @@ class root_rollup_full_tests : public ::testing::Test {
         MemoryStore store;
         MerkleTree<MemoryStore> data_tree(store, DATA_TREE_DEPTH, 0);
         // Create 5 js proofs to play with.
+        mkdir(FIXTURE_PATH, 0700);
         for (size_t i = 0; i < 5; ++i) {
             auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
                 return create_noop_join_split_proof(join_split_cd, data_tree.root());
@@ -98,8 +99,9 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
         "test_root_rollup_3x2", 0, tx_rollup_cd, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
     auto result = verify(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.verified);
-
-    auto rollup_data = rollup::rollup_proof_data(result.proof_data);
+    auto rollup_data = result.root_data;
+    // auto rollup_data = root_rollup_proof_data(result.proof_data);
+    // EXPECT_EQ(rollup_data, comparison_data);
     EXPECT_EQ(rollup_data.rollup_id, 0U);
     EXPECT_EQ(rollup_data.rollup_size, 8U);
     EXPECT_EQ(rollup_data.data_start_index, 0U);
@@ -138,7 +140,7 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
     auto result = verify(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.verified);
 
-    auto rollup_data = rollup::rollup_proof_data(result.proof_data);
+    auto rollup_data = result.root_data;
     EXPECT_EQ(rollup_data.rollup_id, 0U);
     EXPECT_EQ(rollup_data.rollup_size, 8U);
     EXPECT_EQ(rollup_data.data_start_index, 0U);

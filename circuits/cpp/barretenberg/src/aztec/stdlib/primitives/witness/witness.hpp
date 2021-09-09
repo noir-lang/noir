@@ -13,7 +13,7 @@ template <typename ComposerContext> class witness_t {
     witness_t(ComposerContext* parent_context, const barretenberg::fr& in)
     {
         context = parent_context;
-        barretenberg::fr::__copy(in, witness);
+        witness = in;
         witness_index = context->add_variable(witness);
     }
 

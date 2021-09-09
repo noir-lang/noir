@@ -20,8 +20,8 @@ template <typename ComposerContext>
 field_t<ComposerContext>::field_t(const witness_t<ComposerContext>& value)
     : context(value.context)
 {
-    additive_constant = barretenberg::fr::zero();
-    multiplicative_constant = barretenberg::fr::one();
+    additive_constant = 0;
+    multiplicative_constant = 1;
     witness_index = value.witness_index;
 }
 
@@ -102,16 +102,16 @@ field_t<ComposerContext> field_t<ComposerContext>::operator+(const field_t& othe
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // one input is constant - don't add a gate, but update scaling factors
         result.additive_constant = additive_constant + other.additive_constant;
-        barretenberg::fr::__copy(multiplicative_constant, result.multiplicative_constant);
+        result.multiplicative_constant = multiplicative_constant;
         result.witness_index = witness_index;
     } else if (witness_index == IS_CONSTANT && other.witness_index != IS_CONSTANT) {
         result.additive_constant = additive_constant + other.additive_constant;
-        barretenberg::fr::__copy(other.multiplicative_constant, result.multiplicative_constant);
+        result.multiplicative_constant = other.multiplicative_constant;
         result.witness_index = other.witness_index;
     } else {
         barretenberg::fr T0;
-        barretenberg::fr left = context->get_variable(witness_index);
-        barretenberg::fr right = context->get_variable(other.witness_index);
+        barretenberg::fr left = ctx->get_variable(witness_index);
+        barretenberg::fr right = ctx->get_variable(other.witness_index);
         barretenberg::fr out;
         out = left * multiplicative_constant;
         T0 = right * other.multiplicative_constant;
@@ -234,6 +234,7 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
             ctx->create_poly_gate(gate_coefficients);
         }
     } else {
+        // TODO SHOULD WE CARE ABOUT IF THE DIVISOR IS ZERO?
         barretenberg::fr left = ctx->get_variable(witness_index);
         barretenberg::fr right = ctx->get_variable(other.witness_index);
         barretenberg::fr out;
@@ -540,6 +541,15 @@ field_t<ComposerContext> field_t<ComposerContext>::conditional_negate(const bool
     return multiplicand.madd(*this, *this);
 }
 
+// if predicate == true then return lhs, else return rhs
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::conditional_assign(const bool_t<ComposerContext>& predicate,
+                                                                      const field_t& lhs,
+                                                                      const field_t& rhs)
+{
+    return (lhs - rhs).madd(predicate, rhs);
+}
+
 template <typename ComposerContext>
 void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, std::string const& msg) const
 {
@@ -688,6 +698,58 @@ void field_t<ComposerContext>::evaluate_polynomial_identity(const field_t& a,
         q_c,
     };
     ctx->create_big_mul_gate(gate_coefficients);
+}
+
+// compute sum of inputs
+template <typename ComposerContext>
+field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<field_t>& input)
+{
+    if (input.size() == 0) {
+        return field_t<ComposerContext>(nullptr, 0);
+    }
+    if (input.size() == 1) {
+        return input[0];
+    }
+    /**
+     * If we are using UltraComposer, we can accumulate 3 values into a sum per gate.
+     * We track a decumulating sum of values in the 4th wire of every row.
+     * i.e. the 4th wire of the first row is the total output value
+     *
+     * At every gate, we subtract off three elements from `input`. Every gate apart from the final gate,
+     * is an 'extended' addition gate, that includes the 4th wire of the next gate
+     *
+     * e.g. to accumulate 9 limbs, structure is:
+     *
+     * | l_1 | l_2 | l_3 | s_3 |
+     * | l_4 | l_5 | l_6 | s_2 |
+     * | l_7 | l_8 | l_9 | s_1 |
+     *
+     * We validate:
+     *
+     * s_3 - l_1 - l_2 - l_3 - s_2 = 0
+     * s_2 - l_4 - l_5 - l_6 - s_1 = 0
+     * s_1 - l_7 - l_8 - l_9 = 0
+     *
+     * If num elements is not a multiple of 3, the final gate will be padded with zero_idx wires
+     **/
+    if constexpr (ComposerContext::type == waffle::TURBO) {
+
+        field_t total(0);
+        bool odd_number = (input.size() & 0x01UL) == 0x01ULL;
+        size_t end = input.size() - (odd_number ? 2 : 0);
+        for (size_t i = 0; i < end; i += 2) {
+            total = total.add_two(input[(size_t)i], input[(size_t)i + 1]);
+        }
+        if (odd_number) {
+            total += input[input.size() - 1];
+        }
+        return total.normalize();
+    }
+    field_t<ComposerContext> total;
+    for (const auto& item : input) {
+        total += item;
+    }
+    return total;
 }
 
 template <typename ComposerContext>

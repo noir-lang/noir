@@ -33,13 +33,22 @@ packed_byte_array<Composer>::packed_byte_array(const std::vector<field_pt>& inpu
     : context(get_context_from_fields(input))
     , num_bytes(bytes_per_input * input.size())
 {
-    // TODO HANDLE CASE WHERE bytes_per_input > BYTES_PER_ELEMENT
+    ASSERT(bytes_per_input <= BYTES_PER_ELEMENT);
+    if (bytes_per_input > BYTES_PER_ELEMENT) {
+        context->failed = true;
+        context->err = "called `packed_byte_array` constructor with `bytes_per_input > 16 bytes";
+    }
+
+    // TODO HANDLE CASE WHERE bytes_per_input > BYTES_PER_ELEMENT (and not 32)
     const size_t inputs_per_limb = BYTES_PER_ELEMENT / bytes_per_input;
 
     const size_t num_elements = num_bytes / BYTES_PER_ELEMENT + (num_bytes % BYTES_PER_ELEMENT != 0);
     for (size_t i = 0; i < num_elements; ++i) {
         field_pt limb(context, 0);
-
+        if (uint256_t(limb.get_value()).get_msb() >= 128) {
+            context->failed = true;
+            context->err = "input field element to `packed_byte_array` is >16 bytes!";
+        }
         const size_t num_inputs = (i == num_elements - 1) ? (input.size() - (i * inputs_per_limb)) : inputs_per_limb;
         for (size_t j = 0; j < num_inputs; ++j) {
             const uint64_t limb_shift = (BYTES_PER_ELEMENT - ((j + 1) * bytes_per_input)) << 3;
@@ -127,6 +136,24 @@ packed_byte_array<Composer>& packed_byte_array<Composer>::operator=(packed_byte_
     num_bytes = other.num_bytes;
     limbs = std::vector<field_pt>(other.limbs.begin(), other.limbs.end());
     return *this;
+}
+
+template <typename Composer>
+packed_byte_array<Composer> packed_byte_array<Composer>::from_field_element_vector(const std::vector<field_pt>& input)
+{
+    packed_byte_array result(get_context_from_fields(input), input.size() * 32);
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        uint256_t raw = input[i].get_value();
+        field_pt lo(witness_pt(result.context, raw.slice(0, 128)));
+        field_pt hi(witness_pt(result.context, raw.slice(128, 256)));
+        lo.create_range_constraint(128, "packed_byte_array::from_field_element_vector range fail");
+        hi.create_range_constraint(128, "packed_byte_array::from_field_element_vector range fail");
+        input[i].assert_equal(lo + (hi * (uint256_t(1) << 128)));
+        result.limbs[2 * i] = hi;
+        result.limbs[2 * i + 1] = lo;
+    }
+    return result;
 }
 
 template <typename Composer> packed_byte_array<Composer>::operator byte_array_pt() const

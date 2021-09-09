@@ -400,6 +400,10 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
 
     const fr witness_value = get_variable(witness_index).from_montgomery_form();
 
+    if ((witness_value).get_msb() > num_bits && !failed) {
+        failed = true;
+        err = "range check failed!";
+    }
     // one gate accmulates 4 quads, or 8 bits.
     // # gates = (bits / 8)
     size_t num_quad_gates = (num_bits >> 3);

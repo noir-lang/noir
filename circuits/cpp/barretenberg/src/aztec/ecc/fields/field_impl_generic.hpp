@@ -196,7 +196,6 @@ template <class T> constexpr field<T> field<T>::reduce() const noexcept
 template <class T> constexpr field<T> field<T>::add(const field& other) const noexcept
 {
     if constexpr (modulus.data[3] >= 0x4000000000000000ULL) {
-        // std::cout << "beep" << std::endl;
         uint64_t r0 = data[0] + other.data[0];
         uint64_t c = r0 < data[0];
         auto r1 = addc(data[1], other.data[1], c, c);

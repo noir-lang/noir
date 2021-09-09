@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <common/timer.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
-
 namespace rollup {
 namespace proofs {
 

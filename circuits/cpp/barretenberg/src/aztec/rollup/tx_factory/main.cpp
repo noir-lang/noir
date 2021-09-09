@@ -41,9 +41,11 @@ int main(int argc, char** argv)
 
     std::vector<std::string> args(argv, argv + argc);
 
-    if (args.size() < 3) {
+    if (args.size() < 4) {
         std::cerr << "usage:\n"
-                  << args[0] << " <num_txs> <inner_rollup_size> <outer_rollup_size> [output_file]" << std::endl;
+                  << args[0]
+                  << " <num_txs> <inner_rollup_size> <outer_rollup_size> <split_proofs_across_rollups> [output_file]"
+                  << std::endl;
         return -1;
     }
 
@@ -61,11 +63,13 @@ int main(int argc, char** argv)
     uint32_t num_txs = static_cast<uint32_t>(std::stoul(args[1]));
     const uint32_t inner_rollup_size = static_cast<uint32_t>(std::stoul(args[2]));
     const uint32_t outer_rollup_size = static_cast<uint32_t>(std::stoul(args[3]));
+    const bool split_txns_across_rollups = static_cast<bool>(std::stoul(args[4]));
 
     std::vector<std::vector<uint8_t>> rollups_data;
+    const auto num_total_txs = num_txs;
     while (num_txs > 0) {
         auto rollup_num = rollups_data.size();
-        auto n = std::min(num_txs, inner_rollup_size);
+        auto n = split_txns_across_rollups ? (num_total_txs / outer_rollup_size) : std::min(num_txs, inner_rollup_size);
         auto name = format("rollup_", inner_rollup_size, "x", outer_rollup_size, "_", rollup_num, "_", n, ".dat");
         num_txs -= n;
 
@@ -98,12 +102,15 @@ int main(int argc, char** argv)
     write(std::cout, (uint32_t)outer_rollup_size);
     write(std::cout, root_rollup);
 
-    if (args.size() > 4) {
+    if (args.size() > 5) {
         std::vector<uint8_t> proof_data;
         bool verified;
+        std::vector<uint8_t> input_data;
+        read(std::cin, input_data);
         read(std::cin, proof_data);
         read(std::cin, verified);
-        std::ofstream of(args[4]);
+        std::ofstream of(args[5]);
+        write(of, input_data);
         write(of, proof_data);
         write(of, verified);
     }

@@ -25,7 +25,8 @@ enum {
     DEFI_BRIDGE_DEPOSITS = DEFI_BRIDGE_IDS + NUM_BRIDGE_CALLS_PER_BLOCK,
     ASSET_IDS = DEFI_BRIDGE_DEPOSITS + NUM_BRIDGE_CALLS_PER_BLOCK,
     TOTAL_TX_FEES = ASSET_IDS + NUM_ASSETS,
-    INNER_PROOFS_DATA = TOTAL_TX_FEES + NUM_ASSETS,
+    INPUTS_HASH = TOTAL_TX_FEES + NUM_ASSETS,
+    INNER_PROOFS_DATA,
 };
 } // namespace RollupProofFields
 
@@ -77,6 +78,8 @@ struct propagated_inner_proof_data {
     uint256_t nullifier2;
     fr input_owner;
     fr output_owner;
+
+    bool operator==(const propagated_inner_proof_data& other) const = default;
 };
 
 struct rollup_proof_data {
@@ -95,14 +98,19 @@ struct rollup_proof_data {
     std::array<uint256_t, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
     std::array<uint256_t, NUM_ASSETS> asset_ids;
     std::array<uint256_t, NUM_ASSETS> total_tx_fees;
+    fr input_hash;
     std::vector<propagated_inner_proof_data> inner_proofs;
     g1::affine_element recursion_output[2];
 
+    rollup_proof_data() {}
+    rollup_proof_data(std::vector<field_ct> const& fields);
     rollup_proof_data(std::vector<uint8_t> const& proof_data);
     rollup_proof_data(std::vector<fr> const& fields);
 
+    bool operator==(const rollup_proof_data& other) const = default;
+
   private:
-    void populate_from_fields(std::vector<fr> const& fields);
+    virtual void populate_from_fields(std::vector<fr> const& fields);
 };
 
 inline std::ostream& operator<<(std::ostream& os, rollup_proof_data const& data)
