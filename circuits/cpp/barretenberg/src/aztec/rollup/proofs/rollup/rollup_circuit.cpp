@@ -236,7 +236,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto new_data_values = std::vector<field_ct>();
     auto new_null_indicies = std::vector<field_ct>();
     recursion_output<bn254> recursion_output;
-    std::vector<std::vector<field_ct>> inner_public_inputs;
+    std::vector<std::vector<field_ct>> tx_public_inputs;
     auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct(witness_ct::create_constant_witness(&composer, 0)));
     std::vector<field_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
                                             field_ct(witness_ct::create_constant_witness(&composer, 0)));
@@ -288,7 +288,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
         accumulate_tx_fees(composer, total_tx_fees, proof_id, asset_id, tx_fee, asset_ids, num_asset_ids, is_real);
 
-        inner_public_inputs.push_back(public_inputs);
+        tx_public_inputs.push_back(slice(public_inputs, 0, PropagatedInnerProofFields::NUM_FIELDS));
     }
 
     new_data_values.resize(rollup_size_pow2_ * 2, fr(0));
@@ -296,6 +296,11 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     auto new_null_root =
         check_nullifiers_inserted(composer, new_null_roots, old_null_paths, num_txs, old_null_root, new_null_indicies);
+
+    // Compute hash of the tx public inputs. Used to reduce number of public inputs published in root rollup.
+    auto sha_input = flatten(tx_public_inputs);
+    sha_input.resize(rollup_size_pow2_ * PropagatedInnerProofFields::NUM_FIELDS, field_ct(0));
+    auto hash_output = stdlib::sha256_to_field(packed_byte_array_ct::from_field_element_vector(sha_input));
 
     // Publish public inputs.
     rollup_id.set_public();
@@ -321,29 +326,10 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     for (auto total_tx_fee : total_tx_fees) {
         total_tx_fee.set_public();
     }
-
-    /**
-     * Compress public inputs
-     *
-     * Verifier smart contract requires 150 gas per public input processed.
-     * Much cheaper to SHA256 hash the public inputs down into a single 32-byte block
-     */
-    std::vector<field_ct> public_input_hash_inputs;
-    for (auto& inner : inner_public_inputs) {
-        for (size_t i = 0; i < PropagatedInnerProofFields::NUM_FIELDS; ++i) {
-            public_input_hash_inputs.push_back(inner[i]);
-        }
+    hash_output.set_public();
+    for (auto& tx : tx_public_inputs) {
+        propagate_inner_proof_public_inputs(tx);
     }
-    packed_byte_array_ct input_msg = packed_byte_array_ct::from_field_element_vector(public_input_hash_inputs);
-    auto hash_output = stdlib::sha256<Composer>(input_msg);
-    std::vector<field_ct> inner_inputs_hash = hash_output.to_unverified_byte_slices(16);
-    // convert the hash output to a field element (i.e. reduce mod p)
-    field_ct hash_output_reduced = inner_inputs_hash[1] + inner_inputs_hash[0] * (uint256_t(1) << 128);
-    composer.set_public_input(hash_output_reduced.normalize().witness_index);
-    for (auto& inner : inner_public_inputs) {
-        propagate_inner_proof_public_inputs(inner);
-    }
-
     for (size_t i = max_num_txs; i < rollup_size_pow2_; ++i) {
         add_tx_padding_public_inputs(composer);
     }

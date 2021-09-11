@@ -105,12 +105,9 @@ int main(int argc, char** argv)
     if (args.size() > 5) {
         std::vector<uint8_t> proof_data;
         bool verified;
-        std::vector<uint8_t> input_data;
-        read(std::cin, input_data);
         read(std::cin, proof_data);
         read(std::cin, verified);
         std::ofstream of(args[5]);
-        write(of, input_data);
         write(of, proof_data);
         write(of, verified);
     }

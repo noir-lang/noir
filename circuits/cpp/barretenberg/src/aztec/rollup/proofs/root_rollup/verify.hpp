@@ -15,7 +15,7 @@ struct verify_result {
     bool logic_verified;
     std::vector<fr> public_inputs;
     std::vector<uint8_t> proof_data;
-    root_rollup_proof_data root_data;
+    std::vector<fr> broadcast_data;
     recursion_output<bn254> recursion_output_data;
 };
 

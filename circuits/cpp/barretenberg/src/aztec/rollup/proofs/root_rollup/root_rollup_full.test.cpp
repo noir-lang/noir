@@ -99,9 +99,8 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
         "test_root_rollup_3x2", 0, tx_rollup_cd, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
     auto result = verify(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.verified);
-    auto rollup_data = result.root_data;
-    // auto rollup_data = root_rollup_proof_data(result.proof_data);
-    // EXPECT_EQ(rollup_data, comparison_data);
+
+    auto rollup_data = root_rollup_broadcast_data(result.broadcast_data);
     EXPECT_EQ(rollup_data.rollup_id, 0U);
     EXPECT_EQ(rollup_data.rollup_size, 8U);
     EXPECT_EQ(rollup_data.data_start_index, 0U);
@@ -112,13 +111,13 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     EXPECT_EQ(rollup_data.new_null_root, world_state.null_tree.root());
     EXPECT_EQ(rollup_data.new_data_roots_root, world_state.root_tree.root());
 
-    auto inner_data = rollup_data.inner_proofs[3];
-    EXPECT_EQ(inner_data.public_input, uint256_t(0));
-    EXPECT_EQ(inner_data.public_output, uint256_t(0));
+    auto inner_data = rollup_data.tx_data[3];
+    EXPECT_EQ(inner_data.public_input, fr(0));
+    EXPECT_EQ(inner_data.public_output, fr(0));
     EXPECT_EQ(inner_data.note_commitment1, fr(0));
     EXPECT_EQ(inner_data.note_commitment2, fr(0));
-    EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
-    EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
+    EXPECT_EQ(inner_data.nullifier1, fr(0));
+    EXPECT_EQ(inner_data.nullifier2, fr(0));
     EXPECT_EQ(inner_data.input_owner, fr(0));
     EXPECT_EQ(inner_data.output_owner, fr(0));
 }
@@ -140,7 +139,7 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
     auto result = verify(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.verified);
 
-    auto rollup_data = result.root_data;
+    auto rollup_data = root_rollup_broadcast_data(result.broadcast_data);
     EXPECT_EQ(rollup_data.rollup_id, 0U);
     EXPECT_EQ(rollup_data.rollup_size, 8U);
     EXPECT_EQ(rollup_data.data_start_index, 0U);
@@ -151,14 +150,14 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
     EXPECT_EQ(rollup_data.new_null_root, world_state.null_tree.root());
     EXPECT_EQ(rollup_data.new_data_roots_root, world_state.root_tree.root());
 
-    for (size_t i = 1; i < rollup_data.inner_proofs.size(); ++i) {
-        auto inner_data = rollup_data.inner_proofs[i];
-        EXPECT_EQ(inner_data.public_input, uint256_t(0));
-        EXPECT_EQ(inner_data.public_output, uint256_t(0));
+    for (size_t i = 1; i < rollup_data.tx_data.size(); ++i) {
+        auto inner_data = rollup_data.tx_data[i];
+        EXPECT_EQ(inner_data.public_input, fr(0));
+        EXPECT_EQ(inner_data.public_output, fr(0));
         EXPECT_EQ(inner_data.note_commitment1, fr(0));
         EXPECT_EQ(inner_data.note_commitment2, fr(0));
-        EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
-        EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
+        EXPECT_EQ(inner_data.nullifier1, fr(0));
+        EXPECT_EQ(inner_data.nullifier2, fr(0));
         EXPECT_EQ(inner_data.input_owner, fr(0));
         EXPECT_EQ(inner_data.output_owner, fr(0));
     }

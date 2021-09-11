@@ -330,6 +330,15 @@ class ComposerBase {
 
     size_t get_num_public_inputs() const { return public_inputs.size(); }
 
+    std::vector<fr> get_public_inputs() const
+    {
+        std::vector<fr> result;
+        for (uint32_t i = 0; i < public_inputs.size(); ++i) {
+            result.push_back(get_public_input(i));
+        }
+        return result;
+    }
+
   public:
     size_t n;
     std::vector<uint32_t> w_l;

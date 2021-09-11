@@ -16,7 +16,6 @@ struct circuit_data : proofs::circuit_data {
     size_t num_inner_rollups;
     size_t rollup_size;
     rollup::circuit_data inner_rollup_circuit_data;
-    root_rollup_proof_data root_proof_data;
 };
 
 inline circuit_data get_circuit_data(size_t num_inner_rollups,

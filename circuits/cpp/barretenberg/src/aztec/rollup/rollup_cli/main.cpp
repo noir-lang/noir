@@ -1,14 +1,11 @@
 #include "../proofs/account/compute_circuit_data.hpp"
 #include "../proofs/join_split/compute_circuit_data.hpp"
-#include "../proofs/rollup/compute_circuit_data.hpp"
-#include "../proofs/rollup/rollup_tx.hpp"
-#include "../proofs/rollup/verify.hpp"
-#include "../proofs/root_rollup/compute_circuit_data.hpp"
-#include "../proofs/root_rollup/root_rollup_tx.hpp"
-#include "../proofs/root_rollup/verify.hpp"
 #include "../proofs/claim/get_circuit_data.hpp"
 #include "../proofs/claim/verify.hpp"
+#include "../proofs/rollup/index.hpp"
+#include "../proofs/root_rollup/index.hpp"
 #include <common/timer.hpp>
+#include <common/container.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
@@ -63,7 +60,7 @@ bool create_tx_rollup()
     std::cerr << "Verified: " << result.verified << std::endl;
 
     write(std::cout, result.proof_data);
-    write(std::cout, (uint8_t)result.verified);
+    write(std::cout, result.verified);
     std::cout << std::flush;
 
     return result.verified;
@@ -110,11 +107,11 @@ bool create_root_rollup()
     std::cerr << "Time taken: " << timer.toString() << std::endl;
     std::cerr << "Verified: " << result.verified << std::endl;
 
-    auto encoded_inputs = result.root_data.encode_proof_data();
+    root_rollup::root_rollup_broadcast_data broadcast_data(result.broadcast_data);
+    auto buf = join({ to_buffer(broadcast_data), result.proof_data });
 
-    write(std::cout, encoded_inputs);
-    write(std::cout, result.proof_data);
-    write(std::cout, (uint8_t)result.verified);
+    write(std::cout, buf);
+    write(std::cout, result.verified);
     std::cout << std::flush;
 
     return result.verified;
@@ -136,7 +133,7 @@ bool create_claim()
     std::cerr << "Verified: " << result.verified << std::endl;
 
     write(std::cout, result.proof_data);
-    write(std::cout, (uint8_t)result.verified);
+    write(std::cout, result.verified);
     std::cout << std::flush;
 
     return result.verified;

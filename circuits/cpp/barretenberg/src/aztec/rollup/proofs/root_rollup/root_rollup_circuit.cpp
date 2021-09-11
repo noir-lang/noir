@@ -7,6 +7,7 @@
 #include <stdlib/merkle_tree/index.hpp>
 #include <stdlib/hash/sha256/sha256.hpp>
 #include <common/map.hpp>
+#include <common/container.hpp>
 #include "./root_rollup_proof_data.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -93,6 +94,7 @@ field_ct process_defi_interaction_notes(Composer& composer,
                             insertion_index,
                             "check_defi_tree_updated");
 
+    // TODO: reduce this output mod p instead of cutting off last 4 bits
     auto hash_output = byte_array_ct(plonk::stdlib::sha256<Composer>(hash_input));
     // Zero the first 4 bits to ensure field conversion doesn't wrap around prime.
     for (size_t i = 252; i < 256; ++i) {
@@ -229,12 +231,11 @@ void assert_inner_proof_sequential(Composer& composer,
     }
 }
 
-recursion_output<bn254> root_rollup_circuit(Composer& composer,
-                                            root_rollup_tx const& tx,
-                                            size_t num_inner_txs_pow2,
-                                            size_t num_outer_txs_pow2,
-                                            std::shared_ptr<waffle::verification_key> const& inner_verification_key,
-                                            root_rollup_proof_data& data)
+circuit_result_data root_rollup_circuit(Composer& composer,
+                                        root_rollup_tx const& tx,
+                                        size_t num_inner_txs_pow2,
+                                        size_t num_outer_txs_pow2,
+                                        std::shared_ptr<waffle::verification_key> const& inner_verification_key)
 {
     auto max_num_inner_proofs = tx.rollups.size();
     // Witnesses.
@@ -265,15 +266,18 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
     field_ct old_null_root = witness_ct(&composer, 0);
     field_ct new_null_root = witness_ct(&composer, 0);
 
+    // An padding rollup should use the following its public input hash.
+    field_ct zero_hash = compute_sha256_of_zeroes(composer, num_inner_txs_pow2);
+
     // Loop accumulators.
     recursion_output<bn254> recursion_output;
-    std::vector<field_ct> tx_proof_public_inputs;
+    std::vector<field_ct> inner_input_hashes;
+    std::vector<fr> tx_proof_public_inputs;
     std::vector<field_ct> total_tx_fees(NUM_ASSETS, field_ct(witness_ct::create_constant_witness(&composer, 0)));
     std::vector<field_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
                                             field_ct(witness_ct::create_constant_witness(&composer, 0)));
 
-    field_ct zero_hash = compute_sha256_of_zeroes(composer, num_inner_txs_pow2);
-    std::vector<field_ct> inner_input_hashes;
+    // Loop over each inner proof.
     for (uint32_t i = 0; i < max_num_inner_proofs; ++i) {
         auto is_real = num_inner_proofs > i;
 
@@ -314,9 +318,10 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
 
         field_ct hash = field_ct::conditional_assign(is_real, public_inputs[RollupProofFields::INPUTS_HASH], zero_hash);
         inner_input_hashes.push_back(hash);
+
         // Accumulate tx public inputs.
         for (size_t j = 0; j < PropagatedInnerProofFields::NUM_FIELDS * num_inner_txs_pow2; ++j) {
-            tx_proof_public_inputs.push_back(public_inputs[RollupProofFields::INNER_PROOFS_DATA + j]);
+            tx_proof_public_inputs.push_back(public_inputs[RollupProofFields::INNER_PROOFS_DATA + j].get_value());
         }
     }
 
@@ -333,99 +338,40 @@ recursion_output<bn254> root_rollup_circuit(Composer& composer,
 
     // Check data root tree is updated with latest data root.
     check_root_tree_updated(old_root_path, rollup_id, new_data_root, new_root_root, old_root_root);
-    /**
-     * Construct vector of broadcasted inputs to SHA256
-     * A "broadcasted" input is a variable that is published on-chain when publishing a rollup block.
-     * However they are not public inputs to the proof.
-     * We SHA256 hash the broadcasted inputs and set the hash output as a public input.
-     * This reduces the number of public inputs to the proof, which reduces verifier gas costs
-     *
-     * N.B. The order of this vector MUST be the same as the enum structure in RootRollupProofFields
-     */
-    std::vector<field_ct> broadcasted_inputs;
-    broadcasted_inputs.resize(
-        RootRollupProofFields::INNER_PROOFS_DATA); // max number of fields we can create absolute offsets to
 
-    broadcasted_inputs[RootRollupProofFields::ROLLUP_ID] = rollup_id;
-    broadcasted_inputs[RootRollupProofFields::ROLLUP_SIZE] = rollup_size_pow2;
-    broadcasted_inputs[RootRollupProofFields::DATA_START_INDEX] = data_start_index;
-    broadcasted_inputs[RootRollupProofFields::OLD_DATA_ROOT] = old_data_root;
-    broadcasted_inputs[RootRollupProofFields::NEW_DATA_ROOT] = new_data_root;
-    broadcasted_inputs[RootRollupProofFields::OLD_NULL_ROOT] = old_null_root;
-    broadcasted_inputs[RootRollupProofFields::NEW_NULL_ROOT] = new_null_root;
-    broadcasted_inputs[RootRollupProofFields::OLD_DATA_ROOTS_ROOT] = old_root_root;
-    broadcasted_inputs[RootRollupProofFields::NEW_DATA_ROOTS_ROOT] = new_root_root;
-    broadcasted_inputs[RootRollupProofFields::OLD_DEFI_ROOT] = old_defi_root;
-    broadcasted_inputs[RootRollupProofFields::NEW_DEFI_ROOT] = new_defi_root;
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        broadcasted_inputs[RootRollupProofFields::DEFI_BRIDGE_IDS + i] = bridge_ids[i];
-    }
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        broadcasted_inputs[RootRollupProofFields::DEFI_BRIDGE_DEPOSITS + i] = defi_deposit_sums[i];
-    }
-    for (size_t i = 0; i < NUM_ASSETS; ++i) {
-        broadcasted_inputs[RootRollupProofFields::ASSET_IDS + i] = asset_ids[i];
-    }
+    // Construct a list of header fields.
+    auto num_inner_proofs_pow2 = num_outer_txs_pow2 / num_inner_txs_pow2;
+    std::vector<field_ct> header_fields1 = { rollup_id,     rollup_size_pow2, data_start_index, old_data_root,
+                                             new_data_root, old_null_root,    new_null_root,    old_root_root,
+                                             new_root_root, old_defi_root,    new_defi_root };
+    std::vector<field_ct> header_fields2 = { previous_defi_interaction_hash, num_inner_proofs_pow2 };
+    auto header_fields = join({ header_fields1,
+                                bridge_ids,
+                                defi_deposit_sums,
+                                asset_ids,
+                                total_tx_fees,
+                                defi_interaction_note_commitments,
+                                header_fields2 });
 
-    for (size_t i = 0; i < total_tx_fees.size(); ++i) {
-        broadcasted_inputs[RootRollupProofFields::TOTAL_TX_FEES + i] = total_tx_fees[i];
-    }
+    // Construct hash of public inputs.
+    // [ header fields ][ hashes of each inner rollups inputs ][ zero_hash padding ]
+    auto zero_hashes = std::vector<field_ct>(num_inner_proofs_pow2 - max_num_inner_proofs, zero_hash);
+    auto inputs_to_hash = join({ header_fields, inner_input_hashes, zero_hashes });
+    auto input_hash = stdlib::sha256_to_field(packed_byte_array_ct::from_field_element_vector(inputs_to_hash));
 
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
-        broadcasted_inputs[RootRollupProofFields::DEFI_INTERACTION_NOTES + i] = defi_interaction_note_commitments[i];
-    }
-    broadcasted_inputs[RootRollupProofFields::PREVIOUS_DEFI_INTERACTION_HASH] = previous_defi_interaction_hash;
-    const size_t num_rollups = num_outer_txs_pow2 / num_inner_txs_pow2;
-    // TODO: RootRollupProofFields::NUM_ROLLUP_TXS doesn't need to go into the SHA256 hash or be a public input! Just
-    // need to add into RollupProofData as it is required to correctly encode input data
-    broadcasted_inputs[RootRollupProofFields::NUM_ROLLUP_TXS] = field_ct(witness_ct(&composer, num_rollups));
-    // The root rollup has the same public input structure as the inner rollup, until this point.
-    // rollup_data_fields.push_back(previous_defi_interaction_hash);
+    // Construct list of fields to be broadcast along with proof.
+    // [ header fields ][ public inputs of each tx ][ zero field padding ]
+    std::vector<fr> header_fields_fr = map(header_fields, [](auto const& f) { return f.get_value(); });
+    size_t padding_rollups = num_inner_proofs_pow2 - max_num_inner_proofs;
+    size_t padding_txs = padding_rollups * num_inner_txs_pow2;
+    std::vector<fr> zero_padding(padding_txs * PropagatedInnerProofFields::NUM_FIELDS, fr(0));
+    std::vector<fr> broadcast_fields = join({ header_fields_fr, tx_proof_public_inputs, zero_padding });
 
-    // The broadcasted public inputs includes the inner inputs of our join-split proofs
-    // However the data we want to hash substitutes these for their aggregated SHA256 hashes computed in each rollup
-    // proof (this is to reduce verifier gas costs. We hash inner inputs in blocks of 32 transactions, and then
-    //  insert these intermediate hashes into the root rollup hash. EVM memory consumption gas costs scales
-    //  quadratically with the amount of memory used - better to hash in small chunks than to hash the whole dataset at
-    //  once)
-    std::vector<field_ct> inputs_to_hash(broadcasted_inputs);
-    for (size_t i = 0; i < max_num_inner_proofs; ++i) {
-        inputs_to_hash.push_back(inner_input_hashes[i]);
-    }
-    for (size_t i = max_num_inner_proofs; i < num_rollups; ++i) {
-        inputs_to_hash.push_back(zero_hash);
-    }
-    packed_byte_array_ct input_msg = packed_byte_array_ct::from_field_element_vector(inputs_to_hash);
-    std::vector<field_ct> broadcasted_inputs_hash = stdlib::sha256<Composer>(input_msg).to_unverified_byte_slices(16);
-    field_ct broadcasted_inputs_hash_reduced =
-        broadcasted_inputs_hash[1] + (broadcasted_inputs_hash[0] * (uint256_t(1) << 128));
-    // N.B. don't want the remaining pseudo public input data in the sha256 hash as they are present as public inputs or
-    // are derived
-    for (auto& inp : tx_proof_public_inputs) {
-        broadcasted_inputs.push_back(inp);
-    }
-    for (size_t i = max_num_inner_proofs; i < num_outer_txs_pow2 / num_inner_txs_pow2; ++i) {
-
-        for (size_t j = 0; j < PropagatedInnerProofFields::NUM_FIELDS * num_inner_txs_pow2; ++j) {
-            broadcasted_inputs.push_back(field_ct(witness_ct(&composer, 0))); // todo force to be zero
-        }
-    }
-    data = root_rollup_proof_data(broadcasted_inputs);
-
-    broadcasted_inputs_hash_reduced.set_public();
-
+    // Set public inputs. Just the input hash and recursion elements.
+    input_hash.set_public();
     recursion_output.add_proof_outputs_as_public_inputs();
-    return recursion_output;
-}
 
-recursion_output<bn254> root_rollup_circuit(Composer& composer,
-                                            root_rollup_tx const& tx,
-                                            size_t num_inner_txs_pow2,
-                                            size_t num_outer_txs_pow2,
-                                            std::shared_ptr<waffle::verification_key> const& inner_verification_key)
-{
-    root_rollup_proof_data data;
-    return root_rollup_circuit(composer, tx, num_inner_txs_pow2, num_outer_txs_pow2, inner_verification_key, data);
+    return { recursion_output, broadcast_fields };
 }
 
 } // namespace root_rollup

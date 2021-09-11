@@ -26,7 +26,7 @@ bool pairing_check(recursion_output<bn254> recursion_output,
 
 verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_data const& circuit_data)
 {
-    verify_result result = { false, false, {}, {}, root_rollup_proof_data(), recursion_output<bn254>() };
+    verify_result result = { false, false, {}, {}, {}, recursion_output<bn254>() };
 
     if (!circuit_data.inner_rollup_circuit_data.verification_key) {
         error("Inner verification key not provided.");
@@ -46,12 +46,15 @@ verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_da
     // Pad the rollup if necessary.
     pad_rollup_tx(tx, circuit_data);
 
-    result.recursion_output_data = root_rollup_circuit(composer,
-                                                       tx,
-                                                       circuit_data.inner_rollup_circuit_data.rollup_size,
-                                                       circuit_data.rollup_size,
-                                                       circuit_data.inner_rollup_circuit_data.verification_key,
-                                                       result.root_data);
+    auto circuit_result = root_rollup_circuit(composer,
+                                              tx,
+                                              circuit_data.inner_rollup_circuit_data.rollup_size,
+                                              circuit_data.rollup_size,
+                                              circuit_data.inner_rollup_circuit_data.verification_key);
+
+    result.recursion_output_data = circuit_result.recursion_output;
+    result.broadcast_data = circuit_result.broadcast_data;
+    result.public_inputs = composer.get_public_inputs();
 
     if (composer.failed) {
         error("Circuit logic failed: " + composer.err);
@@ -61,10 +64,6 @@ verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_da
     if (!pairing_check(result.recursion_output_data, circuit_data.verifier_crs)) {
         error("Native pairing check failed.");
         return result;
-    }
-
-    for (uint32_t i = 0; i < composer.get_num_public_inputs(); ++i) {
-        result.public_inputs.push_back(composer.get_public_input(i));
     }
 
     result.logic_verified = true;

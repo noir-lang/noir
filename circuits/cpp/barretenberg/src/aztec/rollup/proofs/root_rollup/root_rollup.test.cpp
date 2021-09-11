@@ -53,14 +53,13 @@ class root_rollup_tests : public ::testing::Test {
             // If no fixtures dir, recreate all proving keys, verification keys, padding proofs etc.
             tx_rollup_cd = rollup::get_circuit_data(
                 INNER_ROLLUP_TXS, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
-            root_rollup_cd = get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
         } else {
             // Otherwise we should only need the inner proofs verification key for logic tests.
             tx_rollup_cd = rollup::get_circuit_data(
                 INNER_ROLLUP_TXS, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, false, false, true, false, true);
-            root_rollup_cd = get_circuit_data(
-                ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, false, false, false, false, false);
         }
+        root_rollup_cd =
+            get_circuit_data(ROLLUPS_PER_ROLLUP, tx_rollup_cd, srs, FIXTURE_PATH, false, false, false, false, false);
     }
 
     root_rollup_tx create_root_rollup_tx(std::string const& test_name,
@@ -228,7 +227,6 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 
-    root_rollup_proof_data rollup_data = result.root_data;
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         notes::native::defi_interaction::note note = { 0, 0, 0, 0, 0, false };
@@ -239,7 +237,8 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     // Zero the first 4 bits as the value computed in the circuit cannot wrap around the prime.
     expected[0] &= 0xF;
 
-    ASSERT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<uint256_t>(expected));
+    root_rollup_broadcast_data data(result.broadcast_data);
+    ASSERT_EQ(data.previous_defi_interaction_hash, from_buffer<fr>(expected));
 }
 
 TEST_F(root_rollup_tests, test_encode_inputs)
@@ -248,17 +247,11 @@ TEST_F(root_rollup_tests, test_encode_inputs)
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
 
-    root_rollup_proof_data rollup_data = result.root_data;
+    root_rollup_broadcast_data broadcast_data(result.broadcast_data);
+    root_rollup_proof_data proof_data(result.public_inputs);
 
-    EXPECT_EQ(rollup_data, root_rollup_proof_data(rollup_data.encode_proof_data()));
-    const auto hash_output = rollup_data.compute_hash_from_encoded_inputs(); // rollup_data.encode_proof_data()
-
-    const uint256_t result_hash = result.public_inputs[0];
-    uint256_t expected_hash;
-    const uint8_t* ptr = &hash_output[0];
-    numeric::read(ptr, expected_hash);
-
-    EXPECT_EQ(fr(result_hash), fr(expected_hash));
+    auto hash_output = broadcast_data.compute_hash();
+    EXPECT_EQ(hash_output, proof_data.input_hash);
 }
 
 TEST_F(root_rollup_tests, test_asset_ids_missing_fails)
@@ -321,9 +314,10 @@ TEST_F(root_rollup_tests, test_full_logic)
     auto tx_data = create_full_logic_root_rollup_tx();
     auto result = verify_logic(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.logic_verified);
-    root_rollup_proof_data rollup_data = result.root_data;
-    EXPECT_EQ(rollup_data.bridge_ids[0], tx_data.bridge_ids[0]);
-    EXPECT_EQ(rollup_data.bridge_ids[1], tx_data.bridge_ids[1]);
+
+    root_rollup_broadcast_data rollup_data = result.broadcast_data;
+    EXPECT_EQ(rollup_data.bridge_ids[0], fr(tx_data.bridge_ids[0]));
+    EXPECT_EQ(rollup_data.bridge_ids[1], fr(tx_data.bridge_ids[1]));
     EXPECT_EQ(rollup_data.bridge_ids[2], 0);
     EXPECT_EQ(rollup_data.bridge_ids[3], 0);
     EXPECT_EQ(rollup_data.deposit_sums[0], 80);
@@ -336,10 +330,10 @@ TEST_F(root_rollup_tests, test_full_logic)
     EXPECT_EQ(rollup_data.total_tx_fees[1], 15); // aid1
     EXPECT_EQ(rollup_data.total_tx_fees[2], 9);  // aid3
     EXPECT_EQ(rollup_data.total_tx_fees[3], 28); // aid2
-    EXPECT_EQ(rollup_data.asset_ids[0], tx_data.asset_ids[0]);
-    EXPECT_EQ(rollup_data.asset_ids[1], tx_data.asset_ids[1]);
-    EXPECT_EQ(rollup_data.asset_ids[2], tx_data.asset_ids[2]);
-    EXPECT_EQ(rollup_data.asset_ids[3], tx_data.asset_ids[3]);
+    EXPECT_EQ(rollup_data.asset_ids[0], fr(tx_data.asset_ids[0]));
+    EXPECT_EQ(rollup_data.asset_ids[1], fr(tx_data.asset_ids[1]));
+    EXPECT_EQ(rollup_data.asset_ids[2], fr(tx_data.asset_ids[2]));
+    EXPECT_EQ(rollup_data.asset_ids[3], fr(tx_data.asset_ids[3]));
 
     std::vector<uint8_t> sha256_input;
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
@@ -350,7 +344,7 @@ TEST_F(root_rollup_tests, test_full_logic)
     // Zero the first 4 bits as the value computed in the circuit cannot wrap around the prime.
     expected_hash[0] &= 0xF;
 
-    EXPECT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<uint256_t>(expected_hash));
+    EXPECT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<fr>(expected_hash));
 }
 
 } // namespace root_rollup

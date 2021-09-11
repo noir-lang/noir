@@ -5,6 +5,7 @@
 #include <array>
 #include <iomanip>
 #include <ostream>
+#include <ecc/curves/bn254/fr.hpp>
 
 namespace sha256 {
 
@@ -12,6 +13,12 @@ using hash = std::array<uint8_t, 32>;
 
 hash sha256_block(const std::vector<uint8_t>& input);
 hash sha256(const std::vector<uint8_t>& input);
+
+inline barretenberg::fr sha256_to_field(std::vector<uint8_t> const& input)
+{
+    auto result = sha256::sha256(input);
+    return from_buffer<barretenberg::fr>(&result[0]);
+}
 
 inline bool operator==(hash const& lhs, std::vector<uint8_t> const& rhs)
 {
