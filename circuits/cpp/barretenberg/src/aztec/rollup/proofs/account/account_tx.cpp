@@ -28,7 +28,6 @@ void write(std::vector<uint8_t>& buf, account_tx const& tx)
     write(buf, tx.merkle_root);
     write(buf, tx.account_public_key);
     write(buf, tx.new_account_public_key);
-    write(buf, tx.num_new_keys);
     write(buf, tx.new_signing_pub_key_1);
     write(buf, tx.new_signing_pub_key_2);
     write(buf, tx.alias_hash);
@@ -47,7 +46,6 @@ void read(uint8_t const*& buf, account_tx& tx)
     read(buf, tx.merkle_root);
     read(buf, tx.account_public_key);
     read(buf, tx.new_account_public_key);
-    read(buf, tx.num_new_keys);
     read(buf, tx.new_signing_pub_key_1);
     read(buf, tx.new_signing_pub_key_2);
     read(buf, tx.alias_hash);
@@ -65,7 +63,6 @@ std::ostream& operator<<(std::ostream& os, account_tx const& tx)
     return os << "merkle_root: " << tx.merkle_root << "\n"
               << "account_public_key: " << tx.account_public_key << "\n"
               << "new_account_public_key: " << tx.new_account_public_key << "\n"
-              << "num_new_keys: " << tx.num_new_keys << "\n"
               << "new_signing_pub_key_1: " << tx.new_signing_pub_key_1 << "\n"
               << "new_signing_pub_key_2: " << tx.new_signing_pub_key_2 << "\n"
               << "alias_hash: " << tx.alias_hash << "\n"

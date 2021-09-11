@@ -18,7 +18,6 @@ TEST(client_proofs_account_tx, test_serialization)
     tx.merkle_root = fr::random_element();
     tx.account_public_key = grumpkin::g1::element::random_element();
     tx.new_account_public_key = grumpkin::g1::element::random_element();
-    tx.num_new_keys = 2;
     tx.new_signing_pub_key_1 = grumpkin::g1::element::random_element();
     tx.new_signing_pub_key_2 = grumpkin::g1::element::random_element();
     tx.alias_hash = 0;

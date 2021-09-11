@@ -14,7 +14,6 @@ struct account_tx {
     barretenberg::fr merkle_root;
     grumpkin::g1::affine_element account_public_key;
     grumpkin::g1::affine_element new_account_public_key;
-    uint32_t num_new_keys;
     grumpkin::g1::affine_element new_signing_pub_key_1;
     grumpkin::g1::affine_element new_signing_pub_key_2;
     barretenberg::fr alias_hash;

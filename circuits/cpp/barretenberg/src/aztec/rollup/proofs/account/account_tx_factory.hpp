@@ -19,7 +19,6 @@ template <typename WorldState> class AccountTxFactory {
         tx.merkle_root = world_state.data_tree.root();
         tx.account_public_key = user.owner.public_key;
         tx.new_account_public_key = user.owner.public_key;
-        tx.num_new_keys = 2;
         tx.new_signing_pub_key_1 = user.signing_keys[0].public_key;
         tx.new_signing_pub_key_2 = user.signing_keys[1].public_key;
         tx.alias_hash = user.alias_hash;
