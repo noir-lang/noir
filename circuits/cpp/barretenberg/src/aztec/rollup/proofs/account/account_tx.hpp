@@ -19,7 +19,6 @@ struct account_tx {
     barretenberg::fr alias_hash;
     uint32_t nonce;
     bool migrate;
-    barretenberg::fr gibberish;
 
     uint32_t account_index;
     plonk::stdlib::merkle_tree::fr_hash_path account_path;

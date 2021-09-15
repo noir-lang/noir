@@ -23,7 +23,6 @@ TEST(client_proofs_account_tx, test_serialization)
     tx.alias_hash = 0;
     tx.nonce = 3;
     tx.migrate = true;
-    tx.gibberish = fr::random_element();
     tx.account_index = 123;
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();
 

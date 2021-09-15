@@ -20,18 +20,10 @@ using namespace notes::circuit::account;
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
 
-field_ct compute_account_alias_id_nullifier(field_ct const& proof_id,
-                                            field_ct const& account_alias_id,
-                                            field_ct const& gibberish,
-                                            bool_ct migrate)
+field_ct compute_account_alias_id_nullifier(field_ct const& proof_id, field_ct const& account_alias_id)
 {
-    std::vector<field_ct> to_compress = { proof_id, account_alias_id, gibberish * !migrate };
+    std::vector<field_ct> to_compress = { proof_id, account_alias_id };
     return pedersen::compress(to_compress, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
-}
-
-field_ct compute_gibberish_nullifier(field_ct const& proof_id, field_ct const& gibberish)
-{
-    return pedersen::compress({ proof_id, gibberish }, true, notes::GeneratorIndex::ACCOUNT_GIBBERISH_NULLIFIER);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)
@@ -40,7 +32,6 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto nonce = field_ct(witness_ct(&composer, tx.nonce));
     const auto alias_hash = field_ct(witness_ct(&composer, tx.alias_hash));
     const auto migrate = bool_ct(witness_ct(&composer, tx.migrate));
-    const auto gibberish = field_ct(witness_ct(&composer, tx.gibberish));
     const auto signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
     const auto account_public_key = stdlib::create_point_witness(composer, tx.account_public_key);
     const auto new_account_public_key = stdlib::create_point_witness(composer, tx.new_account_public_key);
@@ -60,8 +51,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto output_note_1 = account_note(output_account_alias_id, new_account_public_key, spending_public_key_1);
     const auto output_note_2 = account_note(output_account_alias_id, new_account_public_key, spending_public_key_2);
 
-    const auto nullifier_1 = compute_account_alias_id_nullifier(proof_id, account_alias_id, gibberish, migrate);
-    const auto nullifier_2 = compute_gibberish_nullifier(proof_id, gibberish);
+    const auto nullifier_1 = compute_account_alias_id_nullifier(proof_id, account_alias_id) * migrate;
 
     // Check signature.
     const bool_ct zero_nonce = nonce == field_ct(0);
@@ -97,6 +87,9 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     field_ct dummy_tx_fee = witness_ct(&composer, 0);
     dummy_tx_fee.assert_equal(0);
+
+    const field_ct nullifier_2 = witness_ct(&composer, 0);
+    nullifier_2.assert_is_zero();
 
     // Expose public inputs.
     proof_id.set_public();                 // proof_id

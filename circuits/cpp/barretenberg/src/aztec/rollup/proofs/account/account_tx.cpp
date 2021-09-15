@@ -33,7 +33,6 @@ void write(std::vector<uint8_t>& buf, account_tx const& tx)
     write(buf, tx.alias_hash);
     write(buf, tx.nonce);
     write(buf, tx.migrate);
-    write(buf, tx.gibberish);
     write(buf, tx.account_index);
     write(buf, tx.account_path);
     write(buf, tx.signing_pub_key);
@@ -51,7 +50,6 @@ void read(uint8_t const*& buf, account_tx& tx)
     read(buf, tx.alias_hash);
     read(buf, tx.nonce);
     read(buf, tx.migrate);
-    read(buf, tx.gibberish);
     read(buf, tx.account_index);
     read(buf, tx.account_path);
     read(buf, tx.signing_pub_key);
@@ -68,7 +66,6 @@ std::ostream& operator<<(std::ostream& os, account_tx const& tx)
               << "alias_hash: " << tx.alias_hash << "\n"
               << "nonce: " << tx.nonce << "\n"
               << "migrate: " << tx.migrate << "\n"
-              << "gibberish: " << tx.gibberish << "\n"
               << "account_index: " << tx.account_index << "\n"
               << "account_path: " << tx.account_path << "\n"
               << "signing_pub_key: " << tx.signing_pub_key << "\n"

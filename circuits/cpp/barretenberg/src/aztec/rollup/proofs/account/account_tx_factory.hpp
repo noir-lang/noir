@@ -24,7 +24,6 @@ template <typename WorldState> class AccountTxFactory {
         tx.alias_hash = user.alias_hash;
         tx.nonce = nonce;
         tx.migrate = true;
-        tx.gibberish = fr::random_element();
         tx.account_index = account_note_idx;
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_path = world_state.data_tree.get_hash_path(account_note_idx);

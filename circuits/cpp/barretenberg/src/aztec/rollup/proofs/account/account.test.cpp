@@ -1,3 +1,4 @@
+#include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "account.hpp"
 #include "../inner_proof_data.hpp"
@@ -12,6 +13,7 @@
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
+using namespace rollup;
 using namespace rollup::proofs;
 using namespace rollup::proofs::account;
 using namespace rollup::proofs::notes::native::account;
@@ -55,27 +57,17 @@ class account_tests : public ::testing::Test {
         return account_note{ account_alias_id, owner_key, signing_key }.commit();
     }
 
-    uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id, fr const& gibberish, bool migrate_account)
+    uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id)
     {
-        const std::vector<fr> hash_elements{
-            fr(1),
-            account_alias_id,
-            gibberish * !migrate_account,
-        };
+        const std::vector<fr> hash_elements{ fr(1), account_alias_id };
         auto result =
             crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
         return uint256_t(result);
     }
 
-    uint256_t compute_gibberish_nullifier(fr const& gibberish)
+    fr compute_account_alias_id(barretenberg::fr alias_hash, uint32_t nonce)
     {
-        const std::vector<fr> hash_elements{
-            fr(1),
-            gibberish,
-        };
-        auto result =
-            crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_GIBBERISH_NULLIFIER);
-        return uint256_t(result);
+        return alias_hash + (fr{ (uint64_t)nonce } * fr(2).pow(224));
     }
 
     account_tx create_account_tx(uint32_t nonce = 0)
@@ -89,7 +81,6 @@ class account_tests : public ::testing::Test {
         tx.alias_hash = user.alias_hash;
         tx.nonce = nonce;
         tx.migrate = true;
-        tx.gibberish = fr::random_element();
         tx.account_index = 0;
         tx.signing_pub_key = user.signing_keys[0].public_key;
         tx.account_path = tree->get_hash_path(0);
@@ -225,20 +216,27 @@ TEST_F(account_tests, test_change_account_public_key_fails)
     EXPECT_FALSE(verify_logic(tx));
 }
 
-// Nullifier
-
-HEAVY_TEST_F(account_tests, test_correct_account_alias_id_nullifier)
+HEAVY_TEST_F(account_tests, test_migrate_account_full_proof)
 {
     auto tx = create_account_tx();
     auto prover = new_account_prover(tx);
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id(), tx.gibberish, true));
-    EXPECT_EQ(data.nullifier2, compute_gibberish_nullifier(tx.gibberish));
+    auto new_account_alias_id = compute_account_alias_id(tx.alias_hash, tx.nonce + 1);
+    auto note1_commitment =
+        account_note{ new_account_alias_id, tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
+    auto note2_commitment =
+        account_note{ new_account_alias_id, tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
+
+    EXPECT_EQ(data.proof_id, ProofIds::ACCOUNT);
+    EXPECT_EQ(data.note_commitment1, note1_commitment);
+    EXPECT_EQ(data.note_commitment2, note2_commitment);
+    EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id()));
+    EXPECT_EQ(data.nullifier2, uint256_t(0));
 }
 
-HEAVY_TEST_F(account_tests, test_gibberish_account_alias_id_nullifier)
+HEAVY_TEST_F(account_tests, test_non_migrate_account_full_proof)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);
@@ -247,6 +245,14 @@ HEAVY_TEST_F(account_tests, test_gibberish_account_alias_id_nullifier)
     auto proof = prover.construct_proof();
     auto data = inner_proof_data(proof.proof_data);
 
-    EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id(), tx.gibberish, false));
-    EXPECT_EQ(data.nullifier2, compute_gibberish_nullifier(tx.gibberish));
+    auto note1_commitment =
+        account_note{ tx.account_alias_id(), tx.account_public_key, tx.new_signing_pub_key_1 }.commit();
+    auto note2_commitment =
+        account_note{ tx.account_alias_id(), tx.account_public_key, tx.new_signing_pub_key_2 }.commit();
+
+    EXPECT_EQ(data.proof_id, ProofIds::ACCOUNT);
+    EXPECT_EQ(data.note_commitment1, note1_commitment);
+    EXPECT_EQ(data.note_commitment2, note2_commitment);
+    EXPECT_EQ(data.nullifier1, uint256_t(0));
+    EXPECT_EQ(data.nullifier2, uint256_t(0));
 }
