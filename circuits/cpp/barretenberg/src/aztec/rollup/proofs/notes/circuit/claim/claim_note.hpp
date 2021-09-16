@@ -24,7 +24,7 @@ struct partial_claim_note {
     {
         deposit_value = data.deposit_value;
         bridge_id = data.bridge_id_data.to_field();
-        value_note_partial_commitment = value::create_partial_commitment(data.note_secret, owner, owner_nonce);
+        value_note_partial_commitment = value::create_partial_commitment(data.note_secret, owner, owner_nonce, 0);
         partial_commitment = create_partial_commitment(deposit_value, bridge_id, value_note_partial_commitment);
     }
 };

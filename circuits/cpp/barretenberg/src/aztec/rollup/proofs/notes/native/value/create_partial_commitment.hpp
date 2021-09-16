@@ -12,9 +12,10 @@ namespace value {
 
 inline auto create_partial_commitment(barretenberg::fr const& secret,
                                       grumpkin::g1::affine_element const& owner,
-                                      uint32_t nonce)
+                                      uint32_t nonce,
+                                      barretenberg::fr const& creator_pubkey)
 {
-    return crypto::pedersen::compress_native({ secret, owner.x, owner.y, nonce },
+    return crypto::pedersen::compress_native({ secret, owner.x, owner.y, nonce, creator_pubkey },
                                              GeneratorIndex::VALUE_NOTE_PARTIAL_COMMITMENT);
 }
 

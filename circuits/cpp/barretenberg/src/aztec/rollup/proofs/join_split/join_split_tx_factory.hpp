@@ -52,10 +52,10 @@ template <typename WorldState> class JoinSplitTxFactory {
             input_note_secrets[1] = random_note_secret;
         }
 
-        value_note input_note1 = { in_note_value[0], asset_id, nonce, sender, input_note_secrets[0] };
-        value_note input_note2 = { in_note_value[1], asset_id, nonce, sender, input_note_secrets[1] };
-        value_note output_note1 = { out_note_value[0], asset_id, nonce, receiver, user.note_secret };
-        value_note output_note2 = { out_note_value[1], asset_id, nonce, sender, user.note_secret };
+        value_note input_note1 = { in_note_value[0], asset_id, nonce, sender, input_note_secrets[0], 0 };
+        value_note input_note2 = { in_note_value[1], asset_id, nonce, sender, input_note_secrets[1], 0 };
+        value_note output_note1 = { out_note_value[0], asset_id, nonce, receiver, user.note_secret, 0 };
+        value_note output_note2 = { out_note_value[1], asset_id, nonce, sender, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = public_input + tx_fee;

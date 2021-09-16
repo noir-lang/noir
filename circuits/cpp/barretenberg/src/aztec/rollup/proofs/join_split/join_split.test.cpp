@@ -41,10 +41,16 @@ class join_split_tests : public ::testing::Test {
         store = std::make_unique<MemoryStore>();
         tree = std::make_unique<MerkleTree<MemoryStore>>(*store, 32);
         user = rollup::fixtures::create_user_context();
-        value_notes[0] = { 100, asset_id, 0, user.owner.public_key, user.note_secret };
-        value_notes[1] = { 50, asset_id, 0, user.owner.public_key, user.note_secret };
-        value_notes[2] = { 90, asset_id, 1, user.owner.public_key, user.note_secret };
-        value_notes[3] = { 40, asset_id, 1, user.owner.public_key, user.note_secret };
+
+        value_notes[0] = { 100, asset_id, 0, user.owner.public_key, user.note_secret, user.owner.public_key.x };
+        value_notes[1] = { 50,
+                           asset_id,
+                           0,
+                           user.owner.public_key,
+                           user.note_secret,
+                           rollup::fixtures::create_key_pair(nullptr).public_key.x };
+        value_notes[2] = { 90, asset_id, 1, user.owner.public_key, user.note_secret, 0 };
+        value_notes[3] = { 40, asset_id, 1, user.owner.public_key, user.note_secret, 0 };
     }
 
     /**
@@ -85,9 +91,9 @@ class join_split_tests : public ::testing::Test {
                                        uint32_t nonce = 0)
     {
         value_note output_note1 = {
-            input_notes[0].value + input_notes[1].value, tx_asset_id, nonce, user.owner.public_key, user.note_secret
+            input_notes[0].value + input_notes[1].value, tx_asset_id, nonce, user.owner.public_key, user.note_secret, 0
         };
-        value_note output_note2 = { 0, tx_asset_id, nonce, user.owner.public_key, user.note_secret };
+        value_note output_note2 = { 0, tx_asset_id, nonce, user.owner.public_key, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = 0;
@@ -133,10 +139,10 @@ class join_split_tests : public ::testing::Test {
     join_split_tx public_transfer_setup()
     {
         uint32_t arbitrary_asset_id = 3;
-        value_note input_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
-        value_note input_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
-        value_note output_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
-        value_note output_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret };
+        value_note input_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
+        value_note input_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
+        value_note output_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
+        value_note output_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
 
         join_split_tx tx;
         tx.public_input = 100;
@@ -199,7 +205,7 @@ class join_split_tests : public ::testing::Test {
 
 TEST_F(join_split_tests, test_0_input_notes)
 {
-    value_note gibberish = { 0, asset_id, 0, user.owner.public_key, user.note_secret };
+    value_note gibberish = { 0, asset_id, 0, user.owner.public_key, user.note_secret, 0 };
 
     join_split_tx tx = simple_setup();
     tx.num_input_notes = 0;
@@ -212,7 +218,7 @@ TEST_F(join_split_tests, test_0_input_notes)
 
 TEST_F(join_split_tests, test_padding_input_note_non_0_value_fails)
 {
-    value_note gibberish = { 10, asset_id, 0, user.owner.public_key, user.note_secret };
+    value_note gibberish = { 10, asset_id, 0, user.owner.public_key, user.note_secret, 0 };
 
     join_split_tx tx = simple_setup();
     tx.num_input_notes = 0;
@@ -382,8 +388,8 @@ TEST_F(join_split_tests, test_different_input_output_asset_id_fails)
 TEST_F(join_split_tests, test_invalid_asset_id_fails)
 {
     uint32_t invalid_asset_id = rollup::MAX_NUM_ASSETS;
-    std::vector<value_note> input_notes = { { 100, invalid_asset_id, 0, user.owner.public_key, user.note_secret },
-                                            { 50, invalid_asset_id, 0, user.owner.public_key, user.note_secret } };
+    std::vector<value_note> input_notes = { { 100, invalid_asset_id, 0, user.owner.public_key, user.note_secret, 0 },
+                                            { 50, invalid_asset_id, 0, user.owner.public_key, user.note_secret, 0 } };
     append_notes(input_notes);
     auto tx = create_join_split_tx({ 0, 1 }, { input_notes[0], input_notes[1] }, invalid_asset_id);
 
@@ -634,7 +640,7 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     auto proof_data = inner_proof_data(proof.proof_data);
 
     auto partial_commitment =
-        value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
+        value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce, 0);
     claim::claim_note claim_note = { tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, 0, partial_commitment };
 
     auto input_note1_commitment = tx.input_note[0].commit();
@@ -658,6 +664,40 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     EXPECT_EQ(proof_data.tx_fee, 9UL);
 
     EXPECT_TRUE(verify_proof(proof));
+}
+
+TEST_F(join_split_tests, test_non_zero_output_note_pubkey_x)
+{
+    {
+        join_split_tx tx = simple_setup();
+        tx.output_note[0].creator_pubkey = user.owner.public_key.x;
+        tx.output_note[1].creator_pubkey = user.owner.public_key.x;
+        EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+    }
+    {
+        join_split_tx tx = simple_setup();
+        tx.output_note[0].creator_pubkey = user.owner.public_key.x;
+        EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+    }
+    {
+        join_split_tx tx = simple_setup();
+        tx.output_note[1].creator_pubkey = user.owner.public_key.x;
+        EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
+    }
+}
+
+TEST_F(join_split_tests, test_incorrect_output_note_pubkey_x)
+{
+    {
+        join_split_tx tx = simple_setup();
+        tx.output_note[0].creator_pubkey = rollup::fixtures::create_key_pair(nullptr).public_key.x;
+        EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+    }
+    {
+        join_split_tx tx = simple_setup();
+        tx.output_note[1].creator_pubkey = rollup::fixtures::create_key_pair(nullptr).public_key.x;
+        EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
+    }
 }
 
 } // namespace join_split

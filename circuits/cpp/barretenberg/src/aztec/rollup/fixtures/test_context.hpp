@@ -33,7 +33,7 @@ class TestContext {
     void append_value_notes(std::vector<uint32_t> const& values, uint32_t asset_id = 0)
     {
         for (auto v : values) {
-            native::value::value_note note = { v, asset_id, 0, user.owner.public_key, user.note_secret };
+            native::value::value_note note = { v, asset_id, 0, user.owner.public_key, user.note_secret, 0 };
             world_state.append_data_note(note);
         }
     }
@@ -111,7 +111,7 @@ class TestContext {
         }
 
         auto partial_state =
-            notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0);
+            notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0);
         notes::native::claim::claim_note claim_note = {
             deposit_value, bridge_id, interaction_nonce, fee, partial_state
         };

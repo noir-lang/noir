@@ -21,6 +21,7 @@ struct value_note {
     field_ct asset_id;
     field_ct nonce;
     field_ct commitment;
+    field_ct creator_pubkey;
 
     value_note(witness_data const& note)
         : owner(note.owner)
@@ -29,6 +30,7 @@ struct value_note {
         , asset_id(note.asset_id)
         , nonce(note.nonce)
         , commitment(value::commit(note))
+        , creator_pubkey(note.creator_pubkey)
     {}
 
     operator byte_array_ct() const { return byte_array_ct(commitment); }

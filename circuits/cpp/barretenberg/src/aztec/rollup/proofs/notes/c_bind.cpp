@@ -12,12 +12,14 @@ extern "C" {
 
 WASM_EXPORT void notes__value_note_partial_commitment(uint8_t const* note_secret_buffer,
                                                       uint8_t const* public_key_buffer,
+                                                      uint8_t const* creator_pubkey_buffer,
                                                       uint32_t nonce,
                                                       uint8_t* output)
 {
     auto note_secret = from_buffer<fr>(note_secret_buffer);
     auto public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
-    auto partial_state = value::create_partial_commitment(note_secret, public_key, nonce);
+    auto creator_pubkey = from_buffer<fr>(creator_pubkey_buffer);
+    auto partial_state = value::create_partial_commitment(note_secret, public_key, nonce, creator_pubkey);
     write(output, partial_state);
 }
 
@@ -81,7 +83,7 @@ WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffe
                                             uint32_t numKeys,
                                             uint8_t* output)
 {
-    constexpr size_t AES_CIPHERTEXT_LENGTH = 48;
+    constexpr size_t AES_CIPHERTEXT_LENGTH = 80;
     std::vector<uint8_t> aes_messages(AES_CIPHERTEXT_LENGTH * numKeys);
     std::vector<grumpkin::g1::affine_element> ephemeral_public_keys;
     ephemeral_public_keys.reserve(numKeys);
@@ -119,8 +121,8 @@ WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffe
             iv_match = iv_match && (aes_message[j] == secret_hash[j + 16]);
         }
         output_ptr[0] = iv_match ? 1 : 0;
-        memcpy(output_ptr + 1, aes_message + 8, 40);
-        output_ptr += 41;
+        memcpy(output_ptr + 1, aes_message + 8, 72);
+        output_ptr += 73;
     }
 }
 

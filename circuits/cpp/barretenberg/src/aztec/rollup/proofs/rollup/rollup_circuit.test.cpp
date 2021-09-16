@@ -517,10 +517,10 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
-    notes::native::value::value_note note1 = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret };
+    notes::native::value::value_note note1 = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret, 0 };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment1, note1.commit());
 
-    notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret };
+    notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret, 0 };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment2, note2.commit());
 
     std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
@@ -531,8 +531,8 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
         auto deposit_value = defi_proof.public_output;
         auto bid = defi_proof.asset_id;
 
-        auto partial_state =
-            notes::native::value::create_partial_commitment(context.user.note_secret, context.user.owner.public_key, 0);
+        auto partial_state = notes::native::value::create_partial_commitment(
+            context.user.note_secret, context.user.owner.public_key, 0, 0);
         notes::native::claim::claim_note claim_note = {
             deposit_value, bid, claim_note_interaction_nonce, claim_fees[i], partial_state
         };

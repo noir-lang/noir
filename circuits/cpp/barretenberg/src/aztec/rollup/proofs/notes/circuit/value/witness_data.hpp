@@ -20,6 +20,7 @@ struct witness_data {
     // this asset_id value must be 32 bits or smaller
     field_ct asset_id;
     field_ct nonce;
+    field_ct creator_pubkey;
 
     witness_data(Composer& composer, native::value::value_note const& note)
     {
@@ -29,7 +30,7 @@ struct witness_data {
         value = witness_ct(&composer, note.value);
         asset_id = witness_ct(&composer, note.asset_id);
         nonce = witness_ct(&composer, note.nonce);
-
+        creator_pubkey = witness_ct(&composer, note.creator_pubkey);
         asset_id.create_range_constraint(32);
         value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }

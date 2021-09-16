@@ -21,7 +21,7 @@ barretenberg::fr compute_signing_data(join_split_tx const& tx)
     grumpkin::fq tx_fee = total_input_value - total_output_value;
 
     auto partial_value_note_commitment =
-        value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce);
+        value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce, 0);
     claim::claim_note claim_note = {
         tx.claim_note.deposit_value, tx.claim_note.bridge_id, 0, 0, partial_value_note_commitment
     };

@@ -21,9 +21,8 @@ TEST(value_note, commits)
     uint32_t asset_id_value = 666;
     uint32_t nonce_value = 1;
 
-    native::value::value_note note = {
-        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret
-    };
+    native::value::value_note note = { note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret,
+                                       0 };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
@@ -51,9 +50,8 @@ TEST(value_note, commits_with_0_value)
     uint32_t asset_id_value = 0xaabbccddULL;
     uint32_t nonce_value(0);
 
-    native::value::value_note note = {
-        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret
-    };
+    native::value::value_note note = { note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret,
+                                       0 };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 

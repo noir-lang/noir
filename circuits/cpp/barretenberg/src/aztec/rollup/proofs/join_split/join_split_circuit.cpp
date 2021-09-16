@@ -109,6 +109,15 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     inputs.alias_hash.create_range_constraint(224, "alias hash too large");
     // Verify that the account exists if nonce > 0
     auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
+
+    // Verify creator_pubkey is EITHER account_public_key.x OR 0 for both output notes
+    account_public_key.x.assert_equal(
+        account_public_key.x.madd(inputs.output_note1.creator_pubkey.is_zero(), inputs.output_note1.creator_pubkey),
+        "output note 1 sender_pubkey mismatch");
+    account_public_key.x.assert_equal(
+        account_public_key.x.madd(inputs.output_note2.creator_pubkey.is_zero(), inputs.output_note2.creator_pubkey),
+        "output note 2 sender_pubkey id mismatch");
+
     auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
     auto signing_key_exists = merkle_tree::check_membership(
         inputs.merkle_root, inputs.account_path, account_note_data.commitment, byte_array_ct(inputs.account_index));
