@@ -49,7 +49,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     context.append_value_notes({ 100, 50 });
     context.start_next_root_rollup();
 
-    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 50 }, 30, 60);
+    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 110 }, 30, 0);
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
@@ -76,15 +76,13 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
     EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
-    EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-    EXPECT_EQ(inner_data.public_output, tx_data.public_output);
-    EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
     EXPECT_EQ(inner_data.note_commitment1, tx_data.note_commitment1);
     EXPECT_EQ(inner_data.note_commitment2, tx_data.note_commitment2);
     EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
     EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-    EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-    EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
+    EXPECT_EQ(inner_data.public_value, tx_data.public_value);
+    EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
+    EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
 }
 
 HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
@@ -122,15 +120,13 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     auto tx_data = inner_proof_data(join_split_proof);
     auto inner_data = rollup_data.inner_proofs[0];
     EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
-    EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-    EXPECT_EQ(inner_data.public_output, tx_data.public_output);
-    EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
     EXPECT_EQ(inner_data.note_commitment1, tx_data.note_commitment1);
     EXPECT_EQ(inner_data.note_commitment2, tx_data.note_commitment2);
     EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
     EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-    EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-    EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
+    EXPECT_EQ(inner_data.public_value, tx_data.public_value);
+    EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
+    EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
 }
 
 HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full_proof)
@@ -141,7 +137,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     context.append_value_notes({ 0, 0, 100, 50, 80, 60 });
     context.start_next_root_rollup();
 
-    auto join_split_proof = context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 50 }, 30, 60);
+    auto join_split_proof = context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 110 }, 30, 0);
     auto account_proof = context.create_account_proof();
     auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof, account_proof };
     auto rollup = create_rollup_tx(context.world_state, rollup_size, txs);
@@ -170,15 +166,13 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
         auto tx_data = inner_proof_data(txs[i]);
         auto inner_data = rollup_data.inner_proofs[i];
         EXPECT_EQ(inner_data.proof_id, tx_data.proof_id);
-        EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-        EXPECT_EQ(inner_data.public_output, tx_data.public_output);
-        EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
         EXPECT_EQ(inner_data.note_commitment1, tx_data.note_commitment1);
         EXPECT_EQ(inner_data.note_commitment2, tx_data.note_commitment2);
         EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
         EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-        EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-        EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
+        EXPECT_EQ(inner_data.public_value, tx_data.public_value);
+        EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
+        EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
     }
 }
 
@@ -218,26 +212,24 @@ HEAVY_TEST_F(rollup_tests_full, test_3_rollup_pads_to_4)
 
     {
         auto inner_data = rollup_data.inner_proofs[0];
-        EXPECT_EQ(inner_data.public_input, tx_data.public_input);
-        EXPECT_EQ(inner_data.public_output, tx_data.public_output);
         EXPECT_EQ(inner_data.note_commitment1, tx_data.note_commitment1);
         EXPECT_EQ(inner_data.note_commitment2, tx_data.note_commitment2);
         EXPECT_EQ(inner_data.nullifier1, tx_data.nullifier1);
         EXPECT_EQ(inner_data.nullifier2, tx_data.nullifier2);
-        EXPECT_EQ(inner_data.input_owner, tx_data.input_owner);
-        EXPECT_EQ(inner_data.output_owner, tx_data.output_owner);
+        EXPECT_EQ(inner_data.public_value, tx_data.public_value);
+        EXPECT_EQ(inner_data.public_owner, tx_data.public_owner);
+        EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
     }
 
     for (size_t i = 1; i < rollup_data.inner_proofs.size(); ++i) {
         auto inner_data = rollup_data.inner_proofs[i];
-        EXPECT_EQ(inner_data.public_input, uint256_t(0));
-        EXPECT_EQ(inner_data.public_output, uint256_t(0));
         EXPECT_EQ(inner_data.note_commitment1, fr(0));
         EXPECT_EQ(inner_data.note_commitment2, fr(0));
         EXPECT_EQ(inner_data.nullifier1, uint256_t(0));
         EXPECT_EQ(inner_data.nullifier2, uint256_t(0));
-        EXPECT_EQ(inner_data.input_owner, fr(0));
-        EXPECT_EQ(inner_data.output_owner, fr(0));
+        EXPECT_EQ(inner_data.public_value, uint256_t(0));
+        EXPECT_EQ(inner_data.public_owner, fr(0));
+        EXPECT_EQ(inner_data.asset_id, uint256_t(0));
     }
 }
 

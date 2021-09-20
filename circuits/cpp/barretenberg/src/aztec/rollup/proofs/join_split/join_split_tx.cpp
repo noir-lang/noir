@@ -12,6 +12,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     using serialize::write;
     write(buf, tx.public_input);
     write(buf, tx.public_output);
+    write(buf, tx.public_owner);
     write(buf, tx.asset_id);
     write(buf, tx.num_input_notes);
     write(buf, tx.input_index);
@@ -28,9 +29,6 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.account_path);
     write(buf, tx.signing_pub_key);
 
-    write(buf, tx.input_owner);
-    write(buf, tx.output_owner);
-
     write(buf, tx.signature);
 }
 
@@ -39,6 +37,7 @@ void read(uint8_t const*& it, join_split_tx& tx)
     using serialize::read;
     read(it, tx.public_input);
     read(it, tx.public_output);
+    read(it, tx.public_owner);
     read(it, tx.asset_id);
     read(it, tx.num_input_notes);
     read(it, tx.input_index);
@@ -55,9 +54,6 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.account_path);
     read(it, tx.signing_pub_key);
 
-    read(it, tx.input_owner);
-    read(it, tx.output_owner);
-
     read(it, tx.signature);
 }
 
@@ -65,6 +61,7 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
 {
     return os << "public_input: " << tx.public_input << "\n"
               << "public_output: " << tx.public_output << "\n"
+              << "public_owner: " << tx.public_owner << "\n"
               << "asset_id: " << tx.asset_id << "\n"
               << "num_input_notes: " << tx.num_input_notes << "\n"
               << "in_index1: " << tx.input_index[0] << "\n"
@@ -83,8 +80,6 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "account_index: " << tx.account_index << "\n"
               << "account_path: " << tx.account_path << "\n"
               << "signing_pub_key: " << tx.signing_pub_key << "\n"
-              << "input_owner: " << tx.input_owner << "\n"
-              << "output_owner: " << tx.output_owner << "\n"
               << "signature: " << tx.signature << "\n";
 }
 

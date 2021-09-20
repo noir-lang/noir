@@ -527,15 +527,16 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
 
     // Check correct interaction nonce in claim notes.
     auto check_defi_proof = [&](uint32_t i, uint32_t claim_note_interaction_nonce) {
+        auto defi_proof_data = inner_proof_data(tx.txs[i]);
         auto defi_proof = rollup_data.inner_proofs[i];
-        auto deposit_value = defi_proof.public_output;
-        auto bid = defi_proof.asset_id;
 
         auto partial_state = notes::native::value::create_partial_commitment(
             context.user.note_secret, context.user.owner.public_key, 0, 0);
-        notes::native::claim::claim_note claim_note = {
-            deposit_value, bid, claim_note_interaction_nonce, claim_fees[i], partial_state
-        };
+        notes::native::claim::claim_note claim_note = { defi_proof_data.defi_deposit_value,
+                                                        defi_proof_data.bridge_id,
+                                                        claim_note_interaction_nonce,
+                                                        claim_fees[i],
+                                                        partial_state };
 
         EXPECT_EQ(defi_proof.note_commitment1, claim_note.commit());
     };
@@ -567,6 +568,8 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     bids.push_back(bid1);
     auto defi_proof1 =
         context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bid1);
+    std::vector<uint32_t> defi_deposit_values = { 0, 40, 30, 20 };
+    std::vector<uint32_t> tx_bridge_ids = { 0, 40, 30, 20 };
     std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
 
     // Create claim proofs for each claim note in previous rollup.
@@ -575,7 +578,9 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
             return std::vector<uint8_t>();
         }
         auto claim_note_index = data.data_start_index + uint32_t(2 * i);
-        return context.create_claim_proof(inner.asset_id, inner.public_output, claim_note_index, claim_fees[i]);
+        auto inner_tx = inner_proof_data(rollup1_tx.txs[i]);
+        return context.create_claim_proof(
+            inner_tx.bridge_id, inner_tx.defi_deposit_value, claim_note_index, claim_fees[i]);
     });
 
     auto rollup2_tx = create_rollup_tx(
@@ -598,8 +603,8 @@ TEST_F(rollup_tests, test_defi_claim_proof_has_valid_defi_root)
     rollup::rollup_proof_data data(result.public_inputs);
 
     // Create claim proof with trash defi root.
-    auto inner = data.inner_proofs[0];
-    auto tx = context.create_claim_tx(inner.asset_id, inner.public_output, 2, 0);
+    auto inner_tx = inner_proof_data(rollup1_tx.txs[0]);
+    auto tx = context.create_claim_tx(inner_tx.bridge_id, inner_tx.defi_deposit_value, 2, 0);
     tx.defi_root = fr::random_element();
     auto claim_proof = claim::create_proof(tx, context.claim_cd);
 

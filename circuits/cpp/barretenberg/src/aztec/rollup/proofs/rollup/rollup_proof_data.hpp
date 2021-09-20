@@ -54,30 +54,26 @@ enum {
 namespace PropagatedInnerProofFields {
 enum {
     PROOF_ID,
-    PUBLIC_INPUT,
-    PUBLIC_OUTPUT,
-    ASSET_ID,
     NOTE_COMMITMENT1,
     NOTE_COMMITMENT2,
     NULLIFIER1,
     NULLIFIER2,
-    INPUT_OWNER,
-    OUTPUT_OWNER,
+    PUBLIC_VALUE,
+    PUBLIC_OWNER,
+    ASSET_ID,
     NUM_FIELDS
 };
 }
 
 struct propagated_inner_proof_data {
     uint256_t proof_id;
-    uint256_t public_input;
-    uint256_t public_output;
-    uint256_t asset_id;
     grumpkin::fq note_commitment1;
     grumpkin::fq note_commitment2;
     uint256_t nullifier1;
     uint256_t nullifier2;
-    fr input_owner;
-    fr output_owner;
+    uint256_t public_value;
+    fr public_owner;
+    uint256_t asset_id;
 
     bool operator==(const propagated_inner_proof_data& other) const = default;
 };

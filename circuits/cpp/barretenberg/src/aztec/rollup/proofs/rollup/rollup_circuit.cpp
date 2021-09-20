@@ -85,8 +85,8 @@ auto process_defi_deposit(Composer& composer,
     field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK);
 
     const auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
-    const auto bridge_id = public_inputs[InnerProofFields::ASSET_ID];
-    const auto deposit_value = public_inputs[InnerProofFields::PUBLIC_OUTPUT];
+    const auto bridge_id = public_inputs[InnerProofFields::BRIDGE_ID];
+    const auto deposit_value = public_inputs[InnerProofFields::DEFI_DEPOSIT_VALUE];
     const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
 
     field_ct note_defi_interaction_nonce = defi_interaction_nonce;
@@ -131,9 +131,7 @@ auto process_defi_deposit(Composer& composer,
 auto process_claims(std::vector<field_ct>& public_inputs, field_ct const& new_defi_root)
 {
     const auto is_claim = public_inputs[InnerProofFields::PROOF_ID] == field_ct(ProofIds::DEFI_CLAIM);
-    // For claim proofs, defi root is output in field named INPUT_OWNER.
-    const auto defi_root = public_inputs[InnerProofFields::INPUT_OWNER];
-
+    const auto defi_root = public_inputs[InnerProofFields::DEFI_ROOT];
     auto valid = defi_root == new_defi_root || !is_claim;
     valid.assert_equal(true, format("claim proof has unmatched defi root"));
 }
@@ -150,26 +148,14 @@ void accumulate_tx_fees(Composer& composer,
                         field_ct const& num_asset_ids,
                         bool_ct const& is_real)
 {
-    const auto is_js_tx = proof_id == field_ct(ProofIds::JOIN_SPLIT);
     const auto is_account = proof_id == field_ct(ProofIds::ACCOUNT);
-    const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
-    const auto is_defi_claim = proof_id == field_ct(ProofIds::DEFI_CLAIM);
-    const auto is_defi = (is_defi_deposit || is_defi_claim);
-
-    // asset_id = bridge_id for a defi deposit proof
-    const uint8_t input_asset_id_lsb = (DEFI_BRIDGE_ADDRESS_BIT_LENGTH + DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN);
-    const uint8_t input_asset_id_msb = input_asset_id_lsb + DEFI_BRIDGE_INPUT_ASSET_ID_LEN - 1;
-    const field_ct defi_input_asset_id = asset_id.slice(input_asset_id_msb, input_asset_id_lsb);
-
-    // combined asset id of an inner proof
-    const auto input_asset_id = (defi_input_asset_id * is_defi + asset_id * is_js_tx);
 
     // Accumulate tx_fee for each asset_id. Note that tx_fee = 0 for padding proofs.
     field_ct num_matched(&composer, 0);
     for (uint32_t k = 0; k < NUM_ASSETS; k++) {
         auto is_asset_id_real = uint32_ct(k) < num_asset_ids;
 
-        const auto matches = input_asset_id == asset_ids[k] && is_asset_id_real;
+        const auto matches = asset_id == asset_ids[k] && is_asset_id_real;
         num_matched += matches;
 
         total_tx_fees[k] += tx_fee * matches;
@@ -285,7 +271,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
         // Accumulate tx fee.
         auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
-        auto asset_id = public_inputs[InnerProofFields::ASSET_ID];
+        auto asset_id = public_inputs[InnerProofFields::TX_FEE_ASSET_ID];
         accumulate_tx_fees(composer, total_tx_fees, proof_id, asset_id, tx_fee, asset_ids, num_asset_ids, is_real);
 
         tx_public_inputs.push_back(slice(public_inputs, 0, PropagatedInnerProofFields::NUM_FIELDS));

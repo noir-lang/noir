@@ -51,6 +51,8 @@ class join_split_tests : public ::testing::Test {
                            rollup::fixtures::create_key_pair(nullptr).public_key.x };
         value_notes[2] = { 90, asset_id, 1, user.owner.public_key, user.note_secret, 0 };
         value_notes[3] = { 40, asset_id, 1, user.owner.public_key, user.note_secret, 0 };
+        dummy_value_notes[0] = { 0, asset_id, 0, user.owner.public_key, fr::random_element(), 0 };
+        dummy_value_notes[1] = { 0, asset_id, 0, user.owner.public_key, fr::random_element(), 0 };
     }
 
     /**
@@ -104,8 +106,7 @@ class join_split_tests : public ::testing::Test {
         tx.input_path = { tree->get_hash_path(input_indicies[0]), tree->get_hash_path(input_indicies[1]) };
         tx.input_note = input_notes;
         tx.output_note = { output_note1, output_note2 };
-        tx.input_owner = fr::random_element();
-        tx.output_owner = fr::random_element();
+        tx.public_owner = fr(0);
         tx.account_index = account_index;
         tx.account_path = tree->get_hash_path(account_index);
         tx.signing_pub_key = user.signing_keys[0].public_key;
@@ -131,38 +132,6 @@ class join_split_tests : public ::testing::Test {
                                     asset_id,
                                     account_index,
                                     nonce);
-    }
-
-    /**
-     * Return a join split tx that performs a 100 token transfer.
-     */
-    join_split_tx public_transfer_setup()
-    {
-        uint32_t arbitrary_asset_id = 3;
-        value_note input_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
-        value_note input_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
-        value_note output_note1 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
-        value_note output_note2 = { 0, arbitrary_asset_id, 0, user.owner.public_key, user.note_secret, 0 };
-
-        join_split_tx tx;
-        tx.public_input = 100;
-        tx.public_output = 100;
-        tx.num_input_notes = 0;
-        tx.input_index = { 1, 0 };
-        tx.old_data_root = tree->root();
-        tx.input_path = { tree->get_hash_path(1), tree->get_hash_path(0) };
-        tx.input_note = { input_note2, input_note1 };
-        tx.output_note = { output_note1, output_note2 };
-        tx.input_owner = fr::random_element();
-        tx.output_owner = fr::random_element();
-        tx.account_index = 0;
-        tx.account_path = tree->get_hash_path(0);
-        tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.asset_id = arbitrary_asset_id;
-        tx.account_private_key = user.owner.private_key;
-        tx.alias_hash = rollup::fixtures::generate_alias_hash("penguin");
-        tx.nonce = 0;
-        return tx;
     }
 
     waffle::plonk_proof sign_and_create_proof(join_split_tx& tx, grumpkin::fr const& signing_private_key)
@@ -199,6 +168,7 @@ class join_split_tests : public ::testing::Test {
     std::unique_ptr<MemoryStore> store;
     std::unique_ptr<MerkleTree<MemoryStore>> tree;
     value_note value_notes[4];
+    value_note dummy_value_notes[2];
     const uint32_t asset_id = 1;
     const uint256_t max_value = (uint256_t(1) << notes::NOTE_VALUE_BIT_LENGTH) - 1;
 };
@@ -211,6 +181,7 @@ TEST_F(join_split_tests, test_0_input_notes)
     tx.num_input_notes = 0;
     tx.input_note = { gibberish, gibberish };
     tx.public_input = 30;
+    tx.public_owner = fr::random_element();
     tx.output_note[0].value = 30;
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
@@ -244,18 +215,13 @@ TEST_F(join_split_tests, test_2_input_notes)
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-HEAVY_TEST_F(join_split_tests, test_2_input_notes_full_proof)
-{
-    join_split_tx tx = simple_setup();
-    EXPECT_TRUE(sign_and_verify(tx, user.owner.private_key));
-}
-
 TEST_F(join_split_tests, test_0_output_notes)
 {
     join_split_tx tx = simple_setup();
     tx.output_note[0].value = 0;
     tx.output_note[1].value = 0;
     tx.public_output = tx.input_note[0].value + tx.input_note[1].value;
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
@@ -265,23 +231,19 @@ TEST_F(join_split_tests, test_0_output_notes)
 TEST_F(join_split_tests, test_max_public_input_output)
 {
     join_split_tx tx = simple_setup();
-    tx.num_input_notes = 1;
-    tx.input_note[1].value = 0;
-    tx.output_note[0].value = tx.input_note[0].value;
+    tx.output_note[0].value = max_value;
     tx.public_input = max_value;
-    tx.public_output = max_value;
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
 TEST_F(join_split_tests, test_overflow_public_input_fails)
 {
-    join_split_tx tx = public_transfer_setup();
-    tx.num_input_notes = 1;
-    tx.input_note[1].value = 0;
-    tx.output_note[0].value = tx.input_note[0].value;
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value = max_value;
     tx.public_input = max_value + 1;
-    tx.public_output = max_value;
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
@@ -289,11 +251,9 @@ TEST_F(join_split_tests, test_overflow_public_input_fails)
 TEST_F(join_split_tests, test_overflow_public_output_fails)
 {
     join_split_tx tx = simple_setup();
-    tx.num_input_notes = 1;
-    tx.input_note[1].value = 0;
-    tx.output_note[0].value = tx.input_note[0].value;
-    tx.public_input = max_value;
+    tx.input_note[0].value = max_value;
     tx.public_output = max_value + 1;
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
@@ -304,14 +264,7 @@ TEST_F(join_split_tests, test_non_zero_tx_fee)
 {
     join_split_tx tx = simple_setup();
     tx.public_input += 1;
-
-    EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
-}
-
-TEST_F(join_split_tests, test_non_zero_tx_fee_public_transfer)
-{
-    join_split_tx tx = public_transfer_setup();
-    tx.public_input += 1;
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
@@ -329,6 +282,7 @@ TEST_F(join_split_tests, test_max_tx_fee)
     join_split_tx tx = simple_setup();
     auto tx_fee = (uint256_t(1) << rollup::TX_FEE_BIT_LENGTH) - 1;
     tx.public_input += tx_fee;
+    tx.public_owner = fr::random_element();
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
@@ -338,14 +292,15 @@ TEST_F(join_split_tests, test_overflow_tx_fee_fails)
     join_split_tx tx = simple_setup();
     auto tx_fee = uint256_t(1) << rollup::TX_FEE_BIT_LENGTH;
     tx.public_input += tx_fee;
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
 TEST_F(join_split_tests, test_larger_total_output_value_fails)
 {
-    join_split_tx tx = public_transfer_setup();
-    tx.output_note[0].value = 1;
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value += 1;
 
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
@@ -456,16 +411,16 @@ TEST_F(join_split_tests, test_wrong_account_private_key_fails)
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-TEST_F(join_split_tests, test_wrong_output_owner_sig_fail)
+TEST_F(join_split_tests, test_wrong_public_owner_sig_fail)
 {
     join_split_tx tx = simple_setup();
+    tx.public_input = 1;
+    tx.public_owner = fr::random_element();
 
-    // sign with correct output owner
+    // sign over a different public owner
     tx.signature = sign_join_split_tx(tx, { user.owner.private_key, tx.signing_pub_key });
 
-    // set a fake output owner
-    auto fake_owner = fr::random_element();
-    tx.output_owner = fake_owner;
+    tx.public_owner = fr::random_element();
 
     EXPECT_FALSE(verify_logic(tx));
 }
@@ -517,32 +472,22 @@ TEST_F(join_split_tests, test_wrong_note_hash_path_fails)
     EXPECT_FALSE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-TEST_F(join_split_tests, test_zero_output_owner)
+HEAVY_TEST_F(join_split_tests, test_tainted_public_owner_fails)
 {
     join_split_tx tx = simple_setup();
-
-    tx.output_owner = fr::zero();
-
-    tx.signature = sign_join_split_tx(tx, { user.owner.private_key, tx.signing_pub_key });
-
-    EXPECT_TRUE(verify_logic(tx));
-}
-
-HEAVY_TEST_F(join_split_tests, test_tainted_output_owner_fails)
-{
-    join_split_tx tx = simple_setup();
+    tx.public_input = 1;
     tx.signing_pub_key = user.owner.public_key;
-    tx.signature = sign_join_split_tx(tx, { user.owner.private_key, user.owner.public_key });
-    uint8_t output_owner[32] = { 0x01, 0xaa, 0x42, 0xd4, 0x72, 0x88, 0x8e, 0xae, 0xa5, 0x56, 0x39,
+    uint8_t public_owner[32] = { 0x01, 0xaa, 0x42, 0xd4, 0x72, 0x88, 0x8e, 0xae, 0xa5, 0x56, 0x39,
                                  0x46, 0xeb, 0x5c, 0xf5, 0x6c, 0x81, 0x6,  0x4d, 0x80, 0xc6, 0xf5,
                                  0xa5, 0x38, 0xcc, 0x87, 0xae, 0x54, 0xae, 0xdb, 0x75, 0xd9 };
-    tx.output_owner = from_buffer<fr>(output_owner);
+    tx.public_owner = from_buffer<fr>(public_owner);
+    tx.signature = sign_join_split_tx(tx, { user.owner.private_key, user.owner.public_key });
 
     auto prover = new_join_split_prover(tx);
     auto proof = prover.construct_proof();
 
-    EXPECT_EQ(proof.proof_data[InnerProofOffsets::OUTPUT_OWNER], 0x01);
-    proof.proof_data[InnerProofFields::OUTPUT_OWNER] = 0x02;
+    EXPECT_EQ(proof.proof_data[InnerProofOffsets::PUBLIC_OWNER], 0x01);
+    proof.proof_data[InnerProofFields::PUBLIC_OWNER] = 0x02;
 
     EXPECT_FALSE(verify_proof(proof));
 }
@@ -596,11 +541,51 @@ TEST_F(join_split_tests, test_defi_non_zero_output_note_1_ignored)
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner.private_key));
 }
 
-HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
+HEAVY_TEST_F(join_split_tests, test_deposit_full_proof)
+{
+    simple_setup();
+    join_split_tx tx = create_join_split_tx({ 0, 1 }, { dummy_value_notes[0], dummy_value_notes[1] }, asset_id);
+    tx.num_input_notes = 0;
+    tx.public_input = 10;
+    tx.public_owner = fr::random_element();
+    tx.output_note[0].value = 7;
+
+    auto proof = sign_and_create_proof(tx, user.owner.private_key);
+    auto proof_data = inner_proof_data(proof.proof_data);
+
+    auto input_note1_commitment = tx.input_note[0].commit();
+    auto input_note2_commitment = tx.input_note[1].commit();
+    auto output_note1_commitment = tx.output_note[0].commit();
+    auto output_note2_commitment = tx.output_note[1].commit();
+    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, 0, user.owner.private_key, false);
+    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, 1, user.owner.private_key, false);
+
+    EXPECT_EQ(proof_data.proof_id, ProofIds::DEPOSIT);
+    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
+    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
+    EXPECT_EQ(proof_data.nullifier1, nullifier1);
+    EXPECT_EQ(proof_data.nullifier2, nullifier2);
+    EXPECT_EQ(proof_data.public_value, tx.public_input);
+    EXPECT_EQ(proof_data.public_owner, tx.public_owner);
+    EXPECT_EQ(proof_data.asset_id, tx.asset_id);
+    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
+    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
+    EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_root, fr(0));
+
+    EXPECT_TRUE(verify_proof(proof));
+}
+
+HEAVY_TEST_F(join_split_tests, test_withdraw_full_proof)
 {
     join_split_tx tx = simple_setup();
-    auto proof = sign_and_create_proof(tx, user.owner.private_key);
+    tx.public_output = 10;
+    tx.public_owner = fr::random_element();
+    tx.output_note[0].value -= 13;
 
+    auto proof = sign_and_create_proof(tx, user.owner.private_key);
     auto proof_data = inner_proof_data(proof.proof_data);
 
     auto input_note1_commitment = tx.input_note[0].commit();
@@ -610,23 +595,58 @@ HEAVY_TEST_F(join_split_tests, test_public_inputs_full_proof)
     uint256_t nullifier1 = compute_nullifier(input_note1_commitment, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(input_note2_commitment, 1, user.owner.private_key, true);
 
-    EXPECT_EQ(proof_data.proof_id, 0UL);
-    EXPECT_EQ(proof_data.asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.proof_id, ProofIds::WITHDRAW);
     EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
     EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.input_owner, tx.input_owner);
-    EXPECT_EQ(proof_data.output_owner, tx.output_owner);
-    EXPECT_EQ(proof_data.public_input, tx.public_input);
-    EXPECT_EQ(proof_data.public_output, tx.public_output);
-    EXPECT_EQ(proof_data.tx_fee, 0UL);
+    EXPECT_EQ(proof_data.public_value, tx.public_output);
+    EXPECT_EQ(proof_data.public_owner, tx.public_owner);
+    EXPECT_EQ(proof_data.asset_id, tx.asset_id);
+    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
+    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
+    EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_root, fr(0));
 
     EXPECT_TRUE(verify_proof(proof));
 }
 
-HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
+HEAVY_TEST_F(join_split_tests, test_private_send_full_proof)
+{
+    join_split_tx tx = simple_setup();
+    tx.output_note[0].value -= 3;
+
+    auto proof = sign_and_create_proof(tx, user.owner.private_key);
+    auto proof_data = inner_proof_data(proof.proof_data);
+
+    auto input_note1_commitment = tx.input_note[0].commit();
+    auto input_note2_commitment = tx.input_note[1].commit();
+    auto output_note1_commitment = tx.output_note[0].commit();
+    auto output_note2_commitment = tx.output_note[1].commit();
+    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, 0, user.owner.private_key, true);
+    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, 1, user.owner.private_key, true);
+
+    EXPECT_EQ(proof_data.proof_id, ProofIds::SEND);
+    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
+    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
+    EXPECT_EQ(proof_data.nullifier1, nullifier1);
+    EXPECT_EQ(proof_data.nullifier2, nullifier2);
+    EXPECT_EQ(proof_data.public_value, uint256_t(0));
+    EXPECT_EQ(proof_data.public_owner, fr(0));
+    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
+    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
+    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
+    EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_root, fr(0));
+
+    EXPECT_TRUE(verify_proof(proof));
+}
+
+HEAVY_TEST_F(join_split_tests, test_defi_deposit_full_proof)
 {
     join_split_tx tx = simple_setup();
     tx.output_note[0].value = 10; // This should be ignored anyway!
@@ -650,18 +670,20 @@ HEAVY_TEST_F(join_split_tests, test_defi_public_inputs_full_proof)
     uint256_t nullifier1 = compute_nullifier(input_note1_commitment, 0, user.owner.private_key, true);
     uint256_t nullifier2 = compute_nullifier(input_note2_commitment, 1, user.owner.private_key, true);
 
-    EXPECT_EQ(proof_data.proof_id, 2UL);
-    EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_DEPOSIT);
     EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
     EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.input_owner, partial_commitment);
-    EXPECT_EQ(proof_data.output_owner, tx.output_owner);
-    EXPECT_EQ(proof_data.public_input, tx.public_input);
-    EXPECT_EQ(proof_data.public_output, tx.claim_note.deposit_value);
-    EXPECT_EQ(proof_data.tx_fee, 9UL);
+    EXPECT_EQ(proof_data.public_value, uint256_t(0));
+    EXPECT_EQ(proof_data.public_owner, fr(0));
+    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
+    EXPECT_EQ(proof_data.merkle_root, tree->root());
+    EXPECT_EQ(proof_data.tx_fee, uint256_t(9));
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.defi_deposit_value, tx.claim_note.deposit_value);
+    EXPECT_EQ(proof_data.defi_root, fr(0));
 
     EXPECT_TRUE(verify_proof(proof));
 }

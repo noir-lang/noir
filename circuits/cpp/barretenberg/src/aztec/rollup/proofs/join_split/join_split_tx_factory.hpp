@@ -60,6 +60,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         join_split_tx tx;
         tx.public_input = public_input + tx_fee;
         tx.public_output = public_output;
+        tx.public_owner = tx.public_input || tx.public_output ? fr::random_element() : fr::zero();
         tx.asset_id = asset_id;
         tx.num_input_notes = num_input_notes;
         tx.input_index = { in_note_idx[0], in_note_idx[1] };
@@ -75,8 +76,6 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.alias_hash = 0;
         tx.nonce = nonce;
         tx.claim_note.deposit_value = 0;
-        tx.input_owner = fr::zero();
-        tx.output_owner = fr::zero();
 
         return tx;
     }

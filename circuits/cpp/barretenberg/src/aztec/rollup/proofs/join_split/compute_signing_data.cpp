@@ -11,14 +11,12 @@ using namespace notes::native;
 
 barretenberg::fr compute_signing_data(join_split_tx const& tx)
 {
-    auto is_defi = tx.claim_note.deposit_value > 0;
-    auto asset_id = is_defi ? tx.claim_note.bridge_id : tx.asset_id;
-    auto public_input = is_defi ? 0 : tx.public_input;
-    auto public_output = is_defi ? tx.claim_note.deposit_value : tx.public_output;
-
-    uint256_t total_input_value = tx.input_note[0].value + tx.input_note[1].value + tx.public_input;
-    uint256_t total_output_value = tx.output_note[0].value * !is_defi + tx.output_note[1].value + public_output;
-    grumpkin::fq tx_fee = total_input_value - total_output_value;
+    auto proof_id = tx.proof_id();
+    auto is_deposit = proof_id == ProofIds::DEPOSIT;
+    auto is_withdraw = proof_id == ProofIds::WITHDRAW;
+    auto is_defi = proof_id == ProofIds::DEFI_DEPOSIT;
+    auto public_value = tx.public_value();
+    auto public_asset_id = tx.asset_id * (is_deposit || is_withdraw);
 
     auto partial_value_note_commitment =
         value::create_partial_commitment(tx.claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].nonce, 0);
@@ -35,10 +33,9 @@ barretenberg::fr compute_signing_data(join_split_tx const& tx)
     const auto nullifier2 =
         compute_nullifier(input_note_2, tx.input_index[1], tx.account_private_key, tx.num_input_notes >= 2);
 
-    std::vector<grumpkin::fq> to_compress{
-        public_input, public_output, grumpkin::fq(asset_id), output_note_1,   output_note_2,
-        nullifier1,   nullifier2,    tx.input_owner,         tx.output_owner, tx_fee,
-    };
+    std::vector<grumpkin::fq> to_compress{ public_value,  tx.public_owner, grumpkin::fq(public_asset_id),
+                                           output_note_1, output_note_2,   nullifier1,
+                                           nullifier2 };
 
     return compress_native(to_compress);
 }

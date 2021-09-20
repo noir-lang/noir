@@ -112,14 +112,13 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
     EXPECT_EQ(rollup_data.new_data_roots_root, world_state.root_tree.root());
 
     auto inner_data = rollup_data.tx_data[3];
-    EXPECT_EQ(inner_data.public_input, fr(0));
-    EXPECT_EQ(inner_data.public_output, fr(0));
     EXPECT_EQ(inner_data.note_commitment1, fr(0));
     EXPECT_EQ(inner_data.note_commitment2, fr(0));
     EXPECT_EQ(inner_data.nullifier1, fr(0));
     EXPECT_EQ(inner_data.nullifier2, fr(0));
-    EXPECT_EQ(inner_data.input_owner, fr(0));
-    EXPECT_EQ(inner_data.output_owner, fr(0));
+    EXPECT_EQ(inner_data.public_value, fr(0));
+    EXPECT_EQ(inner_data.public_owner, fr(0));
+    EXPECT_EQ(inner_data.asset_id, fr(0));
 }
 
 HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
@@ -152,14 +151,13 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
 
     for (size_t i = 1; i < rollup_data.tx_data.size(); ++i) {
         auto inner_data = rollup_data.tx_data[i];
-        EXPECT_EQ(inner_data.public_input, fr(0));
-        EXPECT_EQ(inner_data.public_output, fr(0));
         EXPECT_EQ(inner_data.note_commitment1, fr(0));
         EXPECT_EQ(inner_data.note_commitment2, fr(0));
         EXPECT_EQ(inner_data.nullifier1, fr(0));
         EXPECT_EQ(inner_data.nullifier2, fr(0));
-        EXPECT_EQ(inner_data.input_owner, fr(0));
-        EXPECT_EQ(inner_data.output_owner, fr(0));
+        EXPECT_EQ(inner_data.public_value, fr(0));
+        EXPECT_EQ(inner_data.public_owner, fr(0));
+        EXPECT_EQ(inner_data.asset_id, fr(0));
     }
 }
 

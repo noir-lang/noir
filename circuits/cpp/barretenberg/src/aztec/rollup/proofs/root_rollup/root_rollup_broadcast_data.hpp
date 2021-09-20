@@ -32,43 +32,37 @@ enum {
 
 struct tx_broadcast_data {
     fr proof_id;
-    fr public_input;
-    fr public_output;
-    fr asset_id;
     fr note_commitment1;
     fr note_commitment2;
     fr nullifier1;
     fr nullifier2;
-    fr input_owner;
-    fr output_owner;
+    fr public_value;
+    fr public_owner;
+    fr asset_id;
 };
 
 template <typename B> inline void read(B& buf, tx_broadcast_data& data)
 {
     read(buf, data.proof_id);
-    read(buf, data.public_input);
-    read(buf, data.public_output);
-    read(buf, data.asset_id);
     read(buf, data.note_commitment1);
     read(buf, data.note_commitment2);
     read(buf, data.nullifier1);
     read(buf, data.nullifier2);
-    read(buf, data.input_owner);
-    read(buf, data.output_owner);
+    read(buf, data.public_value);
+    read(buf, data.public_owner);
+    read(buf, data.asset_id);
 }
 
 template <typename B> inline void write(B& buf, tx_broadcast_data const& data)
 {
     write(buf, data.proof_id);
-    write(buf, data.public_input);
-    write(buf, data.public_output);
-    write(buf, data.asset_id);
     write(buf, data.note_commitment1);
     write(buf, data.note_commitment2);
     write(buf, data.nullifier1);
     write(buf, data.nullifier2);
-    write(buf, data.input_owner);
-    write(buf, data.output_owner);
+    write(buf, data.public_value);
+    write(buf, data.public_owner);
+    write(buf, data.asset_id);
 }
 
 struct root_rollup_broadcast_data {

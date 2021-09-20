@@ -19,6 +19,7 @@ TEST(client_proofs_join_split_tx, test_serialization)
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();
     tx.public_input = 10;
     tx.public_output = 20;
+    tx.public_owner = fr::random_element();
     tx.num_input_notes = 2;
     tx.account_private_key = grumpkin::fr::random_element();
     tx.alias_hash = 0;
@@ -48,9 +49,6 @@ TEST(client_proofs_join_split_tx, test_serialization)
 
     memset(&tx.signature.e, 1, 32);
     memset(&tx.signature.s, 2, 32);
-
-    tx.input_owner = fr::random_element();
-    tx.output_owner = fr::random_element();
 
     auto buffer = to_buffer(tx);
     auto tx2 = from_buffer<join_split_tx>(buffer.data());

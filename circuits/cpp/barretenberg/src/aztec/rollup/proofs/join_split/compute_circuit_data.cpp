@@ -24,6 +24,7 @@ join_split_tx noop_tx()
     join_split_tx tx;
     tx.public_input = 0;
     tx.public_output = 0;
+    tx.public_owner = fr::zero();
     tx.asset_id = 0;
     tx.num_input_notes = 0;
     tx.input_index = { 0, 1 };
@@ -38,10 +39,6 @@ join_split_tx noop_tx()
     tx.account_private_key = priv_key;
     tx.alias_hash = 0;
     tx.nonce = 0;
-
-    tx.input_owner = fr::zero();
-    tx.output_owner = fr::zero();
-
     tx.signature = sign_join_split_tx(tx, { priv_key, pub_key });
     return tx;
 }

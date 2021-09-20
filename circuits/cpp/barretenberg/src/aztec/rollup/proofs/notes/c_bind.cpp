@@ -126,6 +126,19 @@ WASM_EXPORT void notes__batch_decrypt_notes(uint8_t const* encrypted_notes_buffe
     }
 }
 
+WASM_EXPORT void notes__account_note_commitment(uint8_t const* account_alias_id_buffer,
+                                                uint8_t const* owner_key_buf,
+                                                uint8_t const* signing_key_buf,
+                                                uint8_t* output)
+{
+    auto account_alias_id = from_buffer<barretenberg::fr>(account_alias_id_buffer);
+    auto owner_key = from_buffer<grumpkin::g1::affine_element>(owner_key_buf);
+    auto signing_key = from_buffer<grumpkin::g1::affine_element>(signing_key_buf);
+    auto note = account::account_note{ account_alias_id, owner_key, signing_key };
+    auto note_commitment = note.commit();
+    write(output, note_commitment);
+}
+
 WASM_EXPORT void notes__compute_account_alias_id_nullifier(uint8_t const* id_buffer, uint8_t* output)
 {
     auto account_alias_id = from_buffer<barretenberg::fr>(id_buffer);

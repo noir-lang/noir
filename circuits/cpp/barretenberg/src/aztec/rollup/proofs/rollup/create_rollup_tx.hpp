@@ -124,7 +124,7 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
 
         if (struct_data.proof_id == ProofIds::DEFI_DEPOSIT) {
             uint32_t nonce = 0;
-            while (struct_data.asset_id != bridge_ids[nonce] && nonce < bridge_ids.size()) {
+            while (struct_data.bridge_id != bridge_ids[nonce] && nonce < bridge_ids.size()) {
                 ++nonce;
             };
             nonce += rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK;

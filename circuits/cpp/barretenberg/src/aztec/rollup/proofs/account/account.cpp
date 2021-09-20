@@ -28,7 +28,7 @@ field_ct compute_account_alias_id_nullifier(field_ct const& proof_id, field_ct c
 
 void account_circuit(Composer& composer, account_tx const& tx)
 {
-    const auto proof_id = field_ct(witness_ct(&composer, 1));
+    const auto proof_id = field_ct(witness_ct(&composer, ProofIds::ACCOUNT));
     const auto nonce = field_ct(witness_ct(&composer, tx.nonce));
     const auto alias_hash = field_ct(witness_ct(&composer, tx.alias_hash));
     const auto migrate = bool_ct(witness_ct(&composer, tx.migrate));
@@ -85,25 +85,40 @@ void account_circuit(Composer& composer, account_tx const& tx)
         migrate;
     account_keys_equal_or_migrating.assert_equal(1, "public key should not change");
 
-    field_ct dummy_tx_fee = witness_ct(&composer, 0);
-    dummy_tx_fee.assert_equal(0);
-
     const field_ct nullifier_2 = witness_ct(&composer, 0);
+    const field_ct public_value = witness_ct(&composer, 0);
+    const field_ct public_owner = witness_ct(&composer, 0);
+    const field_ct asset_id = witness_ct(&composer, 0);
+    const field_ct tx_fee = witness_ct(&composer, 0);
+    const field_ct tx_fee_asset_id = witness_ct(&composer, 0);
+    const field_ct bridge_id = witness_ct(&composer, 0);
+    const field_ct defi_deposit_value = witness_ct(&composer, 0);
+    const field_ct defi_root = witness_ct(&composer, 0);
     nullifier_2.assert_is_zero();
+    public_value.assert_is_zero();
+    public_owner.assert_is_zero();
+    asset_id.assert_is_zero();
+    tx_fee.assert_is_zero();
+    tx_fee_asset_id.assert_is_zero();
+    bridge_id.assert_is_zero();
+    defi_deposit_value.assert_is_zero();
+    defi_root.assert_is_zero();
 
     // Expose public inputs.
-    proof_id.set_public();                 // proof_id
-    new_account_public_key.x.set_public(); // public_input but using for owner x.
-    new_account_public_key.y.set_public(); // public_output but using for owner y.
-    output_account_alias_id.set_public();  // asset_id
+    proof_id.set_public();
     output_note_1.commitment.set_public();
     output_note_2.commitment.set_public();
     nullifier_1.set_public();
     nullifier_2.set_public();
-    spending_public_key_1.x.set_public(); // input_owner
-    spending_public_key_2.x.set_public(); // output_owner
+    public_value.set_public();
+    public_owner.set_public();
+    asset_id.set_public();
     data_tree_root.set_public();
-    dummy_tx_fee.set_public();
+    tx_fee.set_public();
+    tx_fee_asset_id.set_public();
+    bridge_id.set_public();
+    defi_deposit_value.set_public();
+    defi_root.set_public();
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)

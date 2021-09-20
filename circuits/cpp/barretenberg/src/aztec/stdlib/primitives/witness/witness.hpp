@@ -28,7 +28,7 @@ template <typename ComposerContext> class witness_t {
         witness_index = context->add_variable(witness);
     }
 
-    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T>>>
     witness_t(ComposerContext* parent_context, T const in)
     {
         context = parent_context;

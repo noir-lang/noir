@@ -202,18 +202,20 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
     // Validate public inputs.
-    EXPECT_EQ(proof_data.proof_id, 3UL);
-    EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
-    EXPECT_EQ(proof_data.merkle_root, data_tree->root());
+    EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
     EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
     EXPECT_EQ(proof_data.note_commitment2, expected_output_note2.commit());
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
-    EXPECT_EQ(proof_data.input_owner, defi_tree->root());
-    EXPECT_EQ(proof_data.output_owner, fr(0));
-    EXPECT_EQ(proof_data.public_input, uint256_t(0));
-    EXPECT_EQ(proof_data.public_output, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee, 0UL);
+    EXPECT_EQ(proof_data.public_value, uint256_t(0));
+    EXPECT_EQ(proof_data.public_owner, fr(0));
+    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
+    EXPECT_EQ(proof_data.merkle_root, data_tree->root());
+    EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_root, defi_tree->root());
 }
 
 TEST_F(claim_tests, test_claim_1_output_full_proof)
@@ -239,18 +241,21 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
     uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
-    EXPECT_EQ(proof_data.proof_id, 3UL);
-    EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
     EXPECT_EQ(proof_data.note_commitment2, fr(0));
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
-    EXPECT_EQ(proof_data.input_owner, defi_tree->root());
-    EXPECT_EQ(proof_data.output_owner, fr(0));
-    EXPECT_EQ(proof_data.public_input, uint256_t(0));
-    EXPECT_EQ(proof_data.public_output, uint256_t(0));
+    EXPECT_EQ(proof_data.public_value, uint256_t(0));
+    EXPECT_EQ(proof_data.public_owner, fr(0));
+    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
+    EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.tx_fee, claim_fee);
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_root, defi_tree->root());
 
     EXPECT_TRUE(result.verified);
 }
@@ -274,18 +279,20 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 
     uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
-    EXPECT_EQ(proof_data.proof_id, 3UL);
-    EXPECT_EQ(proof_data.asset_id, tx.claim_note.bridge_id);
-    EXPECT_EQ(proof_data.merkle_root, data_tree->root());
+    EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
     EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
     EXPECT_EQ(proof_data.note_commitment2, fr(0));
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
     EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
-    EXPECT_EQ(proof_data.input_owner, defi_tree->root());
-    EXPECT_EQ(proof_data.output_owner, fr(0));
-    EXPECT_EQ(proof_data.public_input, uint256_t(0));
-    EXPECT_EQ(proof_data.public_output, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee, 0UL);
+    EXPECT_EQ(proof_data.public_value, uint256_t(0));
+    EXPECT_EQ(proof_data.public_owner, fr(0));
+    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
+    EXPECT_EQ(proof_data.merkle_root, data_tree->root());
+    EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
+    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_id.input_asset_id);
+    EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
+    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(proof_data.defi_root, defi_tree->root());
 
     EXPECT_TRUE(result.verified);
 }

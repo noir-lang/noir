@@ -23,7 +23,7 @@ constexpr uint32_t DEFI_BRIDGE_ID_BIT_LENGTH = 252;
 constexpr uint32_t NUM_BRIDGE_CALLS_PER_BLOCK = 4;
 
 namespace ProofIds {
-enum { JOIN_SPLIT = 0, ACCOUNT = 1, DEFI_DEPOSIT = 2, DEFI_CLAIM = 3 };
+enum { PADDING = 0, DEPOSIT = 1, WITHDRAW = 2, SEND = 3, ACCOUNT = 4, DEFI_DEPOSIT = 5, DEFI_CLAIM = 6 };
 };
 
 } // namespace rollup

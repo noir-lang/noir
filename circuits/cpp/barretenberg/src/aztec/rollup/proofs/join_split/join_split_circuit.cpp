@@ -40,23 +40,28 @@ field_ct process_input_note(field_ct const& account_private_key,
 
 join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 {
-    auto not_defi_bridge = inputs.claim_note.deposit_value.is_zero();
-    auto is_defi_bridge = (!not_defi_bridge);
-    auto proof_id = (field_ct(2) * is_defi_bridge);
-    auto public_output = inputs.claim_note.deposit_value + (inputs.public_output * not_defi_bridge);
+    auto is_deposit = inputs.proof_id == field_ct(ProofIds::DEPOSIT);
+    auto is_withdraw = inputs.proof_id == field_ct(ProofIds::WITHDRAW);
+    auto is_public_tx = is_deposit || is_withdraw;
+    auto is_defi_deposit = inputs.proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
+    auto not_defi_deposit = !is_defi_deposit;
     auto input_note1 = value::value_note(inputs.input_note1);
     auto input_note2 = value::value_note(inputs.input_note2);
     auto output_note1 = value::value_note(inputs.output_note1);
     auto output_note2 = value::value_note(inputs.output_note2);
     auto claim_note = claim::partial_claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
-    auto asset_id = inputs.input_note1.asset_id * not_defi_bridge + claim_note.bridge_id * is_defi_bridge;
-    auto input_owner = inputs.input_owner * not_defi_bridge + claim_note.value_note_partial_commitment * is_defi_bridge;
     auto output_note1_commitment =
-        output_note1.commitment * not_defi_bridge + claim_note.partial_commitment * is_defi_bridge;
+        output_note1.commitment * not_defi_deposit + claim_note.partial_commitment * is_defi_deposit;
+    auto public_asset_id = inputs.asset_id * is_public_tx;
+    auto public_input = inputs.public_value * is_deposit;
+    auto public_output = inputs.public_value * is_withdraw;
+    auto defi_deposit_value = inputs.claim_note.deposit_value * is_defi_deposit;
+    auto bridge_id = claim_note.bridge_id * is_defi_deposit;
 
-    // Check public input/output are zero when in defi mode.
-    (not_defi_bridge || inputs.public_input == 0).assert_equal(true, "public input not zero");
-    (not_defi_bridge || inputs.public_output == 0).assert_equal(true, "public output not zero");
+    // Check public value and owner are not zero for deposit and withdraw.
+    // Otherwise, they must be zero.
+    (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
+    (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
 
     // Verify all notes have a consistent asset id
     inputs.input_note1.asset_id.assert_equal(inputs.input_note2.asset_id, "input note asset ids don't match");
@@ -65,7 +70,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     inputs.input_note1.asset_id.assert_equal(inputs.asset_id, "note asset ids not equal to tx asset id");
 
     auto valid_claim_note_asset_id =
-        inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_bridge;
+        inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_deposit;
     valid_claim_note_asset_id.assert_equal(true, "input note and claim note asset ids don't match");
 
     // Verify the asset id is less than the total number of assets.
@@ -75,13 +80,13 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     (inputs.input_note1_index == inputs.input_note2_index).assert_equal(false, "joining same note");
 
     // Check public values.
-    inputs.public_input.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public input too large");
-    inputs.public_output.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public output too large");
+    inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
     inputs.claim_note.deposit_value.create_range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
 
     // Derive tx_fee.
-    field_ct total_in_value = inputs.input_note1.value + inputs.input_note2.value + inputs.public_input;
-    field_ct total_out_value = inputs.output_note1.value * not_defi_bridge + inputs.output_note2.value + public_output;
+    field_ct total_in_value = public_input.add_two(inputs.input_note1.value, inputs.input_note2.value);
+    field_ct total_out_value = inputs.output_note1.value.madd(not_defi_deposit, defi_deposit_value)
+                                   .add_two(public_output, inputs.output_note2.value);
     field_ct tx_fee = total_in_value - total_out_value;
     tx_fee.create_range_constraint(TX_FEE_BIT_LENGTH, "tx fee too large");
 
@@ -98,17 +103,17 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     account_public_key.y.assert_equal(note1.owner.y, "account_private_key incorrect");
     inputs.nonce.assert_equal(note1.nonce, "nonce incorrect");
 
-    // Verify that the given signature was signed over all 4 notes and output owner using
+    // Verify that the given signature was signed using
     // -> the account public key if nonce == 0
-    // -> the given signing key if nonce > 0
-    bool_ct zero_nonce = inputs.nonce == field_ct(0);
+    // -> the signing key if nonce > 0
+    bool_ct zero_nonce = inputs.nonce.is_zero();
     point_ct signer = { account_public_key.x * zero_nonce + inputs.signing_pub_key.x * !zero_nonce,
                         account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
 
     // alias hash must be 224 bits or fewer
     inputs.alias_hash.create_range_constraint(224, "alias hash too large");
     // Verify that the account exists if nonce > 0
-    auto account_alias_id = inputs.alias_hash + (inputs.nonce * pow(field_ct(2), uint32_ct(224)));
+    auto account_alias_id = inputs.alias_hash + (inputs.nonce * field_ct(uint256_t(1) << 224));
 
     // Verify creator_pubkey is EITHER account_public_key.x OR 0 for both output notes
     account_public_key.x.assert_equal(
@@ -139,28 +144,26 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                                              input_note2,
                                              note_2_valid);
 
-    verify_signature(inputs.public_input,
-                     public_output,
-                     asset_id,
+    verify_signature(inputs.public_value,
+                     inputs.public_owner,
+                     public_asset_id,
                      output_note1_commitment,
                      output_note2.commitment,
                      nullifier1,
                      nullifier2,
-                     tx_fee,
                      signer,
-                     inputs.input_owner,
-                     inputs.output_owner,
                      inputs.signature);
 
-    return { proof_id, nullifier1, nullifier2, tx_fee, public_output, output_note1_commitment, output_note2.commitment,
-             asset_id, input_owner };
+    return { nullifier1, nullifier2, output_note1_commitment, output_note2.commitment, public_asset_id,
+             tx_fee,     bridge_id,  defi_deposit_value };
 }
 
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
 {
     join_split_inputs inputs = {
-        witness_ct(&composer, tx.public_input),
-        witness_ct(&composer, tx.public_output),
+        witness_ct(&composer, tx.proof_id()),
+        witness_ct(&composer, tx.public_value()),
+        witness_ct(&composer, tx.public_owner),
         witness_ct(&composer, tx.asset_id),
         witness_ct(&composer, tx.num_input_notes),
         witness_ct(&composer, tx.input_index[0]),
@@ -177,8 +180,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
         witness_ct(&composer, tx.account_index),
         merkle_tree::create_witness_hash_path(composer, tx.account_path),
-        witness_ct(&composer, tx.input_owner),
-        witness_ct(&composer, tx.output_owner),
         witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         witness_ct(&composer, tx.alias_hash),
         witness_ct(&composer, tx.nonce),
@@ -186,22 +187,27 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 
     auto outputs = join_split_circuit_component(inputs);
 
+    const field_ct defi_root = witness_ct(&composer, 0);
+    defi_root.assert_is_zero();
+
     // The following make up the public inputs to the circuit.
-    outputs.proof_id.set_public();
-    inputs.public_input.set_public();
-    outputs.public_output.set_public();
-    outputs.asset_id.set_public();
+    inputs.proof_id.set_public();
     outputs.output_note1.set_public();
     outputs.output_note2.set_public();
     outputs.nullifier1.set_public();
     outputs.nullifier2.set_public();
-    outputs.input_owner.set_public();
-    inputs.output_owner.set_public();
+    inputs.public_value.set_public();
+    inputs.public_owner.set_public();
+    outputs.public_asset_id.set_public();
 
     // Any public witnesses exposed from here on, will not be exposed by the rollup, and thus will
     // not be part of the calldata on chain, and will also not be part of tx id generation, or be signed over.
     inputs.merkle_root.set_public();
     outputs.tx_fee.set_public();
+    inputs.asset_id.set_public();
+    outputs.bridge_id.set_public();
+    outputs.defi_deposit_value.set_public();
+    defi_root.set_public();
 }
 
 } // namespace join_split

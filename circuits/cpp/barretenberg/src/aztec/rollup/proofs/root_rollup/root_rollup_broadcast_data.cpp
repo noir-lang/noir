@@ -45,15 +45,13 @@ root_rollup_broadcast_data::root_rollup_broadcast_data(std::vector<fr> const& fi
         auto offset =
             RootRollupBroadcastFields::INNER_PROOFS_DATA + (i * rollup::PropagatedInnerProofFields::NUM_FIELDS);
         tx_data[i].proof_id = fields[offset + InnerProofFields::PROOF_ID];
-        tx_data[i].public_input = fields[offset + InnerProofFields::PUBLIC_INPUT];
-        tx_data[i].public_output = fields[offset + InnerProofFields::PUBLIC_OUTPUT];
-        tx_data[i].asset_id = fields[offset + InnerProofFields::ASSET_ID];
         tx_data[i].note_commitment1 = fields[offset + InnerProofFields::NOTE_COMMITMENT1];
         tx_data[i].note_commitment2 = fields[offset + InnerProofFields::NOTE_COMMITMENT2];
         tx_data[i].nullifier1 = fields[offset + InnerProofFields::NULLIFIER1];
         tx_data[i].nullifier2 = fields[offset + InnerProofFields::NULLIFIER2];
-        tx_data[i].input_owner = fields[offset + InnerProofFields::INPUT_OWNER];
-        tx_data[i].output_owner = fields[offset + InnerProofFields::OUTPUT_OWNER];
+        tx_data[i].public_value = fields[offset + InnerProofFields::PUBLIC_VALUE];
+        tx_data[i].public_owner = fields[offset + InnerProofFields::PUBLIC_OWNER];
+        tx_data[i].asset_id = fields[offset + InnerProofFields::ASSET_ID];
     }
 }
 

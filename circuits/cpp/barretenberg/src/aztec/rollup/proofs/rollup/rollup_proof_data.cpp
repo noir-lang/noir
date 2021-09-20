@@ -69,15 +69,13 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
     for (size_t i = 0; i < rollup_size; ++i) {
         auto offset = RollupProofFields::INNER_PROOFS_DATA + (i * PropagatedInnerProofFields::NUM_FIELDS);
         inner_proofs[i].proof_id = fields[offset + PropagatedInnerProofFields::PROOF_ID];
-        inner_proofs[i].public_input = fields[offset + PropagatedInnerProofFields::PUBLIC_INPUT];
-        inner_proofs[i].public_output = fields[offset + PropagatedInnerProofFields::PUBLIC_OUTPUT];
-        inner_proofs[i].asset_id = fields[offset + PropagatedInnerProofFields::ASSET_ID];
         inner_proofs[i].note_commitment1 = fields[offset + PropagatedInnerProofFields::NOTE_COMMITMENT1];
         inner_proofs[i].note_commitment2 = fields[offset + PropagatedInnerProofFields::NOTE_COMMITMENT2];
         inner_proofs[i].nullifier1 = fields[offset + PropagatedInnerProofFields::NULLIFIER1];
         inner_proofs[i].nullifier2 = fields[offset + PropagatedInnerProofFields::NULLIFIER2];
-        inner_proofs[i].input_owner = fields[offset + PropagatedInnerProofFields::INPUT_OWNER];
-        inner_proofs[i].output_owner = fields[offset + PropagatedInnerProofFields::OUTPUT_OWNER];
+        inner_proofs[i].public_value = fields[offset + PropagatedInnerProofFields::PUBLIC_VALUE];
+        inner_proofs[i].public_owner = fields[offset + PropagatedInnerProofFields::PUBLIC_OWNER];
+        inner_proofs[i].asset_id = fields[offset + PropagatedInnerProofFields::ASSET_ID];
     }
 
     auto offset = RollupProofFields::INNER_PROOFS_DATA + (rollup_size * PropagatedInnerProofFields::NUM_FIELDS);

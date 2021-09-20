@@ -15,7 +15,7 @@ using namespace notes;
 void claim_circuit(Composer& composer, claim_tx const& tx)
 {
     // Create witnesses.
-    const auto proof_id = field_ct(witness_ct(&composer, 3));
+    const auto proof_id = field_ct(witness_ct(&composer, ProofIds::DEFI_CLAIM));
     const auto data_root = field_ct(witness_ct(&composer, tx.data_root));
     const auto defi_root = field_ct(witness_ct(&composer, tx.defi_root));
     const auto claim_note_index = witness_ct(&composer, tx.claim_note_index);
@@ -81,28 +81,32 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     din_exists.assert_equal(true, "defi interaction note not a member");
 
     // Force unused public inputs to 0.
-    const field_ct public_input = witness_ct(&composer, 0);
-    const field_ct public_output = witness_ct(&composer, 0);
     const field_ct nullifier2 = witness_ct(&composer, 0);
-    const field_ct output_owner = witness_ct(&composer, 0);
-    public_input.assert_is_zero();
-    public_output.assert_is_zero();
+    const field_ct public_value = witness_ct(&composer, 0);
+    const field_ct public_owner = witness_ct(&composer, 0);
+    const field_ct asset_id = witness_ct(&composer, 0);
+    const field_ct defi_deposit_value = witness_ct(&composer, 0);
     nullifier2.assert_is_zero();
-    output_owner.assert_is_zero();
+    public_value.assert_is_zero();
+    public_owner.assert_is_zero();
+    asset_id.assert_is_zero();
+    defi_deposit_value.assert_is_zero();
 
     // The following make up the public inputs to the circuit.
     proof_id.set_public();
-    public_input.set_public();
-    public_output.set_public();
-    claim_note.bridge_id.set_public();
     output_note1.set_public();
     output_note2.set_public();
     nullifier1.set_public();
     nullifier2.set_public();
-    defi_root.set_public();
-    output_owner.set_public();
+    public_value.set_public();
+    public_owner.set_public();
+    asset_id.set_public();
     data_root.set_public();
     claim_note.fee.set_public();
+    claim_note_data.bridge_id_data.input_asset_id.set_public();
+    claim_note.bridge_id.set_public();
+    defi_deposit_value.set_public();
+    defi_root.set_public();
 }
 
 } // namespace claim

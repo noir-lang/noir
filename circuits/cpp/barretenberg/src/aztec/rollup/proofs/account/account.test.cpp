@@ -59,7 +59,7 @@ class account_tests : public ::testing::Test {
 
     uint256_t compute_account_alias_id_nullifier(fr const& account_alias_id)
     {
-        const std::vector<fr> hash_elements{ fr(1), account_alias_id };
+        const std::vector<fr> hash_elements{ fr(ProofIds::ACCOUNT), account_alias_id };
         auto result =
             crypto::pedersen::compress_native(hash_elements, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
         return uint256_t(result);
@@ -234,6 +234,15 @@ HEAVY_TEST_F(account_tests, test_migrate_account_full_proof)
     EXPECT_EQ(data.note_commitment2, note2_commitment);
     EXPECT_EQ(data.nullifier1, compute_account_alias_id_nullifier(tx.account_alias_id()));
     EXPECT_EQ(data.nullifier2, uint256_t(0));
+    EXPECT_EQ(data.public_value, uint256_t(0));
+    EXPECT_EQ(data.public_owner, fr(0));
+    EXPECT_EQ(data.asset_id, uint256_t(0));
+    EXPECT_EQ(data.merkle_root, tx.merkle_root);
+    EXPECT_EQ(data.tx_fee, uint256_t(0));
+    EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(data.defi_root, fr(0));
 }
 
 HEAVY_TEST_F(account_tests, test_non_migrate_account_full_proof)
@@ -255,4 +264,13 @@ HEAVY_TEST_F(account_tests, test_non_migrate_account_full_proof)
     EXPECT_EQ(data.note_commitment2, note2_commitment);
     EXPECT_EQ(data.nullifier1, uint256_t(0));
     EXPECT_EQ(data.nullifier2, uint256_t(0));
+    EXPECT_EQ(data.public_value, uint256_t(0));
+    EXPECT_EQ(data.public_owner, fr(0));
+    EXPECT_EQ(data.asset_id, uint256_t(0));
+    EXPECT_EQ(data.merkle_root, tx.merkle_root);
+    EXPECT_EQ(data.tx_fee, uint256_t(0));
+    EXPECT_EQ(data.tx_fee_asset_id, uint256_t(0));
+    EXPECT_EQ(data.bridge_id, uint256_t(0));
+    EXPECT_EQ(data.defi_deposit_value, uint256_t(0));
+    EXPECT_EQ(data.defi_root, fr(0));
 }
