@@ -31,7 +31,7 @@ impl GadgetCaller {
                 // let root = input_to_value(initial_witness, _root); // TODO (1a) once we have proper state management, we can use the root that is passed in
 
                 let _leaf = inputs_iter.next().expect("expected a leaf");
-                let leaf = input_to_value(initial_witness, _leaf).clone();
+                let leaf = *input_to_value(initial_witness, _leaf);
 
                 let _index = inputs_iter.next().expect("expected the depth parameter");
                 // The value of index should not be set yet; it was created in the evaluator

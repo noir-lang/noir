@@ -36,6 +36,7 @@ impl From<ModuleOrigin> for FileId {
     }
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for ModuleOrigin {
     fn default() -> Self {
         ModuleOrigin::CrateRoot(FileId::default())

@@ -1,12 +1,5 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct Witness(pub u32);
-
-impl Default for Witness {
-    // Place holder value
-    fn default() -> Witness {
-        Witness(0)
-    }
-}
 
 impl Witness {
     pub fn new(witness_index: u32) -> Witness {

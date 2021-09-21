@@ -74,7 +74,7 @@ fn find_hash_from_value(db: &sled::Db, leaf_value: &FieldElement) -> Option<u128
             return Some(index);
         }
     }
-    return None;
+    None
 }
 
 impl MerkleTree {
@@ -93,7 +93,7 @@ impl MerkleTree {
             .collect();
 
         let zero_message = [0u8; 64];
-        let pre_images: Vec<Vec<u8>> = (0..total_size).map(|_| zero_message.to_vec()).collect();
+        let pre_images = (0..total_size).map(|_| zero_message.to_vec());
 
         let mut current = hash(&zero_message);
 

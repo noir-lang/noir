@@ -1,9 +1,9 @@
+#![allow(dead_code)]
 // This has been taken and modified from the rust-analyzer codebase
 // For the most part, everything is the same, the differences are quite subtle
 // but still present. Moreover, since RA is uses incremental compilation, the usage of this component may differ.
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
-
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;

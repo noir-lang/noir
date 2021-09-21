@@ -1,21 +1,11 @@
 use codespan::{ByteIndex, Span as ByteSpan};
 use std::hash::{Hash, Hasher};
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default)]
 pub struct Position {
     line: usize,
     column: usize,
     idx: usize,
-}
-
-impl Default for Position {
-    fn default() -> Self {
-        Position {
-            line: 0,
-            column: 0,
-            idx: 0,
-        }
-    }
 }
 
 impl Position {
@@ -119,19 +109,10 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default)]
 pub struct Span {
     pub start: Position,
     pub end: Position,
-}
-
-impl Default for Span {
-    fn default() -> Self {
-        Span {
-            start: Position::default(),
-            end: Position::default(),
-        }
-    }
 }
 
 impl Span {
