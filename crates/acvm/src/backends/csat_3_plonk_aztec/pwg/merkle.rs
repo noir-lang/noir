@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::convert::TryInto;
+use std::{convert::TryInto, path::Path};
 
 // TODO: remove once this module is used
 use aztec_backend::barretenberg_rs::Barretenberg;
@@ -78,12 +78,12 @@ fn find_hash_from_value(db: &sled::Db, leaf_value: &FieldElement) -> Option<u128
 }
 
 impl MerkleTree {
-    pub fn new(depth: u32, temp_db: bool) -> MerkleTree {
+    pub fn new<P: AsRef<Path>>(depth: u32, path: P) -> MerkleTree {
         let mut barretenberg = Barretenberg::new();
 
         assert!((1..=20).contains(&depth)); // Why can depth != 0 and depth not more than 20?
 
-        let config = sled::Config::new().temporary(temp_db).path("./merkle_db");
+        let config = sled::Config::new().path(path);
         let mut db = config.open().unwrap();
 
         let total_size = 1u32 << depth;
@@ -127,21 +127,6 @@ impl MerkleTree {
         }
     }
 
-    fn get_hash_from_db(&self, index: usize) -> FieldElement {
-        const HASH: u8 = 0;
-        let index = index as u128;
-
-        let mut key = Vec::with_capacity(17);
-        key.push(HASH);
-        key.extend_from_slice(&index.to_be_bytes());
-
-        self.db
-            .get(&key)
-            .unwrap()
-            .map(|i_vec| FieldElement::from_be_bytes_reduce(&i_vec.to_vec()))
-            .unwrap()
-    }
-
     pub fn get_hash_path(&self, mut index: usize) -> HashPath {
         let mut path = HashPath::with_capacity(self.depth as usize);
 
@@ -150,8 +135,8 @@ impl MerkleTree {
         for _ in 0..self.depth {
             index &= (!0) - 1;
             path.push((
-                self.get_hash_from_db(offset + index),
-                self.get_hash_from_db(offset + index + 1),
+                fetch_hash(&self.db, offset + index),
+                fetch_hash(&self.db, offset + index + 1),
             ));
             offset += layer_size as usize;
             layer_size /= 2;
@@ -265,16 +250,20 @@ fn compress_native(
 
 #[test]
 fn basic_interop_initial_root() {
+    use tempfile::tempdir;
+    let temp_dir = tempdir().unwrap();
     // Test that the initial root is computed correctly
-    let tree = MerkleTree::new(3, true);
+    let tree = MerkleTree::new(3, &temp_dir);
     // Copied from barretenberg by copying the stdout from MemoryTree
     let expected_hex = "0620374242254671503abf57d13969d41bbae97e59fa97cd7777cd683beb9eb8";
     assert_eq!(tree.root().to_hex(), expected_hex)
 }
 #[test]
 fn basic_interop_hashpath() {
+    use tempfile::tempdir;
+    let temp_dir = tempdir().unwrap();
     // Test that the hashpath is correct
-    let tree = MerkleTree::new(3, true);
+    let tree = MerkleTree::new(3, &temp_dir);
 
     let path = tree.get_hash_path(0);
 
@@ -302,7 +291,9 @@ fn basic_interop_hashpath() {
 #[test]
 fn basic_interop_update() {
     // Test that computing the HashPath is correct
-    let mut tree = MerkleTree::new(3, true);
+    use tempfile::tempdir;
+    let temp_dir = tempdir().unwrap();
+    let mut tree = MerkleTree::new(3, &temp_dir);
 
     tree.update_message(0, &vec![0; 64]);
     tree.update_message(1, &vec![1; 64]);
@@ -389,8 +380,9 @@ fn check_membership() {
             error_msg : "this should be true since the index at 4 has not been changed yet, so it would be [0;64]"
         },
     ];
-
-    let mut tree = MerkleTree::new(3, true);
+    use tempfile::tempdir;
+    let temp_dir = tempdir().unwrap();
+    let mut tree = MerkleTree::new(3, &temp_dir);
 
     for test_vector in tests {
         let index = FieldElement::try_from_str(test_vector.index).unwrap();

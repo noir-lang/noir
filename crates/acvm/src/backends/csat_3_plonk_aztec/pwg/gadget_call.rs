@@ -40,7 +40,7 @@ impl GadgetCaller {
                 let arity = 2;
                 let depth = hashpath_indices.len() / arity;
 
-                let mut merkle_tree = MerkleTree::new(depth as u32, false);
+                let mut merkle_tree = MerkleTree::new(depth as u32, "./merkle_db");
 
                 let root = merkle_tree.update_leaf(2, leaf); // TODO (1b) We are updating the tree here, because we do not have proper state management yet
                 initial_witness.insert(_root.witness, root);
