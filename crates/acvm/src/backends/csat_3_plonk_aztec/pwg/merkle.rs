@@ -15,6 +15,7 @@ pub struct MerkleTree {
     total_size: u32,
     root: FieldElement,
     hashes: Vec<FieldElement>,
+    // XXX: Change this to a hashmap
     pre_images: Vec<Vec<u8>>,
     barretenberg: Barretenberg,
 }
@@ -74,10 +75,28 @@ impl MerkleTree {
         path
     }
     /// Updates the message at index and computes the new tree root
-    pub fn update_message(&mut self, index: usize, new_message: Vec<u8>) -> FieldElement {
-        let current = hash(&new_message);
-        self.pre_images[index] = new_message;
+    pub fn update_message(&mut self, index: usize, new_message: &[u8]) -> FieldElement {
+        let current = hash(new_message);
+
+        self.pre_images[index] = new_message.to_vec();
         self.update_leaf(index, current)
+    }
+
+    pub fn find_index_from_leaf(&self, leaf_value: &FieldElement) -> Option<usize> {
+        for (index, db_lef_hash) in self.hashes.iter().enumerate() {
+            if db_lef_hash == leaf_value {
+                return Some(index);
+            }
+        }
+        return None;
+    }
+    pub fn find_index_from_message(&self, message: &FieldElement) -> Option<usize> {
+        for (index, db_message) in self.pre_images.iter().enumerate() {
+            if db_message == &message.to_bytes() {
+                return Some(index);
+            }
+        }
+        return None;
     }
     /// Update the element at index and compute the new tree root
     pub fn update_leaf(&mut self, mut index: usize, mut current: FieldElement) -> FieldElement {
@@ -206,14 +225,14 @@ fn basic_interop_update() {
     // Test that computing the HashPath is correct
     let mut tree = MerkleTree::new(3);
 
-    tree.update_message(0, vec![0; 64]);
-    tree.update_message(1, vec![1; 64]);
-    tree.update_message(2, vec![2; 64]);
-    tree.update_message(3, vec![3; 64]);
-    tree.update_message(4, vec![4; 64]);
-    tree.update_message(5, vec![5; 64]);
-    tree.update_message(6, vec![6; 64]);
-    let root = tree.update_message(7, vec![7; 64]);
+    tree.update_message(0, &vec![0; 64]);
+    tree.update_message(1, &vec![1; 64]);
+    tree.update_message(2, &vec![2; 64]);
+    tree.update_message(3, &vec![3; 64]);
+    tree.update_message(4, &vec![4; 64]);
+    tree.update_message(5, &vec![5; 64]);
+    tree.update_message(6, &vec![6; 64]);
+    let root = tree.update_message(7, &vec![7; 64]);
 
     assert_eq!(
         "241fc8d893854e78dd2d427e534357fe02279f209193f0f82e13a3fd4e15375e",
@@ -302,7 +321,7 @@ fn check_membership() {
 
         let mut root = tree.root;
         if test_vector.should_update_tree {
-            root = tree.update_message(index_as_usize, test_vector.message);
+            root = tree.update_message(index_as_usize, &test_vector.message);
         }
 
         let hash_path = flatten_path(tree.get_hash_path(index_as_usize));

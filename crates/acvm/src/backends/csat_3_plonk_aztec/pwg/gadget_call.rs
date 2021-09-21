@@ -1,4 +1,4 @@
-use super::merkle::MerkleTree;
+use super::merkle::{flatten_path, MerkleTree};
 use crate::pwg::{self, input_to_value};
 use acir::{circuit::gate::GadgetCall, native_types::Witness, OPCODE};
 use aztec_backend::barretenberg_rs::Barretenberg;
@@ -28,18 +28,54 @@ impl GadgetCaller {
                 let mut inputs_iter = gadget_call.inputs.iter();
 
                 let _root = inputs_iter.next().expect("expected a root");
-                let root = input_to_value(initial_witness, _root);
+                // let root = input_to_value(initial_witness, _root); // TODO (1a) once we have proper state management, we can use the root that is passed in
 
                 let _leaf = inputs_iter.next().expect("expected a leaf");
-                let leaf = input_to_value(initial_witness, _leaf);
+                let leaf = input_to_value(initial_witness, _leaf).clone();
 
-                let _index = inputs_iter.next().expect("expected an index");
-                let index = input_to_value(initial_witness, _index);
+                let _index = inputs_iter.next().expect("expected the depth parameter");
+                // The value of index should not be set yet; it was created in the evaluator
 
-                let hash_path: Vec<_> = inputs_iter
-                    .map(|input| input_to_value(initial_witness, input))
-                    .collect();
-                let result = MerkleTree::check_membership(hash_path, root, index, leaf);
+                let hashpath_indices: Vec<_> = inputs_iter.collect();
+                let arity = 2;
+                let depth = hashpath_indices.len() / arity;
+
+                let mut merkle_tree = MerkleTree::new(depth as u32);
+
+                let root = merkle_tree.update_leaf(2, leaf); // TODO (1b) We are updating the tree here, because we do not have proper state management yet
+                initial_witness.insert(_root.witness, root);
+                // XXX: Usually the root would be passed in as a proof, and here we would assert that
+                // the root in the tree is equal to the root passed in
+                // assert_eq!(root, merkle_tree.root);
+
+                // Update the index
+
+                let index = merkle_tree
+                    .find_index_from_leaf(&leaf)
+                    .expect("value not found in merkle tree");
+
+                let index_fr = FieldElement::from(index as i128);
+                // Set the index here
+                initial_witness.insert(_index.witness, index_fr);
+
+                // Update hashpath
+                let path = merkle_tree.get_hash_path(index);
+                let mut hashpath_indices = hashpath_indices.iter();
+                for (left_hash, right_hash) in path.iter().copied() {
+                    let left = hashpath_indices.next().unwrap().witness;
+                    let right = hashpath_indices.next().unwrap().witness;
+
+                    initial_witness.insert(left, left_hash);
+                    initial_witness.insert(right, right_hash);
+                }
+                let hash_path = flatten_path(path);
+
+                let result = MerkleTree::check_membership(
+                    hash_path.iter().collect(),
+                    &root,
+                    &index_fr,
+                    &leaf,
+                );
 
                 initial_witness.insert(gadget_call.outputs[0], result);
             }
@@ -128,7 +164,6 @@ impl GadgetCaller {
                 let result = hasher.finalize();
 
                 let reduced_res = FieldElement::from_be_bytes_reduce(&result);
-
                 assert_eq!(gadget_call.outputs.len(), 1);
 
                 initial_witness.insert(gadget_call.outputs[0], reduced_res);
