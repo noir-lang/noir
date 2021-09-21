@@ -16,11 +16,20 @@ pub fn flatten_path(path: Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement
 pub struct MerkleTree {
     depth: u32,
     total_size: u32,
-    root: FieldElement,
     db: sled::Db,
     barretenberg: Barretenberg,
 }
 
+fn insert_root(db: &mut sled::Db, value: FieldElement) {
+    db.insert("ROOT".as_bytes(), value.to_bytes()).unwrap();
+}
+fn fetch_root(db: &sled::Db) -> FieldElement {
+    let value = db
+        .get("ROOT".as_bytes())
+        .unwrap()
+        .expect("merkle root should always be present");
+    FieldElement::from_be_bytes_reduce(&value.to_vec())
+}
 fn insert_preimage(db: &mut sled::Db, index: u32, value: Vec<u8>) {
     let tree = db.open_tree("preimages").unwrap();
 
@@ -49,7 +58,6 @@ fn fetch_hash(db: &sled::Db, index: usize) -> FieldElement {
 
 fn insert_hash(db: &mut sled::Db, index: u32, hash: FieldElement) {
     let tree = db.open_tree("hashes").unwrap();
-
     let index = index as u128;
 
     tree.insert(&index.to_be_bytes(), hash.to_bytes()).unwrap();
@@ -57,9 +65,11 @@ fn insert_hash(db: &mut sled::Db, index: u32, hash: FieldElement) {
 
 fn find_hash_from_value(db: &sled::Db, leaf_value: &FieldElement) -> Option<u128> {
     let tree = db.open_tree("hashes").unwrap();
-    for (index_db_lef_hash) in tree.iter() {
+
+    for index_db_lef_hash in tree.iter() {
         let (key, db_leaf_hash) = index_db_lef_hash.unwrap();
         let index = u128::from_be_bytes(key.to_vec().try_into().unwrap());
+
         if db_leaf_hash.to_vec() == leaf_value.to_bytes() {
             return Some(index);
         }
@@ -98,6 +108,7 @@ impl MerkleTree {
             layer_size /= 2;
         }
         let root = current;
+        insert_root(&mut db, root);
 
         for (index, hash) in hashes.into_iter().enumerate() {
             insert_hash(&mut db, index as u32, hash)
@@ -110,7 +121,6 @@ impl MerkleTree {
         MerkleTree {
             depth,
             total_size,
-            root,
             barretenberg,
             db,
         }
@@ -152,7 +162,6 @@ impl MerkleTree {
     pub fn update_message(&mut self, index: usize, new_message: &[u8]) -> FieldElement {
         let current = hash(new_message);
 
-        // self.pre_images[index] = new_message.to_vec();
         insert_preimage(&mut self.db, index as u32, new_message.to_vec());
         self.update_leaf(index, current)
     }
@@ -183,9 +192,9 @@ impl MerkleTree {
             layer_size /= 2;
             index /= 2;
         }
-        self.root = current;
 
-        self.root
+        insert_root(&mut self.db, current);
+        current
     }
     /// Gets a message at `index`. This is not the leaf
     pub fn get_message_at_index(&self, index: usize) -> Vec<u8> {
@@ -229,6 +238,10 @@ impl MerkleTree {
             FieldElement::zero()
         }
     }
+
+    fn root(&self) -> FieldElement {
+        fetch_root(&self.db)
+    }
 }
 
 fn hash(message: &[u8]) -> FieldElement {
@@ -255,7 +268,7 @@ fn basic_interop_initial_root() {
     let tree = MerkleTree::new(3);
     // Copied from barretenberg by copying the stdout from MemoryTree
     let expected_hex = "0620374242254671503abf57d13969d41bbae97e59fa97cd7777cd683beb9eb8";
-    assert_eq!(tree.root.to_hex(), expected_hex)
+    assert_eq!(tree.root().to_hex(), expected_hex)
 }
 #[test]
 fn basic_interop_hashpath() {
@@ -384,7 +397,7 @@ fn check_membership() {
 
         let leaf = hash(&test_vector.message);
 
-        let mut root = tree.root;
+        let mut root = tree.root();
         if test_vector.should_update_tree {
             root = tree.update_message(index_as_usize, &test_vector.message);
         }
