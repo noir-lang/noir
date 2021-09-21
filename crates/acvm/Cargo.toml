@@ -35,3 +35,4 @@ plonk = ["aztec_backend"]
 marlin = ["arkworks_backend"]
 
 [dev-dependencies]
+tempfile = "3.2.0"
