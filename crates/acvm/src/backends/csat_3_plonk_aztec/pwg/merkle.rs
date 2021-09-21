@@ -21,48 +21,50 @@ pub struct MerkleTree {
     barretenberg: Barretenberg,
 }
 
-const PREIMAGE: u8 = 1;
-const HASH: u8 = 0;
 fn insert_preimage(db: &mut sled::Db, index: u32, value: Vec<u8>) {
+    let tree = db.open_tree("preimages").unwrap();
+
     let index = index as u128;
-
-    let mut key = Vec::with_capacity(17);
-    key.push(PREIMAGE);
-    key.extend_from_slice(&index.to_be_bytes());
-
-    db.insert(&key, value).unwrap();
+    tree.insert(&index.to_be_bytes(), value).unwrap();
 }
 
 fn fetch_preimage(db: &sled::Db, index: usize) -> Vec<u8> {
+    let tree = db.open_tree("preimages").unwrap();
+
     let index = index as u128;
-
-    let mut key = Vec::with_capacity(17);
-    key.push(PREIMAGE);
-    key.extend_from_slice(&index.to_be_bytes());
-
-    db.get(&key).unwrap().map(|i_vec| i_vec.to_vec()).unwrap()
+    tree.get(&index.to_be_bytes())
+        .unwrap()
+        .map(|i_vec| i_vec.to_vec())
+        .unwrap()
 }
 fn fetch_hash(db: &sled::Db, index: usize) -> FieldElement {
+    let tree = db.open_tree("hashes").unwrap();
     let index = index as u128;
 
-    let mut key = Vec::with_capacity(17);
-    key.push(HASH);
-    key.extend_from_slice(&index.to_be_bytes());
-
-    db.get(&key)
+    tree.get(&index.to_be_bytes())
         .unwrap()
         .map(|i_vec| FieldElement::from_be_bytes_reduce(&i_vec.to_vec()))
         .unwrap()
 }
 
 fn insert_hash(db: &mut sled::Db, index: u32, hash: FieldElement) {
+    let tree = db.open_tree("hashes").unwrap();
+
     let index = index as u128;
 
-    let mut key = Vec::with_capacity(17);
-    key.push(HASH);
-    key.extend_from_slice(&index.to_be_bytes());
+    tree.insert(&index.to_be_bytes(), hash.to_bytes()).unwrap();
+}
 
-    db.insert(&key, hash.to_bytes()).unwrap();
+fn find_hash_from_value(db: &sled::Db, leaf_value: &FieldElement) -> Option<u128> {
+    let tree = db.open_tree("hashes").unwrap();
+    for (index_db_lef_hash) in tree.iter() {
+        let (key, db_leaf_hash) = index_db_lef_hash.unwrap();
+        let index = u128::from_be_bytes(key.to_vec().try_into().unwrap());
+        if db_leaf_hash.to_vec() == leaf_value.to_bytes() {
+            return Some(index);
+        }
+    }
+    return None;
 }
 
 impl MerkleTree {
@@ -81,9 +83,6 @@ impl MerkleTree {
 
         let zero_message = [0u8; 64];
         let pre_images: Vec<Vec<u8>> = (0..total_size).map(|_| zero_message.to_vec()).collect();
-        for i in (0..total_size) {
-            insert_preimage(&mut db, i, zero_message.to_vec())
-        }
 
         let mut current = hash(&zero_message);
 
@@ -159,14 +158,8 @@ impl MerkleTree {
     }
 
     pub fn find_index_from_leaf(&self, leaf_value: &FieldElement) -> Option<usize> {
-        for (index_db_lef_hash) in self.db.scan_prefix(&[HASH]) {
-            let (key, db_leaf_hash) = index_db_lef_hash.unwrap();
-            let index = u128::from_be_bytes(key.to_vec()[1..].try_into().unwrap());
-            if db_leaf_hash.to_vec() == leaf_value.to_bytes() {
-                return Some(index as usize);
-            }
-        }
-        return None;
+        let index = find_hash_from_value(&self.db, leaf_value);
+        index.map(|val| val as usize)
     }
 
     /// Update the element at index and compute the new tree root
