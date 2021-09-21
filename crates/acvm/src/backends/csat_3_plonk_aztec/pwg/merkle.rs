@@ -78,12 +78,13 @@ fn find_hash_from_value(db: &sled::Db, leaf_value: &FieldElement) -> Option<u128
 }
 
 impl MerkleTree {
-    pub fn new(depth: u32) -> MerkleTree {
+    pub fn new(depth: u32, temp_db: bool) -> MerkleTree {
         let mut barretenberg = Barretenberg::new();
 
         assert!((1..=20).contains(&depth)); // Why can depth != 0 and depth not more than 20?
 
-        let mut db = sled::open("./merkle_db").unwrap();
+        let config = sled::Config::new().temporary(temp_db).path("./merkle_db");
+        let mut db = config.open().unwrap();
 
         let total_size = 1u32 << depth;
 
@@ -265,7 +266,7 @@ fn compress_native(
 #[test]
 fn basic_interop_initial_root() {
     // Test that the initial root is computed correctly
-    let tree = MerkleTree::new(3);
+    let tree = MerkleTree::new(3, true);
     // Copied from barretenberg by copying the stdout from MemoryTree
     let expected_hex = "0620374242254671503abf57d13969d41bbae97e59fa97cd7777cd683beb9eb8";
     assert_eq!(tree.root().to_hex(), expected_hex)
@@ -273,7 +274,7 @@ fn basic_interop_initial_root() {
 #[test]
 fn basic_interop_hashpath() {
     // Test that the hashpath is correct
-    let tree = MerkleTree::new(3);
+    let tree = MerkleTree::new(3, true);
 
     let path = tree.get_hash_path(0);
 
@@ -301,7 +302,7 @@ fn basic_interop_hashpath() {
 #[test]
 fn basic_interop_update() {
     // Test that computing the HashPath is correct
-    let mut tree = MerkleTree::new(3);
+    let mut tree = MerkleTree::new(3, true);
 
     tree.update_message(0, &vec![0; 64]);
     tree.update_message(1, &vec![1; 64]);
@@ -389,7 +390,7 @@ fn check_membership() {
         },
     ];
 
-    let mut tree = MerkleTree::new(3);
+    let mut tree = MerkleTree::new(3, true);
 
     for test_vector in tests {
         let index = FieldElement::try_from_str(test_vector.index).unwrap();
