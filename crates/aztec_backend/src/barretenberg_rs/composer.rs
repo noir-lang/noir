@@ -701,7 +701,6 @@ fn remove_public_inputs(num_pub_inputs: usize, proof: Vec<u8>) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
-    use wasmer::wasmparser::CodeSectionReader;
 
     use super::*;
 
