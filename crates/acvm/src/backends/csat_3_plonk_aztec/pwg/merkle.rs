@@ -1,4 +1,7 @@
-#![allow(dead_code)] // TODO: remove once this module is used
+#![allow(dead_code)]
+use std::convert::TryInto;
+
+// TODO: remove once this module is used
 use aztec_backend::barretenberg_rs::Barretenberg;
 use noir_field::FieldElement;
 
@@ -14,10 +17,52 @@ pub struct MerkleTree {
     depth: u32,
     total_size: u32,
     root: FieldElement,
-    hashes: Vec<FieldElement>,
-    // XXX: Change this to a hashmap
-    pre_images: Vec<Vec<u8>>,
+    db: sled::Db,
     barretenberg: Barretenberg,
+}
+
+const PREIMAGE: u8 = 1;
+const HASH: u8 = 0;
+fn insert_preimage(db: &mut sled::Db, index: u32, value: Vec<u8>) {
+    let index = index as u128;
+
+    let mut key = Vec::with_capacity(17);
+    key.push(PREIMAGE);
+    key.extend_from_slice(&index.to_be_bytes());
+
+    db.insert(&key, value).unwrap();
+}
+
+fn fetch_preimage(db: &sled::Db, index: usize) -> Vec<u8> {
+    let index = index as u128;
+
+    let mut key = Vec::with_capacity(17);
+    key.push(PREIMAGE);
+    key.extend_from_slice(&index.to_be_bytes());
+
+    db.get(&key).unwrap().map(|i_vec| i_vec.to_vec()).unwrap()
+}
+fn fetch_hash(db: &sled::Db, index: usize) -> FieldElement {
+    let index = index as u128;
+
+    let mut key = Vec::with_capacity(17);
+    key.push(HASH);
+    key.extend_from_slice(&index.to_be_bytes());
+
+    db.get(&key)
+        .unwrap()
+        .map(|i_vec| FieldElement::from_be_bytes_reduce(&i_vec.to_vec()))
+        .unwrap()
+}
+
+fn insert_hash(db: &mut sled::Db, index: u32, hash: FieldElement) {
+    let index = index as u128;
+
+    let mut key = Vec::with_capacity(17);
+    key.push(HASH);
+    key.extend_from_slice(&index.to_be_bytes());
+
+    db.insert(&key, hash.to_bytes()).unwrap();
 }
 
 impl MerkleTree {
@@ -25,6 +70,8 @@ impl MerkleTree {
         let mut barretenberg = Barretenberg::new();
 
         assert!((1..=20).contains(&depth)); // Why can depth != 0 and depth not more than 20?
+
+        let mut db = sled::open("./merkle_db").unwrap();
 
         let total_size = 1u32 << depth;
 
@@ -34,6 +81,9 @@ impl MerkleTree {
 
         let zero_message = [0u8; 64];
         let pre_images: Vec<Vec<u8>> = (0..total_size).map(|_| zero_message.to_vec()).collect();
+        for i in (0..total_size) {
+            insert_preimage(&mut db, i, zero_message.to_vec())
+        }
 
         let mut current = hash(&zero_message);
 
@@ -50,14 +100,36 @@ impl MerkleTree {
         }
         let root = current;
 
+        for (index, hash) in hashes.into_iter().enumerate() {
+            insert_hash(&mut db, index as u32, hash)
+        }
+
+        for (index, image) in pre_images.into_iter().enumerate() {
+            insert_preimage(&mut db, index as u32, image)
+        }
+
         MerkleTree {
             depth,
             total_size,
             root,
-            hashes,
-            pre_images,
             barretenberg,
+            db,
         }
+    }
+
+    fn get_hash_from_db(&self, index: usize) -> FieldElement {
+        const HASH: u8 = 0;
+        let index = index as u128;
+
+        let mut key = Vec::with_capacity(17);
+        key.push(HASH);
+        key.extend_from_slice(&index.to_be_bytes());
+
+        self.db
+            .get(&key)
+            .unwrap()
+            .map(|i_vec| FieldElement::from_be_bytes_reduce(&i_vec.to_vec()))
+            .unwrap()
     }
 
     pub fn get_hash_path(&self, mut index: usize) -> HashPath {
@@ -67,7 +139,10 @@ impl MerkleTree {
         let mut layer_size = self.total_size;
         for _ in 0..self.depth {
             index &= (!0) - 1;
-            path.push((self.hashes[offset + index], self.hashes[offset + index + 1]));
+            path.push((
+                self.get_hash_from_db(offset + index),
+                self.get_hash_from_db(offset + index + 1),
+            ));
             offset += layer_size as usize;
             layer_size /= 2;
             index /= 2;
@@ -78,26 +153,22 @@ impl MerkleTree {
     pub fn update_message(&mut self, index: usize, new_message: &[u8]) -> FieldElement {
         let current = hash(new_message);
 
-        self.pre_images[index] = new_message.to_vec();
+        // self.pre_images[index] = new_message.to_vec();
+        insert_preimage(&mut self.db, index as u32, new_message.to_vec());
         self.update_leaf(index, current)
     }
 
     pub fn find_index_from_leaf(&self, leaf_value: &FieldElement) -> Option<usize> {
-        for (index, db_lef_hash) in self.hashes.iter().enumerate() {
-            if db_lef_hash == leaf_value {
-                return Some(index);
+        for (index_db_lef_hash) in self.db.scan_prefix(&[HASH]) {
+            let (key, db_leaf_hash) = index_db_lef_hash.unwrap();
+            let index = u128::from_be_bytes(key.to_vec()[1..].try_into().unwrap());
+            if db_leaf_hash.to_vec() == leaf_value.to_bytes() {
+                return Some(index as usize);
             }
         }
         return None;
     }
-    pub fn find_index_from_message(&self, message: &FieldElement) -> Option<usize> {
-        for (index, db_message) in self.pre_images.iter().enumerate() {
-            if db_message == &message.to_bytes() {
-                return Some(index);
-            }
-        }
-        return None;
-    }
+
     /// Update the element at index and compute the new tree root
     pub fn update_leaf(&mut self, mut index: usize, mut current: FieldElement) -> FieldElement {
         // Note that this method does not update the list of messages [preimages]|
@@ -106,12 +177,13 @@ impl MerkleTree {
         let mut offset = 0usize;
         let mut layer_size = self.total_size;
         for _ in 0..self.depth {
-            self.hashes[offset + index] = current;
+            insert_hash(&mut self.db, (offset + index) as u32, current);
+
             index &= (!0) - 1;
             current = compress_native(
                 &mut self.barretenberg,
-                &self.hashes[offset + index],
-                &self.hashes[offset + index + 1],
+                &fetch_hash(&self.db, offset + index),
+                &fetch_hash(&self.db, offset + index + 1),
             );
 
             offset += layer_size as usize;
@@ -124,7 +196,7 @@ impl MerkleTree {
     }
     /// Gets a message at `index`. This is not the leaf
     pub fn get_message_at_index(&self, index: usize) -> Vec<u8> {
-        self.pre_images[index].clone()
+        fetch_preimage(&self.db, index)
     }
 
     pub fn check_membership(
