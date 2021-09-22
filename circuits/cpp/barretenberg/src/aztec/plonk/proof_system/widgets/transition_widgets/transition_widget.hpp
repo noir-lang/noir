@@ -53,17 +53,32 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
             if (transcript.has_challenge("nu")) {
                 result.elements[LINEAR_NU] = transcript.get_challenge_field_element_from_map("nu", "r");
             } else {
-                result.elements[LINEAR_NU] = 0;
+                result.elements[LINEAR_NU] =  barretenberg::fr::random_element();
             }
         } else {
-            result.elements[LINEAR_NU] = 0;
+            result.elements[LINEAR_NU] = barretenberg::fr::random_element();
         }
-
+        /**
+         * There are several issues we need to address here: 
+         * 1. We can't just set the value to 0. In case of a typo this could lead to a vulnerability
+         * 2. We can't fail when there is no challenge, because getters get activated at various phases
+         * 3. There is no way for us to check accesses in the challenge_array (it would degrade speed)
+         * 4. And we can't actually make the widgets submit information about needed challenges 
+         * because there are several functions that are used at various rounds in the protocol :(
+         * 
+         * Since we can't enforce anything really let's introduce a simple mitigation:
+         *   The challenges that aren't in the transcript are replaced by random values.
+         *
+         * The value each of the widget uses and the value the verifier uses will differ. As a result, 
+         * proof will fail if some widget uses an uninitialized challenge.         * 
+         * 
+         * */
         auto add_challenge = [transcript, &result](const auto label, const auto tag, const size_t index = 0) {
+
             if (transcript.has_challenge(label)) {
                 result.elements[tag] = transcript.get_challenge_field_element(label, index);
             } else {
-                result.elements[tag] = 0;
+                result.elements[tag] = barretenberg::fr::random_element();
             }
         };
 
@@ -71,7 +86,7 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
         add_challenge("beta", BETA);
         add_challenge("beta", GAMMA, 1);
         add_challenge("eta", ETA);
-        add_challenge("zeta", ZETA);
+        add_challenge("z", ZETA);
         result.alpha_powers[0] = alpha_base;
         for (size_t i = 1; i < num_widget_relations; ++i) {
             result.alpha_powers[i] = result.alpha_powers[i - 1] * result.elements[ALPHA];
