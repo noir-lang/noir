@@ -28,7 +28,7 @@ impl GadgetCaller {
                 let mut inputs_iter = gadget_call.inputs.iter();
 
                 let _root = inputs_iter.next().expect("expected a root");
-                let root = input_to_value(initial_witness, _root).clone();
+                let root = *input_to_value(initial_witness, _root);
 
                 let _leaf = inputs_iter.next().expect("expected a leaf");
                 let leaf = *input_to_value(initial_witness, _leaf);
@@ -51,10 +51,12 @@ impl GadgetCaller {
 
                 // Update the index
 
-                let index = merkle_tree.find_index_from_leaf(&leaf).expect(&format!(
-                    "could not find leaf in the merkle tree. {} not found",
-                    leaf.to_hex(),
-                ));
+                let index = merkle_tree.find_index_from_leaf(&leaf).unwrap_or_else(|| {
+                    panic!(
+                        "could not find leaf in the merkle tree. {} not found",
+                        leaf.to_hex()
+                    )
+                });
 
                 let index_fr = FieldElement::from(index as i128);
                 // Set the index here
