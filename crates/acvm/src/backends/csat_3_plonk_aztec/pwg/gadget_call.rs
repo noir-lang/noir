@@ -28,7 +28,7 @@ impl GadgetCaller {
                 let mut inputs_iter = gadget_call.inputs.iter();
 
                 let _root = inputs_iter.next().expect("expected a root");
-                // let root = input_to_value(initial_witness, _root); // TODO (1a) once we have proper state management, we can use the root that is passed in
+                let root = input_to_value(initial_witness, _root).clone();
 
                 let _leaf = inputs_iter.next().expect("expected a leaf");
                 let leaf = *input_to_value(initial_witness, _leaf);
@@ -40,19 +40,21 @@ impl GadgetCaller {
                 let arity = 2;
                 let depth = hashpath_indices.len() / arity;
 
-                let mut merkle_tree = MerkleTree::new(depth as u32, "./merkle_db");
+                // TODO: We either need to hardcode this on a known program path
+                // TODO or allow the user to input it somehow in a settings file.
+                let merkle_tree = MerkleTree::from_path("../data/merkle_db");
+                let expected_merkle_root = merkle_tree.root();
+                let expected_depth = merkle_tree.depth();
 
-                let root = merkle_tree.update_leaf(2, leaf); // TODO (1b) We are updating the tree here, because we do not have proper state management yet
-                initial_witness.insert(_root.witness, root);
-                // XXX: Usually the root would be passed in as a proof, and here we would assert that
-                // the root in the tree is equal to the root passed in
-                // assert_eq!(root, merkle_tree.root);
+                assert_eq!(root, expected_merkle_root, "the merkle root provided does not match the merkle root in your db, got {} expected {}", root.to_hex(), expected_merkle_root.to_hex());
+                assert_eq!(depth as u32, expected_depth, "the depth provided does not match the merkle depth in your db, got {} expected {}", depth, expected_depth);
 
                 // Update the index
 
-                let index = merkle_tree
-                    .find_index_from_leaf(&leaf)
-                    .expect("value not found in merkle tree");
+                let index = merkle_tree.find_index_from_leaf(&leaf).expect(&format!(
+                    "could not find leaf in the merkle tree. {} not found",
+                    leaf.to_hex(),
+                ));
 
                 let index_fr = FieldElement::from(index as i128);
                 // Set the index here
