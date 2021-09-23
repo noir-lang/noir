@@ -1,7 +1,7 @@
+// TODO: remove once this module is used
 #![allow(dead_code)]
 use std::{convert::TryInto, path::Path};
 
-// TODO: remove once this module is used
 use aztec_backend::barretenberg_rs::Barretenberg;
 use noir_field::FieldElement;
 
@@ -29,6 +29,16 @@ fn fetch_root(db: &sled::Db) -> FieldElement {
         .unwrap()
         .expect("merkle root should always be present");
     FieldElement::from_be_bytes_reduce(&value.to_vec())
+}
+fn insert_depth(db: &mut sled::Db, value: u32) {
+    db.insert("DEPTH".as_bytes(), &value.to_be_bytes()).unwrap();
+}
+fn fetch_depth(db: &sled::Db) -> u32 {
+    let value = db
+        .get("DEPTH".as_bytes())
+        .unwrap()
+        .expect("depth should always be present");
+    u32::from_be_bytes(value.to_vec().try_into().unwrap())
 }
 fn insert_preimage(db: &mut sled::Db, index: u32, value: Vec<u8>) {
     let tree = db.open_tree("preimages").unwrap();
@@ -78,6 +88,24 @@ fn find_hash_from_value(db: &sled::Db, leaf_value: &FieldElement) -> Option<u128
 }
 
 impl MerkleTree {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> MerkleTree {
+        let barretenberg = Barretenberg::new();
+        assert!(path.as_ref().exists(), "path does not exist");
+        let config = sled::Config::new().path(path);
+
+        let db = config.open().unwrap();
+
+        let depth = fetch_depth(&db);
+
+        let total_size = 1u32 << depth;
+
+        MerkleTree {
+            depth,
+            total_size,
+            barretenberg,
+            db,
+        }
+    }
     pub fn new<P: AsRef<Path>>(depth: u32, path: P) -> MerkleTree {
         let mut barretenberg = Barretenberg::new();
 
@@ -118,6 +146,8 @@ impl MerkleTree {
         for (index, image) in pre_images.into_iter().enumerate() {
             insert_preimage(&mut db, index as u32, image)
         }
+
+        insert_depth(&mut db, depth);
 
         MerkleTree {
             depth,
@@ -225,8 +255,11 @@ impl MerkleTree {
         }
     }
 
-    fn root(&self) -> FieldElement {
+    pub fn root(&self) -> FieldElement {
         fetch_root(&self.db)
+    }
+    pub fn depth(&self) -> u32 {
+        self.depth
     }
 }
 
