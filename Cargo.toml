@@ -16,4 +16,5 @@ members = [
     "crates/acvm",
     "crates/noirc_abi",
 ]
+exclude = ["examples/9/merkle_tree_processor"]
 default-members = ["crates/nargo"]
