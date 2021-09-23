@@ -1,0 +1,5 @@
+
+# Manually copied from merkle.rs (test::basic_interop_update) 
+# Which was tested to be consistent with barretenberg C++ 
+message = [0, 0, 1, 2, 3]
+root = "0x05adbf855ec1295941fd0987375353a9207d9e68cf7ec826084f26469cb27130"
