@@ -23,6 +23,17 @@ enum ChallengeIndex {
     MAX_NUM_CHALLENGES,
 };
 
+/**
+ * Widgets use this bitmask to declare the challenges
+ * they will be using
+ * */
+#define CHALLENGE_BIT_ALPHA (1 << widget::ChallengeIndex::ALPHA)
+#define CHALLENGE_BIT_BETA (1 << widget::ChallengeIndex::BETA)
+#define CHALLENGE_BIT_GAMMA (1 << widget::ChallengeIndex::GAMMA)
+#define CHALLENGE_BIT_ETA (1 << widget::ChallengeIndex::ETA)
+#define CHALLENGE_BIT_ZETA (1 << widget::ChallengeIndex::ZETA)
+#define CHALLENGE_BIT_LINEAR_NU (1 << widget::ChallengeIndex::LINEAR_NU)
+
 namespace containers {
 template <class Field, size_t num_widget_relations> struct challenge_array {
     std::array<Field, ChallengeIndex::MAX_NUM_CHALLENGES> elements;
@@ -46,35 +57,42 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
     typedef containers::challenge_array<Field, num_widget_relations> challenge_array;
 
   public:
-    static challenge_array get_challenges(const Transcript& transcript, const Field& alpha_base)
+    static challenge_array get_challenges(const Transcript& transcript,
+                                          const Field& alpha_base,
+                                          uint8_t required_challenges)
     {
         challenge_array result{};
         if constexpr (Settings::use_linearisation) {
+            ASSERT(!(required_challenges & CHALLENGE_BIT_LINEAR_NU) || transcript.has_challenge("nu"));
             if (transcript.has_challenge("nu")) {
                 result.elements[LINEAR_NU] = transcript.get_challenge_field_element_from_map("nu", "r");
             } else {
-                result.elements[LINEAR_NU] =  barretenberg::fr::random_element();
+                result.elements[LINEAR_NU] = barretenberg::fr::random_element();
             }
         } else {
             result.elements[LINEAR_NU] = barretenberg::fr::random_element();
         }
         /**
-         * There are several issues we need to address here: 
+         * There are several issues we need to address here:
          * 1. We can't just set the value to 0. In case of a typo this could lead to a vulnerability
          * 2. We can't fail when there is no challenge, because getters get activated at various phases
          * 3. There is no way for us to check accesses in the challenge_array (it would degrade speed)
-         * 4. And we can't actually make the widgets submit information about needed challenges 
-         * because there are several functions that are used at various rounds in the protocol :(
-         * 
-         * Since we can't enforce anything really let's introduce a simple mitigation:
+         *
+         * One of the mitigations we use is we force the transition widget kernel to have members
+         * that describe the necessary challenges for quotient polynomial construction and for
+         * kate update. We then take them and submit to the get_challenges function. This allows us
+         * to catch misuse, but only if the developer is prudent.
+         *
+         * Since we can't enforce anything really we introduced a simple mitigation:
          *   The challenges that aren't in the transcript are replaced by random values.
          *
-         * The value each of the widget uses and the value the verifier uses will differ. As a result, 
-         * proof will fail if some widget uses an uninitialized challenge.         * 
-         * 
+         * The value each of the widget uses and the value the verifier uses will differ. As a result,
+         * proof will fail if some widget uses an uninitialized challenge.         *
+         *
          * */
-        auto add_challenge = [transcript, &result](const auto label, const auto tag, const size_t index = 0) {
-
+        auto add_challenge = [transcript,
+                              &result](const auto label, const auto tag, const bool required, const size_t index = 0) {
+            ASSERT(!required || transcript.has_challenge(label));
             if (transcript.has_challenge(label)) {
                 result.elements[tag] = transcript.get_challenge_field_element(label, index);
             } else {
@@ -82,11 +100,11 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
             }
         };
 
-        add_challenge("alpha", ALPHA);
-        add_challenge("beta", BETA);
-        add_challenge("beta", GAMMA, 1);
-        add_challenge("eta", ETA);
-        add_challenge("z", ZETA);
+        add_challenge("alpha", ALPHA, required_challenges & CHALLENGE_BIT_ALPHA);
+        add_challenge("beta", BETA, required_challenges & CHALLENGE_BIT_BETA);
+        add_challenge("beta", GAMMA, required_challenges & CHALLENGE_BIT_GAMMA, 1);
+        add_challenge("eta", ETA, required_challenges & CHALLENGE_BIT_ETA);
+        add_challenge("z", ZETA, required_challenges & CHALLENGE_BIT_ZETA);
         result.alpha_powers[0] = alpha_base;
         for (size_t i = 1; i < num_widget_relations; ++i) {
             result.alpha_powers[i] = result.alpha_powers[i - 1] * result.elements[ALPHA];
@@ -302,7 +320,8 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
         auto* key = TransitionWidgetBase<Field>::key;
 
         poly_ptr_array polynomials = FFTGetter::get_fft_polynomials(key);
-        challenge_array challenges = FFTGetter::get_challenges(transcript, alpha_base);
+        challenge_array challenges =
+            FFTGetter::get_challenges(transcript, alpha_base, FFTKernel::quotient_required_challenges);
         if constexpr (FFTKernel::use_quotient_mid) {
             Field* quotient = &key->quotient_mid[0];
             ITERATE_OVER_DOMAIN_START(key->mid_domain);
@@ -327,7 +346,10 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
                                       const transcript::StandardTranscript& transcript,
                                       Field* linear_poly) override
     {
-        challenge_array challenges = MonomialGetter::get_challenges(transcript, alpha_base);
+        challenge_array challenges = MonomialGetter::get_challenges(transcript,
+                                                                    alpha_base,
+                                                                    EvaluationKernel::quotient_required_challenges |
+                                                                        MonomialKernel::quotient_required_challenges);
 
         if constexpr (!Settings::use_linearisation) {
             return MonomialGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
@@ -368,7 +390,8 @@ class GenericVerifierWidget {
     {
         poly_array polynomial_evaluations =
             EvaluationGetter::get_polynomial_evaluations(key->polynomial_manifest, transcript);
-        challenge_array challenges = EvaluationGetter::get_challenges(transcript, alpha_base);
+        challenge_array challenges =
+            EvaluationGetter::get_challenges(transcript, alpha_base, EvaluationKernel::quotient_required_challenges);
 
         EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, t_eval);
 
@@ -386,7 +409,10 @@ class GenericVerifierWidget {
                                                      std::map<std::string, Field>& scalars,
                                                      const bool)
     {
-        challenge_array challenges = EvaluationGetter::get_challenges(transcript, alpha_base);
+        challenge_array challenges = EvaluationGetter::get_challenges(transcript,
+                                                                      alpha_base,
+                                                                      EvaluationKernel::quotient_required_challenges |
+                                                                          EvaluationKernel::update_required_challenges);
         if (!Settings::use_linearisation) {
             return EvaluationGetter::update_alpha(challenges, num_independent_relations);
         }

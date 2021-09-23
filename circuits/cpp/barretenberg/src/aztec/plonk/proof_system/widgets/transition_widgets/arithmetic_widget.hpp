@@ -9,6 +9,10 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
   public:
     static constexpr bool use_quotient_mid = false;
     static constexpr size_t num_independent_relations = 1;
+    // We state the challenges required for linear/nonlinear terms computation
+    static constexpr uint8_t quotient_required_challenges = CHALLENGE_BIT_ALPHA;
+    // We state the challenges required for updating kate opening scalars
+    static constexpr uint8_t update_required_challenges = CHALLENGE_BIT_ALPHA | CHALLENGE_BIT_LINEAR_NU;
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
@@ -19,7 +23,7 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
                                             const challenge_array&,
                                             coefficient_array& linear_terms,
                                             const size_t i = 0)
-    {        
+    {
         const Field& w_1 = Getters::template get_polynomial<false, PolynomialIndex::W_1>(polynomials, i);
         const Field& w_2 = Getters::template get_polynomial<false, PolynomialIndex::W_2>(polynomials, i);
         const Field& w_3 = Getters::template get_polynomial<false, PolynomialIndex::W_3>(polynomials, i);
