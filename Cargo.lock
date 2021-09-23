@@ -71,12 +71,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.40"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28b2cd92db5cbd74e8e5028f7e27dd7aa3090e89e4f2a197cc7c8dfb69c7063b"
-
-[[package]]
 name = "arena"
 version = "0.1.0"
 dependencies = [
@@ -300,8 +294,6 @@ dependencies = [
  "acir",
  "dirs",
  "downloader",
- "error-chain",
- "hex",
  "indicatif",
  "noir_field",
  "once_cell",
@@ -310,7 +302,6 @@ dependencies = [
  "wasmer",
  "wasmer-cache",
  "wasmer-engine-jit",
- "wasmer-engine-native",
  "wasmer-wasi",
 ]
 
@@ -841,16 +832,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5b36e6f2295f393f44894c6031f67df4d185b984cd54d08f768ce678007efcd"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "error-chain"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d2f06b9cac1506ece98fe3231e3cc9c4410ec3d5b1f24ae1c8946f0742cdefc"
-dependencies = [
- "backtrace",
- "version_check",
 ]
 
 [[package]]
@@ -1499,11 +1480,9 @@ dependencies = [
 name = "noirc_errors"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "codespan",
  "codespan-reporting",
  "fm",
- "unindent",
 ]
 
 [[package]]
@@ -2473,12 +2452,6 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
-
-[[package]]
-name = "unindent"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f14ee04d9415b52b3aeab06258a3f07093182b88ba0f9b8d203f211a7a7d41c7"
 
 [[package]]
 name = "url"
