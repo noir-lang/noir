@@ -4,15 +4,14 @@
 #include "../proofs/claim/verify.hpp"
 #include "../proofs/rollup/index.hpp"
 #include "../proofs/root_rollup/index.hpp"
+#include "../proofs/root_verifier/index.hpp"
 #include <common/timer.hpp>
 #include <common/container.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
-#include <stdlib/types/turbo.hpp>
 
 using namespace ::rollup::proofs;
-using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace serialize;
 namespace tx_rollup = ::rollup::proofs::rollup;
@@ -26,6 +25,7 @@ account::circuit_data account_cd;
 tx_rollup::circuit_data tx_rollup_cd;
 root_rollup::circuit_data root_rollup_cd;
 claim::circuit_data claim_cd;
+root_verifier::circuit_data root_verifier_cd;
 } // namespace
 
 bool create_tx_rollup()
@@ -96,8 +96,6 @@ bool create_root_rollup()
         return false;
     }
 
-    auto gibberish_data_roots_path = fr_hash_path(28, std::make_pair(fr::random_element(), fr::random_element()));
-
     Timer timer;
     root_rollup_cd.proving_key->reset();
 
@@ -134,6 +132,53 @@ bool create_claim()
 
     write(std::cout, result.proof_data);
     write(std::cout, result.verified);
+    std::cout << std::flush;
+
+    return result.verified;
+}
+
+bool create_root_verifier()
+{
+    uint32_t num_txs;
+    uint32_t num_proofs;
+    read(std::cin, num_txs);
+    read(std::cin, num_proofs);
+
+    if (!tx_rollup_cd.proving_key || tx_rollup_cd.num_txs != num_txs) {
+        tx_rollup_cd.proving_key.reset();
+        tx_rollup_cd =
+            tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
+    }
+
+    if (!root_rollup_cd.proving_key || root_rollup_cd.num_inner_rollups != num_proofs) {
+        root_rollup_cd.proving_key.reset();
+        root_rollup_cd =
+            root_rollup::get_circuit_data(num_proofs, tx_rollup_cd, crs, data_path, true, persist, persist);
+    }
+
+    if (!root_verifier_cd.proving_key) {
+        root_verifier_cd.proving_key.reset();
+        root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd, crs, data_path, true, persist, persist);
+    }
+
+    Timer timer;
+
+    std::vector<uint8_t> root_rollup_proof_buf;
+    std::cerr << "Reading root verifier tx..." << std::endl;
+    read(std::cin, root_rollup_proof_buf);
+
+    auto tx = root_verifier::create_root_verifier_tx(root_rollup_proof_buf, (uint32_t)root_rollup_cd.rollup_size);
+
+    root_verifier_cd.proving_key->reset();
+
+    std::cerr << "Creating root verifier proof..." << std::endl;
+    auto result = verify(tx, root_verifier_cd);
+
+    std::cerr << "Time taken: " << timer.toString() << std::endl;
+    std::cerr << "Verified: " << result.verified << std::endl;
+    result.proof_data = join({ tx.broadcast_data, result.proof_data });
+    write(std::cout, result.proof_data);
+    write(std::cout, (uint8_t)result.verified);
     std::cout << std::flush;
 
     return result.verified;
@@ -176,6 +221,10 @@ int main(int argc, char** argv)
         }
         case 2: {
             create_claim();
+            break;
+        }
+        case 3: {
+            create_root_verifier();
             break;
         }
         }

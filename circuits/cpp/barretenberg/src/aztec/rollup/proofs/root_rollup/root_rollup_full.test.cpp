@@ -62,16 +62,14 @@ class root_rollup_full_tests : public ::testing::Test {
                                          rollup::circuit_data const& tx_rollup_cd,
                                          RollupStructure const& rollup_structure)
     {
-        std::vector<rollup::rollup_tx> rollups;
         std::vector<std::vector<uint8_t>> rollups_data;
 
         for (auto txs : rollup_structure) {
-            auto name = format(test_name, "_rollup", rollups.size() + 1);
+            auto name = format(test_name, "_rollup", rollups_data.size() + 1);
             auto rollup = rollup::create_rollup_tx(world_state, tx_rollup_cd.rollup_size, txs, {}, { 0 });
             auto rollup_data = compute_or_load_fixture(
                 TEST_PROOFS_PATH, name, [&] { return rollup::verify(rollup, tx_rollup_cd).proof_data; });
             assert(!rollup_data.empty());
-            rollups.push_back(rollup);
             rollups_data.push_back(rollup_data);
         }
 

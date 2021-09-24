@@ -378,6 +378,11 @@ void PlookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
     ++n;
 }
 
+void PlookupComposer::create_fixed_group_add_gate_final(const add_quad& in)
+{
+    create_big_add_gate(in);
+}
+
 void PlookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
 {
     /**

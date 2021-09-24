@@ -1,7 +1,6 @@
 #pragma once
 #include "compute_circuit_data.hpp"
 #include "root_rollup_tx.hpp"
-#include <stdlib/types/turbo.hpp>
 
 namespace rollup {
 namespace proofs {

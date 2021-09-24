@@ -1,6 +1,7 @@
 #include "../proofs/join_split/index.hpp"
 #include "../proofs/rollup/index.hpp"
 #include "../proofs/root_rollup/index.hpp"
+#include "../proofs/root_verifier/index.hpp"
 #include "../world_state/world_state.hpp"
 #include "../constants.hpp"
 #include <common/streams.hpp>
@@ -97,10 +98,30 @@ int main(int argc, char** argv)
     }
 
     auto root_rollup = root_rollup::create_root_rollup_tx(world_state, 0, world_state.defi_tree.root(), rollups_data);
-    write(std::cout, (uint32_t)1);
+    auto name = format("root_rollup_", inner_rollup_size, "x", outer_rollup_size, "_", rollups_data.size(), ".dat");
+
+    auto root_rollup_proof_buf = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
+        std::cerr << prefix << "Sending..." << std::endl;
+        write(std::cout, (uint32_t)1);
+        write(std::cout, (uint32_t)inner_rollup_size);
+        write(std::cout, (uint32_t)outer_rollup_size);
+        write(std::cout, root_rollup);
+        std::cerr << prefix << "Sent." << std::endl;
+
+        std::vector<uint8_t> root_rollup_proof_buf;
+        bool verified;
+        read(std::cin, root_rollup_proof_buf);
+        read(std::cin, verified);
+        if (!verified) {
+            throw std::runtime_error("Received an unverified root rollup proof.");
+        }
+        return root_rollup_proof_buf;
+    });
+
+    write(std::cout, (uint32_t)3);
     write(std::cout, (uint32_t)inner_rollup_size);
     write(std::cout, (uint32_t)outer_rollup_size);
-    write(std::cout, root_rollup);
+    write(std::cout, root_rollup_proof_buf);
 
     if (args.size() > 5) {
         std::vector<uint8_t> proof_data;

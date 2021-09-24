@@ -60,12 +60,16 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
     constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
 
-    constexpr size_t initial_exponent = num_bits; // ((num_bits & 1) == 1) ? num_bits - 1: num_bits;
+    // more generally, we could define initial_exponent as
+    //   initial_exponent = ((num_bits & 1) == 1) ? num_bits - 1: num_bits;
+    // this may require updating the logic around accumulator_offset
+    constexpr size_t initial_exponent = num_bits;
     const auto gen_data = crypto::pedersen::get_generator_data(hash_index);
     const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
     grumpkin::g1::affine_element generator = gen_data.aux_generator;
 
     grumpkin::g1::element origin_points[2];
+    // ladder[0] = 4^{n-1}g, where g is a generator chosen for hashing.
     origin_points[0] = grumpkin::g1::element(ladder[0].one);
     origin_points[1] = origin_points[0] + generator;
     origin_points[1] = origin_points[1].normalize();
@@ -78,8 +82,16 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     }
     scalar_multiplier_base = scalar_multiplier_base.from_montgomery_form();
     uint64_t wnaf_entries[num_quads + 1] = { 0 };
-    bool skew = false;
+    bool skew = false; // will update to be the boolean "scalar is even"
 
+    /* compute the value of each 2-bit wnaf window and write into `wnaf_entries` array
+     each `wnaf_entries[i]` is a `uint32_t` value which maps to the wnaf value via the formulae:
+       wnaf_value_absolute = 2 * (wnaf_entries[i] & 0b11) + 1
+       predicate = (wnaf_entries[i] >> 31);
+       wnaf_value = predicate ? -wnaf_value_absolute : wnaf_value_absolute
+     i.e. most significant bit describes if wnaf is negative
+    remaining value will be 0 or 1 which corresponds to 1 or 3
+    */
     barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
 
     fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
@@ -92,17 +104,22 @@ point<C> pedersen<C>::hash_single(const field_t& in,
     accumulator_transcript.resize(num_quads + 1);
 
     if (skew) {
+        // scalar is even (in particular, could be 0)
         multiplication_transcript[0] = origin_points[1];
         accumulator_transcript[0] = origin_accumulators[1];
     } else {
+        // scalar is odd
         multiplication_transcript[0] = origin_points[0];
         accumulator_transcript[0] = origin_accumulators[0];
     }
     constexpr fr one = fr::one();
     constexpr fr three = ((one + one) + one);
 
+    // compute values for `accumulator_transcript` and `multiplication_transcript`
+    // `accumulator_transcript` contains the value of the accumulated wnaf entries for each gate
+    // `multiplication_transcript` contains the x/y coordinate of the current accumulator point for each gate
     for (size_t i = 0; i < num_quads; ++i) {
-        uint64_t entry = wnaf_entries[i + 1] & 0xffffff;
+        uint64_t entry = wnaf_entries[i + 1] & 0xffffff; // remove most significant bit (this is the sign bit)
 
         fr prev_accumulator = accumulator_transcript[i] + accumulator_transcript[i];
         prev_accumulator = prev_accumulator + prev_accumulator;
@@ -110,8 +127,11 @@ point<C> pedersen<C>::hash_single(const field_t& in,
         grumpkin::g1::affine_element point_to_add = (entry == 1) ? ladder[i + 1].three : ladder[i + 1].one;
 
         fr scalar_to_add = (entry == 1) ? three : one;
+
+        // 31st bit is sign bit
         uint64_t predicate = (wnaf_entries[i + 1] >> 31U) & 1U;
         if (predicate) {
+            // wnaf digit is negative
             point_to_add = -point_to_add;
             scalar_to_add.self_neg();
         }
@@ -161,6 +181,8 @@ point<C> pedersen<C>::hash_single(const field_t& in,
         accumulator_witnesses.push_back(round_quad.d);
     }
 
+    // In Turbo PLONK, this effectively just adds the last row of the table as witnesses.
+    // In Standard PLONK, this also creates the constraint involving the final two rows.
     waffle::add_quad add_quad{ ctx->add_variable(multiplication_transcript[num_quads].x),
                                ctx->add_variable(multiplication_transcript[num_quads].y),
                                ctx->add_variable(x_alpha),
@@ -170,7 +192,7 @@ point<C> pedersen<C>::hash_single(const field_t& in,
                                fr::zero(),
                                fr::zero(),
                                fr::zero() };
-    ctx->create_big_add_gate(add_quad);
+    ctx->create_fixed_group_add_gate_final(add_quad);
     accumulator_witnesses.push_back(add_quad.d);
 
     point result;
@@ -543,6 +565,7 @@ point<C> pedersen<C>::compress_to_point(const field_t& in_left, const field_t& i
     return add_points(first, second);
 }
 
+template class pedersen<waffle::StandardComposer>;
 template class pedersen<waffle::TurboComposer>;
 template class pedersen<waffle::PlookupComposer>;
 

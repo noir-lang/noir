@@ -11,6 +11,7 @@ enum StandardSelectors {
     Q2 = 3,
     Q3 = 4,
 };
+
 inline std::vector<ComposerBase::SelectorProperties> standard_sel_props()
 {
     // We set the use_quotient_mid variable to false in composer settings so as to
@@ -51,6 +52,16 @@ class StandardComposer : public ComposerBase {
     StandardComposer(std::string const& crs_path, const size_t size_hint = 0)
         : StandardComposer(std::unique_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)),
                            size_hint){};
+
+    StandardComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint = 0)
+        : ComposerBase(crs_factory, 5, size_hint, standard_sel_props())
+    {
+        w_l.reserve(size_hint);
+        w_r.reserve(size_hint);
+        w_o.reserve(size_hint);
+
+        zero_idx = put_constant_variable(fr::zero());
+    }
 
     StandardComposer(std::unique_ptr<ReferenceStringFactory>&& crs_factory, const size_t size_hint = 0)
         : ComposerBase(std::move(crs_factory), 5, size_hint, standard_sel_props())
@@ -93,16 +104,42 @@ class StandardComposer : public ComposerBase {
     void create_mul_gate(const mul_triple& in) override;
     void create_bool_gate(const uint32_t a) override;
     void create_poly_gate(const poly_triple& in) override;
-
     void create_big_add_gate(const add_quad& in);
     void create_big_add_gate_with_bit_extraction(const add_quad& in);
     void create_big_mul_gate(const mul_quad& in);
     void create_balanced_add_gate(const add_quad& in);
+    void create_fixed_group_add_gate(const fixed_group_add_quad& in);
+    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
+    void create_fixed_group_add_gate_final(const add_quad& in);
+
+    fixed_group_add_quad previous_add_quad;
+
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
     std::vector<uint32_t> decompose_into_base4_accumulators(const uint32_t witness_index,
                                                             const size_t num_bits,
                                                             std::string const& msg = "create_range_constraint");
+
+    std::vector<uint32_t> create_range_constraint(const uint32_t witness_index,
+                                                  const size_t num_bits,
+                                                  std::string const& msg = "create_range_constraint");
+    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+    {
+        if (contains_recursive_proof) {
+            failed = true;
+            err = "added recursive proof when one already exists";
+        }
+        contains_recursive_proof = true;
+
+        for (const auto& idx : proof_output_witness_indices) {
+            set_public_input(idx);
+            recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
+        }
+    }
+
+    std::vector<uint32_t> recursive_proof_public_input_indices;
+    bool contains_recursive_proof = false;
+
     accumulator_triple create_logic_constraint(const uint32_t a,
                                                const uint32_t b,
                                                const size_t num_bits,
@@ -112,7 +149,6 @@ class StandardComposer : public ComposerBase {
 
     uint32_t put_constant_variable(const barretenberg::fr& variable);
 
-    void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
     // these are variables that we have used a gate on, to enforce that they are

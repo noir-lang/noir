@@ -31,7 +31,8 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
         claim_circuit(composer, claim_tx);
     };
 
-    return proofs::get_circuit_data(name, srs, key_path, compute, save, load, true, true, false, build_circuit);
+    return proofs::get_circuit_data<Composer>(
+        name, srs, key_path, compute, save, load, true, true, false, build_circuit);
 }
 
 } // namespace claim

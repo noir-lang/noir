@@ -57,7 +57,8 @@ circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFactory> co
         join_split_circuit(composer, tx);
     };
 
-    return proofs::get_circuit_data(name, srs, key_path, compute, save, load, true, true, true, build_circuit);
+    return proofs::get_circuit_data<Composer>(
+        name, srs, key_path, compute, save, load, true, true, true, build_circuit);
 }
 
 } // namespace join_split

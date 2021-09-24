@@ -312,6 +312,11 @@ void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
     ++n;
 }
 
+void TurboComposer::create_fixed_group_add_gate_final(const add_quad& in)
+{
+    create_big_add_gate(in);
+}
+
 void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     TURBO_SELECTOR_REFS

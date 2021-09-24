@@ -6,7 +6,9 @@ namespace waffle {
  * Write a solidity file containing the vk params to the given stream.
  * Uses TurboPlonk
  **/
-inline void output_vk_sol(std::ostream& os, std::shared_ptr<verification_key> const& key, std::string const& class_name)
+inline void output_vk_sol_turbo(std::ostream& os,
+                                std::shared_ptr<verification_key> const& key,
+                                std::string const& class_name)
 {
     const auto print_u256 =
         [&](const std::string& name, const barretenberg::fr& element, const std::string& postlabel) {

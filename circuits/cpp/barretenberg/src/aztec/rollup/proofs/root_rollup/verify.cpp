@@ -2,7 +2,6 @@
 #include "root_rollup_circuit.hpp"
 #include "create_root_rollup_tx.hpp"
 #include "root_rollup_proof_data.hpp"
-#include <stdlib/types/turbo.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -86,11 +85,11 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
         return result;
     }
 
-    auto prover = composer.create_prover();
+    auto prover = composer.create_unrolled_prover();
     auto proof = prover.construct_proof();
     result.proof_data = proof.proof_data;
 
-    auto verifier = composer.create_verifier();
+    auto verifier = composer.create_unrolled_verifier();
     result.verified = verifier.verify_proof(proof);
 
     if (!result.verified) {

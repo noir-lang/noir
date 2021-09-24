@@ -52,6 +52,7 @@ class TurboComposer : public ComposerBase {
     void create_poly_gate(const poly_triple& in) override;
     void create_fixed_group_add_gate(const fixed_group_add_quad& in);
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
+    void create_fixed_group_add_gate_final(const add_quad& in);
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
     void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
@@ -82,7 +83,6 @@ class TurboComposer : public ComposerBase {
 
     uint32_t put_constant_variable(const barretenberg::fr& variable);
 
-    void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
     void assert_equal_constant(const uint32_t a_idx,

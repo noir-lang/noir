@@ -1,5 +1,6 @@
 #include "../proofs/rollup/compute_circuit_data.hpp"
 #include "../proofs/root_rollup/compute_circuit_data.hpp"
+#include "../proofs/root_verifier/compute_circuit_data.hpp"
 #include "../proofs/rollup/rollup_tx.hpp"
 #include "../proofs/claim/index.hpp"
 #include <common/timer.hpp>
@@ -7,10 +8,8 @@
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <plonk/proof_system/verification_key/sol_gen.hpp>
-#include <stdlib/types/turbo.hpp>
 
 using namespace ::rollup::proofs;
-using namespace plonk::stdlib::types::turbo;
 namespace tx_rollup = ::rollup::proofs::rollup;
 
 int main(int argc, char** argv)
@@ -43,10 +42,11 @@ int main(int argc, char** argv)
     for (size_t i = 1; i <= max_inner_num; i *= 2) {
         auto root_rollup_circuit_data =
             root_rollup::get_circuit_data(i, rollup_circuit_data, srs, "./data", true, persist, persist);
-
-        auto class_name = format("Rollup", inner_txs, "x", i, "Vk");
+        auto root_verifier_circuit_data =
+            root_verifier::get_circuit_data(root_rollup_circuit_data, srs, "./data", true, persist, persist);
+        auto class_name = format("Rollup", inner_txs, "x", i, "VkStandard");
         std::ofstream os(output_path + "/" + class_name + ".sol");
-        output_vk_sol(os, root_rollup_circuit_data.verification_key, class_name);
+        output_vk_sol_standard(os, root_verifier_circuit_data.verification_key, class_name);
     }
 
     return 0;

@@ -1,5 +1,7 @@
 #include "standard_composer.hpp"
 #include <gtest/gtest.h>
+#include <crypto/pedersen/pedersen.hpp>
+#include <crypto/pedersen/generator_data.hpp>
 
 using namespace barretenberg;
 
@@ -452,4 +454,183 @@ TEST(standard_composer, test_range_constraint_fail)
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, false);
+}
+
+TEST(standard_composer, test_fixed_group_add_gate_with_init)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
+
+    // 1. generate two origin points P, Q
+    // 2. derive gate constant values from P, Q
+    // 3. instantiate P as accumulator
+    // 4. generate accumulator initial value 1 and instantiate as circuit variable
+    // 5. use the above to call `create_fixed_group_add_gate_with_init`
+    // 6. validate proof passes
+    constexpr size_t num_bits = 63;
+    constexpr size_t initial_exponent = ((num_bits & 1) == 1) ? num_bits - 1 : num_bits;
+
+    const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_ladder(num_bits);
+    grumpkin::g1::affine_element generator = gen_data.aux_generator;
+
+    grumpkin::g1::element origin_points[2];
+    origin_points[0] = grumpkin::g1::element(ladder[0].one); // this is P
+    origin_points[1] = origin_points[0] + generator;
+    origin_points[1] = origin_points[1].normalize(); // this is Q
+
+    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
+
+    for (size_t i = 0; i < 2; ++i) {
+        fr starting_accumulator = origin_accumulators[i]; // skew = 0
+
+        waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
+                                                 (origin_points[0].x - origin_points[1].x),
+                                                 origin_points[0].y,
+                                                 (origin_points[0].y - origin_points[1].y) };
+
+        waffle::fixed_group_add_quad round_quad{
+            .a = composer.add_variable(origin_points[i].x),
+            .b = composer.add_variable(origin_points[i].y),
+            .c = composer.add_variable(accumulator_offset),
+            .d = composer.add_variable(starting_accumulator),
+            .q_x_1 = 0,
+            .q_x_2 = 0,
+            .q_y_1 = 0,
+            .q_y_2 = 0,
+        };
+        composer.create_fixed_group_add_gate_with_init(round_quad, init_quad);
+    }
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    EXPECT_EQ(result, true);
+}
+
+TEST(standard_composer, test_fixed_group_add_gate)
+{
+    auto composer = waffle::StandardComposer();
+    auto gen_data = crypto::pedersen::get_generator_data({ 0, 0 });
+
+    constexpr size_t num_bits = 63;
+    constexpr size_t num_quads_base = (num_bits - 1) >> 1;
+    constexpr size_t num_quads = ((num_quads_base << 1) + 1 < num_bits) ? num_quads_base + 1 : num_quads_base;
+    constexpr size_t num_wnaf_bits = (num_quads << 1) + 1;
+    constexpr size_t initial_exponent = ((num_bits & 1) == 1) ? num_bits - 1 : num_bits;
+    constexpr uint64_t bit_mask = (1ULL << num_bits) - 1UL;
+    const crypto::pedersen::fixed_base_ladder* ladder = gen_data.get_hash_ladder(num_bits);
+    grumpkin::g1::affine_element generator = gen_data.aux_generator; // also passes with aux_generator?
+
+    grumpkin::g1::element origin_points[2];
+    origin_points[0] = grumpkin::g1::element(ladder[0].one);
+    origin_points[1] = origin_points[0] + generator;
+    origin_points[1] = origin_points[1].normalize();
+
+    grumpkin::fr scalar_multiplier_entropy = grumpkin::fr::random_element();
+    grumpkin::fr scalar_multiplier_base{ scalar_multiplier_entropy.data[0] & bit_mask, 0, 0, 0 };
+    scalar_multiplier_base.data[0] = scalar_multiplier_base.data[0] & (~1ULL);
+
+    uint64_t wnaf_entries[num_quads + 1] = { 0 };
+    if ((scalar_multiplier_base.data[0] & 1) == 0) {
+        scalar_multiplier_base.data[0] -= 2;
+    }
+    bool skew = false;
+    barretenberg::wnaf::fixed_wnaf<num_wnaf_bits, 1, 2>(&scalar_multiplier_base.data[0], &wnaf_entries[0], skew, 0);
+
+    fr accumulator_offset = (fr::one() + fr::one()).pow(static_cast<uint64_t>(initial_exponent)).invert();
+    fr origin_accumulators[2]{ fr::one(), accumulator_offset + fr::one() };
+
+    grumpkin::g1::element* multiplication_transcript =
+        static_cast<grumpkin::g1::element*>(aligned_alloc(64, sizeof(grumpkin::g1::element) * (num_quads + 1)));
+    fr* accumulator_transcript = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * (num_quads + 1)));
+
+    if (skew) {
+        multiplication_transcript[0] = origin_points[1];
+        accumulator_transcript[0] = origin_accumulators[1];
+    } else {
+        multiplication_transcript[0] = origin_points[0];
+        accumulator_transcript[0] = origin_accumulators[0];
+    }
+
+    fr one = fr::one();
+    fr three = ((one + one) + one);
+    for (size_t i = 0; i < num_quads; ++i) {
+        uint64_t entry = wnaf_entries[i + 1] & 0xffffff;
+        fr prev_accumulator = accumulator_transcript[i] + accumulator_transcript[i];
+        prev_accumulator = prev_accumulator + prev_accumulator;
+
+        grumpkin::g1::affine_element point_to_add = (entry == 1) ? ladder[i + 1].three : ladder[i + 1].one;
+        fr scalar_to_add = (entry == 1) ? three : one;
+        uint64_t predicate = (wnaf_entries[i + 1] >> 31U) & 1U;
+        if (predicate) {
+            point_to_add = -point_to_add;
+            scalar_to_add.self_neg();
+        }
+        accumulator_transcript[i + 1] = prev_accumulator + scalar_to_add;
+        multiplication_transcript[i + 1] = multiplication_transcript[i] + point_to_add;
+    }
+    grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
+
+    waffle::fixed_group_init_quad init_quad{ origin_points[0].x,
+                                             (origin_points[0].x - origin_points[1].x),
+                                             origin_points[0].y,
+                                             (origin_points[0].y - origin_points[1].y) };
+
+    fr x_alpha = accumulator_offset;
+    for (size_t i = 0; i < 2; ++i) {
+        waffle::fixed_group_add_quad round_quad;
+        round_quad.d = composer.add_variable(accumulator_transcript[i]);
+        round_quad.a = composer.add_variable(multiplication_transcript[i].x);
+        round_quad.b = composer.add_variable(multiplication_transcript[i].y);
+
+        if (i == 0) {
+            // we need to ensure that the first value of x_alpha is a defined constant.
+            // However, repeated applications of the pedersen hash will use the same constant value.
+            // `put_constant_variable` will create a gate that fixes the value of x_alpha, but only once
+            round_quad.c = composer.put_constant_variable(x_alpha);
+        } else {
+            round_quad.c = composer.add_variable(x_alpha);
+        }
+
+        if ((wnaf_entries[i + 1] & 0xffffffU) == 0) {
+            x_alpha = ladder[i + 1].one.x;
+        } else {
+            x_alpha = ladder[i + 1].three.x;
+        }
+        round_quad.q_x_1 = ladder[i + 1].q_x_1;
+        round_quad.q_x_2 = ladder[i + 1].q_x_2;
+        round_quad.q_y_1 = ladder[i + 1].q_y_1;
+        round_quad.q_y_2 = ladder[i + 1].q_y_2;
+
+        if (i > 0) {
+            composer.create_fixed_group_add_gate(round_quad);
+        } else {
+            composer.create_fixed_group_add_gate_with_init(round_quad, init_quad);
+        }
+    }
+
+    waffle::add_quad add_quad{ composer.add_variable(multiplication_transcript[2].x),
+                               composer.add_variable(multiplication_transcript[2].y),
+                               composer.add_variable(x_alpha),
+                               composer.add_variable(accumulator_transcript[2]),
+                               fr::zero(),
+                               fr::zero(),
+                               fr::zero(),
+                               fr::zero(),
+                               fr::zero() };
+    composer.create_fixed_group_add_gate_final(add_quad);
+    waffle::Prover prover = composer.create_prover();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+
+    EXPECT_EQ(result, true);
 }

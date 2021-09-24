@@ -53,6 +53,7 @@ template <typename ComposerContext> class pedersen {
                                           const bool validate_edge_cases);
 };
 
+extern template class pedersen<waffle::StandardComposer>;
 extern template class pedersen<waffle::TurboComposer>;
 extern template class pedersen<waffle::PlookupComposer>;
 

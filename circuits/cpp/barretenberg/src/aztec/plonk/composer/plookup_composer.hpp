@@ -74,6 +74,7 @@ class PlookupComposer : public ComposerBase {
     void create_poly_gate(const poly_triple& in) override;
     void create_fixed_group_add_gate(const fixed_group_add_quad& in);
     void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
+    void create_fixed_group_add_gate_final(const add_quad& in);
 
     void create_ecc_add_gate(const ecc_add_gate& in);
 

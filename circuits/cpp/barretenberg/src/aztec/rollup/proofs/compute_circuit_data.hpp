@@ -5,10 +5,9 @@
 #include <sys/stat.h>
 #include <common/timer.hpp>
 #include <plonk/proof_system/proving_key/serialize.hpp>
+
 namespace rollup {
 namespace proofs {
-
-using namespace plonk::stdlib::types::turbo;
 
 struct circuit_data {
     circuit_data()
@@ -30,7 +29,7 @@ inline bool exists(std::string const& path)
 }
 } // namespace
 
-template <typename F>
+template <typename ComposerType, typename F>
 circuit_data get_circuit_data(std::string const& name,
                               std::shared_ptr<waffle::ReferenceStringFactory> const& srs,
                               std::string const& key_path,
@@ -44,14 +43,15 @@ circuit_data get_circuit_data(std::string const& name,
 {
     circuit_data data;
     data.verifier_crs = srs->get_verifier_crs();
-    Composer composer = Composer(srs);
+    ComposerType composer = ComposerType(srs);
 
     auto circuit_key_path = key_path + "/" + name;
     auto pk_path = circuit_key_path + "/proving_key/proving_key";
     auto vk_path = circuit_key_path + "/verification_key";
     auto padding_path = circuit_key_path + "/padding_proof";
 
-    // If we're missing required data, and compute is enabled, build the circuit.
+    // If we're missing required data, and compute is enabled, or if
+    // compute is enabled and load is disabled, build the circuit.
     if (((!exists(pk_path) || !exists(vk_path) || (!exists(padding_path) && padding)) && compute) ||
         (compute && !load)) {
         std::cerr << "Building circuit..." << std::endl;

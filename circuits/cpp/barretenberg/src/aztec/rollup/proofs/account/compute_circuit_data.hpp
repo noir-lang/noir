@@ -25,7 +25,8 @@ inline circuit_data get_circuit_data(std::shared_ptr<waffle::ReferenceStringFact
         account_circuit(composer, tx);
     };
 
-    return proofs::get_circuit_data(name, srs, key_path, compute, save, load, true, true, false, build_circuit);
+    return proofs::get_circuit_data<Composer>(
+        name, srs, key_path, compute, save, load, true, true, false, build_circuit);
 }
 
 // Deprecated. Just use get_circuit_data.

@@ -167,10 +167,10 @@ lagrange_evaluations<typename Curve::Composer> get_lagrange_evaluations(
     // L_1(X) = -----------
     //             X - 1
     //
-    // L_{i}(X) = L_1(X.w^{-i})
-    //                                                      (X^n - 1)
-    // => L_{n-k}(X) = L_1(X.w^{k-n}) = L_1(X.w^{k + 1}) = ----------------
-    //                                                      (X.w^{k+1} - 1)
+    // L_{i}(X) = L_1(X.w^{-i+1})
+    //                                                          (X^n - 1)
+    // => L_{n-k}(X) = L_1(X.w^{k-n+1}) = L_1(X.w^{k + 1}) = ----------------
+    //                                                        (X.w^{k+1} - 1)
     //
     numerator *= domain.domain_inverse;
 
@@ -220,9 +220,6 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     transcript.apply_fiat_shamir("beta");
     transcript.apply_fiat_shamir("alpha");
     transcript.apply_fiat_shamir("z");
-
-    // fr_ct init = transcript.get_challenge_field_element("init");
-    // fr_ct beta = transcript.get_challenge_field_element("beta");
 
     fr_ct alpha = transcript.get_challenge_field_element("alpha");
     fr_ct zeta = transcript.get_challenge_field_element("z");
