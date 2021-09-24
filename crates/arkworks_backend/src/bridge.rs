@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use acir::circuit::PublicInputs;
 use acir::native_types::Witness;
 use ark_ff::Field;
