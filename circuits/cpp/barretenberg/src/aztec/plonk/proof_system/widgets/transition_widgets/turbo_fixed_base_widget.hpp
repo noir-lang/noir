@@ -9,6 +9,10 @@ template <class Field, class Getters, typename PolyContainer> class TurboFixedBa
   public:
     static constexpr bool use_quotient_mid = false;
     static constexpr size_t num_independent_relations = 7;
+    // We state the challenges required for linear/nonlinear terms computation
+    static constexpr uint8_t quotient_required_challenges = CHALLENGE_BIT_ALPHA;
+    // We state the challenges required for updating kate opening scalars
+    static constexpr uint8_t update_required_challenges = CHALLENGE_BIT_ALPHA | CHALLENGE_BIT_LINEAR_NU;
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
