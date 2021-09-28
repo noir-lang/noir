@@ -58,10 +58,10 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     //
     // Proof π_SNARK must be first added in the transcrip with other program settings.
     //
+
     key->program_width = program_settings::program_width;
     transcript::StandardTranscript transcript = transcript::StandardTranscript(
-        proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
-
+            proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
     // Compute challenges using Fiat-Shamir heuristic from transcript
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(key->n >> 24),

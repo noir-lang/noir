@@ -30,6 +30,15 @@ inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& o
     compute_permutation_lagrange_base_single<program_settings>(output, subgroup_elements, small_domain);
 }
 
+/**
+ * Compute sigma permutation polynomial in lagrange base
+ *
+ * @param output Output polynomial.
+ * @param permuataion Input permutation.
+ * @param small_domain The domain we base our polynomial in.
+ *
+ * @tparam program_settings Program settings.
+ * */
 template <typename program_settings>
 inline void compute_permutation_lagrange_base_single(barretenberg::polynomial& output,
                                                      const std::vector<permutation_subgroup_element>& permutation,

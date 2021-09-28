@@ -6,6 +6,8 @@
 #include <plonk/proof_system/widgets/random_widgets/permutation_widget.hpp>
 #include <plonk/proof_system/types/polynomial_manifest.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
+#include <unordered_set>
+#include <unordered_map>
 
 using namespace barretenberg;
 
@@ -17,6 +19,12 @@ namespace waffle {
     auto& q_2 = selectors[StandardSelectors::Q2];                                                                      \
     auto& q_3 = selectors[StandardSelectors::Q3];
 
+/**
+ * Create an addition gate.
+ *
+ * @param in An add_triple containing the indexes of variables to be placed into the
+ * wires w_l, w_r, w_o and addition coefficients to be placed into q_1, q_2, q_3, q_c.
+ */
 void StandardComposer::create_add_gate(const add_triple& in)
 {
     STANDARD_SELECTOR_REFS
@@ -32,6 +40,13 @@ void StandardComposer::create_add_gate(const add_triple& in)
     ++n;
 }
 
+/**
+ * Create a big addition gate.
+ * (a*a_c + b*b_c + c*c_c + d*d_c + q_c = 0)
+ *
+ * @param in An add quad containing the indexes of variables a, b, c, d and
+ * the scaling factors.
+ * */
 void StandardComposer::create_big_add_gate(const add_quad& in)
 {
     // (a terms + b terms = temp)
@@ -46,6 +61,13 @@ void StandardComposer::create_big_add_gate(const add_quad& in)
     create_add_gate(add_triple{ in.c, in.d, temp_idx, in.c_scaling, in.d_scaling, fr::one(), in.const_scaling });
 }
 
+/**
+ * Create a balanced addition gate.
+ * (a*a_c + b*b_c + c*c_c + d*d_c + q_c = 0, where d is in [0,3])
+ *
+ * @param in An add quad containing the indexes of variables a, b, c, d and
+ * the scaling factors.
+ * */
 void StandardComposer::create_balanced_add_gate(const add_quad& in)
 {
 
@@ -162,6 +184,12 @@ void StandardComposer::create_big_mul_gate(const mul_quad& in)
         poly_triple{ in.a, in.b, temp_idx, in.mul_scaling, in.a_scaling, in.b_scaling, fr::one(), in.const_scaling });
 }
 
+/**
+ * Create a multiplication gate.
+ *
+ * @param in A mul_tripple containing the indexes of variables to be placed into the
+ * wires w_l, w_r, w_o and scaling coefficients to be placed into q_m, q_3, q_c.
+ */
 void StandardComposer::create_mul_gate(const mul_triple& in)
 {
     STANDARD_SELECTOR_REFS
@@ -177,6 +205,12 @@ void StandardComposer::create_mul_gate(const mul_triple& in)
     ++n;
 }
 
+/**
+ * Create a bool gate.
+ * This gate constrains a variable to two possible values: 0 or 1.
+ *
+ * @param variable_index The index of the variable.
+ */
 void StandardComposer::create_bool_gate(const uint32_t variable_index)
 {
     STANDARD_SELECTOR_REFS
@@ -193,6 +227,11 @@ void StandardComposer::create_bool_gate(const uint32_t variable_index)
     ++n;
 }
 
+/**
+ * Create a gate where you set all the indexes and coefficients yourself.
+ *
+ * @param in A poly_triple containing all the information.
+ */
 void StandardComposer::create_poly_gate(const poly_triple& in)
 {
     STANDARD_SELECTOR_REFS
@@ -669,14 +708,21 @@ waffle::accumulator_triple StandardComposer::create_xor_constraint(const uint32_
     return create_logic_constraint(a, b, num_bits, true);
 }
 
+/**
+ * Compute proving key.
+ * Compute the polynomials q_l, q_r, etc. and sigma polynomial.
+ *
+ * @return Proving key with saved computed polynomials.
+ * */
 std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
 {
 
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-
+    // Compute q_l, q_r, q_o, etc polynomials
     ComposerBase::compute_proving_key_base();
+    // Compute sigma polynomials
     compute_sigma_permutations<3, false>(circuit_proving_key.get());
 
     std::copy(standard_polynomial_manifest,
@@ -688,7 +734,11 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     circuit_proving_key->contains_recursive_proof = contains_recursive_proof;
     return circuit_proving_key;
 }
-
+/**
+ * Compute verification key consisting of selector precommitments.
+ *
+ * @return Pointer to created circuit verification key.
+ * */
 std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
 {
     if (circuit_verification_key) {
@@ -707,12 +757,22 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
 
     return circuit_verification_key;
 }
-
+/**
+ * Compute witness (witness polynomials) with standard settings (wire width = 3).
+ *
+ * @return Witness with witness polynomials
+ * */
 std::shared_ptr<program_witness> StandardComposer::compute_witness()
 {
     return ComposerBase::compute_witness_base<standard_settings>();
 }
 
+/**
+ * Create verifier: compute verification key,
+ * initialize verifier with it and an initial manifest and initialize commitment_scheme.
+ *
+ * @return The verifier.
+ * */
 Verifier StandardComposer::create_verifier()
 {
     compute_verification_key();
@@ -760,11 +820,21 @@ UnrolledProver StandardComposer::create_unrolled_prover()
 
     return output_state;
 }
-
+/**
+ * Create prover.
+ *  1. Compute the starting polynomials (q_l, etc, sigma, witness polynomials).
+ *  2. Initialize Prover with them.
+ *  3. Add Permutation and arithmetic widgets to the prover.
+ *  4. Add KateCommitmentScheme to the prover.
+ *
+ * @return Initialized prover.
+ * */
 Prover StandardComposer::create_prover()
 {
-
+    // Compute q_l, etc. and sigma polynomials.
     compute_proving_key();
+
+    // Compute witness polynomials.
     compute_witness();
     Prover output_state(circuit_proving_key, witness, create_manifest(public_inputs.size()));
 
@@ -795,4 +865,28 @@ void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, 
     assert_equal(a_idx, b_idx, msg);
 }
 
+/**
+ * Check if all the circuit gates are correct given the witnesses.
+ * Goes through each gates and checks if the identity holds.
+ *
+ * @return true if the circuit is correct.
+ * */
+bool StandardComposer::check_circuit_correctness()
+{
+    STANDARD_SELECTOR_REFS
+    if (n == 0)
+        return true;
+    fr gate_sum;
+    fr left, right, output;
+    for (size_t i = 0; i < n; i++) {
+        gate_sum = fr::zero();
+        left = get_variable(w_l[i]);
+        right = get_variable(w_r[i]);
+        output = get_variable(w_o[i]);
+        gate_sum = q_m[i] * left * right + q_1[i] * left + q_2[i] * right + q_3[i] * output + q_c[i];
+        if (!gate_sum.is_zero())
+            return false;
+    }
+    return true;
+}
 } // namespace waffle

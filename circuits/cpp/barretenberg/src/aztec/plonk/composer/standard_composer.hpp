@@ -95,6 +95,11 @@ class StandardComposer : public ComposerBase {
     virtual std::shared_ptr<verification_key> compute_verification_key() override;
     virtual std::shared_ptr<program_witness> compute_witness() override;
     Verifier create_verifier();
+    /**
+     * Preprocess the circuit. Delegates to create_prover.
+     *
+     * @return A new initialized prover.
+     */
     Prover preprocess() { return create_prover(); };
     Prover create_prover();
     UnrolledVerifier create_unrolled_verifier();
@@ -155,6 +160,13 @@ class StandardComposer : public ComposerBase {
     // equal to a defined value
     std::map<barretenberg::fr, uint32_t> constant_variables;
 
+    /**
+     * Create a manifest, which specifies proof rounds, elements and who supplies them.
+     *
+     * @param num_public_inputs The number of public inputs.
+     *
+     * @return Constructed manifest.
+     * */
     static transcript::Manifest create_manifest(const size_t num_public_inputs)
     {
         // add public inputs....
@@ -242,5 +254,7 @@ class StandardComposer : public ComposerBase {
                   { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
         return output;
     }
+
+    bool check_circuit_correctness();
 };
 } // namespace waffle

@@ -5,6 +5,13 @@
 
 namespace waffle {
 
+/**
+ * Join variable class b to variable class a.
+ *
+ * @param a_variable_idx Index of a variable in class a.
+ * @param b_variable_idx Index of a variable in class b.
+ * @param msg Class tag.
+ * */
 void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
 {
     ASSERT(a_variable_idx != IS_CONSTANT && b_variable_idx != IS_CONSTANT);
@@ -35,9 +42,20 @@ void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_
         variable_tags[a_real_idx] = variable_tags[b_real_idx];
 }
 
+/**
+ * Compute wire copy cycles
+ *
+ * First set all wire_copy_cycles corresponding to public_inputs to point to themselves.
+ * Then go through all witnesses in w_l, w_r, w_o and w_4 (if program width is > 3) and
+ * add them to cycles of their real indexes.
+ *
+ * @tparam program_width Program width
+ * */
 template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
 {
     const uint32_t num_public_inputs = static_cast<uint32_t>(public_inputs.size());
+
+    // Initialize wire_copy_cycles of public input variables to point to themselves
     for (size_t i = 0; i < public_inputs.size(); ++i) {
         cycle_node left{ static_cast<uint32_t>(i), WireType::LEFT };
         cycle_node right{ static_cast<uint32_t>(i), WireType::RIGHT };
@@ -48,6 +66,7 @@ template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
         cycle.emplace_back(left);
         cycle.emplace_back(right);
     }
+    // Go through all witnesses and add them to the wire_copy_cycles
     for (size_t i = 0; i < n; ++i) {
         const auto w_1_index = real_variable_index[w_l[i]];
         const auto w_2_index = real_variable_index[w_r[i]];
@@ -68,14 +87,24 @@ template <size_t program_width> void ComposerBase::compute_wire_copy_cycles()
     }
 }
 
+/**
+ * Compute sigma and id permutation polynomials in lagrange base.
+ *
+ * @param key Proving key.
+ *
+ * @tparam program_width Program width.
+ * @tparam with_tags Whether to construct id permutation polynomial or not.
+ * */
 template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma_permutations(proving_key* key)
 {
+    // Compute wire copy cycles for public and private variables
     compute_wire_copy_cycles<program_width>();
     std::array<std::vector<permutation_subgroup_element>, program_width> sigma_mappings;
     std::array<std::vector<permutation_subgroup_element>, program_width> id_mappings;
     // std::array<uint32_t, 4> wire_offsets{ 0U, 0x40000000, 0x80000000, 0xc0000000 };
     const uint32_t num_public_inputs = static_cast<uint32_t>(public_inputs.size());
-
+    // Prepare the sigma and id mappings by reserving enough space
+    // and saving perumation subgroup elements that point to themselves
     for (size_t i = 0; i < program_width; ++i) {
         sigma_mappings[i].reserve(key->n);
         if (with_tags)
@@ -88,6 +117,8 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
                 id_mappings[i].emplace_back(permutation_subgroup_element{ (uint32_t)j, (uint8_t)i, false, false });
         }
     }
+    // Go through all wire cycles and update sigma and id mappings to point to the next element
+    // within each cycle as well as set the appropriate tags
     for (size_t i = 0; i < wire_copy_cycles.size(); ++i) {
         for (size_t j = 0; j < wire_copy_cycles[i].size(); ++j) {
             cycle_node current_cycle_node = wire_copy_cycles[i][j];
@@ -130,6 +161,7 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
     for (size_t i = 0; i < program_width; ++i) {
         std::string index = std::to_string(i + 1);
         barretenberg::polynomial sigma_polynomial(key->n);
+        // Construct sigma permutation polynomial
         compute_permutation_lagrange_base_single<standard_settings>(
             sigma_polynomial, sigma_mappings[i], key->small_domain);
 
@@ -157,6 +189,19 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
     }
 }
 
+/**
+ * Compute proving key base.
+ *
+ * 1. Load crs.
+ * 2. Initialize circuit proving key.
+ * 3. Create polynomial constraint selector from each of coefficient selectors in the circuit proving key.
+ *
+ * N.B. Need to add the fix for coefficients
+ *
+ * @param minimum_circuit_size Used as the total number of gates when larger than n + count of public inputs.
+ * @param num_reserved_gates The number of reserved gates.
+ * @return Pointer to the initialized proving key updated with selectors.
+ * */
 std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t minimum_circuit_size,
                                                                     const size_t num_reserved_gates)
 {
@@ -173,6 +218,7 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     // ./src/aztec/plonk/proof_system/prover/prover.cpp/ProverBase::compute_quotient_pre_commitment
     //
     auto crs = crs_factory_->get_prover_crs(subgroup_size + 1);
+    // Initialize circuit_proving_key
     circuit_proving_key = std::make_shared<proving_key>(subgroup_size, public_inputs.size(), crs);
 
     for (size_t i = 0; i < selector_num; ++i) {
@@ -180,10 +226,13 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         std::vector<barretenberg::fr>& coeffs = selectors[i];
         const auto& properties = selector_properties[i];
         ASSERT(n == coeffs.size());
-        for (size_t j = num_filled_gates; j < subgroup_size - 1; ++j) {
+
+        // Fill unfilled gates coefficients with zeroes
+        for (size_t j = num_filled_gates; j < subgroup_size - 1 /*- public_inputs.size()*/; ++j) {
             coeffs.emplace_back(fr::zero());
         }
-        coeffs.emplace_back(1); // ensure selectors are nonzero
+        coeffs.emplace_back(
+            1); // ensure selectors are nonzero. Ask Zac about this, since later we don't actually use it.
         polynomial poly(subgroup_size);
 
         for (size_t k = 0; k < public_inputs.size(); ++k) {
@@ -212,6 +261,13 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
     return circuit_proving_key;
 }
 
+/**
+ * Compute witness polynomials (w_1, w_2, w_3, w_4).
+ *
+ * @return Witness with computed witness polynomials.
+ *
+ * @tparam Program settings needed to establish if w_4 is being used.
+ * */
 template <class program_settings> std::shared_ptr<program_witness> ComposerBase::compute_witness_base()
 {
     if (computed_witness) {

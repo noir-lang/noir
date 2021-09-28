@@ -3,6 +3,7 @@
 #include "../utils/linearizer.hpp"
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
+#include "../../transcript/transcript.hpp"
 #include "verifier.hpp"
 #include <ecc/curves/bn254/scalar_multiplication/scalar_multiplication.hpp>
 #include <gtest/gtest.h>
@@ -322,4 +323,19 @@ TEST(verifier, verify_arithmetic_proof)
     bool result = verifier.verify_proof(proof);
 
     EXPECT_EQ(result, true);
+}
+
+TEST(verifier, verify_damaged_proof)
+{
+    size_t n = 8;
+
+    waffle::Prover state = verifier_helpers::generate_test_data(n);
+
+    waffle::Verifier verifier = verifier_helpers::generate_verifier(state.key);
+
+    // Create empty proof
+    waffle::plonk_proof proof = {};
+
+    // verify proof
+    EXPECT_ANY_THROW(verifier.verify_proof(proof));
 }

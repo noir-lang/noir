@@ -224,7 +224,13 @@ class ComposerBase {
     virtual void create_poly_gate(const poly_triple& in) = 0;
     virtual size_t get_num_constant_gates() const = 0;
 
-    // update all variables in cycle of index to have real variable new_real_index
+    /**
+     * Get the index of the first variable in class.
+     *
+     * @param index The index of the variable you want to look up.
+     *
+     * @return The index of the first variable in the same class as the submitted index.
+     * */
     uint32_t get_first_variable_in_class(uint32_t index) const
     {
         while (prev_var_index[index] != FIRST_VARIABLE_IN_CLASS) {
@@ -232,7 +238,12 @@ class ComposerBase {
         }
         return index;
     }
-    // update all variables from index in equivalence class to have real variable new_real_index
+    /**
+     * Update all variables from index in equivalence class to have real variable new_real_index.
+     *
+     * @param index The index of a variable in the class we're updating.
+     * @param new_real_index The index of the real variable to update to.
+     * */
     void update_real_variable_indices(uint32_t index, uint32_t new_real_index)
     {
         auto cur_index = index;
@@ -252,7 +263,14 @@ class ComposerBase {
     //     return index;
     // }
 
-    barretenberg::fr get_variable(const uint32_t index) const
+    /**
+     * Get the value of the variable v_{index}.
+     * N.B. We should probably inline this.
+     *
+     * @param index The index of the variable.
+     * @return The value of the variable.
+     * */
+    inline barretenberg::fr get_variable(const uint32_t index) const
     {
         ASSERT(variables.size() > index);
         return variables[real_variable_index[index]];
@@ -260,6 +278,12 @@ class ComposerBase {
 
     barretenberg::fr get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
 
+    /**
+     * Add a variable to variables
+     *
+     * @param in The value of the variable
+     * @return The index of the new variable in the variables vector
+     */
     virtual uint32_t add_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);
@@ -271,7 +295,15 @@ class ComposerBase {
         wire_copy_cycles.push_back(std::vector<cycle_node>());
         return index;
     }
-
+    /**
+     * Add a public variable to variables
+     *
+     * The only difference between this and add_variable is that here it is
+     * also added to the public_inputs vector
+     *
+     * @param in The value of the variable
+     * @return The index of the new variable in the variables vector
+     */
     virtual uint32_t add_public_variable(const barretenberg::fr& in)
     {
         variables.emplace_back(in);
@@ -285,6 +317,11 @@ class ComposerBase {
         return index;
     }
 
+    /**
+     * Make a witness variable public.
+     *
+     * @param witness_index The index of the witness.
+     * */
     virtual void set_public_input(const uint32_t witness_index)
     {
         bool does_not_exist = true;

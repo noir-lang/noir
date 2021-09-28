@@ -456,6 +456,46 @@ TEST(standard_composer, test_range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
+TEST(standard_composer, test_circuit_checks_correct)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    fr a = fr::one();
+    uint32_t a_idx = composer.add_public_variable(a);
+    fr b = fr::one();
+    fr c = a + b;
+    fr d = a + c;
+    // uint32_t a_idx = composer.add_variable(a);
+    uint32_t b_idx = composer.add_variable(b);
+    uint32_t c_idx = composer.add_variable(c);
+    uint32_t d_idx = composer.add_variable(d);
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+
+    composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+
+    bool result = composer.check_circuit_correctness();
+    EXPECT_EQ(result, true);
+}
+
+TEST(standard_composer, test_circuit_checks_fail)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    fr a = fr::one();
+    uint32_t a_idx = composer.add_public_variable(a);
+    fr b = fr::one();
+    fr c = a + b;
+    fr d = a + c + 1;
+    // uint32_t a_idx = composer.add_variable(a);
+    uint32_t b_idx = composer.add_variable(b);
+    uint32_t c_idx = composer.add_variable(c);
+    uint32_t d_idx = composer.add_variable(d);
+    composer.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
+
+    composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
+
+    bool result = composer.check_circuit_correctness();
+    EXPECT_EQ(result, false);
+}
+
 TEST(standard_composer, test_fixed_group_add_gate_with_init)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();

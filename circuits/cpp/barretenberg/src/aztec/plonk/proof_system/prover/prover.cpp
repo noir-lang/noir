@@ -10,6 +10,15 @@ using namespace barretenberg;
 
 namespace waffle {
 
+/**
+ * Create ProverBase from proving key, witness and manifest.
+ *
+ * @param input_key Proving key.
+ * @param input_witness Witness containing witness polynomials.
+ * @param input_manifest Input manifest
+ *
+ * @tparam settings Settings class.
+ * */
 template <typename settings>
 ProverBase<settings>::ProverBase(std::shared_ptr<proving_key> input_key,
                                  std::shared_ptr<program_witness> input_witness,
@@ -63,6 +72,11 @@ template <typename settings> ProverBase<settings>& ProverBase<settings>::operato
     return *this;
 }
 
+/**
+ * Compute wire precommitments and add public_inputs from w_2_fft to transcript.
+ *
+ * @tparam settings Program settings.
+ * */
 template <typename settings> void ProverBase<settings>::compute_wire_pre_commitments()
 {
     for (size_t i = 0; i < settings::program_width; ++i) {
@@ -134,6 +148,14 @@ template <typename settings> void ProverBase<settings>::compute_quotient_pre_com
     commitment_scheme->commit(coefficients, quotient_tag, program_flag, queue);
 }
 
+/**
+ * Execute preamble round.
+ * Execute init round, add randomness to witness polynomials for Honest-Verifier Zero Knowledge.
+ * N.B. Maybe we need to refactor this, since before we execute this function wires are in lagrange basis
+ * and after they are in monomial form. This is an inconsistency that can mislead developers.
+ *
+ * @tparam settings Program settings.
+ * */
 template <typename settings> void ProverBase<settings>::execute_preamble_round()
 {
     queue.flush_queue();
@@ -194,6 +216,13 @@ template <typename settings> void ProverBase<settings>::execute_preamble_round()
     }
 }
 
+/**
+ * Execute the first round by computing wire precommitments.
+ * N.B. Random widget precommitments aren't actually being computed, since we are using permutation widget
+ * which only does computation in compute_random_commitments function if the round is 3.
+ *
+ * @tname settings Program settings.
+ * */
 template <typename settings> void ProverBase<settings>::execute_first_round()
 {
     queue.flush_queue();
@@ -227,6 +256,12 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #endif
 }
 
+/**
+ * Execute second round by applying Fiat-Shamir transform on the "eta" challenge
+ * and computing random_widgets round commitments that need to be computed at round 2.
+ *
+ * @tname settings Program settings.
+ * */
 template <typename settings> void ProverBase<settings>::execute_second_round()
 {
     queue.flush_queue();
@@ -235,7 +270,13 @@ template <typename settings> void ProverBase<settings>::execute_second_round()
         widget->compute_round_commitments(transcript, 2, queue);
     }
 }
-
+/**
+ * Execute third round by applying Fiat-Shamir transform on the "beta" challenge,
+ * apply 3rd round random widgets and FFT the wires. For example, standard composer
+ * executes permutation widget for z polynomial construction at this round.
+ *
+ * @tparam settings Program settings.
+ * */
 template <typename settings> void ProverBase<settings>::execute_third_round()
 {
     queue.flush_queue();
@@ -419,14 +460,22 @@ template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_p
 
 template <typename settings> waffle::plonk_proof& ProverBase<settings>::construct_proof()
 {
+    // Execute init round. Randomize witness polynomials.
     execute_preamble_round();
     queue.process_queue();
+    // Compute wire precommitments and sometimes random widget round commitments
     execute_first_round();
     queue.process_queue();
+
+    // Fiat-Shamir eta + execute random widgets.
     execute_second_round();
     queue.process_queue();
+
+    // Fiat-Shamir beta, execute random widgets (Permutation widget is executed here)
+    // and fft the witnesses
     execute_third_round();
     queue.process_queue();
+
     execute_fourth_round();
     queue.process_queue();
     execute_fifth_round();

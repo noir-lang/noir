@@ -1,5 +1,6 @@
 #include "transcript.hpp"
 #include <array>
+#include <common/throw_or_abort.hpp>
 #include <common/assert.hpp>
 #include <common/net.hpp>
 #include <crypto/blake2s/blake2s.hpp>
@@ -48,9 +49,23 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript,
     , hasher(hash_type)
     , manifest(input_manifest)
 {
+    current_challenge.data = {};
     const size_t num_rounds = input_manifest.get_num_rounds();
     const uint8_t* buffer = &input_transcript[0];
     size_t count = 0;
+    // Compute how much data we need according to the manifest
+    size_t totalRequiredSize = 0;
+    for (size_t i = 0; i < num_rounds; ++i) {
+        for (auto manifest_element : input_manifest.get_round_manifest(i).elements) {
+            if (!manifest_element.derived_by_verifier) {
+                totalRequiredSize += manifest_element.num_bytes;
+            }
+        }
+    }
+    // Check that we have enough.
+    if (totalRequiredSize > input_transcript.size())
+        throw_or_abort("Serialized transcript vector is too short");
+
     for (size_t i = 0; i < num_rounds; ++i) {
         for (auto manifest_element : input_manifest.get_round_manifest(i).elements) {
             if (!manifest_element.derived_by_verifier) {
@@ -59,6 +74,9 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript,
                 //     printf("%x", buffer[count + j]);
                 // }
                 // printf("\n");
+
+                // This can once again become a buffer overread if
+                // someone removes the above checks.
                 elements.insert({ manifest_element.name,
                                   std::vector<uint8_t>(buffer + count, buffer + count + manifest_element.num_bytes) });
                 count += manifest_element.num_bytes;
@@ -69,6 +87,10 @@ Transcript::Transcript(const std::vector<uint8_t>& input_transcript,
     // printf("input buffer size = %lu \n", count);
 }
 
+/**
+ * Insert element names from all rounds of the manifest
+ * into the challenge_map.
+ * */
 void Transcript::compute_challenge_map()
 {
     challenge_map = std::map<std::string, int>();
@@ -86,6 +108,12 @@ void Transcript::add_element(const std::string& element_name, const std::vector<
     elements.insert({ element_name, buffer });
 }
 
+/**
+ * Apply Fiat-Shamir transform to create challenges for the current round.
+ * The challenges are saved to transcript. Round number is increased.
+ *
+ * @param challenge_name Challenge name (needed to check if the challenge fits the current round).
+ * */
 void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const bool debug*/)
 {
     ASSERT(current_round <= manifest.get_num_rounds());
@@ -139,7 +167,7 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
             std::array<uint8_t, PRNG_OUTPUT_SIZE> challenge{};
             std::copy(base_hash.begin() + (j * num_challenge_bytes),
                       base_hash.begin() + (j + 1) * num_challenge_bytes,
-                      challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes));
+                      challenge.begin() + (PRNG_OUTPUT_SIZE - num_challenge_bytes)); // HMM?
             round_challenges.push_back({ challenge });
         }
     }
@@ -187,6 +215,16 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
     ++current_round;
 }
 
+/**
+ * Get the challenge with the given name at index.
+ * Will fail if there is no challenge with such name
+ * or there are not enough subchallenges in the vector.
+ *
+ * @param challenge_name    The name of the challenge.
+ * @param idx               The idx of subchallenge
+ *
+ * @return The challenge value
+ * */
 std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(const std::string& challenge_name,
                                                                             const size_t idx) const
 {
@@ -194,17 +232,41 @@ std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge(cons
     return challenges.at(challenge_name)[idx].data;
 }
 
+/**
+ * Get the challenge index from map (needed when we name subchallenges).
+ *
+ * @param challenge_map_name The name of the subchallenge
+ *
+ * @return The index of the subchallenge in the vector
+ *  corresponding to the challenge.
+ * */
 int Transcript::get_challenge_index_from_map(const std::string& challenge_map_name) const
 {
     const auto key = challenge_map.at(challenge_map_name);
     return key;
 }
 
+/**
+ * Check if a challenge exists.
+ *
+ * @param challenge_name The name of the challenge
+ *
+ * @return true if exists, false if not
+ * **/
 bool Transcript::has_challenge(const std::string& challenge_name) const
 {
     return (challenges.count(challenge_name) > 0);
 }
 
+/**
+ * Get a particular subchallenge value by the name of the subchallenge.
+ * For example, we use it with (nu, r).
+ *
+ * @param challenge_name The name of the challenge.
+ * @param challenge_map_name The name of the subchallenge.
+ *
+ * @return The value of the subchallenge.
+ * */
 std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge_from_map(
     const std::string& challenge_name, const std::string& challenge_map_name) const
 {
@@ -221,6 +283,16 @@ std::array<uint8_t, Transcript::PRNG_OUTPUT_SIZE> Transcript::get_challenge_from
     return value.data;
 }
 
+/**
+ * Get the number of subchallenges for a given challenge.
+ * Fails if no such challenge exists.
+ * We use it with beta/gamma which need to be created in one
+ * Fiat-Shamir transform.
+ *
+ * @param challenge_name The name of the challenge.
+ *
+ * @return The number of subchallenges.
+ * */
 size_t Transcript::get_num_challenges(const std::string& challenge_name) const
 {
     // printf("getting challenge count for %s \n", challenge_name.c_str());
@@ -229,6 +301,14 @@ size_t Transcript::get_num_challenges(const std::string& challenge_name) const
     return challenges.at(challenge_name).size();
 }
 
+/**
+ * Get the value of an element.
+ * Fails if there is no such element.
+ *
+ * @param element_name The name of the element.
+ *
+ * @return The value of the element.
+ * */
 std::vector<uint8_t> Transcript::get_element(const std::string& element_name) const
 {
     // printf("getting element %s \n", element_name.c_str());
@@ -236,6 +316,13 @@ std::vector<uint8_t> Transcript::get_element(const std::string& element_name) co
     return elements.at(element_name);
 }
 
+/**
+ * Get the size of an element from the manifest.
+ *
+ * @param element_name The name of the element
+ *
+ * @return The size of the element if found, otherwise -1.
+ * */
 size_t Transcript::get_element_size(const std::string& element_name) const
 {
     for (size_t i = 0; i < manifest.get_num_rounds(); ++i) {
@@ -248,6 +335,11 @@ size_t Transcript::get_element_size(const std::string& element_name) const
     return static_cast<size_t>(-1);
 }
 
+/**
+ * Serialize transcript to a vector of bytes.
+ *
+ * @return Serialized transcript
+ * */
 std::vector<uint8_t> Transcript::export_transcript() const
 {
     std::vector<uint8_t> buffer;

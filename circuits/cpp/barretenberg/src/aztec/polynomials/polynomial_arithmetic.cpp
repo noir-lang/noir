@@ -115,7 +115,16 @@ void scale_by_generator(fr* coeffs,
         }
     }
 }
-
+/**
+ * Compute multiplicative subgroup (g.X)^n.
+ *
+ * Compute the subgroup for X in roots of unity of (2^log2_subgroup_size)*n.
+ * X^n will loop through roots of unity (2^log2_subgroup_size).
+ *
+ * @param log2_subgroup_size Log_2 of the subgroup size.
+ * @param src_domain The domain of size n.
+ * @param subgroup_roots Pointer to the array for saving subgroup members.
+ * */
 void compute_multiplicative_subgroup(const size_t log2_subgroup_size,
                                      const evaluation_domain& src_domain,
                                      fr* subgroup_roots)
@@ -130,7 +139,7 @@ void compute_multiplicative_subgroup(const size_t log2_subgroup_size,
         accumulator.self_sqr();
     }
 
-    // Step 3: fill array with 4 values of (g.X)^n - 1, scaled by the cofactor
+    // Step 3: fill array with subgroup_size values of (g.X)^n, scaled by the cofactor
     subgroup_roots[0] = accumulator;
     for (size_t i = 1; i < subgroup_size; ++i) {
         subgroup_roots[i] = subgroup_roots[i - 1] * subgroup_root;
@@ -552,7 +561,7 @@ void compute_lagrange_polynomial_fft(fr* l_1_coefficients,
     // w = n'th root of unity
     // w' = 2n'th root of unity = w^{1/2}
     // for even powers of w', X^{n} = w^{2in/2} = 1
-    // for odd powers of w', X = w^{i}w^{n/2} -> X^{n} = w^{in}w^{n/2} = -w
+    // for odd powers of w', X = w^{i}w^{n/2} -> X^{n} = w^{in}w^{n/2} = -1
 
     // We also want to compute fft using subgroup union a coset (the multiplicative generator g), so we're not dividing
     // by zero
@@ -749,14 +758,14 @@ fr compute_kate_opening_coefficients(const fr* src, fr* dest, const fr& z, const
     return f;
 }
 
-barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluations(const fr& z,
-                                                                                   const evaluation_domain& domain,
-                                                                                   const size_t num_roots_cut_out_of_vanishing_polynomial)
+barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluations(
+    const fr& z, const evaluation_domain& domain, const size_t num_roots_cut_out_of_vanishing_polynomial)
 {
     // compute Z_H*(z), l_start(z), l_{end}(z)
-    // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that 
-    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k = num_roots_cut_out_of_vanishing_polynomial.
-    // For notational simplicity, we call l_1 as l_start and l_{n-k} as l_end.
+    // Note that as we modify the vanishing polynomial by cutting out some roots, we must simultaneously ensure that
+    // the lagrange polynomials we require would be l_1(z) and l_{n-k}(z) where k =
+    // num_roots_cut_out_of_vanishing_polynomial. For notational simplicity, we call l_1 as l_start and l_{n-k} as
+    // l_end.
     //
     // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
     //
@@ -770,7 +779,7 @@ barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluatio
 
     fr denominators[3];
 
-    // compute denominator of Z_H*(z) 
+    // compute denominator of Z_H*(z)
     // (z - w^{n-1})(z - w^{n-2})...(z - w^{n - num_roots_cut_out_of_vanishing_poly})
     fr work_root = domain.root_inverse;
     denominators[0] = fr::one();
@@ -783,7 +792,7 @@ barretenberg::polynomial_arithmetic::lagrange_evaluations get_lagrange_evaluatio
     //           (X^n - 1)
     // L_1(X) = -----------
     //             X - 1
-    // 
+    //
     // L_{i}(X) = L_1(X.w^{-i})
     //                                                      (X^n - 1)
     // => L_{n-k}(X) = L_1(X.w^{k-n}) = L_1(X.w^{k + 1}) = ----------------

@@ -57,9 +57,20 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
     typedef containers::challenge_array<Field, num_widget_relations> challenge_array;
 
   public:
+    /**
+     * Create a challenge array from transcript.
+     * Loads alpha, bet, gamma, eta, zeta and nu and calculates powers of alpha.
+     *
+     * @param transcript Transcript to get challenges from.
+     * @param alpha_base alpha to some power (depends on previously used widgets).
+     * @param required_challenges Challenge bitmask, which shows when the function should fail.
+     * 
+     * @return A structure with an array of challenge values and powers of alpha.
+     * */
     static challenge_array get_challenges(const Transcript& transcript,
                                           const Field& alpha_base,
                                           uint8_t required_challenges)
+    
     {
         challenge_array result{};
         if constexpr (Settings::use_linearisation) {
@@ -128,6 +139,17 @@ class EvaluationGetter : public BaseGetter<Field, Transcript, Settings, num_widg
     typedef std::vector<PolynomialDescriptor> polynomial_manifest;
 
   public:
+    /**
+     * Get a polynomial at offset id
+     *
+     * @param polynomials An array of polynomials
+     * @param size_t Unused
+     *
+     * @tparam use_shifted_evaluation Whether to pick first or second
+     * @tparam id Polynomial index.
+     *
+     * @return The chosen polynomial
+     * */
     template <bool use_shifted_evaluation, PolynomialIndex id>
     inline static const Field& get_polynomial(const poly_array& polynomials, const size_t = 0)
     {
@@ -193,6 +215,11 @@ class FFTGetter : public BaseGetter<Field, Transcript, Settings, num_widget_rela
     template <bool use_shifted_evaluation, PolynomialIndex id>
     inline static const Field& get_polynomial(const poly_ptr_array& polynomials, const size_t index = 0)
     {
+        // have range quotient R(X). Value of array are: R(g.w'^i) for i in [0, ...., 4n - 1], w' = 4n'th root of unity.
+        // g = coset generator shifted range quotient = R(X.w), w = n'th root of unity. if we have at idx i: R(w'^i) =>
+        // X = w'^i . Shifted equivalent = X.w = w'^i.w = w'^{i + 4} = value at index i + 4
+
+        // final computation: T(X) = quotient identity I(X) / Z_H(X) <- vanishing poly
 
         if constexpr (use_shifted_evaluation) {
             return polynomials.coefficients[id][(index + 4) & polynomials.block_mask];

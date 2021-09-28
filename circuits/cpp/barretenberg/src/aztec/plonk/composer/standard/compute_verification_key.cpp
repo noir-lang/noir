@@ -8,6 +8,14 @@
 namespace waffle {
 namespace standard_composer {
 
+/**
+ * Compute the verification key (just precommitments of Q_1-3, Q_M, Q_C, SIGMA_1-3).
+ *
+ * @param circuit_proving_key Proving key containing all the necessary selectors.
+ * @param vrs CRS to use for commitment.
+ *
+ * @return Verification key with selector precommitments.
+ * */
 std::shared_ptr<verification_key> compute_verification_key(std::shared_ptr<proving_key> const& circuit_proving_key,
                                                            std::shared_ptr<VerifierReferenceString> const& vrs)
 {
