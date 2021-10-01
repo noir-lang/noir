@@ -213,7 +213,6 @@ class PlookupComposer : public ComposerBase {
                                                   1),
               transcript::Manifest::RoundManifest(
                   {
-                      { "t", fr_size, true, -1 },
                       { "w_1", fr_size, false, 0 },
                       { "w_2", fr_size, false, 1 },
                       { "w_3", fr_size, false, 2 },
@@ -237,7 +236,6 @@ class PlookupComposer : public ComposerBase {
                       { "table_type", fr_size, false, 20 },
                       { "s", fr_size, false, 21 },
                       { "z_lookup", fr_size, false, 22 },
-                      { "r", fr_size, false, 23 },
                       { "id_1", fr_size, false, 24 },
                       { "id_2", fr_size, false, 25 },
                       { "id_3", fr_size, false, 26 },

@@ -12,7 +12,7 @@ The structured reference string contains monomials up to x^{2^20}. This SRS was 
 
 ### Getting started
 
-Run the bootstrap script.
+Run the bootstrap script. (The bootstrap script will build both the native and wasm versions of barretenberg)
 
 ```
 ./bootstrap.sh

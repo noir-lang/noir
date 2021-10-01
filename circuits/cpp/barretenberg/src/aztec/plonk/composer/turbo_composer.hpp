@@ -141,7 +141,6 @@ class TurboComposer : public ComposerBase {
                   1),
               transcript::Manifest::RoundManifest(
                   {
-                      { "t", fr_size, true, -1 },
                       { "w_1", fr_size, false, 0 },
                       { "w_2", fr_size, false, 1 },
                       { "w_3", fr_size, false, 2 },
@@ -152,7 +151,6 @@ class TurboComposer : public ComposerBase {
                       { "q_arith", fr_size, false, 7 },
                       { "q_ecc_1", fr_size, false, 8 },
                       { "q_c", fr_size, false, 9 },
-                      { "r", fr_size, false, 10 },
                       { "z_omega", fr_size, false, -1 },
                       { "w_1_omega", fr_size, false, 0 },
                       { "w_2_omega", fr_size, false, 1 },

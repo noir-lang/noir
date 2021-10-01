@@ -12,7 +12,7 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
     // We state the challenges required for linear/nonlinear terms computation
     static constexpr uint8_t quotient_required_challenges = CHALLENGE_BIT_ALPHA;
     // We state the challenges required for updating kate opening scalars
-    static constexpr uint8_t update_required_challenges = CHALLENGE_BIT_ALPHA | CHALLENGE_BIT_LINEAR_NU;
+    static constexpr uint8_t update_required_challenges = CHALLENGE_BIT_ALPHA;
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
@@ -62,12 +62,11 @@ template <class Field, class Getters, typename PolyContainer> class ArithmeticKe
                                                    const challenge_array& challenges)
     {
         const Field& alpha = challenges.alpha_powers[0];
-        const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
-        scalars["Q_M"] += linear_terms[0] * alpha * linear_challenge;
-        scalars["Q_1"] += linear_terms[1] * alpha * linear_challenge;
-        scalars["Q_2"] += linear_terms[2] * alpha * linear_challenge;
-        scalars["Q_3"] += linear_terms[3] * alpha * linear_challenge;
-        scalars["Q_C"] += alpha * linear_challenge;
+        scalars["Q_M"] += linear_terms[0] * alpha;
+        scalars["Q_1"] += linear_terms[1] * alpha;
+        scalars["Q_2"] += linear_terms[2] * alpha;
+        scalars["Q_3"] += linear_terms[3] * alpha;
+        scalars["Q_C"] += alpha;
     }
 };
 

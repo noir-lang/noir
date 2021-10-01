@@ -52,18 +52,19 @@ template <typename Curve> class recursive_turbo_verifier_settings : public waffl
     static fr_ct compute_quotient_evaluation_contribution(typename Transcript_pt::Key* key,
                                                           const fr_ct& alpha_base,
                                                           const Transcript_pt& transcript,
-                                                          fr_ct& t_eval)
+                                                          fr_ct& t_eval,
+                                                          fr_ct& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, use_linearisation);
+            key, alpha_base, transcript, t_eval, r_0, use_linearisation);
         updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+            key, updated_alpha_base, transcript, t_eval, r_0);
         updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+            key, updated_alpha_base, transcript, t_eval, r_0);
         updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+            key, updated_alpha_base, transcript, t_eval, r_0);
         updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, use_linearisation);
+            key, updated_alpha_base, transcript, t_eval, r_0);
         return updated_alpha_base;
     }
 };

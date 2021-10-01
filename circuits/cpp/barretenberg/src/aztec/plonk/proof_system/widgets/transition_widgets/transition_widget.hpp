@@ -19,7 +19,6 @@ enum ChallengeIndex {
     GAMMA,
     ETA,
     ZETA,
-    LINEAR_NU,
     MAX_NUM_CHALLENGES,
 };
 
@@ -32,7 +31,6 @@ enum ChallengeIndex {
 #define CHALLENGE_BIT_GAMMA (1 << widget::ChallengeIndex::GAMMA)
 #define CHALLENGE_BIT_ETA (1 << widget::ChallengeIndex::ETA)
 #define CHALLENGE_BIT_ZETA (1 << widget::ChallengeIndex::ZETA)
-#define CHALLENGE_BIT_LINEAR_NU (1 << widget::ChallengeIndex::LINEAR_NU)
 
 namespace containers {
 template <class Field, size_t num_widget_relations> struct challenge_array {
@@ -64,25 +62,15 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
      * @param transcript Transcript to get challenges from.
      * @param alpha_base alpha to some power (depends on previously used widgets).
      * @param required_challenges Challenge bitmask, which shows when the function should fail.
-     * 
+     *
      * @return A structure with an array of challenge values and powers of alpha.
      * */
     static challenge_array get_challenges(const Transcript& transcript,
                                           const Field& alpha_base,
                                           uint8_t required_challenges)
-    
+
     {
         challenge_array result{};
-        if constexpr (Settings::use_linearisation) {
-            ASSERT(!(required_challenges & CHALLENGE_BIT_LINEAR_NU) || transcript.has_challenge("nu"));
-            if (transcript.has_challenge("nu")) {
-                result.elements[LINEAR_NU] = transcript.get_challenge_field_element_from_map("nu", "r");
-            } else {
-                result.elements[LINEAR_NU] = barretenberg::fr::random_element();
-            }
-        } else {
-            result.elements[LINEAR_NU] = barretenberg::fr::random_element();
-        }
         /**
          * There are several issues we need to address here:
          * 1. We can't just set the value to 0. In case of a typo this could lead to a vulnerability
@@ -395,6 +383,10 @@ class TransitionWidget : public TransitionWidgetBase<Field> {
         linear_poly[i] += MonomialKernel::sum_linear_terms(polynomials, challenges, linear_terms, i);
         ITERATE_OVER_DOMAIN_END;
 
+        if (Settings::use_linearisation) {
+            EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, linear_poly[0]);
+        }
+
         return MonomialGetter::update_alpha(challenges, FFTKernel::num_independent_relations);
     }
 };
@@ -413,19 +405,20 @@ class GenericVerifierWidget {
     typedef KernelBase<Field, EvaluationGetter, poly_array> EvaluationKernel;
 
     static Field compute_quotient_evaluation_contribution(
-        typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, const bool)
+        typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, Field& r_0)
     {
         poly_array polynomial_evaluations =
             EvaluationGetter::get_polynomial_evaluations(key->polynomial_manifest, transcript);
         challenge_array challenges =
             EvaluationGetter::get_challenges(transcript, alpha_base, EvaluationKernel::quotient_required_challenges);
 
-        EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, t_eval);
-
         if constexpr (!Settings::use_linearisation) {
             coefficient_array linear_terms;
             EvaluationKernel::compute_linear_terms(polynomial_evaluations, challenges, linear_terms);
             t_eval += EvaluationKernel::sum_linear_terms(polynomial_evaluations, challenges, linear_terms);
+            EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, t_eval);
+        } else {
+            EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, r_0);
         }
         return EvaluationGetter::update_alpha(challenges, num_independent_relations);
     }
@@ -433,8 +426,7 @@ class GenericVerifierWidget {
     static Field append_scalar_multiplication_inputs(typename Transcript::Key* key,
                                                      const Field& alpha_base,
                                                      const Transcript& transcript,
-                                                     std::map<std::string, Field>& scalars,
-                                                     const bool)
+                                                     std::map<std::string, Field>& scalars)
     {
         challenge_array challenges = EvaluationGetter::get_challenges(transcript,
                                                                       alpha_base,

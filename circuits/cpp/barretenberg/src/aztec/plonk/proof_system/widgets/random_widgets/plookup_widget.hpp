@@ -2,7 +2,10 @@
 #include "random_widget.hpp"
 
 namespace waffle {
-template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial = 4> 
+template <typename Field,
+          typename Group,
+          typename Transcript,
+          const size_t num_roots_cut_out_of_vanishing_polynomial = 4>
 class VerifierPlookupWidget {
   public:
     VerifierPlookupWidget();
@@ -11,6 +14,7 @@ class VerifierPlookupWidget {
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
                                                           Field& t_eval,
+                                                          Field& r_0,
                                                           const bool use_linearisation);
 
     static Field append_scalar_multiplication_inputs(typename Transcript::Key*,

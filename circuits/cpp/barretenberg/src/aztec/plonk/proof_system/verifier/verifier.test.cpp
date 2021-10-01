@@ -34,13 +34,11 @@ transcript::Manifest create_manifest(const size_t num_public_inputs = 0)
               { { "T_1", g1_size, false }, { "T_2", g1_size, false }, { "T_3", g1_size, false } }, "z", 1),
           transcript::Manifest::RoundManifest(
               {
-                  { "t", fr_size, true, -1 },
                   { "w_1", fr_size, false, 0 },
                   { "w_2", fr_size, false, 1 },
                   { "w_3", fr_size, false, 2 },
                   { "sigma_1", fr_size, false, 3 },
                   { "sigma_2", fr_size, false, 4 },
-                  { "r", fr_size, false, 5 },
                   { "z_omega", fr_size, false, -1 },
               },
               "nu",

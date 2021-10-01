@@ -1123,17 +1123,18 @@ UnrolledPlookupProver PlookupComposer::create_unrolled_prover()
     std::unique_ptr<ProverPlookupWidget<>> plookup_widget =
         std::make_unique<ProverPlookupWidget<>>(circuit_proving_key.get(), witness.get());
 
-    std::unique_ptr<ProverTurboArithmeticWidget<unrolled_turbo_settings>> arithmetic_widget =
-        std::make_unique<ProverTurboArithmeticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(),
-                                                                               witness.get());
-    std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_turbo_settings>> fixed_base_widget =
-        std::make_unique<ProverTurboFixedBaseWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverGenPermSortWidget<unrolled_turbo_settings>> sort_widget =
-        std::make_unique<ProverGenPermSortWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverTurboLogicWidget<unrolled_turbo_settings>> logic_widget =
-        std::make_unique<ProverTurboLogicWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
-    std::unique_ptr<ProverEllipticWidget<unrolled_turbo_settings>> elliptic_widget =
-        std::make_unique<ProverEllipticWidget<unrolled_turbo_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboArithmeticWidget<unrolled_plookup_settings>> arithmetic_widget =
+        std::make_unique<ProverTurboArithmeticWidget<unrolled_plookup_settings>>(circuit_proving_key.get(),
+                                                                                 witness.get());
+    std::unique_ptr<ProverTurboFixedBaseWidget<unrolled_plookup_settings>> fixed_base_widget =
+        std::make_unique<ProverTurboFixedBaseWidget<unrolled_plookup_settings>>(circuit_proving_key.get(),
+                                                                                witness.get());
+    std::unique_ptr<ProverGenPermSortWidget<unrolled_plookup_settings>> sort_widget =
+        std::make_unique<ProverGenPermSortWidget<unrolled_plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverTurboLogicWidget<unrolled_plookup_settings>> logic_widget =
+        std::make_unique<ProverTurboLogicWidget<unrolled_plookup_settings>>(circuit_proving_key.get(), witness.get());
+    std::unique_ptr<ProverEllipticWidget<unrolled_plookup_settings>> elliptic_widget =
+        std::make_unique<ProverEllipticWidget<unrolled_plookup_settings>>(circuit_proving_key.get(), witness.get());
 
     output_state.random_widgets.emplace_back(std::move(permutation_widget));
     output_state.random_widgets.emplace_back(std::move(plookup_widget));
@@ -1144,8 +1145,8 @@ UnrolledPlookupProver PlookupComposer::create_unrolled_prover()
     output_state.transition_widgets.emplace_back(std::move(logic_widget));
     output_state.transition_widgets.emplace_back(std::move(elliptic_widget));
 
-    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
+    std::unique_ptr<KateCommitmentScheme<unrolled_plookup_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<unrolled_plookup_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
@@ -1158,8 +1159,8 @@ PlookupVerifier PlookupComposer::create_verifier()
 
     PlookupVerifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
-    std::unique_ptr<KateCommitmentScheme<turbo_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<turbo_settings>>();
+    std::unique_ptr<KateCommitmentScheme<plookup_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<plookup_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 
@@ -1172,8 +1173,8 @@ UnrolledPlookupVerifier PlookupComposer::create_unrolled_verifier()
 
     UnrolledPlookupVerifier output_state(circuit_verification_key, create_unrolled_manifest(public_inputs.size()));
 
-    std::unique_ptr<KateCommitmentScheme<unrolled_turbo_settings>> kate_commitment_scheme =
-        std::make_unique<KateCommitmentScheme<unrolled_turbo_settings>>();
+    std::unique_ptr<KateCommitmentScheme<unrolled_plookup_settings>> kate_commitment_scheme =
+        std::make_unique<KateCommitmentScheme<unrolled_plookup_settings>>();
 
     output_state.commitment_scheme = std::move(kate_commitment_scheme);
 

@@ -86,7 +86,7 @@ void proving_key::init()
     // for standard plonk (program_width = 3) and number of roots cut out of the vanishing polynomial is 4,
     // the degree of the quotient polynomial t(X) is 3n. Thus, the number of coefficients in t_{high} is (n + 1).
     // But our prover algorithm assumes that each of t_{low}, t_{mid}, t_{high} is of degree (n - 1) (i.e. n
-    // coefficients in each). 
+    // coefficients in each).
     // Note that: deg(W_{\script{z}}) = max{ deg(t_{low}), deg(t_{mid}), deg(t_{high}), deg(a),
     // deg(b), ... }
     // => deg(W_{\script{z}}) = n + 1 when program_width is 3!

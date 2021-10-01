@@ -422,11 +422,10 @@ template <typename settings> void ProverBase<settings>::execute_sixth_round()
 {
     queue.flush_queue();
     transcript.apply_fiat_shamir("nu");
-
     commitment_scheme->batch_open(transcript, queue, key, witness);
 }
 
-template <typename settings> barretenberg::fr ProverBase<settings>::compute_linearisation_coefficients()
+template <typename settings> void ProverBase<settings>::compute_linearisation_coefficients()
 {
 
     fr zeta = fr::serialize_from_buffer(transcript.get_challenge("z").begin());
@@ -445,11 +444,38 @@ template <typename settings> barretenberg::fr ProverBase<settings>::compute_line
         for (auto& widget : transition_widgets) {
             alpha_base = widget->compute_linear_contribution(alpha_base, transcript, &r[0]);
         }
-        fr linear_eval = r.evaluate(zeta, n);
-        transcript.add_element("r", linear_eval.to_buffer());
+        // The below code adds −Z_H(z) * (t_lo(X) + z^n * t_mid(X) + z^2n * t_hi(X)) term to r(X)
+        barretenberg::fr z_pow_n = zeta.pow(key->n);
+        barretenberg::fr z_pow_two_n = z_pow_n.sqr();
+        // We access Z_H(z) from lagrange_evals
+        barretenberg::polynomial_arithmetic::lagrange_evaluations lagrange_evals =
+            barretenberg::polynomial_arithmetic::get_lagrange_evaluations(zeta, key->small_domain);
+        ITERATE_OVER_DOMAIN_START(key->small_domain);
+        fr quotient_sum = 0, quotient_multiplier = 1;
+        for (size_t j = 0; j < settings::program_width; j++) {
+            quotient_sum += key->quotient_large[i + key->n * j] * quotient_multiplier;
+            quotient_multiplier *= z_pow_n;
+        }
+        r[i] += -lagrange_evals.vanishing_poly * quotient_sum;
+        ITERATE_OVER_DOMAIN_END;
+        // For standard Plonk, t_hi(X) has, (n+1) coefficients
+        if (settings::program_width == 3) {
+            if (r.get_size() < key->n + 1) {
+                r.resize(key->n + 1);
+            }
+            r[key->n] = -key->quotient_large[3 * key->n] * lagrange_evals.vanishing_poly * z_pow_two_n;
+        }
+
+        // Assert that r(X) at X = zeta is 0
+        const auto size = (settings::program_width == 3) ? key->n + 1 : key->n;
+        fr linear_eval = r.evaluate(zeta, size);
+        // This condition checks if r(z) = 0 but does not abort.
+        if (linear_eval != fr(0)) {
+            error("linear_eval is not 0.");
+        }
+    } else {
+        transcript.add_element("t", t_eval.to_buffer());
     }
-    transcript.add_element("t", t_eval.to_buffer());
-    return t_eval;
 }
 
 template <typename settings> waffle::plonk_proof& ProverBase<settings>::export_proof()

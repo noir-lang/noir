@@ -68,7 +68,7 @@ template <class Field, class Getters, typename PolyContainer> class TurboRangeKe
     // We state the challenges required for linear/nonlinear terms computation
     static constexpr uint8_t quotient_required_challenges = CHALLENGE_BIT_ALPHA;
     // We state the challenges required for updating kate opening scalars
-    static constexpr uint8_t update_required_challenges = CHALLENGE_BIT_ALPHA | CHALLENGE_BIT_LINEAR_NU;
+    static constexpr uint8_t update_required_challenges = CHALLENGE_BIT_ALPHA;
 
   private:
     typedef containers::challenge_array<Field, num_independent_relations> challenge_array;
@@ -166,10 +166,9 @@ template <class Field, class Getters, typename PolyContainer> class TurboRangeKe
 
     inline static void update_kate_opening_scalars(coefficient_array& linear_terms,
                                                    std::map<std::string, Field>& scalars,
-                                                   const challenge_array& challenges)
+                                                   const challenge_array&)
     {
-        const Field& linear_challenge = challenges.elements[ChallengeIndex::LINEAR_NU];
-        scalars["Q_RANGE_SELECTOR"] += linear_terms[0] * linear_challenge;
+        scalars["Q_RANGE_SELECTOR"] += linear_terms[0];
     }
 };
 

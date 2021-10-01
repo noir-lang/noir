@@ -54,14 +54,14 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // A PLONK proof for standard PLONK with linearisation as on page 31 in the paper is of the form:
     //
     // π_SNARK =   { [a]_1,[b]_1,[c]_1,[z]_1,[t_{low}]_1,[t_{mid}]_1,[t_{high}]_1,[W_z]_1,[W_zω]_1 \in G,
-    //              a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval, r_eval, z_eval_omega \in F }
+    //              a_eval, b_eval, c_eval, sigma1_eval, sigma2_eval, z_eval_omega \in F }
     //
     // Proof π_SNARK must be first added in the transcrip with other program settings.
     //
 
     key->program_width = program_settings::program_width;
     transcript::StandardTranscript transcript = transcript::StandardTranscript(
-            proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
+        proof.proof_data, manifest, program_settings::hash_type, program_settings::num_challenge_bytes);
     // Compute challenges using Fiat-Shamir heuristic from transcript
     transcript.add_element("circuit_size",
                            { static_cast<uint8_t>(key->n >> 24),
@@ -93,18 +93,20 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // --------------------------------------------------------------------------------------------------------------------------------------------------------------
     //                                                                       Z_H*(zeta)
     // where Z_H*(X) is the modified vanishing polynomial.
-    // The `compute_quotient_evaluation_contribution` function computes the numerator of t_eval
-    // according to the program settings for standard/turbo/ultra PLONK.
+    // The `compute_quotient_evaluation_contribution` function computes the numerator of t_eval and also r_0 (for
+    // the simplified version) according to the program settings for standard/turbo/ultra PLONK.
     //
     key->z_pow_n = zeta;
     for (size_t i = 0; i < key->domain.log2_size; ++i) {
         key->z_pow_n *= key->z_pow_n;
     }
-    fr t_eval(0);
-    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, t_eval);
+    fr t_eval(0), r_0(0);
+    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, t_eval, r_0);
     t_eval *= lagrange_evals.vanishing_poly.invert();
-    transcript.add_element("t", t_eval.to_buffer());
-
+    // We want to include t_eval to transcript only when use_linearisation is false
+    if (!program_settings::use_linearisation) {
+        transcript.add_element("t", t_eval.to_buffer());
+    }
     transcript.apply_fiat_shamir("nu");
     transcript.apply_fiat_shamir("separator");
     const auto separator_challenge = fr::serialize_from_buffer(transcript.get_challenge("separator").begin());
@@ -126,7 +128,7 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     // Note that we do not actually compute the scalar multiplications but just accumulate the scalars
     // and the group elements in different vectors.
     //
-    commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key);
+    commitment_scheme->batch_verify(transcript, kate_g1_elements, kate_fr_elements, key, r_0);
 
     // Step 9: Compute partial opening batch commitment [D]_1:
     //         [D]_1 = (a_eval.b_eval.[qM]_1 + a_eval.[qL]_1 + b_eval.[qR]_1 + c_eval.[qO]_1 + [qC]_1) * nu_{linear} * α

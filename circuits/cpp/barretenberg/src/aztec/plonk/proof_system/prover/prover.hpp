@@ -36,7 +36,7 @@ template <typename settings> class ProverBase {
     void init_quotient_polynomials();
     void compute_opening_elements();
 
-    barretenberg::fr compute_linearisation_coefficients();
+    void compute_linearisation_coefficients();
     waffle::plonk_proof& export_proof();
     waffle::plonk_proof& construct_proof();
 
