@@ -948,14 +948,15 @@ template <typename C, typename T> void bigfield<C, T>::reduction_check() const
 }
 
 // create a version with mod 2^t element part in [0,p-1]
-// should we call this assert if it actually creates new vars satisfying assert?
-// After reducing to size 2^s, we check p-a is non-negative as integer.
+// After reducing to size 2^s, we check (p-1)-a is non-negative as integer.
 // We perform subtraction using carries on blocks of size 2^b. The operations insde the blocks are done mod r
 // Including the effect of carries the operation inside each limb is in the range [-2^b-1,2^{b+1}]
 // Assuming this values are all distinct mod r, which happens e.g. if r/2>2^{b+1}, then if all limb values are
 // non-negative at the end of subtraction, we know the subtraction result is positive as integers and a<p
 template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() const
 {
+    // Warning: this assumes we have run circuit construction at least once in debug mode where large non reduced
+    // constants are allowed via ASSERT
     if (is_constant()) {
         return;
     }
@@ -963,22 +964,23 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     self_reduce(); // this method in particular enforces limb vals are <2^b - needed for logic described above
     uint256_t value = get_value().lo;
     // TODO:make formal assert that modulus<=256 bits
-    constexpr uint256_t modulus_value = modulus_u512.lo;
+    constexpr uint256_t modulus_minus_one = modulus_u512.lo - 1;
 
-    constexpr uint256_t modulus_0_value = modulus_value.slice(0, NUM_LIMB_BITS);
-    constexpr uint256_t modulus_1_value = modulus_value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
-    constexpr uint256_t modulus_2_value = modulus_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
-    constexpr uint256_t modulus_3_value = modulus_value.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
+    constexpr uint256_t modulus_minus_one_0 = modulus_minus_one.slice(0, NUM_LIMB_BITS);
+    constexpr uint256_t modulus_minus_one_1 = modulus_minus_one.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
+    constexpr uint256_t modulus_minus_one_2 = modulus_minus_one.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
+    constexpr uint256_t modulus_minus_one_3 = modulus_minus_one.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
 
-    bool borrow_0_value = value.slice(0, NUM_LIMB_BITS) > modulus_0_value;
-    bool borrow_1_value = (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) - uint256_t(borrow_0_value)) > modulus_1_value;
+    bool borrow_0_value = value.slice(0, NUM_LIMB_BITS) > modulus_minus_one_0;
+    bool borrow_1_value =
+        (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) - uint256_t(borrow_0_value)) > modulus_minus_one_1;
     bool borrow_2_value =
-        (value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3) - uint256_t(borrow_1_value)) > modulus_2_value;
+        (value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3) - uint256_t(borrow_1_value)) > modulus_minus_one_2;
 
-    field_t<C> modulus_0(context, modulus_0_value);
-    field_t<C> modulus_1(context, modulus_1_value);
-    field_t<C> modulus_2(context, modulus_2_value);
-    field_t<C> modulus_3(context, modulus_3_value);
+    field_t<C> modulus_0(context, modulus_minus_one_0);
+    field_t<C> modulus_1(context, modulus_minus_one_1);
+    field_t<C> modulus_2(context, modulus_minus_one_2);
+    field_t<C> modulus_3(context, modulus_minus_one_3);
     // where are you constraining the borrows to be correct? (maybe not needed)
     bool_t<C> borrow_0(witness_t<C>(context, borrow_0_value));
     bool_t<C> borrow_1(witness_t<C>(context, borrow_1_value));
@@ -1094,6 +1096,8 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const
 // larger
 template <typename C, typename T> void bigfield<C, T>::self_reduce() const
 {
+    // Warning: this assumes we have run circuit construction at least once in debug mode where large non reduced
+    // constants are disallowed via ASSERT
     if (is_constant()) {
         return;
     }
@@ -1120,18 +1124,19 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     quotient.binary_basis_limbs[2] = Limb(field_t<C>::from_witness_index(context, context->zero_idx), 0);
     quotient.binary_basis_limbs[3] = Limb(field_t<C>::from_witness_index(context, context->zero_idx), 0);
     quotient.prime_basis_limb = quotient_limb;
-    // this constructor with can_overflow=false will create remainder of size<2^s
+    // this constructor with can_overflow=false will enforce remainder of size<2^s
     bigfield remainder = bigfield(
         witness_t(context, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
         witness_t(context, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
 
     evaluate_multiply_add(*this, one(), {}, quotient, { remainder });
-    binary_basis_limbs[0] = remainder.binary_basis_limbs[0]; // how is this method const?
+    binary_basis_limbs[0] =
+        remainder.binary_basis_limbs[0]; // Combination of const method and mutable variables is good practice?
     binary_basis_limbs[1] = remainder.binary_basis_limbs[1];
     binary_basis_limbs[2] = remainder.binary_basis_limbs[2];
     binary_basis_limbs[3] = remainder.binary_basis_limbs[3];
     prime_basis_limb = remainder.prime_basis_limb;
-}
+} // namespace stdlib
 
 // See explanation at https://hackmd.io/LoEG5nRHQe-PvstVaD51Yw?view
 template <typename C, typename T>
@@ -1495,7 +1500,7 @@ void bigfield<C, T>::evaluate_multiple_multiply_add(const std::vector<bigfield>&
      * `limb_2_accumulator` contains contributiosn in the range 2^{2t} - 2^{5t} (t = MAX_NUM_LIMB_BITS)
      * Actual range will vary a few bits because of lazy reduction techniques
      *
-     * We store these vaues in an "accumuator" vector in order to efficiently add them into a sum.
+     * We store these values in an "accumulator" vector in order to efficiently add them into a sum.
      * i.e. limb_0 =- field_t::accumulate(limb_0_accumulator)
      * This costs us fewer gates than addition operations because we can add 2 values into a sum in a single TurboPlonk
      *gate.

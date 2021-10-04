@@ -732,7 +732,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::bn254_endo_batch_mul(const std::vec
     /**
      * Main "double and add" loop
      *
-     * Each loop iteration traverses TWO bits of our scalar multiplier. Algorithm perofrms following:
+     * Each loop iteration traverses TWO bits of our scalar multiplier. Algorithm performs following:
      *
      * 1. Extract NAF value for bit `2*i - 1` for each scalar multiplier and store in `nafs` vector.
      * 2. Use `nafs` vector to derive the point that we need (`add_1`) to add into our accumulator.
