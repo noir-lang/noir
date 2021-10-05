@@ -579,12 +579,8 @@ VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_p
 
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>
 Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanishing_polynomial>::
-    compute_quotient_evaluation_contribution(typename Transcript::Key* key,
-                                             const Field& alpha_base,
-                                             const Transcript& transcript,
-                                             Field& t_eval,
-                                             Field& r_0,
-                                             const bool use_linearisation)
+    compute_quotient_evaluation_contribution(
+        typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& r_0, const bool)
 
 {
 
@@ -712,11 +708,7 @@ Field VerifierPlookupWidget<Field, Group, Transcript, num_roots_cut_out_of_vanis
 
     // Combine into quotient polynomial
     T0 = numerator - denominator;
-    t_eval += T0 * alpha_base;
-    if (use_linearisation) {
-        r_0 += (T0 * alpha_base);
-    }
-
+    r_0 += T0 * alpha_base;
     return alpha_base * alpha.sqr() * alpha;
 } // namespace waffle
 

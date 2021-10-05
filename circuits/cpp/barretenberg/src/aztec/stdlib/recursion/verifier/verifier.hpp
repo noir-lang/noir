@@ -230,13 +230,11 @@ recursion_output<Curve> verify_proof(typename Curve::Composer* context,
     // reconstruct evaluation of quotient polynomial from prover messages
     fr_ct T0;
 
-    fr_ct t_eval = fr_ct(0);
     fr_ct r_0 = fr_ct(0);
     fr_ct alpha_base = alpha;
 
-    alpha_base =
-        program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, t_eval, r_0);
-    t_eval = t_eval / lagrange_evals.vanishing_poly;
+    alpha_base = program_settings::compute_quotient_evaluation_contribution(key.get(), alpha_base, transcript, r_0);
+    fr_ct t_eval = r_0 / lagrange_evals.vanishing_poly;
     transcript.add_field_element("t", t_eval);
 
     transcript.apply_fiat_shamir("nu");

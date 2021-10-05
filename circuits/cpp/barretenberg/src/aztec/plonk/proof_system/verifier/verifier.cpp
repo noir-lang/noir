@@ -100,11 +100,13 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     for (size_t i = 0; i < key->domain.log2_size; ++i) {
         key->z_pow_n *= key->z_pow_n;
     }
-    fr t_eval(0), r_0(0);
-    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, t_eval, r_0);
-    t_eval *= lagrange_evals.vanishing_poly.invert();
+    // when use_linearisation is true, r_0 is the contant term of r(X). When use_linearisation is false, r_0
+    // is the evaluation of the numerator of quotient polynomial t(X)
+    fr r_0(0);
+    program_settings::compute_quotient_evaluation_contribution(key.get(), alpha, transcript, r_0);
     // We want to include t_eval to transcript only when use_linearisation is false
     if (!program_settings::use_linearisation) {
+        fr t_eval = r_0 * lagrange_evals.vanishing_poly.invert();
         transcript.add_element("t", t_eval.to_buffer());
     }
     transcript.apply_fiat_shamir("nu");

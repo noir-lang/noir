@@ -524,14 +524,18 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     // Since this is a member function of the `ProverPermutationWidget` class, we only compute the terms relevant to the
     // copy constraints. Concretely, we compute the terms:
     //
-    // r(X) = (a_eval.b_eval.q_M(X) + a_eval.q_L(X) + b_eval.q_R(X) + c_eval.q_O(X) + q_C(X)) +            |------->
+    // r(X) = (a_eval.b_eval.q_M(X) + a_eval.q_L(X) + b_eval.q_R(X) + c_eval.q_O(X) + q_C(X)) +
     // gate constraints
-    //        ((a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ) z(X))α -                     |
-    //        ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ) β.z_eval_omega.S_{sigma3}(X))α +    )------>
-    //        copy constraints z(X).L_1(z).α^{3} |
-    //
-    // Note here, we are only trying to compute the `copy constraints` part and the `gate constraints` part need to be
-    // done using Arithmetic widget. Also, the prover calls this function only when linearisation trick is used, so we
+    //        ((a_eval + β.z + γ)(b_eval + β.k_1.z + γ)(c_eval + β.k_2.z + γ) z(X))α -
+    //        ((a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ) β.z_eval_omega.S_{sigma3}(X))α +
+    //         z(X).L_1(z).α^{3} +
+    //         −(a_eval+βS_σ1_eval+γ)(b_eval+βS_σ2_eval+γ)(c_eval+γ)zωα −
+    // α^3L1(z) + α^2(z_ω_eval−ΔPI)L_n(z)−Z_H(z)(t_lo(X)+z^n * t_mid(X)+z^{2n} * t_hi(X)).
+    // copy constraints
+    // Note here, we are only computing the `copy constraints` part and the `gate constraints` part need to be
+    // done using Arithmetic widget. The term −Z_H(z)(t_lo(X)+z^n * t_mid(X)+z^{2n} * t_hi(X)) is added in prover.cpp.
+    // A detailed discussion on this can be found at https://hackmd.io/vUGG8CO_Rk2iEjruBL_gGw?view
+    // Also, the prover calls this function only when linearisation trick is used, so we
     // don't need to explicitly check the condition `use_linearisation`.
     //
 
@@ -585,7 +589,9 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     T0 = lagrange_evals.l_start * alpha_cubed;
     z_1_multiplicand += T0;
 
-    // Step 4: compute the multiplicand of the copy permutation polynomial S_{sigma3}(X)
+    // Step 4: compute the multiplicand of S_{σ3}(X), the multiplicand of (c_eval+γ) i.e.
+    // −(a_eval+βS_{σ1}_eval+γ)(b_eval+βS_{σ2}_eval+γ)z_ω_evalα, and (c_eval+γ). Note that
+    // the multiplicand of S_{σ3}(X) = β * (multiplicand of (c_eval+γ))
     barretenberg::fr sigma_contribution = fr(1);
     for (size_t i = 0; i < program_width - 1; ++i) {
         barretenberg::fr permutation_evaluation =
@@ -597,26 +603,19 @@ barretenberg::fr ProverPermutationWidget<program_width, idpolys, num_roots_cut_o
     }
     sigma_contribution *= z_1_shifted_eval;
     barretenberg::fr sigma_last_multiplicand = -(sigma_contribution * alpha);
-    barretenberg::fr c_eval_gamma_multiplicand =
-        sigma_last_multiplicand; // compute the multiplicand of -(c_eval+γ) for the new version
+    barretenberg::fr c_eval_gamma = wire_evaluations[program_width - 1] + gamma;
+    barretenberg::fr c_eval_gamma_multiplicand = sigma_last_multiplicand;
     sigma_last_multiplicand *= beta;
 
-    // Step 5: add up the z(X) and S_{sigma3}(X) terms into r(X)
+    // Step 6: Fetching S_{σ3}(X), public input component
     const polynomial& sigma_last = key->permutation_selectors.at("sigma_" + std::to_string(program_width));
-
-    // compute our public input component
     std::vector<barretenberg::fr> public_inputs = many_from_buffer<fr>(transcript.get_element("public_inputs"));
-
     barretenberg::fr public_input_delta =
         compute_public_input_delta<fr>(public_inputs, beta, gamma, key->small_domain.root);
-    // step 5: compute (c_eval+γ)
-    barretenberg::fr c_eval_gamma = wire_evaluations[program_width - 1] + gamma;
-
-    // step 6: compute α^2(z_w−Δ_PI)Ln(z)
+    // Compute pi_term = α^2(z_w_eval − Δ_PI)Ln(z)
     barretenberg::fr pi_term = z_1_shifted_eval - public_input_delta;
     pi_term *= lagrange_evals.l_end;
     pi_term *= alpha.sqr();
-
     // Step 7: add up the z(X), S_{sigma3}(X), c_eval_gamma, and l_one_z_alpha_cube terms into r(X)
     ITERATE_OVER_DOMAIN_START(key->small_domain);
     r[i] = (z[i] * z_1_multiplicand) + (sigma_last[i] * sigma_last_multiplicand);
@@ -639,7 +638,6 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     compute_quotient_evaluation_contribution(typename Transcript::Key* key,
                                              const Field& alpha,
                                              const Transcript& transcript,
-                                             Field& t_eval,
                                              Field& r_0,
                                              const bool use_linearisation,
                                              const bool idpolys)
@@ -734,11 +732,11 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     // Combine parts 1, 2, 3. If linearisation is used, we need to add r_eval to T1 and we're done.
     T1 -= T2;
     T1 -= sigma_contribution;
-    t_eval += T1;
+    r_0 += T1;
     // If we use linearisation, then T1 computed at this point is equal to the constant contribution of r(X) computed in
     // this widget
     if (use_linearisation) {
-        r_0 += T1;
+        return alpha.sqr().sqr();
     }
 
     // If linearisation is not used, the verifier needs to compute the evaluation of the linearisation polynomial r(X).
@@ -754,7 +752,7 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
     // Note here, we are only trying to compute the `copy constraints` part and the `gate constraints` part need to be
     // done using Arithmetic widget.
     //
-    if (!use_linearisation) {
+    else {
 
         // Part 4: compute multiplicand of last sigma polynomial, i.e.
         // -(a_eval + β.sigma1_eval + γ)(b_eval + β.sigma2_eval + γ) β.z_eval_omega.α
@@ -770,8 +768,8 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
         Field sigma_last_multiplicand = -(sigma_contribution * alpha);
         sigma_last_multiplicand *= beta;
 
-        // add up part 4 to the t_eval term
-        t_eval += (sigma_last_multiplicand * sigma_evaluations[key->program_width - 1]);
+        // add up part 4 to the r_0 term
+        r_0 += (sigma_last_multiplicand * sigma_evaluations[key->program_width - 1]);
 
         Field z_eval = transcript.get_field_element("z");
 
@@ -793,8 +791,8 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
             T0 = l_start * alpha_cubed;
             id_last_multiplicand += T0;
 
-            // add up part 5.1 to the t_eval term
-            t_eval += (id_last_multiplicand * z_eval);
+            // add up part 5.1 to the r_0 term
+            r_0 += (id_last_multiplicand * z_eval);
         } else {
 
             // Part 5.2: If idpolys is false, the identity permutations are identity polynomials.
@@ -812,12 +810,11 @@ Field VerifierPermutationWidget<Field, Group, Transcript, num_roots_cut_out_of_v
             T0 = l_start * alpha_cubed;
             z_1_multiplicand += T0;
 
-            // add up part 5.2 to the t_eval term
-            t_eval += (z_1_multiplicand * z_eval);
+            // add up part 5.2 to the r_0 term
+            r_0 += (z_1_multiplicand * z_eval);
         }
+        return alpha.sqr().sqr();
     }
-
-    return alpha.sqr().sqr();
 }
 
 template <typename Field, typename Group, typename Transcript, const size_t num_roots_cut_out_of_vanishing_polynomial>

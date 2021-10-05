@@ -13,7 +13,6 @@ class VerifierPlookupWidget {
     static Field compute_quotient_evaluation_contribution(typename Transcript::Key*,
                                                           const Field& alpha_base,
                                                           const Transcript& transcript,
-                                                          Field& t_eval,
                                                           Field& r_0,
                                                           const bool use_linearisation);
 

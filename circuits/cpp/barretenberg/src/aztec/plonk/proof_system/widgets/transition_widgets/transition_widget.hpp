@@ -404,8 +404,10 @@ class GenericVerifierWidget {
     typedef getters::EvaluationGetter<Field, Transcript, Settings, num_independent_relations> EvaluationGetter;
     typedef KernelBase<Field, EvaluationGetter, poly_array> EvaluationKernel;
 
-    static Field compute_quotient_evaluation_contribution(
-        typename Transcript::Key* key, const Field& alpha_base, const Transcript& transcript, Field& t_eval, Field& r_0)
+    static Field compute_quotient_evaluation_contribution(typename Transcript::Key* key,
+                                                          const Field& alpha_base,
+                                                          const Transcript& transcript,
+                                                          Field& r_0)
     {
         poly_array polynomial_evaluations =
             EvaluationGetter::get_polynomial_evaluations(key->polynomial_manifest, transcript);
@@ -415,8 +417,8 @@ class GenericVerifierWidget {
         if constexpr (!Settings::use_linearisation) {
             coefficient_array linear_terms;
             EvaluationKernel::compute_linear_terms(polynomial_evaluations, challenges, linear_terms);
-            t_eval += EvaluationKernel::sum_linear_terms(polynomial_evaluations, challenges, linear_terms);
-            EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, t_eval);
+            r_0 += EvaluationKernel::sum_linear_terms(polynomial_evaluations, challenges, linear_terms);
+            EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, r_0);
         } else {
             EvaluationKernel::compute_non_linear_terms(polynomial_evaluations, challenges, r_0);
         }

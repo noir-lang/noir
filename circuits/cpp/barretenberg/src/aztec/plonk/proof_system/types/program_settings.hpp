@@ -41,13 +41,15 @@ class standard_verifier_settings : public standard_settings {
         return ArithmeticWidget::append_scalar_multiplication_inputs(key, updated_alpha, transcript, scalars);
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(
-        verification_key* key, const fr& alpha_base, const Transcript& transcript, fr& t_eval, fr& r_0)
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, r_0, use_linearisation, false);
-        updated_alpha_base = ArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
+            key, alpha_base, transcript, r_0, use_linearisation, false);
+        updated_alpha_base =
+            ArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
         return updated_alpha_base;
     }
 };
@@ -79,16 +81,14 @@ class unrolled_standard_verifier_settings : public unrolled_standard_settings {
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
                                                                      const barretenberg::fr& alpha_base,
                                                                      const transcript::StandardTranscript& transcript,
-                                                                     barretenberg::fr& t_eval,
                                                                      barretenberg::fr& r_0)
     {
         auto updated_alpha_base = VerifierPermutationWidget<barretenberg::fr,
                                                             barretenberg::g1::affine_element,
                                                             transcript::StandardTranscript>::
-            compute_quotient_evaluation_contribution(key, alpha_base, transcript, t_eval, r_0, use_linearisation);
+            compute_quotient_evaluation_contribution(key, alpha_base, transcript, r_0, use_linearisation);
 
-        return ArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
+        return ArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
     }
 };
 
@@ -126,20 +126,22 @@ class turbo_verifier_settings : public turbo_settings {
         return updated_alpha;
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(
-        verification_key* key, const fr& alpha_base, const Transcript& transcript, fr& t_eval, fr& r_0)
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, r_0, use_linearisation, false);
+            key, alpha_base, transcript, r_0, use_linearisation, false);
 
-        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
+        updated_alpha_base =
+            TurboArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboRangeWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboLogicWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
 
         return updated_alpha_base;
     }
@@ -184,24 +186,26 @@ class plookup_verifier_settings : public plookup_settings {
         return updated_alpha;
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(
-        verification_key* key, const fr& alpha_base, const Transcript& transcript, fr& t_eval, fr& r_0)
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, r_0, use_linearisation, idpolys);
+            key, alpha_base, transcript, r_0, use_linearisation, idpolys);
         updated_alpha_base = PlookupWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0, use_linearisation);
+            key, updated_alpha_base, transcript, r_0, use_linearisation);
 
-        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
         updated_alpha_base =
-            EllipticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, r_0);
+            TurboArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            GenPermSortWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboLogicWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            EllipticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
 
         return updated_alpha_base;
     }
@@ -246,20 +250,19 @@ class unrolled_turbo_verifier_settings : public unrolled_turbo_settings {
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
                                                                      const barretenberg::fr& alpha_base,
                                                                      const Transcript& transcript,
-                                                                     barretenberg::fr& t_eval,
                                                                      barretenberg::fr& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, r_0, use_linearisation, idpolys);
+            key, alpha_base, transcript, r_0, use_linearisation, idpolys);
 
-        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
+        updated_alpha_base =
+            TurboArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboRangeWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboLogicWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
 
         return updated_alpha_base;
     }
@@ -309,24 +312,23 @@ class unrolled_plookup_verifier_settings : public unrolled_plookup_settings {
     static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
                                                                      const barretenberg::fr& alpha_base,
                                                                      const Transcript& transcript,
-                                                                     barretenberg::fr& t_eval,
                                                                      barretenberg::fr& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, r_0, use_linearisation, true);
+            key, alpha_base, transcript, r_0, use_linearisation, true);
         updated_alpha_base = PlookupWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0, use_linearisation);
+            key, updated_alpha_base, transcript, r_0, use_linearisation);
 
-        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
         updated_alpha_base =
-            EllipticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, t_eval, r_0);
+            TurboArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboRangeWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboLogicWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            EllipticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
 
         return updated_alpha_base;
     }
@@ -370,22 +372,22 @@ class generalized_permutation_verifier_settings : public turbo_settings {
         return updated_alpha;
     }
 
-    static barretenberg::fr compute_quotient_evaluation_contribution(
-        verification_key* key, const fr& alpha_base, const Transcript& transcript, fr& t_eval, fr& r_0)
+    static barretenberg::fr compute_quotient_evaluation_contribution(verification_key* key,
+                                                                     const fr& alpha_base,
+                                                                     const Transcript& transcript,
+                                                                     fr& r_0)
     {
         auto updated_alpha_base = PermutationWidget::compute_quotient_evaluation_contribution(
-            key, alpha_base, transcript, t_eval, r_0, use_linearisation, idpolys);
+            key, alpha_base, transcript, r_0, use_linearisation, idpolys);
 
-        updated_alpha_base = TurboArithmeticWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboFixedBaseWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        // updated_alpha_base = TurboRangeWidget::compute_quotient_evaluation_contribution(
-        //     key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = TurboLogicWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
-        updated_alpha_base = GenPermSortWidget::compute_quotient_evaluation_contribution(
-            key, updated_alpha_base, transcript, t_eval, r_0);
+        updated_alpha_base =
+            TurboArithmeticWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboFixedBaseWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            TurboLogicWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
+        updated_alpha_base =
+            GenPermSortWidget::compute_quotient_evaluation_contribution(key, updated_alpha_base, transcript, r_0);
 
         return updated_alpha_base;
     }

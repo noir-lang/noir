@@ -433,8 +433,6 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
     polynomial& r = key->linear_poly;
 
     commitment_scheme->add_opening_evaluations_to_transcript(transcript, key, witness, false);
-    fr t_eval = key->quotient_large.evaluate(zeta, 4 * n);
-
     if constexpr (settings::use_linearisation) {
         fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -474,6 +472,7 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
             error("linear_eval is not 0.");
         }
     } else {
+        fr t_eval = key->quotient_large.evaluate(zeta, 4 * n);
         transcript.add_element("t", t_eval.to_buffer());
     }
 }
