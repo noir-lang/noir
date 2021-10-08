@@ -31,7 +31,7 @@ field_ct process_input_note(Composer& composer,
     byte_array_ct leaf(&composer);
     leaf.write(note.second.x).write(note.second.y);
     bool_ct good =
-        merkle_tree::check_membership(composer, merkle_root, hash_path, leaf, byte_array_ct(index)) || !is_real;
+        merkle_tree::check_membership(composer, merkle_root, hash_path, leaf, byte_array_ct(index, 4)) || !is_real;
     composer.assert_equal_constant(good.witness_index, 1, "input note not a member");
 
     bool_ct validValue = note.first.value == field_ct(&composer, 0) || is_real;
@@ -110,7 +110,7 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     auto account_note_data = encrypt_account_note(account_alias_id, account_public_key, signer);
     auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
     auto exists = merkle_tree::check_membership(
-        composer, inputs.merkle_root, inputs.account_path, leaf_data, byte_array_ct(inputs.account_index));
+        composer, inputs.merkle_root, inputs.account_path, leaf_data, byte_array_ct(inputs.account_index, 4));
     auto signing_key_registered_or_zero_nonce = exists || zero_nonce;
     composer.assert_equal_constant(
         signing_key_registered_or_zero_nonce.witness_index, 1, "account check_membership failed");

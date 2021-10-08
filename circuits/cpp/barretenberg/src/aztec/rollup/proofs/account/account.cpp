@@ -89,7 +89,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto account_note_data = encrypt_account_note(account_alias_id, account_public_key, signer);
     const auto leaf_data = byte_array_ct(account_note_data.x).write(account_note_data.y);
     const auto exists = merkle_tree::check_membership(
-        composer, data_tree_root, account_note_path, leaf_data, byte_array_ct(account_note_index));
+        composer, data_tree_root, account_note_path, leaf_data, byte_array_ct(account_note_index, 4));
     composer.assert_equal(exists.normalize().witness_index,
                           assert_account_exists.normalize().witness_index,
                           "account check_membership failed");
