@@ -88,7 +88,7 @@ void check_data_tree_updated(Composer& composer,
                               old_data_root,
                               old_data_path,
                               zero_subtree_root,
-                              byte_array_ct(data_start_index, 4),
+                              byte_array_ct(data_start_index),
                               height,
                               __FUNCTION__);
 }

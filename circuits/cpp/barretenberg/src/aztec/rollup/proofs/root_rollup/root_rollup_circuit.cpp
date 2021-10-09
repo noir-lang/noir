@@ -34,7 +34,7 @@ void check_root_tree_updated(Composer& composer,
 {
     auto empty_tree_value = byte_array_ct(&composer, 64);
     auto new_data_root_arr = byte_array_ct(new_data_root);
-    auto index = byte_array_ct(rollup_id + 1, 4);
+    auto index = byte_array_ct(rollup_id + 1);
     update_membership(composer,
                       new_data_roots_root,
                       new_data_roots_path,
