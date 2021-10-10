@@ -135,7 +135,7 @@ class TestContext {
     void start_next_root_rollup(std::vector<native::defi_interaction::note> const& dins_ = {})
     {
         uint32_t rollup_id = static_cast<uint32_t>(world_state.root_tree.size());
-        uint32_t din_insertion_index = (rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK;
+        uint32_t din_insertion_index = (rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK;
         world_state.update_root_tree_with_data_root();
 
         auto dins = dins_;

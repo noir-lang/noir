@@ -228,17 +228,16 @@ TEST_F(root_rollup_tests, test_defi_valid_previous_defi_hash_for_0_interactions)
     ASSERT_TRUE(result.logic_verified);
 
     std::vector<uint8_t> sha256_input;
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+    for (size_t i = 0; i < NUM_INTERACTION_RESULTS_PER_BLOCK; i++) {
         notes::native::defi_interaction::note note = { 0, 0, 0, 0, 0, false };
         auto buf = note.to_byte_array();
-        sha256_input.insert(sha256_input.end(), buf.begin(), buf.end());
+        uint256_t note_hash = uint256_t(sha256::sha256_to_field(buf));
+        write(sha256_input, note_hash);
     }
-    auto expected = sha256::sha256(sha256_input);
-    // Zero the first 4 bits as the value computed in the circuit cannot wrap around the prime.
-    expected[0] &= 0xF;
+    auto expected = sha256::sha256_to_field(sha256_input);
 
     root_rollup_broadcast_data data(result.broadcast_data);
-    ASSERT_EQ(data.previous_defi_interaction_hash, from_buffer<fr>(expected));
+    ASSERT_EQ(data.previous_defi_interaction_hash, expected);
 }
 
 TEST_F(root_rollup_tests, test_encode_inputs)
@@ -336,15 +335,14 @@ TEST_F(root_rollup_tests, test_full_logic)
     EXPECT_EQ(rollup_data.asset_ids[3], fr(tx_data.asset_ids[3]));
 
     std::vector<uint8_t> sha256_input;
-    for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+    for (size_t i = 0; i < NUM_INTERACTION_RESULTS_PER_BLOCK; i++) {
         auto buf = tx_data.defi_interaction_notes[i].to_byte_array();
-        sha256_input.insert(sha256_input.end(), buf.begin(), buf.end());
+        uint256_t note_hash = uint256_t(sha256::sha256_to_field(buf));
+        write(sha256_input, note_hash);
     }
-    auto expected_hash = sha256::sha256(sha256_input);
-    // Zero the first 4 bits as the value computed in the circuit cannot wrap around the prime.
-    expected_hash[0] &= 0xF;
+    auto expected_hash = sha256::sha256_to_field(sha256_input);
 
-    EXPECT_EQ(rollup_data.previous_defi_interaction_hash, from_buffer<fr>(expected_hash));
+    EXPECT_EQ(rollup_data.previous_defi_interaction_hash, expected_hash);
 }
 
 } // namespace root_rollup

@@ -75,18 +75,20 @@ field_ct process_defi_interaction_notes(Composer& composer,
                                         std::vector<circuit::defi_interaction::note> const& defi_interaction_notes,
                                         std::vector<field_ct>& defi_interaction_note_commitments)
 {
-    byte_array_ct hash_input(&composer);
+    std::vector<field_ct> hash_input;
     auto not_first_rollup = rollup_id != 0;
 
-    for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
+    for (uint32_t i = 0; i < NUM_INTERACTION_RESULTS_PER_BLOCK; i++) {
         auto is_real = uint32_ct(i) < num_previous_defi_interactions && not_first_rollup;
-        hash_input.write(defi_interaction_notes[i].to_byte_array(composer, is_real));
+        auto hashed_note =
+            plonk::stdlib::sha256_to_field<Composer>(defi_interaction_notes[i].to_byte_array(composer, is_real));
+        hash_input.push_back(hashed_note);
         auto note_commitment = defi_interaction_notes[i].commitment * is_real;
         defi_interaction_note_commitments.push_back(note_commitment);
     }
 
     // Check defi interaction notes have been inserted into the defi interaction tree.
-    auto insertion_index = ((rollup_id - 1) * NUM_BRIDGE_CALLS_PER_BLOCK * not_first_rollup);
+    auto insertion_index = ((rollup_id - 1) * NUM_INTERACTION_RESULTS_PER_BLOCK * not_first_rollup);
     batch_update_membership(new_defi_interaction_root,
                             old_defi_interaction_root,
                             old_defi_interaction_path,
@@ -94,12 +96,9 @@ field_ct process_defi_interaction_notes(Composer& composer,
                             insertion_index,
                             "check_defi_tree_updated");
 
-    // TODO: reduce this output mod p instead of cutting off last 4 bits
-    auto hash_output = byte_array_ct(plonk::stdlib::sha256<Composer>(hash_input));
-    // Zero the first 4 bits to ensure field conversion doesn't wrap around prime.
-    for (size_t i = 252; i < 256; ++i) {
-        hash_output.set_bit(i, false);
-    }
+    auto hash_output =
+        plonk::stdlib::sha256_to_field<Composer>(packed_byte_array_ct::from_field_element_vector(hash_input));
+
     return field_ct(hash_output);
 }
 

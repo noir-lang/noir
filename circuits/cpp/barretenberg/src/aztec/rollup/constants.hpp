@@ -21,6 +21,7 @@ constexpr size_t MAX_NUM_ASSETS = 1 << MAX_NUM_ASSETS_BIT_LENGTH;
 
 constexpr uint32_t DEFI_BRIDGE_ID_BIT_LENGTH = 252;
 constexpr uint32_t NUM_BRIDGE_CALLS_PER_BLOCK = 4;
+constexpr uint32_t NUM_INTERACTION_RESULTS_PER_BLOCK = 4;
 
 namespace ProofIds {
 enum { PADDING = 0, DEPOSIT = 1, WITHDRAW = 2, SEND = 3, ACCOUNT = 4, DEFI_DEPOSIT = 5, DEFI_CLAIM = 6 };
