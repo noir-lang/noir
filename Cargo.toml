@@ -15,5 +15,6 @@ members = [
     "crates/arena",
     "crates/acvm",
     "crates/noirc_abi",
+    "crates/barretenberg_wrapper",
 ]
 default-members = ["crates/nargo"]

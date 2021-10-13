@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 noir_field = { path="../noir_field", features=["bn254"] }
 acir = { path="../acir" }
+barretenberg_wrapper = { path="../barretenberg_wrapper"}
 
 wasmer-wasi = "1.0.1"
 wasmer = "1.0.1"
