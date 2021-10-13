@@ -505,7 +505,7 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
 
     if ((witness_value).get_msb() > num_bits && !failed) {
         failed = true;
-        err = "range check failed!";
+        err = msg;
     }
     // one gate accmulates 4 quads, or 8 bits.
     // # gates = (bits / 8)

@@ -35,7 +35,7 @@ verify_result verify(root_verifier_tx& tx, circuit_data const& circuit_data)
     verify_result result({ .verified = true, .proof_data = proof.proof_data });
 
     if (!verifier.verify_proof(proof)) {
-        error("Proof validation failed.");
+        info("Proof validation failed.");
         result.verified = false;
         return result;
     }
@@ -47,7 +47,7 @@ verify_result verify(root_verifier_tx& tx, circuit_data const& circuit_data)
             data.recursion_output, circuit_data.verification_key->reference_string->get_precomputed_g2_lines(), 2) ==
         barretenberg::fq12::one();
     if (!pairing) {
-        error("Pairing check failed.");
+        info("Pairing check failed.");
         result.verified = false;
     }
 

@@ -252,16 +252,6 @@ class ComposerBase {
             cur_index = next_var_index[cur_index];
         } while (cur_index != REAL_VARIABLE);
     }
-    // uint32_t get_real_variable_index(uint32_t index) const
-    // {
-    //     if (index >= variable_index_map.size())
-    //         std::cerr << "index:" << index << std::endl;
-    //     ASSERT(index < variable_index_map.size());
-    //     if (variable_index_map[index] != REAL_VARIABLE) {
-    //         return get_real_variable_index(variable_index_map[index]);
-    //     }
-    //     return index;
-    // }
 
     /**
      * Get the value of the variable v_{index}.
@@ -277,6 +267,15 @@ class ComposerBase {
     }
 
     barretenberg::fr get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
+
+    std::vector<fr> get_public_inputs() const
+    {
+        std::vector<fr> result;
+        for (uint32_t i = 0; i < get_num_public_inputs(); ++i) {
+            result.push_back(get_public_input(i));
+        }
+        return result;
+    }
 
     /**
      * Add a variable to variables
@@ -366,15 +365,6 @@ class ComposerBase {
     }
 
     size_t get_num_public_inputs() const { return public_inputs.size(); }
-
-    std::vector<fr> get_public_inputs() const
-    {
-        std::vector<fr> result;
-        for (uint32_t i = 0; i < public_inputs.size(); ++i) {
-            result.push_back(get_public_input(i));
-        }
-        return result;
-    }
 
   public:
     size_t n;

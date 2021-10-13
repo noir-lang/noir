@@ -22,7 +22,7 @@ std::vector<uint8_t> create_noop_join_split_proof(circuit_data const& circuit_da
     join_split_circuit(composer, tx);
 
     if (composer.failed) {
-        error("join split logic failed: ", composer.err);
+        info("join split logic failed: ", composer.err);
     }
 
     auto prover = composer.create_unrolled_prover();

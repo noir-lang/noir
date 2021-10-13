@@ -50,10 +50,18 @@ TEST(stdlib_bool, test_basic_operations)
 TEST(stdlib_bool, xor)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
-    for (size_t i = 0; i < 32; ++i) {
-        bool_t a = witness_t(&composer, (bool)(i % 2));
-        bool_t b = witness_t(&composer, (bool)(i % 3 == 1));
-        a ^ b;
+    for (size_t j = 0; j < 4; ++j) {
+        bool lhs_constant = (bool)(j % 2);
+        bool rhs_constant = (bool)(j > 1 ? true : false);
+
+        for (size_t i = 0; i < 4; ++i) {
+            bool a_val = (bool)(i % 2);
+            bool b_val = (bool)(i > 1 ? true : false);
+            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
+            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
+            bool_t c = a ^ b;
+            EXPECT_EQ(c.get_value(), a.get_value() ^ b.get_value());
+        }
     }
     waffle::Prover prover = composer.preprocess();
     waffle::Verifier verifier = composer.create_verifier();
@@ -270,6 +278,31 @@ TEST(stdlib_bool, eq)
         EXPECT_EQ(b[i].get_value(), b_alt[i]);
         EXPECT_EQ(c[i].get_value(), c_alt[i]);
         EXPECT_EQ(d[i].get_value(), d_alt[i]);
+    }
+    waffle::Prover prover = composer.preprocess();
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_bool, implies)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    for (size_t j = 0; j < 4; ++j) {
+        bool lhs_constant = (bool)(j % 2);
+        bool rhs_constant = (bool)(j > 1 ? true : false);
+
+        for (size_t i = 0; i < 4; ++i) {
+            bool a_val = (bool)(i % 2);
+            bool b_val = (bool)(i > 1 ? true : false);
+            bool_t a = lhs_constant ? bool_t(a_val) : (witness_t(&composer, a_val));
+            bool_t b = rhs_constant ? bool_t(b_val) : (witness_t(&composer, b_val));
+            bool_t c = a.implies(b);
+            EXPECT_EQ(c.get_value(), !a.get_value() || b.get_value());
+        }
     }
     waffle::Prover prover = composer.preprocess();
     waffle::Verifier verifier = composer.create_verifier();

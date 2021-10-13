@@ -2,6 +2,7 @@
 #include "./rollup_proof_data.hpp"
 #include "../../constants.hpp"
 #include "../inner_proof_data.hpp"
+#include "../add_zero_public_inputs.hpp"
 #include "../notes/circuit/claim/index.hpp"
 #include <stdlib/merkle_tree/index.hpp>
 #include <stdlib/hash/sha256/sha256.hpp>
@@ -19,27 +20,6 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
 using namespace notes;
-
-void propagate_inner_proof_public_inputs(std::vector<field_ct> const& public_inputs)
-{
-    for (size_t i = 0; i < PropagatedInnerProofFields::NUM_FIELDS; ++i) {
-        public_inputs[i].set_public();
-    }
-}
-
-void add_zero_public_input(Composer& composer)
-{
-    auto zero = field_ct(witness_ct(&composer, 0));
-    zero.assert_is_zero();
-    zero.set_public();
-}
-
-void add_tx_padding_public_inputs(Composer& composer)
-{
-    for (size_t i = 0; i < PropagatedInnerProofFields::NUM_FIELDS; ++i) {
-        add_zero_public_input(composer);
-    }
-}
 
 field_ct check_nullifiers_inserted(Composer& composer,
                                    std::vector<field_ct> const& new_null_roots,
@@ -106,7 +86,7 @@ auto process_defi_deposit(Composer& composer,
     // Assert this proof matched a single bridge_id.
     auto is_valid_bridge_id = num_matched == 1 || !is_defi_deposit;
     is_valid_bridge_id.assert_equal(true,
-                                    format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times."));
+                                    format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times"));
 
     // Compute claim fee which to be added to the claim note.
     const auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
@@ -164,7 +144,7 @@ void accumulate_tx_fees(Composer& composer,
     // Assert this proof matched a single asset_id or it must be a padding proof.
     auto is_valid_asset_id = !is_real || num_matched == 1 || is_account;
     is_valid_asset_id.assert_equal(true,
-                                   format("proof asset id matched ", uint64_t(num_matched.get_value()), " times."));
+                                   format("proof asset id matched ", uint64_t(num_matched.get_value()), " times"));
 }
 
 recursion_output<bn254> rollup_circuit(Composer& composer,
@@ -183,25 +163,35 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     const auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
     field_ct(num_txs).create_range_constraint(MAX_TXS_BIT_LENGTH);
     const auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
+
     const auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
     const auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
     const auto old_data_path = create_witness_hash_path(composer, rollup.old_data_path);
+
+    const auto linked_commitment_paths =
+        map(rollup.linked_commitment_paths, [&](auto& p) { return create_witness_hash_path(composer, p); });
+    const auto linked_commitment_indices =
+        map(rollup.linked_commitment_indices, [&](auto& i) { return field_ct(witness_ct(&composer, i)); });
+
     const auto old_null_root = field_ct(witness_ct(&composer, rollup.old_null_root));
     const auto new_null_roots = map(rollup.new_null_roots, [&](auto& r) { return field_ct(witness_ct(&composer, r)); });
     const auto old_null_paths =
         map(rollup.old_null_paths, [&](auto& p) { return create_witness_hash_path(composer, p); });
+
     const auto data_roots_root = field_ct(witness_ct(&composer, rollup.data_roots_root));
     const auto data_roots_paths =
         map(rollup.data_roots_paths, [&](auto& p) { return create_witness_hash_path(composer, p); });
     const auto data_root_indicies =
         map(rollup.data_roots_indicies, [&](auto& i) { return field_ct(witness_ct(&composer, i)); });
+
     const auto new_defi_root = field_ct(witness_ct(&composer, rollup.new_defi_root));
     const auto num_defi_interactions = field_ct(witness_ct(&composer, rollup.num_defi_interactions));
     auto bridge_ids = map(rollup.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
+
     const auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
+
     const auto num_asset_ids = field_ct(witness_ct(&composer, rollup.num_asset_ids));
     auto asset_ids = map(rollup.asset_ids, [&](auto& aid) { return field_ct(witness_ct(&composer, aid)); });
-
     // Zero any input bridge_ids that are outside scope, and check in scope bridge_ids are not zero.
     for (uint32_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; i++) {
         auto in_scope = uint32_ct(i) < num_defi_interactions;
@@ -226,6 +216,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct(witness_ct::create_constant_witness(&composer, 0)));
     std::vector<field_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
                                             field_ct(witness_ct::create_constant_witness(&composer, 0)));
+    field_ct previous_note_commitment1(0);
+    field_ct previous_note_commitment2(0);
+    field_ct previous_allow_chain(0);
 
     for (size_t i = 0; i < max_num_txs; ++i) {
         // Pick verification key and check it's permitted.
@@ -250,24 +243,74 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
             public_inputs[i] *= is_real;
         }
 
+        // Chaining:
+        field_ct propagated_input_index = field_ct(public_inputs[InnerProofFields::PROPAGATED_INPUT_INDEX]);
+        field_ct backward_link = field_ct(public_inputs[InnerProofFields::BACKWARD_LINK]);
+        field_ct nullifier1 = field_ct(public_inputs[InnerProofFields::NULLIFIER1]);
+        field_ct nullifier2 = field_ct(public_inputs[InnerProofFields::NULLIFIER2]);
+
+        bool_ct chaining = propagated_input_index != 0; // range check in {1, 2} already done in j-s circuit
+
+        bool_ct propagating_previous_output1 = backward_link == previous_note_commitment1;
+        bool_ct propagating_previous_output2 = backward_link == previous_note_commitment2;
+        bool_ct previous_tx_linked = propagating_previous_output1 || propagating_previous_output2;
+
+        bool_ct start_of_subchain = chaining && !previous_tx_linked;
+        bool_ct middle_of_chain = chaining && previous_tx_linked;
+
+        bool_ct linked_commitment_exists = merkle_tree::check_membership(
+            old_data_root, linked_commitment_paths[i], backward_link, byte_array_ct(linked_commitment_indices[i]));
+
+        (start_of_subchain)
+            .must_imply(linked_commitment_exists,
+                        format("tx ",
+                               i,
+                               "'s linked commitment must exist. Membership check failed for backward_link ",
+                               backward_link));
+
+        field_ct propagating_previous_output_index = field_ct::conditional_assign(
+            propagating_previous_output1, 1, field_ct::conditional_assign(propagating_previous_output2, 2, 0));
+
+        (middle_of_chain)
+            .must_imply(previous_allow_chain == propagating_previous_output_index,
+                        format("tx ",
+                               i,
+                               " is not permitted to propagate output ",
+                               propagating_previous_output_index,
+                               " of the previous tx. previous_allow_chain = ",
+                               previous_allow_chain));
+
+        if (i > 0) { // condition required to access vector indices
+            // If the previous proof's note commitment was propagated, zero it and this proof's nullifier.
+            new_data_values[new_data_values.size() - 2] *= !(middle_of_chain && propagating_previous_output1);
+            new_data_values[new_data_values.size() - 1] *= !(middle_of_chain && propagating_previous_output2);
+            nullifier1 *= !(middle_of_chain && propagated_input_index == 1);
+            nullifier2 *= !(middle_of_chain && propagated_input_index == 2);
+        }
+
+        // Save prior to any potential mutations.
+        previous_note_commitment1 = public_inputs[InnerProofFields::NOTE_COMMITMENT1];
+        previous_note_commitment2 = public_inputs[InnerProofFields::NOTE_COMMITMENT2];
+        previous_allow_chain = public_inputs[InnerProofFields::ALLOW_CHAIN];
+
         auto tx_fee = process_defi_deposit(
             composer, rollup_id, public_inputs, bridge_ids, defi_deposit_sums, num_defi_interactions);
         process_claims(public_inputs, new_defi_root);
 
-        // Add the proofs data values to the list.
+        // Add this proof's data values to the list.
         new_data_values.push_back(public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
         new_data_values.push_back(public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
 
-        // Add nullifiers to the list.
-        new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER1]);
-        new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER2]);
+        // Add input note nullifiers to the list.
+        new_null_indicies.push_back(nullifier1);
+        new_null_indicies.push_back(nullifier2);
 
-        // Check this proofs data root exists in the data root tree (unless a padding entry).
+        // Check this proof's data root exists in the data root tree (unless a padding entry).
         auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];
-        bool_ct valid =
+        bool_ct data_root_exists =
             data_root != 0 &&
             check_membership(data_roots_root, data_roots_paths[i], data_root, byte_array_ct(data_root_indicies[i]));
-        is_real.assert_equal(valid, format("data_root_for_proof_", i));
+        is_real.assert_equal(data_root_exists, format("data_root_for_proof_", i));
 
         // Accumulate tx fee.
         auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
@@ -278,6 +321,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     }
 
     new_data_values.resize(rollup_size_pow2_ * 2, fr(0));
+
     batch_update_membership(new_data_root, old_data_root, old_data_path, new_data_values, data_start_index);
 
     auto new_null_root =
@@ -298,7 +342,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     new_null_root.set_public();
     data_roots_root.set_public();
     public_witness_ct(&composer, rollup.data_roots_root);
-    add_zero_public_input(composer); // old_defi_root
+    add_zero_public_inputs(composer, 1); // old_defi_root
     new_defi_root.set_public();
     for (size_t i = 0; i < NUM_BRIDGE_CALLS_PER_BLOCK; ++i) {
         bridge_ids[i].set_public();
@@ -314,11 +358,12 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     }
     hash_output.set_public();
     for (auto& tx : tx_public_inputs) {
-        propagate_inner_proof_public_inputs(tx);
+        for (auto& public_input : tx) {
+            public_input.set_public();
+        }
     }
-    for (size_t i = max_num_txs; i < rollup_size_pow2_; ++i) {
-        add_tx_padding_public_inputs(composer);
-    }
+    // Add tx padding public inputs.
+    add_zero_public_inputs(composer, (rollup_size_pow2_ - max_num_txs) * PropagatedInnerProofFields::NUM_FIELDS);
 
     // Publish pairing coords limbs as public inputs.
     recursion_output.add_proof_outputs_as_public_inputs();

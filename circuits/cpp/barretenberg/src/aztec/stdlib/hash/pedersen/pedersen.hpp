@@ -39,6 +39,7 @@ template <typename ComposerContext> class pedersen {
         std::vector<field_t> in(inputs.begin(), inputs.end());
         return compress(in, handle_edge_cases);
     }
+
     static field_t compress(const byte_array& inputs);
 
     static point compress_to_point(const field_t& left, const field_t& right, const size_t hash_index = 0);

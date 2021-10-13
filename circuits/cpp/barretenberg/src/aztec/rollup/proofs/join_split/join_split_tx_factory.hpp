@@ -1,12 +1,13 @@
 #pragma once
 #include "compute_circuit_data.hpp"
 #include "../../fixtures/user_context.hpp"
+#include "../notes/native/index.hpp"
 
 namespace rollup {
 namespace proofs {
 namespace join_split {
 
-using namespace notes::native::value;
+using namespace notes::native;
 
 template <typename WorldState> class JoinSplitTxFactory {
   public:
@@ -15,9 +16,9 @@ template <typename WorldState> class JoinSplitTxFactory {
         , user(user)
     {}
 
-    auto create_join_split_tx(std::vector<uint32_t> in_note_idx,
-                              std::vector<uint32_t> in_note_value,
-                              std::array<uint32_t, 2> out_note_value,
+    auto create_join_split_tx(std::vector<uint32_t> in_idx,
+                              std::vector<uint32_t> in_value,
+                              std::array<uint32_t, 2> out_value,
                               uint256_t public_input = 0,
                               uint256_t public_output = 0,
                               uint256_t tx_fee = 0,
@@ -25,48 +26,49 @@ template <typename WorldState> class JoinSplitTxFactory {
                               uint32_t asset_id = 0,
                               uint32_t nonce = 0)
     {
+        auto num_inputs = in_idx.size();
         auto sender = user.owner.public_key;
         auto receiver = user.owner.public_key;
 
-        // Fake input notes want random note secrets to ensure we never get nullifier conflicts.
-        auto random_note_secret = fr::random_element();
-        random_note_secret.data[3] = random_note_secret.data[3] & 0x03FFFFFFFFFFFFFFULL;
-        random_note_secret = random_note_secret.to_montgomery_form();
+        value::value_note input_note1 = { 0, asset_id, nonce, sender, fr::random_element(), 0, fr::random_element() };
+        value::value_note input_note2 = { 0, asset_id, nonce, sender, fr::random_element(), 0, fr::random_element() };
 
-        auto num_input_notes = static_cast<uint32_t>(in_note_idx.size());
-        std::vector<fr> input_note_secrets(2, user.note_secret);
-
-        if (num_input_notes == 0) {
-            in_note_idx.resize(2);
-            in_note_value.resize(2);
-            in_note_idx[0] = 0;
-            in_note_idx[1] = 1;
-            input_note_secrets[0] = random_note_secret;
-            input_note_secrets[1] = random_note_secret;
+        switch (num_inputs) {
+        case 0:
+            in_idx = { 0, 1 };
+            break;
+        case 1:
+            in_idx.resize(2);
+            in_idx[1] = in_idx[0] + 1; // Not used, can't be the same as in_idx[0].
+            input_note1 = {
+                in_value[0], asset_id, nonce, sender, user.note_secret, 0, world_state.input_nullifiers[in_idx[0]]
+            };
+            input_note2 = { 0, asset_id, nonce, sender, fr::random_element(), 0, fr::random_element() };
+            break;
+        case 2:
+            input_note1 = {
+                in_value[0], asset_id, nonce, sender, user.note_secret, 0, world_state.input_nullifiers[in_idx[0]]
+            };
+            input_note2 = {
+                in_value[1], asset_id, nonce, sender, user.note_secret, 0, world_state.input_nullifiers[in_idx[1]]
+            };
+            break;
         }
 
-        if (num_input_notes == 1) {
-            in_note_idx.resize(2);
-            in_note_value.resize(2);
-            in_note_idx[1] = 1;
-            input_note_secrets[1] = random_note_secret;
-        }
-
-        value_note input_note1 = { in_note_value[0], asset_id, nonce, sender, input_note_secrets[0], 0 };
-        value_note input_note2 = { in_note_value[1], asset_id, nonce, sender, input_note_secrets[1], 0 };
-        value_note output_note1 = { out_note_value[0], asset_id, nonce, receiver, user.note_secret, 0 };
-        value_note output_note2 = { out_note_value[1], asset_id, nonce, sender, user.note_secret, 0 };
+        value::value_note output_note1 = { out_value[0], asset_id, nonce, receiver, user.note_secret, 0, fr(0) };
+        value::value_note output_note2 = { out_value[1], asset_id, nonce, sender, user.note_secret, 0, fr(0) };
+        notes::native::claim::claim_note_tx_data claim_note = { 0, 0, user.note_secret, fr(0) };
 
         join_split_tx tx;
         tx.public_input = public_input + tx_fee;
         tx.public_output = public_output;
         tx.public_owner = tx.public_input || tx.public_output ? fr::random_element() : fr::zero();
         tx.asset_id = asset_id;
-        tx.num_input_notes = num_input_notes;
-        tx.input_index = { in_note_idx[0], in_note_idx[1] };
+        tx.num_input_notes = static_cast<uint32_t>(num_inputs);
+        tx.input_index = { in_idx[0], in_idx[1] };
         tx.old_data_root = world_state.data_tree.root();
-        tx.input_path = { world_state.data_tree.get_hash_path(in_note_idx[0]),
-                          world_state.data_tree.get_hash_path(in_note_idx[1]) };
+        tx.input_path = { world_state.data_tree.get_hash_path(in_idx[0]),
+                          world_state.data_tree.get_hash_path(in_idx[1]) };
         tx.input_note = { input_note1, input_note2 };
         tx.output_note = { output_note1, output_note2 };
         tx.account_index = account_note_idx;
@@ -75,9 +77,30 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.account_private_key = user.owner.private_key;
         tx.alias_hash = 0;
         tx.nonce = nonce;
-        tx.claim_note.deposit_value = 0;
+        tx.claim_note = claim_note;
+        tx.propagated_input_index = 0;
+        tx.backward_link = fr::zero();
+        tx.allow_chain = 0;
 
         return tx;
+    }
+
+    /**
+     * Performs any final stage fixed processing for the tx data.
+     * Computes the nullifiers for the input notes, and sets the results as the input nullifiers on the output notes.
+     * Computes and sets the signature.
+     */
+    void finalise_and_sign_tx(join_split_tx& tx,
+                              fixtures::grumpkin_key_pair const& signer,
+                              numeric::random::Engine* rand_engine = nullptr)
+    {
+        auto num_inputs = tx.num_input_notes;
+        auto input_nullifier1 = compute_nullifier(tx.input_note[0].commit(), user.owner.private_key, num_inputs > 0);
+        auto input_nullifier2 = compute_nullifier(tx.input_note[1].commit(), user.owner.private_key, num_inputs > 1);
+        tx.output_note[0].input_nullifier = input_nullifier1;
+        tx.output_note[1].input_nullifier = input_nullifier2;
+        tx.claim_note.input_nullifier = tx.proof_id() == ProofIds::DEFI_DEPOSIT ? input_nullifier1 : 0;
+        tx.signature = sign_join_split_tx(tx, signer, rand_engine);
     }
 
     auto create_defi_deposit_tx(std::vector<uint32_t> in_note_idx,

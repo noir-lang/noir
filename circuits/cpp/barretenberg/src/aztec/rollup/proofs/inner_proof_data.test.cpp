@@ -24,6 +24,9 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     uint256_t bridge_id = rand_engine.get_random_uint256();
     uint256_t defi_deposit_value = rand_engine.get_random_uint256();
     auto defi_root = fr::random_element();
+    uint256_t propagated_input_index = 0;
+    auto backward_link = fr::random_element();
+    uint256_t allow_chain = 0;
 
     using serialize::write;
     std::vector<uint8_t> proof_data;
@@ -41,6 +44,9 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     write(proof_data, bridge_id);
     write(proof_data, defi_deposit_value);
     write(proof_data, defi_root);
+    write(proof_data, propagated_input_index);
+    write(proof_data, backward_link);
+    write(proof_data, allow_chain);
 
     auto data = inner_proof_data(proof_data);
 
@@ -58,4 +64,7 @@ TEST(client_proofs_inner_proof_data, test_proof_to_data)
     EXPECT_EQ(data.bridge_id, bridge_id);
     EXPECT_EQ(data.defi_deposit_value, defi_deposit_value);
     EXPECT_EQ(data.defi_root, defi_root);
+    EXPECT_EQ(data.propagated_input_index, propagated_input_index);
+    EXPECT_EQ(data.backward_link, backward_link);
+    EXPECT_EQ(data.allow_chain, allow_chain);
 }

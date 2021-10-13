@@ -11,6 +11,7 @@ using namespace barretenberg;
 struct verify_result {
     bool verified;
     bool logic_verified;
+    std::string err;
     std::vector<uint8_t> proof_data;
     std::vector<fr> public_inputs;
 };

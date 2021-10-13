@@ -28,17 +28,17 @@ verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_da
     verify_result result = { false, false, {}, {}, {}, recursion_output<bn254>() };
 
     if (!circuit_data.inner_rollup_circuit_data.verification_key) {
-        error("Inner verification key not provided.");
+        info("Inner verification key not provided.");
         return result;
     }
 
     if (circuit_data.inner_rollup_circuit_data.padding_proof.size() == 0) {
-        error("Inner padding proof not provided.");
+        info("Inner padding proof not provided.");
         return result;
     }
 
     if (!circuit_data.verifier_crs) {
-        error("Verifier crs not provided.");
+        info("Verifier crs not provided.");
         return result;
     }
 
@@ -56,12 +56,12 @@ verify_result verify_internal(Composer& composer, root_rollup_tx& tx, circuit_da
     result.public_inputs = composer.get_public_inputs();
 
     if (composer.failed) {
-        error("Circuit logic failed: " + composer.err);
+        info("Circuit logic failed: " + composer.err);
         return result;
     }
 
     if (!pairing_check(result.recursion_output_data, circuit_data.verifier_crs)) {
-        error("Native pairing check failed.");
+        info("Native pairing check failed.");
         return result;
     }
 
@@ -93,7 +93,7 @@ verify_result verify(root_rollup_tx& tx, circuit_data const& circuit_data)
     result.verified = verifier.verify_proof(proof);
 
     if (!result.verified) {
-        error("Proof validation failed.");
+        info("Proof validation failed.");
         return result;
     }
 

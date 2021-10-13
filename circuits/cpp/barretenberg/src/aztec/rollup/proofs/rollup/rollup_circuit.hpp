@@ -23,8 +23,6 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
                                        std::vector<std::shared_ptr<waffle::verification_key>> const& verification_keys,
                                        size_t rollup_size);
 
-void add_tx_padding_public_inputs(Composer& composer);
-
 } // namespace rollup
 } // namespace proofs
 } // namespace rollup

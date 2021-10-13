@@ -20,22 +20,25 @@ using namespace plonk::stdlib::merkle_tree;
 
 /**
  * Check that the input note data, follows the given hash paths, to the publically given merkle root.
- * Return the nullifier for the input note.
+ * The note does not need to exist in the tree if it's not real, or if it's consumed (i.e. propagated = input).
+ * Return the nullifier for the input note. If the input note is consumed, the nullifier becomes 0.
  */
 field_ct process_input_note(field_ct const& account_private_key,
                             field_ct const& merkle_root,
                             merkle_tree::hash_path const& hash_path,
                             field_ct const& index,
                             value::value_note const& note,
+                            bool_ct is_propagated,
                             bool_ct is_real)
 {
     auto exists = merkle_tree::check_membership(merkle_root, hash_path, note.commitment, byte_array_ct(index));
-    (exists || !is_real).assert_equal(true, "input note not a member");
+    auto valid = exists || is_propagated || !is_real;
+    valid.assert_equal(true, "input note not a member");
 
     bool_ct valid_value = note.value == 0 || is_real;
     valid_value.assert_equal(true, "padding note non zero");
 
-    return compute_nullifier(note.commitment, index, account_private_key, is_real);
+    return compute_nullifier(note.commitment, account_private_key, is_real);
 }
 
 join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
@@ -51,7 +54,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     auto output_note2 = value::value_note(inputs.output_note2);
     auto claim_note = claim::partial_claim_note(inputs.claim_note, inputs.input_note1.owner, inputs.input_note1.nonce);
     auto output_note1_commitment =
-        output_note1.commitment * not_defi_deposit + claim_note.partial_commitment * is_defi_deposit;
+        field_ct::conditional_assign(is_defi_deposit, claim_note.partial_commitment, output_note1.commitment);
     auto public_asset_id = inputs.asset_id * is_public_tx;
     auto public_input = inputs.public_value * is_deposit;
     auto public_output = inputs.public_value * is_withdraw;
@@ -77,11 +80,40 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     inputs.asset_id.create_range_constraint(MAX_NUM_ASSETS_BIT_LENGTH, "asset id too large");
 
     // Check we're not joining the same input note.
-    (inputs.input_note1_index == inputs.input_note2_index).assert_equal(false, "joining same note");
+    (input_note1.commitment).assert_not_equal(input_note2.commitment, "joining same note");
 
     // Check public values.
     inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
     inputs.claim_note.deposit_value.create_range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
+
+    // Check chaining values:
+    // Propagated_input_index must be in {0, 1, 2}
+    bool_ct no_note_propagated = inputs.propagated_input_index == 0;
+    bool_ct note1_propagated = inputs.propagated_input_index == 1;
+    bool_ct note2_propagated = inputs.propagated_input_index == 2;
+    (no_note_propagated || note1_propagated || note2_propagated)
+        .assert_equal(true, "propagated_input_index out of range");
+
+    // allow_chain must be in {0, 1, 2}
+    bool_ct allow_chain_1 = inputs.allow_chain == 1;
+    bool_ct allow_chain_2 = inputs.allow_chain == 2;
+    (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
+
+    // prevent chaining from a partial claim note:
+    (is_defi_deposit).must_imply(!allow_chain_1, "cannot chain from a partial claim note");
+
+    bool_ct note1_linked = inputs.backward_link == input_note1.commitment;
+    bool_ct note2_linked = inputs.backward_link == input_note2.commitment;
+    // These implications are forward-compatible with the more complex linking spec.
+    (note1_propagated).must_imply(note1_linked, "inconsistent backward_link & propagated_input_index");
+    (note2_propagated).must_imply(note2_linked, "inconsistent backward_link & propagated_input_index");
+    (!note1_linked && !note2_linked)
+        .must_imply(no_note_propagated, "inconsistent backward_link & propagated_input_index");
+
+    // when allowing chaining, ensure propagation is to one's self (and not to some other user):
+    point_ct self = input_note1.owner;
+    (allow_chain_1).must_imply(output_note1.owner == self, "inter-user chaining disallowed");
+    (allow_chain_2).must_imply(output_note2.owner == self, "inter-user chaining disallowed");
 
     // Derive tx_fee.
     field_ct total_in_value = public_input.add_two(inputs.input_note1.value, inputs.input_note2.value);
@@ -93,22 +125,20 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     // Verify input notes have the same account value id.
     auto note1 = inputs.input_note1;
     auto note2 = inputs.input_note2;
-    note1.owner.x.assert_equal(note2.owner.x, "input note owners don't match");
-    note1.owner.y.assert_equal(note2.owner.y, "input note owners don't match");
-    note1.nonce.assert_equal(note2.nonce, "input note nonce don't match");
+    // These checks ensure we only need to compute one signature, for efficiency.
+    note1.owner.assert_equal(note2.owner, "input note owners don't match");
+    note1.nonce.assert_equal(note2.nonce, "input note nonces don't match");
 
-    // Verify input notes are owned by account private key and nonce.
     auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
-    account_public_key.x.assert_equal(note1.owner.x, "account_private_key incorrect");
-    account_public_key.y.assert_equal(note1.owner.y, "account_private_key incorrect");
+    account_public_key.assert_equal(note1.owner, "account_private_key incorrect");
     inputs.nonce.assert_equal(note1.nonce, "nonce incorrect");
 
     // Verify that the given signature was signed using
     // -> the account public key if nonce == 0
-    // -> the signing key if nonce > 0
-    bool_ct zero_nonce = inputs.nonce.is_zero();
-    point_ct signer = { account_public_key.x * zero_nonce + inputs.signing_pub_key.x * !zero_nonce,
-                        account_public_key.y * zero_nonce + inputs.signing_pub_key.y * !zero_nonce };
+    // -> the given signing key if nonce > 0
+    bool_ct zero_nonce = inputs.nonce == field_ct(0);
+    point_ct signer = { field_ct::conditional_assign(zero_nonce, account_public_key.x, inputs.signing_pub_key.x),
+                        field_ct::conditional_assign(zero_nonce, account_public_key.y, inputs.signing_pub_key.y) };
 
     // alias hash must be 224 bits or fewer
     inputs.alias_hash.create_range_constraint(224, "alias hash too large");
@@ -129,20 +159,27 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
 
     // Verify each input note exists in the tree, and compute nullifiers.
-    bool_ct note_1_valid = !inputs.num_input_notes.is_zero();
-    bool_ct note_2_valid = inputs.num_input_notes == 2;
+    bool_ct note1_valid = inputs.num_input_notes == 1 || inputs.num_input_notes == 2;
+    bool_ct note2_valid = inputs.num_input_notes == 2;
     field_ct nullifier1 = process_input_note(inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path1,
                                              inputs.input_note1_index,
                                              input_note1,
-                                             note_1_valid);
+                                             note1_propagated,
+                                             note1_valid);
     field_ct nullifier2 = process_input_note(inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path2,
                                              inputs.input_note2_index,
                                              input_note2,
-                                             note_2_valid);
+                                             note2_propagated,
+                                             note2_valid);
+
+    // Assert that input nullifiers in the output note commitments equal the input note nullifiers.
+    output_note1.input_nullifier.assert_equal(nullifier1, "output note 1 has incorrect input nullifier");
+    output_note2.input_nullifier.assert_equal(nullifier2, "output note 2 has incorrect input nullifier");
+    claim_note.input_nullifier.assert_equal(nullifier1 * is_defi_deposit, "claim note has incorrect input nullifier");
 
     verify_signature(inputs.public_value,
                      inputs.public_owner,
@@ -152,6 +189,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                      nullifier1,
                      nullifier2,
                      signer,
+                     inputs.propagated_input_index,
+                     inputs.backward_link,
+                     inputs.allow_chain,
                      inputs.signature);
 
     return { nullifier1, nullifier2, output_note1_commitment, output_note2.commitment, public_asset_id,
@@ -183,6 +223,9 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         witness_ct(&composer, tx.alias_hash),
         witness_ct(&composer, tx.nonce),
+        witness_ct(&composer, tx.propagated_input_index),
+        witness_ct(&composer, tx.backward_link),
+        witness_ct(&composer, tx.allow_chain),
     };
 
     auto outputs = join_split_circuit_component(inputs);
@@ -208,6 +251,9 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     outputs.bridge_id.set_public();
     outputs.defi_deposit_value.set_public();
     defi_root.set_public();
+    inputs.propagated_input_index.set_public();
+    inputs.backward_link.set_public();
+    inputs.allow_chain.set_public();
 }
 
 } // namespace join_split

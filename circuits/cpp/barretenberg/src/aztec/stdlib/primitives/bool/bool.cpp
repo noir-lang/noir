@@ -418,6 +418,18 @@ void bool_t<ComposerContext>::assert_equal(const bool_t& rhs, std::string const&
     }
 }
 
+template <typename ComposerContext>
+bool_t<ComposerContext> bool_t<ComposerContext>::implies(const bool_t<ComposerContext>& other) const
+{
+    return (!(*this) || other); // P => Q is equiv. to !P || Q (not(P) or Q).
+}
+
+template <typename ComposerContext>
+void bool_t<ComposerContext>::must_imply(const bool_t& other, std::string const& msg) const
+{
+    (this->implies(other)).assert_equal(true, msg);
+}
+
 template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerContext>::normalize() const
 {
     if (is_constant() || !witness_inverted) {

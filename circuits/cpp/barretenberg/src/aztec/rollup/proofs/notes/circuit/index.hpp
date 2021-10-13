@@ -1,4 +1,3 @@
-#pragma once
 #include "bridge_id.hpp"
 #include "compute_nullifier.hpp"
 #include "account/index.hpp"

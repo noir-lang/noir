@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include <stddef.h>
 
 template <typename C> C slice(C const& container, size_t start, size_t end)
 {

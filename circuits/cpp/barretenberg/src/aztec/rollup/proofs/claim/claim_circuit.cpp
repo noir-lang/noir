@@ -1,5 +1,6 @@
 #include "claim_circuit.hpp"
 #include "ratio_check.hpp"
+#include "../add_zero_public_inputs.hpp"
 #include "../notes/circuit/index.hpp"
 #include <stdlib/merkle_tree/membership.hpp>
 
@@ -24,6 +25,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const auto claim_note = circuit::claim::claim_note(claim_note_data);
     const auto defi_interaction_note_path = create_witness_hash_path(composer, tx.defi_interaction_note_path);
     const auto defi_interaction_note = circuit::defi_interaction::note({ composer, tx.defi_interaction_note });
+    const auto defi_interaction_note_dummy_nullifier_nonce =
+        field_ct(witness_ct(&composer, tx.defi_interaction_note_dummy_nullifier_nonce));
     const auto output_value_a = field_ct(witness_ct(&composer, tx.output_value_a));
     const auto output_value_b = field_ct(witness_ct(&composer, tx.output_value_b));
     const auto two_output_notes = claim_note_data.bridge_id_data.num_output_notes == field_ct(2);
@@ -50,15 +53,28 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     auto valid2 = (output_value_b == 0 && defi_interaction_note.total_output_b_value == 0) || rc2;
     valid2.assert_equal(true, "ratio check 2 failed");
 
+    // Value notes must be completed with input_nullifiers' known unique values.
+    // The second nullifier is is a 'dummy' - generated from randomness provided by the user.
+    const auto nullifier1 = circuit::claim::compute_nullifier(claim_note.commitment);
+
+    // TODO: Ask Ariel about this nullifier.
+    const auto nullifier2 = circuit::defi_interaction::compute_dummy_nullifier(
+        defi_interaction_note.commitment, defi_interaction_note_dummy_nullifier_nonce);
+
     // Compute output notes. Second note is zeroed if not used.
     // If defi interaction result is 0, refund original value.
-    auto output_note1 = circuit::value::complete_partial_commitment(
-        claim_note.value_note_partial_commitment, output_value_a, claim_note_data.bridge_id_data.output_asset_id_a);
-    auto output_note2 = circuit::value::complete_partial_commitment(
-        claim_note.value_note_partial_commitment, output_value_b, claim_note_data.bridge_id_data.output_asset_id_b);
+    auto output_note1 = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
+                                                                    output_value_a,
+                                                                    claim_note_data.bridge_id_data.output_asset_id_a,
+                                                                    nullifier1);
+    auto output_note2 = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
+                                                                    output_value_b,
+                                                                    claim_note_data.bridge_id_data.output_asset_id_b,
+                                                                    nullifier2);
     auto refund_note = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
                                                                    claim_note_data.deposit_value,
-                                                                   claim_note_data.bridge_id_data.input_asset_id);
+                                                                   claim_note_data.bridge_id_data.input_asset_id,
+                                                                   nullifier1);
     auto interaction_success = defi_interaction_note.interaction_result;
     output_note1 = output_note1 * interaction_success + refund_note * !interaction_success;
     output_note2 = output_note2 * two_output_notes * interaction_success;
@@ -71,7 +87,6 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     auto claim_exists =
         check_membership(data_root, claim_note_path, claim_note.commitment, byte_array_ct(claim_note_index));
     claim_exists.assert_equal(true, "claim note not a member");
-    const auto nullifier1 = circuit::claim::compute_nullifier(claim_note.commitment, claim_note_index);
 
     // Check defi interaction note exists.
     const auto din_exists = check_membership(defi_root,
@@ -81,16 +96,20 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     din_exists.assert_equal(true, "defi interaction note not a member");
 
     // Force unused public inputs to 0.
-    const field_ct nullifier2 = witness_ct(&composer, 0);
     const field_ct public_value = witness_ct(&composer, 0);
     const field_ct public_owner = witness_ct(&composer, 0);
     const field_ct asset_id = witness_ct(&composer, 0);
     const field_ct defi_deposit_value = witness_ct(&composer, 0);
-    nullifier2.assert_is_zero();
+    const field_ct propagated_input_index = witness_ct(&composer, 0);
+    const field_ct backward_link = witness_ct(&composer, 0);
+    const field_ct allow_claim = witness_ct(&composer, 0);
     public_value.assert_is_zero();
     public_owner.assert_is_zero();
     asset_id.assert_is_zero();
     defi_deposit_value.assert_is_zero();
+    propagated_input_index.assert_is_zero();
+    backward_link.assert_is_zero();
+    allow_claim.assert_is_zero();
 
     // The following make up the public inputs to the circuit.
     proof_id.set_public();
@@ -107,6 +126,9 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     claim_note.bridge_id.set_public();
     defi_deposit_value.set_public();
     defi_root.set_public();
+    propagated_input_index.set_public();
+    backward_link.set_public();
+    allow_claim.set_public();
 }
 
 } // namespace claim

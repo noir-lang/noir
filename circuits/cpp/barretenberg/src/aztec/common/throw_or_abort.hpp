@@ -7,7 +7,7 @@ inline void throw_or_abort [[noreturn]] (std::string const& err)
 #ifndef __wasm__
     throw std::runtime_error(err);
 #else
-    error(err);
+    info(err);
     std::abort();
 #endif
 }

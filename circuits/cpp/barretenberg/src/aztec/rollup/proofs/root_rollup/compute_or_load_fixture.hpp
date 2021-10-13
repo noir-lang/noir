@@ -25,10 +25,10 @@ inline std::vector<uint8_t> compute_or_load_fixture(std::string const& path,
         auto stream = std::ifstream(filename);
         std::vector<uint8_t> data;
         read(stream, data);
-        error("Loaded fixture: ", filename);
+        info("Loaded fixture: ", filename);
         return data;
     } else {
-        error("Computing fixture: ", name, "...");
+        info("Computing fixture: ", name, "...");
         auto data = f();
         if (data.size()) {
             mkdir(path.c_str(), 0700);

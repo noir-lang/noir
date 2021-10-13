@@ -8,20 +8,16 @@ namespace rollup {
 namespace proofs {
 namespace join_split {
 
-inline std::vector<uint8_t> create_proof(join_split_tx& tx,
-                                         fixtures::grumpkin_key_pair const& signer,
+inline std::vector<uint8_t> create_proof(join_split_tx const& tx,
                                          circuit_data const& cd,
                                          numeric::random::Engine* rand_engine = nullptr)
 {
-    tx.signature = sign_join_split_tx(tx, signer, rand_engine);
-
     Composer composer = Composer(cd.proving_key, cd.verification_key, cd.num_gates);
     composer.rand_engine = rand_engine;
-
     join_split_circuit(composer, tx);
 
     if (composer.failed) {
-        error("Join-split circuit logic failed: ", composer.err);
+        info("Join-split circuit logic failed: ", composer.err);
     }
 
     auto prover = composer.create_unrolled_prover();

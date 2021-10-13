@@ -16,11 +16,11 @@ int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
     if (args.size() < 4) {
-        error("usage: ", args[0], " <inner txs> <max inner num> <output path> [srs path]");
-        error("");
-        error("Generates solidity contracts containing verification keys for:");
-        error("  - Rollup circuits containing n inner circuits of size <inner txs>.");
-        error(" Where n=1 and doubles until <max inner num>.");
+        info("usage: ", args[0], " <inner txs> <max inner num> <output path> [srs path]");
+        info("");
+        info("Generates solidity contracts containing verification keys for:");
+        info("  - Rollup circuits containing n inner circuits of size <inner txs>.");
+        info(" Where n=1 and doubles until <max inner num>.");
         return 1;
     }
     size_t inner_txs = (size_t)atoi(args[1].c_str());

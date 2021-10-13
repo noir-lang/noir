@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <numeric/uint256/uint256.hpp>
 #include "../../constants.hpp"
 
 namespace rollup {
@@ -7,6 +8,7 @@ namespace proofs {
 namespace notes {
 
 constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
+constexpr uint256_t NOTE_VALUE_MAX = (uint256_t(1) << NOTE_VALUE_BIT_LENGTH) - 1;
 constexpr size_t DEFI_DEPOSIT_VALUE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BIT_LENGTH;
 
 // Start from 1 to avoid the default generators.
@@ -21,6 +23,7 @@ enum GeneratorIndex {
     JOIN_SPLIT_NULLIFIER,
     JOIN_SPLIT_NULLIFIER_ACCOUNT_PRIVATE_KEY,
     CLAIM_NOTE_NULLIFIER,
+    DEFI_INTERACTION_NOTE_DUMMY_NULLIFIER,
     ACCOUNT_ALIAS_ID_NULLIFIER,
 };
 

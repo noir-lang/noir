@@ -11,16 +11,9 @@ using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
 field_ct compute_nullifier(field_ct const& note_commitment,
-                           field_ct const& tree_index,
                            field_ct const& account_private_key,
                            bool_ct const& is_real_note)
 {
-    // modified_index = tree_index plus a modifier to indicate whether the note is a real note or a virtual note (i.e.
-    // value 0 and not a member of the tree) For virtual notes, we set the 65'th bit of modified_index to be true (this
-    // cannot overlap with tree index, which we range constrain to be 32 bits)
-    barretenberg::fr shift = uint256_t(1) << 64;
-    field_ct modified_index = (tree_index + (static_cast<field_ct>(is_real_note) * shift));
-
     // We hash the account_private_key to ensure that the result is a field (254 bits).
     auto hashed_pk = group_ct::fixed_base_scalar_mul<254>(account_private_key,
                                                           GeneratorIndex::JOIN_SPLIT_NULLIFIER_ACCOUNT_PRIVATE_KEY);
@@ -29,7 +22,7 @@ field_ct compute_nullifier(field_ct const& note_commitment,
         note_commitment,
         hashed_pk.x,
         hashed_pk.y,
-        modified_index,
+        is_real_note,
     };
 
     const auto result = pedersen::commit(hash_inputs, GeneratorIndex::JOIN_SPLIT_NULLIFIER, true);

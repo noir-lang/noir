@@ -11,14 +11,11 @@ namespace claim {
 
 inline auto create_partial_commitment(uint256_t const& deposit_value,
                                       uint256_t const& bridge_id,
-                                      grumpkin::fq const& value_note_partial_commitment)
+                                      grumpkin::fq const& value_note_partial_commitment,
+                                      grumpkin::fq const& input_nullifier)
 {
     return crypto::pedersen::compress_native(
-        {
-            deposit_value,
-            bridge_id,
-            value_note_partial_commitment,
-        },
+        { deposit_value, bridge_id, value_note_partial_commitment, input_nullifier },
         GeneratorIndex::CLAIM_NOTE_PARTIAL_COMMITMENT);
 }
 

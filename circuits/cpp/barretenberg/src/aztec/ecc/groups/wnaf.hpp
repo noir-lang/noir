@@ -391,7 +391,7 @@ inline void wnaf_round_with_restricted_first_slice(uint64_t* scalar,
              (predicate << 31UL)) |
             (point_index << 32UL);
         if (round_i == 1) {
-            std::cout << "writing value " << std::hex << wnaf[(wnaf_entries - round_i) << log2_num_points] << std::dec
+            std::cerr << "writing value " << std::hex << wnaf[(wnaf_entries - round_i) << log2_num_points] << std::dec
                       << " at index " << ((wnaf_entries - round_i) << log2_num_points) << std::endl;
         }
         wnaf_round_with_restricted_first_slice<scalar_bits, num_points, wnaf_bits, round_i + 1>(
@@ -422,10 +422,10 @@ inline void fixed_wnaf_with_restricted_first_slice(uint64_t* scalar,
                                                    const size_t point_index) noexcept
 {
     constexpr size_t bits_in_first_slice = num_bits % wnaf_bits;
-    std::cout << "bits in first slice = " << bits_in_first_slice << std::endl;
+    std::cerr << "bits in first slice = " << bits_in_first_slice << std::endl;
     skew_map = ((scalar[0] & 1) == 0);
     uint64_t previous = get_wnaf_bits_const<bits_in_first_slice, 0>(scalar) + (uint64_t)skew_map;
-    std::cout << "previous = " << previous << std::endl;
+    std::cerr << "previous = " << previous << std::endl;
     wnaf_round_with_restricted_first_slice<num_bits, num_points, wnaf_bits, 1UL>(scalar, wnaf, point_index, previous);
 }
 

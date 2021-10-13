@@ -26,6 +26,9 @@ enum {
     BRIDGE_ID,
     DEFI_DEPOSIT_VALUE,
     DEFI_ROOT,
+    PROPAGATED_INPUT_INDEX,
+    BACKWARD_LINK,
+    ALLOW_CHAIN,
     NUM_FIELDS
 };
 } // namespace InnerProofFields
@@ -46,6 +49,9 @@ enum {
     BRIDGE_ID = InnerProofFields::BRIDGE_ID * 32,
     DEFI_DEPOSIT_VALUE = InnerProofFields::DEFI_DEPOSIT_VALUE * 32,
     DEFI_ROOT = InnerProofFields::DEFI_ROOT * 32,
+    PROPAGATED_INPUT_INDEX = InnerProofFields::PROPAGATED_INPUT_INDEX * 32,
+    BACKWARD_LINK = InnerProofFields::BACKWARD_LINK * 32,
+    ALLOW_CHAIN = InnerProofFields::ALLOW_CHAIN * 32,
 };
 }
 
@@ -65,6 +71,10 @@ struct inner_proof_data {
     uint256_t bridge_id;
     uint256_t defi_deposit_value;
     barretenberg::fr defi_root;
+
+    uint256_t propagated_input_index;
+    barretenberg::fr backward_link;
+    uint256_t allow_chain;
 
     inner_proof_data(std::vector<uint8_t> const& proof_data);
 };
@@ -87,6 +97,9 @@ inline std::ostream& operator<<(std::ostream& os, inner_proof_data const& data)
         << "  bridge_id: " << data.bridge_id << "\n"
         << "  defi_deposit_value: " << data.defi_deposit_value << "\n"
         << "  defi_root: " << data.defi_root << "\n"
+        << "  propagated_input_index: " << data.propagated_input_index << "\n"
+        << "  backward_link: " << data.backward_link << "\n"
+        << "  allow_chain: " << data.allow_chain << "\n"
         << "}";
     // clang-format on
 }

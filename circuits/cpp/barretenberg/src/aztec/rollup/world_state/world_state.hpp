@@ -1,6 +1,9 @@
 #pragma once
 #include <stdlib/merkle_tree/merkle_tree.hpp>
 #include "../proofs/notes/native/defi_interaction/note.hpp"
+#include "../proofs/notes/native/value/value_note.hpp"
+#include "../proofs/notes/native/account/account_note.hpp"
+#include "../proofs/notes/native/claim/claim_note.hpp"
 #include "../constants.hpp"
 
 namespace rollup {
@@ -28,12 +31,27 @@ template <typename Store> class WorldState {
         root_tree.update_element(root_tree.size(), data_root);
     }
 
-    template <typename T> void append_data_note(T const& note) { append_note(note, data_tree); }
+    void insert_data_entry(uint256_t index, fr const& commitment, fr const& input_nullifier)
+    {
+        data_tree.update_element(index, commitment);
+        input_nullifiers.resize(static_cast<size_t>(data_tree.size()));
+        input_nullifiers[static_cast<size_t>(index)] = input_nullifier;
+    }
+
+    template <typename T> void append_data_note(T const& note)
+    {
+        insert_data_entry(data_tree.size(), note.commit(), note.input_nullifier);
+    }
+
+    void append_data_note(account::account_note const& note)
+    {
+        insert_data_entry(data_tree.size(), note.commit(), fr(0));
+    }
 
     void add_defi_notes(std::vector<defi_interaction::note> const& din)
     {
         for (auto& interaction_note : din) {
-            insert_note(interaction_note, interaction_note.interaction_nonce, defi_tree);
+            defi_tree.update_element(interaction_note.interaction_nonce, interaction_note.commit());
         }
     }
 
@@ -44,14 +62,7 @@ template <typename Store> class WorldState {
     Tree null_tree;
     Tree root_tree;
     Tree defi_tree;
-
-  private:
-    template <typename T> void insert_note(T const& note, uint256_t index, Tree& tree)
-    {
-        tree.update_element(index, note.commit());
-    }
-
-    template <typename T> void append_note(T const& note, Tree& tree) { insert_note(note, tree.size(), tree); }
+    std::vector<barretenberg::fr> input_nullifiers;
 };
 
 } // namespace world_state

@@ -33,7 +33,11 @@ class TestContext {
     void append_value_notes(std::vector<uint32_t> const& values, uint32_t asset_id = 0)
     {
         for (auto v : values) {
-            native::value::value_note note = { v, asset_id, 0, user.owner.public_key, user.note_secret, 0 };
+            // Use the insertion index (data_tree.size()) as the input_nullifier.
+            // This ensures consistent commitments in tests which is important when leveraging fixtures.
+            native::value::value_note note = {
+                v, asset_id, 0, user.owner.public_key, user.note_secret, 0, world_state.data_tree.size()
+            };
             world_state.append_data_note(note);
         }
     }
@@ -61,7 +65,7 @@ class TestContext {
                                                  std::array<uint32_t, 2> out_note_value,
                                                  uint256_t public_input = 0,
                                                  uint256_t public_output = 0,
-                                                 uint256_t tx_fee = 7,
+                                                 uint256_t tx_fee = 0,
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t asset_id = 0,
                                                  uint32_t nonce = 0)
@@ -76,7 +80,8 @@ class TestContext {
                                                      asset_id,
                                                      nonce);
         auto signer = nonce ? user.signing_keys[0] : user.owner;
-        return join_split::create_proof(tx, signer, js_cd);
+        js_tx_factory.finalise_and_sign_tx(tx, signer);
+        return join_split::create_proof(tx, js_cd);
     }
 
     std::vector<uint8_t> create_defi_proof(std::vector<uint32_t> in_note_idx,
@@ -89,7 +94,8 @@ class TestContext {
 
         auto tx = js_tx_factory.create_defi_deposit_tx(in_note_idx, in_note_value, out_note_value, bridge_id, asset_id);
         auto signer = nonce ? user.signing_keys[0] : user.owner;
-        return join_split::create_proof(tx, signer, js_cd);
+        js_tx_factory.finalise_and_sign_tx(tx, signer);
+        return join_split::create_proof(tx, js_cd);
     }
 
     std::vector<uint8_t> create_account_proof(uint32_t nonce = 0, uint32_t account_note_idx = 0)
@@ -113,7 +119,8 @@ class TestContext {
         auto partial_state =
             notes::native::value::create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0);
         notes::native::claim::claim_note claim_note = {
-            deposit_value, bridge_id, interaction_nonce, fee, partial_state
+            deposit_value, bridge_id,     interaction_nonce,
+            fee,           partial_state, world_state.input_nullifiers[claim_note_index]
         };
         return claim_tx_factory.create_claim_tx(
             world_state.defi_tree.root(), claim_note_index, claim_note, defi_interactions[interaction_nonce]);

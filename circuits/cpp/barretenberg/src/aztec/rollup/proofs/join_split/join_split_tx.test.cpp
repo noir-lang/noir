@@ -35,12 +35,16 @@ TEST(client_proofs_join_split_tx, test_serialization)
         tx.input_note[i].owner = tx.signing_pub_key;
         tx.input_note[i].value = 123;
         tx.input_note[i].secret = fr::random_element();
+        tx.input_note[i].input_nullifier = fr::random_element();
+        tx.input_note[i].creator_pubkey = fr::random_element();
     }
 
     for (size_t i = 0; i < 2; ++i) {
         tx.output_note[i].owner = tx.signing_pub_key;
         tx.output_note[i].value = 321;
         tx.output_note[i].secret = fr::random_element();
+        tx.output_note[i].input_nullifier = fr::random_element();
+        tx.output_note[i].creator_pubkey = fr::random_element();
     }
 
     tx.claim_note.bridge_id = 0xdeadbeef;
@@ -49,6 +53,10 @@ TEST(client_proofs_join_split_tx, test_serialization)
 
     memset(&tx.signature.e, 1, 32);
     memset(&tx.signature.s, 2, 32);
+
+    tx.propagated_input_index = 1;
+    tx.backward_link = fr::random_element();
+    tx.allow_chain = 2;
 
     auto buffer = to_buffer(tx);
     auto tx2 = from_buffer<join_split_tx>(buffer.data());

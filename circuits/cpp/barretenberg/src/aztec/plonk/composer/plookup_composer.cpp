@@ -1303,7 +1303,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
     const size_t last_limb_size = num_bits - (limb_num * DEFAULT_PLOOKUP_RANGE_BITNUM);
     if (limb_num < 2) {
-        std::cout << "number of bits in range must be at least twice default range size" << std::endl;
+        std::cerr << "number of bits in range must be at least twice default range size" << std::endl;
         return sums;
     }
 
@@ -1624,7 +1624,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range_better_for_o
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
     const size_t last_limb_size = num_bits - (limb_num * DEFAULT_PLOOKUP_RANGE_BITNUM);
     if (limb_num < 3) {
-        std::cout
+        std::cerr
             << "number of bits in range must be an integer multipe of DEFAULT_PLOOKUP_RANGE_BITNUM of size at least 3"
             << std::endl;
         return sums;
@@ -1681,7 +1681,6 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range_better_for_o
         cur_shift *= second_shift;
         cur_second_shift *= second_shift;
     }
-    // std::cout << "variable_ind:" << get_variable(variable_index) << " sum:" << get_variable(sums[1]) << std::endl;
     assert_equal(sums[sums.size() - 1], variable_index, msg);
     return sums;
 }

@@ -51,7 +51,7 @@ UnrolledProver new_join_split_prover(join_split_tx const& tx)
     join_split_circuit(composer, tx);
 
     if (composer.failed) {
-        error("composer logic failed: ", composer.err);
+        info("composer logic failed: ", composer.err);
     }
 
     info("composer gates: ", composer.get_num_gates());

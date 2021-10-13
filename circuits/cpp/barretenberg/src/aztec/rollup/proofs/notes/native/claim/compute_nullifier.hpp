@@ -1,3 +1,4 @@
+#pragma once
 #include <common/serialize.hpp>
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
@@ -11,9 +12,10 @@ namespace claim {
 
 using namespace barretenberg;
 
-inline auto compute_nullifier(grumpkin::fq const& note_commitment, uint32_t index)
+inline auto compute_nullifier(grumpkin::fq const& note_commitment)
 {
-    return crypto::pedersen::compress_native({ note_commitment, index }, GeneratorIndex::CLAIM_NOTE_NULLIFIER);
+    // TODO: check if this is ok with Ariel!
+    return crypto::pedersen::compress_native({ note_commitment }, GeneratorIndex::CLAIM_NOTE_NULLIFIER);
 }
 
 } // namespace claim

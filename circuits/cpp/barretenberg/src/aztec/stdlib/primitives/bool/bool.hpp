@@ -38,6 +38,8 @@ template <typename ComposerContext> class bool_t {
 
     bool_t operator||(const bool_t& other) const;
 
+    bool_t implies(const bool_t& other) const;
+
     // self ops
     void operator|=(const bool_t& other) { *this = operator|(other); }
 
@@ -45,7 +47,10 @@ template <typename ComposerContext> class bool_t {
 
     void operator^=(const bool_t& other) { *this = operator^(other); }
 
+    // assertions
     void assert_equal(const bool_t& rhs, std::string const& msg = "bool_t::assert_equal") const;
+
+    void must_imply(const bool_t& other, std::string const& msg = "bool_t::must_imply") const;
 
     bool get_value() const { return witness_bool ^ witness_inverted; }
 

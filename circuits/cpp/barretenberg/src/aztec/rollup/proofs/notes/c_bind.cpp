@@ -30,12 +30,14 @@ WASM_EXPORT void notes__value_note_commitment(uint8_t const* note_buffer, uint8_
     write(output, note_commitment);
 }
 
-WASM_EXPORT void notes__value_note_nullifier(
-    uint8_t const* commitment_buffer, uint8_t* acc_pk_buffer, uint32_t index, bool is_real, uint8_t* output)
+WASM_EXPORT void notes__value_note_nullifier(uint8_t const* commitment_buffer,
+                                             uint8_t* acc_pk_buffer,
+                                             bool is_real,
+                                             uint8_t* output)
 {
     auto commitment = from_buffer<grumpkin::fq>(commitment_buffer);
     auto acc_pk = from_buffer<uint256_t>(acc_pk_buffer);
-    auto nullifier = compute_nullifier(commitment, index, acc_pk, is_real);
+    auto nullifier = compute_nullifier(commitment, acc_pk, is_real);
     write(output, nullifier);
 }
 
@@ -46,10 +48,10 @@ WASM_EXPORT void notes__claim_note_partial_commitment(uint8_t const* note_buffer
     write(output, note_commitment);
 }
 
-WASM_EXPORT void notes__claim_note_nullifier(uint8_t const* commitment_buffer, uint32_t index, uint8_t* output)
+WASM_EXPORT void notes__claim_note_nullifier(uint8_t const* commitment_buffer, uint8_t* output)
 {
     auto commitment = from_buffer<grumpkin::fq>(commitment_buffer);
-    auto nullifier = claim::compute_nullifier(commitment, index);
+    auto nullifier = claim::compute_nullifier(commitment);
     write(output, nullifier);
 }
 

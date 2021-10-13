@@ -16,14 +16,14 @@ MemoryTree::MemoryTree(size_t depth)
     auto current = fr::neg_one();
     size_t layer_size = total_size_;
     for (size_t offset = 0; offset < hashes_.size(); offset += layer_size, layer_size /= 2) {
-        // std::cout << "zero: " << current << std::endl;
+        // std::cerr << "zero: " << current << std::endl;
         for (size_t i = 0; i < layer_size; ++i) {
             hashes_[offset + i] = current;
         }
         current = compress_native(current, current);
     }
 
-    // std::cout << "root: " << current << std::endl;
+    // std::cerr << "root: " << current << std::endl;
     root_ = current;
 }
 

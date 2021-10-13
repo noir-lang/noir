@@ -33,7 +33,7 @@ MerkleTree<Store>::MerkleTree(Store& store, size_t depth, uint8_t tree_id)
     auto current = fr::neg_one();
     for (size_t i = 0; i < depth; ++i) {
         zero_hashes_[i] = current;
-        // std::cout << "zero hash level " << i << ": " << current << std::endl;
+        // std::cerr << "zero hash level " << i << ": " << current << std::endl;
         current = compress_native(current, current);
     }
 }
@@ -93,7 +93,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
             index_t subtree_index = numeric::keep_n_lsb(index, i + 1);
             index_t diff = element_index ^ subtree_index;
 
-            // std::cout << "ghp hit stump height:" << i << " element_index:" << (uint64_t)element_index
+            // std::cerr << "ghp hit stump height:" << i << " element_index:" << (uint64_t)element_index
             //           << " index:" << (uint64_t)index << " diff:" << (uint64_t)diff << std::endl;
 
             if (diff < 2) {
@@ -116,7 +116,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                 size_t ignored_bits = sizeof(index_t) * 8 - i;
                 size_t common_height = i - (common_bits - ignored_bits) - 1;
 
-                // std::cout << "ghp diff:" << (uint64_t)diff << " ch:" << common_height << std::endl;
+                // std::cerr << "ghp diff:" << (uint64_t)diff << " ch:" << common_height << std::endl;
 
                 for (size_t j = 0; j < common_height; ++j) {
                     path[j] = std::make_pair(zero_hashes_[j], zero_hashes_[j]);
@@ -142,7 +142,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
 template <typename Store> fr MerkleTree<Store>::update_element(index_t index, fr const& value)
 {
     auto leaf = (value == 0) ? fr::neg_one() : value;
-    // std::cout << "update_element: " << (uint64_t)index << std::endl;
+    // std::cerr << "update_element: " << (uint64_t)index << std::endl;
     using serialize::write;
     std::vector<uint8_t> leaf_key;
     write(leaf_key, tree_id_);
@@ -167,7 +167,7 @@ template <typename Store> fr MerkleTree<Store>::binary_put(index_t a_index, fr c
     auto right = a_is_right ? a : b;
     auto key = compress_native(left, right);
     put(key, left, right);
-    // std::cout << "BINARY PUT height: " << height << " key:" << key << " left:" << left << " right:" << right
+    // std::cerr << "BINARY PUT height: " << height << " key:" << key << " left:" << left << " right:" << right
     //<< std::endl;
     return key;
 }
@@ -178,7 +178,7 @@ fr MerkleTree<Store>::fork_stump(
 {
     if (height == common_height) {
         if (height == 1) {
-            // std::cout << "Stump forked into leaves." << std::endl;
+            // std::cerr << "Stump forked into leaves." << std::endl;
             index1 = numeric::keep_n_lsb(index1, 1);
             index2 = numeric::keep_n_lsb(index2, 1);
             return binary_put(index1, value1, value2, height);
@@ -186,7 +186,7 @@ fr MerkleTree<Store>::fork_stump(
             size_t stump_height = height - 1;
             index_t stump1_index = numeric::keep_n_lsb(index1, stump_height);
             index_t stump2_index = numeric::keep_n_lsb(index2, stump_height);
-            // std::cout << "Stump forked into two at height " << stump_height << " index1 " << (uint64_t)index1
+            // std::cerr << "Stump forked into two at height " << stump_height << " index1 " << (uint64_t)index1
             //           << " index2 " << (uint64_t)index2 << std::endl;
             fr stump1_hash = compute_zero_path_hash(stump_height, stump1_index, value1);
             fr stump2_hash = compute_zero_path_hash(stump_height, stump2_index, value2);
@@ -196,7 +196,7 @@ fr MerkleTree<Store>::fork_stump(
         }
     } else {
         auto new_root = fork_stump(value1, index1, value2, index2, height - 1, common_height);
-        // std::cout << "Stump branch hash at " << height << " " << new_root << " " << zero_hashes_[height] <<
+        // std::cerr << "Stump branch hash at " << height << " " << new_root << " " << zero_hashes_[height] <<
         // std::endl;
         return binary_put(index1, new_root, zero_hashes_[height - 1], height);
     }
@@ -205,7 +205,7 @@ fr MerkleTree<Store>::fork_stump(
 template <typename Store>
 fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t index, size_t height)
 {
-    // std::cout << "update_element root:" << root << " value:" << value << " index:" << (uint64_t)index
+    // std::cerr << "update_element root:" << root << " value:" << value << " index:" << (uint64_t)index
     //           << " height:" << height << std::endl;
     if (height == 0) {
         return value;
@@ -215,20 +215,20 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
     auto status = store_.get(root.to_buffer(), data);
 
     if (!status) {
-        // std::cout << "Adding new stump at height " << height << std::endl;
+        // std::cerr << "Adding new stump at height " << height << std::endl;
         fr key = compute_zero_path_hash(height, index, value);
         put_stump(key, index, value);
         return key;
     }
 
-    // std::cout << "got data of size " << data.size() << std::endl;
+    // std::cerr << "got data of size " << data.size() << std::endl;
     if (data.size() != 64) {
         // We've come across a stump.
         index_t existing_index = from_buffer<index_t>(data, 32);
 
         if (existing_index == index) {
             // We are updating the stumps element. Easy update.
-            // std::cout << "Updating existing stump element at index " << (uint64_t)index << std::endl;
+            // std::cerr << "Updating existing stump element at index " << (uint64_t)index << std::endl;
             fr new_hash = compute_zero_path_hash(height, index, value);
             put_stump(new_hash, existing_index, value);
             return new_hash;
@@ -238,14 +238,14 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
         size_t common_bits = numeric::count_leading_zeros(existing_index ^ index);
         size_t ignored_bits = sizeof(index_t) * 8 - height;
         size_t common_height = height - (common_bits - ignored_bits);
-        // std::cout << height << " common_bits:" << common_bits << " ignored_bits:" << ignored_bits
+        // std::cerr << height << " common_bits:" << common_bits << " ignored_bits:" << ignored_bits
         //           << " existing_index:" << (uint64_t)existing_index << " index:" << (uint64_t)index
         //           << " common_height:" << common_height << std::endl;
 
         return fork_stump(existing_value, existing_index, value, index, height, common_height);
     } else {
         bool is_right = bit_set(index, height - 1);
-        // std::cout << "Normal node is_right:" << is_right << std::endl;
+        // std::cerr << "Normal node is_right:" << is_right << std::endl;
         fr subtree_root = from_buffer<fr>(data, is_right ? 32 : 0);
         subtree_root = update_element(subtree_root, value, numeric::keep_n_lsb(index, height - 1), height - 1);
         auto left = from_buffer<fr>(data, 0);
@@ -289,7 +289,7 @@ template <typename Store> void MerkleTree<Store>::put(fr const& key, fr const& l
     write(value, left);
     write(value, right);
     store_.put(key.to_buffer(), value);
-    // std::cout << "PUT key:" << key << " left:" << left << " right:" << right << std::endl;
+    // std::cerr << "PUT key:" << key << " left:" << left << " right:" << right << std::endl;
 }
 
 template <typename Store> void MerkleTree<Store>::put_stump(fr const& key, index_t index, fr const& value)
@@ -300,7 +300,7 @@ template <typename Store> void MerkleTree<Store>::put_stump(fr const& key, index
     // Add an additional byte, to signify we are a stump.
     write(buf, true);
     store_.put(key.to_buffer(), buf);
-    // std::cout << "PUT STUMP key:" << key << " index:" << (uint64_t)index << " value:" << value << std::endl;
+    // std::cerr << "PUT STUMP key:" << key << " index:" << (uint64_t)index << " value:" << value << std::endl;
 }
 
 #ifndef __wasm__

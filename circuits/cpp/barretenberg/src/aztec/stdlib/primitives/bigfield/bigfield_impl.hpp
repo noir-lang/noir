@@ -1016,7 +1016,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
     C* ctx = this->context ? this->context : other.context;
 
     if (is_constant() && other.is_constant()) {
-        std::cout << "calling assert equal on 2 CONSTANT bigfield elements...is this intended?" << std::endl;
+        std::cerr << "calling assert equal on 2 CONSTANT bigfield elements...is this intended?" << std::endl;
         return;
     } else if (other.is_constant()) {
         // evaluate a strict equality - make sure *this is reduced first, or an honest prover
@@ -1040,7 +1040,7 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
 
     const auto [quotient_512, remainder_512] = (diff_val).divmod(modulus);
     if (remainder_512 != 0)
-        std::cout << "remainder not zero!" << std::endl;
+        std::cerr << "remainder not zero!" << std::endl;
     ASSERT(remainder_512 == 0);
     bigfield quotient;
 
@@ -1288,7 +1288,7 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& input_left,
     const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
 
     const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
-    // std::cout <<"lowmsb:" << carry_lo_msb << " highmsb:" <<carry_hi_msb <<std::endl;
+    // std::cerr <<"lowmsb:" << carry_lo_msb << " highmsb:" <<carry_hi_msb <<std::endl;
     if constexpr (C::type == waffle::PLOOKUP) {
         carry_lo = carry_lo.normalize();
         carry_hi = carry_hi.normalize();

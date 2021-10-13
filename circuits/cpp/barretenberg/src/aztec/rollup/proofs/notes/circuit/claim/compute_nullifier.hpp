@@ -11,9 +11,10 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
-inline field_ct compute_nullifier(field_ct const& note_commitment, field_ct const& tree_index)
+inline field_ct compute_nullifier(field_ct const& note_commitment)
 {
-    return pedersen::compress({ note_commitment, tree_index }, true, GeneratorIndex::CLAIM_NOTE_NULLIFIER);
+    // TODO: check if this is ok with Ariel!
+    return pedersen::compress(std::vector<field_ct>{ note_commitment }, true, GeneratorIndex::CLAIM_NOTE_NULLIFIER);
 }
 
 } // namespace claim

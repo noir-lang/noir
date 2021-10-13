@@ -20,16 +20,25 @@ struct rollup_tx {
     uint32_t data_start_index;
     std::vector<std::vector<uint8_t>> txs;
 
+    // data subtree insertion info
     fr old_data_root;
     fr new_data_root;
     fr_hash_path old_data_path;
 
+    // Backward-linked commitments' membership check witnesses:
+    // Note: only commitments at the beginning of a split chain will need a valid membership witness.
+    // Note: we use the term 'linked' to allow easier generalisation to linking txs in future.
+    // We can re-use the old_data_root from above
+    std::vector<fr_hash_path> linked_commitment_paths;
+    std::vector<uint32_t> linked_commitment_indices;
+
+    // nullifier membership check info
     fr old_null_root;
     std::vector<fr> new_null_roots;
     std::vector<fr_hash_path> old_null_paths;
 
     fr data_roots_root;
-    // Paths at indicies proving each tx proofs data root is valid.
+    // Paths at indicies proving each tx proof's data root is valid.
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint32_t> data_roots_indicies;
 
@@ -62,6 +71,9 @@ template <typename B> inline void read(B& buf, rollup_tx& tx)
     read(buf, tx.new_data_root);
     read(buf, tx.old_data_path);
 
+    read(buf, tx.linked_commitment_paths);
+    read(buf, tx.linked_commitment_indices);
+
     read(buf, tx.old_null_root);
     read(buf, tx.new_null_roots);
     read(buf, tx.old_null_paths);
@@ -86,6 +98,9 @@ template <typename B> inline void write(B& buf, rollup_tx const& tx)
     write(buf, tx.old_data_root);
     write(buf, tx.new_data_root);
     write(buf, tx.old_data_path);
+
+    write(buf, tx.linked_commitment_paths);
+    write(buf, tx.linked_commitment_indices);
 
     write(buf, tx.old_null_root);
     write(buf, tx.new_null_roots);
@@ -114,6 +129,8 @@ inline std::ostream& operator<<(std::ostream& os, rollup_tx const& tx)
     os << "old_data_root: " << tx.old_data_root << "\n";
     os << "new_data_root: " << tx.new_data_root << "\n";
     os << "old_data_path: " << tx.old_data_path << "\n";
+    os << "linked_commitment_paths: " << tx.linked_commitment_paths << "\n";
+    os << "linked_commitment_indices: " << tx.linked_commitment_indices << "\n";
 
     os << "\nNULL TREE UPDATE CONTEXT:\n";
     os << "old_null_root: " << tx.old_null_root << "\n";

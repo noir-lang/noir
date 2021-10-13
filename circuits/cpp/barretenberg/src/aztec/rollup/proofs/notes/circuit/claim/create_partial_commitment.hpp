@@ -13,9 +13,10 @@ using namespace plonk::stdlib::types::turbo;
 
 inline auto create_partial_commitment(field_ct const& deposit_value,
                                       field_ct const& bridge_id,
-                                      field_ct const& value_note_partial_commitment)
+                                      field_ct const& value_note_partial_commitment,
+                                      field_ct const& input_nullifier)
 {
-    return pedersen::compress({ deposit_value, bridge_id, value_note_partial_commitment },
+    return pedersen::compress({ deposit_value, bridge_id, value_note_partial_commitment, input_nullifier },
                               true,
                               GeneratorIndex::CLAIM_NOTE_PARTIAL_COMMITMENT);
 }

@@ -11,7 +11,6 @@ namespace native {
 using namespace barretenberg;
 
 fr compute_nullifier(grumpkin::fq const& note_commitment,
-                     const uint32_t tree_index,
                      grumpkin::fr const& account_private_key,
                      const bool is_real_note)
 {
@@ -22,7 +21,7 @@ fr compute_nullifier(grumpkin::fq const& note_commitment,
         note_commitment,
         hashed_pk.x,
         hashed_pk.y,
-        barretenberg::fr(uint256_t((uint64_t)tree_index) + (uint256_t(is_real_note) << 64)),
+        is_real_note,
     };
     auto result = crypto::pedersen::commit_native(buf, GeneratorIndex::JOIN_SPLIT_NULLIFIER);
     auto blake_result = blake2::blake2s(to_buffer(result));

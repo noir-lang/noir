@@ -114,7 +114,9 @@ class root_rollup_tests : public ::testing::Test {
     {
         std::vector<std::vector<uint8_t>> proofs;
         for (uint32_t i = 0; i < n; ++i) {
-            auto js_proof = context.create_join_split_proof({}, {}, { 100, 50 }, 150);
+            auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
+                return context.create_join_split_proof({}, {}, { 100, 50 }, 150);
+            });
             proofs.push_back(js_proof);
         }
         return proofs;
@@ -131,7 +133,7 @@ class root_rollup_tests : public ::testing::Test {
 
         notes::native::bridge_id bid2 = { 1, 2, aid2, 0, 0 };
         notes::native::bridge_id bid3 = { 2, 2, aid3, 0, 0 };
-        auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 }); // fee = 7
+        auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 }, 0, 0, 7); // fee = 7
         auto js_proof2 =
             context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 20, 130 }, 0, 0, 15, 0, aid1); // fee = 15
         auto js_proof3 =
@@ -159,10 +161,10 @@ class root_rollup_tests : public ::testing::Test {
 
 /*
  * Due the the length of time it takes to produce inner proofs, they're saved in fixtures.
- * If they need to be recomputed due to a circuit change or otherwise, delete files in ./fixtures/test_proofs.
- * The fixtures names are named so as to reduce unnecessary (re)computation between tests.
- * i.e. If a rollup has a structure shorter than its name suggests, it's because it can reuse the fixtures from
- * the longer rollup structure due to them having the same leading structure.
+ * If they need to be recomputed due to a circuit change or otherwise, delete files in ./fixtures/test_proofs. (You
+ * might need to delete all of the fixtures). The fixtures' names are named so as to reduce unnecessary (re)computation
+ * between tests. i.e. If a rollup has a structure shorter than its name suggests, it's because it can reuse the
+ * fixtures from the longer rollup structure due to them having the same leading structure.
  */
 TEST_F(root_rollup_tests, test_1_real_2_padding)
 {

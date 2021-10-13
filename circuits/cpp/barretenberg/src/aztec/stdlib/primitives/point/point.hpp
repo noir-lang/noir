@@ -17,6 +17,20 @@ template <typename Composer> struct point {
         composer->set_public_input(x.witness_index);
         composer->set_public_input(y.witness_index);
     }
+
+    void assert_equal(const point& rhs, std::string const& msg = "point::assert_equal") const
+    {
+        this->x.assert_equal(rhs.x, msg);
+        this->y.assert_equal(rhs.y, msg);
+    }
+
+    static point conditional_assign(const bool_t<Composer>& predicate, const point& lhs, const point& rhs)
+    {
+        return { field_t<Composer>::conditional_assign(predicate, lhs.x, rhs.x),
+                 field_t<Composer>::conditional_assign(predicate, lhs.y, rhs.y) };
+    };
+
+    bool_t<Composer> operator==(const point& other) const { return (this->x == other.x) && (this->y == other.y); }
 };
 
 template <typename Composer, typename E>

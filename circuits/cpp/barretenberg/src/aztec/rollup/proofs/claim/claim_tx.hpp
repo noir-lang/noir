@@ -21,6 +21,8 @@ struct claim_tx {
     merkle_tree::fr_hash_path defi_interaction_note_path;
     notes::native::defi_interaction::note defi_interaction_note;
 
+    barretenberg::fr defi_interaction_note_dummy_nullifier_nonce;
+
     fr output_value_a;
     fr output_value_b;
 
@@ -37,6 +39,7 @@ template <typename B> inline void read(B& buf, claim_tx& tx)
     read(buf, tx.claim_note);
     read(buf, tx.defi_interaction_note_path);
     read(buf, tx.defi_interaction_note);
+    read(buf, tx.defi_interaction_note_dummy_nullifier_nonce);
     read(buf, tx.output_value_a);
     read(buf, tx.output_value_b);
 }
@@ -51,6 +54,7 @@ template <typename B> inline void write(B& buf, claim_tx const& tx)
     write(buf, tx.claim_note);
     write(buf, tx.defi_interaction_note_path);
     write(buf, tx.defi_interaction_note);
+    write(buf, tx.defi_interaction_note_dummy_nullifier_nonce);
     write(buf, tx.output_value_a);
     write(buf, tx.output_value_b);
 }
@@ -62,6 +66,8 @@ inline std::ostream& operator<<(std::ostream& os, claim_tx const& tx)
               << "claim_note_index: " << tx.claim_note_index << "\n"
               << "claim_note_path: " << tx.claim_note_path << "\n"
               << "interaction_note_path: " << tx.defi_interaction_note_path << "\n"
+              << "defi_interaction_note_dummy_nullifier_nonce: " << tx.defi_interaction_note_dummy_nullifier_nonce
+              << "\n"
               << "output_value_a: " << tx.output_value_a << "\n"
               << "output_value_b: " << tx.output_value_b << "\n";
 }

@@ -61,7 +61,7 @@ class rollup_tests : public ::testing::Test {
 
         notes::native::bridge_id bid1 = { 0, 2, 8, 0, 0 };
         notes::native::bridge_id bid2 = { 1, 2, 13, 0, 0 };
-        auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 });
+        auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 }, 0, 0, 7);
         // The difference in input and output note values becomes the tx_fee for defi deposits.
         auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);
         auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);
@@ -69,6 +69,12 @@ class rollup_tests : public ::testing::Test {
 
         return create_rollup_tx(
             context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 }, { 0, 8, 13 });
+    }
+
+    auto create_js_proof(join_split::join_split_tx& tx)
+    {
+        context.js_tx_factory.finalise_and_sign_tx(tx, context.user.owner);
+        return join_split::create_proof(tx, js_cd);
     }
 
     fixtures::TestContext context;
@@ -160,6 +166,7 @@ TEST_F(rollup_tests, test_1_proof_with_invalid_old_null_root_fails)
     auto result = verify_logic(rollup, rollup_1_keyless);
 
     EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "check_nullifiers_inserted_0_old_value");
 }
 
 TEST_F(rollup_tests, test_incorrect_data_start_index_fails)
@@ -176,6 +183,7 @@ TEST_F(rollup_tests, test_incorrect_data_start_index_fails)
     auto result = verify_logic(rollup, rollup_1_keyless);
 
     EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "batch_update_membership_old_subtree");
 }
 
 TEST_F(rollup_tests, test_larger_total_output_value_fails)
@@ -207,6 +215,7 @@ TEST_F(rollup_tests, test_reuse_spent_note_fails)
     auto result = verify_logic(rollup, rollup_1_keyless);
 
     EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "check_nullifiers_inserted_0_old_value");
 }
 
 TEST_F(rollup_tests, test_max_num_txs)
@@ -250,6 +259,7 @@ TEST_F(rollup_tests, test_invalid_asset_id_fails)
     auto result = verify_logic(rollup, rollup_1_keyless);
 
     EXPECT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "asset_id out of scope");
 }
 
 TEST_F(rollup_tests, test_asset_id_repeated_fails)
@@ -259,6 +269,7 @@ TEST_F(rollup_tests, test_asset_id_repeated_fails)
     auto result = verify_logic(tx, rollup_4_keyless);
 
     ASSERT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "proof asset id matched 2 times");
 }
 
 TEST_F(rollup_tests, test_asset_id_unmatched_fails)
@@ -268,6 +279,7 @@ TEST_F(rollup_tests, test_asset_id_unmatched_fails)
     auto result = verify_logic(tx, rollup_4_keyless);
 
     ASSERT_FALSE(result.logic_verified);
+    EXPECT_EQ(result.err, "proof asset id matched 0 times");
 }
 
 TEST_F(rollup_tests, test_asset_id_reordering_works)
@@ -431,6 +443,254 @@ TEST_F(rollup_tests, test_nullifier_hash_path_consistency)
     EXPECT_FALSE(result.logic_verified);
 }
 
+// Chaining
+TEST_F(rollup_tests, test_chain_off_first_note)
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 1;
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off the prior tx's first note, and join with the second preloaded note from index 1.
+    // First index is set to 0 but it's not actually used.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 70, 50 }, { 120, 0 });
+    tx2.input_note[0] = tx1.output_note[0];
+    tx2.backward_link = tx2.input_note[0].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_chain_off_second_note)
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 2;
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off the prior tx's second note, and join with the second preloaded note from index 1.
+    // Second index is set to 0 but it's not actually used.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 1, 0 }, { 50, 30 }, { 80, 0 });
+    tx2.input_note[1] = tx1.output_note[1];
+    tx2.backward_link = tx2.input_note[1].commit();
+    tx2.propagated_input_index = 2;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_chain_off_first_unconsumed_note)
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 1;
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off the prior tx's first note, but don't use it as an input note.
+    // Under the newer spec, this would be considered 'linking', rather than 'chaining'.
+    // The tx will be permitted because no propagated_input_index is specified, and no propagation is happening.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 1 }, { 50 }, { 50, 0 });
+    tx2.backward_link = tx1.output_note[0].commit();
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+class test_chain_off_disallowed_note_fails : public rollup_tests,
+                                             public ::testing::WithParamInterface<std::tuple<uint32_t, uint>> {};
+TEST_P(test_chain_off_disallowed_note_fails, )
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = std::get<0>(GetParam());
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off the output note dictated by `indicator`
+    uint indicator = std::get<1>(GetParam());
+    join_split::join_split_tx tx2;
+    switch (indicator) {
+    case 1:
+        tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 70, 50 }, { 120, 0 });
+        break;
+    case 2:
+        tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 30, 50 }, { 80, 0 });
+        break;
+    }
+    tx2.input_note[0] = tx1.output_note[indicator - 1];
+    tx2.backward_link = tx1.output_note[indicator - 1].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_FALSE(result.logic_verified);
+    auto assertion = result.err.find("is not permitted to propagate output") !=
+                     std::string::npos; // ensure the error message contains this substring. (workaround without using
+                                        // the gmock library).
+    EXPECT_EQ(true, assertion);
+}
+INSTANTIATE_TEST_SUITE_P(rollup_tests,
+                         test_chain_off_disallowed_note_fails,
+                         ::testing::Values(
+                             // tuple is: (prev_tx.allow_chain, "an indicator for tx.backward_link")
+                             // note: the rollup provider cannot check the correctness of propagated_input_index;
+                             // that's enforced within the join-split circuit.
+                             std::make_tuple(0, 1),
+                             std::make_tuple(0, 2),
+                             std::make_tuple(1, 2),
+                             std::make_tuple(2, 1)));
+
+// The following are implicitly tested, since create_rollup_tx will independently calculate the relevant tree root,
+// which the circuit will then compare against its own calculation.
+// - chained_nullifier_zeroed (if allow_chain = 1 or 2)
+// - chained_output_commitment_zeroed
+// - split_chain_nullifier_not_zeroed
+// - split_chain_output_commitment_not_zeroed
+
+TEST_F(rollup_tests, test_gap_in_chain_within_rollup_fails)
+{
+    size_t rollup_size = 4;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    // Chain should be tx1 -> tx2.
+    // We'll interrupt the chain with tx1 -> tx3 -> tx2.
+    // Within a rollup, chained txs must be sequential (currently), so this should fail.
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 1;
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off the prior tx's first note, and join with the second preloaded note from index 1.
+    // First index is set to 0 because the input note is being propagated.
+    // Second index is set to 0 because num_input_notes is 1.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 0 }, { 70 }, { 10, 60 });
+    tx2.input_note[0] = tx1.output_note[0];
+    tx2.backward_link = tx2.input_note[0].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    // Second index is set to 0 because num_input_notes is 1.
+    auto tx3 = context.js_tx_factory.create_join_split_tx({ 1 }, { 50 }, { 15, 35 });
+    auto join_split_proof3 = create_js_proof(tx3);
+
+    auto rollup =
+        create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof3, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_4_keyless);
+
+    EXPECT_FALSE(result.logic_verified);
+    auto assertion = result.err.find("Membership check failed for backward_link") !=
+                     std::string::npos; // ensure the error message contains this substring. (workaround without using
+                                        // the gmock library).
+    EXPECT_EQ(true, assertion);
+}
+
+TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_without_path_fails)
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    // Chain should be tx1 -> tx2.
+    // We'll interrupt the chain with | tx1 -> tx3  | rollup split | tx2 ... |
+    // The rollup provider should therefore provide a path for the backward-linked commitment. But they won't here.
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 1;
+
+    // Add tx1 and tx3 to the first rollup:
+    context.append_value_notes({ 70, 30, 15, 35 });
+
+    // Add tx2 to the next rollup
+    // First index is set to 0 because the input note is being propagated.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 0 }, { 70 }, { 10, 60 });
+    tx2.input_note[0] = tx1.output_note[0];
+    tx2.backward_link = tx2.input_note[0].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_FALSE(result.logic_verified);
+    auto assertion = result.err.find("Membership check failed for backward_link") !=
+                     std::string::npos; // ensure the error message contains this substring. (workaround without using
+                                        // the gmock library).
+    EXPECT_EQ(true, assertion);
+}
+
+TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_with_linked_commitment_path)
+{
+    size_t rollup_size = 4;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    // Chain should be tx1 -> tx2.
+    // We'll interrupt the chain with | tx1 -> tx3  | rollup split | tx2 ... |
+    // The rollup provider should therefore provide a path for the backward-linked commitment. We'll do this here.
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 1;
+
+    // Add tx1 and tx3 to the first rollup:
+    context.append_value_notes({ 70, 30, 15, 35 });
+    context.start_next_root_rollup();
+
+    // Add tx2 to the next rollup
+    // First index is set to 0 because the input note is being propagated.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 0 }, { 70 }, { 10, 60 });
+    notes::native::value::value_note linked_note = {
+        70, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, 2
+    }; // there's a discrepency with the way `append_value_notes` and `create_join_split_tx` calculate
+       // commitments/nullifiers. Here, we ensure the calculation methods match for the propagated commitment, at least.
+
+    tx2.input_note[0] = linked_note;
+    tx2.backward_link = linked_note.commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state,
+                                   rollup_size,
+                                   { join_split_proof2 },
+                                   {},
+                                   { 0 },
+                                   {},
+                                   { 2 }); // add the correct linked commitment index, so a valid path is retrieved.
+    auto result = verify_logic(rollup, rollup_4_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
 // Rollups of size 3.
 TEST_F(rollup_tests, test_1_proof_in_3_rollup)
 {
@@ -517,10 +777,14 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     auto rollup_data = rollup_proof_data(result.public_inputs);
 
     // Check regular join-split output note1 unchanged (as we change it for defi deposits).
-    notes::native::value::value_note note1 = { 70, 0, 0, context.user.owner.public_key, context.user.note_secret, 0 };
+    notes::native::value::value_note note1 = {
+        70, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, rollup_data.inner_proofs[0].nullifier1
+    };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment1, note1.commit());
 
-    notes::native::value::value_note note2 = { 80, 0, 0, context.user.owner.public_key, context.user.note_secret, 0 };
+    notes::native::value::value_note note2 = {
+        80, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, rollup_data.inner_proofs[0].nullifier2
+    };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment2, note2.commit());
 
     std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
@@ -536,7 +800,8 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
                                                         defi_proof_data.bridge_id,
                                                         claim_note_interaction_nonce,
                                                         claim_fees[i],
-                                                        partial_state };
+                                                        partial_state,
+                                                        defi_proof.nullifier1 };
 
         EXPECT_EQ(defi_proof.note_commitment1, claim_note.commit());
     };
@@ -568,8 +833,6 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     bids.push_back(bid1);
     auto defi_proof1 =
         context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bid1);
-    std::vector<uint32_t> defi_deposit_values = { 0, 40, 30, 20 };
-    std::vector<uint32_t> tx_bridge_ids = { 0, 40, 30, 20 };
     std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
 
     // Create claim proofs for each claim note in previous rollup.

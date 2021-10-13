@@ -29,6 +29,7 @@ template <typename WorldState> class ClaimTxFactory {
         tx.claim_note = claim_note;
         tx.defi_interaction_note_path = world_state.defi_tree.get_hash_path(defi_interaction_note.interaction_nonce);
         tx.defi_interaction_note = defi_interaction_note;
+        tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();
         tx.output_value_a = claim_note.deposit_value * defi_interaction_note.total_output_a_value /
                             defi_interaction_note.total_input_value;
         tx.output_value_b = claim_note.deposit_value * defi_interaction_note.total_output_b_value /

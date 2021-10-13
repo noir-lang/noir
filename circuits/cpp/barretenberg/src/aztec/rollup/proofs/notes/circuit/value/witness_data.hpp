@@ -13,14 +13,12 @@ using namespace plonk::stdlib::types::turbo;
 
 struct witness_data {
     point_ct owner;
-    // note value must be 252 bits or smaller - we assume this is checked elsewhere
     field_ct value;
-    // this secret must be 250 bits or smaller - it cannot be taken from the entire field_ct range
     field_ct secret;
-    // this asset_id value must be 32 bits or smaller
     field_ct asset_id;
     field_ct nonce;
     field_ct creator_pubkey;
+    field_ct input_nullifier;
 
     witness_data(Composer& composer, native::value::value_note const& note)
     {
@@ -31,6 +29,8 @@ struct witness_data {
         asset_id = witness_ct(&composer, note.asset_id);
         nonce = witness_ct(&composer, note.nonce);
         creator_pubkey = witness_ct(&composer, note.creator_pubkey);
+        input_nullifier = witness_ct(&composer, note.input_nullifier);
+
         asset_id.create_range_constraint(32);
         value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }

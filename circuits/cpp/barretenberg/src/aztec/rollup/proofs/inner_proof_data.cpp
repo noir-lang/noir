@@ -19,6 +19,9 @@ inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
     bridge_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::BRIDGE_ID);
     defi_deposit_value = from_buffer<uint256_t>(proof_data, InnerProofOffsets::DEFI_DEPOSIT_VALUE);
     defi_root = from_buffer<fr>(proof_data, InnerProofOffsets::DEFI_ROOT);
+    propagated_input_index = from_buffer<fr>(proof_data, InnerProofOffsets::PROPAGATED_INPUT_INDEX);
+    backward_link = from_buffer<fr>(proof_data, InnerProofOffsets::BACKWARD_LINK);
+    allow_chain = from_buffer<fr>(proof_data, InnerProofOffsets::ALLOW_CHAIN);
 }
 
 } // namespace proofs

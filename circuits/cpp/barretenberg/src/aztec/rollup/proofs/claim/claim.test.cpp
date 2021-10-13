@@ -16,6 +16,7 @@ using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::merkle_tree;
 using namespace rollup::proofs::notes::native;
 using namespace rollup::proofs::notes::native::claim;
+using namespace rollup::proofs::notes::native::defi_interaction;
 
 namespace {
 std::shared_ptr<waffle::FileReferenceStringFactory> srs;
@@ -58,6 +59,7 @@ class claim_tests : public ::testing::Test {
         tx.defi_root = defi_tree->root();
         tx.defi_interaction_note = interaction_note;
         tx.defi_interaction_note_path = defi_tree->get_hash_path(interaction_note.interaction_nonce);
+        tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();
 
         tx.output_value_a = ((uint512_t(claim_note.deposit_value) * uint512_t(interaction_note.total_output_a_value)) /
                              uint512_t(interaction_note.total_input_value))
@@ -77,7 +79,9 @@ class claim_tests : public ::testing::Test {
 
 TEST_F(claim_tests, test_claim)
 {
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -88,7 +92,9 @@ TEST_F(claim_tests, test_claim)
 
 TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 {
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -101,7 +107,9 @@ TEST_F(claim_tests, test_unmatching_ratio_a_fails)
 TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 {
 
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -113,7 +121,9 @@ TEST_F(claim_tests, test_unmatching_ratio_b_fails)
 
 TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 {
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 1, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -124,7 +134,9 @@ TEST_F(claim_tests, test_unmatching_bridge_ids_fails)
 
 TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 {
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 0, 1, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -135,7 +147,9 @@ TEST_F(claim_tests, test_unmatching_interaction_nonces_fails)
 
 TEST_F(claim_tests, test_missing_claim_note_fails)
 {
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note2, defi_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
@@ -145,7 +159,9 @@ TEST_F(claim_tests, test_missing_claim_note_fails)
 
 TEST_F(claim_tests, test_missing_interaction_note_fails)
 {
-    const claim_note note1 = { 10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+    const claim_note note1 = {
+        10, 0, 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0), fr::random_element()
+    };
     const defi_interaction::note note2 = { 0, 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     claim_tx tx = create_claim_tx(note1, 0, note2);
@@ -177,7 +193,8 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
                                bridge_id.to_uint256_t(),
                                0,
                                0,
-                               create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+                               create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               fr::random_element() };
     const defi_interaction::note note2 = {
         bridge_id.to_uint256_t(), 0, total_input, total_output_a, total_output_b, 1
     };
@@ -191,22 +208,25 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     auto result = verify(tx, cd);
     ASSERT_TRUE(result.verified);
 
+    uint256_t nullifier1 = compute_nullifier(note1.commit());
+    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
+
     // Compute expected public inputs.
     auto proof_data = inner_proof_data(result.proof_data);
     const value_note expected_output_note1 = {
-        tx.output_value_a, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret, 0
+        tx.output_value_a, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret, 0, nullifier1
     };
+
     const value_note expected_output_note2 = {
-        tx.output_value_b, bridge_id.output_asset_id_b, 0, user.owner.public_key, user.note_secret, 0
+        tx.output_value_b, bridge_id.output_asset_id_b, 0, user.owner.public_key, user.note_secret, 0, nullifier2
     };
-    uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
 
     // Validate public inputs.
     EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
     EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
     EXPECT_EQ(proof_data.note_commitment2, expected_output_note2.commit());
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
+    EXPECT_EQ(proof_data.nullifier2, uint256_t(nullifier2));
     EXPECT_EQ(proof_data.public_value, uint256_t(0));
     EXPECT_EQ(proof_data.public_owner, fr(0));
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
@@ -216,6 +236,9 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
+    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
+    EXPECT_EQ(proof_data.backward_link, fr(0));
+    EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 }
 
 TEST_F(claim_tests, test_claim_1_output_full_proof)
@@ -226,7 +249,8 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
                                bridge_id.to_uint256_t(),
                                0,
                                claim_fee,
-                               create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0) };
+                               create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               fr::random_element() };
     const defi_interaction::note note2 = { bridge_id.to_uint256_t(), 0, 100, 200, 300, 1 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -235,18 +259,18 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
     auto proof_data = inner_proof_data(result.proof_data);
 
+    uint256_t nullifier1 = compute_nullifier(note1.commit());
+    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
+
     const value_note expected_output_note1 = {
-        20, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret, 0
+        20, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret, 0, nullifier1
     };
 
-    uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
-
     EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
-    EXPECT_EQ(proof_data.merkle_root, data_tree->root());
     EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
     EXPECT_EQ(proof_data.note_commitment2, fr(0));
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
+    EXPECT_EQ(proof_data.nullifier2, uint256_t(nullifier2));
     EXPECT_EQ(proof_data.public_value, uint256_t(0));
     EXPECT_EQ(proof_data.public_owner, fr(0));
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
@@ -256,6 +280,9 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
+    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
+    EXPECT_EQ(proof_data.backward_link, fr(0));
+    EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 
     EXPECT_TRUE(result.verified);
 }
@@ -263,9 +290,12 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 TEST_F(claim_tests, test_claim_refund_full_proof)
 {
     const bridge_id bridge_id = { 0, 1, 0, 111, 222 };
-    const claim_note note1 = {
-        10, bridge_id.to_uint256_t(), 0, 0, create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0)
-    };
+    const claim_note note1 = { 10,
+                               bridge_id.to_uint256_t(),
+                               0,
+                               0,
+                               create_partial_commitment(user.note_secret, user.owner.public_key, 0, 0),
+                               fr::random_element() };
     const defi_interaction::note note2 = { bridge_id.to_uint256_t(), 0, 100, 200, 300, 0 };
     append_note(note1, data_tree);
     append_note(note2, defi_tree);
@@ -274,16 +304,18 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
 
     auto proof_data = inner_proof_data(result.proof_data);
 
-    const value_note expected_output_note1 = { 10, bridge_id.input_asset_id, 0, user.owner.public_key, user.note_secret,
-                                               0 };
+    uint256_t nullifier1 = compute_nullifier(note1.commit());
+    uint256_t nullifier2 = compute_dummy_nullifier(note2.commit(), tx.defi_interaction_note_dummy_nullifier_nonce);
 
-    uint256_t nullifier1 = compute_nullifier(note1.commit(), tx.claim_note_index);
+    const value_note expected_output_note1 = {
+        10, bridge_id.input_asset_id, 0, user.owner.public_key, user.note_secret, 0, nullifier1
+    };
 
     EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
     EXPECT_EQ(proof_data.note_commitment1, expected_output_note1.commit());
     EXPECT_EQ(proof_data.note_commitment2, fr(0));
     EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, uint256_t(0));
+    EXPECT_EQ(proof_data.nullifier2, uint256_t(nullifier2));
     EXPECT_EQ(proof_data.public_value, uint256_t(0));
     EXPECT_EQ(proof_data.public_owner, fr(0));
     EXPECT_EQ(proof_data.asset_id, uint256_t(0));
@@ -293,6 +325,9 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
+    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
+    EXPECT_EQ(proof_data.backward_link, fr(0));
+    EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 
     EXPECT_TRUE(result.verified);
 }

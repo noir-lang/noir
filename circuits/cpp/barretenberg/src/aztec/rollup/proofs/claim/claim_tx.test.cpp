@@ -10,8 +10,8 @@ using namespace rollup::proofs::claim;
 TEST(client_proofs_claim_tx, test_serialization)
 {
     claim_tx tx;
-    tx.data_root = barretenberg::fr::random_element();
-    tx.defi_root = barretenberg::fr::random_element();
+    tx.data_root = fr::random_element();
+    tx.defi_root = fr::random_element();
     tx.claim_note_index = 1;
     tx.claim_note_path = merkle_tree::fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
 
@@ -19,7 +19,8 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.claim_note.defi_interaction_nonce = 234;
     tx.claim_note.deposit_value = 345;
     tx.claim_note.fee = 0;
-    tx.claim_note.value_note_partial_commitment = barretenberg::fr::random_element();
+    tx.claim_note.value_note_partial_commitment = fr::random_element();
+    tx.claim_note.input_nullifier = fr::random_element();
 
     tx.defi_interaction_note_path =
         merkle_tree::fr_hash_path(32, std::make_pair(fr::random_element(), fr::random_element()));
@@ -30,6 +31,8 @@ TEST(client_proofs_claim_tx, test_serialization)
     tx.defi_interaction_note.total_output_a_value = 789;
     tx.defi_interaction_note.total_output_b_value = 890;
     tx.defi_interaction_note.interaction_result = 1;
+
+    tx.defi_interaction_note_dummy_nullifier_nonce = fr::random_element();
 
     tx.output_value_a = 888;
     tx.output_value_b = 999;

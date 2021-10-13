@@ -16,7 +16,6 @@ namespace rollup {
 namespace proofs {
 namespace root_rollup {
 
-using namespace rollup;
 using namespace plonk::stdlib::types::turbo;
 using namespace plonk::stdlib::recursion;
 using namespace plonk::stdlib::merkle_tree;
@@ -25,26 +24,12 @@ using namespace notes;
 field_ct compute_sha256_of_zeroes(Composer& composer, const size_t num_txs_per_rollup)
 {
     std::vector<uint8_t> data;
-    for (size_t i = 0; i < 32 * PropagatedInnerProofFields::NUM_FIELDS * num_txs_per_rollup; ++i) {
+    for (size_t i = 0; i < 32 * rollup::PropagatedInnerProofFields::NUM_FIELDS * num_txs_per_rollup; ++i) {
         data.emplace_back(0);
     }
     auto hash_result = sha256::sha256(data);
     fr hash_reduced = fr::serialize_from_buffer(&hash_result[0]);
     return field_ct(&composer, hash_reduced);
-}
-
-void add_rollup_padding_public_inputs(Composer& composer, size_t inner_size)
-{
-    for (size_t i = 0; i < inner_size; ++i) {
-        add_tx_padding_public_inputs(composer);
-    }
-}
-
-void add_zero_public_input(Composer& composer)
-{
-    auto zero = field_ct(witness_ct(&composer, 0));
-    zero.assert_is_zero();
-    zero.set_public();
 }
 
 /**
@@ -113,8 +98,8 @@ void check_asset_ids_and_accumulate_tx_fees(Composer& composer,
     for (size_t j = 0; j < NUM_ASSETS; j++) {
 
         field_ct num_matched(&composer, 0);
-        auto inner_asset_id = public_inputs[RollupProofFields::ASSET_IDS + j];
-        auto inner_tx_fee = public_inputs[RollupProofFields::TOTAL_TX_FEES + j];
+        auto inner_asset_id = public_inputs[rollup::RollupProofFields::ASSET_IDS + j];
+        auto inner_tx_fee = public_inputs[rollup::RollupProofFields::TOTAL_TX_FEES + j];
         auto is_asset_id_padded = (inner_asset_id == field_ct(MAX_NUM_ASSETS));
 
         for (uint32_t k = 0; k < NUM_ASSETS; k++) {
@@ -149,8 +134,8 @@ void check_bridge_ids_and_accumulate_defi_deposits(Composer& composer,
     for (size_t j = 0; j < NUM_BRIDGE_CALLS_PER_BLOCK; j++) {
 
         field_ct num_matched(&composer, 0);
-        auto inner_bridge_id = public_inputs[RollupProofFields::DEFI_BRIDGE_IDS + j];
-        auto inner_defi_deposit_sum = public_inputs[RollupProofFields::DEFI_BRIDGE_DEPOSITS + j];
+        auto inner_bridge_id = public_inputs[rollup::RollupProofFields::DEFI_BRIDGE_IDS + j];
+        auto inner_defi_deposit_sum = public_inputs[rollup::RollupProofFields::DEFI_BRIDGE_DEPOSITS + j];
         auto is_bridge_id_zero = inner_bridge_id.is_zero();
 
         for (uint32_t k = 0; k < NUM_BRIDGE_CALLS_PER_BLOCK; k++) {
@@ -188,14 +173,14 @@ void assert_inner_proof_sequential(Composer& composer,
                                    std::vector<field_ct> const& public_inputs,
                                    bool_ct const& is_real)
 {
-    auto rollup_id_inner = public_inputs[RollupProofFields::ROLLUP_ID];
-    auto data_start_index_inner = public_inputs[RollupProofFields::DATA_START_INDEX];
-    auto old_data_root_inner = public_inputs[RollupProofFields::OLD_DATA_ROOT];
-    auto new_data_root_inner = public_inputs[RollupProofFields::NEW_DATA_ROOT];
-    auto old_null_root_inner = public_inputs[RollupProofFields::OLD_NULL_ROOT];
-    auto new_null_root_inner = public_inputs[RollupProofFields::NEW_NULL_ROOT];
-    auto old_root_root_inner = public_inputs[RollupProofFields::OLD_DATA_ROOTS_ROOT];
-    auto new_defi_root_inner = public_inputs[RollupProofFields::NEW_DEFI_ROOT];
+    auto rollup_id_inner = public_inputs[rollup::RollupProofFields::ROLLUP_ID];
+    auto data_start_index_inner = public_inputs[rollup::RollupProofFields::DATA_START_INDEX];
+    auto old_data_root_inner = public_inputs[rollup::RollupProofFields::OLD_DATA_ROOT];
+    auto new_data_root_inner = public_inputs[rollup::RollupProofFields::NEW_DATA_ROOT];
+    auto old_null_root_inner = public_inputs[rollup::RollupProofFields::OLD_NULL_ROOT];
+    auto new_null_root_inner = public_inputs[rollup::RollupProofFields::NEW_NULL_ROOT];
+    auto old_root_root_inner = public_inputs[rollup::RollupProofFields::OLD_DATA_ROOTS_ROOT];
+    auto new_defi_root_inner = public_inputs[rollup::RollupProofFields::NEW_DEFI_ROOT];
 
     // Every real inner proof should use the root tree root we've input.
     auto valid_root_root = !is_real || old_root_root_inner == old_root_root;
@@ -315,12 +300,14 @@ circuit_result_data root_rollup_circuit(Composer& composer,
                                       public_inputs,
                                       is_real);
 
-        field_ct hash = field_ct::conditional_assign(is_real, public_inputs[RollupProofFields::INPUTS_HASH], zero_hash);
+        field_ct hash =
+            field_ct::conditional_assign(is_real, public_inputs[rollup::RollupProofFields::INPUTS_HASH], zero_hash);
         inner_input_hashes.push_back(hash);
 
         // Accumulate tx public inputs.
-        for (size_t j = 0; j < PropagatedInnerProofFields::NUM_FIELDS * num_inner_txs_pow2; ++j) {
-            tx_proof_public_inputs.push_back(public_inputs[RollupProofFields::INNER_PROOFS_DATA + j].get_value());
+        for (size_t j = 0; j < rollup::PropagatedInnerProofFields::NUM_FIELDS * num_inner_txs_pow2; ++j) {
+            tx_proof_public_inputs.push_back(
+                public_inputs[rollup::RollupProofFields::INNER_PROOFS_DATA + j].get_value());
         }
     }
 
@@ -363,7 +350,7 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     std::vector<fr> header_fields_fr = map(header_fields, [](auto const& f) { return f.get_value(); });
     size_t padding_rollups = num_inner_proofs_pow2 - max_num_inner_proofs;
     size_t padding_txs = padding_rollups * num_inner_txs_pow2;
-    std::vector<fr> zero_padding(padding_txs * PropagatedInnerProofFields::NUM_FIELDS, fr(0));
+    std::vector<fr> zero_padding(padding_txs * rollup::PropagatedInnerProofFields::NUM_FIELDS, fr(0));
     std::vector<fr> broadcast_fields = join({ header_fields_fr, tx_proof_public_inputs, zero_padding });
 
     // Set public inputs. Just the input hash and recursion elements.

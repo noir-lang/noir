@@ -34,6 +34,9 @@ struct join_split_inputs {
     field_ct account_private_key;
     field_ct alias_hash;
     field_ct nonce;
+    field_ct propagated_input_index;
+    field_ct backward_link;
+    field_ct allow_chain;
 };
 
 struct join_split_outputs {

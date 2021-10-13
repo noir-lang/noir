@@ -1,14 +1,17 @@
 #include "account.hpp"
 #include "../notes/circuit/account/account_note.hpp"
 #include "../notes/constants.hpp"
+#include "../add_zero_public_inputs.hpp"
 #include <common/log.hpp>
 #include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <stdlib/primitives/field/pow.hpp>
 #include <stdlib/merkle_tree/membership.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
+
 namespace rollup {
 namespace proofs {
 namespace account {
@@ -119,6 +122,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     bridge_id.set_public();
     defi_deposit_value.set_public();
     defi_root.set_public();
+    add_zero_public_inputs(composer, 3); // 3 chained transaction public inputs
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)
@@ -164,7 +168,7 @@ UnrolledProver new_account_prover(account_tx const& tx)
     account_circuit(composer, tx);
 
     if (composer.failed) {
-        error("composer logic failed: ", composer.err);
+        info("composer logic failed: ", composer.err);
     }
 
     info("composer gates: ", composer.get_num_gates());

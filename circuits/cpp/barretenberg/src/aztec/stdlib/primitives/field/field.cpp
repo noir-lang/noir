@@ -564,6 +564,13 @@ void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, st
     }
 }
 
+/**
+ * Constrain that this field is equal to the given field.
+ *
+ * WARNING: After calling this method, both field values *will* be equal, regardless of whether the constraint
+ * succeeds or fails. This can lead to confusion when debugging. If you want to log the inputs, do so before
+ * calling this method.
+ */
 template <typename ComposerContext>
 void field_t<ComposerContext>::assert_equal(const field_t& rhs, std::string const& msg) const
 {
@@ -583,6 +590,14 @@ void field_t<ComposerContext>::assert_equal(const field_t& rhs, std::string cons
         field_t right = rhs.normalize();
         ctx->assert_equal(left.witness_index, right.witness_index, msg);
     }
+}
+
+template <typename ComposerContext>
+void field_t<ComposerContext>::assert_not_equal(const field_t& rhs, std::string const& msg) const
+{
+    const field_t lhs = *this;
+    const field_t diff = lhs - rhs;
+    diff.assert_is_not_zero(msg);
 }
 
 template <typename ComposerContext>

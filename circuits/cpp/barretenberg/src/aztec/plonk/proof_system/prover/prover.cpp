@@ -232,7 +232,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "init quotient polys: " << diff.count() << "ms" << std::endl;
+    std::cerr << "init quotient polys: " << diff.count() << "ms" << std::endl;
 #endif
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
@@ -240,7 +240,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute wire coefficients: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute wire coefficients: " << diff.count() << "ms" << std::endl;
 #endif
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
@@ -252,7 +252,7 @@ template <typename settings> void ProverBase<settings>::execute_first_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute wire commitments: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute wire commitments: " << diff.count() << "ms" << std::endl;
 #endif
 }
 
@@ -287,7 +287,7 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute z coefficients: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute z coefficients: " << diff.count() << "ms" << std::endl;
 #endif
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
@@ -309,7 +309,7 @@ template <typename settings> void ProverBase<settings>::execute_third_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute z commitment: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute z commitment: " << diff.count() << "ms" << std::endl;
 #endif
 }
 
@@ -323,7 +323,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute wire ffts: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute wire ffts: " << diff.count() << "ms" << std::endl;
 #endif
 
 #ifdef DEBUG_TIMING
@@ -332,7 +332,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "copy z: " << diff.count() << "ms" << std::endl;
+    std::cerr << "copy z: " << diff.count() << "ms" << std::endl;
 #endif
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
@@ -340,7 +340,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute permutation grand product coeffs: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute permutation grand product coeffs: " << diff.count() << "ms" << std::endl;
 #endif
     fr alpha_base = fr::serialize_from_buffer(transcript.get_challenge("alpha").begin());
 
@@ -352,7 +352,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "widget " << i << " quotient compute time: " << diff.count() << "ms" << std::endl;
+        std::cerr << "widget " << i << " quotient compute time: " << diff.count() << "ms" << std::endl;
 #endif
     }
     for (auto& widget : transition_widgets) {
@@ -373,7 +373,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "divide by vanishing polynomial: " << diff.count() << "ms" << std::endl;
+    std::cerr << "divide by vanishing polynomial: " << diff.count() << "ms" << std::endl;
 #endif
 #ifdef DEBUG_TIMING
     start = std::chrono::steady_clock::now();
@@ -385,7 +385,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "final inverse fourier transforms: " << diff.count() << "ms" << std::endl;
+    std::cerr << "final inverse fourier transforms: " << diff.count() << "ms" << std::endl;
 #endif
     if (settings::uses_quotient_mid) {
         ITERATE_OVER_DOMAIN_START(key->mid_domain);
@@ -399,7 +399,7 @@ template <typename settings> void ProverBase<settings>::execute_fourth_round()
 #ifdef DEBUG_TIMING
     end = std::chrono::steady_clock::now();
     diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute quotient commitment: " << diff.count() << "ms" << std::endl;
 #endif
 } // namespace waffle
 
@@ -414,7 +414,7 @@ template <typename settings> void ProverBase<settings>::execute_fifth_round()
 #ifdef DEBUG_TIMING
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "compute linearisation coefficients: " << diff.count() << "ms" << std::endl;
+    std::cerr << "compute linearisation coefficients: " << diff.count() << "ms" << std::endl;
 #endif
 }
 
@@ -469,7 +469,7 @@ template <typename settings> void ProverBase<settings>::compute_linearisation_co
         fr linear_eval = r.evaluate(zeta, size);
         // This condition checks if r(z) = 0 but does not abort.
         if (linear_eval != fr(0)) {
-            error("linear_eval is not 0.");
+            info("linear_eval is not 0.");
         }
     } else {
         fr t_eval = key->quotient_large.evaluate(zeta, 4 * n);

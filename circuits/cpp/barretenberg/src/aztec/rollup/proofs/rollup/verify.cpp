@@ -26,20 +26,20 @@ bool pairing_check(recursion_output<bn254> recursion_output,
 
 verify_result verify_internal(Composer& composer, rollup_tx& rollup, circuit_data const& circuit_data)
 {
-    verify_result result = { false, false, {}, {} };
+    verify_result result = { false, false, "", {}, {} };
 
     if (!circuit_data.join_split_circuit_data.verification_key) {
-        error("Join split verification key not provided.");
+        info("Join split verification key not provided.");
         return result;
     }
 
     if (circuit_data.join_split_circuit_data.padding_proof.size() == 0) {
-        error("Join split padding proof not provided.");
+        info("Join split padding proof not provided.");
         return result;
     }
 
     if (!circuit_data.verifier_crs) {
-        error("Verifier crs not provided.");
+        info("Verifier crs not provided.");
         return result;
     }
 
@@ -48,18 +48,17 @@ verify_result verify_internal(Composer& composer, rollup_tx& rollup, circuit_dat
     auto recursion_output = rollup_circuit(composer, rollup, circuit_data.verification_keys, circuit_data.num_txs);
 
     if (composer.failed) {
-        error("Tx rollup circuit logic failed: " + composer.err);
+        info("Tx rollup circuit logic failed: " + composer.err);
+        result.err = composer.err;
         return result;
     }
 
     if (!pairing_check(recursion_output, circuit_data.verifier_crs)) {
-        error("Native pairing check failed.");
+        info("Native pairing check failed.");
         return result;
     }
 
-    for (uint32_t i = 0; i < composer.get_num_public_inputs(); ++i) {
-        result.public_inputs.push_back(composer.get_public_input(i));
-    }
+    result.public_inputs = composer.get_public_inputs();
 
     result.logic_verified = true;
     return result;
@@ -92,7 +91,7 @@ verify_result verify(rollup_tx& tx, circuit_data const& circuit_data)
                        circuit_data.verification_keys[0]->reference_string->get_precomputed_g2_lines(),
                        2) == barretenberg::fq12::one();
     if (!pairing) {
-        error("Pairing check failed.");
+        info("Pairing check failed.");
         return result;
     }
 
@@ -100,7 +99,7 @@ verify_result verify(rollup_tx& tx, circuit_data const& circuit_data)
     result.verified = verifier.verify_proof(proof);
 
     if (!result.verified) {
-        error("Proof validation failed.");
+        info("Proof validation failed.");
         return result;
     }
 

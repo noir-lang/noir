@@ -155,7 +155,7 @@ template <size_t program_width, bool with_tags> void ComposerBase::compute_sigma
         sigma_mappings[0][i].column_index = 0;
         sigma_mappings[0][i].is_public_input = true;
         if (sigma_mappings[0][i].is_tag) {
-            std::cout << "MAPPING IS BOTH A TAG AND A PUBLIC INPUT" << std::endl;
+            std::cerr << "MAPPING IS BOTH A TAG AND A PUBLIC INPUT" << std::endl;
         }
     }
     for (size_t i = 0; i < program_width; ++i) {

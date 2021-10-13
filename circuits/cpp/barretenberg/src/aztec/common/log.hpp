@@ -37,8 +37,3 @@ template <typename... Args> inline void info(Args... args)
 {
     logstr(format(args...).c_str());
 }
-
-template <typename... Args> inline void error(Args... args)
-{
-    logstr_err(format(args...).c_str());
-}

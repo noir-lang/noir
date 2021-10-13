@@ -16,7 +16,7 @@ inline bool verify_logic(claim_tx& tx, circuit_data const& circuit_data)
     claim_circuit(composer, tx);
 
     if (composer.failed) {
-        error("Circuit logic failed: " + composer.err);
+        info("Circuit logic failed: " + composer.err);
         return false;
     }
 
@@ -37,7 +37,7 @@ inline verify_result verify(claim_tx const& tx, circuit_data const& circuit_data
     claim_circuit(composer, tx);
 
     if (composer.failed) {
-        error("Circuit logic failed: " + composer.err);
+        info("Circuit logic failed: " + composer.err);
         return { false, {} };
     }
 
@@ -46,7 +46,7 @@ inline verify_result verify(claim_tx const& tx, circuit_data const& circuit_data
 
     auto verifier = composer.create_unrolled_verifier();
     if (!verifier.verify_proof(proof)) {
-        error("Proof validation failed.");
+        info("Proof validation failed.");
         return { false, {} };
     }
 

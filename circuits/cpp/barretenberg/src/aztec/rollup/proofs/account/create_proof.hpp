@@ -20,7 +20,7 @@ inline std::vector<uint8_t> create_proof(account_tx& tx,
     account_circuit(composer, tx);
 
     if (composer.failed) {
-        error("Account circuit logic failed: ", composer.err);
+        info("Account circuit logic failed: ", composer.err);
     }
 
     auto prover = composer.create_unrolled_prover();
