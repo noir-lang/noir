@@ -34,6 +34,30 @@ typedef stdlib::witness_t<waffle::TurboComposer> witness_t;
 typedef stdlib::witness_t<waffle::PlookupComposer> pwitness_t;
 typedef stdlib::public_witness_t<waffle::TurboComposer> public_witness_t;
 
+TEST(stdlib_bigfield, test_bad_mul)
+{
+
+    waffle::TurboComposer composer = waffle::TurboComposer();
+    size_t num_repetitions = 1;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        fq inputs[2]{ fq::zero(), fq::random_element() };
+        bigfield a(witness_t(&composer, barretenberg::fr(uint256_t(inputs[0]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[0]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+        bigfield b(witness_t(&composer, barretenberg::fr(uint256_t(inputs[1]).slice(0, bigfield::NUM_LIMB_BITS * 2))),
+                   witness_t(&composer,
+                             barretenberg::fr(uint256_t(inputs[1]).slice(bigfield::NUM_LIMB_BITS * 2,
+                                                                         bigfield::NUM_LIMB_BITS * 4))));
+
+        a.bad_mul(b);
+    }
+    waffle::TurboProver prover = composer.create_prover();
+    waffle::TurboVerifier verifier = composer.create_verifier();
+    waffle::plonk_proof proof = prover.construct_proof();
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, false);
+}
 TEST(stdlib_bigfield, test_mul)
 {
     waffle::TurboComposer composer = waffle::TurboComposer();

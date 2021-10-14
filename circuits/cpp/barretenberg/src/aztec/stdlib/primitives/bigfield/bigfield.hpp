@@ -43,7 +43,10 @@ template <typename Composer, typename T> class bigfield {
         uint256_t maximum_value;
     };
 
-    bigfield(const field_t<Composer>& low_bits, const field_t<Composer>& high_bits, const bool can_overflow = false);
+    bigfield(const field_t<Composer>& low_bits,
+             const field_t<Composer>& high_bits,
+             const bool can_overflow = false,
+             const size_t maximum_bitlength = 0);
     bigfield(Composer* parent_context = nullptr);
     bigfield(Composer* parent_context, const uint256_t& value);
     bigfield(const field_t<Composer>& a,
@@ -84,6 +87,7 @@ template <typename Composer, typename T> class bigfield {
     static constexpr uint512_t modulus_u512 = uint512_t(modulus);
     static constexpr uint64_t NUM_LIMB_BITS = waffle::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
     static constexpr uint64_t NUM_LAST_LIMB_BITS = modulus_u512.get_msb() + 1 - (NUM_LIMB_BITS * 3);
+    static constexpr uint1024_t DEFAULT_MAXIMUM_REMAINDER = (uint1024_t(1) << (NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS));
     static constexpr uint256_t DEFAULT_MAXIMUM_LIMB = (uint256_t(1) << NUM_LIMB_BITS) - uint256_t(1);
     static constexpr uint256_t DEFAULT_MAXIMUM_MOST_SIGNIFICANT_LIMB =
         (uint256_t(1) << NUM_LAST_LIMB_BITS) - uint256_t(1);
@@ -135,6 +139,12 @@ template <typename Composer, typename T> class bigfield {
     bigfield operator+(const bigfield& other) const;
     bigfield operator-(const bigfield& other) const;
     bigfield operator*(const bigfield& other) const;
+
+    /**
+     * FOR TESTING PURPOSES ONLY DO NOT USE THIS IN PRODUCTION CODE FOR THE LOVE OF GOD!
+     **/
+    bigfield bad_mul(const bigfield& other) const;
+
     bigfield operator/(const bigfield& other) const;
     bigfield operator-() const { return bigfield(get_context(), uint256_t(0)) - *this; }
 
@@ -190,11 +200,62 @@ template <typename Composer, typename T> class bigfield {
 
     static constexpr uint512_t get_maximum_unreduced_value()
     {
+        // return (uint512_t(1) << 256);
         uint1024_t maximum_product = uint1024_t(binary_basis.modulus) * uint1024_t(prime_basis.modulus);
         // TODO: compute square root (the following is a lower bound, so good for the CRT use)
         uint64_t maximum_product_bits = maximum_product.get_msb() - 1;
         return (uint512_t(1) << (maximum_product_bits >> 1)) - uint512_t(1);
     }
+
+    static constexpr uint1024_t get_maximum_crt_product()
+    {
+        uint1024_t maximum_product = uint1024_t(binary_basis.modulus) * uint1024_t(prime_basis.modulus);
+        return maximum_product;
+    }
+
+    static size_t get_quotient_max_bits(const std::vector<uint1024_t>& remainders_max)
+    {
+        // find q_max * p + ...remainders_max < nT
+        uint1024_t base = get_maximum_crt_product();
+        for (const auto& r : remainders_max) {
+            base -= r;
+        }
+        base /= modulus_u512;
+        return static_cast<size_t>(base.get_msb() - 1);
+    }
+
+    static bool mul_product_crt_check(const uint1024_t& a_max,
+                                      const uint1024_t& b_max,
+                                      const std::vector<bigfield>& to_add)
+    {
+        uint1024_t product = a_max * b_max;
+        uint1024_t add_term;
+        for (const auto& add : to_add) {
+            add_term += add.get_maximum_value();
+        }
+        constexpr uint1024_t maximum_default_bigint = uint1024_t(1) << (NUM_LIMB_BITS * 6 + NUM_LAST_LIMB_BITS * 2);
+
+        // check that the add terms alone cannot overflow the crt modulus. v. unlikely so just forbid circuits that
+        // trigger this case
+        ASSERT(add_term + maximum_default_bigint < get_maximum_crt_product());
+        return ((product + add_term) >= get_maximum_crt_product());
+    }
+
+    // static bool mul_quotient_crt_check(const uint1024_t& q, const std::vector<uint1024_t>& remainders)
+    // {
+    //     uint1024_t product = (q * modulus_u512);
+    //     for (const auto& add : remainders) {
+    //         product += add;
+    //     }
+    //     std::cout << "product = " << product << std::endl;
+    //     std::cout << "crt product = " << get_maximum_crt_product() << std::endl;
+
+    //     if (product >= get_maximum_crt_product()) {
+    //         count++;
+    //         std::cout << "count = " << count << std::endl;
+    //     }
+    //     return (product >= get_maximum_crt_product());
+    // }
     // a (currently generous) upper bound on the log of number of fr additions in any of the class operations
     static constexpr uint64_t MAX_ADDITION_LOG = 10;
     // the rationale of the expression is we should not overflow Fr when applying any bigfield operation (e.g. *) and
@@ -209,12 +270,15 @@ template <typename Composer, typename T> class bigfield {
     mutable field_t<Composer> prime_basis_limb;
 
   private:
+    static std::pair<uint512_t, uint512_t> compute_quotient_remainder_values(const bigfield& a,
+                                                                             const bigfield& b,
+                                                                             const std::vector<bigfield>& to_add);
+
     static void evaluate_multiply_add(const bigfield& left,
                                       const bigfield& right_mul,
                                       const std::vector<bigfield>& to_add,
                                       const bigfield& quotient,
                                       const std::vector<bigfield>& remainders);
-    static void verify_mod(const bigfield& left, const bigfield& quotient, const bigfield& remainder);
 
     static void evaluate_square_add(const bigfield& left,
                                     const std::vector<bigfield>& to_add,
