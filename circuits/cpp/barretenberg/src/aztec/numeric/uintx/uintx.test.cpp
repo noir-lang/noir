@@ -50,8 +50,8 @@ TEST(uintx, div_and_mod)
         EXPECT_EQ(c, a);
     }
 
-    uint1024_t a = engine.get_random_uint1024();
-    uint1024_t b = 0;
+    uint1024_t b = engine.get_random_uint1024();
+    uint1024_t a = 0;
 
     uint1024_t q = a / b;
     uint1024_t r = a % b;
@@ -63,7 +63,7 @@ TEST(uintx, div_and_mod)
     q = a / b;
     r = a % b;
 
-    EXPECT_EQ(q, uint1024_t(1));
+    EXPECT_EQ(q, uint1024_t(0));
     EXPECT_EQ(r, uint1024_t(0));
 }
 

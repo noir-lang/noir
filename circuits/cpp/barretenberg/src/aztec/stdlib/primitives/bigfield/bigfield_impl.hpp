@@ -36,7 +36,10 @@ bigfield<C, T>::bigfield(C* parent_context, const uint256_t& value)
 }
 
 template <typename C, typename T>
-bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits, const bool can_overflow)
+bigfield<C, T>::bigfield(const field_t<C>& low_bits,
+                         const field_t<C>& high_bits,
+                         const bool can_overflow,
+                         const size_t maximum_bitlength)
 {
     context = low_bits.context == nullptr ? high_bits.context : low_bits.context;
     field_t<C> limb_0(context);
@@ -46,12 +49,12 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     if (low_bits.witness_index != IS_CONSTANT) {
         std::vector<uint32_t> low_accumulator;
         if constexpr (C::type == waffle::PLOOKUP) {
-            // If this doesn't hold we're using a default plookup range size that doesn't work well with the limb size
-            // here
-            ASSERT(low_accumulator.size() % 2 == 0);
             // Enforce that low_bits indeed only contains 2*NUM_LIMB_BITS bits
             low_accumulator =
                 context->decompose_into_default_range(low_bits.witness_index, static_cast<size_t>(NUM_LIMB_BITS * 2));
+            // If this doesn't hold we're using a default plookup range size that doesn't work well with the limb size
+            // here
+            ASSERT(low_accumulator.size() % 2 == 0);
             size_t mid_index = low_accumulator.size() / 2 - 1;
             limb_0.witness_index = low_accumulator[mid_index]; // Q:safer to just slice this from low_bits?
             limb_1 = (low_bits - limb_0) * shift_right_1;
@@ -77,8 +80,11 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
     // addition we apply a more limited range - 2^s for smallest s such that p<2^s (this is the case can_overflow ==
     // false)
     uint64_t num_last_limb_bits = (can_overflow) ? NUM_LIMB_BITS : NUM_LAST_LIMB_BITS;
-    if ((num_last_limb_bits & 1ULL) == 1ULL) {
-        ++num_last_limb_bits;
+
+    // if maximum_bitlength is set, this supercedes can_overflow
+    if (maximum_bitlength > 0) {
+        ASSERT(maximum_bitlength > 3 * NUM_LIMB_BITS);
+        num_last_limb_bits = maximum_bitlength - (3 * NUM_LIMB_BITS);
     }
     // We create the high limb values similar to the low limb ones above
     const uint64_t num_high_limb_bits = NUM_LIMB_BITS + num_last_limb_bits;
@@ -87,7 +93,8 @@ bigfield<C, T>::bigfield(const field_t<C>& low_bits, const field_t<C>& high_bits
         std::vector<uint32_t> high_accumulator;
         if constexpr (C::type == waffle::PLOOKUP) {
             ASSERT(NUM_LIMB_BITS % 2 == 0); // required for one of the intermediate sums giving the third limb
-            high_accumulator = context->decompose_into_default_range(high_bits.witness_index, static_cast<uint32_t>(num_high_limb_bits));
+            high_accumulator = context->decompose_into_default_range(high_bits.witness_index,
+                                                                     static_cast<uint32_t>(num_high_limb_bits));
             size_t mid_index = (NUM_LIMB_BITS / waffle::PlookupComposer::DEFAULT_PLOOKUP_RANGE_BITNUM) / 2 - 1;
             limb_2.witness_index = high_accumulator[mid_index];
             limb_3 = (high_bits - limb_2) * shift_right_1;
@@ -220,6 +227,9 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator+(const
     // needed cause a constant doesn't have a valid context
     C* ctx = context ? context : other.context;
 
+    if (is_constant() && other.is_constant()) {
+        return bigfield(ctx, uint256_t((get_value() + other.get_value()) % modulus_u512));
+    }
     bigfield result(ctx);
     result.binary_basis_limbs[0].element = binary_basis_limbs[0].element + other.binary_basis_limbs[0].element;
     result.binary_basis_limbs[1].element = binary_basis_limbs[1].element + other.binary_basis_limbs[1].element;
@@ -311,17 +321,17 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const
 {
     reduction_check();
     other.reduction_check();
-
+    if (mul_product_crt_check(get_maximum_value(), other.get_maximum_value(), {})) {
+        if (get_maximum_value() > other.get_maximum_value()) {
+            self_reduce();
+        } else {
+            other.self_reduce();
+        }
+        return (*this).operator*(other);
+    }
     C* ctx = context ? context : other.context;
-    const uint1024_t left(get_value());
-    const uint1024_t right(other.get_value());
-    const uint1024_t modulus(target_basis.modulus);
 
-    const auto [quotient_1024, remainder_1024] = (left * right).divmod(modulus);
-
-    const uint512_t quotient_value = quotient_1024.lo;
-    const uint512_t remainder_value = remainder_1024.lo;
-
+    const auto [quotient_value, remainder_value] = compute_quotient_remainder_values(*this, other, {});
     bigfield remainder;
     bigfield quotient;
     if (is_constant() && other.is_constant()) {
@@ -331,10 +341,11 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator*(const
         // when writing a*b = q*p + r we wish to enforce r<2^s for smallest s such that p<2^s
         // hence the second constructor call is with can_overflow=false. This will allow using r in more additions mod
         // 2^t without needing to apply the mod, where t=4*NUM_LIMB_BITS
-
+        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
+                            false,
+                            num_quotient_bits);
         remainder = bigfield(
             witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
@@ -349,6 +360,10 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
 {
     reduction_check();
     other.reduction_check();
+    if (mul_product_crt_check(DEFAULT_MAXIMUM_REMAINDER, other.get_maximum_value(), {})) {
+        self_reduce();
+        other.self_reduce();
+    }
     // TODO: method for returning correct context and checking there aren't multiple
     C* ctx = context ? context : other.context;
     // a / b = c
@@ -369,9 +384,11 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
         inverse = bigfield(ctx, uint256_t(inverse_value));
         return inverse;
     } else {
+        const size_t num_quotient_bits = get_quotient_max_bits({ get_maximum_value() });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
+                            false,
+                            num_quotient_bits);
         inverse = bigfield(
             witness_t(ctx, fr(inverse_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(inverse_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
@@ -384,16 +401,12 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::operator/(const
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
 {
     reduction_check();
+    if (mul_product_crt_check(get_maximum_value(), get_maximum_value(), {})) {
+        self_reduce();
+    }
     C* ctx = context;
 
-    const uint1024_t left(get_value());
-    const uint1024_t right(get_value());
-    const uint1024_t modulus(target_basis.modulus);
-
-    const auto [quotient_1024, remainder_1024] = (left * right).divmod(modulus);
-
-    const uint512_t quotient_value = quotient_1024.lo;
-    const uint512_t remainder_value = remainder_1024.lo;
+    const auto [quotient_value, remainder_value] = compute_quotient_remainder_values(*this, *this, {});
 
     bigfield remainder;
     bigfield quotient;
@@ -401,9 +414,11 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
+        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
+                            false,
+                            num_quotient_bits);
         remainder = bigfield(
             witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
@@ -416,6 +431,10 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
 template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const std::vector<bigfield>& to_add) const
 {
     reduction_check();
+    if (mul_product_crt_check(get_maximum_value(), get_maximum_value(), to_add)) {
+        self_reduce();
+        ASSERT(mul_product_crt_check(get_maximum_value(), get_maximum_value(), to_add) == 0);
+    }
     C* ctx = context;
 
     uint512_t add_values(0);
@@ -442,9 +461,11 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
+        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
+                            false,
+                            num_quotient_bits);
         remainder = bigfield(
             witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
@@ -459,6 +480,14 @@ bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bi
     reduction_check();
     to_mul.reduction_check();
 
+    if (mul_product_crt_check(get_maximum_value(), to_mul.get_maximum_value(), to_add)) {
+        if (get_maximum_value() > to_mul.get_maximum_value()) {
+            self_reduce();
+        } else {
+            to_mul.self_reduce();
+        }
+        return (*this).madd(to_mul, to_add);
+    }
     uint512_t add_values(0);
     bool add_constant = true;
     for (const auto& add_element : to_add) {
@@ -485,9 +514,11 @@ bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bi
         remainder = bigfield(ctx, uint256_t(remainder_value.lo));
         return remainder;
     } else {
+        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
+                            false,
+                            num_quotient_bits);
         remainder = bigfield(
             witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
@@ -504,7 +535,9 @@ bigfield<C, T> bigfield<C, T>::div(const std::vector<bigfield>& numerators, cons
     }
 
     denominator.reduction_check();
-
+    if (mul_product_crt_check(DEFAULT_MAXIMUM_REMAINDER, denominator.get_maximum_value(), {})) {
+        denominator.self_reduce();
+    }
     C* ctx = denominator.context;
     uint512_t numerator_values(0);
     bool numerator_constant = true;
@@ -533,9 +566,15 @@ bigfield<C, T> bigfield<C, T>::div(const std::vector<bigfield>& numerators, cons
         inverse = bigfield(ctx, uint256_t(inverse_value));
         return inverse;
     } else {
+        std::vector<uint1024_t> numerator_max;
+        for (const auto& n : numerators) {
+            numerator_max.push_back(n.get_maximum_value());
+        }
+        const size_t num_quotient_bits = get_quotient_max_bits(numerator_max);
         quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
                             witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                            true);
+                            false,
+                            num_quotient_bits);
         inverse = bigfield(
             witness_t(ctx, fr(inverse_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(inverse_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
@@ -549,6 +588,13 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::conditional_neg
 {
     C* ctx = context ? context : predicate.context;
 
+    if (is_constant() && predicate.is_constant()) {
+        if (predicate.get_value()) {
+            uint512_t out_val = (modulus_u512 - get_value()) % modulus_u512;
+            return bigfield(ctx, out_val.lo);
+        }
+        return *this;
+    }
     reduction_check();
 
     uint256_t limb_0_maximum_value = binary_basis_limbs[0].maximum_value;
@@ -621,6 +667,12 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::conditional_neg
 template <typename C, typename T>
 bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const bool_t<C>& predicate) const
 {
+    if (is_constant() && other.is_constant() && predicate.is_constant()) {
+        if (predicate.get_value()) {
+            return *this;
+        }
+        return other;
+    }
     reduction_check();
     C* ctx = context ? context : (other.context ? other.context : predicate.context);
 
@@ -653,6 +705,7 @@ bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const b
 template <typename C, typename T> void bigfield<C, T>::reduction_check() const
 {
     if (is_constant()) { // this seems not a reduction check, but actually computing the reduction
+                         // TODO THIS IS UGLY WHY CAN'T WE JUST DO (*THIS) = REDUCED?
         uint256_t reduced_value = (get_value() % modulus_u512).lo;
         bigfield reduced(context, uint256_t(reduced_value));
         binary_basis_limbs[0] = reduced.binary_basis_limbs[0];
@@ -689,12 +742,12 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     self_reduce(); // this method in particular enforces limb vals are <2^b - needed for logic described above
     uint256_t value = get_value().lo;
     // TODO:make formal assert that modulus<=256 bits
-    constexpr uint256_t modulus_value = modulus_u512.lo;
+    constexpr uint256_t modulus_minus_one = modulus_u512.lo - 1;
 
-    constexpr uint256_t modulus_0_value = modulus_value.slice(0, NUM_LIMB_BITS);
-    constexpr uint256_t modulus_1_value = modulus_value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
-    constexpr uint256_t modulus_2_value = modulus_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
-    constexpr uint256_t modulus_3_value = modulus_value.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
+    constexpr uint256_t modulus_0_value = modulus_minus_one.slice(0, NUM_LIMB_BITS);
+    constexpr uint256_t modulus_1_value = modulus_minus_one.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2);
+    constexpr uint256_t modulus_2_value = modulus_minus_one.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3);
+    constexpr uint256_t modulus_3_value = modulus_minus_one.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4);
 
     bool borrow_0_value = value.slice(0, NUM_LIMB_BITS) > modulus_0_value;
     bool borrow_1_value = (value.slice(NUM_LIMB_BITS, NUM_LIMB_BITS * 2) - uint256_t(borrow_0_value)) > modulus_1_value;
@@ -749,9 +802,11 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
     ASSERT(remainder_512 == 0);
     bigfield quotient;
 
+    const size_t num_quotient_bits = get_quotient_max_bits({ 0 });
     quotient = bigfield(witness_t(ctx, fr(quotient_512.slice(0, NUM_LIMB_BITS * 2).lo)),
                         witness_t(ctx, fr(quotient_512.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
-                        true);
+                        false,
+                        num_quotient_bits);
     evaluate_multiply_add(diff, { one() }, {}, quotient, { zero() });
 }
 
@@ -777,16 +832,22 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_not_equal(const
     const size_t lhs_overload_count = get_overload_count(get_maximum_value());
     const size_t rhs_overload_count = get_overload_count(other.get_maximum_value());
 
-    field_t<C> diff = prime_basis_limb - other.prime_basis_limb;
+    // if (a == b) then (a == b mod n)
+    // to save gates, we only check that (a == b mod n)
+
+    // if numeric val of a = a' + p.q
+    // we want to check (a' + p.q == b mod n)
+    const field_t<C> base_diff = prime_basis_limb - other.prime_basis_limb;
+    auto diff = base_diff;
     field_t<C> prime_basis(get_context(), modulus);
     field_t<C> prime_basis_accumulator = prime_basis;
     for (size_t i = 0; i < lhs_overload_count; ++i) {
-        diff = diff * (diff - prime_basis_accumulator);
+        diff = diff * (base_diff - prime_basis_accumulator);
         prime_basis_accumulator += prime_basis;
     }
     prime_basis_accumulator = prime_basis;
     for (size_t i = 0; i < rhs_overload_count; ++i) {
-        diff = diff * (diff + prime_basis_accumulator);
+        diff = diff * (base_diff + prime_basis_accumulator);
         prime_basis_accumulator += prime_basis;
     }
     diff.assert_is_not_zero();
@@ -818,6 +879,9 @@ template <typename C, typename T> void bigfield<C, T>::self_reduce() const
     } else {
         context->create_range_constraint(quotient_limb.witness_index, static_cast<size_t>(maximum_quotient_bits));
     }
+
+    ASSERT((uint1024_t(1) << maximum_quotient_bits) * uint1024_t(modulus_u512) + DEFAULT_MAXIMUM_REMAINDER <
+           get_maximum_crt_product());
     quotient.binary_basis_limbs[0] = Limb(quotient_limb, uint256_t(1) << maximum_quotient_bits);
     quotient.binary_basis_limbs[1] = Limb(field_t<C>(context, barretenberg::fr(0)), 0);
     quotient.binary_basis_limbs[2] = Limb(field_t<C>(context, barretenberg::fr(0)), 0);
@@ -1001,132 +1065,6 @@ void bigfield<C, T>::evaluate_multiply_add(const bigfield& left,
         ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
     }
 }
-// same as above but when to_mul=1, and no to_adds. Show that left = remainder mod p, by using CRT to show
-// left = remainder*quotient mod 2^t*r and therefore as integers
-template <typename C, typename T>
-void bigfield<C, T>::verify_mod(const bigfield& left, const bigfield& quotient, const bigfield& remainder)
-{
-    C* ctx = left.context ? left.context : remainder.context;
-
-    uint256_t max_b0 = (left.binary_basis_limbs[1].maximum_value);
-    max_b0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
-    uint256_t max_b1 = (left.binary_basis_limbs[0].maximum_value);
-    max_b1 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
-    uint256_t max_c0 = (left.binary_basis_limbs[1].maximum_value);
-    max_c0 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
-    uint256_t max_c1 = (left.binary_basis_limbs[2].maximum_value);
-    max_c1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
-    uint256_t max_c2 = (left.binary_basis_limbs[0].maximum_value);
-    max_c2 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
-    uint256_t max_d0 = (left.binary_basis_limbs[3].maximum_value);
-    max_d0 += (neg_modulus_limbs_u256[3] << NUM_LIMB_BITS);
-    uint256_t max_d1 = (left.binary_basis_limbs[2].maximum_value);
-    max_d1 += (neg_modulus_limbs_u256[2] << NUM_LIMB_BITS);
-    uint256_t max_d2 = (left.binary_basis_limbs[1].maximum_value);
-    max_d2 += (neg_modulus_limbs_u256[1] << NUM_LIMB_BITS);
-    uint256_t max_d3 = (left.binary_basis_limbs[0].maximum_value);
-    max_d3 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
-
-    uint256_t max_r0 = left.binary_basis_limbs[0].maximum_value;
-    max_r0 += (neg_modulus_limbs_u256[0] << NUM_LIMB_BITS);
-
-    const uint256_t max_r1 = max_b0 + max_b1;
-    const uint256_t max_r2 = max_c0 + max_c1 + max_c2;
-    const uint256_t max_r3 = max_d0 + max_d1 + max_d2 + max_d3;
-
-    const uint256_t max_lo = max_r0 + (max_r1 << NUM_LIMB_BITS);
-    const uint256_t max_hi = max_r2 + (max_r3 << NUM_LIMB_BITS);
-
-    uint64_t max_lo_bits = max_lo.get_msb() + 1;
-    uint64_t max_hi_bits = max_hi.get_msb() + 1;
-    if ((max_lo_bits & 1ULL) == 1ULL) {
-        ++max_lo_bits;
-    }
-    if ((max_hi_bits & 1ULL) == 1ULL) {
-        ++max_hi_bits;
-    }
-
-    const field_t b0 =
-        left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[0];
-    const field_t b1 =
-        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[1];
-    const field_t c0 =
-        left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[1];
-    const field_t c1 =
-        left.binary_basis_limbs[2].element + quotient.binary_basis_limbs[2].element * neg_modulus_limbs[0];
-    const field_t c2 =
-        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[2];
-    const field_t d0 =
-        left.binary_basis_limbs[3].element + quotient.binary_basis_limbs[3].element * neg_modulus_limbs[0];
-    const field_t d1 =
-        left.binary_basis_limbs[2].element + quotient.binary_basis_limbs[2].element * neg_modulus_limbs[1];
-    const field_t d2 =
-        left.binary_basis_limbs[1].element + quotient.binary_basis_limbs[1].element * neg_modulus_limbs[2];
-    const field_t d3 =
-        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[3];
-
-    // We wish to show that left - quotient*p - remainder = 0 mod 2^t, we do this by collecting the limb products
-    // into two separate variables - carry_lo and carry_hi, which are still small enough not to wrap mod r
-    // Their first t/2 bits will equal, respectively, the first and second t/2 bits of the expresssion
-    // Thus it will suffice to check that each of them begins with t/2 zeroes. We do this by in fact assigning
-    // to these variables those expressions divided by 2^{t/2}. Since we have bounds on their range that are smaller
-    // than r, We can range check the divisions by the original range bounds divided by 2^{t/2}
-
-    const field_t r0 =
-        left.binary_basis_limbs[0].element + quotient.binary_basis_limbs[0].element * neg_modulus_limbs[0];
-
-    field_t r1 = b0.add_two(b1, -remainder.binary_basis_limbs[1].element); // how do we know this doesn't wrap?
-    const field_t r2 = c0.add_two(c1, c2);
-    const field_t r3 = d0 + d1.add_two(d2, d3);
-
-    field_t carry_lo_0 = r0 * shift_right_2;
-    field_t carry_lo_1 = r1 * (shift_1 * shift_right_2);
-    field_t carry_lo_2 = -(remainder.binary_basis_limbs[0].element * shift_right_2);
-    field_t carry_lo = carry_lo_0.add_two(carry_lo_1, carry_lo_2);
-
-    field_t t1 = carry_lo.add_two(-remainder.binary_basis_limbs[2].element,
-                                  -(remainder.binary_basis_limbs[3].element * shift_1));
-    field_t carry_hi_0 = r2 * shift_right_2;
-    field_t carry_hi_1 = r3 * (shift_1 * shift_right_2);
-    field_t carry_hi_2 = t1 * shift_right_2;
-    field_t carry_hi = carry_hi_0.add_two(carry_hi_1, carry_hi_2);
-
-    barretenberg::fr neg_prime = -barretenberg::fr(uint256_t(target_basis.modulus));
-
-    // field_t<C> linear_terms(ctx, barretenberg::fr(0));
-    // if (to_add.size() >= 2) {
-    //     for (size_t i = 0; i < to_add.size(); i += 2) {
-    //         linear_terms = linear_terms.add_two(to_add[i].prime_basis_limb, to_add[i + 1].prime_basis_limb);
-    //     }
-    // }
-    // if ((to_add.size() & 1UL) == 1UL) {
-    //     linear_terms += to_add[to_add.size() - 1].prime_basis_limb;
-    // }
-    // if (remainders.size() >= 2) {
-    //     for (size_t i = 0; i < remainders.size(); i += 2) {
-    //         linear_terms = linear_terms.add_two(-remainders[i].prime_basis_limb, -remainders[i +
-    //         1].prime_basis_limb);
-    //     }
-    // }
-    // if ((remainders.size() & 1UL) == 1UL) {
-    //     linear_terms += -remainders[remainders.size() - 1].prime_basis_limb;
-    // }
-
-    // This is where we show our identity is zero mod r (to use CRT we show it's zero mod r and mod 2^t)
-    field_t a = left.prime_basis_limb - quotient.prime_basis_limb * neg_prime - remainder.prime_basis_limb;
-    a.assert_is_zero();
-    const uint64_t carry_lo_msb = max_lo_bits - (2 * NUM_LIMB_BITS);
-    const uint64_t carry_hi_msb = max_hi_bits - (2 * NUM_LIMB_BITS);
-
-    const barretenberg::fr carry_lo_shift(uint256_t(uint256_t(1) << carry_lo_msb));
-    field_t carry_combined = carry_lo + (carry_hi * carry_lo_shift);
-    carry_combined = carry_combined.normalize();
-
-    const auto accumulators =
-        ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-    carry_hi = carry_hi.normalize();
-    ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
-}
 
 template <typename C, typename T>
 void bigfield<C, T>::evaluate_square_add(const bigfield& left,
@@ -1266,10 +1204,81 @@ void bigfield<C, T>::evaluate_square_add(const bigfield& left,
         carry_hi = carry_hi.normalize();
         ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
     }
+}
 
-    // const auto accumulators =
-    //     ctx->create_range_constraint(carry_combined.witness_index, static_cast<size_t>(carry_lo_msb + carry_hi_msb));
-    // ctx->assert_equal(carry_hi.witness_index, accumulators[static_cast<size_t>((carry_hi_msb / 2) - 1)]);
+template <typename C, typename T>
+std::pair<uint512_t, uint512_t> bigfield<C, T>::compute_quotient_remainder_values(const bigfield& a,
+                                                                                  const bigfield& b,
+                                                                                  const std::vector<bigfield>& to_add)
+{
+    uint512_t add_values(0);
+    bool add_constant = true;
+    for (const auto& add_element : to_add) {
+        add_element.reduction_check();
+        add_values += add_element.get_value();
+        add_constant = add_constant && (add_element.is_constant());
+    }
+
+    const uint1024_t left(a.get_value());
+    const uint1024_t right(b.get_value());
+    const uint1024_t add_right(add_values);
+    const uint1024_t modulus(target_basis.modulus);
+
+    const auto [quotient_1024, remainder_1024] = (left * right + add_right).divmod(modulus);
+
+    return { quotient_1024.lo, remainder_1024.lo };
+}
+
+/**
+ * USED FOR TESTS ONLY! DO NOT USE IN PRODUCTION CODE!
+ */
+template <typename C, typename T> bigfield<C, T> bigfield<C, T>::bad_mul(const bigfield& other) const
+{
+    reduction_check();
+    other.reduction_check();
+
+    C* ctx = context ? context : other.context;
+
+    // const uint1024_t left(get_value());
+    // const uint1024_t right(other.get_value());
+    /**
+     * Tn/p = q
+     *
+     * q = |Tn/p|
+     * qp + r > Tn
+     **/
+    const uint1024_t modulus(target_basis.modulus);
+    const uint1024_t one(1);
+    const uint1024_t t = one << (68 * 4);
+    const uint1024_t n = uint1024_t(uint512_t(barretenberg::fr::modulus));
+    const uint1024_t t_n = t * n;
+
+    const auto [quotient_1024, remainder_1024] = (t_n).divmod(modulus);
+
+    const uint512_t quotient_value = quotient_1024.lo;
+    const uint512_t remainder_value = remainder_1024.lo;
+
+    bigfield remainder;
+    bigfield quotient;
+    if (is_constant() && other.is_constant()) {
+        remainder = bigfield(ctx, uint256_t(remainder_value.lo));
+        return remainder;
+    } else {
+        // when writing a*b = q*p + r we wish to enforce r<2^s for smallest s such that p<2^s
+        // hence the second constructor call is with can_overflow=false. This will allow using r in more additions mod
+        // 2^t without needing to apply the mod, where t=4*NUM_LIMB_BITS
+        const size_t num_quotient_bits = get_quotient_max_bits({ DEFAULT_MAXIMUM_REMAINDER });
+        quotient = bigfield(witness_t(ctx, fr(quotient_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+                            witness_t(ctx, fr(quotient_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 4).lo)),
+                            false,
+                            num_quotient_bits);
+        remainder = bigfield(
+            witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
+            witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
+    };
+
+    evaluate_multiply_add(*this, other, {}, quotient, { remainder });
+    return remainder;
 }
 
 } // namespace stdlib
