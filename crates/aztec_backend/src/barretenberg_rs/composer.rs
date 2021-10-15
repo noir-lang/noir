@@ -496,33 +496,21 @@ impl StandardComposer {
     // XXX: This does not belong here. Ideally, the Rust code should generate the SC code
     // Since it's already done in C++, we are just re-exporting for now
     pub fn smart_contract(&mut self) -> String {
-        todo!()
-        // use std::convert::TryInto;
-        // let cs_buf = self.constraint_system.to_bytes();
-        // let cs_ptr = self.barretenberg.allocate(&cs_buf);
+        let mut contract_ptr: *mut u8 = std::ptr::null_mut();
+        let p_contract_ptr = &mut contract_ptr as *mut *mut u8;
+        let cs_buf = self.constraint_system.to_bytes();
 
-        // let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
-
-        // let contract_size = self
-        //     .barretenberg
-        //     .call_multiple(
-        //         "composer__smart_contract",
-        //         vec![&self.pippenger.pointer(), &g2_ptr, &cs_ptr, &Value::I32(0)],
-        //     )
-        //     .value();
-        // let contract_ptr = self.barretenberg.slice_memory(0, 4);
-        // let contract_ptr = u32::from_le_bytes(contract_ptr[0..4].try_into().unwrap());
-
-        // let sc_as_bytes = self.barretenberg.slice_memory(
-        //     contract_ptr as usize,
-        //     contract_ptr as usize + contract_size.unwrap_i32() as usize,
-        // );
-
-        // // XXX: We truncate the first 40 bytes, due to it being mangled
-        // // For some reason, the first line is partially mangled
-        // // So in C+ the first line is duplicated and then truncated
-        // let verification_method: String = sc_as_bytes[40..].iter().map(|b| *b as char).collect();
-        // crate::contract::turbo_verifier::create(&verification_method)
+        let contract_size = barretenberg_wrapper::composer::smart_contract(self.pippenger.pointer(), &self.crs.g2_data, &cs_buf, p_contract_ptr);
+        let sc_as_bytes;
+        unsafe {
+            sc_as_bytes = Vec::from_raw_parts(contract_ptr, contract_size as usize, contract_size as usize)
+        }
+        // TODO to check
+        // XXX: We truncate the first 40 bytes, due to it being mangled
+        // For some reason, the first line is partially mangled
+        // So in C+ the first line is duplicated and then truncated
+        let verification_method: String = sc_as_bytes[40..].iter().map(|b| *b as char).collect();
+        crate::contract::turbo_verifier::create(&verification_method)
     }
 
     // XXX: There seems to be a bug in the C++ code
@@ -548,13 +536,9 @@ impl StandardComposer {
         let cs_buf = self.constraint_system.to_bytes();
         let mut proof_addr: *mut u8 = std::ptr::null_mut();
         let p_proof = &mut proof_addr as *mut *mut u8;
-        //TODO TO CHECK
         let cs_buf_clone = cs_buf.clone();
         let g2_clone = self.crs.g2_data.clone();
         let witness_clone = witness.to_bytes().clone();
-
-        dbg!("create_proof");
-        // let proof_bytes =
         let proof_size;
 
         proof_size = barretenberg_wrapper::composer::create_proof(
@@ -564,7 +548,6 @@ impl StandardComposer {
             &witness_clone,
             p_proof,
         );
-        dbg!(proof_addr);
 
         //  TODO - WHY barretenberg  is freeing this???
         //   aligned_free((void*)witness_buf);
@@ -581,47 +564,6 @@ impl StandardComposer {
         }
         let result2 = remove_public_inputs(self.constraint_system.public_inputs.len(), result);
         result2
-
-        //TODO remove commented code below
-        /* use core::convert::TryInto;
-        let now = std::time::Instant::now();
-
-        //let cs_buf = self.constraint_system.to_bytes();
-        let cs_ptr = self.barretenberg.allocate(&cs_buf);
-
-        let witness_buf = witness.to_bytes();
-        let witness_ptr = self.barretenberg.allocate(&witness_buf);
-
-        let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
-
-        let proof_size = self
-            .barretenberg
-            .call_multiple(
-                "composer__new_proof",
-                vec![
-                    &self.pippenger.pointer(),
-                    &g2_ptr,
-                    &cs_ptr,
-                    &witness_ptr,
-                    &Value::I32(0),
-                ],
-            )
-            .value();
-
-        let proof_ptr = self.barretenberg.slice_memory(0, 4);
-        let proof_ptr = u32::from_le_bytes(proof_ptr[0..4].try_into().unwrap());
-
-        let proof = self.barretenberg.slice_memory(
-            proof_ptr as usize,
-            proof_ptr as usize + proof_size.unwrap_i32() as usize,
-        );
-        println!(
-            "Total Proving time (Rust + WASM) : {}ns ~ {}seconds",
-            now.elapsed().as_nanos(),
-            now.elapsed().as_secs(),
-        );
-        remove_public_inputs(self.constraint_system.public_inputs.len(), proof)
-        */
     }
 
     pub fn verify(
@@ -647,7 +589,6 @@ impl StandardComposer {
             proof_with_pi.extend(proof);
             proof = proof_with_pi;
         }
-        dbg!(proof.len());
         let no_pub_input: Vec<u8> = Vec::new();
         let verified = match public_inputs {
             None => {
@@ -661,7 +602,7 @@ impl StandardComposer {
                 )
             }
             Some(pub_inputs) => {
-                dbg!("PUBLIC");
+                dbg!(pub_inputs.0.len());
                 result = barretenberg_wrapper::composer::verify(
                     self.pippenger.pointer(),
                     &proof,
@@ -672,78 +613,6 @@ impl StandardComposer {
             }
         };
         result
-        //TODO remove commented code below
-        /*  let mut proof = proof.to_vec();
-        if let Some(pi) = &public_inputs {
-            let mut proof_with_pi = Vec::new();
-            for assignment in pi.0.iter() {
-                proof_with_pi.extend(&assignment.to_bytes());
-            }
-            proof_with_pi.extend(proof);
-            proof = proof_with_pi;
-        }
-        let now = std::time::Instant::now();
-
-        let cs_buf = self.constraint_system.to_bytes();
-        let cs_ptr = self.barretenberg.allocate(&cs_buf);
-
-        let proof_ptr = self.barretenberg.allocate(&proof);
-
-        let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
-
-        let verified = match public_inputs {
-            None => self
-                .barretenberg
-                .call_multiple(
-                    "composer__verify_proof",
-                    vec![
-                        &self.pippenger.pointer(),
-                        &g2_ptr,
-                        &cs_ptr,
-                        &proof_ptr,
-                        &Value::I32(proof.len() as i32),
-                    ],
-                )
-                .value(),
-            Some(pub_inputs) => {
-                let pub_inputs_buf = pub_inputs.to_bytes();
-                let pub_inputs_ptr = self.barretenberg.allocate(&pub_inputs_buf);
-
-                let verified = self
-                    .barretenberg
-                    .call_multiple(
-                        "composer__verify_proof_with_public_inputs",
-                        vec![
-                            &self.pippenger.pointer(),
-                            &g2_ptr,
-                            &cs_ptr,
-                            &pub_inputs_ptr,
-                            &proof_ptr,
-                            &Value::I32(proof.len() as i32),
-                        ],
-                    )
-                    .value();
-
-                self.barretenberg.free(pub_inputs_ptr);
-
-                verified
-            }
-        };
-        // self.barretenberg.free(cs_ptr);
-        self.barretenberg.free(proof_ptr);
-        // self.barretenberg.free(g2_ptr);
-
-        println!(
-            "Total Verifier time (Rust + WASM) : {}ns ~ {}seconds",
-            now.elapsed().as_nanos(),
-            now.elapsed().as_secs(),
-        );
-
-        match verified.unwrap_i32() {
-            0 => false,
-            1 => true,
-            _ => panic!("Expected a 1 or a zero for the verification result"),
-        }*/
     }
 }
 

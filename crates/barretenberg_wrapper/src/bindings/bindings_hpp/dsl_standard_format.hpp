@@ -28,6 +28,11 @@ WASM_EXPORT size_t composer__new_proof(void* pippenger,
                                        uint8_t const* constraint_system_buf,
                                        uint8_t const* witness_buf,
                                        uint8_t** proof_data_buf);
+
+WASM_EXPORT uint32_t composer__smart_contract(void* pippenger,
+                                              uint8_t const* g2x,
+                                              uint8_t const* constraint_system_buf,
+                                              uint8_t** output_buf);
 }
 
 

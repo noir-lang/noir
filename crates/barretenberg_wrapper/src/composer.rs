@@ -1,5 +1,20 @@
 use crate::bindings::dsl_standard_format;
 
+
+pub fn smart_contract(
+    pippenger: *mut ::std::os::raw::c_void,
+    g2_ptr: &[u8],
+    cs_ptr: &[u8],
+    output_buf: *mut *mut u8,
+) -> u32
+{
+    unsafe {
+        let size = dsl_standard_format::composer__smart_contract(pippenger, g2_ptr.as_ptr() as *const u8, cs_ptr.as_ptr() as *const u8, output_buf);
+        size
+    }
+}
+
+
 pub fn get_circuit_size(cs_prt: *const u8) -> u32 {
     let size;
     unsafe {

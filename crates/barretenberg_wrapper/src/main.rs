@@ -5,7 +5,6 @@ use barretenberg_wrapper::pedersen;
 
 pub fn main() {
     let input = vec![0; 64];
-    let mut r = [0_u8; 32];
     blake2s::hash_to_field(&input);
     
     let f_zero = [0_u8; 32];

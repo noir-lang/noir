@@ -1,16 +1,7 @@
 use noir_field::FieldElement;
-use wasmer::Value;
 use std::convert::TryInto;
 
-use super::{composer::Assignments, Barretenberg};
-
-//TODO find a better place
-pub fn field_to_array(f: &FieldElement) -> [u8; 32]
-{
-    let v = f.to_bytes();
-    let result: [u8; 32] = v.try_into().unwrap_or_else(|v: Vec<u8>| panic!("Expected a Vec of length {} but it was {}", 32, v.len()));
-    return result;
-}
+use super::{Barretenberg};
 
 
 impl Barretenberg {
@@ -25,7 +16,7 @@ impl Barretenberg {
     pub fn compress_many(&mut self, inputs: Vec<FieldElement>) -> FieldElement {
         let mut inputs_buf = Vec::new();
         for f in inputs {
-            inputs_buf.push(field_to_array(&f));
+            inputs_buf.push(Barretenberg::field_to_array(&f));
         }
         let result = barretenberg_wrapper::pedersen::compress_many(inputs_buf);
         FieldElement::from_be_bytes_reduce(&result)
@@ -34,7 +25,7 @@ impl Barretenberg {
     pub fn encrypt(&mut self, inputs: Vec<FieldElement>) -> (FieldElement, FieldElement) {
         let mut inputs_buf = Vec::new();
         for f in inputs {
-            inputs_buf.push(field_to_array(&f));
+            inputs_buf.push(Barretenberg::field_to_array(&f));
         }
         let (point_x_bytes, point_y_bytes) = barretenberg_wrapper::pedersen::encrypt(inputs_buf);
         let point_x = FieldElement::from_be_bytes_reduce(&point_x_bytes);
@@ -84,9 +75,9 @@ fn basic_interop() {
 }
 #[test]
 fn pedersen_hash_to_point() {
-    let mut barretenberg = Barretenberg::new();
-    let (x, y) = barretenberg.encrypt(vec![FieldElement::zero(), FieldElement::one()]);
-    let expected_x = FieldElement::from_hex(
+  let mut barretenberg = Barretenberg::new();
+  let (x, y) = barretenberg.encrypt(vec![FieldElement::zero(), FieldElement::one()]);
+     let expected_x = FieldElement::from_hex(
         "0x108800e84e0f1dafb9fdf2e4b5b311fd59b8b08eaf899634c59cc985b490234b",
     )
     .unwrap();
@@ -97,3 +88,4 @@ fn pedersen_hash_to_point() {
     assert_eq!(expected_x, x);
     assert_eq!(expected_y, y);
 }
+
