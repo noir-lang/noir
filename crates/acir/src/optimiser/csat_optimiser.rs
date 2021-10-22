@@ -26,19 +26,18 @@ impl Optimiser {
     pub fn optimise(
         &self,
         gate: Arithmetic,
-        mut intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
+        intermediate_variables: &mut IndexMap<Witness, Arithmetic>,
         num_witness: u32,
     ) -> Arithmetic {
         let gate = GeneralOpt::optimise(gate);
 
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full gate
-        let gate = self.full_gate_scan_optimisation(gate, &mut intermediate_variables, num_witness);
+        let gate = self.full_gate_scan_optimisation(gate, intermediate_variables, num_witness);
         // The last optimisation to do is to create intermediate variables in order to flatten the fan-in and the amount of mul terms
         // If a gate has more than one mul term. We may need an intermediate variable for each one. Since not every variable will need to link to
         // the mul term, we could possibly do it that way.
         // We wil call this a partial gate scan optimisation which will result in the gates being able to fit into the correct width
-        let gate =
-            self.partial_gate_scan_optimisation(gate, &mut intermediate_variables, num_witness);
+        let gate = self.partial_gate_scan_optimisation(gate, intermediate_variables, num_witness);
 
         self.sort(gate)
     }

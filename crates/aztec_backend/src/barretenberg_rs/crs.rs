@@ -43,9 +43,10 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
     match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(e) => {
-            if e.kind() == std::io::ErrorKind::PermissionDenied {
-                panic!("please run again with appropriate permissions.");
-            }
+            assert!(
+                !(e.kind() == std::io::ErrorKind::PermissionDenied),
+                "please run again with appropriate permissions."
+            );
             panic!(
                 "Could not find file transcript00.dat at location {}.\n Starting Download",
                 path.display()
