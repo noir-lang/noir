@@ -305,8 +305,6 @@ dependencies = [
  "acir",
  "dirs",
  "downloader",
- "error-chain",
- "hex",
  "indicatif",
  "noir_field",
  "once_cell",
@@ -315,7 +313,6 @@ dependencies = [
  "wasmer",
  "wasmer-cache",
  "wasmer-engine-jit",
- "wasmer-engine-native",
  "wasmer-wasi",
 ]
 
@@ -846,16 +843,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3de9ad4541d99dc22b59134e7ff8dc3d6c988c89ecd7324bf10a8362b07a2afa"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "error-chain"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d2f06b9cac1506ece98fe3231e3cc9c4410ec3d5b1f24ae1c8946f0742cdefc"
-dependencies = [
- "backtrace",
- "version_check",
 ]
 
 [[package]]
@@ -1541,11 +1528,9 @@ dependencies = [
 name = "noirc_errors"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "codespan",
  "codespan-reporting",
  "fm",
- "unindent",
 ]
 
 [[package]]
@@ -2520,12 +2505,6 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
-
-[[package]]
-name = "unindent"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f14ee04d9415b52b3aeab06258a3f07093182b88ba0f9b8d203f211a7a7d41c7"
 
 [[package]]
 name = "url"
