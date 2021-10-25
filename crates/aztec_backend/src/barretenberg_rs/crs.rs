@@ -156,7 +156,11 @@ fn does_not_panic() {
 
     let mut scalars = vec![0; num_points * 32];
     unsafe {
-        scalars = Vec::from_raw_parts(p_points as *mut u8, num_points * 32 as usize, num_points * 32 as usize)
+        scalars = Vec::from_raw_parts(
+            p_points as *mut u8,
+            num_points * 32 as usize,
+            num_points * 32 as usize,
+        )
     }
     //TODO check that scalars mem is properly free
 }

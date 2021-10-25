@@ -1,19 +1,21 @@
 use crate::bindings::dsl_standard_format;
 
-
 pub fn smart_contract(
     pippenger: *mut ::std::os::raw::c_void,
     g2_ptr: &[u8],
     cs_ptr: &[u8],
     output_buf: *mut *mut u8,
-) -> u32
-{
+) -> u32 {
     unsafe {
-        let size = dsl_standard_format::composer__smart_contract(pippenger, g2_ptr.as_ptr() as *const u8, cs_ptr.as_ptr() as *const u8, output_buf);
+        let size = dsl_standard_format::composer__smart_contract(
+            pippenger,
+            g2_ptr.as_ptr() as *const u8,
+            cs_ptr.as_ptr() as *const u8,
+            output_buf,
+        );
         size
     }
 }
-
 
 pub fn get_circuit_size(cs_prt: *const u8) -> u32 {
     let size;
@@ -41,7 +43,6 @@ pub fn create_proof(
         );
         proof_size
     }
-    //TODO do we do it here?? remove_public_inputs(self.constraint_system.public_inputs.len(), proof)
 }
 
 pub fn verify(
@@ -53,22 +54,8 @@ pub fn verify(
     cs_ptr: &[u8],
     g2_ptr: &[u8],
 ) -> bool {
-    // Prepend the public inputs to the proof.
-    // This is how Barretenberg expects it to be.
-    // This is non-standard however, so this Rust wrapper will strip the public inputs
-    // from proofs created by Barretenberg. Then in Verify we prepend them again.
-    //...todo DO WE DO IT HERE?
-    //  let mut proof = proof.to_vec();
-
-    //  let mut proof_with_pi = Vec::new();
-    //  for assignment in public_inputs {
-    //      proof_with_pi.push(assignment);//.....TODO
-    //  }
-    //todo..proof_with_pi.extend(proof);
-    //proof = proof_with_pi;
-
     let proof_ptr = proof.as_ptr() as *const u8;
-    let mut verified = false;
+    let verified;
     unsafe {
         if (public_inputs.len() > 0) {
             verified = dsl_standard_format::composer__verify_proof_with_public_inputs(

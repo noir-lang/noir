@@ -2,35 +2,33 @@ use noir_field::FieldElement;
 use std::convert::TryInto;
 
 use super::Barretenberg;
-
-
-
+use super::BARRETENBERG;
 
 impl Barretenberg {
     pub fn construct_signature(&mut self, message: &[u8], private_key: [u8; 32]) -> [u8; 64] {
-
-        let (s,e) = barretenberg_wrapper::schnorr::construct_signature(message, private_key);
-        let sig_bytes: [u8; 64] = [s,e].concat().try_into().unwrap();
+        let (s, e) = barretenberg_wrapper::schnorr::construct_signature(message, private_key);
+        let sig_bytes: [u8; 64] = [s, e].concat().try_into().unwrap();
         sig_bytes
     }
-
 
     pub fn construct_public_key(&mut self, private_key: [u8; 32]) -> [u8; 64] {
         let result_bytes = barretenberg_wrapper::schnorr::construct_public_key(&private_key);
         result_bytes
     }
 
-
-    
     pub fn verify_signature(
         &mut self,
         pub_key: [u8; 64],
         sig: [u8; 64],
         message: &[u8],
     ) -> FieldElement {
-
-
-        let r: bool = barretenberg_wrapper::schnorr::verify_signature(pub_key, sig[0..32].try_into().unwrap(), sig[32..64].try_into().unwrap(), message);
+        let _m = BARRETENBERG.lock().unwrap();
+        let r: bool = barretenberg_wrapper::schnorr::verify_signature(
+            pub_key,
+            sig[0..32].try_into().unwrap(),
+            sig[32..64].try_into().unwrap(),
+            message,
+        );
         match r {
             false => FieldElement::zero(),
             true => FieldElement::one(),

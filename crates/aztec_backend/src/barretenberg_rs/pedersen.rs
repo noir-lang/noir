@@ -1,33 +1,33 @@
 use noir_field::FieldElement;
 use std::convert::TryInto;
 
-use super::{Barretenberg};
-
+use super::Barretenberg;
+use super::field_to_array;
 
 impl Barretenberg {
-
-
-
-    pub fn compress_native(&mut self, left: &FieldElement, right: &FieldElement) -> FieldElement {      
-        let result_bytes = barretenberg_wrapper::pedersen::compress_native(left.to_bytes().as_slice().try_into().unwrap(),right.to_bytes().as_slice().try_into().unwrap());
+    pub fn compress_native(&mut self, left: &FieldElement, right: &FieldElement) -> FieldElement {
+        let result_bytes = barretenberg_wrapper::pedersen::compress_native(
+            left.to_bytes().as_slice().try_into().unwrap(),
+            right.to_bytes().as_slice().try_into().unwrap(),
+        );
         FieldElement::from_be_bytes_reduce(&result_bytes)
     }
 
     pub fn compress_many(&mut self, inputs: Vec<FieldElement>) -> FieldElement {
         let mut inputs_buf = Vec::new();
         for f in inputs {
-            inputs_buf.push(Barretenberg::field_to_array(&f));
+            inputs_buf.push(field_to_array(&f));
         }
-        let result = barretenberg_wrapper::pedersen::compress_many(inputs_buf);
+        let result = barretenberg_wrapper::pedersen::compress_many(&inputs_buf);
         FieldElement::from_be_bytes_reduce(&result)
     }
 
     pub fn encrypt(&mut self, inputs: Vec<FieldElement>) -> (FieldElement, FieldElement) {
         let mut inputs_buf = Vec::new();
         for f in inputs {
-            inputs_buf.push(Barretenberg::field_to_array(&f));
+            inputs_buf.push(field_to_array(&f));
         }
-        let (point_x_bytes, point_y_bytes) = barretenberg_wrapper::pedersen::encrypt(inputs_buf);
+        let (point_x_bytes, point_y_bytes) = barretenberg_wrapper::pedersen::encrypt(&inputs_buf);
         let point_x = FieldElement::from_be_bytes_reduce(&point_x_bytes);
         let point_y = FieldElement::from_be_bytes_reduce(&point_y_bytes);
 
@@ -75,9 +75,9 @@ fn basic_interop() {
 }
 #[test]
 fn pedersen_hash_to_point() {
-  let mut barretenberg = Barretenberg::new();
-  let (x, y) = barretenberg.encrypt(vec![FieldElement::zero(), FieldElement::one()]);
-     let expected_x = FieldElement::from_hex(
+    let mut barretenberg = Barretenberg::new();
+    let (x, y) = barretenberg.encrypt(vec![FieldElement::zero(), FieldElement::one()]);
+    let expected_x = FieldElement::from_hex(
         "0x108800e84e0f1dafb9fdf2e4b5b311fd59b8b08eaf899634c59cc985b490234b",
     )
     .unwrap();
@@ -88,4 +88,3 @@ fn pedersen_hash_to_point() {
     assert_eq!(expected_x, x);
     assert_eq!(expected_y, y);
 }
-
