@@ -1,11 +1,10 @@
 use crate::bindings::schnorr;
-
+use std::convert::TryInto;
 pub fn fixed_base(input: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
     let result = construct_public_key(input);
-    (
-        *slice_as_array!(&result[0..32], [u8; 32]).unwrap(),
-        *slice_as_array!(&result[32..64], [u8; 32]).unwrap(),
-    )
+    let s: [u8; 32] = (result[0..32]).try_into().unwrap();
+    let e: [u8; 32] = (result[32..64]).try_into().unwrap();
+    (s, e)
 }
 
 pub fn construct_public_key(private_key: &[u8; 32]) -> [u8; 64] {

@@ -1,5 +1,5 @@
 use crate::bindings::pedersen;
-
+use std::convert::TryInto;
 //////PEDERSEN///////////////////////
 pub fn compress_native(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     let mut result = [0_u8; 32];
@@ -42,10 +42,9 @@ pub fn encrypt(inputs_buffer: &[[u8; 32]]) -> ([u8; 32], [u8; 32]) {
     unsafe {
         pedersen::pedersen_encrypt(buffer.as_ptr() as *const u8, result.as_mut_ptr());
     }
-    (
-        *slice_as_array!(&result[0..32], [u8; 32]).unwrap(),
-        *slice_as_array!(&result[32..64], [u8; 32]).unwrap(),
-    )
+    let s: [u8; 32] = (result[0..32]).try_into().unwrap();
+    let e: [u8; 32] = (result[32..64]).try_into().unwrap();
+    (s, e)
 }
 
 #[cfg(test)]
