@@ -496,15 +496,15 @@ impl StandardComposer {
         let mut contract_ptr: *mut u8 = std::ptr::null_mut();
         let p_contract_ptr = &mut contract_ptr as *mut *mut u8;
         let cs_buf = self.constraint_system.to_bytes();
-
-        let contract_size = barretenberg_wrapper::composer::smart_contract(
-            self.pippenger.pointer(),
-            &self.crs.g2_data,
-            &cs_buf,
-            p_contract_ptr,
-        );
         let sc_as_bytes;
+        let contract_size;
         unsafe {
+            contract_size = barretenberg_wrapper::composer::smart_contract(
+                self.pippenger.pointer(),
+                &self.crs.g2_data,
+                &cs_buf,
+                p_contract_ptr,
+            );
             sc_as_bytes =
                 Vec::from_raw_parts(contract_ptr, contract_size as usize, contract_size as usize)
         }
@@ -527,9 +527,11 @@ impl StandardComposer {
     // elements we need from the CRS. So using 2^19 on an error
     // should be an overestimation.
     pub fn get_circuit_size(constraint_system: &ConstraintSystem) -> u32 {
-        barretenberg_wrapper::composer::get_circuit_size(
-            constraint_system.to_bytes().as_slice().as_ptr(),
-        )
+        unsafe {
+            barretenberg_wrapper::composer::get_circuit_size(
+                constraint_system.to_bytes().as_slice().as_ptr(),
+            )
+        }
     }
 
     pub fn create_proof(&mut self, witness: WitnessAssignments) -> Vec<u8> {
@@ -542,14 +544,15 @@ impl StandardComposer {
         let g2_clone = self.crs.g2_data.clone();
         let witness_clone = witness.to_bytes().clone();
         let proof_size;
-
-        proof_size = barretenberg_wrapper::composer::create_proof(
-            self.pippenger.pointer(),
-            &cs_buf_clone,
-            &g2_clone,
-            &witness_clone,
-            p_proof,
-        );
+        unsafe {
+            proof_size = barretenberg_wrapper::composer::create_proof(
+                self.pippenger.pointer(),
+                &cs_buf_clone,
+                &g2_clone,
+                &witness_clone,
+                p_proof,
+            );
+        }
 
         //  TODO - to check why barretenberg  is freeing them, cf:
         //   aligned_free((void*)witness_buf);
@@ -591,22 +594,25 @@ impl StandardComposer {
             proof = proof_with_pi;
         }
         let no_pub_input: Vec<u8> = Vec::new();
-        let verified = match public_inputs {
-            None => barretenberg_wrapper::composer::verify(
-                self.pippenger.pointer(),
-                &proof,
-                no_pub_input.as_slice(),
-                &self.constraint_system.to_bytes(),
-                &self.crs.g2_data,
-            ),
-            Some(pub_inputs) => barretenberg_wrapper::composer::verify(
-                self.pippenger.pointer(),
-                &proof,
-                &pub_inputs.to_bytes(),
-                &self.constraint_system.to_bytes(),
-                &self.crs.g2_data,
-            ),
-        };
+        let verified;
+        unsafe {
+            verified = match public_inputs {
+                None => barretenberg_wrapper::composer::verify(
+                    self.pippenger.pointer(),
+                    &proof,
+                    no_pub_input.as_slice(),
+                    &self.constraint_system.to_bytes(),
+                    &self.crs.g2_data,
+                ),
+                Some(pub_inputs) => barretenberg_wrapper::composer::verify(
+                    self.pippenger.pointer(),
+                    &proof,
+                    &pub_inputs.to_bytes(),
+                    &self.constraint_system.to_bytes(),
+                    &self.crs.g2_data,
+                ),
+            };
+        }
         verified
     }
 }

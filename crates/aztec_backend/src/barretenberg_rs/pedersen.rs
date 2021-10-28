@@ -1,8 +1,8 @@
 use noir_field::FieldElement;
 use std::convert::TryInto;
 
-use super::Barretenberg;
 use super::field_to_array;
+use super::Barretenberg;
 
 impl Barretenberg {
     pub fn compress_native(&mut self, left: &FieldElement, right: &FieldElement) -> FieldElement {

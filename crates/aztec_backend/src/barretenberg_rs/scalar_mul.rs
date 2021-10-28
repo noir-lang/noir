@@ -1,15 +1,14 @@
 use noir_field::FieldElement;
 
+use super::field_to_array;
 use super::Barretenberg;
 use super::BARRETENBERG;
-use super::field_to_array;
 
 impl Barretenberg {
     pub fn fixed_base(&mut self, input: &FieldElement) -> (FieldElement, FieldElement) {
         let _m = BARRETENBERG.lock().unwrap();
-        let result_bytes = barretenberg_wrapper::schnorr::construct_public_key(
-            &field_to_array(input),
-        );
+        let result_bytes =
+            barretenberg_wrapper::schnorr::construct_public_key(&field_to_array(input));
         let (pubkey_x_bytes, pubkey_y_bytes) = result_bytes.split_at(32);
         let pubkey_x = FieldElement::from_be_bytes_reduce(pubkey_x_bytes);
         let pubkey_y = FieldElement::from_be_bytes_reduce(pubkey_y_bytes);

@@ -14,8 +14,7 @@ pub fn compress_native(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     result
 }
 
-//pub fn compress_many(inputs: Vec<[u8; 32]>) -> [u8; 32] {
-pub fn compress_many(inputs: &Vec<[u8; 32]>) -> [u8; 32] {
+pub fn compress_many(inputs: &[[u8; 32]]) -> [u8; 32] {
     //convert inputs into one buffer: length + data
     let mut buffer = Vec::new();
     let witness_len = inputs.len() as u32;
@@ -31,7 +30,7 @@ pub fn compress_many(inputs: &Vec<[u8; 32]>) -> [u8; 32] {
     result
 }
 
-pub fn encrypt(inputs_buffer: &Vec<[u8; 32]>) -> ([u8; 32], [u8; 32]) {
+pub fn encrypt(inputs_buffer: &[[u8; 32]]) -> ([u8; 32], [u8; 32]) {
     let mut buffer = Vec::new();
     let buffer_len = inputs_buffer.len() as u32;
     let mut result = [0_u8; 64];
@@ -89,7 +88,7 @@ mod tests {
             many_intputs.push(test.input_left);
             many_intputs.push(test.input_right);
             //test.input_left.to_vec().extend(test.input_right);
-            let got_many = compress_many(many_intputs);
+            let got_many = compress_many(&many_intputs);
             //let got_many = compress_many(vec![test.input_left, test.input_right]);
             assert_eq!(hex::encode(got), test.expected_hex);
             assert_eq!(got, got_many);
@@ -105,7 +104,7 @@ mod tests {
         inputs.push(f_zero);
         inputs.push(f_one);
 
-        let (x, y) = encrypt(inputs);
+        let (x, y) = encrypt(&inputs);
         let expected_x = "108800e84e0f1dafb9fdf2e4b5b311fd59b8b08eaf899634c59cc985b490234b";
         let expected_y = "2d43ef68df82e0adf74fed92b1bc950670b9806afcfbcda08bb5baa6497bdf14";
         assert_eq!(expected_x, hex::encode(x));
