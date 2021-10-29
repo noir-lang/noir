@@ -10,7 +10,6 @@ pub mod schnorr;
 //pub use blake2s::hash_to_field;
 
 #[macro_use]
-extern crate slice_as_array;
 
 #[cfg(test)]
 mod tests {
