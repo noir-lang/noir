@@ -12,8 +12,8 @@ namespace join_split {
 using namespace plonk::stdlib::types::turbo;
 
 struct join_split_tx {
-    uint256_t public_input;
-    uint256_t public_output;
+    uint32_t proof_id;
+    uint256_t public_value;
     barretenberg::fr public_owner;
     uint32_t asset_id;
     uint32_t num_input_notes;
@@ -37,22 +37,6 @@ struct join_split_tx {
     uint32_t allow_chain;            // 0: none, 1: output_note1, 2: output_note2
 
     crypto::schnorr::signature signature;
-
-    uint32_t proof_id() const
-    {
-        if (claim_note.deposit_value > 0) {
-            return ProofIds::DEFI_DEPOSIT;
-        }
-        if (public_input > 0) {
-            return ProofIds::DEPOSIT;
-        }
-        if (public_output > 0) {
-            return ProofIds::WITHDRAW;
-        }
-        return ProofIds::SEND;
-    }
-
-    uint256_t public_value() const { return public_input > 0 ? public_input : public_output; }
 
     bool operator==(join_split_tx const&) const = default;
 };

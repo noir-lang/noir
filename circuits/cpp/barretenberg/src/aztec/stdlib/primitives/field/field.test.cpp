@@ -374,9 +374,37 @@ TEST(stdlib_field, test_slice)
     // hi=0x111101, lo=0x011, slice=0x10101001
     //
     field_t a(witness_t(&composer, fr(126283)));
-    field_t slice = a.slice(10, 3);
+    auto slice_data = a.slice(10, 3);
 
-    EXPECT_EQ(slice.get_value(), fr(169));
+    EXPECT_EQ(slice_data[0].get_value(), fr(3));
+    EXPECT_EQ(slice_data[1].get_value(), fr(169));
+    EXPECT_EQ(slice_data[2].get_value(), fr(61));
+
+    waffle::Prover prover = composer.preprocess();
+
+    waffle::Verifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
+}
+
+TEST(stdlib_field, test_slice_equal_msb_lsb)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    // 0b11110110101001011
+    //             ^
+    //         msb = lsb
+    //             6
+    // hi=0b1111011010, lo=0b001011, slice=0b1
+    //
+    field_t a(witness_t(&composer, fr(126283)));
+    auto slice_data = a.slice(6, 6);
+
+    EXPECT_EQ(slice_data[0].get_value(), fr(11));
+    EXPECT_EQ(slice_data[1].get_value(), fr(1));
+    EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
     waffle::Prover prover = composer.preprocess();
 
@@ -396,11 +424,15 @@ TEST(stdlib_field, test_slice_random)
     uint8_t msb = 189;
     fr a_ = fr(uint256_t(fr::random_element()) && ((uint256_t(1) << 252) - 1));
     field_t a(witness_t(&composer, a_));
-    field_t slice = a.slice(msb, lsb);
+    auto slice = a.slice(msb, lsb);
 
-    const uint256_t expected = (uint256_t(a_) >> lsb) & ((uint256_t(1) << (uint64_t(msb - lsb) + 1)) - 1);
+    const uint256_t expected0 = uint256_t(a_) & ((uint256_t(1) << uint64_t(lsb)) - 1);
+    const uint256_t expected1 = (uint256_t(a_) >> lsb) & ((uint256_t(1) << (uint64_t(msb - lsb) + 1)) - 1);
+    const uint256_t expected2 = (uint256_t(a_) >> (msb + 1)) & ((uint256_t(1) << (uint64_t(252 - msb) - 1)) - 1);
 
-    EXPECT_EQ(slice.get_value(), fr(expected));
+    EXPECT_EQ(slice[0].get_value(), fr(expected0));
+    EXPECT_EQ(slice[1].get_value(), fr(expected1));
+    EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
     waffle::Prover prover = composer.preprocess();
 

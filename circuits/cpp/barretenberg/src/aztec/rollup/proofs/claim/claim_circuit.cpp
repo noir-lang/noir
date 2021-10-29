@@ -29,7 +29,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         field_ct(witness_ct(&composer, tx.defi_interaction_note_dummy_nullifier_nonce));
     const auto output_value_a = field_ct(witness_ct(&composer, tx.output_value_a));
     const auto output_value_b = field_ct(witness_ct(&composer, tx.output_value_b));
-    const auto two_output_notes = claim_note_data.bridge_id_data.num_output_notes == field_ct(2);
+    const auto two_output_notes = claim_note_data.bridge_id_data.second_asset_valid;
+    const auto is_virtual_note = claim_note_data.bridge_id_data.second_asset_virtual;
 
     // Ratio checks. Guarantees:
     // defi_interaction_note.total_input_value != 0
@@ -53,6 +54,11 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     auto valid2 = (output_value_b == 0 && defi_interaction_note.total_output_b_value == 0) || rc2;
     valid2.assert_equal(true, "ratio check 2 failed");
 
+    // If is_virtual_note is 1, it indicates the second output note must be a "virtual" note.
+    // Assert if is_virtual_note is true, then num_output_notes is 1.
+    auto valid3 = !(is_virtual_note && two_output_notes);
+    valid3.assert_equal(true, "num_output_notes not 1");
+
     // Value notes must be completed with input_nullifiers' known unique values.
     // The second nullifier is is a 'dummy' - generated from randomness provided by the user.
     const auto nullifier1 = circuit::claim::compute_nullifier(claim_note.commitment);
@@ -63,21 +69,27 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
 
     // Compute output notes. Second note is zeroed if not used.
     // If defi interaction result is 0, refund original value.
-    auto output_note1 = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
-                                                                    output_value_a,
-                                                                    claim_note_data.bridge_id_data.output_asset_id_a,
-                                                                    nullifier1);
-    auto output_note2 = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
-                                                                    output_value_b,
-                                                                    claim_note_data.bridge_id_data.output_asset_id_b,
-                                                                    nullifier2);
-    auto refund_note = circuit::value::complete_partial_commitment(claim_note.value_note_partial_commitment,
-                                                                   claim_note_data.deposit_value,
-                                                                   claim_note_data.bridge_id_data.input_asset_id,
-                                                                   nullifier1);
     auto interaction_success = defi_interaction_note.interaction_result;
-    output_note1 = output_note1 * interaction_success + refund_note * !interaction_success;
-    output_note2 = output_note2 * two_output_notes * interaction_success;
+    auto output_value_1 =
+        field_ct::conditional_assign(interaction_success, output_value_a, claim_note_data.deposit_value);
+    auto output_asset_id_1 = field_ct::conditional_assign(interaction_success,
+                                                          claim_note_data.bridge_id_data.output_asset_id_a,
+                                                          claim_note_data.bridge_id_data.input_asset_id);
+    auto output_note1 = circuit::value::complete_partial_commitment(
+        claim_note.value_note_partial_commitment, output_value_1, output_asset_id_1, nullifier1);
+
+    // If is_virtual_note is 1, we set asset_id_2 = 2^{31} + nonce and
+    // the output value of the second note must be equal to output_value_a.
+    auto output_value_2 = field_ct::conditional_assign(is_virtual_note, output_value_a, output_value_b);
+    auto virtual_note_flag = field_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH + 1));
+    auto output_asset_id_2 = field_ct::conditional_assign(is_virtual_note,
+                                                          virtual_note_flag + claim_note.defi_interaction_nonce,
+                                                          claim_note_data.bridge_id_data.output_asset_id_b);
+    auto output_note2 = circuit::value::complete_partial_commitment(
+        claim_note.value_note_partial_commitment, output_value_2, output_asset_id_2, nullifier2);
+
+    auto valid_output_note2 = is_virtual_note ^ two_output_notes;
+    output_note2 = output_note2 * valid_output_note2 * interaction_success;
 
     // Check claim note and interaction note are related.
     claim_note.bridge_id.assert_equal(defi_interaction_note.bridge_id, "note bridge ids don't match");

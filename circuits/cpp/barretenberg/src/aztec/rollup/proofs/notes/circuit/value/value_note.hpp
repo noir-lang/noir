@@ -20,6 +20,8 @@ struct value_note {
     field_ct input_nullifier;
     field_ct commitment;
     field_ct creator_pubkey;
+    bool_ct is_virtual;
+    field_ct virtual_note_nonce;
 
     value_note(witness_data const& note)
         : owner(note.owner)
@@ -30,7 +32,12 @@ struct value_note {
         , input_nullifier(note.input_nullifier)
         , commitment(value::commit(note))
         , creator_pubkey(note.creator_pubkey)
-    {}
+    {
+        const auto loan_idx = MAX_NUM_ASSETS_BIT_LENGTH + 1;
+        const auto sliced_asset_id = asset_id.slice(loan_idx + 1, loan_idx);
+        is_virtual = sliced_asset_id[1] == 1;
+        virtual_note_nonce = sliced_asset_id[0];
+    }
 
     operator byte_array_ct() const { return byte_array_ct(commitment); }
 };

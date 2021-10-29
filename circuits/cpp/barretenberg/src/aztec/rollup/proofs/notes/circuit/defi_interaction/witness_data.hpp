@@ -28,7 +28,7 @@ struct witness_data {
         total_output_b_value = witness_ct(&composer, note_data.total_output_b_value);
         interaction_result = witness_ct(&composer, note_data.interaction_result);
 
-        interaction_nonce.create_range_constraint(32);
+        interaction_nonce.create_range_constraint(DEFI_TREE_DEPTH);
         total_input_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
         total_output_a_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
         total_output_b_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);

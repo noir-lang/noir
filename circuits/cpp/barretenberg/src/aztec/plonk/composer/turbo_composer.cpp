@@ -443,6 +443,7 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
 {
     TURBO_SELECTOR_REFS
     ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
+    ASSERT(num_bits > 0);
 
     /*
      * The range constraint accumulates base 4 values into a sum.

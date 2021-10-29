@@ -51,7 +51,7 @@ root_rollup_broadcast_data::root_rollup_broadcast_data(std::vector<fr> const& fi
         tx_data[i].nullifier2 = fields[offset + InnerProofFields::NULLIFIER2];
         tx_data[i].public_value = fields[offset + InnerProofFields::PUBLIC_VALUE];
         tx_data[i].public_owner = fields[offset + InnerProofFields::PUBLIC_OWNER];
-        tx_data[i].asset_id = fields[offset + InnerProofFields::ASSET_ID];
+        tx_data[i].asset_id = fields[offset + InnerProofFields::PUBLIC_ASSET_ID];
     }
 }
 

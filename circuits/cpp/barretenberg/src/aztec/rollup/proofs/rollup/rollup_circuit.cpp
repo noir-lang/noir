@@ -90,7 +90,7 @@ auto process_defi_deposit(Composer& composer,
 
     // Compute claim fee which to be added to the claim note.
     const auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
-    const auto defi_deposit_fee = tx_fee.slice(TX_FEE_BIT_LENGTH, 1);
+    const auto defi_deposit_fee = tx_fee.slice(TX_FEE_BIT_LENGTH, 1)[1];
     const auto claim_fee = (tx_fee - defi_deposit_fee) * is_defi_deposit;
     const auto net_tx_fee = tx_fee * !is_defi_deposit + defi_deposit_fee * is_defi_deposit;
 

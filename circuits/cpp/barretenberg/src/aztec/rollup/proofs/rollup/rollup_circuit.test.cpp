@@ -46,7 +46,7 @@ class rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 });
         context.start_next_root_rollup();
 
-        notes::native::bridge_id bid = { 0, 2, 0, 0, 0 };
+        notes::native::bridge_id bid = { 0, 0, 0, 0, 0, true, false };
         auto defi_proof1 = context.create_defi_proof({ 0, 1 }, { 100, 50 }, { 40, 110 }, bid);
 
         return create_rollup_tx(context.world_state, 1, { defi_proof1 }, { bid });
@@ -59,16 +59,31 @@ class rollup_tests : public ::testing::Test {
         context.append_value_notes({ 200, 40 }, 13);
         context.start_next_root_rollup();
 
-        notes::native::bridge_id bid1 = { 0, 2, 8, 0, 0 };
-        notes::native::bridge_id bid2 = { 1, 2, 13, 0, 0 };
-        auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 }, 0, 0, 7);
-        // The difference in input and output note values becomes the tx_fee for defi deposits.
-        auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);
-        auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);
-        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 207 }, bid2, 13);
+        notes::native::bridge_id bid1 = { 0, 8, 0, 0, 0, true, false };
+        notes::native::bridge_id bid2 = { 1, 13, 0, 0, 0, true, false };
+        auto js_proof = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 73 });         // fee = 7
+        auto defi_proof1 = context.create_defi_proof({ 2, 3 }, { 100, 50 }, { 40, 100 }, bid1, 8);  // fee = 10
+        auto defi_proof2 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 30, 80 }, bid1, 8);   // fee = 40
+        auto defi_proof3 = context.create_defi_proof({ 6, 7 }, { 200, 40 }, { 20, 207 }, bid2, 13); // fee = 13
 
         return create_rollup_tx(
             context.world_state, 4, { js_proof, defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 }, { 0, 8, 13 });
+    }
+
+    auto create_tx_with_defi_loan()
+    {
+        context.append_value_notes({ 150, 50, 40, 160 });
+        context.append_value_notes({ 100, 50 }, 1);
+        context.start_next_root_rollup();
+
+        notes::native::bridge_id bid1 = { 0, 0, 2, 0, 0, false, true };
+        notes::native::bridge_id bid2 = { 1, 1, 3, 0, 0, false, true };
+        auto defi_proof1 = context.create_defi_proof({ 0, 1 }, { 150, 50 }, { 180, 0 }, bid1, 0); // fee = 20
+        auto defi_proof2 = context.create_defi_proof({ 2, 3 }, { 40, 160 }, { 190, 0 }, bid1, 0); // fee = 10
+        auto defi_proof3 = context.create_defi_proof({ 4, 5 }, { 100, 50 }, { 150, 0 }, bid2, 1); // fee = 0
+
+        return create_rollup_tx(
+            context.world_state, 4, { defi_proof1, defi_proof2, defi_proof3 }, { bid1, bid2 }, { 0, 1 });
     }
 
     auto create_js_proof(join_split::join_split_tx& tx)
@@ -253,7 +268,7 @@ TEST_F(rollup_tests, test_invalid_asset_id_fails)
     context.append_value_notes({ 100, 50 }, invalid_asset_id);
     context.start_next_root_rollup();
     auto join_split_proof =
-        context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 }, 0, 0, 0, 0, invalid_asset_id);
+        context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 }, 0, 0, 0, invalid_asset_id);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof }, {}, { invalid_asset_id });
     auto result = verify_logic(rollup, rollup_1_keyless);
@@ -783,7 +798,7 @@ TEST_F(rollup_tests, test_defi_interaction_nonce_added_to_claim_notes)
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment1, note1.commit());
 
     notes::native::value::value_note note2 = {
-        80, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, rollup_data.inner_proofs[0].nullifier2
+        73, 0, 0, context.user.owner.public_key, context.user.note_secret, 0, rollup_data.inner_proofs[0].nullifier2
     };
     EXPECT_EQ(rollup_data.inner_proofs[0].note_commitment2, note2.commit());
 
@@ -829,10 +844,10 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
     // js, acc and defi proofs to be rolled up with claim proofs
     auto acc_proof = context.create_account_proof(0, data.data_start_index + 8);
     auto js_proof = context.create_join_split_proof({}, {}, { 100, 30 }, 130);
-    notes::native::bridge_id bid1 = { 0, 2, 0, 0, 0 };
+    notes::native::bridge_id bid1 = { 0, 0, 0, 0, 0, true, false };
     bids.push_back(bid1);
     auto defi_proof1 =
-        context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 80 }, { 120, 30 }, bid1);
+        context.create_defi_proof({ data.data_start_index, data.data_start_index + 1 }, { 70, 73 }, { 120, 23 }, bid1);
     std::vector<uint32_t> claim_fees = { 0, 5, 20, 7 };
 
     // Create claim proofs for each claim note in previous rollup.
@@ -850,6 +865,152 @@ TEST_F(rollup_tests, test_defi_claim_proofs)
         context.world_state, 4, { js_proof, acc_proof, defi_proof1, claim_proofs[2] }, bids, asset_ids);
     auto result2 = verify_logic(rollup2_tx, rollup_4_keyless);
     EXPECT_TRUE(result2.logic_verified);
+}
+
+TEST_F(rollup_tests, test_defi_loan_proofs)
+{
+    /**
+     * Rollup 0: Create defi deposit proofs for drawing 3 loans:
+     * +-------------------------------------------------------------------------+
+     * | no    collateral_asset    collateral_value     loan_asset    loan_value |
+     * +-------------------------------------------------------------------------+
+     * | 1     0                   180                  2             1800       |
+     * | 2     0                   190                  2             1900       |
+     * | 3     1                   150                  3             3000       |
+     * +-------------------------------------------------------------------------+
+     */
+    auto rollup1_tx = create_tx_with_defi_loan();
+    auto bids = rollup1_tx.bridge_ids;
+    auto asset_ids = rollup1_tx.asset_ids;
+    auto result = verify_logic(rollup1_tx, rollup_4_keyless);
+    ASSERT_TRUE(result.logic_verified);
+
+    /**
+     * Rollup 1: Create defi claim proofs for drawing 3 loans:
+     */
+    std::vector<native::defi_interaction::note> dins = { { bids[0], 4, 370, 3700, 0, true },
+                                                         { bids[1], 5, 150, 3000, 0, true } };
+    context.start_next_root_rollup(dins);
+
+    rollup::rollup_proof_data data(result.public_inputs);
+
+    // Create claim proofs for each claim note in previous rollup.
+    auto loan_claim_proof1 = context.create_claim_proof(bids[0], 180, data.data_start_index + 0, 10);
+    auto loan_claim_proof2 = context.create_claim_proof(bids[0], 190, data.data_start_index + 2, 5);
+    auto loan_claim_proof3 = context.create_claim_proof(bids[1], 150, data.data_start_index + 4, 0);
+
+    auto rollup2_tx = create_rollup_tx(
+        context.world_state, 4, { loan_claim_proof1, loan_claim_proof2, loan_claim_proof3 }, bids, asset_ids);
+    auto result2 = verify_logic(rollup2_tx, rollup_4_keyless);
+    EXPECT_TRUE(result2.logic_verified);
+
+    /**
+     * Rollup 2: Create defi deposit proofs for repaying the loans 1 and 3,
+     * split the value and virtual notes of loan 2:
+     * +--------------------------------------------------------------------+
+     * | no    collateral_asset   returned_collateral_value     loan_repay  |
+     * +--------------------------------------------------------------------+
+     * | 1     0                  180-18 = 152                  yes         |
+     * | 2     0                  -                             no, split   |
+     * | 3     1                  150-30 = 120                  yes         |
+     * +--------------------------------------------------------------------+
+     */
+    context.start_next_root_rollup();
+    rollup::rollup_proof_data data2(result2.public_inputs);
+
+    // Loan number 1 repayment
+    const uint32_t opening_nonce1 = 4;
+    notes::native::bridge_id bid1 = { 0, 2, 0, 0, opening_nonce1, true, false };
+    const uint32_t virtual_asset_id1 = (uint32_t(1) << 31) + opening_nonce1;
+    auto loan_repay_proof1 = context.create_defi_proof({ data2.data_start_index + 0, data2.data_start_index + 1 },
+                                                       { 1800, 1800 },
+                                                       { 1800, 0 },
+                                                       bid1,
+                                                       2,
+                                                       0,
+                                                       virtual_asset_id1);
+
+    // Loan number 3 repayment
+    const uint32_t opening_nonce2 = 5;
+    notes::native::bridge_id bid2 = { 0, 3, 1, 0, opening_nonce2, true, false };
+    const uint32_t virtual_asset_id2 = (uint32_t(1) << 31) + opening_nonce2;
+    auto loan_repay_proof2 = context.create_defi_proof({ data2.data_start_index + 4, data2.data_start_index + 5 },
+                                                       { 3000, 3000 },
+                                                       { 3000, 0 },
+                                                       bid2,
+                                                       3,
+                                                       0,
+                                                       virtual_asset_id2);
+
+    // Loan number 2 virtual and value note splitting
+    auto loan_split_proof1 = context.create_join_split_proof(
+        { data2.data_start_index + 3 }, { 1900 }, { 1000, 900 }, 0, 0, 0, virtual_asset_id1);
+    auto value_note_split_proof =
+        context.create_join_split_proof({ data2.data_start_index + 2 }, { 1900 }, { 900, 1000 }, 0, 0, 0, 2);
+
+    auto rollup3_tx =
+        create_rollup_tx(context.world_state,
+                         4,
+                         { loan_repay_proof1, loan_repay_proof2, loan_split_proof1, value_note_split_proof },
+                         { bid1, bid2 },
+                         { 2, 3, virtual_asset_id1 });
+    auto result3 = verify_logic(rollup3_tx, rollup_4_keyless);
+    EXPECT_TRUE(result3.logic_verified);
+
+    /**
+     * Rollup 3: Create defi claim proofs for repaying loans 1 and 3.
+     * Also, create defi deposit proof for repaying one part of loan 2.
+     */
+    std::vector<native::defi_interaction::note> dins1 = { { bid1, 12, 1800, 152, 18, true },
+                                                          { bid2, 13, 3000, 120, 15, true } };
+    context.start_next_root_rollup(dins1);
+
+    // Finish loan repayments which were initiated in the previous rollup.
+    rollup::rollup_proof_data data3(result3.public_inputs);
+    auto loan_repay_claim_proof1 = context.create_claim_proof(bid1, 1800, data3.data_start_index + 0, 0);
+    auto loan_repay_claim_proof2 = context.create_claim_proof(bid2, 3000, data3.data_start_index + 2, 0);
+
+    // Initiate repayment of one installment of the second loan in this rollup.
+    auto loan_repay_proof4 = context.create_defi_proof({ data3.data_start_index + 7, data3.data_start_index + 4 },
+                                                       { 1000, 1000 },
+                                                       { 1000, 0 },
+                                                       bid1,
+                                                       2,
+                                                       0,
+                                                       virtual_asset_id1);
+
+    auto rollup4_tx = create_rollup_tx(context.world_state,
+                                       4,
+                                       { loan_repay_claim_proof1, loan_repay_claim_proof2, loan_repay_proof4 },
+                                       { bid1, bid2 },
+                                       { 2, 3 });
+    auto result4 = verify_logic(rollup4_tx, rollup_4_keyless);
+    EXPECT_TRUE(result4.logic_verified);
+
+    /**
+     * Rollup 4: Create defi claim proofs for repaying one installment of loans 2.
+     * Also, create defi deposit proof for repaying other part of loan 2.
+     */
+    std::vector<native::defi_interaction::note> dins2 = { { bid1, 16, 1000, 85, 15, true } };
+    context.start_next_root_rollup(dins2);
+
+    // Finish loan repayment which was initiated in the previous rollup.
+    rollup::rollup_proof_data data4(result4.public_inputs);
+    auto loan_repay_claim_proof4 = context.create_claim_proof(bid1, 1000, data4.data_start_index + 4, 0);
+
+    // Initiate repayment of the remaining installment of loan 2 in this rollup.
+    auto loan_repay_proof5 = context.create_defi_proof({ data3.data_start_index + 6, data3.data_start_index + 5 },
+                                                       { 900, 900 },
+                                                       { 900, 0 },
+                                                       bid1,
+                                                       2,
+                                                       0,
+                                                       virtual_asset_id1);
+
+    auto rollup5_tx = create_rollup_tx(
+        context.world_state, 4, { loan_repay_claim_proof4, loan_repay_proof5 }, { bid1, bid2 }, { 2, 3 });
+    auto result5 = verify_logic(rollup5_tx, rollup_4_keyless);
+    EXPECT_TRUE(result5.logic_verified);
 }
 
 TEST_F(rollup_tests, test_defi_claim_proof_has_valid_defi_root)

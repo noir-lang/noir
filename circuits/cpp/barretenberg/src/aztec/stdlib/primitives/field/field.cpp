@@ -553,6 +553,9 @@ field_t<ComposerContext> field_t<ComposerContext>::conditional_assign(const bool
 template <typename ComposerContext>
 void field_t<ComposerContext>::create_range_constraint(const size_t num_bits, std::string const& msg) const
 {
+    if (num_bits == 0) {
+        assert_is_zero("0-bit range_constraint on non-zero field_t.");
+    }
     if (is_constant()) {
         ASSERT(uint256_t(get_value()).get_msb() < num_bits);
     } else {
@@ -768,9 +771,9 @@ field_t<ComposerContext> field_t<ComposerContext>::accumulate(const std::vector<
 }
 
 template <typename ComposerContext>
-field_t<ComposerContext> field_t<ComposerContext>::slice(const uint8_t msb, const uint8_t lsb) const
+std::array<field_t<ComposerContext>, 3> field_t<ComposerContext>::slice(const uint8_t msb, const uint8_t lsb) const
 {
-    ASSERT(msb > lsb);
+    ASSERT(msb >= lsb);
     const field_t lhs = *this;
     ComposerContext* ctx = lhs.get_context();
 
@@ -793,10 +796,11 @@ field_t<ComposerContext> field_t<ComposerContext>::slice(const uint8_t msb, cons
                                    "slice: hi value too large.");
     lo_wit.create_range_constraint(lsb, "slice: lo value too large.");
     slice_wit.create_range_constraint(msb_plus_one - lsb, "slice: sliced value too large.");
-    assert_equal(((hi_wit * pow<ComposerContext>(field_t(2), msb_plus_one)) + lo_wit +
-                  (slice_wit * pow<ComposerContext>(field_t(2), lsb))));
+    assert_equal(
+        ((hi_wit * field_t(uint256_t(1) << msb_plus_one)) + lo_wit + (slice_wit * field_t(uint256_t(1) << lsb))));
 
-    return slice_wit;
+    std::array<field_t, 3> result = { lo_wit, slice_wit, hi_wit };
+    return result;
 }
 
 INSTANTIATE_STDLIB_TYPE(field_t);

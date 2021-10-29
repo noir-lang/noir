@@ -12,7 +12,7 @@ inner_proof_data::inner_proof_data(std::vector<uint8_t> const& proof_data)
     nullifier2 = from_buffer<uint256_t>(proof_data, InnerProofOffsets::NULLIFIER2);
     public_value = from_buffer<uint256_t>(proof_data, InnerProofOffsets::PUBLIC_VALUE);
     public_owner = from_buffer<fr>(proof_data, InnerProofOffsets::PUBLIC_OWNER);
-    asset_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::ASSET_ID);
+    asset_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::PUBLIC_ASSET_ID);
     merkle_root = from_buffer<fr>(proof_data, InnerProofOffsets::MERKLE_ROOT);
     tx_fee = from_buffer<uint256_t>(proof_data, InnerProofOffsets::TX_FEE);
     tx_fee_asset_id = from_buffer<uint256_t>(proof_data, InnerProofOffsets::TX_FEE_ASSET_ID);

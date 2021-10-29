@@ -37,7 +37,7 @@ class rollup_tests_full : public ::testing::Test {
 
     fixtures::TestContext context;
     const uint32_t asset_id = 0;
-    const uint256_t tx_fee = 7;
+    const uint32_t tx_fee = 7;
 };
 
 // Full proofs.
@@ -49,7 +49,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     context.append_value_notes({ 100, 50 });
     context.start_next_root_rollup();
 
-    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 110 }, 30, 0, tx_fee);
+    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 110 - tx_fee }, 30, 0);
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
@@ -93,7 +93,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     context.append_value_notes({ 100, 50 });
     context.start_next_root_rollup();
 
-    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 }, 0, 0, tx_fee);
+    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 - tx_fee });
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =
@@ -137,7 +137,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     context.append_value_notes({ 0, 0, 100, 50, 80, 60 });
     context.start_next_root_rollup();
 
-    auto join_split_proof = context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 110 }, 30, 0, tx_fee);
+    auto join_split_proof = context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 70, 110 - tx_fee }, 30);
     auto account_proof = context.create_account_proof();
     auto txs = std::vector<std::vector<uint8_t>>{ join_split_proof, account_proof };
     auto rollup = create_rollup_tx(context.world_state, rollup_size, txs);
@@ -184,7 +184,7 @@ HEAVY_TEST_F(rollup_tests_full, test_3_rollup_pads_to_4)
     context.append_value_notes({ 100, 50 });
     context.start_next_root_rollup();
 
-    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 }, 0, 0, tx_fee);
+    auto join_split_proof = context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 70, 80 - tx_fee });
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof });
 
     auto rollup_circuit_data =

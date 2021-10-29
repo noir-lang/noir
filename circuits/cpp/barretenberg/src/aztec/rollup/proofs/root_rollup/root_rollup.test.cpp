@@ -131,13 +131,13 @@ class root_rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 }, aid3);
         context.start_next_root_rollup();
 
-        notes::native::bridge_id bid2 = { 1, 2, aid2, 0, 0 };
-        notes::native::bridge_id bid3 = { 2, 2, aid3, 0, 0 };
-        auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 }, 0, 0, 7); // fee = 7
+        notes::native::bridge_id bid2 = { 1, aid2, 0, 0, 0, true, false };
+        notes::native::bridge_id bid3 = { 2, aid3, 0, 0, 0, true, false };
+        auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 - 7 }); // fee = 7
         auto js_proof2 =
-            context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 20, 130 }, 0, 0, 15, 0, aid1); // fee = 15
+            context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 20, 130 - 15 }, 0, 0, 0, aid1); // fee = 15
         auto js_proof3 =
-            context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 10, 140 }, 0, 0, 9, 0, aid2);      // fee = 9
+            context.create_join_split_proof({ 4, 5 }, { 100, 50 }, { 10, 140 - 9 }, 0, 0, 0, aid2);     // fee = 9
         auto defi_proof1 = context.create_defi_proof({ 6, 7 }, { 100, 50 }, { 30, 102 }, bid2, aid2);   // fee = 18
         auto defi_proof2 = context.create_defi_proof({ 8, 9 }, { 100, 50 }, { 50, 80 }, bid2, aid2);    // fee = 20
         auto defi_proof3 = context.create_defi_proof({ 10, 11 }, { 100, 50 }, { 20, 111 }, bid3, aid3); // fee = 19

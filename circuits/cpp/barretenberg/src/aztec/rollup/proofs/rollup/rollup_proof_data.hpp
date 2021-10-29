@@ -60,7 +60,7 @@ enum {
     NULLIFIER2,
     PUBLIC_VALUE,
     PUBLIC_OWNER,
-    ASSET_ID,
+    PUBLIC_ASSET_ID,
     NUM_FIELDS
 };
 }

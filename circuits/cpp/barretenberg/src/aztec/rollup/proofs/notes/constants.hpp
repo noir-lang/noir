@@ -27,11 +27,13 @@ enum GeneratorIndex {
     ACCOUNT_ALIAS_ID_NULLIFIER,
 };
 
-constexpr uint32_t DEFI_BRIDGE_ADDRESS_BIT_LENGTH = 160;
-constexpr uint32_t DEFI_BRIDGE_NUM_OUTPUT_NOTES_LEN = 2;
+constexpr uint32_t DEFI_BRIDGE_ADDRESS_ID_LEN = 32;
 constexpr uint32_t DEFI_BRIDGE_INPUT_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH;
 constexpr uint32_t DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH;
 constexpr uint32_t DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN = MAX_NUM_ASSETS_BIT_LENGTH;
+constexpr uint32_t DEFI_BRIDGE_OPENING_NONCE_LEN = 32;
+constexpr uint32_t DEFI_BRIDGE_BITCONFIG_LEN = 32;
+constexpr uint32_t DEFI_BRIDGE_AUX_DATA = 64;
 
 } // namespace notes
 } // namespace proofs

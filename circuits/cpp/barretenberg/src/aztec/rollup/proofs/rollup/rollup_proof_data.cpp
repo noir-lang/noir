@@ -75,7 +75,7 @@ void rollup_proof_data::populate_from_fields(std::vector<fr> const& fields)
         inner_proofs[i].nullifier2 = fields[offset + PropagatedInnerProofFields::NULLIFIER2];
         inner_proofs[i].public_value = fields[offset + PropagatedInnerProofFields::PUBLIC_VALUE];
         inner_proofs[i].public_owner = fields[offset + PropagatedInnerProofFields::PUBLIC_OWNER];
-        inner_proofs[i].asset_id = fields[offset + PropagatedInnerProofFields::ASSET_ID];
+        inner_proofs[i].asset_id = fields[offset + PropagatedInnerProofFields::PUBLIC_ASSET_ID];
     }
 
     auto offset = RollupProofFields::INNER_PROOFS_DATA + (rollup_size * PropagatedInnerProofFields::NUM_FIELDS);

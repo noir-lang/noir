@@ -65,20 +65,12 @@ class TestContext {
                                                  std::array<uint32_t, 2> out_note_value,
                                                  uint256_t public_input = 0,
                                                  uint256_t public_output = 0,
-                                                 uint256_t tx_fee = 0,
                                                  uint32_t account_note_idx = 0,
                                                  uint32_t asset_id = 0,
                                                  uint32_t nonce = 0)
     {
-        auto tx = js_tx_factory.create_join_split_tx(in_note_idx,
-                                                     in_note_value,
-                                                     out_note_value,
-                                                     public_input,
-                                                     public_output,
-                                                     tx_fee,
-                                                     account_note_idx,
-                                                     asset_id,
-                                                     nonce);
+        auto tx = js_tx_factory.create_join_split_tx(
+            in_note_idx, in_note_value, out_note_value, public_input, public_output, account_note_idx, asset_id, nonce);
         auto signer = nonce ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);
@@ -89,10 +81,12 @@ class TestContext {
                                            std::array<uint32_t, 2> out_note_value,
                                            uint256_t bridge_id,
                                            uint32_t asset_id = 0,
-                                           uint32_t nonce = 0)
+                                           uint32_t nonce = 0,
+                                           uint32_t virtual_asset_id = 0)
     {
 
-        auto tx = js_tx_factory.create_defi_deposit_tx(in_note_idx, in_note_value, out_note_value, bridge_id, asset_id);
+        auto tx = js_tx_factory.create_defi_deposit_tx(
+            in_note_idx, in_note_value, out_note_value, bridge_id, asset_id, virtual_asset_id);
         auto signer = nonce ? user.signing_keys[0] : user.owner;
         js_tx_factory.finalise_and_sign_tx(tx, signer);
         return join_split::create_proof(tx, js_cd);

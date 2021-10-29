@@ -10,8 +10,8 @@ using namespace barretenberg;
 void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 {
     using serialize::write;
-    write(buf, tx.public_input);
-    write(buf, tx.public_output);
+    write(buf, tx.proof_id);
+    write(buf, tx.public_value);
     write(buf, tx.public_owner);
     write(buf, tx.asset_id);
     write(buf, tx.num_input_notes);
@@ -39,8 +39,8 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
 void read(uint8_t const*& it, join_split_tx& tx)
 {
     using serialize::read;
-    read(it, tx.public_input);
-    read(it, tx.public_output);
+    read(it, tx.proof_id);
+    read(it, tx.public_value);
     read(it, tx.public_owner);
     read(it, tx.asset_id);
     read(it, tx.num_input_notes);
@@ -67,8 +67,8 @@ void read(uint8_t const*& it, join_split_tx& tx)
 
 std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
 {
-    return os << "public_input: " << tx.public_input << "\n"
-              << "public_output: " << tx.public_output << "\n"
+    return os << "proof_id: " << tx.proof_id << "\n"
+              << "public_value: " << tx.public_value << "\n"
               << "public_owner: " << tx.public_owner << "\n"
               << "asset_id: " << tx.asset_id << "\n"
               << "num_input_notes: " << tx.num_input_notes << "\n"

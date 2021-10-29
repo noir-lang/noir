@@ -13,6 +13,10 @@ namespace claim {
 
 using namespace plonk::stdlib::types::turbo;
 
+/**
+ * Convert native claim note data into circuit witness data.
+ * Used in the claim circuit where the input is an actual, fully committed, claim note.
+ */
 struct claim_note_witness_data {
     field_ct deposit_value;
     bridge_id bridge_id_data;
@@ -30,12 +34,16 @@ struct claim_note_witness_data {
         value_note_partial_commitment = witness_ct(&composer, note_data.value_note_partial_commitment);
         input_nullifier = witness_ct(&composer, note_data.input_nullifier);
 
-        deposit_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
-        defi_interaction_nonce.create_range_constraint(32, "defi interaction nonce too large.");
-        fee.create_range_constraint(TX_FEE_BIT_LENGTH, "claim fee too large.");
+        deposit_value.create_range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
+        defi_interaction_nonce.create_range_constraint(DEFI_TREE_DEPTH, "defi interaction nonce too large");
+        fee.create_range_constraint(TX_FEE_BIT_LENGTH, "claim fee too large");
     }
 };
 
+/**
+ * Convert native claim note tx data into circuit witness data.
+ * Used in the join split circuit to create a partial claim note commitment.
+ */
 struct claim_note_tx_witness_data {
     field_ct deposit_value;
     bridge_id bridge_id_data;
@@ -49,7 +57,7 @@ struct claim_note_tx_witness_data {
         note_secret = witness_ct(&composer, note_data.note_secret);
         input_nullifier = witness_ct(&composer, note_data.input_nullifier);
 
-        deposit_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "defi deposit value too large.");
+        deposit_value.create_range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
     }
 };
 

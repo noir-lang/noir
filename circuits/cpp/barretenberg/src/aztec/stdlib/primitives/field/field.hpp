@@ -206,7 +206,11 @@ template <typename ComposerContext> class field_t {
 
     ComposerContext* get_context() const { return context; }
 
-    field_t slice(const uint8_t msb, const uint8_t lsb) const;
+    /**
+     * Slices a `field_t` at given indices (msb, lsb) both included in the slice,
+     * returns three parts: [low, slice, high].
+     */
+    std::array<field_t, 3> slice(const uint8_t msb, const uint8_t lsb) const;
 
     /**
      * is_zero will return a bool_t, and add constraints that enforce its correctness

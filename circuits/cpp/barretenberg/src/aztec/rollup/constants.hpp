@@ -16,10 +16,11 @@ constexpr size_t TX_FEE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BI
 
 constexpr size_t NUM_ASSETS_BIT_LENGTH = 4;
 constexpr size_t NUM_ASSETS = 1 << NUM_ASSETS_BIT_LENGTH;
+constexpr size_t ASSET_ID_BIT_LENGTH = 32;
 constexpr size_t MAX_NUM_ASSETS_BIT_LENGTH = 30;
 constexpr size_t MAX_NUM_ASSETS = 1 << MAX_NUM_ASSETS_BIT_LENGTH;
 
-constexpr uint32_t DEFI_BRIDGE_ID_BIT_LENGTH = 252;
+constexpr uint32_t DEFI_BRIDGE_ID_BIT_LENGTH = 250;
 constexpr uint32_t NUM_BRIDGE_CALLS_PER_BLOCK = 4;
 constexpr uint32_t NUM_INTERACTION_RESULTS_PER_BLOCK = 4;
 

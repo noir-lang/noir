@@ -489,6 +489,7 @@ std::vector<uint32_t> StandardComposer::decompose_into_base4_accumulators(const 
                                                                           const size_t num_bits,
                                                                           std::string const& msg)
 {
+    ASSERT(num_bits > 0);
     fr target = get_variable(witness_index).from_montgomery_form();
 
     std::vector<uint32_t> accumulators;

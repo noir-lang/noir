@@ -1299,6 +1299,7 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
                                                                     std::string const& msg)
 {
     ASSERT(variable_index != IS_CONSTANT);
+    ASSERT(num_bits > 0);
     std::vector<uint32_t> sums;
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
     const size_t last_limb_size = num_bits - (limb_num * DEFAULT_PLOOKUP_RANGE_BITNUM);

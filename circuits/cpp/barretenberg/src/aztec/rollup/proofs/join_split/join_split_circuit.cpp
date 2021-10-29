@@ -31,12 +31,12 @@ field_ct process_input_note(field_ct const& account_private_key,
                             bool_ct is_propagated,
                             bool_ct is_real)
 {
+    bool_ct valid_value = note.value == 0 || is_real;
+    valid_value.assert_equal(true, "padding note non zero");
+
     auto exists = merkle_tree::check_membership(merkle_root, hash_path, note.commitment, byte_array_ct(index));
     auto valid = exists || is_propagated || !is_real;
     valid.assert_equal(true, "input note not a member");
-
-    bool_ct valid_value = note.value == 0 || is_real;
-    valid_value.assert_equal(true, "padding note non zero");
 
     return compute_nullifier(note.commitment, account_private_key, is_real);
 }
@@ -45,6 +45,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 {
     auto is_deposit = inputs.proof_id == field_ct(ProofIds::DEPOSIT);
     auto is_withdraw = inputs.proof_id == field_ct(ProofIds::WITHDRAW);
+    auto is_send = inputs.proof_id == field_ct(ProofIds::SEND);
     auto is_public_tx = is_deposit || is_withdraw;
     auto is_defi_deposit = inputs.proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
     auto not_defi_deposit = !is_defi_deposit;
@@ -60,121 +61,148 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     auto public_output = inputs.public_value * is_withdraw;
     auto defi_deposit_value = inputs.claim_note.deposit_value * is_defi_deposit;
     auto bridge_id = claim_note.bridge_id * is_defi_deposit;
+    auto inote1_valid = inputs.num_input_notes == 1 || inputs.num_input_notes == 2;
+    auto inote2_valid = inputs.num_input_notes == 2;
+    auto inote1_value = input_note1.value;
+    auto inote2_value = input_note2.value;
+    auto onote1_value = output_note1.value * not_defi_deposit;
+    auto onote2_value = output_note2.value;
 
-    // Check public value and owner are not zero for deposit and withdraw.
-    // Otherwise, they must be zero.
+    // Input data range contraints.
+    inputs.alias_hash.create_range_constraint(224, "alias hash too large");
+    inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
+    inputs.asset_id.create_range_constraint(ASSET_ID_BIT_LENGTH, "asset id too large");
+
+    // Check public value and owner are not zero for deposit and withdraw, otherwise they must be zero.
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
     (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
 
-    // Verify all notes have a consistent asset id
-    inputs.input_note1.asset_id.assert_equal(inputs.input_note2.asset_id, "input note asset ids don't match");
-    inputs.output_note1.asset_id.assert_equal(inputs.output_note2.asset_id, "output note asset ids don't match");
-    inputs.input_note1.asset_id.assert_equal(inputs.output_note1.asset_id, "input/output note asset ids don't match");
-    inputs.input_note1.asset_id.assert_equal(inputs.asset_id, "note asset ids not equal to tx asset id");
+    // Circuit operates in one of several cases. Assert we're only in one of these cases and rules apply.
+    {
+        // Case 0: 0 input notes, all notes have same asset ids, can only DEPOSIT.
+        const auto case0 = !inote1_valid && !inote2_valid;
+        // Case 1: 1 real asset note, all notes have same asset ids, any function.
+        const auto case1 = !input_note1.is_virtual && inote1_valid && !inote2_valid;
+        // Case 2: 2 real asset notes, all notes have same asset ids, any function.
+        const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid;
+        // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND.
+        const auto case3 = input_note1.is_virtual && !inote2_valid;
+        // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
+        const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
+        // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, values equal, can only
+        // DEFI_DEPOSIT, virtual notes interaction nonce must match that in the bridge id.
+        const auto case5 = !input_note1.is_virtual && input_note2.is_virtual;
 
-    auto valid_claim_note_asset_id =
-        inputs.claim_note.bridge_id_data.input_asset_id == inputs.input_note1.asset_id || not_defi_deposit;
-    valid_claim_note_asset_id.assert_equal(true, "input note and claim note asset ids don't match");
+        // Check we are exactly one of the defined cases.
+        (field_ct(case0) + case1 + case2 + case3 + case4 + case5).assert_equal(1, "unsupported case");
 
-    // Verify the asset id is less than the total number of assets.
-    inputs.asset_id.create_range_constraint(MAX_NUM_ASSETS_BIT_LENGTH, "asset id too large");
+        // Assert case rules.
+        const auto onote1_aid = field_ct::conditional_assign(
+            is_defi_deposit, inputs.claim_note.bridge_id_data.input_asset_id, inputs.output_note1.asset_id);
+        const auto all_asset_ids_match =
+            input_note1.asset_id == input_note2.asset_id && input_note1.asset_id == onote1_aid &&
+            input_note1.asset_id == output_note2.asset_id && input_note1.asset_id == inputs.asset_id;
+        (case0 || case1 || case2 || case3 || case4).must_imply(all_asset_ids_match, "asset ids don't match");
+        (case1 || case2).must_imply(is_deposit || is_send || is_withdraw || is_defi_deposit, "unknown function");
+        (case0).must_imply(is_deposit, "can only deposit");
+        (case3 || case4).must_imply(is_send, "can only send");
+
+        case5.must_imply(is_defi_deposit, "can only defi deposit");
+        case5.must_imply(inote1_value == inote2_value, "input note values must match");
+        case5.must_imply(input_note1.asset_id == onote1_aid && input_note1.asset_id == output_note2.asset_id,
+                         "asset ids don't match");
+        case5.must_imply(inputs.claim_note.bridge_id_data.opening_nonce == input_note2.virtual_note_nonce,
+                         "incorrect interaction nonce in bridge id");
+
+        // Don't consider second note value for case5 in the input/output balancing equations.
+        inote2_value *= !case5;
+    }
 
     // Check we're not joining the same input note.
-    (input_note1.commitment).assert_not_equal(input_note2.commitment, "joining same note");
+    input_note1.commitment.assert_not_equal(input_note2.commitment, "joining same note");
 
-    // Check public values.
-    inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
-    inputs.claim_note.deposit_value.create_range_constraint(DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi deposit too large");
-
-    // Check chaining values:
-    // Propagated_input_index must be in {0, 1, 2}
-    bool_ct no_note_propagated = inputs.propagated_input_index == 0;
+    // Transaction chaining.
     bool_ct note1_propagated = inputs.propagated_input_index == 1;
     bool_ct note2_propagated = inputs.propagated_input_index == 2;
-    (no_note_propagated || note1_propagated || note2_propagated)
-        .assert_equal(true, "propagated_input_index out of range");
+    {
+        // propagated_input_index must be in {0, 1, 2}
+        bool_ct no_note_propagated = inputs.propagated_input_index == 0;
+        (no_note_propagated || note1_propagated || note2_propagated)
+            .assert_equal(true, "propagated_input_index out of range");
 
-    // allow_chain must be in {0, 1, 2}
-    bool_ct allow_chain_1 = inputs.allow_chain == 1;
-    bool_ct allow_chain_2 = inputs.allow_chain == 2;
-    (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
+        // allow_chain must be in {0, 1, 2}
+        bool_ct allow_chain_1 = inputs.allow_chain == 1;
+        bool_ct allow_chain_2 = inputs.allow_chain == 2;
+        (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
 
-    // prevent chaining from a partial claim note:
-    (is_defi_deposit).must_imply(!allow_chain_1, "cannot chain from a partial claim note");
+        // Prevent chaining from a partial claim note.
+        is_defi_deposit.must_imply(!allow_chain_1, "cannot chain from a partial claim note");
 
-    bool_ct note1_linked = inputs.backward_link == input_note1.commitment;
-    bool_ct note2_linked = inputs.backward_link == input_note2.commitment;
-    // These implications are forward-compatible with the more complex linking spec.
-    (note1_propagated).must_imply(note1_linked, "inconsistent backward_link & propagated_input_index");
-    (note2_propagated).must_imply(note2_linked, "inconsistent backward_link & propagated_input_index");
-    (!note1_linked && !note2_linked)
-        .must_imply(no_note_propagated, "inconsistent backward_link & propagated_input_index");
+        bool_ct note1_linked = inputs.backward_link == input_note1.commitment;
+        bool_ct note2_linked = inputs.backward_link == input_note2.commitment;
+        note1_propagated.must_imply(note1_linked, "inconsistent backward_link & propagated_input_index");
+        note2_propagated.must_imply(note2_linked, "inconsistent backward_link & propagated_input_index");
+        (!note1_linked && !note2_linked)
+            .must_imply(no_note_propagated, "inconsistent backward_link & propagated_input_index");
 
-    // when allowing chaining, ensure propagation is to one's self (and not to some other user):
-    point_ct self = input_note1.owner;
-    (allow_chain_1).must_imply(output_note1.owner == self, "inter-user chaining disallowed");
-    (allow_chain_2).must_imply(output_note2.owner == self, "inter-user chaining disallowed");
+        // When allowing chaining, ensure propagation is to one's self (and not to some other user).
+        point_ct self = input_note1.owner;
+        allow_chain_1.must_imply(output_note1.owner == self, "inter-user chaining disallowed");
+        allow_chain_2.must_imply(output_note2.owner == self, "inter-user chaining disallowed");
+    }
 
     // Derive tx_fee.
-    field_ct total_in_value = public_input.add_two(inputs.input_note1.value, inputs.input_note2.value);
-    field_ct total_out_value = inputs.output_note1.value.madd(not_defi_deposit, defi_deposit_value)
-                                   .add_two(public_output, inputs.output_note2.value);
+    field_ct total_in_value = public_input + inote1_value + inote2_value;
+    field_ct total_out_value = public_output + onote1_value + onote2_value + defi_deposit_value;
     field_ct tx_fee = total_in_value - total_out_value;
     tx_fee.create_range_constraint(TX_FEE_BIT_LENGTH, "tx fee too large");
 
-    // Verify input notes have the same account value id.
-    auto note1 = inputs.input_note1;
-    auto note2 = inputs.input_note2;
-    // These checks ensure we only need to compute one signature, for efficiency.
-    note1.owner.assert_equal(note2.owner, "input note owners don't match");
-    note1.nonce.assert_equal(note2.nonce, "input note nonces don't match");
+    // Verify input notes have the same account public key and nonce.
+    input_note1.owner.assert_equal(input_note2.owner, "input note owners don't match");
+    input_note1.nonce.assert_equal(input_note2.nonce, "input note nonces don't match");
 
+    // And thus check both input notes have the correct public key (derived from the private key) and nonce.
     auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
-    account_public_key.assert_equal(note1.owner, "account_private_key incorrect");
-    inputs.nonce.assert_equal(note1.nonce, "nonce incorrect");
+    account_public_key.assert_equal(input_note1.owner, "account_private_key incorrect");
+    inputs.nonce.assert_equal(input_note1.nonce, "nonce incorrect");
 
-    // Verify that the given signature was signed using
-    // -> the account public key if nonce == 0
-    // -> the given signing key if nonce > 0
-    bool_ct zero_nonce = inputs.nonce == field_ct(0);
+    // Verify output notes creator_pubkey is either account_public_key.x or 0.
+    account_public_key.x.assert_equal(
+        account_public_key.x.madd(output_note1.creator_pubkey.is_zero(), output_note1.creator_pubkey),
+        "output note 1 creator_pubkey mismatch");
+    account_public_key.x.assert_equal(
+        account_public_key.x.madd(output_note2.creator_pubkey.is_zero(), output_note2.creator_pubkey),
+        "output note 2 creator_pubkey mismatch");
+
+    // Signer is the account public key if account nonce is 0, else it's the given signing key.
+    bool_ct zero_nonce = inputs.nonce.is_zero();
     point_ct signer = { field_ct::conditional_assign(zero_nonce, account_public_key.x, inputs.signing_pub_key.x),
                         field_ct::conditional_assign(zero_nonce, account_public_key.y, inputs.signing_pub_key.y) };
 
-    // alias hash must be 224 bits or fewer
-    inputs.alias_hash.create_range_constraint(224, "alias hash too large");
-    // Verify that the account exists if nonce > 0
-    auto account_alias_id = inputs.alias_hash + (inputs.nonce * field_ct(uint256_t(1) << 224));
-
-    // Verify creator_pubkey is EITHER account_public_key.x OR 0 for both output notes
-    account_public_key.x.assert_equal(
-        account_public_key.x.madd(inputs.output_note1.creator_pubkey.is_zero(), inputs.output_note1.creator_pubkey),
-        "output note 1 sender_pubkey mismatch");
-    account_public_key.x.assert_equal(
-        account_public_key.x.madd(inputs.output_note2.creator_pubkey.is_zero(), inputs.output_note2.creator_pubkey),
-        "output note 2 sender_pubkey id mismatch");
-
-    auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
-    auto signing_key_exists = merkle_tree::check_membership(
-        inputs.merkle_root, inputs.account_path, account_note_data.commitment, byte_array_ct(inputs.account_index));
-    (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
+    // Verify that the signing key account note exists if nonce > 0.
+    {
+        auto account_alias_id = inputs.alias_hash + (inputs.nonce * field_ct(uint256_t(1) << 224));
+        auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
+        auto signing_key_exists = merkle_tree::check_membership(
+            inputs.merkle_root, inputs.account_path, account_note_data.commitment, byte_array_ct(inputs.account_index));
+        (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
+    }
 
     // Verify each input note exists in the tree, and compute nullifiers.
-    bool_ct note1_valid = inputs.num_input_notes == 1 || inputs.num_input_notes == 2;
-    bool_ct note2_valid = inputs.num_input_notes == 2;
     field_ct nullifier1 = process_input_note(inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path1,
                                              inputs.input_note1_index,
                                              input_note1,
                                              note1_propagated,
-                                             note1_valid);
+                                             inote1_valid);
     field_ct nullifier2 = process_input_note(inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path2,
                                              inputs.input_note2_index,
                                              input_note2,
                                              note2_propagated,
-                                             note2_valid);
+                                             inote2_valid);
 
     // Assert that input nullifiers in the output note commitments equal the input note nullifiers.
     output_note1.input_nullifier.assert_equal(nullifier1, "output note 1 has incorrect input nullifier");
@@ -201,8 +229,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
 {
     join_split_inputs inputs = {
-        witness_ct(&composer, tx.proof_id()),
-        witness_ct(&composer, tx.public_value()),
+        witness_ct(&composer, tx.proof_id),
+        witness_ct(&composer, tx.public_value),
         witness_ct(&composer, tx.public_owner),
         witness_ct(&composer, tx.asset_id),
         witness_ct(&composer, tx.num_input_notes),

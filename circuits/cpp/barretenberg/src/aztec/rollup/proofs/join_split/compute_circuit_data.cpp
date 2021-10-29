@@ -28,9 +28,9 @@ join_split_tx noop_tx()
     auto gibberish_path = fr_hash_path(DATA_TREE_DEPTH, std::make_pair(fr::random_element(), fr::random_element()));
 
     join_split_tx tx;
-    tx.public_input = 0;
-    tx.public_output = 0;
-    tx.public_owner = fr::zero();
+    tx.proof_id = ProofIds::DEPOSIT;
+    tx.public_value = 1;
+    tx.public_owner = fr::one();
     tx.asset_id = 0;
     tx.num_input_notes = 0;
     tx.input_index = { 0, 1 };

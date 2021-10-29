@@ -31,7 +31,7 @@ struct witness_data {
         creator_pubkey = witness_ct(&composer, note.creator_pubkey);
         input_nullifier = witness_ct(&composer, note.input_nullifier);
 
-        asset_id.create_range_constraint(32);
+        asset_id.create_range_constraint(ASSET_ID_BIT_LENGTH);
         value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }
 };

@@ -15,10 +15,10 @@ using namespace rollup::proofs::join_split;
 TEST(client_proofs_join_split_tx, test_serialization)
 {
     join_split_tx tx;
+    tx.proof_id = 1;
     tx.account_index = 0;
     tx.signing_pub_key = grumpkin::g1::one * grumpkin::fr::random_element();
-    tx.public_input = 10;
-    tx.public_output = 20;
+    tx.public_value = 10;
     tx.public_owner = fr::random_element();
     tx.num_input_notes = 2;
     tx.account_private_key = grumpkin::fr::random_element();
