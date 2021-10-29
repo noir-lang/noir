@@ -13,7 +13,7 @@ acir = { path = "../acir" }
 # and not need to pull in the other proof systems. Also ideally like to avoid using DLL
 # It seems to be only way... This is not an immediate problem while dependencies are small
 aztec_backend = { optional = true, path = "../aztec_backend" }
-arkworks_backend = { optional = true, path = "../arkworks_backend" }
+arkworks_backend = { optional = true, git = "https://github.com/noir-lang/arkworks_backend" }
 sled = "0.34.6"
 noir_field = { path = "../noir_field" }
 sha2 = "0.9.3"

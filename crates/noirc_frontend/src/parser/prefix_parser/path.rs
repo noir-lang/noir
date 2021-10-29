@@ -72,7 +72,7 @@ fn path_identifer(
                 span: tok.to_span(),
                 message: format!(
                     "expected an identifier, `dep` or `crate`. Found {} ",
-                    tok.token().to_string()
+                    tok.token()
                 ),
             })
         }

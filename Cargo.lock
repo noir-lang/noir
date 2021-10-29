@@ -7,14 +7,23 @@ name = "acir"
 version = "0.1.0"
 dependencies = [
  "indexmap",
- "noir_field",
+ "noir_field 0.1.0",
+]
+
+[[package]]
+name = "acir"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/noir#7b22f49586a71c158162ee8b026343d1d9b3a5f7"
+dependencies = [
+ "indexmap",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
 ]
 
 [[package]]
 name = "acvm"
 version = "0.1.0"
 dependencies = [
- "acir",
+ "acir 0.1.0",
  "arkworks_backend",
  "aztec_backend",
  "blake2",
@@ -22,7 +31,7 @@ dependencies = [
  "hex",
  "indexmap",
  "k256",
- "noir_field",
+ "noir_field 0.1.0",
  "sha2",
  "sled",
  "tempfile",
@@ -247,8 +256,9 @@ dependencies = [
 [[package]]
 name = "arkworks_backend"
 version = "0.1.0"
+source = "git+https://github.com/noir-lang/arkworks_backend#bc4c7bab0ecddde4f5235d15b5303361426a57f7"
 dependencies = [
- "acir",
+ "acir 0.1.0 (git+https://github.com/noir-lang/noir)",
  "ark-bls12-381",
  "ark-bn254",
  "ark-ff",
@@ -260,7 +270,7 @@ dependencies = [
  "ark-std",
  "blake2",
  "cfg-if 1.0.0",
- "noir_field",
+ "noir_field 0.1.0 (git+https://github.com/noir-lang/noir)",
 ]
 
 [[package]]
@@ -296,11 +306,11 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 name = "aztec_backend"
 version = "0.1.0"
 dependencies = [
- "acir",
+ "acir 0.1.0",
  "dirs",
  "downloader",
  "indicatif",
- "noir_field",
+ "noir_field 0.1.0",
  "once_cell",
  "regex",
  "tempfile",
@@ -1250,9 +1260,9 @@ dependencies = [
 
 [[package]]
 name = "instant"
-version = "0.1.10"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bee0328b1209d157ef001c94dd85b4f8f64139adb0eac2659f4b08382b2f474d"
+checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if 1.0.0",
 ]
@@ -1450,7 +1460,7 @@ dependencies = [
  "dirs",
  "fm",
  "hex",
- "noir_field",
+ "noir_field 0.1.0",
  "noirc_abi",
  "noirc_driver",
  "noirc_frontend",
@@ -1492,12 +1502,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_field"
+version = "0.1.0"
+source = "git+https://github.com/noir-lang/noir#7b22f49586a71c158162ee8b026343d1d9b3a5f7"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "blake2",
+ "cfg-if 1.0.0",
+ "hex",
+]
+
+[[package]]
 name = "noirc_abi"
 version = "0.1.0"
 dependencies = [
  "acvm",
  "blake2",
- "noir_field",
+ "noir_field 0.1.0",
  "serde",
  "serde_derive",
  "toml",
@@ -1532,7 +1554,7 @@ name = "noirc_evaluator"
 version = "0.1.0"
 dependencies = [
  "acvm",
- "noir_field",
+ "noir_field 0.1.0",
  "noirc_abi",
  "noirc_errors",
  "noirc_frontend",
@@ -1546,7 +1568,7 @@ dependencies = [
  "acvm",
  "arena",
  "fm",
- "noir_field",
+ "noir_field 0.1.0",
  "noirc_abi",
  "noirc_errors",
  "pathdiff",
