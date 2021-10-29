@@ -4,7 +4,6 @@ members = [
     "crates/noir_field",
     "crates/noirc_evaluator",
     "crates/aztec_backend",
-    "crates/arkworks_backend",
     "crates/noirc_frontend",
     "crates/noirc_errors",
     "crates/noirc_driver",

@@ -24,7 +24,7 @@ name = "acvm"
 version = "0.1.0"
 dependencies = [
  "acir 0.1.0",
- "arkworks_backend 0.1.0 (git+https://github.com/noir-lang/arkworks_backend)",
+ "arkworks_backend",
  "aztec_backend",
  "blake2",
  "cfg-if 1.0.0",
@@ -251,25 +251,6 @@ checksum = "1df2c09229cbc5a028b1d70e00fdb2acee28b1055dfb5ca73eea49c5a25c4e7c"
 dependencies = [
  "num-traits",
  "rand",
-]
-
-[[package]]
-name = "arkworks_backend"
-version = "0.1.0"
-dependencies = [
- "acir 0.1.0",
- "ark-bls12-381",
- "ark-bn254",
- "ark-ff",
- "ark-marlin",
- "ark-poly",
- "ark-poly-commit",
- "ark-relations",
- "ark-serialize",
- "ark-std",
- "blake2",
- "cfg-if 1.0.0",
- "noir_field 0.1.0",
 ]
 
 [[package]]
