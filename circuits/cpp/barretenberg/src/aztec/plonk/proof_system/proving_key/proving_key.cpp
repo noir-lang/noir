@@ -1,5 +1,6 @@
 #include "proving_key.hpp"
 #include <polynomials/polynomial_arithmetic.hpp>
+#include <common/throw_or_abort.hpp>
 
 namespace waffle {
 
@@ -32,7 +33,8 @@ proving_key::proving_key(const size_t num_gates,
 }
 
 proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenceString> const& crs)
-    : n(data.n)
+    : composer_type(data.composer_type)
+    , n(data.n)
     , num_public_inputs(data.num_public_inputs)
     , constraint_selectors(std::move(data.constraint_selectors))
     , constraint_selector_ffts(std::move(data.constraint_selector_ffts))
@@ -48,8 +50,25 @@ proving_key::proving_key(proving_key_data&& data, std::shared_ptr<ProverReferenc
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
 {
     init();
-    // TODO: Currently only supporting TurboComposer in serialization!
-    std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
+    switch (composer_type) {
+    case ComposerType::STANDARD: {
+        std::copy(
+            standard_polynomial_manifest, standard_polynomial_manifest + 12, std::back_inserter(polynomial_manifest));
+        break;
+    };
+    case ComposerType::TURBO: {
+        std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
+        break;
+    };
+    case ComposerType::PLOOKUP: {
+        std::copy(
+            plookup_polynomial_manifest, plookup_polynomial_manifest + 34, std::back_inserter(polynomial_manifest));
+        break;
+    };
+    default: {
+        throw_or_abort("Received invalid composer type");
+    }
+    };
 }
 /**
  * Initialize proving key.
@@ -143,7 +162,8 @@ void proving_key::reset()
 }
 
 proving_key::proving_key(const proving_key& other)
-    : n(other.n)
+    : composer_type(other.composer_type)
+    , n(other.n)
     , num_public_inputs(other.num_public_inputs)
     , constraint_selectors(other.constraint_selectors)
     , constraint_selectors_lagrange_base(other.constraint_selectors_lagrange_base)
@@ -169,7 +189,8 @@ proving_key::proving_key(const proving_key& other)
 {}
 
 proving_key::proving_key(proving_key&& other)
-    : n(other.n)
+    : composer_type(other.composer_type)
+    , n(other.n)
     , num_public_inputs(other.num_public_inputs)
     , constraint_selectors(other.constraint_selectors)
     , constraint_selectors_lagrange_base(other.constraint_selectors_lagrange_base)
@@ -194,6 +215,7 @@ proving_key::proving_key(proving_key&& other)
 
 proving_key& proving_key::operator=(proving_key&& other)
 {
+    composer_type = other.composer_type;
     n = other.n;
     num_public_inputs = other.num_public_inputs;
     constraint_selectors = std::move(other.constraint_selectors);

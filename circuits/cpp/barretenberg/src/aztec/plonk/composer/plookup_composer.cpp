@@ -876,7 +876,7 @@ std::shared_ptr<proving_key> PlookupComposer::compute_proving_key()
     }
 
     ComposerBase::compute_proving_key_base(tables_size + lookups_size, NUM_RESERVED_GATES);
-
+    circuit_proving_key->composer_type = type;
     const size_t subgroup_size = circuit_proving_key->n;
 
     polynomial poly_q_table_1(subgroup_size);
@@ -944,7 +944,7 @@ std::shared_ptr<verification_key> PlookupComposer::compute_verification_key()
     }
     circuit_verification_key =
         plookup_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
-
+    circuit_verification_key->composer_type = type;
     return circuit_verification_key;
 }
 

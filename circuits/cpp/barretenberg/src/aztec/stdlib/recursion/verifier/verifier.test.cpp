@@ -11,7 +11,7 @@
 
 using namespace plonk;
 
-template <typename OuterComposer> class StdlibVerifier : public testing::Test {
+template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     using InnerComposer = waffle::TurboComposer;
 
     typedef stdlib::bn254<InnerComposer> inner_curve;
@@ -446,29 +446,29 @@ typedef testing::Types<waffle::StandardComposer,
                        >
     OuterComposerTypes;
 
-TYPED_TEST_SUITE(StdlibVerifier, OuterComposerTypes);
+TYPED_TEST_SUITE(stdlib_verifier, OuterComposerTypes);
 
-HEAVY_TYPED_TEST(StdlibVerifier, RecursiveProofComposition)
+HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition)
 {
     TestFixture::test_recursive_proof_composition();
 };
-HEAVY_TYPED_TEST(StdlibVerifier, DoubleVerification) // 5 mins with StandardComposer
+HEAVY_TYPED_TEST(stdlib_verifier, double_verification)
 {
     TestFixture::test_double_verification();
 };
-HEAVY_TYPED_TEST(StdlibVerifier, RecursiveProofCompositionVarVerifKeyA)
+HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_with_variable_verification_key_a)
 {
     TestFixture::test_recursive_proof_composition_with_variable_verification_key_a();
 }
-HEAVY_TYPED_TEST(StdlibVerifier, RecursiveProofCompositionVarVerifKeyB)
+HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_with_variable_verification_key_b)
 {
     TestFixture::test_recursive_proof_composition_with_variable_verification_key_b();
 }
-HEAVY_TYPED_TEST(StdlibVerifier, RecursiveProofCompositionVarVerifKeyFail)
+HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_var_verif_key_fail)
 {
     TestFixture::test_recursive_proof_composition_with_variable_verification_key_failure_case();
 }
-HEAVY_TYPED_TEST(StdlibVerifier, RecursiveProofCompositionConstVerifKey)
+HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_const_verif_key)
 {
     TestFixture::test_recursive_proof_composition_with_constant_verification_key();
 }

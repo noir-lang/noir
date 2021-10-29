@@ -723,6 +723,7 @@ std::shared_ptr<proving_key> StandardComposer::compute_proving_key()
     }
     // Compute q_l, q_r, q_o, etc polynomials
     ComposerBase::compute_proving_key_base();
+    circuit_proving_key->composer_type = type;
     // Compute sigma polynomials
     compute_sigma_permutations<3, false>(circuit_proving_key.get());
 
@@ -751,7 +752,7 @@ std::shared_ptr<verification_key> StandardComposer::compute_verification_key()
 
     circuit_verification_key =
         waffle::standard_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
-
+    circuit_verification_key->composer_type = type;
     circuit_verification_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
     circuit_verification_key->contains_recursive_proof = contains_recursive_proof;
@@ -777,6 +778,7 @@ std::shared_ptr<program_witness> StandardComposer::compute_witness()
 Verifier StandardComposer::create_verifier()
 {
     compute_verification_key();
+    circuit_verification_key->composer_type = type;
     Verifier output_state(circuit_verification_key, create_manifest(public_inputs.size()));
 
     std::unique_ptr<KateCommitmentScheme<standard_settings>> kate_commitment_scheme =

@@ -1,3 +1,6 @@
+#include <sstream>
+#include <iostream>
+
 #include "../proofs/account/compute_circuit_data.hpp"
 #include "../proofs/join_split/compute_circuit_data.hpp"
 #include "../proofs/claim/get_circuit_data.hpp"
@@ -25,6 +28,7 @@ account::circuit_data account_cd;
 tx_rollup::circuit_data tx_rollup_cd;
 root_rollup::circuit_data root_rollup_cd;
 claim::circuit_data claim_cd;
+std::vector<uint32_t> valid_outer_sizes;
 root_verifier::circuit_data root_verifier_cd;
 } // namespace
 
@@ -150,15 +154,36 @@ bool create_root_verifier()
             tx_rollup::get_circuit_data(num_txs, js_cd, account_cd, claim_cd, crs, data_path, true, persist, persist);
     }
 
-    if (!root_rollup_cd.proving_key || root_rollup_cd.num_inner_rollups != num_proofs) {
+    // on first run of create_root_verifier, build list of valid verification keys
+    if (!root_verifier_cd.proving_key) {
+        size_t size;
+        for (size_t size : valid_outer_sizes) {
+            if (size == num_proofs) {
+                // for the size requested, keep the root rollup circuit data.
+                root_rollup_cd.proving_key.reset();
+                root_rollup_cd =
+                    root_rollup::get_circuit_data(size, tx_rollup_cd, crs, data_path, true, persist, persist);
+                root_verifier_cd.valid_vks.emplace_back(root_rollup_cd.verification_key);
+            } else {
+                // otherwise, just store the verification key
+                root_verifier_cd.valid_vks.emplace_back(
+                    root_rollup::get_circuit_data(size, tx_rollup_cd, crs, data_path, true, persist, persist)
+                        .verification_key);
+            }
+        }
+        root_verifier_cd.proving_key.reset();
+        root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path);
+    }
+
+    // on calls after the first call to create_root_verifier, get the correct root rollup and verifier circuits.
+    if (root_rollup_cd.num_inner_rollups != num_proofs) {
         root_rollup_cd.proving_key.reset();
         root_rollup_cd =
             root_rollup::get_circuit_data(num_proofs, tx_rollup_cd, crs, data_path, true, persist, persist);
-    }
 
-    if (!root_verifier_cd.proving_key) {
         root_verifier_cd.proving_key.reset();
-        root_verifier_cd = root_verifier::get_circuit_data(root_rollup_cd, crs, data_path, true, persist, persist);
+        root_verifier_cd = root_verifier::get_circuit_data(
+            root_rollup_cd, crs, root_verifier_cd.valid_vks, data_path, true, persist, persist);
     }
 
     Timer timer;
@@ -187,11 +212,23 @@ bool create_root_verifier()
 int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
+    const std::string srs_path = (args.size() > size_t(1)) ? args[size_t(1)] : "../srs_db/ignition";
+    data_path = (args.size() > size_t(2)) ? args[size_t(2)] : "./data";
+    std::string shapes_raw = args[size_t(3)];
 
-    const std::string srs_path = (args.size() > 1) ? args[1] : "../srs_db/ignition";
-    data_path = (args.size() > 2) ? args[2] : "./data";
+    // parse string to vector of integers as in '1xa,1xb,1xc' |-> (a, b, c)
+    std::istringstream raw_stream(shapes_raw);
+    std::string curr_shape;
+    while (std::getline(raw_stream, curr_shape, ',')) {
+        std::string inner_size; // we assume elsewhere that this is independent of curr_shape
+        std::string outer_size;
+        std::istringstream shape_stream(curr_shape);
+        std::getline(shape_stream, inner_size, 'x');
+        std::getline(shape_stream, outer_size);
+        valid_outer_sizes.emplace_back(std::stoul(outer_size));
+    };
+
     persist = data_path != "-";
-
     std::cerr << "Loading crs..." << std::endl;
     crs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
 

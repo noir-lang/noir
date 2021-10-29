@@ -26,6 +26,7 @@ class ProverReferenceString {
     virtual ~ProverReferenceString(){};
 
     virtual barretenberg::g1::affine_element* get_monomials() = 0;
+    virtual size_t get_size() = 0;
 };
 
 class ReferenceStringFactory {

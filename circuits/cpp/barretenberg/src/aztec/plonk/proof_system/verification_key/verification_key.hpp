@@ -8,6 +8,7 @@
 namespace waffle {
 
 struct verification_key_data {
+    uint32_t composer_type;
     uint32_t n;
     uint32_t num_public_inputs;
     std::map<std::string, barretenberg::g1::affine_element> constraint_selectors;
@@ -19,6 +20,7 @@ struct verification_key_data {
 template <typename B> inline void read(B& buf, verification_key_data& key)
 {
     using serialize::read;
+    read(buf, key.composer_type);
     read(buf, key.n);
     read(buf, key.num_public_inputs);
     read(buf, key.constraint_selectors);
@@ -30,6 +32,7 @@ template <typename B> inline void read(B& buf, verification_key_data& key)
 template <typename B> inline void write(B& buf, verification_key_data const& key)
 {
     using serialize::write;
+    write(buf, key.composer_type);
     write(buf, key.n);
     write(buf, key.num_public_inputs);
     write(buf, key.constraint_selectors);
@@ -40,7 +43,7 @@ template <typename B> inline void write(B& buf, verification_key_data const& key
 
 inline bool operator==(verification_key_data const& lhs, verification_key_data const& rhs)
 {
-    return lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
+    return lhs.composer_type == rhs.composer_type && lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
            lhs.constraint_selectors == rhs.constraint_selectors &&
            lhs.permutation_selectors == rhs.permutation_selectors;
 }
@@ -58,6 +61,7 @@ struct verification_key {
 
     sha256::hash sha256_hash();
 
+    uint32_t composer_type;
     size_t n;
     size_t num_public_inputs;
 
@@ -83,6 +87,7 @@ struct verification_key {
 template <typename B> inline void write(B& buf, verification_key const& key)
 {
     using serialize::write;
+    write(buf, key.composer_type);
     write(buf, static_cast<uint32_t>(key.n));
     write(buf, static_cast<uint32_t>(key.num_public_inputs));
     write(buf, key.constraint_selectors);

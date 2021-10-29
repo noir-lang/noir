@@ -22,7 +22,7 @@ using namespace plonk;
 
 // SEE BOTTOM FOR REMNANTS OF TESTS FOR PLOOKUP AND NOTE ON UPDATING THOSE
 
-template <typename Composer> class StdlibBiggroup : public testing::Test {
+template <typename Composer> class stdlib_biggroup : public testing::Test {
     typedef stdlib::bn254<Composer> bn254;
     typedef stdlib::secp256r1_ct<Composer> secp256r1_ct;
     typedef typename bn254::fr_ct fr_ct;
@@ -641,74 +641,74 @@ typedef testing::Types<waffle::StandardComposer,
                        >
     ComposerTypes;
 // Define test suite
-TYPED_TEST_SUITE(StdlibBiggroup, ComposerTypes);
+TYPED_TEST_SUITE(stdlib_biggroup, ComposerTypes);
 
-TYPED_TEST(StdlibBiggroup, Add)
+TYPED_TEST(stdlib_biggroup, add)
 {
     TestFixture::test_add();
 }
 
-TYPED_TEST(StdlibBiggroup, Sub)
+TYPED_TEST(stdlib_biggroup, sub)
 {
     TestFixture::test_sub();
 }
 
-TYPED_TEST(StdlibBiggroup, Dbl)
+TYPED_TEST(stdlib_biggroup, dbl)
 {
     TestFixture::test_dbl();
 }
 
-TYPED_TEST(StdlibBiggroup, MontgomeryLadder)
+TYPED_TEST(stdlib_biggroup, montgomery_ladder)
 {
     TestFixture::test_montgomery_ladder();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, Mul)
+HEAVY_TYPED_TEST(stdlib_biggroup, mul)
 {
     TestFixture::test_mul();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, TwinMul)
+HEAVY_TYPED_TEST(stdlib_biggroup, twin_mul)
 {
     TestFixture::test_twin_mul();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, TripleMul)
+HEAVY_TYPED_TEST(stdlib_biggroup, triple_mul)
 {
     TestFixture::test_triple_mul();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, QuadMulBigFr)
+HEAVY_TYPED_TEST(stdlib_biggroup, quad_mul_bigfr)
 {
     TestFixture::test_quad_mul_bigfr();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, QuadMul)
+HEAVY_TYPED_TEST(stdlib_biggroup, quad_mul)
 {
     TestFixture::test_quad_mul();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, One)
+HEAVY_TYPED_TEST(stdlib_biggroup, one)
 {
     TestFixture::test_one();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, OneSECP256r1)
+HEAVY_TYPED_TEST(stdlib_biggroup, one_secp256r1)
 {
     TestFixture::test_one_secp256r1();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, BatchMul)
+HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul)
 {
     TestFixture::test_batch_mul();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, BatchMulShortScalars)
+HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_short_scalars)
 {
     TestFixture::test_batch_mul_short_scalars();
 }
 
-HEAVY_TYPED_TEST(StdlibBiggroup, MixedBatchMul)
+HEAVY_TYPED_TEST(stdlib_biggroup, mixed_batch_mul)
 {
     TestFixture::test_mixed_batch_mul();
 }
@@ -723,7 +723,7 @@ HEAVY_TYPED_TEST(StdlibBiggroup, MixedBatchMul)
 //   while  plonk::stdlib::alt_bn254 has Fr given by a field_t.
 //   Therefore, to update what's below to use
 //     typedef stdlib::bn254<Composer> bn254
-//  as defined in our class StdlibBiggroup, one should make the change
+//  as defined in our class stdlib_biggroup, one should make the change
 //   - stdlib::bn254::fr ~> bigfr_ct
 //   - stdlib::alt_bn254::fr ~> fr_ct
 //   - stdlib::bn254::g1 ~> g1_bigfr_ct

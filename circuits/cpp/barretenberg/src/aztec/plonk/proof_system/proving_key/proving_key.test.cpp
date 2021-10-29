@@ -18,6 +18,7 @@ polynomial create_polynomial(size_t size)
 TEST(proving_key, buffer_serialization)
 {
     proving_key_data key;
+    key.composer_type = static_cast<uint32_t>(ComposerType::STANDARD);
     key.n = 1234;
     key.num_public_inputs = 10;
     key.constraint_selectors["test1"] = create_polynomial(5);
@@ -34,6 +35,7 @@ TEST(proving_key, buffer_serialization)
 TEST(proving_key, stream_serialization)
 {
     proving_key_data key;
+    key.composer_type = static_cast<uint32_t>(ComposerType::TURBO);
     key.n = 1234;
     key.num_public_inputs = 10;
     key.constraint_selectors["test1"] = create_polynomial(5);

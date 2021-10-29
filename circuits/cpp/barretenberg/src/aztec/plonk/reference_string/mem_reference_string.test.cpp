@@ -16,15 +16,11 @@ TEST(reference_string, mem_file_consistency)
     transcript.read((char*)g2x.data(), 128);
     transcript.close();
 
-    auto mem_crs = std::make_unique<waffle::MemReferenceStringFactory>(monomials.data(), monomials.size(), g2x.data());
-    auto mem_prover = mem_crs->get_prover_crs(23123);
-    auto mem_verifier = mem_crs->get_verifier_crs();
+    auto mem_verifier = std::make_unique<waffle::VerifierMemReferenceString>(g2x.data());
 
     auto file_crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
-    auto file_prover = file_crs->get_prover_crs(23123);
     auto file_verifier = file_crs->get_verifier_crs();
 
-    EXPECT_EQ(memcmp(mem_prover->get_monomials(), file_prover->get_monomials(), 23123 * 2 * 64), 0);
     EXPECT_EQ(mem_verifier->get_g2x(), file_verifier->get_g2x());
     EXPECT_EQ(memcmp(mem_verifier->get_precomputed_g2_lines(),
                      file_verifier->get_precomputed_g2_lines(),

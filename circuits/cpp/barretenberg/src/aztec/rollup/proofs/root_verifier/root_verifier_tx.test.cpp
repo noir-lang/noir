@@ -3,7 +3,7 @@
 
 using namespace rollup::proofs::root_verifier;
 
-TEST(RootVerifierTransaction, Serialization)
+TEST(root_verifier_transaction, serialization)
 {
     root_verifier_tx tx;
     tx.broadcast_data = std::vector<uint8_t>(66, 0xf);

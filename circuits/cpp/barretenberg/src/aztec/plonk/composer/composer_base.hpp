@@ -102,12 +102,6 @@ struct ecc_add_gate {
     barretenberg::fr sign_coefficient;
 };
 
-enum ComposerType {
-    STANDARD,
-    TURBO,
-    PLOOKUP,
-};
-
 class ComposerBase {
   public:
     struct SelectorProperties {

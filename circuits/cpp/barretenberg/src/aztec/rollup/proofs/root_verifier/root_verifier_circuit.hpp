@@ -25,7 +25,8 @@ struct circuit_outputs {
 stdlib::recursion::recursion_output<outer_curve> root_verifier_circuit(
     OuterComposer& composer,
     root_verifier_tx const& tx,
-    std::shared_ptr<waffle::verification_key> const& inner_verification_key);
+    std::shared_ptr<waffle::verification_key> const& inner_verification_key,
+    std::vector<std::shared_ptr<waffle::verification_key>> const& valid_vks);
 
 } // namespace root_verifier
 } // namespace proofs

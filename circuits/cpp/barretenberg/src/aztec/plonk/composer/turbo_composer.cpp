@@ -797,6 +797,7 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     create_dummy_gate();
 
     ComposerBase::compute_proving_key_base();
+    circuit_proving_key->composer_type = type;
     compute_sigma_permutations<4, false>(circuit_proving_key.get());
 
     std::copy(turbo_polynomial_manifest,
@@ -820,7 +821,7 @@ std::shared_ptr<verification_key> TurboComposer::compute_verification_key()
 
     circuit_verification_key =
         turbo_composer::compute_verification_key(circuit_proving_key, crs_factory_->get_verifier_crs());
-
+    circuit_verification_key->composer_type = type;
     circuit_verification_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(recursive_proof_public_input_indices.begin(), recursive_proof_public_input_indices.end());
     circuit_verification_key->contains_recursive_proof = contains_recursive_proof;

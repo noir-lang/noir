@@ -13,9 +13,11 @@ using namespace plonk;
 
 struct verify_result {
     bool verified;
+    bool logic_verified;
     std::vector<uint8_t> proof_data;
 };
 
+verify_result verify_logic(root_verifier_tx& tx, circuit_data const& circuit_data);
 verify_result verify(root_verifier_tx& tx, circuit_data const& circuit_data);
 
 } // namespace root_verifier

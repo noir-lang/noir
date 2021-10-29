@@ -29,43 +29,4 @@ class VerifierMemReferenceString : public VerifierReferenceString {
     pairing::miller_lines* precomputed_g2_lines;
 };
 
-class MemReferenceString : public ProverReferenceString {
-  public:
-    MemReferenceString(const size_t num_points, uint8_t const* buffer)
-        : pippenger_(buffer, num_points)
-    {}
-
-    g1::affine_element* get_monomials() { return pippenger_.get_point_table(); }
-
-  private:
-    scalar_multiplication::Pippenger pippenger_;
-};
-
-class MemReferenceStringFactory : public ReferenceStringFactory {
-  public:
-    MemReferenceStringFactory(uint8_t const* buffer, size_t num_points, uint8_t const* g2x)
-        : buffer_(buffer)
-        , num_points_(num_points)
-        , g2x_(g2x)
-    {}
-
-    MemReferenceStringFactory(MemReferenceStringFactory&& other) = default;
-
-    std::shared_ptr<ProverReferenceString> get_prover_crs(size_t degree)
-    {
-        ASSERT(degree <= num_points_);
-        return std::make_shared<MemReferenceString>(degree, buffer_);
-    }
-
-    std::shared_ptr<VerifierReferenceString> get_verifier_crs()
-    {
-        return std::make_shared<VerifierMemReferenceString>(g2x_);
-    }
-
-  private:
-    uint8_t const* buffer_;
-    size_t num_points_;
-    uint8_t const* g2x_;
-};
-
 } // namespace waffle

@@ -5,6 +5,12 @@
 
 namespace waffle {
 
+enum ComposerType {
+    STANDARD,
+    TURBO,
+    PLOOKUP,
+};
+
 enum PolynomialSource { WITNESS, SELECTOR, PERMUTATION };
 
 enum PolynomialIndex {

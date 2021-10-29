@@ -2,11 +2,39 @@
 #include <gtest/gtest.h>
 #include <crypto/pedersen/pedersen.hpp>
 #include <crypto/pedersen/generator_data.hpp>
+#include <plonk/proof_system/proving_key/serialize.hpp>
 
 using namespace barretenberg;
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();
+}
+
+TEST(standard_composer, composer_from_serialized_keys)
+{
+    waffle::StandardComposer composer = waffle::StandardComposer();
+    fr a = fr::one();
+    composer.add_public_variable(a);
+
+    auto pk_buf = to_buffer(*composer.compute_proving_key());
+    auto vk_buf = to_buffer(*composer.compute_verification_key());
+    auto pk_data = from_buffer<waffle::proving_key_data>(pk_buf);
+    auto vk_data = from_buffer<waffle::verification_key_data>(vk_buf);
+
+    auto crs = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
+    auto proving_key = std::make_shared<waffle::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.n + 1));
+    auto verification_key = std::make_shared<waffle::verification_key>(std::move(vk_data), crs->get_verifier_crs());
+
+    waffle::StandardComposer composer2 = waffle::StandardComposer(proving_key, verification_key);
+    composer2.add_public_variable(a);
+
+    waffle::Prover prover = composer2.create_prover();
+    waffle::Verifier verifier = composer2.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool result = verifier.verify_proof(proof);
+    EXPECT_EQ(result, true);
 }
 
 TEST(standard_composer, test_add_gate_proofs)

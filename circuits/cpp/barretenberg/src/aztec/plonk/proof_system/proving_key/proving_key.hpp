@@ -10,6 +10,7 @@
 namespace waffle {
 
 struct proving_key_data {
+    uint32_t composer_type;
     uint32_t n;
     uint32_t num_public_inputs;
     bool contains_recursive_proof;
@@ -23,7 +24,7 @@ struct proving_key_data {
 
 inline bool operator==(proving_key_data const& lhs, proving_key_data const& rhs)
 {
-    return lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
+    return lhs.composer_type == rhs.composer_type && lhs.n == rhs.n && lhs.num_public_inputs == rhs.num_public_inputs &&
            lhs.constraint_selectors == rhs.constraint_selectors &&
            lhs.constraint_selector_ffts == rhs.constraint_selector_ffts &&
            lhs.permutation_selectors == rhs.permutation_selectors &&
@@ -57,6 +58,7 @@ struct proving_key {
 
     void init();
 
+    uint32_t composer_type;
     size_t n;
     size_t num_public_inputs;
 

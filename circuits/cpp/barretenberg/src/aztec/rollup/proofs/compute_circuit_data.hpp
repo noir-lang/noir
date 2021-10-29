@@ -72,8 +72,14 @@ circuit_data get_circuit_data(std::string const& name,
             auto pk_stream = std::ifstream(pk_path);
             waffle::proving_key_data pk_data;
             read_mmap(pk_stream, pk_dir, pk_data);
-            data.proving_key =
-                std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n));
+            if (pk_data.composer_type == 0) {
+                data.proving_key =
+                    std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n + 1));
+
+            } else {
+                data.proving_key =
+                    std::make_shared<waffle::proving_key>(std::move(pk_data), srs->get_prover_crs(pk_data.n));
+            }
             data.num_gates = pk_data.n;
             std::cerr << "Circuit size (nearest 2^n): " << data.num_gates << std::endl;
         } else if (compute) {
@@ -81,9 +87,10 @@ circuit_data get_circuit_data(std::string const& name,
             std::cerr << "Computing proving key..." << std::endl;
 
             data.num_gates = composer.get_num_gates();
-            std::cerr << "Circuit size: " << data.num_gates << std::endl;
 
             data.proving_key = composer.compute_proving_key();
+
+            std::cerr << "Circuit size: " << data.proving_key->n << std::endl;
             std::cerr << "Done: " << timer.toString() << "s" << std::endl;
 
             if (save) {

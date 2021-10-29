@@ -8,6 +8,7 @@ namespace waffle {
 template <typename B> inline void read(B& buf, proving_key_data& key)
 {
     using serialize::read;
+    read(buf, key.composer_type);
     read(buf, key.n);
     read(buf, key.num_public_inputs);
     read(buf, key.constraint_selectors);
@@ -22,6 +23,7 @@ template <typename B> inline void read(B& buf, proving_key_data& key)
 template <typename B> inline void write(B& buf, proving_key_data const& key)
 {
     using serialize::write;
+    write(buf, key.composer_type);
     write(buf, key.n);
     write(buf, key.num_public_inputs);
     write(buf, key.constraint_selectors);
@@ -36,6 +38,7 @@ template <typename B> inline void write(B& buf, proving_key_data const& key)
 template <typename B> inline void write(B& buf, proving_key const& key)
 {
     using serialize::write;
+    write(buf, key.composer_type);
     write(buf, static_cast<uint32_t>(key.n));
     write(buf, static_cast<uint32_t>(key.num_public_inputs));
     write(buf, key.constraint_selectors);
@@ -51,6 +54,7 @@ template <typename B> inline void read_mmap(B& it, std::string const& path, prov
 {
     using serialize::read;
     size_t file_num = 0;
+    read(it, key.composer_type);
     read(it, key.n);
     read(it, key.num_public_inputs);
     for (auto map : { &key.constraint_selectors,
@@ -75,6 +79,7 @@ template <typename B> inline void write_mmap(B& buf, std::string const& path, pr
 {
     using serialize::write;
     size_t file_num = 0;
+    write(buf, key.composer_type);
     write(buf, static_cast<uint32_t>(key.n));
     write(buf, static_cast<uint32_t>(key.num_public_inputs));
     for (auto map : { &key.constraint_selectors,

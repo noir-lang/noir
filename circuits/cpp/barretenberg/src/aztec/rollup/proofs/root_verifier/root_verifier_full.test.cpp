@@ -34,7 +34,7 @@ proofs::claim::circuit_data claim_cd;
 std::vector<std::vector<uint8_t>> js_proofs;
 } // namespace
 
-class RootVerifierFull : public ::testing::Test {
+class root_verifier_full : public ::testing::Test {
   protected:
     static constexpr auto CRS_PATH = "../srs_db/ignition";
     static constexpr auto FIXTURE_PATH = "../src/aztec/rollup/proofs/root_verifier/fixtures";
@@ -42,7 +42,7 @@ class RootVerifierFull : public ::testing::Test {
 
     typedef std::vector<std::vector<std::vector<uint8_t>>> RollupStructure;
 
-    RootVerifierFull()
+    root_verifier_full()
     {
         rand_engine = &numeric::random::get_debug_engine(true);
         user = fixtures::create_user_context(rand_engine);
@@ -107,7 +107,7 @@ class RootVerifierFull : public ::testing::Test {
     world_state::WorldState<MemoryStore> world_state;
 };
 
-HEAVY_TEST_F(RootVerifierFull, GoodDataPasses)
+HEAVY_TEST_F(root_verifier_full, good_data_passes)
 {
     static constexpr auto inner_rollup_txs = 1U;
     static constexpr auto rollups_per_rollup = 1U;
@@ -116,14 +116,15 @@ HEAVY_TEST_F(RootVerifierFull, GoodDataPasses)
         inner_rollup_txs, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
     auto root_rollup_cd =
         root_rollup::get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
-    auto root_verifier_cd = get_circuit_data(root_rollup_cd, srs, FIXTURE_PATH, true, false, false);
+    auto root_verifier_cd =
+        get_circuit_data(root_rollup_cd, srs, { root_rollup_cd.verification_key }, FIXTURE_PATH, true, false, false);
 
     auto tx = create_root_verifier_tx("test_root_verifier_1x1", 0, tx_rollup_cd, root_rollup_cd, { { js_proofs[0] } });
     auto result = verify(tx, root_verifier_cd);
     ASSERT_TRUE(result.verified);
 }
 
-HEAVY_TEST_F(RootVerifierFull, BadByteFailure)
+HEAVY_TEST_F(root_verifier_full, bad_byte_failure)
 {
     static constexpr auto inner_rollup_txs = 1U;
     static constexpr auto rollups_per_rollup = 1U;
@@ -132,7 +133,8 @@ HEAVY_TEST_F(RootVerifierFull, BadByteFailure)
         inner_rollup_txs, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
     auto root_rollup_cd =
         root_rollup::get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
-    auto root_verifier_cd = get_circuit_data(root_rollup_cd, srs, FIXTURE_PATH, true, false, false);
+    auto root_verifier_cd =
+        get_circuit_data(root_rollup_cd, srs, { root_rollup_cd.verification_key }, FIXTURE_PATH, true, false, false);
 
     auto tx = create_root_verifier_tx("test_root_verifier_1x1", 0, tx_rollup_cd, root_rollup_cd, { { js_proofs[0] } });
 
@@ -142,7 +144,7 @@ HEAVY_TEST_F(RootVerifierFull, BadByteFailure)
     ASSERT_FALSE(result.verified);
 }
 
-HEAVY_TEST_F(RootVerifierFull, BadValidPointFailure)
+HEAVY_TEST_F(root_verifier_full, bad_valid_point_failure)
 {
     static constexpr auto inner_rollup_txs = 1U;
     static constexpr auto rollups_per_rollup = 1U;
@@ -151,7 +153,8 @@ HEAVY_TEST_F(RootVerifierFull, BadValidPointFailure)
         inner_rollup_txs, join_split_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
     auto root_rollup_cd =
         root_rollup::get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, true, true);
-    auto root_verifier_cd = get_circuit_data(root_rollup_cd, srs, FIXTURE_PATH, true, false, false);
+    auto root_verifier_cd =
+        get_circuit_data(root_rollup_cd, srs, { root_rollup_cd.verification_key }, FIXTURE_PATH, true, false, false);
 
     auto tx = create_root_verifier_tx("test_root_verifier_1x1", 0, tx_rollup_cd, root_rollup_cd, { { js_proofs[0] } });
 

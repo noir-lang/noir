@@ -33,7 +33,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-template <typename Composer> class StdlibBigfield : public testing::Test {
+template <typename Composer> class stdlib_bigfield : public testing::Test {
     typedef stdlib::bn254<Composer> bn254;
 
     typedef typename bn254::fr_ct fr_ct;
@@ -635,67 +635,67 @@ typedef testing::Types<waffle::StandardComposer,
                        >
     ComposerTypes;
 // Define the suite of tests.
-TYPED_TEST_SUITE(StdlibBigfield, ComposerTypes);
+TYPED_TEST_SUITE(stdlib_bigfield, ComposerTypes);
 
-TYPED_TEST(StdlibBigfield, Mul)
+TYPED_TEST(stdlib_bigfield, mul)
 {
     TestFixture::test_mul();
 }
-TYPED_TEST(StdlibBigfield, Sqr)
+TYPED_TEST(stdlib_bigfield, sqr)
 {
     TestFixture::test_sqr();
 }
-TYPED_TEST(StdlibBigfield, Madd)
+TYPED_TEST(stdlib_bigfield, madd)
 {
     TestFixture::test_madd();
 }
-TYPED_TEST(StdlibBigfield, DualMadd)
+TYPED_TEST(stdlib_bigfield, dual_madd)
 {
     TestFixture::test_dual_madd();
 }
-TYPED_TEST(StdlibBigfield, Div)
+TYPED_TEST(stdlib_bigfield, div)
 {
     TestFixture::test_div();
 }
-TYPED_TEST(StdlibBigfield, AddAndDiv)
+TYPED_TEST(stdlib_bigfield, add_and_div)
 {
     TestFixture::test_add_and_div();
 }
-TYPED_TEST(StdlibBigfield, AddAndMul)
+TYPED_TEST(stdlib_bigfield, add_and_mul)
 {
     TestFixture::test_add_and_mul();
 }
-TYPED_TEST(StdlibBigfield, AddAndMulWithConstants)
+TYPED_TEST(stdlib_bigfield, add_and_mul_with_constants)
 {
     TestFixture::test_add_and_mul_with_constants();
 }
-TYPED_TEST(StdlibBigfield, SubAndMul)
+TYPED_TEST(stdlib_bigfield, sub_and_mul)
 {
     TestFixture::test_sub_and_mul();
 }
-TYPED_TEST(StdlibBigfield, ConditionalNegate)
+TYPED_TEST(stdlib_bigfield, conditional_negate)
 {
     TestFixture::test_conditional_negate();
 }
-TYPED_TEST(StdlibBigfield, GroupOperations)
+TYPED_TEST(stdlib_bigfield, group_operations)
 {
     TestFixture::test_group_operations();
 }
-TYPED_TEST(StdlibBigfield, Reduce)
+TYPED_TEST(stdlib_bigfield, reduce)
 {
     TestFixture::test_reduce();
 }
-TYPED_TEST(StdlibBigfield, AssertIsInFieldSuccess)
+TYPED_TEST(stdlib_bigfield, assert_is_in_field_succes)
 {
     TestFixture::test_assert_is_in_field_success();
 }
-TYPED_TEST(StdlibBigfield, ByteArrayConstructors)
+TYPED_TEST(stdlib_bigfield, byte_array_constructors)
 {
     TestFixture::test_byte_array_constructors();
 }
 
 // // This test was disabled before the refactor to use TYPED_TEST's/
-// TEST(StdlibBigfield, DISABLED_test_div_against_constants)
+// TEST(stdlib_bigfield, DISABLED_test_div_against_constants)
 // {
 //     auto composer = Composer();
 //     size_t num_repetitions = 1;

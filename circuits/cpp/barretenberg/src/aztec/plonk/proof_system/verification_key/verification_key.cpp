@@ -13,7 +13,8 @@ verification_key::verification_key(const size_t num_gates,
 {}
 
 verification_key::verification_key(verification_key_data&& data, std::shared_ptr<VerifierReferenceString> const& crs)
-    : n(data.n)
+    : composer_type(data.composer_type)
+    , n(data.n)
     , num_public_inputs(data.num_public_inputs)
     , domain(n)
     , reference_string(crs)
@@ -22,12 +23,30 @@ verification_key::verification_key(verification_key_data&& data, std::shared_ptr
     , contains_recursive_proof(data.contains_recursive_proof)
     , recursive_proof_public_input_indices(std::move(data.recursive_proof_public_input_indices))
 {
-    // TODO: Currently only supporting TurboComposer in serialization!
-    std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
+    switch (composer_type) {
+    case ComposerType::STANDARD: {
+        std::copy(
+            standard_polynomial_manifest, standard_polynomial_manifest + 12, std::back_inserter(polynomial_manifest));
+        break;
+    };
+    case ComposerType::TURBO: {
+        std::copy(turbo_polynomial_manifest, turbo_polynomial_manifest + 20, std::back_inserter(polynomial_manifest));
+        break;
+    };
+    case ComposerType::PLOOKUP: {
+        std::copy(
+            plookup_polynomial_manifest, plookup_polynomial_manifest + 34, std::back_inserter(polynomial_manifest));
+        break;
+    };
+    default: {
+        throw_or_abort("Received invalid composer type");
+    }
+    }
 }
 
 verification_key::verification_key(const verification_key& other)
-    : n(other.n)
+    : composer_type(other.composer_type)
+    , n(other.n)
     , num_public_inputs(other.num_public_inputs)
     , domain(other.domain)
     , reference_string(other.reference_string)
@@ -39,7 +58,8 @@ verification_key::verification_key(const verification_key& other)
 {}
 
 verification_key::verification_key(verification_key&& other)
-    : n(other.n)
+    : composer_type(other.composer_type)
+    , n(other.n)
     , num_public_inputs(other.num_public_inputs)
     , domain(other.domain)
     , reference_string(other.reference_string)
@@ -52,6 +72,7 @@ verification_key::verification_key(verification_key&& other)
 
 verification_key& verification_key::operator=(verification_key&& other)
 {
+    composer_type = other.composer_type;
     n = other.n;
     num_public_inputs = other.num_public_inputs;
     reference_string = std::move(other.reference_string);

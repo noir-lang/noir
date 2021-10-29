@@ -35,12 +35,16 @@ class VerifierFileReferenceString : public VerifierReferenceString {
 class FileReferenceString : public ProverReferenceString {
   public:
     FileReferenceString(const size_t num_points, std::string const& path)
-        : pippenger_(path, num_points)
+        : n(num_points)
+        , pippenger_(path, num_points)
     {}
 
     g1::affine_element* get_monomials() { return pippenger_.get_point_table(); }
 
+    size_t get_size() { return n; }
+
   private:
+    size_t n;
     scalar_multiplication::Pippenger pippenger_;
 };
 

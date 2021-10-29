@@ -21,6 +21,7 @@ class PippengerReferenceString : public ProverReferenceString {
         : pippenger_(pippenger)
     {}
 
+    size_t get_size() { return pippenger_->get_num_points(); }
     g1::affine_element* get_monomials() { return pippenger_->get_point_table(); }
 
   private:

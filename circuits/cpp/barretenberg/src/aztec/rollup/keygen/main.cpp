@@ -4,7 +4,6 @@
 #include "../proofs/rollup/rollup_tx.hpp"
 #include "../proofs/claim/index.hpp"
 #include <common/timer.hpp>
-#include <plonk/composer/turbo/compute_verification_key.hpp>
 #include <plonk/proof_system/proving_key/proving_key.hpp>
 #include <plonk/proof_system/verification_key/verification_key.hpp>
 #include <plonk/proof_system/verification_key/sol_gen.hpp>
@@ -16,15 +15,23 @@ int main(int argc, char** argv)
 {
     std::vector<std::string> args(argv, argv + argc);
     if (args.size() < 4) {
-        info("usage: ", args[0], " <inner txs> <max inner num> <output path> [srs path]");
+        info("usage: ", args[0], " <num inner txs> <valid outer sizes, separated by commas> <output path> [srs path]");
         info("");
-        info("Generates solidity contracts containing verification keys for:");
-        info("  - Rollup circuits containing n inner circuits of size <inner txs>.");
-        info(" Where n=1 and doubles until <max inner num>.");
+        info("Generates solidity contract containing verification key for:");
+        info("  - A circuit used to verify a root rollup proof made with a circuit containing");
+        info("  - n inner circuits of size <inner txs>, where n is in <valid outer sizes>.");
         return 1;
     }
-    size_t inner_txs = (size_t)atoi(args[1].c_str());
-    size_t max_inner_num = (size_t)atoi(args[2].c_str());
+    size_t num_inner_tx = (size_t)atoi(args[1].c_str());
+    std::string outer_sizes_raw = args[2];
+    // parse list of valid outer sizes
+    std::vector<size_t> valid_outer_sizes;
+    std::istringstream is(outer_sizes_raw);
+    std::string outer_size;
+    while (std::getline(is, outer_size, ',')) {
+        valid_outer_sizes.emplace_back(std::stoul(outer_size));
+    };
+
     const std::string output_path = args[3];
     const std::string srs_path = (args.size() >= 5) ? args[4] : "../srs_db/ignition";
     const bool persist = (args.size() >= 6) ? (bool)atoi(args[5].c_str()) : false;
@@ -33,21 +40,26 @@ int main(int argc, char** argv)
     auto account_cd = account::compute_circuit_data(srs);
     auto join_split_cd = join_split::compute_circuit_data(srs);
     auto claim_cd = claim::get_circuit_data(srs, "./data", true, persist, persist);
-    auto rollup_circuit_data = tx_rollup::get_circuit_data(
-        inner_txs, join_split_cd, account_cd, claim_cd, srs, "./data", true, persist, persist);
+    auto rollup_cd = tx_rollup::get_circuit_data(
+        num_inner_tx, join_split_cd, account_cd, claim_cd, srs, "./data", true, persist, persist);
 
     // Release memory held by proving key, we don't need it.
-    rollup_circuit_data.proving_key.reset();
+    rollup_cd.proving_key.reset();
 
-    for (size_t i = 1; i <= max_inner_num; i *= 2) {
-        auto root_rollup_circuit_data =
-            root_rollup::get_circuit_data(i, rollup_circuit_data, srs, "./data", true, persist, persist);
-        auto root_verifier_circuit_data =
-            root_verifier::get_circuit_data(root_rollup_circuit_data, srs, "./data", true, persist, persist);
-        auto class_name = format("Rollup", inner_txs, "x", i, "VkStandard");
-        std::ofstream os(output_path + "/" + class_name + ".sol");
-        output_vk_sol_standard(os, root_verifier_circuit_data.verification_key, class_name);
+    std::vector<std::shared_ptr<waffle::verification_key>> valid_root_rollup_vks;
+    root_rollup::circuit_data root_rollup_cd;
+    root_verifier::circuit_data root_verifier_cd;
+    for (auto i : valid_outer_sizes) {
+        root_rollup_cd.proving_key.reset();
+        root_rollup_cd = root_rollup::get_circuit_data(i, rollup_cd, srs, "./data", true, persist, persist);
+        valid_root_rollup_vks.emplace_back(root_rollup_cd.verification_key);
     }
+
+    root_verifier_cd =
+        root_verifier::get_circuit_data(root_rollup_cd, srs, valid_root_rollup_vks, "./data", true, persist, persist);
+    auto class_name = format("RootVerifierVk");
+    std::ofstream os(output_path + "/" + class_name + ".sol");
+    output_vk_sol(os, root_verifier_cd.verification_key, class_name);
 
     return 0;
 }

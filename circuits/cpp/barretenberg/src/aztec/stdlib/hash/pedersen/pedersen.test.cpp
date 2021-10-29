@@ -13,7 +13,7 @@ namespace {
 auto& engine = numeric::random::get_debug_engine();
 }
 
-template <typename Composer> class StdlibPedersen : public testing::Test {
+template <typename Composer> class stdlib_pedersen : public testing::Test {
     typedef stdlib::bn254<Composer> curve;
 
     typedef typename curve::byte_array_ct byte_array_ct;
@@ -345,39 +345,39 @@ typedef testing::Types<waffle::StandardComposer,
                        >
     ComposerTypes;
 
-TYPED_TEST_SUITE(StdlibPedersen, ComposerTypes);
+TYPED_TEST_SUITE(stdlib_pedersen, ComposerTypes);
 
-TYPED_TEST(StdlibPedersen, Small)
+TYPED_TEST(stdlib_pedersen, small)
 {
     TestFixture::test_pedersen();
 };
 
-HEAVY_TYPED_TEST(StdlibPedersen, Large)
+HEAVY_TYPED_TEST(stdlib_pedersen, large)
 {
     TestFixture::test_pedersen_large();
 };
 
-HEAVY_TYPED_TEST(StdlibPedersen, LargeUnrolled)
+HEAVY_TYPED_TEST(stdlib_pedersen, large_unrolled)
 {
     TestFixture::test_pedersen_large_unrolled();
 };
 
-TYPED_TEST(StdlibPedersen, CompressByteArray)
+TYPED_TEST(stdlib_pedersen, compress_byte_array)
 {
     TestFixture::test_compress_byte_array();
 };
 
-TYPED_TEST(StdlibPedersen, MultiCompress)
+TYPED_TEST(stdlib_pedersen, multi_compress)
 {
     TestFixture::test_multi_compress();
 };
 
-TYPED_TEST(StdlibPedersen, CompressEight)
+TYPED_TEST(stdlib_pedersen, compress_eight)
 {
     TestFixture::test_compress_eight();
 };
 
-TYPED_TEST(StdlibPedersen, CompressConstants)
+TYPED_TEST(stdlib_pedersen, compress_constants)
 {
     TestFixture::test_compress_constants();
 };
