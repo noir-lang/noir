@@ -32,7 +32,6 @@ impl Barretenberg {
         match r {
             false => FieldElement::zero(),
             true => FieldElement::one(),
-            _=> unreachable!("verify signature should return a boolean to indicate whether the signature + parameters were valid")
         }
 
         // Note, currently for Barretenberg plonk, if the signature fails
