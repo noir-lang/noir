@@ -21,7 +21,8 @@ impl GadgetCaller for MerkleMembershipGadget {
     ) -> Result<Object, RuntimeError> {
         let inputs = MerkleMembershipGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        // Create a fresh variable which will be the root
+        // Create a fresh variable which will be the boolean indicating
+        // whether the item was in the tree or not
 
         let merkle_mem_witness = evaluator.add_witness_to_cs();
         let merkle_mem_object = Object::from_witness(merkle_mem_witness);
@@ -39,7 +40,7 @@ impl GadgetCaller for MerkleMembershipGadget {
 }
 
 impl MerkleMembershipGadget {
-    fn prepare_inputs(
+    pub(super) fn prepare_inputs(
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
