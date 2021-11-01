@@ -1,11 +1,16 @@
 // TODO: remove once this module is used
 #![allow(dead_code)]
-use std::{convert::TryInto, path::Path};
-
 use aztec_backend::barretenberg_rs::Barretenberg;
 use noir_field::FieldElement;
+use std::{convert::TryInto, path::Path};
 
-type HashPath = Vec<(FieldElement, FieldElement)>;
+// This impl should be redone in a more efficient and readable way.
+// We should have a separate impl for SparseMerkle and regular merkle
+// With Regular merkle we need to ensure that updates are done sequentially
+//
+// With sparse merkle, one can update at any index
+
+pub(crate) type HashPath = Vec<(FieldElement, FieldElement)>;
 
 pub fn flatten_path(path: Vec<(FieldElement, FieldElement)>) -> Vec<FieldElement> {
     path.into_iter()
@@ -38,6 +43,25 @@ fn fetch_depth(db: &sled::Db) -> u32 {
         .get("DEPTH".as_bytes())
         .unwrap()
         .expect("depth should always be present");
+    u32::from_be_bytes(value.to_vec().try_into().unwrap())
+}
+fn insert_empty_index(db: &mut sled::Db, index: u32) {
+    // First fetch the depth to see that this is less than
+    let depth = fetch_depth(&db);
+    let total_size = 1 << depth;
+    if index > total_size {
+        panic!(
+            "trying to insert at index {}, but total width is {}",
+            index, total_size
+        )
+    }
+    db.insert("EMPTY".as_bytes(), &index.to_be_bytes()).unwrap();
+}
+fn fetch_empty_index(db: &sled::Db) -> u32 {
+    let value = db
+        .get("EMPTY".as_bytes())
+        .unwrap()
+        .expect("empty index should always be present");
     u32::from_be_bytes(value.to_vec().try_into().unwrap())
 }
 fn insert_preimage(db: &mut sled::Db, index: u32, value: Vec<u8>) {
@@ -148,6 +172,7 @@ impl MerkleTree {
         }
 
         insert_depth(&mut db, depth);
+        insert_empty_index(&mut db, 0);
 
         MerkleTree {
             depth,
@@ -182,15 +207,34 @@ impl MerkleTree {
         self.update_leaf(index, current)
     }
 
+    fn check_if_index_valid_and_increment(&mut self, mut index: usize) {
+        // Fetch the empty index
+        let empty_index = fetch_empty_index(&self.db) as usize;
+        if empty_index == index {
+            // increment the empty index
+            index += 1;
+            insert_empty_index(&mut self.db, index as u32);
+        } else {
+            panic!("this is an regular append-only merkle tree. Tried to insert at {}, but next empty is at {}", index, empty_index);
+        }
+    }
+
     pub fn find_index_from_leaf(&self, leaf_value: &FieldElement) -> Option<usize> {
         let index = find_hash_from_value(&self.db, leaf_value);
         index.map(|val| val as usize)
+    }
+
+    // TODO: this gets updated to be -1 on the latest barretenberg branch
+    pub fn find_index_for_empty_leaf(&self) -> usize {
+        let index = fetch_empty_index(&self.db);
+        return index as usize;
     }
 
     /// Update the element at index and compute the new tree root
     pub fn update_leaf(&mut self, mut index: usize, mut current: FieldElement) -> FieldElement {
         // Note that this method does not update the list of messages [preimages]|
         // use `update_message` to do this
+        self.check_if_index_valid_and_increment(index);
 
         let mut offset = 0usize;
         let mut layer_size = self.total_size;
