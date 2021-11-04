@@ -2,9 +2,9 @@ build*
 docker*
 .*
 src/wasi-sdk*
-src/aztec/rollup/proofs/root_rollup/fixtures/account
-src/aztec/rollup/proofs/root_rollup/fixtures/join_split
-src/aztec/rollup/proofs/root_rollup/fixtures/**/proving_key
+src/aztec/rollup/proofs/root_*/fixtures/account
+src/aztec/rollup/proofs/root_*/fixtures/join_split
+src/aztec/rollup/proofs/root_*/fixtures/**/proving_key
 srs_db/ignition/transcript*
 srs_db/lagrange
 srs_db/coset_lagrange

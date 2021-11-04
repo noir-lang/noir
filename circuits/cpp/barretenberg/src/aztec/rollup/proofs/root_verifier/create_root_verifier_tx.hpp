@@ -18,7 +18,7 @@ inline root_verifier_tx create_root_verifier_tx(root_rollup::verify_result const
     return tx;
 }
 
-inline root_verifier_tx create_root_verifier_tx(std::vector<uint8_t> proof_buf, uint32_t rollup_size)
+inline root_verifier_tx create_root_verifier_tx(std::vector<uint8_t> proof_buf, size_t rollup_size)
 {
     root_verifier_tx tx;
 
