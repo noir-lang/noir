@@ -20,7 +20,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
     let mut blake2s_constraints: Vec<Blake2sConstraint> = Vec::new();
     let mut pedersen_constraints: Vec<PedersenConstraint> = Vec::new();
     let mut merkle_membership_constraints: Vec<MerkleMembershipConstraint> = Vec::new();
-    let mut insert_regular_merkle_constraints: Vec<InsertMerkleConstraint> = Vec::new();
+    let mut insert_merkle_constraints: Vec<InsertMerkleConstraint> = Vec::new();
     let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
     let mut ecdsa_secp256k1_constraints: Vec<EcdsaConstraint> = Vec::new();
     let mut fixed_base_scalar_mul_constraints: Vec<FixedBaseScalarMulConstraint> = Vec::new();
@@ -214,7 +214,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
                             result: new_root,
                         };
 
-                        insert_regular_merkle_constraints.push(constraint);
+                        insert_merkle_constraints.push(constraint);
                     }
                     OPCODE::SchnorrVerify => {
                         let mut inputs_iter = gadget_call.inputs.iter().peekable();
@@ -395,6 +395,7 @@ pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
         hash_to_field_constraints,
         constraints,
         fixed_base_scalar_mul_constraints,
+        insert_merkle_constraints,
     }
 }
 

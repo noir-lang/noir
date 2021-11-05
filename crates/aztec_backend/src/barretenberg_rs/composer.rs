@@ -422,6 +422,7 @@ pub struct ConstraintSystem {
     pub range_constraints: Vec<RangeConstraint>,
     pub sha256_constraints: Vec<Sha256Constraint>,
     pub merkle_membership_constraints: Vec<MerkleMembershipConstraint>,
+    pub insert_merkle_constraints: Vec<InsertMerkleConstraint>,
     pub schnorr_constraints: Vec<SchnorrConstraint>,
     pub ecdsa_secp256k1_constraints: Vec<EcdsaConstraint>,
     pub blake2s_constraints: Vec<Blake2sConstraint>,
@@ -469,6 +470,13 @@ impl ConstraintSystem {
         let merkle_membership_constraints_len = self.merkle_membership_constraints.len() as u32;
         buffer.extend_from_slice(&merkle_membership_constraints_len.to_be_bytes());
         for constraint in self.merkle_membership_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        // Serialise each Insert Merkle constraint
+        let insert_merkle_constraints_len = self.insert_merkle_constraints.len() as u32;
+        buffer.extend_from_slice(&insert_merkle_constraints_len.to_be_bytes());
+        for constraint in self.insert_merkle_constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
 
@@ -763,6 +771,7 @@ mod test {
             constraints: vec![constraint],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
+            insert_merkle_constraints: vec![],
         };
 
         let case_1 = WitnessResult {
@@ -835,6 +844,7 @@ mod test {
             constraints: vec![constraint],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
+            insert_merkle_constraints: vec![],
         };
 
         // This fails because the constraint system requires public inputs,
@@ -919,6 +929,7 @@ mod test {
             constraints: vec![constraint, constraint2],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
+            insert_merkle_constraints: vec![],
         };
 
         let case_1 = WitnessResult {
@@ -975,6 +986,7 @@ mod test {
             constraints: vec![arith_constraint],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
+            insert_merkle_constraints: vec![],
         };
 
         let pub_x =
@@ -1070,6 +1082,7 @@ mod test {
             constraints: vec![x_constraint, y_constraint],
             ecdsa_secp256k1_constraints: vec![],
             fixed_base_scalar_mul_constraints: vec![],
+            insert_merkle_constraints: vec![],
         };
 
         let scalar_0 = Scalar::from_hex("0x00").unwrap();
