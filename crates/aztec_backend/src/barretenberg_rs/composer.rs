@@ -233,6 +233,7 @@ pub struct InsertMerkleConstraint {
 }
 
 impl InsertMerkleConstraint {
+    #[allow(dead_code)]
     fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
@@ -474,11 +475,11 @@ impl ConstraintSystem {
         }
 
         // Serialise each Insert Merkle constraint
-        let insert_merkle_constraints_len = self.insert_merkle_constraints.len() as u32;
-        buffer.extend_from_slice(&insert_merkle_constraints_len.to_be_bytes());
-        for constraint in self.insert_merkle_constraints.iter() {
-            buffer.extend(&constraint.to_bytes());
-        }
+        // let insert_merkle_constraints_len = self.insert_merkle_constraints.len() as u32;
+        // buffer.extend_from_slice(&insert_merkle_constraints_len.to_be_bytes());
+        // for constraint in self.insert_merkle_constraints.iter() {
+        //     buffer.extend(&constraint.to_bytes());
+        // }
 
         // Serialise each Schnorr constraint
         let schnorr_len = self.schnorr_constraints.len() as u32;
