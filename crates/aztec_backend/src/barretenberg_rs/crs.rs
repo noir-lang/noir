@@ -82,7 +82,7 @@ pub fn download_crs(mut path_to_transcript: std::path::PathBuf) {
 
     for r in result {
         match r {
-            Err(e) => println!("Error: {}", e.to_string()),
+            Err(e) => println!("Error: {}", e),
             Ok(s) => println!("\nSRS is located at : {:?}", &s.file_name),
         };
     }

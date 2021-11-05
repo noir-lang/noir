@@ -47,7 +47,7 @@ fn fetch_depth(db: &sled::Db) -> u32 {
 }
 fn insert_empty_index(db: &mut sled::Db, index: u32) {
     // First fetch the depth to see that this is less than
-    let depth = fetch_depth(&db);
+    let depth = fetch_depth(db);
     let total_size = 1 << depth;
     if index > total_size {
         panic!(
@@ -227,7 +227,7 @@ impl MerkleTree {
     // TODO: this gets updated to be -1 on the latest barretenberg branch
     pub fn find_index_for_empty_leaf(&self) -> usize {
         let index = fetch_empty_index(&self.db);
-        return index as usize;
+        index as usize
     }
 
     /// Update the element at index and compute the new tree root

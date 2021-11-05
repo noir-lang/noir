@@ -3,7 +3,7 @@ use super::MerkleMembershipGadget;
 use super::RuntimeError;
 use crate::object::Object;
 use crate::{Environment, Evaluator};
-use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
+use acvm::acir::circuit::gate::{GadgetCall, Gate};
 use acvm::acir::OPCODE;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
