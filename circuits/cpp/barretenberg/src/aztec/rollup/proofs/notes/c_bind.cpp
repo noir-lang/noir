@@ -136,8 +136,7 @@ WASM_EXPORT void notes__account_note_commitment(uint8_t const* account_alias_id_
     auto account_alias_id = from_buffer<barretenberg::fr>(account_alias_id_buffer);
     auto owner_key = from_buffer<grumpkin::g1::affine_element>(owner_key_buf);
     auto signing_key = from_buffer<grumpkin::g1::affine_element>(signing_key_buf);
-    auto note = account::account_note{ account_alias_id, owner_key, signing_key };
-    auto note_commitment = note.commit();
+    auto note_commitment = account::generate_account_commitment(account_alias_id, owner_key.x, signing_key.x);
     write(output, note_commitment);
 }
 

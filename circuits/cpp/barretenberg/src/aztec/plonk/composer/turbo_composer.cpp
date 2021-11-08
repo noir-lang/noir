@@ -46,22 +46,22 @@ TurboComposer::TurboComposer()
 {}
 
 /**
- * Turbo composer initialization, where you can specify the path 
+ * Turbo composer initialization, where you can specify the path
  * for loading srs and the probable number of gates in your circuit.
  *
  * @param crs_path Path to the file containing srs.
- * @param size_hint Assumed number of gates. Used to allocate space for various member 
+ * @param size_hint Assumed number of gates. Used to allocate space for various member
  * vectors during initialization.
  * */
 TurboComposer::TurboComposer(std::string const& crs_path, const size_t size_hint)
     : TurboComposer(std::shared_ptr<ReferenceStringFactory>(new FileReferenceStringFactory(crs_path)), size_hint){};
 
 /**
- * Turbo composer initialization, where you can specify the factory 
+ * Turbo composer initialization, where you can specify the factory
  * for loading srs and the probable number of gates in your circuit.
  *
  * @param crs_factory The factory with srs.
- * @param size_hint Assumed number of gates. Used to allocate space for various member 
+ * @param size_hint Assumed number of gates. Used to allocate space for various member
  * vectors during initialization.
  * */
 TurboComposer::TurboComposer(std::shared_ptr<ReferenceStringFactory> const& crs_factory, const size_t size_hint)
@@ -114,12 +114,12 @@ void TurboComposer::create_dummy_gate()
 }
 
 /**
- * Create an addition gate. 
- * The q_m, q_4, q_5, q_ecc_1, q_range, q_logic are zero. 
- * q_artith is one. w_4 is set to 0-variable index. 
+ * Create an addition gate.
+ * The q_m, q_4, q_5, q_ecc_1, q_range, q_logic are zero.
+ * q_artith is one. w_4 is set to 0-variable index.
  * Other parameters are received from the argument.
- * 
- * @param in Specifies addition gate parameters: 
+ *
+ * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, q_1, q_2, q_3, q_c.
  * */
 void TurboComposer::create_add_gate(const add_triple& in)
@@ -144,12 +144,12 @@ void TurboComposer::create_add_gate(const add_triple& in)
 }
 
 /**
- * Create an addition gate that adds 4 variables. 
- * The q_m, q_5, q_ecc_1, q_range, q_logic are zero. 
- * q_artith is one. 
+ * Create an addition gate that adds 4 variables.
+ * The q_m, q_5, q_ecc_1, q_range, q_logic are zero.
+ * q_artith is one.
  * Other parameters are received from the argument.
- * 
- * @param in Specifies addition gate parameters: 
+ *
+ * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, w_4, q_1, q_2, q_3, q_4, q_c.
  * */
 void TurboComposer::create_big_add_gate(const add_quad& in)
@@ -174,12 +174,12 @@ void TurboComposer::create_big_add_gate(const add_quad& in)
 }
 
 /**
- * Create an addition gate that adds 4 variables with bit extraction. 
- * The q_m, q_5, q_ecc_1, q_range, q_logic are zero. 
- * q_artith is 2. 
+ * Create an addition gate that adds 4 variables with bit extraction.
+ * The q_m, q_5, q_ecc_1, q_range, q_logic are zero.
+ * q_artith is 2.
  * Other parameters are received from the argument.
- * 
- * @param in Specifies addition gate parameters: 
+ *
+ * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, w_4, q_1, q_2, q_3, q_4, q_c.
  * */
 void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
@@ -248,12 +248,12 @@ void TurboComposer::create_balanced_add_gate(const add_quad& in)
 }
 
 /**
- * Create multiplication gate. 
- * w_4 is set to the index of zero variable. 
- * q_1, q_2, q_4, q_4, q_ecc_1, q_range and q_logic are set to zero. 
+ * Create multiplication gate.
+ * w_4 is set to the index of zero variable.
+ * q_1, q_2, q_4, q_4, q_ecc_1, q_range and q_logic are set to zero.
  * q_arith is set to 1.
- * 
- * @param in Contains the values for w_l, w_r, w_o, 
+ *
+ * @param in Contains the values for w_l, w_r, w_o,
  * q_m, q_3, q_c.
  * */
 void TurboComposer::create_mul_gate(const mul_triple& in)
@@ -278,10 +278,10 @@ void TurboComposer::create_mul_gate(const mul_triple& in)
 }
 
 /**
- * Create a gate contraining the variable to 0 or 1. 
- * We set selectors in such a way that we get the 
- * equation x^2-x=0.  
- * 
+ * Create a gate contraining the variable to 0 or 1.
+ * We set selectors in such a way that we get the
+ * equation x^2-x=0.
+ *
  * @param variable_index The index of the variable.
  * */
 void TurboComposer::create_bool_gate(const uint32_t variable_index)
@@ -307,12 +307,12 @@ void TurboComposer::create_bool_gate(const uint32_t variable_index)
 }
 
 /**
- * Create poly gate as in standard composer. 
- * w_4 is set to zero variable. 
- * q_range, q_logic, q_4, q_5, q_ecc_1 are set to 0. 
+ * Create poly gate as in standard composer.
+ * w_4 is set to zero variable.
+ * q_range, q_logic, q_4, q_5, q_ecc_1 are set to 0.
  * q_arith is set to 1.
- * 
- * @param in Contains the values for 
+ *
+ * @param in Contains the values for
  * w_l, w_r, w_o, q_m, q_1, q_2, q_3, q_c.
  * */
 void TurboComposer::create_poly_gate(const poly_triple& in)
@@ -339,7 +339,7 @@ void TurboComposer::create_poly_gate(const poly_triple& in)
 
 /**
  * Add a grumpkin point, from a 2-bit lookup table, into an accumulator point.
- * 
+ *
  * @param in Witnesses and values of two points.
  * */
 void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
@@ -367,9 +367,9 @@ void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 
 /**
  * Add a grumpkin point into an accumulator, while also initializing the accumulator.
- * 
+ *
  * @param in Addition parameters (points and coefficients).
- * @param init Initialization parameters (points). 
+ * @param init Initialization parameters (points).
  * */
 void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
                                                           const fixed_group_init_quad& init)
@@ -402,7 +402,7 @@ void TurboComposer::create_fixed_group_add_gate_final(const add_quad& in)
 
 /**
  * Add a gate that will fix the witness (make it public).
- * 
+ *
  * @param witness_index Witness variable index.
  * @param witness_value Witness variable value.
  * */
@@ -430,11 +430,11 @@ void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg
 
 /**
  * Create a constrain placing the witness in 2^{num_bits} range.
- * 
+ *
  * @param witness_index The index of the witness variable to constrain.
  * @param num_bits Constraint size.
- * 
- * @return Vector of variable indexes for accumulator variables used in 
+ *
+ * @return Vector of variable indexes for accumulator variables used in
  * the constraint.
  * */
 std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uint32_t witness_index,

@@ -1,5 +1,4 @@
-#pragma once
-#include <ecc/curves/grumpkin/grumpkin.hpp>
+#include "account_note.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include "../../constants.hpp"
 
@@ -11,15 +10,16 @@ namespace account {
 
 grumpkin::fq generate_account_commitment(const barretenberg::fr& account_alias_id,
                                          const barretenberg::fr& owner_x,
-                                         const barretenberg::fr& signing_x);
+                                         const barretenberg::fr& signing_x)
+{
+    return crypto::pedersen::compress_native({ account_alias_id, owner_x, signing_x },
+                                             GeneratorIndex::ACCOUNT_NOTE_COMMITMENT);
+}
 
-struct account_note {
-    barretenberg::fr account_alias_id;
-    grumpkin::g1::affine_element owner_key;
-    grumpkin::g1::affine_element signing_key;
-
-    grumpkin::fq commit() const;
-};
+grumpkin::fq account_note::commit() const
+{
+    return generate_account_commitment(account_alias_id, owner_key.x, signing_key.x);
+}
 
 } // namespace account
 } // namespace native
