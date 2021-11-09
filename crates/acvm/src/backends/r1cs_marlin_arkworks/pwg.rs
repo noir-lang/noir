@@ -4,9 +4,9 @@ use crate::{
 };
 use acir::{circuit::Gate, native_types::Witness};
 use noir_field::FieldElement;
-use std::collections::BTreeMap;
 use num_bigint::BigUint;
-use num_traits::{One};
+use num_traits::One;
+use std::collections::BTreeMap;
 
 mod gadget_call;
 

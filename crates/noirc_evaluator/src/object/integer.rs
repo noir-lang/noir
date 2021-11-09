@@ -330,16 +330,14 @@ impl Integer {
             r: r_witness,
         }));
         // Constraints quotient and remainder
-        let b2 = Object::Integer(
-            Integer {
-                witness: b.witness,
-                num_bits: b.num_bits,
-                max_bits: b.num_bits,
-            },
-        ); //why not cloning?
+        let b2 = Object::Integer(Integer {
+            witness: b.witness,
+            num_bits: b.num_bits,
+            max_bits: b.num_bits,
+        }); //why not cloning?
         q_int.constrain(evaluator)?; //we need to bound q so we use the fact that q<=a
         bound_check::handle_less_than_op(Object::Integer(r_int), b2, evaluator)?; //r < b
-                                                                                 // a-b*q-r = 0
+                                                                                  // a-b*q-r = 0
         let res = Arithmetic::from(Linear::from_witness(a.witness));
         let my_constraint = &res
             - &Arithmetic {

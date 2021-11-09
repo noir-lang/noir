@@ -17,12 +17,11 @@ pub fn handle_div_op(
     right: Object,
     evaluator: &mut Evaluator,
 ) -> Result<Object, RuntimeErrorKind> {
-    match (left, right)
-    {
-        (Object::Integer(a), Object::Integer(b))
-                =>  Ok(Object::Integer(a.div(Object::Integer(b), evaluator)?)),
+    match (left, right) {
+        (Object::Integer(a), Object::Integer(b)) => {
+            Ok(Object::Integer(a.div(Object::Integer(b), evaluator)?))
+        }
 
-        (a,b)   =>   handle_div_op_default(a, b, evaluator)
- 
+        (a, b) => handle_div_op_default(a, b, evaluator),
     }
 }
