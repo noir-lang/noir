@@ -43,7 +43,28 @@ impl Gate {
 #[derive(Clone, Debug)]
 /// Directives do not apply any constraints.
 pub enum Directive {
-    Invert { x: Witness, result: Witness },
+    Invert {
+        x: Witness,
+        result: Witness,
+    },
+    Quotient {
+        a: Witness,
+        b: Witness,
+        q: Witness,
+        r: Witness,
+    },
+    Truncate {
+        a: Witness,
+        b: Witness,
+        c: Witness,
+        bit_size: u32,
+    },
+    Oddrange {
+        a: Witness,
+        b: Witness,
+        r: Witness,
+        bit_size: u32,
+    },
 }
 
 // Note: Some gadgets will not use all of the witness
