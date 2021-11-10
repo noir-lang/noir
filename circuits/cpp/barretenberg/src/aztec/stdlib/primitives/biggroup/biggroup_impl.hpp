@@ -53,7 +53,7 @@ template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator+(const element& other) const
 {
     other.x.assert_is_not_equal(x);
-    const Fq lambda = Fq::div({ other.y, -y }, (other.x - x));
+    const Fq lambda = Fq::div_without_denominator_check({ other.y, -y }, (other.x - x));
     const Fq x3 = lambda.sqradd({ -other.x, -x });
     const Fq y3 = lambda.madd(x - x3, { -y });
     return element(x3, y3);
@@ -63,7 +63,7 @@ template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator-(const element& other) const
 {
     other.x.assert_is_not_equal(x);
-    const Fq lambda = Fq::div({ other.y, y }, (other.x - x));
+    const Fq lambda = Fq::div_without_denominator_check({ other.y, y }, (other.x - x));
     const Fq x_3 = lambda.sqradd({ -other.x, -x });
     const Fq y_3 = lambda.madd(x_3 - x, { -y });
     return element(x_3, y_3);
@@ -124,9 +124,7 @@ typename element<C, Fq, Fr, G>::chain_add_accumulator element<C, Fq, Fr, G>::cha
      * Requires only 2 non-native field reductions
      **/
     auto& x2 = acc.x3_prev;
-    typename Fq::cached_product temp;
-    const auto lambda =
-        Fq::msub_div({ acc.lambda_prev }, { (x2 - acc.x1_prev) }, (x2 - p1.x), { acc.y1_prev, p1.y }, temp);
+    const auto lambda = Fq::msub_div({ acc.lambda_prev }, { (x2 - acc.x1_prev) }, (x2 - p1.x), { acc.y1_prev, p1.y });
     const auto x3 = lambda.sqradd({ -x2, -p1.x });
 
     chain_add_accumulator output;
@@ -152,7 +150,7 @@ typename element<C, Fq, Fr, G>::chain_add_accumulator element<C, Fq, Fr, G>::cha
     output.y1_prev = p1.y;
 
     p1.x.assert_is_not_equal(p2.x);
-    const Fq lambda = Fq::div({ p2.y, -p1.y }, (p2.x - p1.x));
+    const Fq lambda = Fq::div_without_denominator_check({ p2.y, -p1.y }, (p2.x - p1.x));
 
     const Fq x3 = lambda.sqradd({ -p2.x, -p1.x });
     output.x3_prev = x3;
@@ -200,7 +198,7 @@ template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const element& other) const
 {
     other.x.assert_is_not_equal(x);
-    const Fq lambda_1 = Fq::div({ other.y - y }, (other.x - x));
+    const Fq lambda_1 = Fq::div_without_denominator_check({ other.y - y }, (other.x - x));
 
     const Fq x_3 = lambda_1.sqradd({ -other.x, -x });
 
@@ -245,12 +243,11 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::montgomery_ladder(const chain_add_a
     // => lambda = - (lambda_prev * (x2 - x1_prev) + y1_prev + y1) / (x2 - x1)
 
     auto& x2 = to_add.x3_prev;
-    typename Fq::cached_product cache;
     const auto lambda =
-        Fq::msub_div({ to_add.lambda_prev }, { (x2 - to_add.x1_prev) }, (x2 - x), { to_add.y1_prev, y }, cache);
+        Fq::msub_div({ to_add.lambda_prev }, { (x2 - to_add.x1_prev) }, (x2 - x), { to_add.y1_prev, y });
     const auto x3 = lambda.sqradd({ -x2, -x });
 
-    const Fq minus_lambda_2 = lambda + Fq::div({ y + y }, (x3 - x));
+    const Fq minus_lambda_2 = lambda + Fq::div_without_denominator_check({ y + y }, (x3 - x));
 
     const Fq x4 = minus_lambda_2.sqradd({ -x, -x3 });
 
@@ -272,11 +269,12 @@ template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const element& add1, const element& add2) const
 {
     add1.x.assert_is_not_equal(x);
-    const Fq lambda_1 = Fq::div({ add1.y, -y }, (add1.x - x));
+    const Fq lambda_1 = Fq::div_without_denominator_check({ add1.y, -y }, (add1.x - x));
 
     const Fq x_3 = lambda_1.sqradd({ -add1.x, -x });
 
-    const Fq minus_lambda_2 = lambda_1 + Fq::div({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
+    const Fq minus_lambda_2 =
+        lambda_1 + Fq::div_without_denominator_check({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
 
     const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
 
@@ -289,12 +287,10 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const elem
     const Fq x_sub_x4 = x - x_4;
 
     const Fq x4_sub_add2x = x_4 - add2.x;
-    typename Fq::cached_product minus_lambda_2_mul_x_sub_4_cache;
 
     // msub_div; 'compute a multiplication and a division and multiply the two together. Requires only 1 non native
     // field reduction`
-    const Fq lambda_3 = Fq::msub_div(
-        { minus_lambda_2 }, { (x_sub_x4) }, (x4_sub_add2x), { y, add2.y }, minus_lambda_2_mul_x_sub_4_cache);
+    const Fq lambda_3 = Fq::msub_div({ minus_lambda_2 }, { (x_sub_x4) }, (x4_sub_add2x), { y, add2.y });
 
     // validate we can use incomplete addition formulae
     x_4.assert_is_not_equal(add2.x);
@@ -302,8 +298,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const elem
     const Fq x_5 = lambda_3.sqradd({ -x_4, -add2.x });
     const Fq x5_sub_x4 = x_5 - x_4;
 
-    const Fq half_minus_lambda_4_minus_lambda_3 =
-        Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y }, minus_lambda_2_mul_x_sub_4_cache);
+    const Fq half_minus_lambda_4_minus_lambda_3 = Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y });
 
     const Fq minus_lambda_4_minus_lambda_3 = half_minus_lambda_4_minus_lambda_3 + half_minus_lambda_4_minus_lambda_3;
     const Fq minus_lambda_4 = minus_lambda_4_minus_lambda_3 + lambda_3;
@@ -312,8 +307,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const elem
     const Fq x6_sub_x4 = x_6 - x_4;
 
     // y_6 = -L_4 * (x_6 - x_4) - L_2 * (x - x_4) + y
-    const Fq y_6 =
-        Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y }, minus_lambda_2_mul_x_sub_4_cache);
+    const Fq y_6 = Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y });
 
     return element(x_6, y_6);
 }
@@ -332,7 +326,8 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chai
 
     const Fq x_3 = lambda_1.sqradd({ -add1.x3_prev, -x });
 
-    const Fq minus_lambda_2 = lambda_1 + Fq::div({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
+    const Fq minus_lambda_2 =
+        lambda_1 + Fq::div_without_denominator_check({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
 
     const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
 
@@ -377,13 +372,13 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chai
 {
     add1.x3_prev.assert_is_not_equal(x);
     // add1.y = lambda_prev * (x1_prev - x3_prev) - y1_prev
-    typename Fq::cached_product cache;
     Fq lambda_1 = Fq::msub_div(
-        { add1.lambda_prev }, { (add1.x1_prev - add1.x3_prev) }, (x - add1.x3_prev), { -add1.y1_prev, -y }, cache);
+        { add1.lambda_prev }, { (add1.x1_prev - add1.x3_prev) }, (x - add1.x3_prev), { -add1.y1_prev, -y });
 
     const Fq x_3 = lambda_1.sqradd({ -add1.x3_prev, -x });
 
-    const Fq minus_lambda_2 = lambda_1 + Fq::div({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
+    const Fq minus_lambda_2 =
+        lambda_1 + Fq::div_without_denominator_check({ y + y }, (x_3 - x)); // (y + y) / (x_3 - x);
 
     const Fq x_4 = minus_lambda_2.sqradd({ -x, -x_3 });
 
@@ -395,21 +390,18 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chai
     const Fq x_sub_x4 = x - x_4;
 
     const Fq x4_sub_add2x = x_4 - add2.x3_prev;
-    typename Fq::cached_product minus_lambda_2_mul_x_sub_4_cache;
 
     const Fq lambda_3 = Fq::msub_div({ minus_lambda_2, add2.lambda_prev },
                                      { (x_sub_x4), (add2.x1_prev - add2.x3_prev) },
                                      (x4_sub_add2x),
-                                     { y, -add2.y1_prev },
-                                     minus_lambda_2_mul_x_sub_4_cache);
+                                     { y, -add2.y1_prev });
 
     x_4.assert_is_not_equal(add2.x3_prev);
 
     const Fq x_5 = lambda_3.sqradd({ -x_4, -add2.x3_prev });
     const Fq x5_sub_x4 = x_5 - x_4;
 
-    const Fq half_minus_lambda_4_minus_lambda_3 =
-        Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y }, minus_lambda_2_mul_x_sub_4_cache);
+    const Fq half_minus_lambda_4_minus_lambda_3 = Fq::msub_div({ minus_lambda_2 }, { x_sub_x4 }, (x5_sub_x4), { y });
 
     const Fq minus_lambda_4_minus_lambda_3 = half_minus_lambda_4_minus_lambda_3 + half_minus_lambda_4_minus_lambda_3;
     const Fq minus_lambda_4 = minus_lambda_4_minus_lambda_3 + lambda_3;
@@ -417,8 +409,7 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::double_montgomery_ladder(const chai
 
     const Fq x6_sub_x4 = x_6 - x_4;
 
-    const Fq y_6 =
-        Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y }, minus_lambda_2_mul_x_sub_4_cache);
+    const Fq y_6 = Fq::dual_madd(minus_lambda_4, (x6_sub_x4), minus_lambda_2, x_sub_x4, { y });
 
     return element(x_6, y_6);
 }

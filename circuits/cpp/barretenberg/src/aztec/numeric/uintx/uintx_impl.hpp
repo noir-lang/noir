@@ -1,13 +1,11 @@
 #pragma once
+#include <common/assert.hpp>
 
 template <class base_uint>
 constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod(const uintx& b) const
 {
-    if (b == 0) {
-        throw_or_abort("divmod: divide by zero");
-    }
-
-    if (*this == 0 || b == 0) {
+    ASSERT(b != 0);
+    if (*this == 0) {
         return { uintx(0), uintx(0) };
     } else if (b == 1) {
         return { *this, uintx(0) };
@@ -55,7 +53,8 @@ constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod
  **/
 template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::invmod(const uintx& modulus) const
 {
-    if (*this == 0 || modulus == 0) {
+    ASSERT((*this) != 0);
+    if (modulus == 0) {
         return 0;
     }
 

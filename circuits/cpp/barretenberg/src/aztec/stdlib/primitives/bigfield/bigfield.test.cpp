@@ -42,6 +42,31 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
     typedef typename bn254::witness_ct witness_ct;
 
   public:
+    static void test_bad_mul()
+    {
+
+        auto composer = Composer();
+        size_t num_repetitions = 1;
+        for (size_t i = 0; i < num_repetitions; ++i) {
+            fq inputs[2]{ fq::zero(), fq::random_element() };
+            fq_ct a(witness_ct(&composer, barretenberg::fr(uint256_t(inputs[0]).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
+                    witness_ct(&composer,
+                               barretenberg::fr(
+                                   uint256_t(inputs[0]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
+            fq_ct b(witness_ct(&composer, barretenberg::fr(uint256_t(inputs[1]).slice(0, fq_ct::NUM_LIMB_BITS * 2))),
+                    witness_ct(&composer,
+                               barretenberg::fr(
+                                   uint256_t(inputs[1]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
+
+            a.bad_mul(b);
+        }
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+        bool proof_result = verifier.verify_proof(proof);
+        EXPECT_EQ(proof_result, false);
+    }
+
     static void test_mul()
     {
         auto composer = Composer();
@@ -173,6 +198,75 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
         EXPECT_EQ(proof_result, true);
     }
 
+    static void test_mult_madd()
+    {
+        auto composer = Composer();
+        size_t num_repetitions = 1;
+        const size_t number_of_madds = 128;
+        for (size_t i = 0; i < num_repetitions; ++i) {
+            fq mul_left_values[number_of_madds];
+            fq mul_right_values[number_of_madds];
+            fq to_add_values[number_of_madds];
+
+            fq expected(0);
+
+            std::vector<fq_ct> mul_left;
+            std::vector<fq_ct> mul_right;
+            std::vector<fq_ct> to_add;
+            mul_left.reserve(number_of_madds);
+            mul_right.reserve(number_of_madds);
+            to_add.reserve(number_of_madds);
+            for (size_t j = 0; j < number_of_madds; j++) {
+                mul_left_values[j] = fq::random_element();
+                mul_right_values[j] = fq::random_element();
+                expected += mul_left_values[j] * mul_right_values[j];
+                mul_left.emplace_back(
+                    fq_ct::create_from_u512_as_witness(&composer, uint512_t(uint256_t(mul_left_values[j]))));
+                mul_right.emplace_back(
+                    fq_ct::create_from_u512_as_witness(&composer, uint512_t(uint256_t(mul_right_values[j]))));
+                to_add_values[j] = fq::random_element();
+                expected += to_add_values[j];
+                to_add.emplace_back(
+                    fq_ct::create_from_u512_as_witness(&composer, uint512_t(uint256_t(to_add_values[j]))));
+            }
+            uint64_t before = composer.get_num_gates();
+            fq_ct f = fq_ct::mult_madd(mul_left, mul_right, to_add);
+            uint64_t after = composer.get_num_gates();
+            if (i == num_repetitions - 1) {
+                std::cout << "num gates with mult_madd = " << after - before << std::endl;
+            }
+            /**
+            before = composer.get_num_gates();
+            fq_ct f1(0);
+            for (size_t j = 0; j < number_of_madds; j++) {
+                f1 += mul_left[j] * mul_right[j] + to_add[j];
+            }
+            after = composer.get_num_gates();
+            if (i == num_repetitions - 1) {
+                std::cout << "num gates with regular multiply_add = " << after - before << std::endl;
+            }
+            **/
+
+            expected = expected.from_montgomery_form();
+            uint512_t result = f.get_value();
+
+            EXPECT_EQ(result.lo.data[0], expected.data[0]);
+            EXPECT_EQ(result.lo.data[1], expected.data[1]);
+            EXPECT_EQ(result.lo.data[2], expected.data[2]);
+            EXPECT_EQ(result.lo.data[3], expected.data[3]);
+            EXPECT_EQ(result.hi.data[0], 0ULL);
+            EXPECT_EQ(result.hi.data[1], 0ULL);
+            EXPECT_EQ(result.hi.data[2], 0ULL);
+            EXPECT_EQ(result.hi.data[3], 0ULL);
+        }
+        std::cout << "composer failed + err = " << composer.failed << " , " << composer.err << std::endl;
+        auto prover = composer.create_prover();
+        auto verifier = composer.create_verifier();
+        waffle::plonk_proof proof = prover.construct_proof();
+        bool proof_result = verifier.verify_proof(proof);
+        EXPECT_EQ(proof_result, true);
+    }
+
     static void test_dual_madd()
     {
         auto composer = Composer();
@@ -198,8 +292,7 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
                                fr(uint256_t(inputs[4]).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
 
             uint64_t before = composer.get_num_gates();
-            typename fq_ct::cached_product temp;
-            fq_ct f = fq_ct::dual_madd(a, b, c, d, { e }, temp);
+            fq_ct f = fq_ct::dual_madd(a, b, c, d, { e });
             uint64_t after = composer.get_num_gates();
             if (i == num_repetitions - 1) {
                 std::cout << "num gates per mul = " << after - before << std::endl;
@@ -637,6 +730,10 @@ typedef testing::Types<waffle::StandardComposer,
 // Define the suite of tests.
 TYPED_TEST_SUITE(stdlib_bigfield, ComposerTypes);
 
+TYPED_TEST(stdlib_bigfield, badmul)
+{
+    TestFixture::test_bad_mul();
+}
 TYPED_TEST(stdlib_bigfield, mul)
 {
     TestFixture::test_mul();
@@ -645,15 +742,15 @@ TYPED_TEST(stdlib_bigfield, sqr)
 {
     TestFixture::test_sqr();
 }
-TYPED_TEST(stdlib_bigfield, madd)
+TYPED_TEST(stdlib_bigfield, mult_madd)
 {
-    TestFixture::test_madd();
+    TestFixture::test_mult_madd();
 }
 TYPED_TEST(stdlib_bigfield, dual_madd)
 {
     TestFixture::test_dual_madd();
 }
-TYPED_TEST(stdlib_bigfield, div)
+TYPED_TEST(stdlib_bigfield, div_without_denominator_check)
 {
     TestFixture::test_div();
 }

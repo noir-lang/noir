@@ -224,6 +224,28 @@ template <typename ComposerContext> class field_t {
     bool is_constant() const { return witness_index == IS_CONSTANT; }
     void set_public() const { context->set_public_input(normalize().witness_index); }
 
+    /**
+     * Create a witness form a constant. This way the value of the witness is fixed and public.
+     **/
+    void convert_constant_to_witness(ComposerContext* ctx)
+    {
+        ASSERT(witness_index == IS_CONSTANT);
+        context = ctx;
+        (*this) = field_t<ComposerContext>(witness_t<ComposerContext>(context, get_value()));
+        context->fix_witness(witness_index, get_value());
+    }
+
+    /**
+     * Fix a witness. The value of the witness is constrained with a selector
+     * */
+    void fix_witness()
+    {
+        ASSERT(witness_index != IS_CONSTANT);
+        auto context = get_context();
+        ASSERT(context != nullptr);
+        context->fix_witness(witness_index, get_value());
+    }
+
     uint32_t get_witness_index() const { return witness_index; }
 
     mutable ComposerContext* context = nullptr;

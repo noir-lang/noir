@@ -195,6 +195,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         EXPECT_EQ(outer_composer.failed, false);
         std::cout << "creating prover" << std::endl;
+        std::cout << "composer gates = " << outer_composer.get_num_gates() << std::endl;
         auto prover = outer_composer.create_prover();
         std::cout << "created prover" << std::endl;
 
@@ -440,9 +441,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     }
 };
 
-typedef testing::Types<waffle::StandardComposer,
-                       waffle::TurboComposer //,
-                       // waffle::PlookupComposer
+typedef testing::Types<waffle::TurboComposer //,
+                                             // waffle::PlookupComposer
                        >
     OuterComposerTypes;
 

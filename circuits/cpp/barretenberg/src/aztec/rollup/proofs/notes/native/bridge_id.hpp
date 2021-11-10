@@ -3,6 +3,7 @@
 #include "../constants.hpp"
 #include <crypto/pedersen/pedersen.hpp>
 #include <ecc/curves/grumpkin/grumpkin.hpp>
+#include <common/throw_or_abort.hpp>
 
 namespace rollup {
 namespace proofs {
@@ -43,7 +44,7 @@ struct bridge_id {
         bool output_asset_id_b_check = ((output_asset_id_b >> DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN) == 0);
 
         if (!(input_asset_id_check && output_asset_id_a_check && output_asset_id_b_check)) {
-            barretenberg::errors::throw_or_abort("Structure of the bridge_id incorrect!");
+            throw_or_abort("Structure of the bridge_id incorrect!");
         }
 
         constexpr uint32_t input_asset_id_offset = DEFI_BRIDGE_ADDRESS_ID_LEN;

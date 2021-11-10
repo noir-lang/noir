@@ -1,4 +1,5 @@
 #pragma once
+#include <common/throw_or_abort.hpp>
 
 #include "types.hpp"
 #include "sha256.hpp"
@@ -126,7 +127,7 @@ inline PlookupBasicTable create_basic_table(const PlookupBasicTableId id, const 
         return uint_tables::generate_and_rotate_table<6, 0>(UINT_AND_ROTATE0, index);
     }
     default: {
-        barretenberg::errors::throw_or_abort("table id does not exist");
+        throw_or_abort("table id does not exist");
         return sparse_tables::generate_sparse_table_with_rotation<9, 8, 0>(AES_SPARSE_MAP, index);
     }
     }
