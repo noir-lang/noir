@@ -217,8 +217,7 @@ impl Integer {
             );
             return Err(RuntimeErrorKind::UnstructuredError { message });
         }
-        let res: Object;
-        let mut b_obj: Integer;
+        let b_obj: Integer;
         if witness_rhs.integer().is_none() {
             b_obj = Integer::from_object(witness_rhs, self.num_bits, evaluator)?;
         } else {
