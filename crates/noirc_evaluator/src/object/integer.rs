@@ -217,11 +217,16 @@ impl Integer {
             );
             return Err(RuntimeErrorKind::UnstructuredError { message });
         }
+        let res: Object;
+        let mut b_obj: Integer;
+        if witness_rhs.integer().is_none() {
+            b_obj = Integer::from_object(witness_rhs, self.num_bits, evaluator)?;
+        } else {
+            b_obj = witness_rhs.integer().unwrap();
+        }
 
         let (new_bits, a_wit, b_wit) = self
-            .truncate_argments(witness_rhs.integer().unwrap(), evaluator, |x, y| {
-                u32::max(x, y) + 1
-            })
+            .truncate_argments(b_obj, evaluator, |x, y| u32::max(x, y) + 1)
             .unwrap();
 
         let res = binary_op::handle_add_op(
@@ -388,7 +393,6 @@ impl Integer {
             ));
             return Err(err);
         }
-
         let res =
             binary_op::handle_add_op(Object::from_witness(self.witness), witness_rhs, evaluator)?;
 
@@ -433,7 +437,7 @@ impl Integer {
         Ok(Integer {
             witness: result,
             num_bits: self.num_bits,
-            max_bits: self.num_bits, //TODO?
+            max_bits: self.num_bits, //XXX ??
         })
     }
     pub fn xor(
@@ -521,7 +525,7 @@ fn extract_witness_and_num_bits(
             integer_rhs.num_bits,
             integer_rhs.max_bits,
         ),
-        Object::Linear(_) => (poly, num_bits, num_bits),
+        Object::Linear(_) => (poly, num_bits, num_bits), //TODO: we do not know the bit size
         Object::Constants(c) => (Object::Constants(*c), num_bits, num_bits), // XXX: Here since we know the value of constant, we could get how many bits it is and do static checks
         k => {
             let message = format!(
