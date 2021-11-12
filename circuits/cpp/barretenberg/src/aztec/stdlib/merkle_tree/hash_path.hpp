@@ -30,6 +30,15 @@ inline fr_hash_path get_new_hash_path(fr_hash_path const& old_path, uint128_t in
     return path;
 }
 
+inline fr_hash_path get_random_hash_path(size_t const& tree_depth)
+{
+    fr_hash_path path;
+    for (size_t i = 0; i < tree_depth; ++i) {
+        path.push_back(std::make_pair(fr::random_element(), fr::random_element()));
+    }
+    return path;
+}
+
 template <typename Ctx> inline hash_path<Ctx> create_witness_hash_path(Ctx& ctx, fr_hash_path const& input)
 {
     hash_path<Ctx> result;

@@ -128,9 +128,6 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
     std::vector<fr_hash_path> data_roots_paths;
     std::vector<uint256_t> nullifier_indicies;
     std::vector<fr> data_tree_values;
-    fr previous_note_commitment1(0);
-    fr previous_note_commitment2(0);
-    fr previous_allow_chain(0);
 
     std::vector<uint32_t> linked_commitment_indices(linked_commitment_indices_);
     linked_commitment_indices.resize(num_txs, data_tree_size - 1);
@@ -139,36 +136,58 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
 
     for (size_t i = 0; i < num_txs; ++i) {
         auto tx = inner_proof_data(txs[i]);
+
+        // Chaining - the sole purpose of this 'if statement' is to 'zero' certain commitments and nullifiers in advance
+        // of calculating the data_tree and null_tree roots.
         fr_hash_path linked_commitment_path;
-        // In Barretenberg.js the rollup provider will arrange txs sensibly, according to fees.
-        // Here, we'll just handle txs in the order they're dealt, even if that means chains txs aren't
-        // organised sequentially.
-        // We'll also assume all tx's proofs verify, rather than check them here.
         const bool chaining = tx.propagated_input_index > 0;
+        bool is_propagating_prev_output1;
+        bool is_propagating_prev_output2;
         if (chaining) {
-            const bool split_chain =
-                tx.backward_link != previous_note_commitment1 && tx.backward_link != previous_note_commitment2;
-            if (split_chain) {
-                // Then this propagated note must be the resumption of a split chain,
-                // so we'll need to provide a valid merkle membership witness
+            bool found_link_in_rollup = false;
+            fr prev_allow_chain = 0;
+            size_t matched_tx_index;
+            // Loop through all prior txs to find a tx that this tx is chaining from (if it exists in this rollup):
+            for (size_t j = 0; j < num_txs; j++) {
+                const auto prev_tx = inner_proof_data(txs[j]);
+                is_propagating_prev_output1 = prev_tx.note_commitment1 == tx.backward_link;
+                is_propagating_prev_output2 = prev_tx.note_commitment2 == tx.backward_link;
+                found_link_in_rollup = is_propagating_prev_output1 || is_propagating_prev_output2;
+                if (found_link_in_rollup) {
+                    prev_allow_chain = prev_tx.allow_chain;
+                    matched_tx_index = j;
+                    break;
+                }
+            }
+
+            const bool start_of_subchain = !found_link_in_rollup;
+            if (start_of_subchain) {
+                // Then no earlier txs in this tx's chain have been included in this rollup, so we'll need to provide a
+                // valid merkle membership witness for the input note being propagated:
                 linked_commitment_paths.push_back(data_tree.get_hash_path(linked_commitment_indices[i]));
             } else {
+                // This tx is not the first tx of its chain to be included in this rollup, hence the existence of the
+                // input note being propagated is inductively assured by earlier checks in this circuit.
                 if (i == 0) {
                     info(format(__FUNCTION__, "error, the 0th tx is never in the middle of a chain"));
                 }
 
-                linked_commitment_path =
-                    data_tree.get_hash_path(data_tree.size() - 1); // create an (effectively) dummy path.
+                linked_commitment_path = get_random_hash_path(data_tree.depth()); // create a dummy path.
 
-                // Note: we'll allow an erroneous previous_allow_chain values to make their way into the circuit, so
-                // that we may test the circuit's constraints. If in 'the middle' of a chain, we can 'zero' the prior
-                // tx's data tree values, and this tx's nullifiers. Whilst we'll be passing the original nonzero values
-                // into the circuit, we need to calculate the data tree root as though they're zero.
-                if (previous_allow_chain == 1) {
-                    data_tree_values[data_tree_values.size() - 2] = fr(0);
+                // Note: in the circuit, we do a check to ensure the commitment being propagaged (denoted by
+                // `attempting_to_propagate_output_index`) is _allowed_ to be chained from, by comparing against
+                // `prev_allow_chain`. We'll skip that check here, so that the circuit's checks can be tested.
+
+                // Note: If we're in 'the middle' of a chain, and the user is chaining to themselves (always the case in
+                // the current implementation), we can 'zero' the prev_tx's data tree values, and this tx's nullifiers.
+                // Whilst we'll actually be passing the original nonzero values into the circuit, we need to calculate
+                // the data tree root here as though they're zero.
+
+                if (is_propagating_prev_output1) {
+                    data_tree_values[2 * matched_tx_index] = fr(0);
                 }
-                if (previous_allow_chain == 2) {
-                    data_tree_values[data_tree_values.size() - 1] = fr(0);
+                if (is_propagating_prev_output2) {
+                    data_tree_values[2 * matched_tx_index + 1] = fr(0);
                 }
                 if (tx.propagated_input_index == 1) {
                     tx.nullifier1 = 0;
@@ -176,19 +195,14 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                 if (tx.propagated_input_index == 2) {
                     tx.nullifier2 = 0;
                 }
-                // the data tree's root is calculated (in line with these changes) at the end.
+                // the data tree's root is calculated in line with these changes, later in this function.
             }
         } else {
-            linked_commitment_path = data_tree.get_hash_path(0); // create an (effectively) dummy path.
-            // WARNING! Do not propagate the 0th note in the data tree when testing! (Since this dummy path would then
-            // be a valid path).
+            linked_commitment_path = get_random_hash_path(data_tree.depth()); // create an dummy path.
         }
         linked_commitment_paths.push_back(linked_commitment_path);
 
-        previous_note_commitment1 = tx.note_commitment1;
-        previous_note_commitment2 = tx.note_commitment2;
-        previous_allow_chain = tx.allow_chain;
-
+        // Compute partial claim notes
         if (tx.proof_id == ProofIds::DEFI_DEPOSIT) {
             uint32_t nonce = 0;
             while (tx.bridge_id != bridge_ids[nonce] && nonce < bridge_ids.size()) {

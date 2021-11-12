@@ -130,9 +130,11 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         (no_note_propagated || note1_propagated || note2_propagated)
             .assert_equal(true, "propagated_input_index out of range");
 
-        // allow_chain must be in {0, 1, 2}
-        bool_ct allow_chain_1 = inputs.allow_chain == 1;
-        bool_ct allow_chain_2 = inputs.allow_chain == 2;
+        // allow_chain must be in {0, 1, 2, 3}
+        bool_ct allow_chain_1_and_2 = inputs.allow_chain == 3;
+        bool_ct allow_chain_1 = inputs.allow_chain == 1 || allow_chain_1_and_2;
+        bool_ct allow_chain_2 = inputs.allow_chain == 2 || allow_chain_1_and_2;
+
         (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
 
         // Prevent chaining from a partial claim note.

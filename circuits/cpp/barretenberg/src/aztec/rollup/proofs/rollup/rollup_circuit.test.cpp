@@ -20,6 +20,7 @@ rollup::circuit_data rollup_1_keyless;
 rollup::circuit_data rollup_2_keyless;
 rollup::circuit_data rollup_3_keyless;
 rollup::circuit_data rollup_4_keyless;
+rollup::circuit_data rollup_5_keyless;
 } // namespace
 
 class rollup_tests : public ::testing::Test {
@@ -39,6 +40,7 @@ class rollup_tests : public ::testing::Test {
         rollup_2_keyless = rollup::get_circuit_data(2, js_cd, account_cd, claim_cd, srs, "", false, false, false);
         rollup_3_keyless = rollup::get_circuit_data(3, js_cd, account_cd, claim_cd, srs, "", false, false, false);
         rollup_4_keyless = rollup::get_circuit_data(4, js_cd, account_cd, claim_cd, srs, "", false, false, false);
+        rollup_5_keyless = rollup::get_circuit_data(5, js_cd, account_cd, claim_cd, srs, "", false, false, false);
     }
 
     auto create_tx_with_1_defi()
@@ -459,7 +461,7 @@ TEST_F(rollup_tests, test_nullifier_hash_path_consistency)
 }
 
 // Chaining
-TEST_F(rollup_tests, test_chain_off_first_note)
+TEST_F(rollup_tests, test_chain_off_first_output_note_and_consume_in_first_input_note)
 {
     size_t rollup_size = 2;
 
@@ -470,8 +472,9 @@ TEST_F(rollup_tests, test_chain_off_first_note)
     tx1.allow_chain = 1;
     auto join_split_proof1 = create_js_proof(tx1);
 
-    // Chain off the prior tx's first note, and join with the second preloaded note from index 1.
-    // First index is set to 0 but it's not actually used.
+    // Chain off the prior tx's first output note, and join with the second preloaded note from data tree index 1.
+    // First input index of tx2 is set to 0 but it's not actually used (since the propagated note doesn't exist in the
+    // tree yet).
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 70, 50 }, { 120, 0 });
     tx2.input_note[0] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[0].commit();
@@ -484,7 +487,33 @@ TEST_F(rollup_tests, test_chain_off_first_note)
     EXPECT_TRUE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_chain_off_second_note)
+TEST_F(rollup_tests, test_chain_off_first_output_note_and_consume_in_second_input_note)
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 1;
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off the prior tx's first output note, and join with the second preloaded note from data tree index 1.
+    // First input index of tx2 is set to 0 but it's not actually used (since the propagated note doesn't exist in the
+    // tree yet).
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 1, 0 }, { 50, 70 }, { 120, 0 });
+    tx2.input_note[1] = tx1.output_note[0];
+    tx2.backward_link = tx2.input_note[1].commit();
+    tx2.propagated_input_index = 2;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_chain_off_second_output_note_and_consume_in_first_input_note)
 {
     size_t rollup_size = 2;
 
@@ -495,8 +524,35 @@ TEST_F(rollup_tests, test_chain_off_second_note)
     tx1.allow_chain = 2;
     auto join_split_proof1 = create_js_proof(tx1);
 
-    // Chain off the prior tx's second note, and join with the second preloaded note from index 1.
-    // Second index is set to 0 but it's not actually used.
+    // Chain off tx1's second output note, and join with the second preloaded note from data tree index 1.
+    // Second input index of tx2 is set to 0 but it's not actually used (since the propagated note doesn't exist in the
+    // tree yet).
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 30, 50 }, { 80, 0 });
+    tx2.input_note[0] = tx1.output_note[1];
+    tx2.backward_link = tx2.input_note[0].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
+    auto result = verify_logic(rollup, rollup_2_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_chain_off_second_output_note_and_consume_in_second_input_note)
+{
+    size_t rollup_size = 2;
+
+    context.append_value_notes({ 100, 50 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 2;
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // Chain off tx1's second output note, and join with the second preloaded note from data tree index 1.
+    // Second input index of tx2 is set to 0 but it's not actually used (since the propagated note doesn't exist in the
+    // tree yet).
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 1, 0 }, { 50, 30 }, { 80, 0 });
     tx2.input_note[1] = tx1.output_note[1];
     tx2.backward_link = tx2.input_note[1].commit();
@@ -509,7 +565,7 @@ TEST_F(rollup_tests, test_chain_off_second_note)
     EXPECT_TRUE(result.logic_verified);
 }
 
-TEST_F(rollup_tests, test_chain_off_first_unconsumed_note)
+TEST_F(rollup_tests, test_allow_chain_off_first_output_note_but_dont_consume)
 {
     size_t rollup_size = 2;
 
@@ -520,8 +576,7 @@ TEST_F(rollup_tests, test_chain_off_first_unconsumed_note)
     tx1.allow_chain = 1;
     auto join_split_proof1 = create_js_proof(tx1);
 
-    // Chain off the prior tx's first note, but don't use it as an input note.
-    // Under the newer spec, this would be considered 'linking', rather than 'chaining'.
+    // Allow chaining off the tx1's first note, but don't use it as an input note in tx2.
     // The tx will be permitted because no propagated_input_index is specified, and no propagation is happening.
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 1 }, { 50 }, { 50, 0 });
     tx2.backward_link = tx1.output_note[0].commit();
@@ -537,6 +592,7 @@ class test_chain_off_disallowed_note_fails : public rollup_tests,
                                              public ::testing::WithParamInterface<std::tuple<uint32_t, uint>> {};
 TEST_P(test_chain_off_disallowed_note_fails, )
 {
+    // Testing all invalid allow_chain / backward_link permutations between two txs.
     size_t rollup_size = 2;
 
     context.append_value_notes({ 100, 50 });
@@ -546,7 +602,7 @@ TEST_P(test_chain_off_disallowed_note_fails, )
     tx1.allow_chain = std::get<0>(GetParam());
     auto join_split_proof1 = create_js_proof(tx1);
 
-    // Chain off the output note dictated by `indicator`
+    // Chain off the output note dictated by the backward_link `indicator`
     uint indicator = std::get<1>(GetParam());
     join_split::join_split_tx tx2;
     switch (indicator) {
@@ -589,16 +645,21 @@ INSTANTIATE_TEST_SUITE_P(rollup_tests,
 // - split_chain_nullifier_not_zeroed
 // - split_chain_output_commitment_not_zeroed
 
-TEST_F(rollup_tests, test_gap_in_chain_within_rollup_fails)
+TEST_F(rollup_tests, test_gap_in_chain_within_rollup)
 {
     size_t rollup_size = 4;
+
+    /*
+     * Leaf index: 0    1    2    3    4    5    6    7    8    9
+     * Value:      100  50   0    0    70   30   10   60   15   35
+     */
 
     context.append_value_notes({ 100, 50 });
     context.start_next_root_rollup();
 
     // Chain should be tx1 -> tx2.
     // We'll interrupt the chain with tx1 -> tx3 -> tx2.
-    // Within a rollup, chained txs must be sequential (currently), so this should fail.
+    // This should still pass, as the circuit will find tx1.
 
     auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
     tx1.allow_chain = 1;
@@ -621,11 +682,7 @@ TEST_F(rollup_tests, test_gap_in_chain_within_rollup_fails)
         create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof3, join_split_proof2 });
     auto result = verify_logic(rollup, rollup_4_keyless);
 
-    EXPECT_FALSE(result.logic_verified);
-    auto assertion = result.err.find("Membership check failed for backward_link") !=
-                     std::string::npos; // ensure the error message contains this substring. (workaround without using
-                                        // the gmock library).
-    EXPECT_EQ(true, assertion);
+    EXPECT_TRUE(result.logic_verified);
 }
 
 TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_without_path_fails)
@@ -674,9 +731,6 @@ TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_with_linked_commitment_p
     // We'll interrupt the chain with | tx1 -> tx3  | rollup split | tx2 ... |
     // The rollup provider should therefore provide a path for the backward-linked commitment. We'll do this here.
 
-    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
-    tx1.allow_chain = 1;
-
     // Add tx1 and tx3 to the first rollup:
     context.append_value_notes({ 70, 30, 15, 35 });
     context.start_next_root_rollup();
@@ -702,6 +756,100 @@ TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_with_linked_commitment_p
                                    {},
                                    { 2 }); // add the correct linked commitment index, so a valid path is retrieved.
     auto result = verify_logic(rollup, rollup_4_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_chain_off_both_output_notes_and_consume_in_next_two_txs_no_gaps)
+{
+    size_t rollup_size = 4;
+
+    /*
+     * Leaf index: 0    1    2    3    4    5    6    7    8    9
+     * Value:      100  50   75   200  70   30   120  0    0    105
+     */
+
+    context.append_value_notes({ 100, 50, 75, 200 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 3; // allow chaining from both output notes
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // tx2 will consume the first of the propagated output notes of tx1
+    // tx3 will consume the second propagated output note of tx1
+
+    // Chain off tx1's first output note, and join with the second preloaded note from data tree index 1.
+    // First input index of tx2 is set to 0 but it's not actually used.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 4, 1 }, { 70, 50 }, { 120, 0 });
+    tx2.input_note[0] = tx1.output_note[0];
+    tx2.backward_link = tx2.input_note[0].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto tx3 = context.js_tx_factory.create_join_split_tx({ 2, 5 }, { 75, 30 }, { 0, 105 });
+    tx3.input_note[1] = tx1.output_note[1];
+    tx3.backward_link = tx3.input_note[1].commit();
+    tx3.propagated_input_index = 2;
+    auto join_split_proof3 = create_js_proof(tx3);
+
+    auto rollup =
+        create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2, join_split_proof3 });
+    auto result = verify_logic(rollup, rollup_4_keyless);
+
+    EXPECT_TRUE(result.logic_verified);
+}
+
+TEST_F(rollup_tests, test_chain_off_both_output_notes_and_consume_within_rollup_with_gaps)
+{
+    size_t rollup_size = 8;
+
+    /*
+     * Leaf index: 0    1    2    3    4    5    6    7    8    9    10   11   12    13   14    15    16
+     * Value:      100  50   75   200  300  400  500  600  70   30   120  0    0    105
+     */
+
+    // Chain should be tx1 --> tx2
+    //                      \-------->tx3
+    // We'll interrupt the chain with tx4 & tx5: | tx1 -> tx4 -> tx2 -> tx5 -> tx3 |
+    // The rollup provider should therefore provide a path for both of the propagated input commitments (one for tx2,
+    // one for tx3).
+
+    context.append_value_notes({ 100, 50, 75, 200, 300, 400, 500, 600 });
+    context.start_next_root_rollup();
+
+    auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
+    tx1.allow_chain = 3; // allow chaining from both output notes
+    auto join_split_proof1 = create_js_proof(tx1);
+
+    // tx2 will consume the first of the propagated output notes of tx1
+    // tx3 will consume the second propagated output note of tx1
+
+    // Chain off tx1's first output note, and join with the second preloaded note from data tree index 1.
+    // First input index of tx2 is set to 0 but it's not actually used.
+    auto tx2 = context.js_tx_factory.create_join_split_tx({ 8, 1 }, { 70, 50 }, { 120, 0 });
+    tx2.input_note[0] = tx1.output_note[0];
+    tx2.backward_link = tx2.input_note[0].commit();
+    tx2.propagated_input_index = 1;
+    auto join_split_proof2 = create_js_proof(tx2);
+
+    auto tx3 = context.js_tx_factory.create_join_split_tx({ 2, 9 }, { 75, 30 }, { 0, 105 });
+    tx3.input_note[1] = tx1.output_note[1];
+    tx3.backward_link = tx3.input_note[1].commit();
+    tx3.propagated_input_index = 2;
+    auto join_split_proof3 = create_js_proof(tx3);
+
+    auto tx4 = context.js_tx_factory.create_join_split_tx({ 3, 4 }, { 200, 300 }, { 20, 480 });
+    auto join_split_proof4 = create_js_proof(tx4);
+
+    auto tx5 = context.js_tx_factory.create_join_split_tx({ 5, 6 }, { 400, 500 }, { 1, 899 });
+    auto join_split_proof5 = create_js_proof(tx5);
+
+    auto rollup = create_rollup_tx(
+        context.world_state,
+        rollup_size,
+        { join_split_proof1, join_split_proof4, join_split_proof2, join_split_proof5, join_split_proof3 });
+    auto result = verify_logic(rollup, rollup_5_keyless);
 
     EXPECT_TRUE(result.logic_verified);
 }

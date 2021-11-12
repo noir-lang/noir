@@ -358,12 +358,12 @@ TEST_P(test_valid_allow_chain_permutations, )
     EXPECT_TRUE(result.valid);
     EXPECT_EQ(result.public_inputs[InnerProofFields::ALLOW_CHAIN], GetParam());
 }
-INSTANTIATE_TEST_SUITE_P(join_split_tests, test_valid_allow_chain_permutations, ::testing::Values(0, 1, 2));
+INSTANTIATE_TEST_SUITE_P(join_split_tests, test_valid_allow_chain_permutations, ::testing::Values(0, 1, 2, 3));
 
 TEST_F(join_split_tests, test_allow_chain_out_of_range_fails)
 {
     join_split_tx tx = simple_setup();
-    tx.allow_chain = 3;
+    tx.allow_chain = 4;
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
     EXPECT_EQ(result.err, "allow_chain out of range");
@@ -432,7 +432,8 @@ INSTANTIATE_TEST_SUITE_P(
         // note: if propagated index is 0, it doesn't matter what backward_link is - chaining still won't happen.
         std::make_tuple(0, 1),
         std::make_tuple(0, 2),
-        std::make_tuple(0, 3)));
+        std::make_tuple(0, 3))); // backward_link = 3 in this test will mean 'random commitment' - so
+                                 // the backward_link won't be pointing to the correct input note
 
 class test_invalid_prop_input_index_backward_link_permutations_fail
     : public join_split_tests,
@@ -452,7 +453,7 @@ INSTANTIATE_TEST_SUITE_P(join_split_tests,
                          ::testing::Values(
                              // tuple is: (propagated_input_index, "an indicator for backward_link"")
                              // note: if propagated index is 0, it doesn't matter what backward_link is - chaining still
-                             // won't happen. std::make_tuple(0, 1), std::make_tuple(0, 2), std::make_tuple(0, 3),
+                             // won't happen.
                              std::make_tuple(1, 0),
                              std::make_tuple(1, 2),
                              std::make_tuple(1, 3), // backward_link = 3 in this test will mean 'random commitment' - so
