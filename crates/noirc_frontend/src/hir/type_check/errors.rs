@@ -64,7 +64,7 @@ impl TypeCheckError {
             TypeCheckError::TypeCannotBeUsed { typ, place, span } => {
                 vec![Diagnostic::simple_error(
                     format!("the type {} cannot be used in a {}", &typ, place),
-                    format!(""),
+                    String::new(),
                     span,
                 )]
             }
@@ -126,7 +126,7 @@ impl TypeCheckError {
             } => {
                 vec![Diagnostic::simple_error(
                     format!("expected {} number of arguments, found {}", expected, found),
-                    format!(""),
+                    String::new(),
                     span,
                 )]
             }
