@@ -874,7 +874,7 @@ void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, 
  *
  * @return true if the circuit is correct.
  * */
-bool StandardComposer::check_circuit_correctness()
+bool StandardComposer::check_circuit()
 {
     STANDARD_SELECTOR_REFS
     if (n == 0)

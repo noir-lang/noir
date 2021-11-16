@@ -484,7 +484,7 @@ TEST(standard_composer, test_range_constraint_fail)
     EXPECT_EQ(result, false);
 }
 
-TEST(standard_composer, test_circuit_checks_correct)
+TEST(standard_composer, test_check_circuit_correct)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
     fr a = fr::one();
@@ -500,11 +500,11 @@ TEST(standard_composer, test_circuit_checks_correct)
 
     composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
 
-    bool result = composer.check_circuit_correctness();
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, true);
 }
 
-TEST(standard_composer, test_circuit_checks_fail)
+TEST(standard_composer, test_check_circuit_broken)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
     fr a = fr::one();
@@ -520,7 +520,7 @@ TEST(standard_composer, test_circuit_checks_fail)
 
     composer.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
 
-    bool result = composer.check_circuit_correctness();
+    bool result = composer.check_circuit();
     EXPECT_EQ(result, false);
 }
 

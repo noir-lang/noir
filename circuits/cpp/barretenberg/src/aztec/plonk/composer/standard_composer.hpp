@@ -252,6 +252,6 @@ class StandardComposer : public ComposerBase {
         return output;
     }
 
-    bool check_circuit_correctness();
+    bool check_circuit();
 };
 } // namespace waffle

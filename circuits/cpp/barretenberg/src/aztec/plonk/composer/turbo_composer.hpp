@@ -55,6 +55,8 @@ class TurboComposer : public ComposerBase {
     void create_fixed_group_add_gate_final(const add_quad& in);
     void fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value);
 
+    bool check_circuit();
+
     void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
     {
         if (contains_recursive_proof) {
@@ -219,4 +221,72 @@ class TurboComposer : public ComposerBase {
         return output;
     }
 };
+/**
+ * CheckGetter class is used to evaluate widget operations for circuit_checking
+ *
+ * */
+class CheckGetter {
+  public:
+    static constexpr barretenberg::fr random_value = barretenberg::fr(0xdead);
+    static constexpr barretenberg::fr zero = barretenberg::fr::zero();
+
+    /**
+     * Get a reference to a value of a witness/selector
+     *
+     * @param composer Composer object
+     * @param index Index of the value in polynomial (array)
+     *
+     * @tparam use_shifted_evaluation Controls if we shift index to the right or not
+     * @tparam id The id of the selector/witness polynomial being used
+     * */
+    template <bool use_shifted_evaluation, PolynomialIndex id>
+    inline static const barretenberg::fr& get_polynomial(const TurboComposer& composer, const size_t index = 0)
+    {
+        size_t actual_index = index;
+        if constexpr (use_shifted_evaluation) {
+            actual_index += 1;
+            if (actual_index >= composer.n) {
+                return zero;
+            }
+        }
+        switch (id) {
+        case PolynomialIndex::Q_1:
+            return composer.selectors[TurboComposer::TurboSelectors::Q1][actual_index];
+        case PolynomialIndex::Q_2:
+            return composer.selectors[TurboComposer::TurboSelectors::Q2][actual_index];
+        case PolynomialIndex::Q_3:
+            return composer.selectors[TurboComposer::TurboSelectors::Q3][actual_index];
+        case PolynomialIndex::Q_4:
+            return composer.selectors[TurboComposer::TurboSelectors::Q4][actual_index];
+        case PolynomialIndex::Q_5:
+            return composer.selectors[TurboComposer::TurboSelectors::Q5][actual_index];
+        case PolynomialIndex::Q_M:
+            return composer.selectors[TurboComposer::TurboSelectors::QM][actual_index];
+        case PolynomialIndex::Q_C:
+            return composer.selectors[TurboComposer::TurboSelectors::QC][actual_index];
+        case PolynomialIndex::Q_ARITHMETIC_SELECTOR:
+            return composer.selectors[TurboComposer::TurboSelectors::QARITH][actual_index];
+        case PolynomialIndex::Q_LOGIC_SELECTOR:
+            return composer.selectors[TurboComposer::TurboSelectors::QLOGIC][actual_index];
+        case PolynomialIndex::Q_RANGE_SELECTOR:
+            return composer.selectors[TurboComposer::TurboSelectors::QRANGE][actual_index];
+        case PolynomialIndex::Q_FIXED_BASE_SELECTOR:
+            return composer.selectors[TurboComposer::TurboSelectors::QECC_1][actual_index];
+        case PolynomialIndex::W_1:
+            return composer.get_variable_reference(composer.w_l[actual_index]);
+        case PolynomialIndex::W_2:
+            return composer.get_variable_reference(composer.w_r[actual_index]);
+        case PolynomialIndex::W_3:
+            return composer.get_variable_reference(composer.w_o[actual_index]);
+        case PolynomialIndex::W_4:
+            return composer.get_variable_reference(composer.w_4[actual_index]);
+        }
+        return CheckGetter::random_value;
+    }
+};
+
+using TurboArithmeticChecker = waffle::widget::TurboArithmeticKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboRangeChecker = waffle::widget::TurboRangeKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboLogicChecker = waffle::widget::TurboLogicKernel<barretenberg::fr, CheckGetter, TurboComposer>;
+using TurboFixedBaseChecker = waffle::widget::TurboFixedBaseKernel<barretenberg::fr, CheckGetter, TurboComposer>;
 } // namespace waffle

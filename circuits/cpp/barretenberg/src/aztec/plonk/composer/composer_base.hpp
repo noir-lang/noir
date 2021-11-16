@@ -260,6 +260,20 @@ class ComposerBase {
         return variables[real_variable_index[index]];
     }
 
+    /**
+     * Get a reference to the variable v_{index}.
+     *
+     * We need this function for check_circuit functions.
+     *
+     * @param index The index of the variable.
+     * @return The value of the variable.
+     * */
+    inline const barretenberg::fr& get_variable_reference(const uint32_t index) const
+    {
+        ASSERT(variables.size() > index);
+        return variables[real_variable_index[index]];
+    }
+
     barretenberg::fr get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
 
     std::vector<fr> get_public_inputs() const

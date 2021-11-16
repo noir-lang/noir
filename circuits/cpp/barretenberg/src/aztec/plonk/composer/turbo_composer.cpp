@@ -9,6 +9,9 @@
 #include <plonk/proof_system/widgets/transition_widgets/turbo_range_widget.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
 #include <plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp>
+#include "../proof_system/types/polynomial_manifest.hpp"
+#include "../proof_system/widgets/transition_widgets/transition_widget.hpp"
+#include "../proof_system/widgets/transition_widgets/turbo_arithmetic_widget.hpp"
 
 using namespace barretenberg;
 
@@ -787,6 +790,95 @@ uint32_t TurboComposer::put_constant_variable(const barretenberg::fr& variable)
         constant_variables.insert({ variable, variable_index });
         return variable_index;
     }
+}
+
+/**
+ * Check if the circuit constraints hold.
+ *
+ * @return true if circuit is correct, false if not.
+ * */
+bool TurboComposer::check_circuit()
+{
+    // Initialize each of the kernels
+    TurboArithmeticChecker arithmetic_checker;
+    TurboRangeChecker range_checker;
+    TurboLogicChecker logic_checker;
+    TurboFixedBaseChecker fixed_base_checker;
+
+    // Create various challenge_arrays
+    waffle::widget::containers::challenge_array<barretenberg::fr, TurboArithmeticChecker::num_independent_relations>
+        arithmetic_challenges;
+    waffle::widget::containers::challenge_array<barretenberg::fr, TurboRangeChecker::num_independent_relations>
+        range_challenges;
+    waffle::widget::containers::challenge_array<barretenberg::fr, TurboLogicChecker::num_independent_relations>
+        logic_challenges;
+    waffle::widget::containers::challenge_array<barretenberg::fr, TurboFixedBaseChecker::num_independent_relations>
+        fixed_base_challenges;
+
+    waffle::widget::containers::coefficient_array<barretenberg::fr> linear_parts;
+    barretenberg::fr result_nonlinear_part;
+    barretenberg::fr result_linear_part;
+
+    // Create different challenges for each type of widget (maximizes probability of failure)
+    for (size_t i = 0; i < arithmetic_challenges.elements.size(); i++) {
+        arithmetic_challenges.elements[i] = fr::random_element();
+        range_challenges.elements[i] = fr::random_element();
+        logic_challenges.elements[i] = fr::random_element();
+
+        fixed_base_challenges.elements[i] = fr::random_element();
+    }
+
+    // Instead of powers of alpha, fill all "alpha_powers" with random elements
+    for (size_t i = 0; i < arithmetic_challenges.alpha_powers.size(); i++) {
+        arithmetic_challenges.alpha_powers[i] = fr::random_element();
+    }
+    for (size_t i = 0; i < range_challenges.alpha_powers.size(); i++) {
+        range_challenges.alpha_powers[i] = fr::random_element();
+    }
+    for (size_t i = 0; i < logic_challenges.alpha_powers.size(); i++) {
+        logic_challenges.alpha_powers[i] = fr::random_element();
+    }
+    for (size_t i = 0; i < fixed_base_challenges.alpha_powers.size(); i++) {
+        fixed_base_challenges.alpha_powers[i] = fr::random_element();
+    }
+    // Check for each gate
+    for (size_t i = 0; i < get_num_gates(); i++) {
+        result_nonlinear_part = barretenberg::fr::zero();
+        // Do arithmetic
+        arithmetic_checker.compute_linear_terms(*this, arithmetic_challenges, linear_parts, i);
+        result_linear_part = arithmetic_checker.sum_linear_terms(*this, arithmetic_challenges, linear_parts, i);
+        arithmetic_checker.compute_non_linear_terms(*this, arithmetic_challenges, result_nonlinear_part, i);
+        result_linear_part += result_nonlinear_part;
+        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+            return false;
+        }
+
+        // Do range
+        range_checker.compute_linear_terms(*this, range_challenges, linear_parts, i);
+        result_linear_part = range_checker.sum_linear_terms(*this, range_challenges, linear_parts, i);
+        range_checker.compute_non_linear_terms(*this, range_challenges, result_nonlinear_part, i);
+        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+            return false;
+        }
+
+        // Do logic
+        logic_checker.compute_linear_terms(*this, logic_challenges, linear_parts, i);
+        result_linear_part = logic_checker.sum_linear_terms(*this, logic_challenges, linear_parts, i);
+        logic_checker.compute_non_linear_terms(*this, logic_challenges, result_nonlinear_part, i);
+        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+            return false;
+        }
+
+        // Do fixed base
+        fixed_base_checker.compute_linear_terms(*this, fixed_base_challenges, linear_parts, i);
+        result_linear_part = fixed_base_checker.sum_linear_terms(*this, fixed_base_challenges, linear_parts, i);
+        fixed_base_checker.compute_non_linear_terms(*this, fixed_base_challenges, result_nonlinear_part, i);
+        // Fixed base is the only one where independent parts are not zero
+        if (!(result_linear_part + result_nonlinear_part).is_zero()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
