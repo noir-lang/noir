@@ -8,6 +8,7 @@ mod blake2s;
 mod ecdsa_secp256k1;
 mod fixed_based_scalar_mul;
 mod hash_to_field;
+mod insert_regular_merkle;
 mod merkle_membership;
 mod pedersen;
 mod schnorr;
@@ -20,6 +21,7 @@ use blake2s::Blake2sGadget;
 use ecdsa_secp256k1::EcdsaSecp256k1Gadget;
 use fixed_based_scalar_mul::FixedBaseScalarMulGadget;
 use hash_to_field::HashToFieldGadget;
+use insert_regular_merkle::InsertRegularMerkleGadget;
 use merkle_membership::MerkleMembershipGadget;
 use noirc_errors::Span;
 use noirc_frontend::hir_def::expr::HirCallExpression;
@@ -65,6 +67,7 @@ pub fn call_low_level(
         OPCODE::EcdsaSecp256k1 => EcdsaSecp256k1Gadget::call(evaluator, env, call_expr),
         OPCODE::HashToField => HashToFieldGadget::call(evaluator, env, call_expr),
         OPCODE::FixedBaseScalarMul => FixedBaseScalarMulGadget::call(evaluator, env, call_expr),
+        OPCODE::InsertRegularMerkle => InsertRegularMerkleGadget::call(evaluator, env, call_expr),
         k => {
             let message = format!("The OPCODE {} exists, however, currently the compiler does not have a concrete implementation for it", k);
             Err(RuntimeErrorKind::UnstructuredError { message }.add_span(span))
