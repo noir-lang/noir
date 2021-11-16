@@ -1,9 +1,12 @@
-barretenberg_module(
-  rollup_proofs
-  schnorr
-  stdlib_blake2s
-  stdlib_sha256
-  stdlib_pedersen
-  stdlib_schnorr
-  stdlib_primitives
-  stdlib_merkle_tree)
+add_subdirectory(account)
+add_subdirectory(claim)
+add_subdirectory(inner_proof_data)
+add_subdirectory(join_split)
+add_subdirectory(notes)
+
+if(NOT WASM)
+  add_subdirectory(rollup)
+  add_subdirectory(root_rollup)
+  add_subdirectory(root_verifier)
+  add_subdirectory(standard_example)
+endif()

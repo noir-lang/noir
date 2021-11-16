@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+IP=$1
+shift
+NAME=$1
+SSH_CONFIG_PATH=${SSH_CONFIG_PATH:-../../.circleci/remote/ssh_config}
+
+# Copy required files to spot instance.
+scp -F $SSH_CONFIG_PATH ./run_tests $IP:.
+# If there is a file called NAME, it is the list of tests to run. Copy it over.
+if [ -f "$NAME" ]; then
+  scp -F $SSH_CONFIG_PATH $NAME $IP:.
+fi
+
+# Run tests on remote instance.
+ssh -F $SSH_CONFIG_PATH $IP ./run_tests $@

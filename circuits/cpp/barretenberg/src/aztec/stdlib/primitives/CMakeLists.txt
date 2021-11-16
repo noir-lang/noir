@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_primitives composer)
+barretenberg_module(stdlib_primitives plonk)

@@ -1,7 +1,7 @@
 #include "rollup_circuit.hpp"
 #include "./rollup_proof_data.hpp"
 #include "../../constants.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 #include "../add_zero_public_inputs.hpp"
 #include "../notes/circuit/claim/index.hpp"
 #include <stdlib/merkle_tree/index.hpp>

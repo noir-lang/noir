@@ -1,1 +1,0 @@
-barretenberg_module(sidon_set ecc numeric)

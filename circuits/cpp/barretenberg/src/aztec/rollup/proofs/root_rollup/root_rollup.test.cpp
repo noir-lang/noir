@@ -5,6 +5,7 @@
 #include "../rollup/index.hpp"
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
+#include "../../fixtures/compute_or_load_fixture.hpp"
 
 // #pragma GCC diagnostic ignored "-Wunused-variable"
 // #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -17,6 +18,11 @@ using namespace notes::native;
 using namespace plonk::stdlib::merkle_tree;
 
 namespace {
+#ifdef CI
+bool persist = false;
+#else
+bool persist = true;
+#endif
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 join_split::circuit_data js_cd;
 proofs::account::circuit_data account_cd;
@@ -43,16 +49,18 @@ class root_rollup_tests : public ::testing::Test {
     static void SetUpTestCase()
     {
         auto recreate = !exists(FIXTURE_PATH);
+        mkdir(FIXTURE_PATH, 0700);
+        mkdir(TEST_PROOFS_PATH, 0700);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
 
-        account_cd = proofs::account::compute_or_load_circuit_data(srs, FIXTURE_PATH);
-        js_cd = join_split::compute_or_load_circuit_data(srs, FIXTURE_PATH);
-        claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH);
+        account_cd = proofs::account::compute_circuit_data(srs);
+        js_cd = join_split::compute_circuit_data(srs);
+        claim_cd = proofs::claim::get_circuit_data(srs, "", true, false, false);
 
         if (recreate) {
             // If no fixtures dir, recreate all proving keys, verification keys, padding proofs etc.
             tx_rollup_cd = rollup::get_circuit_data(
-                INNER_ROLLUP_TXS, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
+                INNER_ROLLUP_TXS, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, persist, persist);
         } else {
             // Otherwise we should only need the inner proofs verification key for logic tests.
             tx_rollup_cd = rollup::get_circuit_data(
@@ -98,7 +106,7 @@ class root_rollup_tests : public ::testing::Test {
 
     std::vector<uint8_t> compute_or_load_rollup(std::string const& name, rollup::rollup_tx& rollup)
     {
-        return compute_or_load_fixture(TEST_PROOFS_PATH, name, [&] {
+        return fixtures::compute_or_load_fixture(TEST_PROOFS_PATH, name, [&] {
             // We need to ensure we have a proving key to build the inner proof fixtures.
             if (!tx_rollup_cd.proving_key) {
                 tx_rollup_cd = rollup::get_circuit_data(
@@ -114,7 +122,7 @@ class root_rollup_tests : public ::testing::Test {
     {
         std::vector<std::vector<uint8_t>> proofs;
         for (uint32_t i = 0; i < n; ++i) {
-            auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
+            auto js_proof = fixtures::compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
                 return context.create_join_split_proof({}, {}, { 100, 50 }, 150);
             });
             proofs.push_back(js_proof);

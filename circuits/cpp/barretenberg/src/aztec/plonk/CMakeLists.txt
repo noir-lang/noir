@@ -1,5 +1,1 @@
-add_subdirectory(composer)
-add_subdirectory(reference_string)
-add_subdirectory(transcript)
-add_subdirectory(proof_system)
-add_subdirectory(pippenger_bench)
+barretenberg_module(plonk crypto_pedersen polynomials crypto_sha256 ecc crypto_blake2s)

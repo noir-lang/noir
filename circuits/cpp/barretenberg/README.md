@@ -33,7 +33,7 @@ Each module has its own tests. e.g. To build and run `ecc` tests:
 
 ```
 make ecc_tests
-./src/aztec/ecc/ecc_tests
+./bin/ecc_tests
 ```
 
 A shorthand for the above is:
@@ -51,7 +51,7 @@ make test
 You can run specific tests, e.g.
 
 ```
-./src/aztec/ecc/ecc_tests --gtest_filter=scalar_multiplication.*
+./bin/ecc_tests --gtest_filter=scalar_multiplication.*
 ```
 
 ### Benchmarks
@@ -103,5 +103,5 @@ Tests can be built and run like:
 
 ```
 make ecc_tests
-wasmtime --dir=.. ./src/aztec/ecc/ecc_tests
+wasmtime --dir=.. ./bin/ecc_tests
 ```

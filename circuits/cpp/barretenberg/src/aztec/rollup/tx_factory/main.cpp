@@ -4,11 +4,13 @@
 #include "../proofs/root_verifier/index.hpp"
 #include "../world_state/world_state.hpp"
 #include "../constants.hpp"
+#include "../fixtures/compute_or_load_fixture.hpp"
 #include <common/streams.hpp>
 #include <iostream>
 #include <stdlib/merkle_tree/index.hpp>
 
 using namespace ::rollup::proofs;
+using namespace ::rollup::fixtures;
 using namespace plonk::stdlib::merkle_tree;
 using namespace plonk::stdlib::types::turbo;
 namespace tx_rollup = ::rollup::proofs::rollup;
@@ -28,7 +30,7 @@ tx_rollup::rollup_tx create_inner_rollup(size_t rollup_num,
     auto proofs = std::vector<std::vector<uint8_t>>(num_txs);
     for (size_t i = 0; i < num_txs; ++i) {
         auto name = format("js", rollup_num * rollup_size + i);
-        proofs[i] = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
+        proofs[i] = compute_or_load_fixture(data_path, name, [&]() {
             return join_split::create_noop_join_split_proof(join_split_circuit_data, data_tree_root);
         });
     }
@@ -77,7 +79,7 @@ int main(int argc, char** argv)
         auto rollup = create_inner_rollup(
             rollups_data.size(), n, inner_rollup_size, join_split_circuit_data, data_root, world_state);
 
-        auto proof_data = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
+        auto proof_data = compute_or_load_fixture(data_path, name, [&]() {
             std::cerr << prefix << "Sending..." << std::endl;
             write(std::cout, (uint32_t)0);
             write(std::cout, (uint32_t)inner_rollup_size);
@@ -100,7 +102,7 @@ int main(int argc, char** argv)
     auto root_rollup = root_rollup::create_root_rollup_tx(world_state, 0, world_state.defi_tree.root(), rollups_data);
     auto name = format("root_rollup_", inner_rollup_size, "x", outer_rollup_size, "_", rollups_data.size(), ".dat");
 
-    auto root_rollup_proof_buf = root_rollup::compute_or_load_fixture(data_path, name, [&]() {
+    auto root_rollup_proof_buf = compute_or_load_fixture(data_path, name, [&]() {
         std::cerr << prefix << "Sending..." << std::endl;
         write(std::cout, (uint32_t)1);
         write(std::cout, (uint32_t)inner_rollup_size);

@@ -1,5 +1,5 @@
 #include "../../constants.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 #include "index.hpp"
 #include "../notes/native/index.hpp"
 #include <common/streams.hpp>
@@ -24,7 +24,6 @@ auto create_account_leaf_data(fr const& account_alias_id,
 
 class join_split_tests : public ::testing::Test {
   protected:
-#ifndef DISABLE_HEAVY_TESTS
     static void SetUpTestCase()
     {
         auto null_crs_factory = std::make_unique<waffle::ReferenceStringFactory>();
@@ -32,7 +31,6 @@ class join_split_tests : public ::testing::Test {
         auto crs_factory = std::make_unique<waffle::FileReferenceStringFactory>("../srs_db");
         init_verification_key(std::move(crs_factory));
     }
-#endif
 
     virtual void SetUp()
     {
@@ -338,16 +336,6 @@ TEST_F(join_split_tests, test_0_output_notes)
 }
 
 // Chaining
-
-/*
- * NOTE: parametrized tests (with TEST_P) can be run from terminal with
- * `./src/aztec/rollup/proofs/rollup_proofs_tests -j32 --gtest_filter=join_split_tests*`
- * as long as the naming patterns below are followed.
- *
- * These naming patterns aren't as google intended, but it's a neat fix so that these tests'
- * names start with the `join_split_tests` prefix, just like the other TEST_F tests in this
- * file.
- */
 class test_valid_allow_chain_permutations : public join_split_tests, public ::testing::WithParamInterface<uint32_t> {};
 TEST_P(test_valid_allow_chain_permutations, )
 {
@@ -770,7 +758,7 @@ TEST_F(join_split_tests, test_wrong_note_hash_path_fails)
     EXPECT_EQ(result.err, "input note not a member");
 }
 
-HEAVY_TEST_F(join_split_tests, test_tainted_output_owner_fails)
+TEST_F(join_split_tests, test_tainted_output_owner_fails)
 {
     join_split_tx tx = simple_setup();
     tx.proof_id = ProofIds::DEPOSIT;
@@ -989,7 +977,7 @@ TEST_F(join_split_tests, test_virtual_note_split_tx_asset_id_inconsistent)
     EXPECT_EQ(result.err, "asset ids don't match");
 }
 
-HEAVY_TEST_F(join_split_tests, test_deposit_full_proof)
+TEST_F(join_split_tests, test_deposit_full_proof)
 {
     join_split_tx tx = zero_input_setup();
     tx.proof_id = ProofIds::DEPOSIT;
@@ -1025,7 +1013,7 @@ HEAVY_TEST_F(join_split_tests, test_deposit_full_proof)
     EXPECT_TRUE(verify_proof(proof));
 }
 
-HEAVY_TEST_F(join_split_tests, test_withdraw_full_proof)
+TEST_F(join_split_tests, test_withdraw_full_proof)
 {
     join_split_tx tx = simple_setup();
     tx.proof_id = ProofIds::WITHDRAW;
@@ -1061,7 +1049,7 @@ HEAVY_TEST_F(join_split_tests, test_withdraw_full_proof)
     EXPECT_TRUE(verify_proof(proof));
 }
 
-HEAVY_TEST_F(join_split_tests, test_private_send_full_proof)
+TEST_F(join_split_tests, test_private_send_full_proof)
 {
     join_split_tx tx = simple_setup();
     tx.output_note[0].value -= 3;
@@ -1097,7 +1085,7 @@ HEAVY_TEST_F(join_split_tests, test_private_send_full_proof)
     EXPECT_TRUE(verify_proof(proof));
 }
 
-HEAVY_TEST_F(join_split_tests, test_defi_deposit_full_proof)
+TEST_F(join_split_tests, test_defi_deposit_full_proof)
 {
     join_split_tx tx = simple_setup();
     // 150 in, fee is 10.
@@ -1179,7 +1167,7 @@ TEST_F(join_split_tests, test_incorrect_output_note_pubkey_x)
     }
 }
 
-HEAVY_TEST_F(join_split_tests, test_repayment_full_proof)
+TEST_F(join_split_tests, test_repayment_full_proof)
 {
     join_split_tx tx = simple_setup({ 0, 4 });
     tx.proof_id = ProofIds::DEFI_DEPOSIT;
@@ -1222,7 +1210,7 @@ HEAVY_TEST_F(join_split_tests, test_repayment_full_proof)
     EXPECT_TRUE(verify_proof(proof));
 }
 
-HEAVY_TEST_F(join_split_tests, test_virtual_note_split_full_proof)
+TEST_F(join_split_tests, test_virtual_note_split_full_proof)
 {
     join_split_tx tx = setup_two_virtual_input_notes();
     ;

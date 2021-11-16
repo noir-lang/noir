@@ -1,7 +1,7 @@
 #include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "account.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 #include "../notes/constants.hpp"
 #include "../notes/native/index.hpp"
 #include <common/streams.hpp>
@@ -20,14 +20,12 @@ using namespace rollup::proofs::notes::native::account;
 
 class account_tests : public ::testing::Test {
   protected:
-#ifndef DISABLE_HEAVY_TESTS
     static void SetUpTestCase()
     {
         auto crs_factory =
             std::shared_ptr<waffle::ReferenceStringFactory>(new waffle::FileReferenceStringFactory("../srs_db"));
         init_verification_key(crs_factory);
     }
-#endif
 
     virtual void SetUp()
     {
@@ -117,7 +115,7 @@ TEST_F(account_tests, test_create_account)
     EXPECT_TRUE(verify_logic(tx));
 }
 
-HEAVY_TEST_F(account_tests, test_create_account_full_proof)
+TEST_F(account_tests, test_create_account_full_proof)
 {
     auto tx = create_account_tx();
     EXPECT_TRUE(verify(tx));
@@ -216,7 +214,7 @@ TEST_F(account_tests, test_change_account_public_key_fails)
     EXPECT_FALSE(verify_logic(tx));
 }
 
-HEAVY_TEST_F(account_tests, test_migrate_account_full_proof)
+TEST_F(account_tests, test_migrate_account_full_proof)
 {
     auto tx = create_account_tx();
     auto prover = new_account_prover(tx);
@@ -245,7 +243,7 @@ HEAVY_TEST_F(account_tests, test_migrate_account_full_proof)
     EXPECT_EQ(data.defi_root, fr(0));
 }
 
-HEAVY_TEST_F(account_tests, test_non_migrate_account_full_proof)
+TEST_F(account_tests, test_non_migrate_account_full_proof)
 {
     preload_account_notes();
     auto tx = create_account_tx(1);

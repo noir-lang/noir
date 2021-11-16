@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+
+NAME=$1
+COMMIT_HASH=$2
+TRANSCRIPTS=${3:-0}
+
+$(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
+
+IMAGE_URI=278380418400.dkr.ecr.us-east-2.amazonaws.com/barretenberg-x86_64-linux-clang-assert:cache-$COMMIT_HASH
+
+docker pull $IMAGE_URI
+
+if [ -f "$NAME" ]; then
+  TESTS=$(cat $NAME | tr '\n' ' ')
+else
+  TESTS=$NAME
+fi
+
+# TODO: Can code make the fixtures dirs so we don't have to?
+docker run --rm -t $IMAGE_URI /bin/sh -c "\
+  set -e; \
+  cd /usr/src/barretenberg/srs_db; \
+  ./download_ignition.sh $TRANSCRIPTS; \
+  cd /usr/src/barretenberg/build; \
+  mkdir -p ../src/aztec/rollup/proofs/root_rollup; \
+  mkdir -p ../src/aztec/rollup/proofs/root_verifier; \
+  for BIN in $TESTS; do ./bin/\$BIN; done"

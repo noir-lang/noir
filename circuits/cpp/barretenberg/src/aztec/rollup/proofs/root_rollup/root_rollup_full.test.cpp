@@ -1,11 +1,9 @@
-// Uncomment to simulate running in CI.
-// #define DISABLE_HEAVY_TESTS
-
 #include <common/test.hpp>
 #include "index.hpp"
 #include "../rollup/index.hpp"
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
+#include "../../fixtures/compute_or_load_fixture.hpp"
 
 namespace rollup {
 namespace proofs {
@@ -16,12 +14,19 @@ using namespace notes::native;
 using namespace plonk::stdlib::merkle_tree;
 
 namespace {
+#ifdef CI
+bool persist = false;
+#else
+bool persist = false;
+#endif
 std::shared_ptr<waffle::DynamicFileReferenceStringFactory> srs;
 numeric::random::Engine* rand_engine = &numeric::random::get_debug_engine(true);
 fixtures::user_context user = fixtures::create_user_context(rand_engine);
 join_split::circuit_data js_cd;
 proofs::account::circuit_data account_cd;
 proofs::claim::circuit_data claim_cd;
+proofs::rollup::circuit_data tx_rollup2_cd;
+proofs::rollup::circuit_data tx_rollup3_cd;
 } // namespace
 
 class root_rollup_full_tests : public ::testing::Test {
@@ -43,17 +48,22 @@ class root_rollup_full_tests : public ::testing::Test {
     static void SetUpTestCase()
     {
         mkdir(FIXTURE_PATH, 0700);
+        mkdir(TEST_PROOFS_PATH, 0700);
         srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(CRS_PATH);
         account_cd = proofs::account::compute_circuit_data(srs);
         js_cd = join_split::compute_circuit_data(srs);
         claim_cd = proofs::claim::get_circuit_data(srs, FIXTURE_PATH, true, false, false);
+        tx_rollup2_cd =
+            rollup::get_circuit_data(2, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, persist, persist);
+        tx_rollup3_cd =
+            rollup::get_circuit_data(3, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, persist, persist);
     }
 
     std::vector<std::vector<uint8_t>> get_js_proofs(uint32_t n)
     {
         std::vector<std::vector<uint8_t>> proofs;
         for (uint32_t i = 0; i < n; ++i) {
-            auto js_proof = compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
+            auto js_proof = fixtures::compute_or_load_fixture(TEST_PROOFS_PATH, format("js", i), [&] {
                 return context.create_join_split_proof({}, {}, { 100, 50 }, 150);
             });
             proofs.push_back(js_proof);
@@ -71,7 +81,7 @@ class root_rollup_full_tests : public ::testing::Test {
         for (auto txs : rollup_structure) {
             auto name = format(test_name, "_rollup", rollups_data.size() + 1);
             auto rollup = rollup::create_rollup_tx(context.world_state, tx_rollup_cd.rollup_size, txs, {}, { 0 });
-            auto rollup_data = compute_or_load_fixture(
+            auto rollup_data = fixtures::compute_or_load_fixture(
                 TEST_PROOFS_PATH, name, [&] { return rollup::verify(rollup, tx_rollup_cd).proof_data; });
             assert(!rollup_data.empty());
             rollups_data.push_back(rollup_data);
@@ -87,19 +97,16 @@ class root_rollup_full_tests : public ::testing::Test {
 
 HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
 {
-    static constexpr auto inner_rollup_txs = 2U;
     static constexpr auto rollups_per_rollup = 3U;
 
-    auto tx_rollup_cd =
-        rollup::get_circuit_data(inner_rollup_txs, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
-    auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, false, false);
+    auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup2_cd, srs, FIXTURE_PATH, true, false, false);
 
     auto old_data_root = context.world_state.data_tree.root();
     auto old_null_root = context.world_state.null_tree.root();
     auto old_root_root = context.world_state.root_tree.root();
 
     auto tx_data = create_root_rollup_tx(
-        "test_root_rollup_3x2", 0, tx_rollup_cd, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
+        "test_root_rollup_3x2", 0, tx_rollup2_cd, { { js_proofs[0], js_proofs[1] }, { js_proofs[2] } });
     auto result = verify(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.verified);
 
@@ -126,18 +133,15 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_3x2)
 
 HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
 {
-    static constexpr auto inner_rollup_txs = 3U;
     static constexpr auto rollups_per_rollup = 2U;
 
-    auto tx_rollup_cd =
-        rollup::get_circuit_data(inner_rollup_txs, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
-    auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup_cd, srs, FIXTURE_PATH, true, false, false);
+    auto root_rollup_cd = get_circuit_data(rollups_per_rollup, tx_rollup3_cd, srs, FIXTURE_PATH, true, false, false);
 
     auto old_data_root = context.world_state.data_tree.root();
     auto old_null_root = context.world_state.null_tree.root();
     auto old_root_root = context.world_state.root_tree.root();
 
-    auto tx_data = create_root_rollup_tx("test_root_rollup_2x3", 0, tx_rollup_cd, { { js_proofs[0] } });
+    auto tx_data = create_root_rollup_tx("test_root_rollup_2x3", 0, tx_rollup3_cd, { { js_proofs[0] } });
     auto result = verify(tx_data, root_rollup_cd);
     ASSERT_TRUE(result.verified);
 
@@ -166,15 +170,13 @@ HEAVY_TEST_F(root_rollup_full_tests, test_root_rollup_2x3)
 
 HEAVY_TEST_F(root_rollup_full_tests, test_bad_js_proof_fails)
 {
-    static constexpr auto inner_rollup_txs = 2U;
     static constexpr auto rollups_per_rollup = 1U;
 
     // Create a bad js proof.
     auto bad_proof = create_noop_join_split_proof(js_cd, context.world_state.data_tree.root(), false);
 
     // Our inner rollup should fail.
-    auto tx_rollup_cd =
-        rollup::get_circuit_data(inner_rollup_txs, js_cd, account_cd, claim_cd, srs, FIXTURE_PATH, true, true, true);
+    auto tx_rollup_cd = tx_rollup2_cd;
     auto inner_rollup_tx =
         rollup::create_rollup_tx(context.world_state, tx_rollup_cd.rollup_size, { js_proofs[0], bad_proof });
     Composer inner_composer = Composer(tx_rollup_cd.proving_key, tx_rollup_cd.verification_key, tx_rollup_cd.num_gates);

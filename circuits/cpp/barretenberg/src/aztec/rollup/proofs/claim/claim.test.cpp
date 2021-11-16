@@ -1,7 +1,7 @@
 #include "../../constants.hpp"
 #include "../../fixtures/user_context.hpp"
 #include "index.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 #include "../notes/native/index.hpp"
 #include <common/test.hpp>
 #include <stdlib/merkle_tree/index.hpp>

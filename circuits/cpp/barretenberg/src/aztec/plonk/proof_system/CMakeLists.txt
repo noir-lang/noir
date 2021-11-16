@@ -1,1 +1,0 @@
-barretenberg_module(proof_system transcript reference_string polynomials sha256)

@@ -1,1 +1,1 @@
-barretenberg_module(blake2s)
+barretenberg_module(crypto_blake2s)

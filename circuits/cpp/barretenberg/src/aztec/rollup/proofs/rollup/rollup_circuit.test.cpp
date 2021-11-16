@@ -1,6 +1,7 @@
 #include "index.hpp"
 #include "../notes/native/index.hpp"
 #include "../../fixtures/test_context.hpp"
+#include "../../fixtures/compute_or_load_fixture.hpp"
 #include "../join_split/create_noop_join_split_proof.hpp"
 #include <common/test.hpp>
 #include <common/map.hpp>
@@ -93,6 +94,8 @@ class rollup_tests : public ::testing::Test {
         context.js_tx_factory.finalise_and_sign_tx(tx, context.user.owner);
         return join_split::create_proof(tx, js_cd);
     }
+
+    void test_chain_off_disallowed_note_fails(uint32_t allow_chain, size_t indicator);
 
     fixtures::TestContext context;
 };
@@ -588,9 +591,7 @@ TEST_F(rollup_tests, test_allow_chain_off_first_output_note_but_dont_consume)
     EXPECT_TRUE(result.logic_verified);
 }
 
-class test_chain_off_disallowed_note_fails : public rollup_tests,
-                                             public ::testing::WithParamInterface<std::tuple<uint32_t, uint>> {};
-TEST_P(test_chain_off_disallowed_note_fails, )
+void rollup_tests::test_chain_off_disallowed_note_fails(uint32_t allow_chain, size_t indicator)
 {
     // Testing all invalid allow_chain / backward_link permutations between two txs.
     size_t rollup_size = 2;
@@ -599,11 +600,10 @@ TEST_P(test_chain_off_disallowed_note_fails, )
     context.start_next_root_rollup();
 
     auto tx1 = context.js_tx_factory.create_join_split_tx({ 0 }, { 100 }, { 70, 30 });
-    tx1.allow_chain = std::get<0>(GetParam());
+    tx1.allow_chain = allow_chain;
     auto join_split_proof1 = create_js_proof(tx1);
 
     // Chain off the output note dictated by the backward_link `indicator`
-    uint indicator = std::get<1>(GetParam());
     join_split::join_split_tx tx2;
     switch (indicator) {
     case 1:
@@ -613,6 +613,7 @@ TEST_P(test_chain_off_disallowed_note_fails, )
         tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 30, 50 }, { 80, 0 });
         break;
     }
+
     tx2.input_note[0] = tx1.output_note[indicator - 1];
     tx2.backward_link = tx1.output_note[indicator - 1].commit();
     tx2.propagated_input_index = 1;
@@ -622,21 +623,29 @@ TEST_P(test_chain_off_disallowed_note_fails, )
     auto result = verify_logic(rollup, rollup_2_keyless);
 
     EXPECT_FALSE(result.logic_verified);
-    auto assertion = result.err.find("is not permitted to propagate output") !=
-                     std::string::npos; // ensure the error message contains this substring. (workaround without using
-                                        // the gmock library).
+    auto assertion = result.err.find("is not permitted to propagate output") != std::string::npos;
     EXPECT_EQ(true, assertion);
 }
-INSTANTIATE_TEST_SUITE_P(rollup_tests,
-                         test_chain_off_disallowed_note_fails,
-                         ::testing::Values(
-                             // tuple is: (prev_tx.allow_chain, "an indicator for tx.backward_link")
-                             // note: the rollup provider cannot check the correctness of propagated_input_index;
-                             // that's enforced within the join-split circuit.
-                             std::make_tuple(0, 1),
-                             std::make_tuple(0, 2),
-                             std::make_tuple(1, 2),
-                             std::make_tuple(2, 1)));
+
+TEST_F(rollup_tests, test_chain_off_disallowed_note_fails_0)
+{
+    test_chain_off_disallowed_note_fails(0, 1);
+}
+
+TEST_F(rollup_tests, test_chain_off_disallowed_note_fails_1)
+{
+    test_chain_off_disallowed_note_fails(0, 2);
+}
+
+TEST_F(rollup_tests, test_chain_off_disallowed_note_fails_2)
+{
+    test_chain_off_disallowed_note_fails(1, 2);
+}
+
+TEST_F(rollup_tests, test_chain_off_disallowed_note_fails_3)
+{
+    test_chain_off_disallowed_note_fails(2, 1);
+}
 
 // The following are implicitly tested, since create_rollup_tx will independently calculate the relevant tree root,
 // which the circuit will then compare against its own calculation.
@@ -644,7 +653,6 @@ INSTANTIATE_TEST_SUITE_P(rollup_tests,
 // - chained_output_commitment_zeroed
 // - split_chain_nullifier_not_zeroed
 // - split_chain_output_commitment_not_zeroed
-
 TEST_F(rollup_tests, test_gap_in_chain_within_rollup)
 {
     size_t rollup_size = 4;

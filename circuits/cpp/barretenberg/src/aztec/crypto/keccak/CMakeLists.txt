@@ -1,1 +1,1 @@
-barretenberg_module(keccak)
+barretenberg_module(crypto_keccak)

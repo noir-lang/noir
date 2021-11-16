@@ -323,7 +323,7 @@ TEST(scalar_multiplication, reduce_buckets)
     aligned_free(bucket_counts);
 }
 
-// This test intermittenly fails
+// This test intermittenly fails.
 TEST(scalar_multiplication, DISABLED_reduce_buckets_basic)
 {
     constexpr size_t num_initial_points = 1 << 20;

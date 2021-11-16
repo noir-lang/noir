@@ -66,6 +66,14 @@ function(barretenberg_module MODULE_NAME)
             )
         endif()
 
+        if(CI)
+            target_compile_definitions(
+                ${MODULE_NAME}_test_objects
+                PRIVATE
+                -DCI=1
+            )
+        endif()
+
         if(DISABLE_HEAVY_TESTS)
             target_compile_definitions(
                 ${MODULE_NAME}_test_objects

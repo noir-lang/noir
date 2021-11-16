@@ -1,4 +1,5 @@
 #pragma once
+#include <common/container.hpp>
 #include "../root_rollup/root_rollup_broadcast_data.hpp"
 #include "../root_rollup/verify.hpp"
 #include "verify.hpp"
@@ -24,8 +25,8 @@ inline root_verifier_tx create_root_verifier_tx(std::vector<uint8_t> proof_buf, 
 
     size_t broadcast_data_byte_len = 32 * (root_rollup::RootRollupBroadcastFields::INNER_PROOFS_DATA +
                                            rollup_size * rollup::PropagatedInnerProofFields::NUM_FIELDS);
-    std::vector<uint8_t> broadcast_data(proof_buf.begin(), proof_buf.begin() + (long)broadcast_data_byte_len);
-    std::vector<uint8_t> root_rollup_proof(proof_buf.begin() + (long)broadcast_data_byte_len, proof_buf.end());
+    std::vector<uint8_t> broadcast_data(slice(proof_buf, 0, broadcast_data_byte_len));
+    std::vector<uint8_t> root_rollup_proof(slice(proof_buf, broadcast_data_byte_len, proof_buf.size()));
 
     tx.broadcast_data = broadcast_data;
     tx.proof_data = root_rollup_proof;

@@ -1,3 +1,1 @@
-add_subdirectory(sidon_set)
-
-barretenberg_module(pedersen ecc)
+barretenberg_module(crypto_pedersen ecc)

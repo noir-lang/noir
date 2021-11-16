@@ -6,6 +6,6 @@ add_executable(
 target_link_libraries(
     keygen
     PRIVATE
-    rollup_proofs
+    rollup_proofs_root_verifier
     env
 )

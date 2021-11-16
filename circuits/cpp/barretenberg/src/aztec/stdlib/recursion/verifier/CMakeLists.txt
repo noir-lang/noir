@@ -1,1 +1,0 @@
-barretenberg_module(stdlib_verifier ecc transcript proof_system stdlib_primitives stdlib_pedersen stdlib_blake2s)

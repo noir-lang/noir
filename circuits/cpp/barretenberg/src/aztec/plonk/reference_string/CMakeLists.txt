@@ -1,1 +1,0 @@
-barretenberg_module(reference_string ecc)

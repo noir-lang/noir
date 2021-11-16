@@ -1,4 +1,4 @@
-FROM alpine:3.12 AS builder
+FROM alpine:3.13 AS builder
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache \
@@ -16,13 +16,11 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
   && make install \
   && cd ../.. && rm -rf llvm-project
 WORKDIR /usr/src/barretenberg
-# From here on layers will likely not be cached, expect these to run for every commit.
 COPY . .
-RUN mkdir build && cd build && cmake -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
-# Not running tests here as we run them in the x86_64-linux-clang-assert build.
-# RUN cd build && CTEST_OUTPUT_ON_FAILURE=1 make test
+# Only build db_cli and rollup_cli, as that's all that's needed upstream.
+RUN mkdir build && cd build && cmake -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a .. && make -j$(nproc) db_cli rollup_cli
 
-FROM alpine:3.12
+FROM alpine:3.13
 RUN apk update && apk add llvm10-libs
-COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli
-COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli
+COPY --from=builder /usr/src/barretenberg/build/bin/db_cli /usr/src/barretenberg/build/bin/db_cli
+COPY --from=builder /usr/src/barretenberg/build/bin/rollup_cli /usr/src/barretenberg/build/bin/rollup_cli

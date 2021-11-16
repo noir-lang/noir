@@ -1,5 +1,5 @@
 #include "root_rollup_proof_data.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 #include "../../constants.hpp"
 #include <crypto/sha256/sha256.hpp>
 

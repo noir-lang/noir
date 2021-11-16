@@ -1,1 +1,1 @@
-barretenberg_module(sha256)
+barretenberg_module(crypto_sha256)

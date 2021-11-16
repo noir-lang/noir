@@ -1,1 +1,0 @@
-barretenberg_module(stdlib_transcript ecc stdlib_primitives stdlib_pedersen stdlib_blake2s transcript)

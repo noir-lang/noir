@@ -20,9 +20,9 @@ account::circuit_data account_cd;
 claim::circuit_data claim_cd;
 } // namespace
 
-class rollup_tests_full : public ::testing::Test {
+class rollup_full_tests : public ::testing::Test {
   protected:
-    rollup_tests_full()
+    rollup_full_tests()
         : context(js_cd, account_cd, claim_cd)
     {}
 
@@ -41,7 +41,7 @@ class rollup_tests_full : public ::testing::Test {
 };
 
 // Full proofs.
-HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
+HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_1_rollup_full_proof)
 {
     size_t rollup_size = 1;
 
@@ -85,7 +85,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_1_rollup_full_proof)
     EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
 }
 
-HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
+HEAVY_TEST_F(rollup_full_tests, test_1_proof_in_2_rollup_full_proof)
 {
     size_t rollup_size = 2;
 
@@ -129,7 +129,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_proof_in_2_rollup_full_proof)
     EXPECT_EQ(inner_data.asset_id, tx_data.asset_id);
 }
 
-HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full_proof)
+HEAVY_TEST_F(rollup_full_tests, test_1_js_proof_1_account_proof_in_2_rollup_full_proof)
 {
     size_t rollup_size = 2;
 
@@ -176,7 +176,7 @@ HEAVY_TEST_F(rollup_tests_full, test_1_js_proof_1_account_proof_in_2_rollup_full
     }
 }
 
-HEAVY_TEST_F(rollup_tests_full, test_3_rollup_pads_to_4)
+HEAVY_TEST_F(rollup_full_tests, test_3_rollup_pads_to_4)
 {
     size_t rollup_size = 3;
 

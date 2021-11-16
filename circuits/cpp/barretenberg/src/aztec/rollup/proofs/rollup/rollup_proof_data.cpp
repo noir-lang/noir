@@ -1,6 +1,6 @@
 #include "rollup_proof_data.hpp"
 #include "../../constants.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 
 namespace rollup {
 namespace proofs {

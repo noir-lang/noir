@@ -5,8 +5,7 @@ WORKDIR /usr/src/barretenberg/src
 RUN curl -s -L https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz | tar zxfv -
 WORKDIR /usr/src/barretenberg
 COPY . .
-RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && make -j$(nproc) barretenberg.wasm rollup_proofs_tests
-RUN cd build && ~/.wasmtime/bin/wasmtime --dir=.. ./src/aztec/rollup/proofs/rollup_proofs_tests -- --gtest_filter=join_split_tests.*
+RUN mkdir build && cd build && cmake -DTOOLCHAIN=wasm-linux-clang .. && make -j$(nproc) barretenberg.wasm
 
-FROM alpine:3.12
-COPY --from=builder /usr/src/barretenberg/build/src/aztec/barretenberg.wasm /usr/src/barretenberg/build/src/aztec/barretenberg.wasm
+FROM alpine:3.13
+COPY --from=builder /usr/src/barretenberg/build/bin/barretenberg.wasm /usr/src/barretenberg/build/bin/barretenberg.wasm

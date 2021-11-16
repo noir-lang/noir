@@ -11,7 +11,7 @@ chmod +x ../.git/hooks/pre-commit
 
 # Download ignition transcript 0.
 cd ./srs_db
-./download_ignition.sh 0 1 2 3
+./download_ignition.sh 3
 cd ..
 
 # Build native.

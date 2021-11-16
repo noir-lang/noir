@@ -441,10 +441,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     }
 };
 
-typedef testing::Types<waffle::TurboComposer //,
-                                             // waffle::PlookupComposer
-                       >
-    OuterComposerTypes;
+typedef testing::Types<waffle::StandardComposer, waffle::TurboComposer> OuterComposerTypes;
 
 TYPED_TEST_SUITE(stdlib_verifier, OuterComposerTypes);
 
@@ -452,22 +449,28 @@ HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition)
 {
     TestFixture::test_recursive_proof_composition();
 };
-HEAVY_TYPED_TEST(stdlib_verifier, double_verification)
-{
-    TestFixture::test_double_verification();
-};
+
+// Produces a huge 16m gate circuit with the StandardComposer. Really needed?
+// HEAVY_TYPED_TEST(stdlib_verifier, double_verification)
+// {
+//     TestFixture::test_double_verification();
+// };
+
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_with_variable_verification_key_a)
 {
     TestFixture::test_recursive_proof_composition_with_variable_verification_key_a();
 }
+
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_with_variable_verification_key_b)
 {
     TestFixture::test_recursive_proof_composition_with_variable_verification_key_b();
 }
+
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_var_verif_key_fail)
 {
     TestFixture::test_recursive_proof_composition_with_variable_verification_key_failure_case();
 }
+
 HEAVY_TYPED_TEST(stdlib_verifier, recursive_proof_composition_const_verif_key)
 {
     TestFixture::test_recursive_proof_composition_with_constant_verification_key();

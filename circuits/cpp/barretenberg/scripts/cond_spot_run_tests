@@ -1,0 +1,18 @@
+#!/bin/bash
+# Conditionally runs a test script on a remote spot instance, if any dependent code has changed between
+# the last successfully run test and the present commit. Arguments are:
+# 1. NAME: A unique short name given to this test run. The remote is tagged using this name to indicate success.
+# 2. RUN_SCRIPT: The name of the script to copy and run on the remote instance.
+# 3. COMMIT_HASH: The commit hash that triggered this build. Used in image location and tagging.
+# 4... ARGS: Additional arguments specific to RUN_SCRIPT.
+set -e
+
+NAME=$1
+COMMIT_HASH=$2
+
+LAST_SUCCESSFUL_TESTED_COMMIT=$(last_successful_commit barretenberg-x86_64-linux-clang-assert $NAME)
+
+if check_rebuild "$LAST_SUCCESSFUL_TESTED_COMMIT" ../.rebuild_patterns; then
+  ./spot_run_tests $@
+  tag_remote_image barretenberg-x86_64-linux-clang-assert cache-$COMMIT_HASH cache-$COMMIT_HASH-$NAME
+fi

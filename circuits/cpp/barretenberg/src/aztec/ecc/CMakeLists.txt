@@ -1,4 +1,4 @@
-barretenberg_module(ecc numeric keccak srs)
+barretenberg_module(ecc numeric crypto_keccak srs)
 
 if(DISABLE_ADX)
     message(STATUS "Disabling ADX assembly variant.")

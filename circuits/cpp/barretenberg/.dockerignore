@@ -1,5 +1,6 @@
 build*
 docker*
+scripts
 .*
 src/wasi-sdk*
 src/aztec/rollup/proofs/root_*/fixtures/account

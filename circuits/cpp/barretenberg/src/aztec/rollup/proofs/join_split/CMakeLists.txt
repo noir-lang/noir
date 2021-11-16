@@ -1,0 +1,11 @@
+barretenberg_module(
+  rollup_proofs_join_split
+  rollup_proofs_inner_proof_data
+  rollup_proofs_notes
+  crypto_schnorr
+  stdlib_blake2s
+  stdlib_sha256
+  stdlib_pedersen
+  stdlib_schnorr
+  stdlib_primitives
+  stdlib_merkle_tree)

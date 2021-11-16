@@ -8,9 +8,10 @@ RUN apk update \
         curl
 WORKDIR /usr/src/barretenberg
 COPY . .
-RUN mkdir build && cd build && cmake -DTOOLCHAIN=x86_64-linux-gcc -DDISABLE_HEAVY_TESTS=ON .. && make -j$(nproc)
+# Build the entire project (not just rollup_cli and db_cli), as we want to check everything builds under gcc.
+RUN mkdir build && cd build && cmake -DTOOLCHAIN=x86_64-linux-gcc .. && make -j$(nproc)
 
 FROM alpine:3.13
 RUN apk update && apk add libstdc++ libgomp
-COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli /usr/src/barretenberg/build/src/aztec/rollup/db_cli/db_cli
-COPY --from=builder /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli /usr/src/barretenberg/build/src/aztec/rollup/rollup_cli/rollup_cli
+COPY --from=builder /usr/src/barretenberg/build/bin/db_cli /usr/src/barretenberg/build/bin/db_cli
+COPY --from=builder /usr/src/barretenberg/build/bin/rollup_cli /usr/src/barretenberg/build/bin/rollup_cli

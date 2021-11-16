@@ -1,6 +1,6 @@
 #include "../../constants.hpp"
 #include "../rollup/index.hpp"
-#include "../inner_proof_data.hpp"
+#include "../inner_proof_data/inner_proof_data.hpp"
 #include "../notes/constants.hpp"
 #include "../notes/circuit/index.hpp"
 #include "root_rollup_circuit.hpp"
