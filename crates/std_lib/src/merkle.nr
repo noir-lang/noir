@@ -18,3 +18,11 @@ fn check_membership(_root : Field, _leaf : Field, _depth : Field) -> Field {}
 // The root is only here to check the underlying database. No constraints are applied to the root
 #[foreign(insert_regular_merkle)]
 fn insert(_root : Field, _leaf : Field, _depth : Field) -> Field {}
+
+// This is for sparse merkle trees. It is an update function, the value of the leaf is the index
+// that we should place the leaf into 
+// this method will insert into the underlying database and then create a merkle tree membership proof
+// and then return the new root
+// The root is only here to check the underlying database. No constraints are applied to the root
+#[foreign(update_sparse_merkle)]
+fn update(_root : Field, _leaf : Field, _depth : Field) -> Field {}
