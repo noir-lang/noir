@@ -1,4 +1,3 @@
-mod foo;
 // Test unsafe integer arithmetic
 // minimal failing test ...to debug!
 
