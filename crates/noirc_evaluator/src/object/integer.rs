@@ -298,7 +298,7 @@ impl Integer {
             .unwrap();
 
         let mut f = FieldElement::from(2_i128);
-        f = f.pow(&FieldElement::from(self.num_bits as i128));
+        f = f.pow(&FieldElement::from((new_bits-1) as i128));
         let a_plus = Linear {
             mul_scale: FieldElement::one(),
             witness: a_wit,
