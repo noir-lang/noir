@@ -84,10 +84,7 @@ pub fn add_dummy_setpub_arr(abi: &mut Abi) {
     abi.parameters.push((RESERVED_PUBLIC_ARR.into(), dummy_arr));
 }
 
-pub fn verify_with_path<P: AsRef<Path>>(
-    program_dir: P,
-    proof_path: P,
-) -> Result<bool, CliError> {
+pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result<bool, CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let compiled_program = driver.into_compiled_program();
     let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
