@@ -6,6 +6,7 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
+use std::path::Path;
 
 use crate::{errors::CliError, resolver::Resolver};
 
@@ -29,7 +30,7 @@ fn prove(proof_name: &str) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
     let mut proof_path = PathBuf::new();
     proof_path.push(PROOFS_DIR);
-    let result = prove_hlp(proof_name, curr_dir, proof_path);
+    let result = prove_with_path(proof_name, curr_dir, proof_path);
     match result {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
@@ -85,16 +86,16 @@ fn process_abi_with_input(
     Ok(solved_witness)
 }
 
-pub fn prove_hlp(
+pub fn prove_with_path<P: AsRef<Path>>(
     proof_name: &str,
-    prg_dir: PathBuf,
-    proof_dir: PathBuf,
+    program_dir: P,
+    proof_dir: P,
 ) -> Result<PathBuf, CliError> {
-    let driver = Resolver::resolve_root_config(&prg_dir)?;
+    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
     let compiled_program = driver.into_compiled_program();
 
     // Parse the initial witness values
-    let witness_map = noirc_abi::input_parser::Format::Toml.parse(prg_dir, PROVER_INPUT_FILE);
+    let witness_map = noirc_abi::input_parser::Format::Toml.parse(program_dir, PROVER_INPUT_FILE);
 
     // Check that enough witness values were supplied
     let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
@@ -122,7 +123,7 @@ pub fn prove_hlp(
     let backend = acvm::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
-    let mut proof_path = create_proof_dir(proof_dir);
+    let mut proof_path = create_proof_dir(proof_dir.as_ref().to_path_buf());
     proof_path.push(proof_name);
     proof_path.set_extension(PROOF_EXT);
 

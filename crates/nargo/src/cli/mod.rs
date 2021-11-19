@@ -104,6 +104,6 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 pub fn prove_and_verify(proof_name: &str, prg_dir: &Path) -> bool {
     let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
     let proof_path =
-        prove_cmd::prove_hlp(proof_name, prg_dir.to_path_buf(), tmp_dir.into_path()).unwrap();
-    verify_cmd::verify_hlp(&prg_dir.to_path_buf(), proof_path).unwrap()
+        prove_cmd::prove_with_path(proof_name, prg_dir.to_path_buf(), tmp_dir.into_path()).unwrap();
+    verify_cmd::verify_with_path(prg_dir, &proof_path).unwrap()
 }
