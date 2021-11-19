@@ -2,8 +2,7 @@
 set -e
 
 NAME=$1
-COMMIT_HASH=$2
-TRANSCRIPTS=${3:-0}
+TRANSCRIPTS=${2:-0}
 
 $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 

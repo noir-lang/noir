@@ -34,14 +34,13 @@ int main(int argc, char** argv)
 
     const std::string output_path = args[3];
     const std::string srs_path = (args.size() >= 5) ? args[4] : "../srs_db/ignition";
-    const bool persist = (args.size() >= 6) ? (bool)atoi(args[5].c_str()) : false;
 
     auto srs = std::make_shared<waffle::DynamicFileReferenceStringFactory>(srs_path);
     auto account_cd = account::compute_circuit_data(srs);
     auto join_split_cd = join_split::compute_circuit_data(srs);
-    auto claim_cd = claim::get_circuit_data(srs, "./data", true, persist, persist);
-    auto rollup_cd = tx_rollup::get_circuit_data(
-        num_inner_tx, join_split_cd, account_cd, claim_cd, srs, "./data", true, persist, persist);
+    auto claim_cd = claim::get_circuit_data(srs, "", true, false, false);
+    auto rollup_cd =
+        tx_rollup::get_circuit_data(num_inner_tx, join_split_cd, account_cd, claim_cd, srs, "", true, false, false);
 
     // Release memory held by proving key, we don't need it.
     rollup_cd.proving_key.reset();
@@ -51,12 +50,12 @@ int main(int argc, char** argv)
     root_verifier::circuit_data root_verifier_cd;
     for (auto i : valid_outer_sizes) {
         root_rollup_cd.proving_key.reset();
-        root_rollup_cd = root_rollup::get_circuit_data(i, rollup_cd, srs, "./data", true, persist, persist);
+        root_rollup_cd = root_rollup::get_circuit_data(i, rollup_cd, srs, "", true, false, false);
         valid_root_rollup_vks.emplace_back(root_rollup_cd.verification_key);
     }
 
     root_verifier_cd =
-        root_verifier::get_circuit_data(root_rollup_cd, srs, valid_root_rollup_vks, "./data", true, persist, persist);
+        root_verifier::get_circuit_data(root_rollup_cd, srs, valid_root_rollup_vks, "", true, false, false);
     auto class_name = format("RootVerifierVk");
     std::ofstream os(output_path + "/" + class_name + ".sol");
     output_vk_sol(os, root_verifier_cd.verification_key, class_name);

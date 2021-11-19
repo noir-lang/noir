@@ -18,9 +18,11 @@ RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git
 WORKDIR /usr/src/barretenberg
 COPY . .
 # Only build db_cli and rollup_cli, as that's all that's needed upstream.
-RUN mkdir build && cd build && cmake -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a .. && make -j$(nproc) db_cli rollup_cli
+RUN mkdir build && cd build && cmake -DOpenMP_omp_LIBRARY=/usr/local/lib/libomp.a .. && make -j$(nproc) db_cli rollup_cli tx_factory
 
 FROM alpine:3.13
 RUN apk update && apk add llvm10-libs
+COPY --from=builder /usr/src/barretenberg/srs_db /usr/src/barretenberg/srs_db
 COPY --from=builder /usr/src/barretenberg/build/bin/db_cli /usr/src/barretenberg/build/bin/db_cli
 COPY --from=builder /usr/src/barretenberg/build/bin/rollup_cli /usr/src/barretenberg/build/bin/rollup_cli
+COPY --from=builder /usr/src/barretenberg/build/bin/tx_factory /usr/src/barretenberg/build/bin/tx_factory
