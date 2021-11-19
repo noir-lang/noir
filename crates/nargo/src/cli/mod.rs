@@ -5,6 +5,8 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+extern crate tempdir;
+use tempdir::TempDir;
 
 use crate::errors::CliError;
 
@@ -96,4 +98,12 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
         Err(why) => panic!("couldn't write to {}: {}", display, why),
         Ok(_) => display.to_string(),
     }
+}
+
+// helper function which tests noir programs by trying to generate a proof and verify it
+pub fn prove_and_verify(proof_name: &str, prg_dir: &Path) -> bool {
+    let tmp_dir = TempDir::new("p_and_v_tests").unwrap();
+    let proof_path =
+        prove_cmd::prove_with_path(proof_name, prg_dir.to_path_buf(), tmp_dir.into_path()).unwrap();
+    verify_cmd::verify_with_path(prg_dir, &proof_path).unwrap()
 }

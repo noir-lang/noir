@@ -4,7 +4,7 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, path::Path, path::PathBuf};
 
 // The verifier.toml file will by default have an
 // array that will be used to add public inputs
@@ -31,40 +31,11 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
 
 fn verify(proof_name: &str) -> Result<bool, CliError> {
     let curr_dir = std::env::current_dir().unwrap();
-    let driver = Resolver::resolve_root_config(&curr_dir)?;
-    let compiled_program = driver.into_compiled_program();
-
-    let mut proof_path = curr_dir;
-    proof_path.push(Path::new("proofs"));
+    let mut proof_path = PathBuf::new(); //or cur_dir?
+    proof_path.push(PROOFS_DIR);
     proof_path.push(Path::new(proof_name));
     proof_path.set_extension(PROOF_EXT);
-
-    let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
-    add_dummy_setpub_arr(&mut public_abi);
-    let num_params = public_abi.num_parameters();
-
-    let mut public_inputs = BTreeMap::new();
-    if num_params != 0 {
-        let curr_dir = std::env::current_dir().unwrap();
-        public_inputs = noirc_abi::input_parser::Format::Toml.parse(curr_dir, VERIFIER_INPUT_FILE);
-    }
-
-    if num_params != public_inputs.len() {
-        panic!(
-            "Expected {} number of values, but got {} number of values",
-            num_params,
-            public_inputs.len()
-        )
-    }
-
-    let public_inputs = process_abi_with_verifier_input(public_abi, public_inputs)?;
-
-    // XXX: Instead of unwrap, return a PathNotValidError
-    let proof_hex: Vec<_> = std::fs::read(proof_path).unwrap();
-    // XXX: Instead of unwrap, return a ProofNotValidError
-    let proof = hex::decode(proof_hex).unwrap();
-    let backend = acvm::ConcreteBackend;
-    Ok(backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit))
+    verify_with_path(&curr_dir, &proof_path)
 }
 
 fn process_abi_with_verifier_input(
@@ -111,4 +82,36 @@ pub fn add_dummy_setpub_arr(abi: &mut Abi) {
     // setpub is a keyword in Noir, so it cannot be used as a field name
     // ensuring there will be no conflicts
     abi.parameters.push((RESERVED_PUBLIC_ARR.into(), dummy_arr));
+}
+
+pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result<bool, CliError> {
+    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
+    let compiled_program = driver.into_compiled_program();
+    let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
+    add_dummy_setpub_arr(&mut public_abi);
+    let num_pub_params = public_abi.num_parameters();
+    let mut public_inputs = BTreeMap::new();
+    if num_pub_params != 0 {
+        let curr_dir = program_dir;
+        public_inputs = noirc_abi::input_parser::Format::Toml.parse(curr_dir, VERIFIER_INPUT_FILE);
+    }
+
+    if num_pub_params != public_inputs.len() {
+        panic!(
+            "Expected {} number of values, but got {} number of values",
+            num_pub_params,
+            public_inputs.len()
+        )
+    }
+
+    let public_inputs = process_abi_with_verifier_input(public_abi, public_inputs)?;
+
+    // XXX: Instead of unwrap, return a PathNotValidError
+    let proof_hex: Vec<_> = std::fs::read(&proof_path).unwrap();
+    // XXX: Instead of unwrap, return a ProofNotValidError
+    let proof = hex::decode(proof_hex).unwrap();
+    let backend = acvm::ConcreteBackend;
+    let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
+
+    Ok(valid_proof)
 }
