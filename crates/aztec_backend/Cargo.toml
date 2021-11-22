@@ -9,13 +9,7 @@ edition = "2018"
 [dependencies]
 noir_field = { path="../noir_field", features=["bn254"] }
 acir = { path="../acir" }
-barretenberg_wrapper = { path="../barretenberg_wrapper"}
-
-wasmer-wasi = "1.0.1"
-wasmer = "1.0.1"
-# wasmer-compiler-llvm = "1.0.1"
-wasmer-engine-jit = "1.0.1"
-wasmer-cache = "1.0.1"
+barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "noir_dsl"}
 
 dirs = "3.0"
 downloader = "0.2.6"

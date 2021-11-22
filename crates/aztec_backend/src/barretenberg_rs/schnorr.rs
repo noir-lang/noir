@@ -12,8 +12,7 @@ impl Barretenberg {
     }
 
     pub fn construct_public_key(&mut self, private_key: [u8; 32]) -> [u8; 64] {
-        let result_bytes = barretenberg_wrapper::schnorr::construct_public_key(&private_key);
-        result_bytes
+        barretenberg_wrapper::schnorr::construct_public_key(&private_key)
     }
 
     pub fn verify_signature(
