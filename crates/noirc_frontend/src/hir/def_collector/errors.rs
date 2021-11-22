@@ -75,7 +75,7 @@ impl DiagnosableError for DefCollectorErrorKind {
 
                 Diagnostic::simple_error(
                     format!("could not resolve module `{}` ", mod_name),
-                    format!(""),
+                    String::new(),
                     span,
                 )
             }
@@ -87,7 +87,7 @@ impl DiagnosableError for DefCollectorErrorKind {
 
                 Diagnostic::simple_error(
                     format!("could not resolve import {}", &import.path.as_string()),
-                    format!(""),
+                    String::new(),
                     span,
                 )
             }

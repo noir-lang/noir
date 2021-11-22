@@ -22,6 +22,7 @@ serde = "1.0.123"
 clap = "2.33.3"
 termcolor = "1.1.2"
 hex = "0.4.2"
+tempdir = "0.3.7"
 
 [features]
 # The plonk backend can only use bn254, so we do not specify the field

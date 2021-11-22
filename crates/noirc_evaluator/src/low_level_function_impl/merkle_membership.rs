@@ -1,10 +1,10 @@
 use super::GadgetCaller;
 use super::RuntimeError;
-use crate::low_level_function_impl::object_to_wit_bits;
-use crate::object::{Array, Object};
+use crate::object::Object;
 use crate::{Environment, Evaluator};
 use acvm::acir::circuit::gate::{GadgetCall, GadgetInput, Gate};
 use acvm::acir::OPCODE;
+use noir_field::FieldElement;
 use noirc_frontend::hir_def::expr::HirCallExpression;
 
 pub struct MerkleMembershipGadget;
@@ -21,7 +21,8 @@ impl GadgetCaller for MerkleMembershipGadget {
     ) -> Result<Object, RuntimeError> {
         let inputs = MerkleMembershipGadget::prepare_inputs(evaluator, env, call_expr)?;
 
-        // Create a fresh variable which will be the root
+        // Create a fresh variable which will be the boolean indicating
+        // whether the item was in the tree or not
 
         let merkle_mem_witness = evaluator.add_witness_to_cs();
         let merkle_mem_object = Object::from_witness(merkle_mem_witness);
@@ -39,35 +40,28 @@ impl GadgetCaller for MerkleMembershipGadget {
 }
 
 impl MerkleMembershipGadget {
-    fn prepare_inputs(
+    pub(super) fn prepare_inputs(
         evaluator: &mut Evaluator,
         env: &mut Environment,
         mut call_expr: HirCallExpression,
     ) -> Result<Vec<GadgetInput>, RuntimeError> {
-        assert_eq!(call_expr.arguments.len(), 4);
+        assert_eq!(call_expr.arguments.len(), 3);
 
-        let hash_path = call_expr.arguments.pop().unwrap();
-        let index = call_expr.arguments.pop().unwrap();
+        let depth = call_expr.arguments.pop().unwrap();
         let leaf = call_expr.arguments.pop().unwrap();
         let root = call_expr.arguments.pop().unwrap();
 
-        let hash_path = Array::from_expression(evaluator, env, &hash_path)?;
-        let index = evaluator.expression_to_object(env, &index)?;
+        let depth = evaluator.expression_to_object(env, &depth)?;
         let leaf = evaluator.expression_to_object(env, &leaf)?;
         let root = evaluator.expression_to_object(env, &root)?;
 
-        let index_witness = index.witness().unwrap();
+        // TODO: change this to convert RuntimeErrorKind into RuntimeError
+        let depth = depth
+            .constant()
+            .expect("expected depth to be a constant")
+            .to_u128();
         let leaf_witness = leaf.witness().unwrap();
         let root_witness = root.witness().unwrap();
-
-        // XXX: Instead of panics, return a user error here
-        if hash_path.contents.is_empty() {
-            panic!("the hash path must contain at least two items")
-        }
-        // XXX: Instead of panics, return a user error here
-        if hash_path.contents.len() % 2 != 0 {
-            panic!("the hash path is always an even number")
-        }
 
         let mut inputs: Vec<GadgetInput> = vec![GadgetInput {
             witness: root_witness,
@@ -78,19 +72,20 @@ impl MerkleMembershipGadget {
             witness: leaf_witness,
             num_bits: noir_field::FieldElement::max_num_bits(),
         });
+        let index_witness = evaluator.add_witness_to_cs();
         inputs.push(GadgetInput {
             witness: index_witness,
             num_bits: noir_field::FieldElement::max_num_bits(),
         });
 
-        for element in hash_path.contents.into_iter() {
-            let gadget_inp = object_to_wit_bits(&element);
-            assert_eq!(
-                gadget_inp.num_bits,
-                noir_field::FieldElement::max_num_bits()
-            );
-
-            inputs.push(gadget_inp);
+        // Add necessary amount of witnesses for the hashpath
+        let arity = 2;
+        let num_hash_items = arity * depth;
+        for _ in 0..num_hash_items {
+            inputs.push(GadgetInput {
+                witness: evaluator.add_witness_to_cs(),
+                num_bits: FieldElement::max_num_bits(),
+            });
         }
 
         Ok(inputs)

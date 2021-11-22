@@ -1,7 +1,7 @@
 // Key is currently {NPComplete_lang}_{OptionalFanIn}_ProofSystem_OrgName
 // Org name is needed because more than one implementation of the same proof system may arise
 
-pub(crate) mod backends;
+pub mod backends;
 pub use backends::ConcreteBackend;
 pub mod compiler;
 pub mod pwg;

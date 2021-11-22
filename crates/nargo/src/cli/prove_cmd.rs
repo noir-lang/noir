@@ -6,6 +6,7 @@ use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
 use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
+use std::path::Path;
 
 use crate::{errors::CliError, resolver::Resolver};
 
@@ -27,52 +28,17 @@ const WITNESS_OFFSET: u32 = 1;
 
 fn prove(proof_name: &str) -> Result<(), CliError> {
     let curr_dir = std::env::current_dir().unwrap();
-    let driver = Resolver::resolve_root_config(&curr_dir)?;
-    let compiled_program = driver.into_compiled_program();
-
-    // Parse the initial witness values
-    let curr_dir = std::env::current_dir().unwrap();
-    let witness_map = noirc_abi::input_parser::Format::Toml.parse(curr_dir, PROVER_INPUT_FILE);
-
-    // Check that enough witness values were supplied
-    let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
-    if num_params != witness_map.len() {
-        panic!(
-            "Expected {} number of values, but got {} number of values",
-            num_params,
-            witness_map.len()
-        )
+    let mut proof_path = PathBuf::new();
+    proof_path.push(PROOFS_DIR);
+    let result = prove_with_path(proof_name, curr_dir, proof_path);
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
     }
-
-    let abi = compiled_program.abi.unwrap();
-    let mut solved_witness = process_abi_with_input(abi, witness_map)?;
-
-    let backend = acvm::ConcreteBackend;
-    let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
-
-    if let Err(opcode) = solver_res {
-        return Err(CliError::Generic(format!(
-            "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
-            opcode
-        )));
-    }
-
-    let backend = acvm::ConcreteBackend;
-    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
-
-    let mut proof_path = create_proof_dir();
-    proof_path.push(proof_name);
-    proof_path.set_extension(PROOF_EXT);
-
-    println!("proof : {}", hex::encode(&proof));
-
-    let path = write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
-    println!("Proof successfully created and located at {}", path);
-    Ok(())
 }
 
-fn create_proof_dir() -> PathBuf {
-    create_dir(PROOFS_DIR).expect("could not create the `contract` directory")
+fn create_proof_dir(proof_dir: PathBuf) -> PathBuf {
+    create_dir(proof_dir).expect("could not create the `contract` directory")
 }
 
 /// Ordering is important here, which is why we need the ABI to tell us what order to add the elements in
@@ -118,4 +84,54 @@ fn process_abi_with_input(
         }
     }
     Ok(solved_witness)
+}
+
+pub fn prove_with_path<P: AsRef<Path>>(
+    proof_name: &str,
+    program_dir: P,
+    proof_dir: P,
+) -> Result<PathBuf, CliError> {
+    let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
+    let compiled_program = driver.into_compiled_program();
+
+    // Parse the initial witness values
+    let witness_map = noirc_abi::input_parser::Format::Toml.parse(program_dir, PROVER_INPUT_FILE);
+
+    // Check that enough witness values were supplied
+    let num_params = compiled_program.abi.as_ref().unwrap().num_parameters();
+    if num_params != witness_map.len() {
+        panic!(
+            "Expected {} number of values, but got {} number of values",
+            num_params,
+            witness_map.len()
+        )
+    }
+
+    let abi = compiled_program.abi.unwrap();
+    let mut solved_witness = process_abi_with_input(abi, witness_map)?;
+
+    let backend = acvm::ConcreteBackend;
+    let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
+
+    if let Err(opcode) = solver_res {
+        return Err(CliError::Generic(format!(
+            "backend does not currently support the {} opcode. ACVM does not currently fall back to arithmetic gates.",
+            opcode
+        )));
+    }
+
+    let backend = acvm::ConcreteBackend;
+    let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
+
+    let mut proof_path = create_proof_dir(proof_dir.as_ref().to_path_buf());
+    proof_path.push(proof_name);
+    proof_path.set_extension(PROOF_EXT);
+
+    println!("proof : {}", hex::encode(&proof));
+
+    let path = write_to_file(hex::encode(&proof).as_bytes(), &proof_path);
+    println!("Proof successfully created and located at {}", path);
+    println!("{:?}", std::fs::canonicalize(&proof_path));
+
+    Ok(proof_path)
 }

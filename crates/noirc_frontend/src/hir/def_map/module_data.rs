@@ -1,4 +1,3 @@
-#![allow(clippy::derivable_impls)]
 use std::collections::HashMap;
 
 use fm::FileId;
