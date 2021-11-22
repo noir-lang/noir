@@ -15,7 +15,7 @@ impl StandardComposer {
 
         let circuit_size = StandardComposer::get_circuit_size(&constraint_system);
 
-        let crs = CRS::new(circuit_size as usize);
+        let crs = CRS::new(circuit_size as usize + 1);
 
         let pippenger = Pippenger::new(&crs.g1_data);
 

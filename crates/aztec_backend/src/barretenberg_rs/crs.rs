@@ -46,10 +46,12 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 panic!("please run again with appropriate permissions.");
             }
-            panic!(
-                "Could not find file transcript00.dat at location {}.\n Starting Download",
-                path.display()
-            );
+            else {
+                panic!(
+                    "Could not find file transcript00.dat at location {}.\n Starting Download",
+                    path.display()
+                );
+            }
         }
     }
 }
@@ -81,7 +83,7 @@ pub fn download_crs(mut path_to_transcript: std::path::PathBuf) {
 
     for r in result {
         match r {
-            Err(e) => println!("Error: {}", e.to_string()),
+            Err(e) => println!("Error: {}", e),
             Ok(s) => println!("\nSRS is located at : {:?}", &s.file_name),
         };
     }
@@ -144,17 +146,13 @@ impl downloader::progress::Reporter for SimpleReporter {
 
 #[test]
 fn does_not_panic() {
-    use super::Barretenberg;
-
-    let mut barretenberg = Barretenberg::new();
-
     let num_points = 4 * 1024;
 
     let crs = CRS::new(num_points);
 
     let p_points = barretenberg_wrapper::pippenger::new(&crs.g1_data);
 
-    let mut scalars = vec![0; num_points * 32];
+    let scalars: Vec<u8>;
     unsafe {
         scalars = Vec::from_raw_parts(
             p_points as *mut u8,
