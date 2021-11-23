@@ -46,6 +46,9 @@ struct root_rollup_tx {
     // Defi interactions from the previous rollup, to be inserted into defi tree.
     std::vector<native::defi_interaction::note> defi_interaction_notes;
 
+    // which address do we send fees to? Add it into the circuit to make the proof binding against this address
+    fr rollup_beneficiary;
+
     bool operator==(root_rollup_tx const&) const = default;
 
     // These are not serialized or known about externally.
@@ -71,6 +74,7 @@ template <typename B> inline void read(B& buf, root_rollup_tx& tx)
     read(buf, tx.bridge_ids);
     read(buf, tx.asset_ids);
     read(buf, tx.defi_interaction_notes);
+    read(buf, tx.rollup_beneficiary);
 }
 
 template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
@@ -91,6 +95,7 @@ template <typename B> inline void write(B& buf, root_rollup_tx const& tx)
     write(buf, tx.bridge_ids);
     write(buf, tx.asset_ids);
     write(buf, tx.defi_interaction_notes);
+    write(buf, tx.rollup_beneficiary);
 }
 
 inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
@@ -121,6 +126,7 @@ inline std::ostream& operator<<(std::ostream& os, root_rollup_tx const& tx)
         os << "    interaction_result: " << defi_note.interaction_result << "\n";
     }
 
+    os << "rollup_beneficiary: " << tx.rollup_beneficiary << "\n";
     return os;
 }
 

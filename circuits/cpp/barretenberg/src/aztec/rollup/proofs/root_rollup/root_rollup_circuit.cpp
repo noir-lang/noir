@@ -243,6 +243,8 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     const auto recursive_verification_key =
         plonk::stdlib::recursion::verification_key<bn254>::from_constants(&composer, inner_verification_key);
 
+    field_ct rollup_beneficiary = field_ct(witness_ct(&composer, tx.rollup_beneficiary));
+    rollup_beneficiary.create_range_constraint(160, "rollup beneficiary is not an address!");
     // To be extracted from inner proofs.
     field_ct data_start_index = witness_ct(&composer, 0);
     field_ct old_data_root = witness_ct(&composer, 0);
@@ -330,7 +332,9 @@ circuit_result_data root_rollup_circuit(Composer& composer,
     std::vector<field_ct> header_fields1 = { rollup_id,     rollup_size_pow2, data_start_index, old_data_root,
                                              new_data_root, old_null_root,    new_null_root,    old_root_root,
                                              new_root_root, old_defi_root,    new_defi_root };
-    std::vector<field_ct> header_fields2 = { previous_defi_interaction_hash, num_inner_proofs_pow2 };
+    std::vector<field_ct> header_fields2 = { previous_defi_interaction_hash,
+                                             rollup_beneficiary,
+                                             num_inner_proofs_pow2 };
     auto header_fields = join({ header_fields1,
                                 bridge_ids,
                                 defi_deposit_sums,

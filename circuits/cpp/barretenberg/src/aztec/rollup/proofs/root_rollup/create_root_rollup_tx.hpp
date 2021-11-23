@@ -27,7 +27,8 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
                                             std::vector<std::vector<uint8_t>> const& inner_rollups,
                                             std::vector<uint256_t> const& bridge_ids = {},
                                             std::vector<uint256_t> const& asset_ids = { 0 },
-                                            std::vector<native::defi_interaction::note> const& interaction_notes = {})
+                                            std::vector<native::defi_interaction::note> const& interaction_notes = {},
+                                            fr rollup_beneficiary = 0)
 {
     auto& data_tree = world_state.data_tree;
     auto& root_tree = world_state.root_tree;
@@ -52,7 +53,7 @@ inline root_rollup_tx create_root_rollup_tx(WorldState& world_state,
     tx.bridge_ids = bridge_ids;
     tx.asset_ids = asset_ids;
     tx.defi_interaction_notes = interaction_notes;
-
+    tx.rollup_beneficiary = rollup_beneficiary;
     return tx;
 }
 

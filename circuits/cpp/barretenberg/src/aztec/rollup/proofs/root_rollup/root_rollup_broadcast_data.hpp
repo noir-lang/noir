@@ -25,6 +25,7 @@ enum {
     TOTAL_TX_FEES = ASSET_IDS + NUM_ASSETS,
     DEFI_INTERACTION_NOTES = TOTAL_TX_FEES + NUM_ASSETS,
     PREVIOUS_DEFI_INTERACTION_HASH = DEFI_INTERACTION_NOTES + NUM_BRIDGE_CALLS_PER_BLOCK,
+    ROLLUP_BENEFICIARY,
     NUM_INNER_PROOFS,
     INNER_PROOFS_DATA,
 };
@@ -77,6 +78,7 @@ struct root_rollup_broadcast_data {
     fr new_data_roots_root;
     fr old_defi_root;
     fr new_defi_root;
+    fr rollup_beneficiary;
     std::array<fr, NUM_BRIDGE_CALLS_PER_BLOCK> bridge_ids;
     std::array<fr, NUM_BRIDGE_CALLS_PER_BLOCK> deposit_sums;
     std::array<fr, NUM_ASSETS> asset_ids;
@@ -115,6 +117,7 @@ template <typename B> inline void read(B& buf, root_rollup_broadcast_data& data)
     read(buf, data.total_tx_fees);
     read(buf, data.defi_interaction_notes);
     read(buf, data.previous_defi_interaction_hash);
+    read(buf, data.rollup_beneficiary);
     read(buf, data.num_inner_proofs);
 
     for (auto& tx : data.tx_data) {
@@ -144,6 +147,7 @@ template <typename B> inline void write(B& buf, root_rollup_broadcast_data const
     write(buf, data.total_tx_fees);
     write(buf, data.defi_interaction_notes);
     write(buf, data.previous_defi_interaction_hash);
+    write(buf, data.rollup_beneficiary);
     write(buf, data.num_inner_proofs);
 
     for (auto& tx : data.tx_data) {

@@ -37,6 +37,7 @@ root_rollup_broadcast_data::root_rollup_broadcast_data(std::vector<fr> const& fi
         defi_interaction_notes[i] = fields[RootRollupBroadcastFields::DEFI_INTERACTION_NOTES + i];
     }
     previous_defi_interaction_hash = fields[RootRollupBroadcastFields::PREVIOUS_DEFI_INTERACTION_HASH];
+    rollup_beneficiary = fields[RootRollupBroadcastFields::ROLLUP_BENEFICIARY];
     num_inner_proofs = static_cast<uint32_t>(fields[RootRollupBroadcastFields::NUM_INNER_PROOFS]);
 
     size_t size = static_cast<uint32_t>(rollup_size);
