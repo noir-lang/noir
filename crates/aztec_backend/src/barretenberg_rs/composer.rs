@@ -582,16 +582,15 @@ impl StandardComposer {
         let cs_buf = self.constraint_system.to_bytes();
         let mut proof_addr: *mut u8 = std::ptr::null_mut();
         let p_proof = &mut proof_addr as *mut *mut u8;
-        let cs_buf_clone = cs_buf.clone();
         let g2_clone = self.crs.g2_data.clone();
-        let witness_clone = witness.to_bytes().clone();
+        let witness_buf = witness.to_bytes();
         let proof_size;
         unsafe {
             proof_size = barretenberg_wrapper::composer::create_proof(
                 self.pippenger.pointer(),
-                &cs_buf_clone,
+                &cs_buf,
                 &g2_clone,
-                &witness_clone,
+                &witness_buf,
                 p_proof,
             );
         }
@@ -600,9 +599,9 @@ impl StandardComposer {
         //   aligned_free((void*)witness_buf);
         //   aligned_free((void*)g2x);
         //   aligned_free((void*)constraint_system_buf);
-        std::mem::forget(cs_buf_clone);
+        std::mem::forget(cs_buf);
         std::mem::forget(g2_clone);
-        std::mem::forget(witness_clone);
+        std::mem::forget(witness_buf);
         //
 
         let result;
