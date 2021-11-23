@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 noir_field = { path="../noir_field", features=["bn254"] }
 acir = { path="../acir" }
-barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "noir_dsl"}
+barretenberg_wrapper = { git = "https://github.com/AztecProtocol/barretenberg", branch = "gd/noir-dsl"}
 
 dirs = "3.0"
 downloader = "0.2.6"

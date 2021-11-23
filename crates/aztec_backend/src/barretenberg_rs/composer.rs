@@ -546,6 +546,7 @@ impl StandardComposer {
                 &cs_buf,
                 p_contract_ptr,
             );
+            assert!(contract_size > 0);
             sc_as_bytes =
                 Vec::from_raw_parts(contract_ptr, contract_size as usize, contract_size as usize)
         }
@@ -608,8 +609,7 @@ impl StandardComposer {
         unsafe {
             result = Vec::from_raw_parts(proof_addr, proof_size as usize, proof_size as usize)
         }
-        let result2 = remove_public_inputs(self.constraint_system.public_inputs.len(), result);
-        result2
+        remove_public_inputs(self.constraint_system.public_inputs.len(), result)
     }
 
     pub fn verify(

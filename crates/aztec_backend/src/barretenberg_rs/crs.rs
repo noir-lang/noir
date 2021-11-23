@@ -151,15 +151,14 @@ fn does_not_panic() {
 
     let p_points = barretenberg_wrapper::pippenger::new(&crs.g1_data);
 
-    let scalars: Vec<u8>;
     unsafe {
-        scalars = Vec::from_raw_parts(
+        Vec::from_raw_parts(
             p_points as *mut u8,
             num_points * 32 as usize,
             num_points * 32 as usize,
-        )
+        );
     }
-    //TODO check that scalars mem is properly free
+    //TODO check that p_points memory is properly free
 }
 #[test]
 #[ignore]
