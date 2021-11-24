@@ -44,7 +44,7 @@ impl Gate {
 /// Directives do not apply any constraints.
 pub enum Directive {
     //Inverts the value of x and stores it in the result variable
-    Invert {        
+    Invert {
         x: Witness,
         result: Witness,
     },
