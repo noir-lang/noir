@@ -1,3 +1,4 @@
+sudo apt-get update -y && sudo apt-get install -y libomp-dev
 sudo apt-get update -y && sudo apt-get install -y \
   xz-utils \
   build-essential \
