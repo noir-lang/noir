@@ -1,11 +1,9 @@
 use super::crs::CRS;
 use super::pippenger::Pippenger;
-use super::Barretenberg;
+use super::BARRETENBERG;
 use noir_field::FieldElement as Scalar;
-use wasmer::Value;
 
 pub struct StandardComposer {
-    barretenberg: Barretenberg,
     pippenger: Pippenger,
     crs: CRS,
     constraint_system: ConstraintSystem,
@@ -13,17 +11,15 @@ pub struct StandardComposer {
 
 impl StandardComposer {
     pub fn new(constraint_system: ConstraintSystem) -> StandardComposer {
-        let mut barretenberg = Barretenberg::new();
+        let _m = BARRETENBERG.lock().unwrap();
 
-        let circuit_size =
-            StandardComposer::get_circuit_size(&mut barretenberg, &constraint_system);
+        let circuit_size = StandardComposer::get_circuit_size(&constraint_system);
 
-        let crs = CRS::new(circuit_size as usize);
+        let crs = CRS::new(circuit_size as usize + 1);
 
-        let pippenger = Pippenger::new(&crs.g1_data, &mut barretenberg);
+        let pippenger = Pippenger::new(&crs.g1_data);
 
         StandardComposer {
-            barretenberg,
             pippenger,
             crs,
             constraint_system,
@@ -538,27 +534,23 @@ impl StandardComposer {
     // XXX: This does not belong here. Ideally, the Rust code should generate the SC code
     // Since it's already done in C++, we are just re-exporting for now
     pub fn smart_contract(&mut self) -> String {
-        use std::convert::TryInto;
+        let mut contract_ptr: *mut u8 = std::ptr::null_mut();
+        let p_contract_ptr = &mut contract_ptr as *mut *mut u8;
         let cs_buf = self.constraint_system.to_bytes();
-        let cs_ptr = self.barretenberg.allocate(&cs_buf);
-
-        let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
-
-        let contract_size = self
-            .barretenberg
-            .call_multiple(
-                "composer__smart_contract",
-                vec![&self.pippenger.pointer(), &g2_ptr, &cs_ptr, &Value::I32(0)],
-            )
-            .value();
-        let contract_ptr = self.barretenberg.slice_memory(0, 4);
-        let contract_ptr = u32::from_le_bytes(contract_ptr[0..4].try_into().unwrap());
-
-        let sc_as_bytes = self.barretenberg.slice_memory(
-            contract_ptr as usize,
-            contract_ptr as usize + contract_size.unwrap_i32() as usize,
-        );
-
+        let sc_as_bytes;
+        let contract_size;
+        unsafe {
+            contract_size = barretenberg_wrapper::composer::smart_contract(
+                self.pippenger.pointer(),
+                &self.crs.g2_data,
+                &cs_buf,
+                p_contract_ptr,
+            );
+            assert!(contract_size > 0);
+            sc_as_bytes =
+                Vec::from_raw_parts(contract_ptr, contract_size as usize, contract_size as usize)
+        }
+        // TODO to check
         // XXX: We truncate the first 40 bytes, due to it being mangled
         // For some reason, the first line is partially mangled
         // So in C+ the first line is duplicated and then truncated
@@ -576,73 +568,47 @@ impl StandardComposer {
     // This method is primarily used to determine how many group
     // elements we need from the CRS. So using 2^19 on an error
     // should be an overestimation.
-    pub fn get_circuit_size(
-        barretenberg: &mut Barretenberg,
-        constraint_system: &ConstraintSystem,
-    ) -> u32 {
-        let cs_buf = constraint_system.to_bytes();
-        let cs_ptr = barretenberg.allocate(&cs_buf);
-
-        let func = barretenberg
-            .instance
-            .exports
-            .get_function("composer__get_circuit_size")
-            .unwrap();
-
-        let params: Vec<_> = vec![cs_ptr.clone()];
-        match func.call(&params) {
-            Ok(vals) => {
-                let i32_bytes = vals.first().cloned().unwrap().unwrap_i32().to_be_bytes();
-                let u32_val = u32::from_be_bytes(i32_bytes);
-                barretenberg.free(cs_ptr);
-                u32_val
-            }
-            Err(_) => {
-                // Default to 2^19
-                2u32.pow(19)
-            }
+    pub fn get_circuit_size(constraint_system: &ConstraintSystem) -> u32 {
+        unsafe {
+            barretenberg_wrapper::composer::get_circuit_size(
+                constraint_system.to_bytes().as_slice().as_ptr(),
+            )
         }
     }
 
     pub fn create_proof(&mut self, witness: WitnessAssignments) -> Vec<u8> {
-        use core::convert::TryInto;
-        let now = std::time::Instant::now();
+        let _m = BARRETENBERG.lock().unwrap();
 
         let cs_buf = self.constraint_system.to_bytes();
-        let cs_ptr = self.barretenberg.allocate(&cs_buf);
-
+        let mut proof_addr: *mut u8 = std::ptr::null_mut();
+        let p_proof = &mut proof_addr as *mut *mut u8;
+        let g2_clone = self.crs.g2_data.clone();
         let witness_buf = witness.to_bytes();
-        let witness_ptr = self.barretenberg.allocate(&witness_buf);
+        let proof_size;
+        unsafe {
+            proof_size = barretenberg_wrapper::composer::create_proof(
+                self.pippenger.pointer(),
+                &cs_buf,
+                &g2_clone,
+                &witness_buf,
+                p_proof,
+            );
+        }
 
-        let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
+        //  TODO - to check why barretenberg  is freeing them, cf:
+        //   aligned_free((void*)witness_buf);
+        //   aligned_free((void*)g2x);
+        //   aligned_free((void*)constraint_system_buf);
+        std::mem::forget(cs_buf);
+        std::mem::forget(g2_clone);
+        std::mem::forget(witness_buf);
+        //
 
-        let proof_size = self
-            .barretenberg
-            .call_multiple(
-                "composer__new_proof",
-                vec![
-                    &self.pippenger.pointer(),
-                    &g2_ptr,
-                    &cs_ptr,
-                    &witness_ptr,
-                    &Value::I32(0),
-                ],
-            )
-            .value();
-
-        let proof_ptr = self.barretenberg.slice_memory(0, 4);
-        let proof_ptr = u32::from_le_bytes(proof_ptr[0..4].try_into().unwrap());
-
-        let proof = self.barretenberg.slice_memory(
-            proof_ptr as usize,
-            proof_ptr as usize + proof_size.unwrap_i32() as usize,
-        );
-        println!(
-            "Total Proving time (Rust + WASM) : {}ns ~ {}seconds",
-            now.elapsed().as_nanos(),
-            now.elapsed().as_secs(),
-        );
-        remove_public_inputs(self.constraint_system.public_inputs.len(), proof)
+        let result;
+        unsafe {
+            result = Vec::from_raw_parts(proof_addr, proof_size as usize, proof_size as usize)
+        }
+        remove_public_inputs(self.constraint_system.public_inputs.len(), result)
     }
 
     pub fn verify(
@@ -652,11 +618,11 @@ impl StandardComposer {
         proof: &[u8],
         public_inputs: Option<Assignments>,
     ) -> bool {
+        let _m = BARRETENBERG.lock().unwrap();
         // Prepend the public inputs to the proof.
         // This is how Barretenberg expects it to be.
         // This is non-standard however, so this Rust wrapper will strip the public inputs
         // from proofs created by Barretenberg. Then in Verify we prepend them again.
-        //
 
         let mut proof = proof.to_vec();
         if let Some(pi) = &public_inputs {
@@ -667,68 +633,27 @@ impl StandardComposer {
             proof_with_pi.extend(proof);
             proof = proof_with_pi;
         }
-        let now = std::time::Instant::now();
-
-        let cs_buf = self.constraint_system.to_bytes();
-        let cs_ptr = self.barretenberg.allocate(&cs_buf);
-
-        let proof_ptr = self.barretenberg.allocate(&proof);
-
-        let g2_ptr = self.barretenberg.allocate(&self.crs.g2_data);
-
-        let verified = match public_inputs {
-            None => self
-                .barretenberg
-                .call_multiple(
-                    "composer__verify_proof",
-                    vec![
-                        &self.pippenger.pointer(),
-                        &g2_ptr,
-                        &cs_ptr,
-                        &proof_ptr,
-                        &Value::I32(proof.len() as i32),
-                    ],
-                )
-                .value(),
-            Some(pub_inputs) => {
-                let pub_inputs_buf = pub_inputs.to_bytes();
-                let pub_inputs_ptr = self.barretenberg.allocate(&pub_inputs_buf);
-
-                let verified = self
-                    .barretenberg
-                    .call_multiple(
-                        "composer__verify_proof_with_public_inputs",
-                        vec![
-                            &self.pippenger.pointer(),
-                            &g2_ptr,
-                            &cs_ptr,
-                            &pub_inputs_ptr,
-                            &proof_ptr,
-                            &Value::I32(proof.len() as i32),
-                        ],
-                    )
-                    .value();
-
-                self.barretenberg.free(pub_inputs_ptr);
-
-                verified
-            }
-        };
-        // self.barretenberg.free(cs_ptr);
-        self.barretenberg.free(proof_ptr);
-        // self.barretenberg.free(g2_ptr);
-
-        println!(
-            "Total Verifier time (Rust + WASM) : {}ns ~ {}seconds",
-            now.elapsed().as_nanos(),
-            now.elapsed().as_secs(),
-        );
-
-        match verified.unwrap_i32() {
-            0 => false,
-            1 => true,
-            _ => panic!("Expected a 1 or a zero for the verification result"),
+        let no_pub_input: Vec<u8> = Vec::new();
+        let verified;
+        unsafe {
+            verified = match public_inputs {
+                None => barretenberg_wrapper::composer::verify(
+                    self.pippenger.pointer(),
+                    &proof,
+                    no_pub_input.as_slice(),
+                    &self.constraint_system.to_bytes(),
+                    &self.crs.g2_data,
+                ),
+                Some(pub_inputs) => barretenberg_wrapper::composer::verify(
+                    self.pippenger.pointer(),
+                    &proof,
+                    &pub_inputs.to_bytes(),
+                    &self.constraint_system.to_bytes(),
+                    &self.crs.g2_data,
+                ),
+            };
         }
+        verified
     }
 }
 

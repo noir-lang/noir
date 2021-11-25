@@ -1,25 +1,15 @@
 use noir_field::FieldElement;
-use wasmer::Value;
 
 use super::Barretenberg;
+use super::BARRETENBERG;
 
 impl Barretenberg {
     /// Hashes to a bn254 scalar field element using blake2s
     pub fn hash_to_field(&mut self, input: &[u8]) -> FieldElement {
-        let input_ptr = self.allocate(input); // 0..32
+        let _m = BARRETENBERG.lock().unwrap();
+        let result_prt = barretenberg_wrapper::blake2s::hash_to_field(input);
 
-        let result_ptr = Value::I32(0);
-
-        // Not sure why this is needed to send to WASM
-        // It seems to be sent twice?
-        let data_len = Value::I32(input.len() as i32);
-
-        self.call_multiple("blake2s_to_field", vec![&input_ptr, &data_len, &result_ptr]);
-
-        self.free(input_ptr);
-
-        let result_bytes = self.slice_memory(0, 32);
-        FieldElement::from_be_bytes_reduce(&result_bytes)
+        FieldElement::from_be_bytes_reduce(&result_prt)
     }
 }
 
