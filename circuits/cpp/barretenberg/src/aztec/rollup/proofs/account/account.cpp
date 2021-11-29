@@ -79,7 +79,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     const auto assert_account_exists = !zero_nonce;
     const auto account_note_data = account_note(account_alias_id, account_public_key, signer);
     const auto exists = merkle_tree::check_membership(
-        data_tree_root, account_note_path, account_note_data.commitment, byte_array_ct(account_note_index));
+        data_tree_root, account_note_path, account_note_data.commitment, byte_array_ct(account_note_index, 4));
     exists.assert_equal(assert_account_exists, "account check_membership failed");
 
     // Check account public key does not change unless migrating.

@@ -72,6 +72,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     inputs.alias_hash.create_range_constraint(224, "alias hash too large");
     inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
     inputs.asset_id.create_range_constraint(ASSET_ID_BIT_LENGTH, "asset id too large");
+    inputs.input_note1_index.create_range_constraint(DATA_TREE_DEPTH, "input note 1 index too large");
+    inputs.input_note2_index.create_range_constraint(DATA_TREE_DEPTH, "input note 2 index too large");
+    inputs.account_index.create_range_constraint(DATA_TREE_DEPTH, "account note index too large");
 
     // Check public value and owner are not zero for deposit and withdraw, otherwise they must be zero.
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
