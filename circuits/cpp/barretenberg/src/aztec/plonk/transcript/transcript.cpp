@@ -145,18 +145,13 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
         base_hash = Keccak256Hasher::hash(buffer);
         break;
     }
-    case HashType::Blake2s: {
-        base_hash = Blake2sHasher::hash(buffer);
-        break;
-    }
     case HashType::PedersenBlake2s: {
         std::vector<uint8_t> compressed_buffer = to_buffer(crypto::pedersen::compress_native(buffer));
         base_hash = Blake2sHasher::hash(compressed_buffer);
         break;
     }
     default: {
-        base_hash = Keccak256Hasher::hash(buffer);
-        break;
+        throw_or_abort("no hasher was selected for the transcript");
     }
     }
 
@@ -187,15 +182,12 @@ void Transcript::apply_fiat_shamir(const std::string& challenge_name /*, const b
             hash_output = Keccak256Hasher::hash(rolling_buffer);
             break;
         }
-        case HashType::Blake2s: {
-            hash_output = Blake2sHasher::hash(rolling_buffer);
-            break;
-        }
         case HashType::PedersenBlake2s: {
             hash_output = Blake2sHasher::hash(rolling_buffer);
             break;
         }
         default: {
+            throw_or_abort("no hasher was selected for the transcript");
         }
         }
         for (size_t j = 0; j < challenges_per_hash; ++j) {
