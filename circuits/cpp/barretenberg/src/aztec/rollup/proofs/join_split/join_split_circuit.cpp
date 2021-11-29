@@ -69,7 +69,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     auto onote2_value = output_note2.value;
 
     // Input data range contraints.
-    inputs.alias_hash.create_range_constraint(224, "alias hash too large");
+    inputs.alias_hash.create_range_constraint(ALIAS_HASH_BIT_LENGTH, "alias hash too large");
     inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
     inputs.asset_id.create_range_constraint(ASSET_ID_BIT_LENGTH, "asset id too large");
     inputs.input_note1_index.create_range_constraint(DATA_TREE_DEPTH, "input note 1 index too large");
