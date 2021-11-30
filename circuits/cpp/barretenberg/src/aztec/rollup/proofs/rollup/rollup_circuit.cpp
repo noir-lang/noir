@@ -346,6 +346,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     const auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
     field_ct(num_txs).create_range_constraint(MAX_TXS_BIT_LENGTH);
     const auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
+    data_start_index.create_range_constraint(DATA_TREE_DEPTH);
 
     const auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
     const auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
