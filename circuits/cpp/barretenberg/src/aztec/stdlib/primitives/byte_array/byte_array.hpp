@@ -2,7 +2,7 @@
 #include "../bool/bool.hpp"
 #include "../composers/composers_fwd.hpp"
 #include "../field/field.hpp"
-
+#include "../safe_uint/safe_uint.hpp"
 namespace plonk {
 namespace stdlib {
 
@@ -17,6 +17,7 @@ template <typename ComposerContext> class byte_array {
     byte_array(ComposerContext* parent_context, bytes_t const& input);
     byte_array(ComposerContext* parent_context, bytes_t&& input);
     byte_array(const field_t<ComposerContext>& input, const size_t num_bytes = 32);
+    byte_array(const safe_uint_t<ComposerContext>& input, const size_t num_bytes = 32);
 
     template <typename ItBegin, typename ItEnd>
     byte_array(ComposerContext* parent_context, ItBegin const& begin, ItEnd const& end)

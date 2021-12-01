@@ -13,12 +13,12 @@ using namespace plonk::stdlib::types::turbo;
 
 struct join_split_inputs {
     field_ct proof_id;
-    field_ct public_value;
+    suint_ct public_value;
     field_ct public_owner;
-    field_ct asset_id;
+    suint_ct asset_id;
     field_ct num_input_notes;
-    field_ct input_note1_index;
-    field_ct input_note2_index;
+    suint_ct input_note1_index;
+    suint_ct input_note2_index;
     notes::circuit::value::witness_data input_note1;
     notes::circuit::value::witness_data input_note2;
     notes::circuit::value::witness_data output_note1;
@@ -29,11 +29,11 @@ struct join_split_inputs {
     field_ct merkle_root;
     merkle_tree::hash_path input_path1;
     merkle_tree::hash_path input_path2;
-    field_ct account_index;
+    suint_ct account_index;
     merkle_tree::hash_path account_path;
     field_ct account_private_key;
-    field_ct alias_hash;
-    field_ct nonce;
+    suint_ct alias_hash;
+    suint_ct nonce;
     field_ct propagated_input_index;
     field_ct backward_link;
     field_ct allow_chain;

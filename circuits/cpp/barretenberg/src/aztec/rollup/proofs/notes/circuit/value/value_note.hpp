@@ -13,15 +13,15 @@ using namespace plonk::stdlib::types::turbo;
 
 struct value_note {
     point_ct owner;
-    field_ct value;
+    suint_ct value;
     field_ct secret;
-    field_ct asset_id;
-    field_ct nonce;
+    suint_ct asset_id;
+    suint_ct nonce;
     field_ct input_nullifier;
     field_ct commitment;
     field_ct creator_pubkey;
     bool_ct is_virtual;
-    field_ct virtual_note_nonce;
+    suint_ct virtual_note_nonce;
 
     value_note(witness_data const& note)
         : owner(note.owner)

@@ -102,6 +102,11 @@ byte_array<ComposerContext>::byte_array(const field_t<ComposerContext>& input, c
 }
 
 template <typename ComposerContext>
+byte_array<ComposerContext>::byte_array(const safe_uint_t<ComposerContext>& input, const size_t num_bytes)
+    : byte_array(input.value, num_bytes)
+{}
+
+template <typename ComposerContext>
 byte_array<ComposerContext>::byte_array(ComposerContext* parent_context, bytes_t const& input)
     : context(parent_context)
     , values(input)

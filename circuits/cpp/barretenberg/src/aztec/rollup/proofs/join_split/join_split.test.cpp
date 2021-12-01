@@ -513,7 +513,7 @@ TEST_F(join_split_tests, test_overflow_public_value_fails)
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "public value too large");
+    EXPECT_EQ(result.err, "safe_uint_t range constraint failure: public_value");
 }
 
 // Tx fee
@@ -562,7 +562,7 @@ TEST_F(join_split_tests, test_overflow_tx_fee_fails)
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "tx fee too large");
+    EXPECT_EQ(result.err, "safe_uint_t range constraint failure: unknown");
 }
 
 TEST_F(join_split_tests, test_total_output_value_larger_than_total_input_value_fails)
@@ -572,7 +572,7 @@ TEST_F(join_split_tests, test_total_output_value_larger_than_total_input_value_f
 
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "tx fee too large");
+    EXPECT_EQ(result.err, "safe_uint_t range constraint failure: unknown");
 }
 
 // Asset id

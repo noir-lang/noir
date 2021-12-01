@@ -14,6 +14,7 @@
 #include <stdlib/encryption/schnorr/schnorr.hpp>
 #include <stdlib/primitives/curves/bn254.hpp>
 #include <stdlib/primitives/group/group.hpp>
+#include <stdlib/primitives/safe_uint/safe_uint.hpp>
 
 namespace plonk {
 namespace stdlib {
@@ -33,6 +34,7 @@ typedef stdlib::bool_t<Composer> bool_ct;
 typedef stdlib::byte_array<Composer> byte_array_ct;
 typedef stdlib::packed_byte_array<Composer> packed_byte_array_ct;
 typedef stdlib::field_t<Composer> field_ct;
+typedef stdlib::safe_uint_t<Composer> suint_ct;
 typedef stdlib::uint8<Composer> uint8_ct;
 typedef stdlib::uint16<Composer> uint16_ct;
 typedef stdlib::uint32<Composer> uint32_ct;
@@ -49,6 +51,7 @@ typedef stdlib::bn254<Composer> bn254;
 namespace merkle_tree {
 using namespace stdlib::merkle_tree;
 typedef stdlib::merkle_tree::hash_path<Composer> hash_path;
+
 } // namespace merkle_tree
 
 namespace schnorr {

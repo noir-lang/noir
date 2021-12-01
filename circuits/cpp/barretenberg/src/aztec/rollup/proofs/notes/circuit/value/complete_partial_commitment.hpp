@@ -12,11 +12,11 @@ namespace value {
 using namespace plonk::stdlib::types::turbo;
 
 inline auto complete_partial_commitment(field_ct const& value_note_partial_commitment,
-                                        field_ct const& value,
-                                        field_ct const& asset_id,
+                                        suint_ct const& value,
+                                        suint_ct const& asset_id,
                                         field_ct const& input_nullifier)
 {
-    return pedersen::compress({ value_note_partial_commitment, value, asset_id, input_nullifier },
+    return pedersen::compress({ value_note_partial_commitment, value.value, asset_id.value, input_nullifier },
                               true,
                               GeneratorIndex::VALUE_NOTE_COMMITMENT);
 }

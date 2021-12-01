@@ -13,25 +13,24 @@ using namespace plonk::stdlib::types::turbo;
 
 struct witness_data {
     bridge_id bridge_id_data;
-    field_ct interaction_nonce;
-    field_ct total_input_value;
-    field_ct total_output_a_value;
-    field_ct total_output_b_value;
+    suint_ct interaction_nonce;
+    suint_ct total_input_value;
+    suint_ct total_output_a_value;
+    suint_ct total_output_b_value;
     bool_ct interaction_result;
 
     witness_data(Composer& composer, native::defi_interaction::note const& note_data)
     {
         bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
-        interaction_nonce = witness_ct(&composer, note_data.interaction_nonce);
-        total_input_value = witness_ct(&composer, note_data.total_input_value);
-        total_output_a_value = witness_ct(&composer, note_data.total_output_a_value);
-        total_output_b_value = witness_ct(&composer, note_data.total_output_b_value);
+        interaction_nonce = suint_ct(
+            witness_ct(&composer, note_data.interaction_nonce), DEFI_INTERACTION_NONCE_BIT_LENGTH, "interaction_nonce");
+        total_input_value =
+            suint_ct(witness_ct(&composer, note_data.total_input_value), NOTE_VALUE_BIT_LENGTH, "total_input_value");
+        total_output_a_value = suint_ct(
+            witness_ct(&composer, note_data.total_output_a_value), NOTE_VALUE_BIT_LENGTH, "total_output_value_a");
+        total_output_b_value = suint_ct(
+            witness_ct(&composer, note_data.total_output_b_value), NOTE_VALUE_BIT_LENGTH, "total_output_value_b");
         interaction_result = witness_ct(&composer, note_data.interaction_result);
-
-        interaction_nonce.create_range_constraint(DEFI_TREE_DEPTH);
-        total_input_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
-        total_output_a_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
-        total_output_b_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }
 };
 

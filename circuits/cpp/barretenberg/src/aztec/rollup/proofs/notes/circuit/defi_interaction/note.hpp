@@ -14,19 +14,19 @@ using namespace plonk::stdlib::types::turbo;
 struct note {
 
     // compress bridge_id to field
-    field_ct bridge_id;
+    suint_ct bridge_id;
 
     // 32 bits
-    field_ct interaction_nonce;
+    suint_ct interaction_nonce;
 
     // 252 bits
-    field_ct total_input_value;
+    suint_ct total_input_value;
 
     // 252 bits
-    field_ct total_output_a_value;
+    suint_ct total_output_a_value;
 
     // 252 bits. Force this to be 0 if bridge_id only uses 1 output note
-    field_ct total_output_b_value;
+    suint_ct total_output_b_value;
 
     // if interaction failed, re-create original deposit note
     bool_ct interaction_result;
@@ -35,7 +35,7 @@ struct note {
     field_ct commitment;
 
     note(witness_data const& note)
-        : bridge_id(note.bridge_id_data.to_field())
+        : bridge_id(note.bridge_id_data.to_safe_uint())
         , interaction_nonce(note.interaction_nonce)
         , total_input_value(note.total_input_value)
         , total_output_a_value(note.total_output_a_value)
@@ -50,11 +50,11 @@ struct note {
     {
         byte_array_ct arr(&composer);
 
-        arr.write((bridge_id * is_real));
-        arr.write((interaction_nonce * is_real));
-        arr.write((total_input_value * is_real));
-        arr.write((total_output_a_value * is_real));
-        arr.write((total_output_b_value * is_real));
+        arr.write(bridge_id * is_real);
+        arr.write(interaction_nonce * is_real);
+        arr.write(total_input_value * is_real);
+        arr.write(total_output_a_value * is_real);
+        arr.write(total_output_b_value * is_real);
         arr.write((field_ct(interaction_result) * is_real));
 
         return arr;

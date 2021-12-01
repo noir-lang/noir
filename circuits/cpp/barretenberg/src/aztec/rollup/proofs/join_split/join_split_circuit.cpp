@@ -26,7 +26,7 @@ using namespace plonk::stdlib::merkle_tree;
 field_ct process_input_note(field_ct const& account_private_key,
                             field_ct const& merkle_root,
                             merkle_tree::hash_path const& hash_path,
-                            field_ct const& index,
+                            suint_ct const& index,
                             value::value_note const& note,
                             bool_ct is_propagated,
                             bool_ct is_real)
@@ -34,7 +34,7 @@ field_ct process_input_note(field_ct const& account_private_key,
     bool_ct valid_value = note.value == 0 || is_real;
     valid_value.assert_equal(true, "padding note non zero");
 
-    auto exists = merkle_tree::check_membership(merkle_root, hash_path, note.commitment, byte_array_ct(index));
+    auto exists = merkle_tree::check_membership(merkle_root, hash_path, note.commitment, byte_array_ct(index.value));
     auto valid = exists || is_propagated || !is_real;
     valid.assert_equal(true, "input note not a member");
 
@@ -68,14 +68,6 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     auto onote1_value = output_note1.value * not_defi_deposit;
     auto onote2_value = output_note2.value;
 
-    // Input data range contraints.
-    inputs.alias_hash.create_range_constraint(ALIAS_HASH_BIT_LENGTH, "alias hash too large");
-    inputs.public_value.create_range_constraint(NOTE_VALUE_BIT_LENGTH, "public value too large");
-    inputs.asset_id.create_range_constraint(ASSET_ID_BIT_LENGTH, "asset id too large");
-    inputs.input_note1_index.create_range_constraint(DATA_TREE_DEPTH, "input note 1 index too large");
-    inputs.input_note2_index.create_range_constraint(DATA_TREE_DEPTH, "input note 2 index too large");
-    inputs.account_index.create_range_constraint(DATA_TREE_DEPTH, "account note index too large");
-
     // Check public value and owner are not zero for deposit and withdraw, otherwise they must be zero.
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
     (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
@@ -100,7 +92,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         (field_ct(case0) + case1 + case2 + case3 + case4 + case5).assert_equal(1, "unsupported case");
 
         // Assert case rules.
-        const auto onote1_aid = field_ct::conditional_assign(
+        const auto onote1_aid = suint_ct::conditional_assign(
             is_defi_deposit, inputs.claim_note.bridge_id_data.input_asset_id, inputs.output_note1.asset_id);
         const auto all_asset_ids_match =
             input_note1.asset_id == input_note2.asset_id && input_note1.asset_id == onote1_aid &&
@@ -157,10 +149,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     }
 
     // Derive tx_fee.
-    field_ct total_in_value = public_input + inote1_value + inote2_value;
-    field_ct total_out_value = public_output + onote1_value + onote2_value + defi_deposit_value;
-    field_ct tx_fee = total_in_value - total_out_value;
-    tx_fee.create_range_constraint(TX_FEE_BIT_LENGTH, "tx fee too large");
+    suint_ct total_in_value = public_input + inote1_value + inote2_value;
+    suint_ct total_out_value = public_output + onote1_value + onote2_value + defi_deposit_value;
+    suint_ct tx_fee = total_in_value.subtract(total_out_value, TX_FEE_BIT_LENGTH);
 
     // Verify input notes have the same account public key and nonce.
     input_note1.owner.assert_equal(input_note2.owner, "input note owners don't match");
@@ -186,8 +177,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 
     // Verify that the signing key account note exists if nonce > 0.
     {
-        auto account_alias_id = inputs.alias_hash + (inputs.nonce * field_ct(uint256_t(1) << 224));
-        auto account_note_data = account::account_note(account_alias_id, account_public_key, signer);
+        auto account_alias_id = inputs.alias_hash + (inputs.nonce * suint_ct(uint256_t(1) << 224));
+        auto account_note_data = account::account_note(account_alias_id.value, account_public_key, signer);
         auto signing_key_exists = merkle_tree::check_membership(
             inputs.merkle_root, inputs.account_path, account_note_data.commitment, byte_array_ct(inputs.account_index));
         (signing_key_exists || zero_nonce).assert_equal(true, "account check_membership failed");
@@ -214,9 +205,9 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     output_note2.input_nullifier.assert_equal(nullifier2, "output note 2 has incorrect input nullifier");
     claim_note.input_nullifier.assert_equal(nullifier1 * is_defi_deposit, "claim note has incorrect input nullifier");
 
-    verify_signature(inputs.public_value,
+    verify_signature(inputs.public_value.value,
                      inputs.public_owner,
-                     public_asset_id,
+                     public_asset_id.value,
                      output_note1_commitment,
                      output_note2.commitment,
                      nullifier1,
@@ -235,12 +226,12 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
 {
     join_split_inputs inputs = {
         witness_ct(&composer, tx.proof_id),
-        witness_ct(&composer, tx.public_value),
+        suint_ct(witness_ct(&composer, tx.public_value), NOTE_VALUE_BIT_LENGTH, "public_value"),
         witness_ct(&composer, tx.public_owner),
-        witness_ct(&composer, tx.asset_id),
+        suint_ct(witness_ct(&composer, tx.asset_id), ASSET_ID_BIT_LENGTH, "asset_id"),
         witness_ct(&composer, tx.num_input_notes),
-        witness_ct(&composer, tx.input_index[0]),
-        witness_ct(&composer, tx.input_index[1]),
+        suint_ct(witness_ct(&composer, tx.input_index[0]), DATA_TREE_DEPTH, "input_index0"),
+        suint_ct(witness_ct(&composer, tx.input_index[1]), DATA_TREE_DEPTH, "input_index1"),
         value::witness_data(composer, tx.input_note[0]),
         value::witness_data(composer, tx.input_note[1]),
         value::witness_data(composer, tx.output_note[0]),
@@ -251,11 +242,11 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         witness_ct(&composer, tx.old_data_root),
         merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
         merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
-        witness_ct(&composer, tx.account_index),
+        suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_index"),
         merkle_tree::create_witness_hash_path(composer, tx.account_path),
         witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
-        witness_ct(&composer, tx.alias_hash),
-        witness_ct(&composer, tx.nonce),
+        suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
+        suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
         witness_ct(&composer, tx.propagated_input_index),
         witness_ct(&composer, tx.backward_link),
         witness_ct(&composer, tx.allow_chain),

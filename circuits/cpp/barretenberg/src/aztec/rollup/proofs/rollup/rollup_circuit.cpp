@@ -58,15 +58,16 @@ field_ct check_nullifiers_inserted(Composer& composer,
 auto process_defi_deposit(Composer& composer,
                           field_ct const& rollup_id,
                           std::vector<field_ct>& public_inputs,
-                          std::vector<field_ct> const& bridge_ids,
-                          std::vector<field_ct>& defi_deposit_sums,
+                          std::vector<suint_ct> const& bridge_ids,
+                          std::vector<suint_ct>& defi_deposit_sums,
                           field_ct const& num_defi_interactions)
 {
     field_ct defi_interaction_nonce = (rollup_id * NUM_BRIDGE_CALLS_PER_BLOCK);
 
     const auto proof_id = public_inputs[InnerProofFields::PROOF_ID];
-    const auto bridge_id = public_inputs[InnerProofFields::BRIDGE_ID];
-    const auto deposit_value = public_inputs[InnerProofFields::DEFI_DEPOSIT_VALUE];
+    const suint_ct bridge_id(public_inputs[InnerProofFields::BRIDGE_ID], DEFI_BRIDGE_ID_BIT_LENGTH, "bridge_id");
+    const suint_ct deposit_value(
+        public_inputs[InnerProofFields::DEFI_DEPOSIT_VALUE], DEFI_DEPOSIT_VALUE_BIT_LENGTH, "defi_deposit");
     const auto is_defi_deposit = proof_id == field_ct(ProofIds::DEFI_DEPOSIT);
 
     field_ct note_defi_interaction_nonce = defi_interaction_nonce;
@@ -89,8 +90,8 @@ auto process_defi_deposit(Composer& composer,
                                     format("proof bridge id matched ", uint64_t(num_matched.get_value()), " times"));
 
     // Compute claim fee which to be added to the claim note.
-    const auto tx_fee = public_inputs[InnerProofFields::TX_FEE];
-    const auto defi_deposit_fee = tx_fee.slice(TX_FEE_BIT_LENGTH, 1)[1];
+    const suint_ct tx_fee(public_inputs[InnerProofFields::TX_FEE], TX_FEE_BIT_LENGTH, "tx_fee");
+    const suint_ct defi_deposit_fee = tx_fee / 2;
     const auto claim_fee = (tx_fee - defi_deposit_fee) * is_defi_deposit;
     const auto net_tx_fee = tx_fee * !is_defi_deposit + defi_deposit_fee * is_defi_deposit;
 
@@ -303,10 +304,10 @@ std::pair<field_ct, field_ct> process_chained_txs(size_t const& i,
  * Accumulate tx fees from each inner proof depending on the type of proof.
  */
 void accumulate_tx_fees(Composer& composer,
-                        std::vector<field_ct>& total_tx_fees,
+                        std::vector<suint_ct>& total_tx_fees,
                         field_ct const& proof_id,
                         field_ct const& asset_id,
-                        field_ct const& tx_fee,
+                        suint_ct const& tx_fee,
                         std::vector<field_ct> const& asset_ids,
                         field_ct const& num_asset_ids,
                         bool_ct const& is_real)
@@ -321,7 +322,7 @@ void accumulate_tx_fees(Composer& composer,
         const auto matches = asset_id == asset_ids[k] && is_asset_id_real;
         num_matched += matches;
 
-        total_tx_fees[k] += tx_fee * matches;
+        total_tx_fees[k] = total_tx_fees[k] + tx_fee * static_cast<suint_ct>(matches);
     }
 
     // Assert this proof matched a single asset_id or it must be a padding proof.
@@ -345,9 +346,8 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     const auto rollup_id = field_ct(witness_ct(&composer, rollup.rollup_id));
     const auto num_txs = uint32_ct(witness_ct(&composer, rollup.num_txs));
     field_ct(num_txs).create_range_constraint(MAX_TXS_BIT_LENGTH);
-    const auto data_start_index = field_ct(witness_ct(&composer, rollup.data_start_index));
-    data_start_index.create_range_constraint(DATA_TREE_DEPTH);
-
+    const auto data_start_index =
+        suint_ct(witness_ct(&composer, rollup.data_start_index), DATA_TREE_DEPTH, "data_start_index");
     const auto old_data_root = field_ct(witness_ct(&composer, rollup.old_data_root));
     const auto new_data_root = field_ct(witness_ct(&composer, rollup.new_data_root));
     const auto old_data_path = create_witness_hash_path(composer, rollup.old_data_path);
@@ -370,8 +370,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
 
     const auto new_defi_root = field_ct(witness_ct(&composer, rollup.new_defi_root));
     const auto num_defi_interactions = field_ct(witness_ct(&composer, rollup.num_defi_interactions));
-    auto bridge_ids = map(rollup.bridge_ids, [&](auto& bid) { return field_ct(witness_ct(&composer, bid)); });
-
+    auto bridge_ids = map(rollup.bridge_ids, [&](auto& bid) {
+        return suint_ct(witness_ct(&composer, bid), DEFI_BRIDGE_ID_BIT_LENGTH, "bridge_id");
+    });
     const auto recursive_manifest = Composer::create_unrolled_manifest(verification_keys[0]->num_public_inputs);
 
     const auto num_asset_ids = field_ct(witness_ct(&composer, rollup.num_asset_ids));
@@ -402,9 +403,9 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     // All public inputs of the inner txs (including public inputs which will not be made public by this rollup
     // circuit):
     std::vector<std::vector<field_ct>> all_tx_public_inputs;
-    auto total_tx_fees = std::vector<field_ct>(NUM_ASSETS, field_ct(witness_ct::create_constant_witness(&composer, 0)));
-    std::vector<field_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
-                                            field_ct(witness_ct::create_constant_witness(&composer, 0)));
+    auto total_tx_fees = std::vector<suint_ct>(NUM_ASSETS, suint_ct::create_constant_witness(&composer, 0));
+    std::vector<suint_ct> defi_deposit_sums(NUM_BRIDGE_CALLS_PER_BLOCK,
+                                            suint_ct::create_constant_witness(&composer, 0));
 
     for (size_t i = 0; i < max_num_txs; ++i) {
         // Pick verification key and check it's permitted.
@@ -475,8 +476,7 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
     }
 
     new_data_values.resize(rollup_size_pow2_ * 2, fr(0));
-
-    batch_update_membership(new_data_root, old_data_root, old_data_path, new_data_values, data_start_index);
+    batch_update_membership(new_data_root, old_data_root, old_data_path, new_data_values, data_start_index.value);
 
     auto new_null_root =
         check_nullifiers_inserted(composer, new_null_roots, old_null_paths, num_txs, old_null_root, new_null_indicies);

@@ -7,6 +7,9 @@ namespace rollup {
 namespace proofs {
 namespace notes {
 
+constexpr size_t ASSET_ID_BIT_LENGTH = 32;
+constexpr size_t NONCE_BIT_LENGTH = 32;
+constexpr size_t DEFI_INTERACTION_NONCE_BIT_LENGTH = 32;
 constexpr size_t NOTE_VALUE_BIT_LENGTH = 252;
 constexpr uint256_t NOTE_VALUE_MAX = (uint256_t(1) << NOTE_VALUE_BIT_LENGTH) - 1;
 constexpr size_t DEFI_DEPOSIT_VALUE_BIT_LENGTH = MAX_NO_WRAP_INTEGER_BIT_LENGTH - MAX_TXS_BIT_LENGTH;

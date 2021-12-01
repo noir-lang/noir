@@ -23,50 +23,49 @@ using namespace notes::circuit::account;
 static std::shared_ptr<waffle::proving_key> proving_key;
 static std::shared_ptr<waffle::verification_key> verification_key;
 
-field_ct compute_account_alias_id_nullifier(field_ct const& proof_id, field_ct const& account_alias_id)
+field_ct compute_account_alias_id_nullifier(field_ct const& proof_id, suint_ct const& account_alias_id)
 {
-    std::vector<field_ct> to_compress = { proof_id, account_alias_id };
+    std::vector<field_ct> to_compress = { proof_id, account_alias_id.value };
     return pedersen::compress(to_compress, true, notes::GeneratorIndex::ACCOUNT_ALIAS_ID_NULLIFIER);
 }
 
 void account_circuit(Composer& composer, account_tx const& tx)
 {
     const auto proof_id = field_ct(witness_ct(&composer, ProofIds::ACCOUNT));
-    const auto nonce = field_ct(witness_ct(&composer, tx.nonce));
-    const auto alias_hash = field_ct(witness_ct(&composer, tx.alias_hash));
+    const auto nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce");
+    const auto alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash");
     const auto migrate = bool_ct(witness_ct(&composer, tx.migrate));
     const auto signature = stdlib::schnorr::convert_signature(&composer, tx.signature);
     const auto account_public_key = stdlib::create_point_witness(composer, tx.account_public_key);
     const auto new_account_public_key = stdlib::create_point_witness(composer, tx.new_account_public_key);
     const auto spending_public_key_1 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_1, false);
     const auto spending_public_key_2 = stdlib::create_point_witness(composer, tx.new_signing_pub_key_2, false);
-    const auto account_note_index = field_ct(witness_ct(&composer, tx.account_index));
+    const auto account_note_index =
+        suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_note_index");
     const auto account_note_path = merkle_tree::create_witness_hash_path(composer, tx.account_path);
     const auto signing_pub_key = stdlib::create_point_witness(composer, tx.signing_pub_key);
     const auto data_tree_root = field_ct(witness_ct(&composer, tx.merkle_root));
 
-    // Input data range contraints.
-    alias_hash.create_range_constraint(ALIAS_HASH_BIT_LENGTH, "alias hash too large");
-    account_note_index.create_range_constraint(DATA_TREE_DEPTH, "account note index too large");
-
-    const auto account_alias_id = alias_hash + nonce * field_ct(uint256_t(1) << 224);
+    const auto account_alias_id = alias_hash + nonce * suint_ct(uint256_t(1) << 224);
     const auto output_nonce = nonce + migrate;
-    const auto output_account_alias_id = alias_hash + output_nonce * field_ct(uint256_t(1) << 224);
+    const auto output_account_alias_id = alias_hash + output_nonce * suint_ct(uint256_t(1) << 224);
 
-    const auto output_note_1 = account_note(output_account_alias_id, new_account_public_key, spending_public_key_1);
-    const auto output_note_2 = account_note(output_account_alias_id, new_account_public_key, spending_public_key_2);
+    const auto output_note_1 =
+        account_note(output_account_alias_id.value, new_account_public_key, spending_public_key_1);
+    const auto output_note_2 =
+        account_note(output_account_alias_id.value, new_account_public_key, spending_public_key_2);
 
     const auto nullifier_1 = compute_account_alias_id_nullifier(proof_id, account_alias_id) * migrate;
 
     // Check signature.
-    const bool_ct zero_nonce = nonce == field_ct(0);
+    const bool_ct zero_nonce = nonce == suint_ct(0);
 
     // Validate that, if nonce == 0 then migrate == 1
     const bool_ct migrate_check = (migrate || !zero_nonce);
     migrate_check.assert_equal(true, "both nonce and migrate are 0");
     const point_ct signer = { account_public_key.x * zero_nonce + signing_pub_key.x * !zero_nonce,
                               account_public_key.y * zero_nonce + signing_pub_key.y * !zero_nonce };
-    std::vector<field_ct> to_compress = { account_alias_id,
+    std::vector<field_ct> to_compress = { account_alias_id.value,
                                           account_public_key.x,
                                           new_account_public_key.x,
                                           spending_public_key_1.x,
@@ -79,7 +78,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
 
     // Check signing account note exists if nonce != 0.
     const auto assert_account_exists = !zero_nonce;
-    const auto account_note_data = account_note(account_alias_id, account_public_key, signer);
+    const auto account_note_data = account_note(account_alias_id.value, account_public_key, signer);
     const auto exists = merkle_tree::check_membership(
         data_tree_root, account_note_path, account_note_data.commitment, byte_array_ct(account_note_index));
     exists.assert_equal(assert_account_exists, "account check_membership failed");

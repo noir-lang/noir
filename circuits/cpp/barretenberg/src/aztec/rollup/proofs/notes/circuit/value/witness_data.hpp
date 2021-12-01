@@ -13,10 +13,10 @@ using namespace plonk::stdlib::types::turbo;
 
 struct witness_data {
     point_ct owner;
-    field_ct value;
+    suint_ct value;
     field_ct secret;
-    field_ct asset_id;
-    field_ct nonce;
+    suint_ct asset_id;
+    suint_ct nonce;
     field_ct creator_pubkey;
     field_ct input_nullifier;
 
@@ -25,14 +25,11 @@ struct witness_data {
         secret = witness_ct(&composer, note.secret);
         owner.x = witness_ct(&composer, note.owner.x);
         owner.y = witness_ct(&composer, note.owner.y);
-        value = witness_ct(&composer, note.value);
-        asset_id = witness_ct(&composer, note.asset_id);
-        nonce = witness_ct(&composer, note.nonce);
+        value = suint_ct(witness_ct(&composer, note.value), NOTE_VALUE_BIT_LENGTH, "note_value");
+        asset_id = suint_ct(witness_ct(&composer, note.asset_id), ASSET_ID_BIT_LENGTH, "asset_id");
+        nonce = suint_ct(witness_ct(&composer, note.nonce), NONCE_BIT_LENGTH, "account_nonce");
         creator_pubkey = witness_ct(&composer, note.creator_pubkey);
         input_nullifier = witness_ct(&composer, note.input_nullifier);
-
-        asset_id.create_range_constraint(ASSET_ID_BIT_LENGTH);
-        value.create_range_constraint(NOTE_VALUE_BIT_LENGTH);
     }
 };
 
