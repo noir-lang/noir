@@ -877,8 +877,7 @@ void StandardComposer::assert_equal_constant(uint32_t const a_idx, fr const& b, 
 bool StandardComposer::check_circuit()
 {
     STANDARD_SELECTOR_REFS
-    if (n == 0)
-        return true;
+
     fr gate_sum;
     fr left, right, output;
     for (size_t i = 0; i < n; i++) {
