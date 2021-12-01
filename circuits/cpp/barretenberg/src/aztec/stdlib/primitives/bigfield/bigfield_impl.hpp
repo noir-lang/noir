@@ -598,7 +598,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqr() const
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     };
 
-    evaluate_square_add(*this, {}, quotient, remainder);
+    unsafe_evaluate_square_add(*this, {}, quotient, remainder);
     return remainder;
 }
 
@@ -618,7 +618,6 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
         ASSERT(mul_product_overflows_crt_modulus(get_maximum_value(), get_maximum_value(), to_add) == 0);
     }
     C* ctx = context;
-    reduction_check();
 
     uint512_t add_values(0);
     bool add_constant = true;
@@ -653,12 +652,17 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::sqradd(const st
             witness_t(ctx, fr(remainder_value.slice(0, NUM_LIMB_BITS * 2).lo)),
             witness_t(ctx, fr(remainder_value.slice(NUM_LIMB_BITS * 2, NUM_LIMB_BITS * 3 + NUM_LAST_LIMB_BITS).lo)));
     };
-    evaluate_square_add(*this, to_add, quotient, remainder);
+    unsafe_evaluate_square_add(*this, to_add, quotient, remainder);
     return remainder;
 }
 
 /**
  * Compute a * b + ...to_add = c mod p
+ *
+ * @param to_mul Bigfield element to multiply by
+ * @param to_add Vector of elements to add
+ *
+ * @return New bigfield elment c
  **/
 template <typename C, typename T>
 bigfield<C, T> bigfield<C, T>::madd(const bigfield& to_mul, const std::vector<bigfield>& to_add) const
@@ -1003,6 +1007,7 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::conditional_neg
 
     // uint256_t comparison_maximum = uint256_t(modulus_u512.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4));
     // uint256_t additive_term = comparison_maximum;
+    // TODO: This is terribly inefficient. We should change it.
     uint512_t constant_to_add = modulus_u512;
     while (constant_to_add.slice(NUM_LIMB_BITS * 3, NUM_LIMB_BITS * 4).lo <= limb_3_maximum_value) {
         constant_to_add += modulus_u512;
@@ -1056,6 +1061,15 @@ template <typename C, typename T> bigfield<C, T> bigfield<C, T>::conditional_neg
     return result;
 }
 
+/**
+ * @brief Create an element which is equal to either this or other based on the predicate
+ *
+ * @tparam C
+ * @tparam T
+ * @param other The other bigfield element
+ * @param predicate Predicate controlling the result (0 for this, 1 for the other)
+ * @return Resulting element
+ */
 template <typename C, typename T>
 bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const bool_t<C>& predicate) const
 {
@@ -1065,7 +1079,6 @@ bigfield<C, T> bigfield<C, T>::conditional_select(const bigfield& other, const b
         }
         return other;
     }
-    reduction_check();
     C* ctx = context ? context : (other.context ? other.context : predicate.context);
 
     // TODO: use field_t::conditional_assign method
@@ -1168,11 +1181,13 @@ template <typename C, typename T> void bigfield<C, T>::assert_is_in_field() cons
     field_t<C> modulus_1(context, modulus_minus_one_1);
     field_t<C> modulus_2(context, modulus_minus_one_2);
     field_t<C> modulus_3(context, modulus_minus_one_3);
-    // where are you constraining the borrows to be correct? (maybe not needed)
     bool_t<C> borrow_0(witness_t<C>(context, borrow_0_value));
     bool_t<C> borrow_1(witness_t<C>(context, borrow_1_value));
     bool_t<C> borrow_2(witness_t<C>(context, borrow_2_value));
-
+    // The way we use borrows here ensures that we are checking that modulus - binary_basis > 0.
+    // We check that the result in each limb is > 0.
+    // If the modulus part in this limb is smaller, we simply borrow the value from the higher limb.
+    // The prover can rearrange the borrows the way they like. The important thing is that the borrows are constrained.
     field_t<C> r0 = modulus_0 - binary_basis_limbs[0].element + static_cast<field_t<C>>(borrow_0) * shift_1;
     field_t<C> r1 = modulus_1 - binary_basis_limbs[1].element + static_cast<field_t<C>>(borrow_1) * shift_1 -
                     static_cast<field_t<C>>(borrow_0);
@@ -1213,8 +1228,11 @@ template <typename C, typename T> void bigfield<C, T>::assert_equal(const bigfie
         field_t<C> t2 = (binary_basis_limbs[2].element - other.binary_basis_limbs[2].element);
         field_t<C> t3 = (binary_basis_limbs[3].element - other.binary_basis_limbs[3].element);
         field_t<C> t4 = (prime_basis_limb - other.prime_basis_limb);
-        field_t<C> diff = t0 * t1 * t2 * t3 * t4;
-        diff.assert_is_zero();
+        t0.assert_is_zero();
+        t1.assert_is_zero();
+        t2.assert_is_zero();
+        t3.assert_is_zero();
+        t4.assert_is_zero();
         return;
     } else if (is_constant()) {
         other.assert_equal(*this);
@@ -1826,10 +1844,10 @@ void bigfield<C, T>::unsafe_evaluate_multiple_multiply_add(const std::vector<big
  * TODO: reduce code duplication! Most of this code is re-used from evaluate_multiply_add
  **/
 template <typename C, typename T>
-void bigfield<C, T>::evaluate_square_add(const bigfield& left,
-                                         const std::vector<bigfield>& to_add,
-                                         const bigfield& quotient,
-                                         const bigfield& remainder)
+void bigfield<C, T>::unsafe_evaluate_square_add(const bigfield& left,
+                                                const std::vector<bigfield>& to_add,
+                                                const bigfield& quotient,
+                                                const bigfield& remainder)
 {
     if (C::type == waffle::PLOOKUP) {
         unsafe_evaluate_multiply_add(left, left, to_add, quotient, { remainder });

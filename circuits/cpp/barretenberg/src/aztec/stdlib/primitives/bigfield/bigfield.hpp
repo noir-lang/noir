@@ -15,6 +15,7 @@ namespace plonk {
 namespace stdlib {
 
 template <typename Composer, typename T> class bigfield {
+
   public:
     typedef T TParams;
     typedef barretenberg::field<T> native;
@@ -374,6 +375,7 @@ template <typename Composer, typename T> class bigfield {
 
     static constexpr uint256_t get_maximum_unreduced_limb_value() { return uint256_t(1) << MAX_UNREDUCED_LIMB_SIZE; }
 
+    static_assert(MAX_UNREDUCED_LIMB_SIZE < (NUM_LIMB_BITS * 2));
     Composer* context;
     mutable Limb binary_basis_limbs[4];
     mutable field_t<Composer> prime_basis_limb;
@@ -395,10 +397,10 @@ template <typename Composer, typename T> class bigfield {
                                                       const bigfield& input_quotient,
                                                       const std::vector<bigfield>& input_remainders);
 
-    static void evaluate_square_add(const bigfield& left,
-                                    const std::vector<bigfield>& to_add,
-                                    const bigfield& quotient,
-                                    const bigfield& remainder);
+    static void unsafe_evaluate_square_add(const bigfield& left,
+                                           const std::vector<bigfield>& to_add,
+                                           const bigfield& quotient,
+                                           const bigfield& remainder);
 
     static void evaluate_product(const bigfield& left,
                                  const bigfield& right,
