@@ -44,7 +44,7 @@ template <typename ComposerContext> class witness_t {
     }
 
     barretenberg::fr witness;
-    uint32_t witness_index = static_cast<uint32_t>(-1);
+    uint32_t witness_index = waffle::ComposerBase::IS_CONSTANT;
     ComposerContext* context = nullptr;
 };
 

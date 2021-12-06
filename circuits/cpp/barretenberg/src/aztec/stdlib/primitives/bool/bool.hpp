@@ -18,7 +18,6 @@ template <typename ComposerContext> class bool_t {
     bool_t& operator=(const witness_t<ComposerContext>& other);
     bool_t& operator=(const bool_t& other);
     bool_t& operator=(bool_t&& other);
-    // field_t& operator=(const barretenberg::fr &value);
 
     // bitwise operations
     bool_t operator&(const bool_t& other) const;
@@ -54,7 +53,7 @@ template <typename ComposerContext> class bool_t {
 
     bool get_value() const { return witness_bool ^ witness_inverted; }
 
-    bool is_constant() const { return witness_index == static_cast<uint32_t>(-1); }
+    bool is_constant() const { return witness_index == waffle::ComposerBase::IS_CONSTANT; }
 
     bool_t normalize() const;
 
@@ -63,7 +62,7 @@ template <typename ComposerContext> class bool_t {
     mutable ComposerContext* context = nullptr;
     mutable bool witness_bool = false;
     mutable bool witness_inverted = false;
-    mutable uint32_t witness_index = static_cast<uint32_t>(-1);
+    mutable uint32_t witness_index = waffle::ComposerBase::IS_CONSTANT;
 };
 
 template <typename T> inline std::ostream& operator<<(std::ostream& os, bool_t<T> const& v)
