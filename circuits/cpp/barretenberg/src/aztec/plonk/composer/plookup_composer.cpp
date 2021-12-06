@@ -1385,7 +1385,7 @@ void PlookupComposer::process_range_list(const RangeList& list)
     std::sort(sorted_list.begin(), sorted_list.end());
     std::vector<uint32_t> indices;
 
-    // list must be padded to a multipe of 4 and larger than 4
+    // list must be padded to a multiple of 4 and larger than 4
     size_t padding = (4 - (list.variable_indices.size() % 4)) % 4; // TODO: this 4 maybe tied to program_width
     if (list.variable_indices.size() == 4)
         padding += 4;
