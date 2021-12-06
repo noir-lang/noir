@@ -231,8 +231,16 @@ std::shared_ptr<proving_key> ComposerBase::compute_proving_key_base(const size_t
         for (size_t j = num_filled_gates; j < subgroup_size - 1 /*- public_inputs.size()*/; ++j) {
             coeffs.emplace_back(fr::zero());
         }
-        coeffs.emplace_back(
-            1); // ensure selectors are nonzero. Ask Zac about this, since later we don't actually use it.
+        // Add `1` to ensure the selectors have at least one non-zero element
+        // This in turn ensures that when we commit to a selector, we will never get the
+        // point at infinity. We avoid the point at infinity in the native verifier because this is an edge case in the
+        // recursive verifier circuit, and this ensures that the logic is consistent between both verifiers.
+        //
+        // Note: Setting the selector to 1, would ordinarily make the proof fail if we did not have a satisfying
+        // constraint. This is not the case for the last selector position, as it is never checked in the proving
+        // system; observe that we cut out 4 roots and only use 3 for zero knowledge. The last root, corresponds to this
+        // position.
+        coeffs.emplace_back(1);
         polynomial poly(subgroup_size);
 
         for (size_t k = 0; k < public_inputs.size(); ++k) {
