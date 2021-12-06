@@ -57,7 +57,7 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
   public:
     /**
      * Create a challenge array from transcript.
-     * Loads alpha, bet, gamma, eta, zeta and nu and calculates powers of alpha.
+     * Loads alpha, beta, gamma, eta, zeta and nu and calculates powers of alpha.
      *
      * @param transcript Transcript to get challenges from.
      * @param alpha_base alpha to some power (depends on previously used widgets).
@@ -91,8 +91,10 @@ template <class Field, class Transcript, class Settings, size_t num_widget_relat
          * */
         auto add_challenge = [transcript,
                               &result](const auto label, const auto tag, const bool required, const size_t index = 0) {
-            ASSERT(!required || transcript.has_challenge(label));
-            if (transcript.has_challenge(label)) {
+            if (required) { // if we are supposed to use the challenge, we pick it from transcript, otherwise we use a
+                            // random value
+                ASSERT(index < transcript.get_num_challenges(
+                                   label)); // We fail this assertion only if the required challenge doesn't exist yet
                 result.elements[tag] = transcript.get_challenge_field_element(label, index);
             } else {
                 result.elements[tag] = barretenberg::fr::random_element();
