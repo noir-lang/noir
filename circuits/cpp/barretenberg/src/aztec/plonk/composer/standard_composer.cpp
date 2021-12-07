@@ -28,6 +28,8 @@ namespace waffle {
 void StandardComposer::create_add_gate(const add_triple& in)
 {
     STANDARD_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -72,6 +74,8 @@ void StandardComposer::create_balanced_add_gate(const add_quad& in)
 {
 
     STANDARD_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     // (a terms + b terms = temp)
     // (c terms + d  terms + temp = 0 )
     fr t0 = get_variable(in.a) * in.a_scaling;
@@ -193,6 +197,8 @@ void StandardComposer::create_big_mul_gate(const mul_quad& in)
 void StandardComposer::create_mul_gate(const mul_triple& in)
 {
     STANDARD_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -214,6 +220,8 @@ void StandardComposer::create_mul_gate(const mul_triple& in)
 void StandardComposer::create_bool_gate(const uint32_t variable_index)
 {
     STANDARD_SELECTOR_REFS
+    assert_valid_variables({ variable_index });
+
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
@@ -235,6 +243,8 @@ void StandardComposer::create_bool_gate(const uint32_t variable_index)
 void StandardComposer::create_poly_gate(const poly_triple& in)
 {
     STANDARD_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -293,6 +303,8 @@ void StandardComposer::create_fixed_group_add_gate_with_init(const fixed_group_a
 
 void StandardComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     auto row_1 = previous_add_quad;
     auto row_2 = in;
     previous_add_quad = in;
@@ -550,6 +562,8 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
                                                                      const size_t num_bits,
                                                                      const bool is_xor_gate)
 {
+    assert_valid_variables({ a, b });
+
     waffle::accumulator_triple accumulators;
 
     const fr left_witness_value = get_variable(a).from_montgomery_form();
@@ -670,6 +684,7 @@ waffle::accumulator_triple StandardComposer::create_logic_constraint(const uint3
 void StandardComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     STANDARD_SELECTOR_REFS
+    assert_valid_variables({ witness_index });
 
     w_l.emplace_back(witness_index);
     w_r.emplace_back(zero_idx);

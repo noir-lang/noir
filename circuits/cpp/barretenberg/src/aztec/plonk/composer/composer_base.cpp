@@ -14,7 +14,9 @@ namespace waffle {
  * */
 void ComposerBase::assert_equal(const uint32_t a_variable_idx, const uint32_t b_variable_idx, std::string const& msg)
 {
-    ASSERT(a_variable_idx != IS_CONSTANT && b_variable_idx != IS_CONSTANT);
+
+    assert_valid_variables({ a_variable_idx, b_variable_idx });
+
     bool values_equal = (get_variable(a_variable_idx) == get_variable(b_variable_idx));
     if (!values_equal && !failed) {
         failed = true;

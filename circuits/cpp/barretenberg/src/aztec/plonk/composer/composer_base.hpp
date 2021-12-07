@@ -374,6 +374,21 @@ class ComposerBase {
 
     size_t get_num_public_inputs() const { return public_inputs.size(); }
 
+    // Check whether each variable index points to a witness in the composer
+    //
+    // Any variable whose index does not point to witness value is deemed invalid.
+    //
+    // This implicitly checks whether a variable index
+    // is equal to IS_CONSTANT; assuming that we will never have
+    // uint32::MAX number of variables
+    void assert_valid_variables(const std::vector<uint32_t>& variable_indices)
+    {
+        for (size_t i = 0; i < variable_indices.size(); i++) {
+            ASSERT(is_valid_variable(variable_indices[i]));
+        }
+    }
+    bool is_valid_variable(uint32_t variable_index) { return static_cast<uint32_t>(variables.size()) > variable_index; }
+
   public:
     size_t n;
     std::vector<uint32_t> w_l;

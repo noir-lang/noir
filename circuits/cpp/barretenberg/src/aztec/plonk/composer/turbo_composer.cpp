@@ -128,6 +128,8 @@ void TurboComposer::create_dummy_gate()
 void TurboComposer::create_add_gate(const add_triple& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -158,6 +160,8 @@ void TurboComposer::create_add_gate(const add_triple& in)
 void TurboComposer::create_big_add_gate(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -188,6 +192,8 @@ void TurboComposer::create_big_add_gate(const add_quad& in)
 void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -209,6 +215,8 @@ void TurboComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 void TurboComposer::create_big_mul_gate(const mul_quad& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -232,6 +240,8 @@ void TurboComposer::create_big_mul_gate(const mul_quad& in)
 void TurboComposer::create_balanced_add_gate(const add_quad& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -262,6 +272,8 @@ void TurboComposer::create_balanced_add_gate(const add_quad& in)
 void TurboComposer::create_mul_gate(const mul_triple& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -290,6 +302,8 @@ void TurboComposer::create_mul_gate(const mul_triple& in)
 void TurboComposer::create_bool_gate(const uint32_t variable_index)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ variable_index });
+
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
@@ -321,6 +335,8 @@ void TurboComposer::create_bool_gate(const uint32_t variable_index)
 void TurboComposer::create_poly_gate(const poly_triple& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -348,6 +364,8 @@ void TurboComposer::create_poly_gate(const poly_triple& in)
 void TurboComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -378,6 +396,8 @@ void TurboComposer::create_fixed_group_add_gate_with_init(const fixed_group_add_
                                                           const fixed_group_init_quad& init)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -412,6 +432,7 @@ void TurboComposer::create_fixed_group_add_gate_final(const add_quad& in)
 void TurboComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     TURBO_SELECTOR_REFS
+    assert_valid_variables({ witness_index });
 
     w_l.emplace_back(witness_index);
     w_r.emplace_back(zero_idx);
@@ -445,7 +466,8 @@ std::vector<uint32_t> TurboComposer::decompose_into_base4_accumulators(const uin
                                                                        std::string const& msg)
 {
     TURBO_SELECTOR_REFS
-    ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
+    assert_valid_variables({ witness_index });
+
     ASSERT(num_bits > 0);
 
     /*
@@ -594,8 +616,8 @@ waffle::accumulator_triple TurboComposer::create_logic_constraint(const uint32_t
                                                                   const bool is_xor_gate)
 {
     TURBO_SELECTOR_REFS
-    ASSERT(static_cast<uint32_t>(variables.size()) > a);
-    ASSERT(static_cast<uint32_t>(variables.size()) > b);
+    assert_valid_variables({ a, b });
+
     ASSERT(((num_bits >> 1U) << 1U) == num_bits); // no odd number of bits! bad! only quads!
 
     /*

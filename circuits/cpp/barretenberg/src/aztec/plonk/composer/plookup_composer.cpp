@@ -110,8 +110,9 @@ void PlookupComposer::create_dummy_gate()
 
 void PlookupComposer::create_add_gate(const add_triple& in)
 {
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT);
     PLOOKUP_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -136,8 +137,9 @@ void PlookupComposer::create_add_gate(const add_triple& in)
 
 void PlookupComposer::create_big_add_gate(const add_quad& in)
 {
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT && in.d != IS_CONSTANT);
     PLOOKUP_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -162,8 +164,9 @@ void PlookupComposer::create_big_add_gate(const add_quad& in)
 
 void PlookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT && in.d != IS_CONSTANT);
     PLOOKUP_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -188,8 +191,10 @@ void PlookupComposer::create_big_add_gate_with_bit_extraction(const add_quad& in
 
 void PlookupComposer::create_big_mul_gate(const mul_quad& in)
 {
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT && in.d != IS_CONSTANT);
+
     PLOOKUP_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -216,8 +221,9 @@ void PlookupComposer::create_big_mul_gate(const mul_quad& in)
 // Can be used to normalize a 32-bit addition
 void PlookupComposer::create_balanced_add_gate(const add_quad& in)
 {
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT && in.d != IS_CONSTANT);
     PLOOKUP_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -242,8 +248,10 @@ void PlookupComposer::create_balanced_add_gate(const add_quad& in)
 
 void PlookupComposer::create_mul_gate(const mul_triple& in)
 {
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT);
+
     PLOOKUP_SELECTOR_REFS
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -269,7 +277,8 @@ void PlookupComposer::create_mul_gate(const mul_triple& in)
 void PlookupComposer::create_bool_gate(const uint32_t variable_index)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(variable_index != IS_CONSTANT);
+    assert_valid_variables({ variable_index });
+
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
@@ -295,7 +304,8 @@ void PlookupComposer::create_bool_gate(const uint32_t variable_index)
 void PlookupComposer::create_poly_gate(const poly_triple& in)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT);
+    assert_valid_variables({ in.a, in.b, in.c });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -323,7 +333,8 @@ void PlookupComposer::create_poly_gate(const poly_triple& in)
 void PlookupComposer::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT && in.d != IS_CONSTANT);
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -353,7 +364,8 @@ void PlookupComposer::create_fixed_group_add_gate_with_init(const fixed_group_ad
                                                             const fixed_group_init_quad& init)
 {
     PLOOKUP_SELECTOR_REFS
-    assert(in.a != IS_CONSTANT && in.b != IS_CONSTANT && in.c != IS_CONSTANT && in.d != IS_CONSTANT);
+    assert_valid_variables({ in.a, in.b, in.c, in.d });
+
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -393,9 +405,9 @@ void PlookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
      *
      **/
 
-    ASSERT(in.x1 != IS_CONSTANT && in.y1 != IS_CONSTANT && in.x2 != IS_CONSTANT && in.y2 != IS_CONSTANT &&
-           in.x3 != IS_CONSTANT && in.y3 != IS_CONSTANT);
     PLOOKUP_SELECTOR_REFS
+
+    assert_valid_variables({ in.x1, in.x2, in.x3, in.y1, in.y2, in.y3 });
 
     bool can_fuse_into_previous_gate = true;
     can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[n - 1] == in.x1);
@@ -462,7 +474,8 @@ void PlookupComposer::create_ecc_add_gate(const ecc_add_gate& in)
 void PlookupComposer::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(witness_index != IS_CONSTANT);
+    assert_valid_variables({ witness_index });
+
     w_l.emplace_back(witness_index);
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
@@ -490,7 +503,8 @@ std::vector<uint32_t> PlookupComposer::decompose_into_base4_accumulators(const u
                                                                          std::string const& msg)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(static_cast<uint32_t>(variables.size()) > witness_index);
+    assert_valid_variables({ witness_index });
+
     ASSERT(((num_bits >> 1U) << 1U) == num_bits);
 
     /*
@@ -630,8 +644,8 @@ waffle::accumulator_triple PlookupComposer::create_logic_constraint(const uint32
                                                                     const bool is_xor_gate)
 {
     PLOOKUP_SELECTOR_REFS
-    ASSERT(static_cast<uint32_t>(variables.size()) > a);
-    ASSERT(static_cast<uint32_t>(variables.size()) > b);
+    assert_valid_variables({ a, b });
+
     ASSERT(((num_bits >> 1U) << 1U) == num_bits); // no odd number of bits! bad! only quads!
 
     /*
@@ -1226,7 +1240,7 @@ std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_t
         table.lookup_gates.emplace_back(read_values.key_entries[i]);
 
         const auto first_idx = (i == 0) ? key_a_index : add_variable(read_values.column_1_accumulator_values[i]);
-        const auto second_idx = (i == 0 && key_b_index != IS_CONSTANT)
+        const auto second_idx = (i == 0 && is_valid_variable(key_b_index))
                                     ? key_b_index
                                     : add_variable(read_values.column_2_accumulator_values[i]);
         const auto third_idx = add_variable(read_values.column_3_accumulator_values[i]);
@@ -1234,7 +1248,8 @@ std::array<std::vector<uint32_t>, 3> PlookupComposer::read_sequence_from_multi_t
         column_indices[0].push_back(first_idx);
         column_indices[1].push_back(second_idx);
         column_indices[2].push_back(third_idx);
-        ASSERT(first_idx != IS_CONSTANT && second_idx != IS_CONSTANT && third_idx != IS_CONSTANT);
+        assert_valid_variables({ first_idx, second_idx, third_idx });
+
         q_lookup_type.emplace_back(fr(1));
         q_lookup_index.emplace_back(fr(table.table_index));
         w_l.emplace_back(first_idx);
@@ -1298,7 +1313,8 @@ std::vector<uint32_t> PlookupComposer::decompose_into_default_range(const uint32
                                                                     const size_t num_bits,
                                                                     std::string const& msg)
 {
-    ASSERT(variable_index != IS_CONSTANT);
+    assert_valid_variables({ variable_index });
+
     ASSERT(num_bits > 0);
     std::vector<uint32_t> sums;
     const size_t limb_num = (size_t)num_bits / DEFAULT_PLOOKUP_RANGE_BITNUM;
@@ -1371,6 +1387,8 @@ void PlookupComposer::create_new_range_constraint(const uint32_t variable_index,
 }
 void PlookupComposer::process_range_list(const RangeList& list)
 {
+    assert_valid_variables(list.variable_indices);
+
     ASSERT(list.variable_indices.size() > 0);
     // go over variables
     // for each variable, create mirror variable with same value - with tau tag
@@ -1421,15 +1439,9 @@ void PlookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
 {
     PLOOKUP_SELECTOR_REFS
     ASSERT(variable_index.size() % 4 == 0);
-    for (size_t i = 0; i < variable_index.size(); i++) {
-        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
-    }
+    assert_valid_variables(variable_index);
 
     for (size_t i = 0; i < variable_index.size(); i += 4) {
-        ASSERT(variable_index[i] != IS_CONSTANT);
-        ASSERT(variable_index[i + 1] != IS_CONSTANT);
-        ASSERT(variable_index[i + 2] != IS_CONSTANT);
-        ASSERT(variable_index[i + 3] != IS_CONSTANT);
         w_l.emplace_back(variable_index[i]);
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
@@ -1452,7 +1464,6 @@ void PlookupComposer::create_sort_constraint(const std::vector<uint32_t>& variab
         q_lookup_type.emplace_back(0);
     }
     // dummy gate needed because of sort widget's check of next row
-    ASSERT(variable_index[variable_index.size() - 1] != IS_CONSTANT);
     w_l.emplace_back(variable_index[variable_index.size() - 1]);
     w_r.emplace_back(zero_idx);
     w_o.emplace_back(zero_idx);
@@ -1485,15 +1496,11 @@ void PlookupComposer::create_dummy_constraints(const std::vector<uint32_t>& vari
     for (uint64_t i = 0; i < padding; ++i) {
         padded_list.emplace_back(zero_idx);
     }
-    for (size_t i = 0; i < variable_index.size(); i++) {
-        assert(static_cast<uint32_t>(variables.size()) > variable_index[i]);
-    }
+    assert_valid_variables(variable_index);
+    assert_valid_variables(padded_list);
 
     for (size_t i = 0; i < padded_list.size(); i += 4) {
-        ASSERT(padded_list[i] != IS_CONSTANT);
-        ASSERT(padded_list[i + 1] != IS_CONSTANT);
-        ASSERT(padded_list[i + 2] != IS_CONSTANT);
-        ASSERT(padded_list[i + 3] != IS_CONSTANT);
+
         w_l.emplace_back(padded_list[i]);
         w_r.emplace_back(padded_list[i + 1]);
         w_o.emplace_back(padded_list[i + 2]);
@@ -1524,9 +1531,8 @@ void PlookupComposer::create_sort_constraint_with_edges(const std::vector<uint32
     PLOOKUP_SELECTOR_REFS
     // Convenient to assume size is at least 8 for separate gates for start and end conditions
     ASSERT(variable_index.size() % 4 == 0 && variable_index.size() > 4);
-    for (size_t i = 0; i < variable_index.size(); i++) {
-        ASSERT(static_cast<uint32_t>(variables.size()) > variable_index[i]);
-    }
+    assert_valid_variables(variable_index);
+
     // enforce range checks of first row and starting at start
     w_l.emplace_back(variable_index[0]);
     w_r.emplace_back(variable_index[1]);
