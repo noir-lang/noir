@@ -21,13 +21,9 @@ TEST(value_note, commits)
     uint32_t asset_id_value = 666;
     uint32_t nonce_value = 1;
 
-    native::value::value_note note = { note_value,
-                                       asset_id_value,
-                                       nonce_value,
-                                       user.owner.public_key,
-                                       user.note_secret,
-                                       0,
-                                       fr::random_element() };
+    native::value::value_note note = {
+        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret, 0, fr::random_element()
+    };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
@@ -52,16 +48,12 @@ TEST(value_note, commits_with_0_value)
     Composer composer = Composer();
 
     fr note_value(0);
-    uint32_t asset_id_value = 0xaabbccddULL;
+    uint32_t asset_id_value = 0x2abbccddULL; // needs to be less than 30 bits
     uint32_t nonce_value(0);
 
-    native::value::value_note note = { note_value,
-                                       asset_id_value,
-                                       nonce_value,
-                                       user.owner.public_key,
-                                       user.note_secret,
-                                       0,
-                                       fr::random_element() };
+    native::value::value_note note = {
+        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret, 0, fr::random_element()
+    };
     auto expected = note.commit();
     auto circuit_note = circuit::value::value_note(witness_data(composer, note));
 
@@ -78,4 +70,34 @@ TEST(value_note, commits_with_0_value)
 
     bool proof_result = verifier.verify_proof(proof);
     EXPECT_EQ(proof_result, true);
+}
+
+TEST(value_note, commit_with_oversized_asset_id_fails)
+{
+    auto user = rollup::fixtures::create_user_context();
+    Composer composer = Composer();
+
+    fr note_value(0);
+    uint32_t asset_id_value = (1 << 30);
+    uint32_t nonce_value(0);
+
+    native::value::value_note note = {
+        note_value, asset_id_value, nonce_value, user.owner.public_key, user.note_secret, 0, fr::random_element()
+    };
+    auto expected = note.commit();
+    auto circuit_note = circuit::value::value_note(witness_data(composer, note));
+
+    auto result = circuit_note.commitment;
+    result.assert_equal(expected);
+
+    waffle::TurboProver prover = composer.create_prover();
+
+    EXPECT_TRUE(composer.failed);
+    printf("composer gates = %zu\n", composer.get_num_gates());
+    waffle::TurboVerifier verifier = composer.create_verifier();
+
+    waffle::plonk_proof proof = prover.construct_proof();
+
+    bool proof_result = verifier.verify_proof(proof);
+    EXPECT_EQ(proof_result, false);
 }

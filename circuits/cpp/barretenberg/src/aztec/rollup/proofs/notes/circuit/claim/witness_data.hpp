@@ -29,7 +29,7 @@ struct claim_note_witness_data {
     {
         deposit_value =
             suint_ct(witness_ct(&composer, note_data.deposit_value), DEFI_DEPOSIT_VALUE_BIT_LENGTH, "deposit_value");
-        bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
+        bridge_id_data = bridge_id(&composer, note_data.bridge_id);
         defi_interaction_nonce = suint_ct(witness_ct(&composer, note_data.defi_interaction_nonce),
                                           DEFI_INTERACTION_NONCE_BIT_LENGTH,
                                           "defi_interaction_nonce");
@@ -49,11 +49,12 @@ struct claim_note_tx_witness_data {
     field_ct note_secret;
     field_ct input_nullifier;
 
+    claim_note_tx_witness_data(){};
     claim_note_tx_witness_data(Composer& composer, native::claim::claim_note_tx_data const& note_data)
     {
         deposit_value =
             suint_ct(witness_ct(&composer, note_data.deposit_value), DEFI_DEPOSIT_VALUE_BIT_LENGTH, "deposit_value");
-        bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
+        bridge_id_data = bridge_id(&composer, note_data.bridge_id);
         note_secret = witness_ct(&composer, note_data.note_secret);
         input_nullifier = witness_ct(&composer, note_data.input_nullifier);
     }

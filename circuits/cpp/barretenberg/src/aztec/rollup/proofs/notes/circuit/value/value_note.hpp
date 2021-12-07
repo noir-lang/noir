@@ -33,8 +33,15 @@ struct value_note {
         , commitment(value::commit(note))
         , creator_pubkey(note.creator_pubkey)
     {
-        const auto loan_idx = MAX_NUM_ASSETS_BIT_LENGTH + 1;
+        const auto loan_idx = MAX_NUM_ASSETS_BIT_LENGTH - 1; //  bit 29
+
+        // extract the most significant bit of the asset id: bit 29-30
         const auto sliced_asset_id = asset_id.slice(loan_idx + 1, loan_idx);
+
+        // 'virtual' notes defined by asset id msb being +1.
+        // A virtual note does not have an ERC20 token equivalent and exists only inside the Aztec network
+        // The low 29 bits of the asset id represent the defi interaction nonce of the defi interaction that created the
+        // note
         is_virtual = sliced_asset_id[1] == 1;
         virtual_note_nonce = sliced_asset_id[0];
     }

@@ -9,7 +9,18 @@ The structured reference string contains monomials up to x^{2^20}. This SRS was 
 - cmake >= 3.16
 - clang >= 10 or gcc >= 10
 - clang-format
+- libomp (if multithreading is required. Multithreading can be disabled using the compiler flag `-DMULTITHREADING 0`)
 
+### Installing openMP (Linux)
+
+```
+RUN git clone -b release/10.x --depth 1 https://github.com/llvm/llvm-project.git \
+  && cd llvm-project && mkdir build-openmp && cd build-openmp \
+  && cmake ../openmp -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_ENABLE_SHARED=OFF \
+  && make -j$(nproc) \
+  && make install \
+  && cd ../.. && rm -rf llvm-project
+```
 ### Getting started
 
 Run the bootstrap script. (The bootstrap script will build both the native and wasm versions of barretenberg)

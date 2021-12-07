@@ -71,7 +71,6 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     // Check public value and owner are not zero for deposit and withdraw, otherwise they must be zero.
     (is_public_tx == inputs.public_value.is_zero()).assert_equal(false, "public value incorrect");
     (is_public_tx == inputs.public_owner.is_zero()).assert_equal(false, "public owner incorrect");
-
     // Circuit operates in one of several cases. Assert we're only in one of these cases and rules apply.
     {
         // Case 0: 0 input notes, all notes have same asset ids, can only DEPOSIT.
@@ -80,35 +79,42 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
         const auto case1 = !input_note1.is_virtual && inote1_valid && !inote2_valid;
         // Case 2: 2 real asset notes, all notes have same asset ids, any function.
         const auto case2 = !input_note1.is_virtual && !input_note2.is_virtual && inote2_valid;
-        // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND.
+        // Case 3: 1 virtual asset note, all notes have same asset ids, can only SEND or DEFI_DEPOSIT.
         const auto case3 = input_note1.is_virtual && !inote2_valid;
         // Case 4: 2 virtual asset notes, all notes have same asset ids, can only SEND.
         const auto case4 = input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
         // Case 5: 1st note real, 2nd note virtual, different input asset ids allowed, values equal, can only
         // DEFI_DEPOSIT, virtual notes interaction nonce must match that in the bridge id.
-        const auto case5 = !input_note1.is_virtual && input_note2.is_virtual;
+        const auto case5 = !input_note1.is_virtual && input_note2.is_virtual && inote2_valid;
 
         // Check we are exactly one of the defined cases.
         (field_ct(case0) + case1 + case2 + case3 + case4 + case5).assert_equal(1, "unsupported case");
 
+        const auto& bridge_id_data = inputs.claim_note.bridge_id_data;
         // Assert case rules.
-        const auto onote1_aid = suint_ct::conditional_assign(
+        const auto output_note1_assetId = suint_ct::conditional_assign(
             is_defi_deposit, inputs.claim_note.bridge_id_data.input_asset_id, inputs.output_note1.asset_id);
         const auto all_asset_ids_match =
-            input_note1.asset_id == input_note2.asset_id && input_note1.asset_id == onote1_aid &&
+            input_note1.asset_id == input_note2.asset_id && input_note1.asset_id == output_note1_assetId &&
             input_note1.asset_id == output_note2.asset_id && input_note1.asset_id == inputs.asset_id;
         (case0 || case1 || case2 || case3 || case4).must_imply(all_asset_ids_match, "asset ids don't match");
-        (case1 || case2).must_imply(is_deposit || is_send || is_withdraw || is_defi_deposit, "unknown function");
+        (case1 || case2)
+            .must_imply((is_deposit || is_send || is_withdraw ||
+                         (is_defi_deposit && !bridge_id_data.config.first_input_asset_virtual)),
+                        "unknown function");
         (case0).must_imply(is_deposit, "can only deposit");
-        (case3 || case4).must_imply(is_send, "can only send");
+        case3.must_imply(is_send || (is_defi_deposit && bridge_id_data.config.first_input_asset_virtual),
+                         "can only send or defi deposit");
+        case4.must_imply(is_send, "can only send");
 
-        case5.must_imply(is_defi_deposit, "can only defi deposit");
+        case5.must_imply(is_defi_deposit && !bridge_id_data.config.first_input_asset_virtual &&
+                             bridge_id_data.config.second_input_asset_virtual,
+                         "can only defi deposit");
         case5.must_imply(inote1_value == inote2_value, "input note values must match");
-        case5.must_imply(input_note1.asset_id == onote1_aid && input_note1.asset_id == output_note2.asset_id,
+        case5.must_imply(input_note1.asset_id == output_note1_assetId && input_note1.asset_id == output_note2.asset_id,
                          "asset ids don't match");
-        case5.must_imply(inputs.claim_note.bridge_id_data.opening_nonce == input_note2.virtual_note_nonce,
+        case5.must_imply(bridge_id_data.opening_nonce == input_note2.virtual_note_nonce,
                          "incorrect interaction nonce in bridge id");
-
         // Don't consider second note value for case5 in the input/output balancing equations.
         inote2_value *= !case5;
     }
@@ -192,6 +198,7 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                                              input_note1,
                                              note1_propagated,
                                              inote1_valid);
+
     field_ct nullifier2 = process_input_note(inputs.account_private_key,
                                              inputs.merkle_root,
                                              inputs.input_path2,
@@ -225,35 +232,34 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 void join_split_circuit(Composer& composer, join_split_tx const& tx)
 {
     join_split_inputs inputs = {
-        witness_ct(&composer, tx.proof_id),
-        suint_ct(witness_ct(&composer, tx.public_value), NOTE_VALUE_BIT_LENGTH, "public_value"),
-        witness_ct(&composer, tx.public_owner),
-        suint_ct(witness_ct(&composer, tx.asset_id), ASSET_ID_BIT_LENGTH, "asset_id"),
-        witness_ct(&composer, tx.num_input_notes),
-        suint_ct(witness_ct(&composer, tx.input_index[0]), DATA_TREE_DEPTH, "input_index0"),
-        suint_ct(witness_ct(&composer, tx.input_index[1]), DATA_TREE_DEPTH, "input_index1"),
-        value::witness_data(composer, tx.input_note[0]),
-        value::witness_data(composer, tx.input_note[1]),
-        value::witness_data(composer, tx.output_note[0]),
-        value::witness_data(composer, tx.output_note[1]),
-        claim::claim_note_tx_witness_data(composer, tx.claim_note),
-        { witness_ct(&composer, tx.signing_pub_key.x), witness_ct(&composer, tx.signing_pub_key.y) },
-        stdlib::schnorr::convert_signature(&composer, tx.signature),
-        witness_ct(&composer, tx.old_data_root),
-        merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
-        merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
-        suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_index"),
-        merkle_tree::create_witness_hash_path(composer, tx.account_path),
-        witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
-        suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
-        suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
-        witness_ct(&composer, tx.propagated_input_index),
-        witness_ct(&composer, tx.backward_link),
-        witness_ct(&composer, tx.allow_chain),
+        .proof_id = witness_ct(&composer, tx.proof_id),
+        .public_value = suint_ct(witness_ct(&composer, tx.public_value), NOTE_VALUE_BIT_LENGTH, "public_value"),
+        .public_owner = witness_ct(&composer, tx.public_owner),
+        .asset_id = suint_ct(witness_ct(&composer, tx.asset_id), ASSET_ID_BIT_LENGTH, "asset_id"),
+        .num_input_notes = witness_ct(&composer, tx.num_input_notes),
+        .input_note1_index = suint_ct(witness_ct(&composer, tx.input_index[0]), DATA_TREE_DEPTH, "input_index0"),
+        .input_note2_index = suint_ct(witness_ct(&composer, tx.input_index[1]), DATA_TREE_DEPTH, "input_index1"),
+        .input_note1 = value::witness_data(composer, tx.input_note[0]),
+        .input_note2 = value::witness_data(composer, tx.input_note[1]),
+        .output_note1 = value::witness_data(composer, tx.output_note[0]),
+        .output_note2 = value::witness_data(composer, tx.output_note[1]),
+        .claim_note = claim::claim_note_tx_witness_data(composer, tx.claim_note),
+        .signing_pub_key = { .x = witness_ct(&composer, tx.signing_pub_key.x),
+                             .y = witness_ct(&composer, tx.signing_pub_key.y) },
+        .signature = stdlib::schnorr::convert_signature(&composer, tx.signature),
+        .merkle_root = witness_ct(&composer, tx.old_data_root),
+        .input_path1 = merkle_tree::create_witness_hash_path(composer, tx.input_path[0]),
+        .input_path2 = merkle_tree::create_witness_hash_path(composer, tx.input_path[1]),
+        .account_index = suint_ct(witness_ct(&composer, tx.account_index), DATA_TREE_DEPTH, "account_index"),
+        .account_path = merkle_tree::create_witness_hash_path(composer, tx.account_path),
+        .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
+        .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
+        .nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
+        .propagated_input_index = witness_ct(&composer, tx.propagated_input_index),
+        .backward_link = witness_ct(&composer, tx.backward_link),
+        .allow_chain = witness_ct(&composer, tx.allow_chain),
     };
-
     auto outputs = join_split_circuit_component(inputs);
-
     const field_ct defi_root = witness_ct(&composer, 0);
     defi_root.assert_is_zero();
 

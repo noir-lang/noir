@@ -171,7 +171,19 @@ TEST_F(claim_tests, test_missing_interaction_note_fails)
 
 TEST_F(claim_tests, test_claim_for_virtual_note)
 {
-    const bridge_id bid = { 0, 0, 0, 0, 0, false, true };
+
+    bridge_id bid = { 0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                             .second_input_asset_virtual = false,
+                                             .first_output_asset_virtual = false,
+                                             .second_output_asset_virtual = true,
+                                             .second_input_valid = false,
+                                             .second_output_valid = false },
+                      0 };
     const claim_note note1 = { 10,
                                bid.to_uint256_t(),
                                2,
@@ -191,7 +203,18 @@ TEST_F(claim_tests, test_claim_for_virtual_note)
 
 TEST_F(claim_tests, test_two_outputs_for_virtual_note_fails)
 {
-    const bridge_id bid = { 0, 0, 111, 222, 0, true, true };
+    bridge_id bid = { 0,
+                      0,
+                      111,
+                      222,
+                      0,
+                      bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                             .second_input_asset_virtual = false,
+                                             .first_output_asset_virtual = false,
+                                             .second_output_asset_virtual = true,
+                                             .second_input_valid = false,
+                                             .second_output_valid = true },
+                      0 };
     const claim_note note1 = { 10,
                                bid.to_uint256_t(),
                                0,
@@ -208,7 +231,18 @@ TEST_F(claim_tests, test_two_outputs_for_virtual_note_fails)
 
 TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 {
-    const bridge_id bridge_id = { 0, 0, 111, 222, 0, true, false };
+    bridge_id bridge_id = { 0,
+                            0,
+                            111,
+                            222,
+                            0,
+                            bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                   .second_input_asset_virtual = false,
+                                                   .first_output_asset_virtual = false,
+                                                   .second_output_asset_virtual = false,
+                                                   .second_input_valid = false,
+                                                   .second_output_valid = true },
+                            0 };
 
     // Create some values for our circuit that are large enough to properly test the ratio checks.
     // The defi deposit value must be atmost 242 bits (since we sum up defi deposits in rollup circuit).
@@ -281,7 +315,18 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
 
 TEST_F(claim_tests, test_claim_1_output_full_proof)
 {
-    const bridge_id bridge_id = { 0, 0, 111, 222, 0, false, false };
+    const bridge_id bridge_id = { 0,
+                                  0,
+                                  111,
+                                  222,
+                                  0,
+                                  bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                         .second_input_asset_virtual = false,
+                                                         .first_output_asset_virtual = false,
+                                                         .second_output_asset_virtual = false,
+                                                         .second_input_valid = false,
+                                                         .second_output_valid = false },
+                                  0 };
     const uint32_t claim_fee = 8;
     const claim_note note1 = { 10,
                                bridge_id.to_uint256_t(),
@@ -327,7 +372,18 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
 
 TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 {
-    const bridge_id bridge_id = { 0, 0, 111, 222, 0, false, true };
+    const bridge_id bridge_id = { 0,
+                                  0,
+                                  111,
+                                  222,
+                                  0,
+                                  bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                         .second_input_asset_virtual = false,
+                                                         .first_output_asset_virtual = false,
+                                                         .second_output_asset_virtual = true,
+                                                         .second_input_valid = false,
+                                                         .second_output_valid = false },
+                                  0 };
     const uint32_t claim_fee = 8;
     const uint64_t nonce = 2;
     const claim_note note1 = { 10,
@@ -353,9 +409,13 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
     const value_note expected_output_note1 = {
         20, bridge_id.output_asset_id_a, 0, user.owner.public_key, user.note_secret, 0, nullifier1
     };
-    const value_note expected_output_note2 = {
-        20, static_cast<uint32_t>(1 << 31) + nonce, 0, user.owner.public_key, user.note_secret, 0, nullifier2
-    };
+    const value_note expected_output_note2 = { 20,
+                                               static_cast<uint32_t>(1 << (MAX_NUM_ASSETS_BIT_LENGTH - 1)) + nonce,
+                                               0,
+                                               user.owner.public_key,
+                                               user.note_secret,
+                                               0,
+                                               nullifier2 };
 
     EXPECT_EQ(proof_data.proof_id, ProofIds::DEFI_CLAIM);
     EXPECT_EQ(proof_data.merkle_root, data_tree->root());
@@ -377,7 +437,18 @@ TEST_F(claim_tests, test_claim_1_output_with_virtual_note_full_proof)
 
 TEST_F(claim_tests, test_claim_refund_full_proof)
 {
-    const bridge_id bridge_id = { 0, 0, 111, 222, 0, false, false };
+    const bridge_id bridge_id = { 0,
+                                  0,
+                                  111,
+                                  222,
+                                  0,
+                                  bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                         .second_input_asset_virtual = false,
+                                                         .first_output_asset_virtual = false,
+                                                         .second_output_asset_virtual = false,
+                                                         .second_input_valid = false,
+                                                         .second_output_valid = false },
+                                  0 };
     const claim_note note1 = { 10,
                                bridge_id.to_uint256_t(),
                                0,

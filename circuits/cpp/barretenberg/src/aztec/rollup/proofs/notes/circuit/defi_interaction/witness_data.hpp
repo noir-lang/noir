@@ -21,7 +21,7 @@ struct witness_data {
 
     witness_data(Composer& composer, native::defi_interaction::note const& note_data)
     {
-        bridge_id_data = bridge_id::from_uint256_t(composer, note_data.bridge_id);
+        bridge_id_data = bridge_id(&composer, note_data.bridge_id);
         interaction_nonce = suint_ct(
             witness_ct(&composer, note_data.interaction_nonce), DEFI_INTERACTION_NONCE_BIT_LENGTH, "interaction_nonce");
         total_input_value =

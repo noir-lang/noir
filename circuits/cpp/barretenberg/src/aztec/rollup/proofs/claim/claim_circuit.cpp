@@ -32,8 +32,8 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
         suint_ct(witness_ct(&composer, tx.output_value_a), NOTE_VALUE_BIT_LENGTH, "output_value_a");
     const auto output_value_b =
         suint_ct(witness_ct(&composer, tx.output_value_b), NOTE_VALUE_BIT_LENGTH, "output_value_b");
-    const auto two_output_notes = claim_note_data.bridge_id_data.second_asset_valid;
-    const auto is_virtual_note = claim_note_data.bridge_id_data.second_asset_virtual;
+    const auto two_output_notes = claim_note_data.bridge_id_data.config.second_output_valid;
+    const auto is_virtual_note = claim_note_data.bridge_id_data.config.second_output_asset_virtual;
 
     // Ratio checks. Guarantees:
     // defi_interaction_note.total_input_value != 0
@@ -83,7 +83,7 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     // If is_virtual_note is 1, we set asset_id_2 = 2^{31} + nonce and
     // the output value of the second note must be equal to output_value_a.
     auto output_value_2 = suint_ct::conditional_assign(is_virtual_note, output_value_a, output_value_b);
-    auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH + 1));
+    auto virtual_note_flag = suint_ct(uint256_t(1) << (MAX_NUM_ASSETS_BIT_LENGTH - 1));
     auto output_asset_id_2 = suint_ct::conditional_assign(is_virtual_note,
                                                           virtual_note_flag + claim_note.defi_interaction_nonce,
                                                           claim_note_data.bridge_id_data.output_asset_id_b);

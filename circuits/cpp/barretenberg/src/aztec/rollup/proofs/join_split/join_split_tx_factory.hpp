@@ -30,7 +30,7 @@ template <typename WorldState> class JoinSplitTxFactory {
         auto sender = user.owner.public_key;
         auto receiver = user.owner.public_key;
 
-        auto asset_id2 = (virtual_asset_id >> 31) == 1 ? virtual_asset_id : asset_id;
+        auto asset_id2 = (virtual_asset_id >> (MAX_NUM_ASSETS_BIT_LENGTH - 1)) == 1 ? virtual_asset_id : asset_id;
         value::value_note input_note1 = { 0, asset_id, nonce, sender, fr::random_element(), 0, fr::random_element() };
         value::value_note input_note2 = { 0, asset_id2, nonce, sender, fr::random_element(), 0, fr::random_element() };
 

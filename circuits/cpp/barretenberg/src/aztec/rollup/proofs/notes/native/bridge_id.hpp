@@ -21,18 +21,63 @@ namespace native {
  * outputAssetA    : First output asset id
  * outputAssetB    : Second output asset id
  * openingNonce    : Defi interaction nonce when a loan/LP position was opened
- * bitConfig       : 32-bit configuration (0 || 0 || ... || 0 || secondAssetVirtual || secondAssetValid)
+ * bitConfig       : 32-bit configuration (0 || 0 || ... || 0 || secondOutputAssetVirtual || secondOutputAssetValid)
  * auxData         : Additional (optional) data to be used by the bridge contract.
  *
  */
 struct bridge_id {
+    /**
+     * | bit | meaning |
+     * |  0  | firstInputAssetVirtual (currently always false) |
+     * |  1  | secondInputAssetVirtual |
+     * |  2  | firstOutputAssetVirtual |
+     * |  3  | secondOutputAssetVirtual |
+     * |  4  | secondInputValid | is first output note valid and real?
+     * |  5  | secondOutputValid | is second output note valid and real?
+     */
+    struct bit_config {
+        bool first_input_asset_virtual = false;
+        bool second_input_asset_virtual = false;
+        bool first_output_asset_virtual = false;
+        bool second_output_asset_virtual = false;
+        bool second_input_valid = false;
+        bool second_output_valid = false;
+
+        bool operator==(const bit_config& other) const
+        {
+            bool res = (first_input_asset_virtual == other.first_input_asset_virtual);
+            res = res && (second_input_asset_virtual == other.second_input_asset_virtual);
+            res = res && (first_output_asset_virtual == other.first_output_asset_virtual);
+            res = res && (second_output_asset_virtual == other.second_output_asset_virtual);
+            res = res && (second_input_valid == other.second_input_valid);
+            res = res && (second_output_valid == other.second_output_valid);
+            return res;
+        }
+
+        uint256_t to_uint256_t() const
+        {
+            constexpr auto input_asset_id_shift = DEFI_BRIDGE_ADDRESS_ID_LEN;
+            constexpr auto output_asset_id_a_shift = input_asset_id_shift + DEFI_BRIDGE_INPUT_ASSET_ID_LEN;
+            constexpr auto output_asset_id_b_shift = output_asset_id_a_shift + DEFI_BRIDGE_OUTPUT_A_ASSET_ID_LEN;
+            constexpr auto opening_nonce_shift = output_asset_id_b_shift + DEFI_BRIDGE_OUTPUT_B_ASSET_ID_LEN;
+            constexpr auto bitconfig_shift = opening_nonce_shift + DEFI_BRIDGE_OPENING_NONCE_LEN;
+
+            uint256_t result(first_input_asset_virtual);
+            result += uint256_t(second_input_asset_virtual) << 1;
+            result += uint256_t(first_output_asset_virtual) << 2;
+            result += uint256_t(second_output_asset_virtual) << 3;
+            result += uint256_t(second_input_valid) << 4;
+            result += uint256_t(second_output_valid) << 5;
+            result = result << bitconfig_shift;
+            return result;
+        }
+    };
     uint32_t bridge_address_id;
     uint32_t input_asset_id;
     uint32_t output_asset_id_a;
     uint32_t output_asset_id_b;
     uint32_t opening_nonce = 0;
-    bool second_asset_valid = false;
-    bool second_asset_virtual = false;
+    bit_config config;
     uint64_t aux_data = 0;
 
     uint256_t to_uint256_t() const
@@ -58,18 +103,37 @@ struct bridge_id {
                            (static_cast<uint256_t>(input_asset_id) << input_asset_id_offset) +
                            (static_cast<uint256_t>(output_asset_id_a) << output_asset_id_a_offset) +
                            (static_cast<uint256_t>(output_asset_id_b) << output_asset_id_b_offset) +
-                           (static_cast<uint256_t>(opening_nonce) << opening_nonce_offset) +
-                           (static_cast<uint256_t>(second_asset_valid) << bitconfig_offset) +
-                           (static_cast<uint256_t>(second_asset_virtual) << (bitconfig_offset + 1)) +
+                           (static_cast<uint256_t>(opening_nonce) << opening_nonce_offset) + config.to_uint256_t() +
                            (static_cast<uint256_t>(aux_data) << aux_data_offset);
 
         return result;
     }
 
-    operator uint256_t() { return to_uint256_t(); }
+    operator uint256_t() const { return to_uint256_t(); }
 
-    bool operator==(bridge_id const&) const = default;
+    bool operator==(bridge_id const& other) const
+    {
+        bool res = bridge_address_id == other.bridge_address_id;
+        res = res && (input_asset_id == other.input_asset_id);
+        res = res && (output_asset_id_a == other.output_asset_id_a);
+        res = res && (output_asset_id_b == other.output_asset_id_b);
+        res = res && (opening_nonce == other.opening_nonce);
+        res = res && (aux_data == other.aux_data);
+        res = res && (config == other.config);
+        return res;
+    };
 };
+
+inline std::ostream& operator<<(std::ostream& os, bridge_id::bit_config const& config)
+{
+    os << "  first_input_asset_virtual: " << config.first_input_asset_virtual << ",\n"
+       << "  second_input_asset_virtual: " << config.second_input_asset_virtual << ",\n"
+       << "  first_output_asset_virtual: " << config.first_output_asset_virtual << ",\n"
+       << "  second_output_asset_virtual: " << config.second_output_asset_virtual << ",\n"
+       << "  second_input_valid: " << config.second_input_valid << ",\n"
+       << "  second_output_valid: " << config.second_output_valid << ",\n";
+    return os;
+}
 
 inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
 {
@@ -78,9 +142,7 @@ inline std::ostream& operator<<(std::ostream& os, bridge_id const& bridge_id)
        << "  input_asset_id: " << bridge_id.input_asset_id << ",\n"
        << "  output_asset_id_a: " << bridge_id.output_asset_id_a << ",\n"
        << "  output_asset_id_b: " << bridge_id.output_asset_id_a << "\n"
-       << "  opening_nonce: " << bridge_id.opening_nonce << "\n}"
-       << "  second_asset_valid: " << bridge_id.second_asset_valid << ",\n"
-       << "  second_asset_virtual: " << bridge_id.second_asset_virtual << ",\n"
+       << "  opening_nonce: " << bridge_id.opening_nonce << "\n}" << bridge_id.config
        << "  aux_data: " << bridge_id.aux_data << "\n}";
     return os;
 }

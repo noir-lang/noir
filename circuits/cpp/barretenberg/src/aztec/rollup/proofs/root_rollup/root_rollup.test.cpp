@@ -139,8 +139,36 @@ class root_rollup_tests : public ::testing::Test {
         context.append_value_notes({ 100, 50 }, aid3);
         context.start_next_root_rollup();
 
-        notes::native::bridge_id bid2 = { 1, aid2, 0, 0, 0, true, false };
-        notes::native::bridge_id bid3 = { 2, aid3, 0, 0, 0, true, false };
+        const notes::native::bridge_id bid2 = {
+            .bridge_address_id = 1,
+            .input_asset_id = aid2,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .opening_nonce = 0,
+            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                            .second_input_asset_virtual = false,
+                                                            .first_output_asset_virtual = false,
+                                                            .second_output_asset_virtual = false,
+                                                            .second_input_valid = false,
+                                                            .second_output_valid = true },
+            .aux_data = 0
+        };
+
+        const notes::native::bridge_id bid3 = {
+            .bridge_address_id = 2,
+            .input_asset_id = aid3,
+            .output_asset_id_a = 0,
+            .output_asset_id_b = 1,
+            .opening_nonce = 0,
+            .config = notes::native::bridge_id::bit_config{ .first_input_asset_virtual = false,
+                                                            .second_input_asset_virtual = false,
+                                                            .first_output_asset_virtual = false,
+                                                            .second_output_asset_virtual = false,
+                                                            .second_input_valid = false,
+                                                            .second_output_valid = true },
+            .aux_data = 0
+        };
+
         auto js_proof1 = context.create_join_split_proof({ 0, 1 }, { 100, 50 }, { 70, 80 - 7 }); // fee = 7
         auto js_proof2 =
             context.create_join_split_proof({ 2, 3 }, { 100, 50 }, { 20, 130 - 15 }, 0, 0, 0, aid1); // fee = 15
