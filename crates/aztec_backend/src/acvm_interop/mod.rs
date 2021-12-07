@@ -1,6 +1,6 @@
-use crate::Backend;
+use acvm::Backend;
 
-mod proof_system;
+pub mod proof_system;
 pub mod pwg;
 mod smart_contract;
 pub struct Plonk;
