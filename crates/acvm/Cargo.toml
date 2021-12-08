@@ -10,7 +10,7 @@ edition = "2018"
 acir = { path = "../acir" }
 
 # Ideally, there should be a way for the Nargo.toml file to indicate a proof system
-# and not need to pull in the other proof systems. Also ideally like to avoid using DLL
+# and not need to pull in the other proof systems. Also ideally like to avoid using DLL (dynamically loaded lib)
 # It seems to be only way... This is not an immediate problem while dependencies are small
 # aztec_backend = { optional = true, path = "../aztec_backend" }
 # arkworks_backend = { optional = true, git = "https://github.com/noir-lang/arkworks_backend" }
