@@ -4,7 +4,7 @@ use acvm::acir::native_types::Witness;
 use acvm::PartialWitnessGenerator;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::path::Path;
 
