@@ -44,7 +44,7 @@ fn read_crs(path: std::path::PathBuf) -> Vec<u8> {
         Ok(bytes) => bytes,
         Err(e) => {
             assert!(
-                !(e.kind() == std::io::ErrorKind::PermissionDenied),
+                e.kind() != std::io::ErrorKind::PermissionDenied,
                 "please run again with appropriate permissions."
             );
             panic!(
