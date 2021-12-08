@@ -32,9 +32,8 @@ impl<'a> Lexer<'a> {
 
     // This method uses size_hint and therefore should not be trusted 100%
     pub fn approx_len(&self) -> usize {
-        let mut size_hint: usize;
         let (lower, _upper) = self.char_iter.size_hint();
-        size_hint = lower; // This is better than nothing, if we do not have an upper bound
+        let mut size_hint = lower; // This is better than nothing, if we do not have an upper bound
 
         if let Some(upper) = _upper {
             size_hint = upper;
