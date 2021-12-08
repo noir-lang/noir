@@ -6,7 +6,7 @@ mod pippenger;
 pub mod scalar_mul;
 pub mod schnorr;
 
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use std::convert::TryInto;
 
 pub struct Barretenberg {}

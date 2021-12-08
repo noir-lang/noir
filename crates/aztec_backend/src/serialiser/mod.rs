@@ -5,10 +5,10 @@ use crate::barretenberg_rs::composer::{
     HashToFieldConstraint, InsertMerkleConstraint, LogicConstraint, MerkleMembershipConstraint,
     PedersenConstraint, RangeConstraint, SchnorrConstraint, Sha256Constraint,
 };
-use acir::circuit::{Circuit, Gate};
-use acir::native_types::Arithmetic;
-use acir::OPCODE;
-use noir_field::FieldElement;
+use acvm::acir::circuit::{Circuit, Gate};
+use acvm::acir::native_types::Arithmetic;
+use acvm::acir::OPCODE;
+use acvm::FieldElement;
 
 /// Converts an `IR` into the `StandardFormat` constraint system
 pub fn serialise_circuit(circuit: &Circuit) -> ConstraintSystem {
