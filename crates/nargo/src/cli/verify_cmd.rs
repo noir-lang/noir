@@ -110,7 +110,7 @@ pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result
     let proof_hex: Vec<_> = std::fs::read(&proof_path).unwrap();
     // XXX: Instead of unwrap, return a ProofNotValidError
     let proof = hex::decode(proof_hex).unwrap();
-    let backend = acvm::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
     let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
 
     Ok(valid_proof)

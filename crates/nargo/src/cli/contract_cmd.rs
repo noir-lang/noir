@@ -14,7 +14,7 @@ pub(crate) fn run(args: ArgMatches) -> Result<(), CliError> {
     let driver = Resolver::resolve_root_config(&package_dir)?;
     let compiled_program = driver.into_compiled_program();
 
-    let backend = acvm::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
     let smart_contract_string = backend.eth_contract_from_cs(compiled_program.circuit);
 
     let mut contract_path = create_contract_dir();

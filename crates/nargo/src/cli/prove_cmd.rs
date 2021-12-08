@@ -110,7 +110,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
     let abi = compiled_program.abi.unwrap();
     let mut solved_witness = process_abi_with_input(abi, witness_map)?;
 
-    let backend = acvm::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
     let solver_res = backend.solve(&mut solved_witness, compiled_program.circuit.gates.clone());
 
     if let Err(opcode) = solver_res {
@@ -120,7 +120,7 @@ pub fn prove_with_path<P: AsRef<Path>>(
         )));
     }
 
-    let backend = acvm::ConcreteBackend;
+    let backend = crate::backends::ConcreteBackend;
     let proof = backend.prove_with_meta(compiled_program.circuit, solved_witness);
 
     let mut proof_path = create_proof_dir(proof_dir.as_ref().to_path_buf());
