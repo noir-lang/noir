@@ -11,6 +11,7 @@ use acvm::acir::circuit::{
     Circuit, PublicInputs,
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
 use noir_field::FieldElement;
@@ -84,7 +85,7 @@ impl<'a> Evaluator<'a> {
     // Some of these could have been removed due to optimisations. We need this number because the
     // Standard format requires the number of witnesses. The max number is also fine.
     // If we had a composer object, we would not need it
-    pub fn compile(mut self) -> Result<Circuit, RuntimeError> {
+    pub fn compile(mut self, np_language: Language) -> Result<Circuit, RuntimeError> {
         // create a new environment for the main context
         let mut env = Environment::new(FuncContext::Main);
 
@@ -92,11 +93,15 @@ impl<'a> Evaluator<'a> {
         self.evaluate_main(&mut env)?;
 
         let witness_index = self.current_witness_index();
-        let optimised_circuit = acvm::compiler::compile(Circuit {
-            current_witness_index: witness_index,
-            gates: self.gates,
-            public_inputs: PublicInputs(self.public_inputs),
-        });
+
+        let optimised_circuit = acvm::compiler::compile(
+            Circuit {
+                current_witness_index: witness_index,
+                gates: self.gates,
+                public_inputs: PublicInputs(self.public_inputs),
+            },
+            np_language,
+        );
 
         Ok(optimised_circuit)
     }
