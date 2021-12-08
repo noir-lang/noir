@@ -24,5 +24,6 @@ cfg-if = "1.0.0"
 ark-bn254 = { version = "^0.3.0", features = ["curve"] }
 
 [features]
+default = ["bn254"]
 bn254 = ["ark-bn254", "ark-ff"]
 bls12_381 = ["ark-bls12-381", "ark-ff"]
