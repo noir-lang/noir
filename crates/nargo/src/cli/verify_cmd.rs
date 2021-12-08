@@ -86,7 +86,10 @@ pub fn add_dummy_setpub_arr(abi: &mut Abi) {
 
 pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result<bool, CliError> {
     let driver = Resolver::resolve_root_config(program_dir.as_ref())?;
-    let compiled_program = driver.into_compiled_program();
+    let backend = crate::backends::ConcreteBackend;
+
+    let compiled_program = driver.into_compiled_program(backend.np_language());
+
     let mut public_abi = compiled_program.abi.clone().unwrap().public_abi();
     add_dummy_setpub_arr(&mut public_abi);
     let num_pub_params = public_abi.num_parameters();
@@ -110,7 +113,7 @@ pub fn verify_with_path<P: AsRef<Path>>(program_dir: P, proof_path: P) -> Result
     let proof_hex: Vec<_> = std::fs::read(&proof_path).unwrap();
     // XXX: Instead of unwrap, return a ProofNotValidError
     let proof = hex::decode(proof_hex).unwrap();
-    let backend = crate::backends::ConcreteBackend;
+
     let valid_proof = backend.verify_from_cs(&proof, public_inputs, compiled_program.circuit);
 
     Ok(valid_proof)
