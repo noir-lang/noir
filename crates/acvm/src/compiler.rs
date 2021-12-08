@@ -6,13 +6,13 @@ use acir::{
     optimiser::{CSatOptimiser, GeneralOptimiser},
 };
 
-use crate::{ConcreteBackend, ProofSystemCompiler};
+use crate::{Language, ProofSystemCompiler};
 
-pub fn compile(acir: Circuit) -> Circuit {
-    let backend = ConcreteBackend;
+pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
     // Instantiate the optimiser.
     // Currently the optimiser and reducer are one in the same
-    let optimiser = match backend.np_language() {
+    // for CSAT
+    let optimiser = match np_language {
         crate::Language::R1CS => return optimise_r1cs(acir),
         crate::Language::PLONKCSat { width } => CSatOptimiser::new(width),
     };
