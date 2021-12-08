@@ -1,4 +1,4 @@
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use serde_derive::Deserialize;
 use std::{collections::BTreeMap, path::Path};
 

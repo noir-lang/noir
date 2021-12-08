@@ -2,8 +2,8 @@ use super::{
     errors::LexerErrorKind,
     token::{Attribute, IntType, Keyword, SpannedToken, Token},
 };
+use acvm::FieldElement;
 use fm::File;
-use noir_field::FieldElement;
 use noirc_errors::{Position, Span};
 use std::iter::Peekable;
 use std::str::Chars;

@@ -2,7 +2,7 @@ use super::RuntimeErrorKind;
 use crate::errors::RuntimeError;
 use crate::{binary_op::maybe_equal, object::Object};
 use crate::{Environment, Evaluator};
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_frontend::hir_def::expr::HirArrayLiteral;
 use noirc_frontend::node_interner::ExprId;
 

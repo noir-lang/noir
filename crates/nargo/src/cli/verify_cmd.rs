@@ -1,8 +1,8 @@
 use super::{PROOFS_DIR, PROOF_EXT, VERIFIER_INPUT_FILE};
 use crate::{errors::CliError, resolver::Resolver};
+use acvm::FieldElement;
 use acvm::ProofSystemCompiler;
 use clap::ArgMatches;
-use noir_field::FieldElement;
 use noirc_abi::{input_parser::InputValue, Abi};
 use std::{collections::BTreeMap, path::Path, path::PathBuf};
 

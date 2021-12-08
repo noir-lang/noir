@@ -11,10 +11,10 @@ use acvm::acir::circuit::{
     Circuit, PublicInputs,
 };
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
+use acvm::FieldElement;
 use acvm::Language;
 use environment::{Environment, FuncContext};
 use errors::{RuntimeError, RuntimeErrorKind};
-use noir_field::FieldElement;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir_def::{
     expr::{

@@ -1,4 +1,4 @@
-use noir_field::FieldElement;
+use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::node_interner::{ExprId, FuncId, IdentId, StmtId};

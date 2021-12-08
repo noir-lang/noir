@@ -1,8 +1,7 @@
 use crate::binary_op;
+use crate::{AndGate, Evaluator, FieldElement, XorGate};
 use crate::{Gate, Object};
 use acvm::acir::native_types::{Arithmetic, Linear, Witness};
-
-use crate::{AndGate, Evaluator, FieldElement, XorGate};
 
 use super::RuntimeErrorKind;
 
@@ -25,7 +24,7 @@ impl Integer {
             // Add a bool gate
             let x = Linear::from_witness(self.witness);
             let mut x_minus_one = Linear::from_witness(self.witness);
-            x_minus_one.add_scale = -noir_field::FieldElement::one();
+            x_minus_one.add_scale = -FieldElement::one();
             let bool_constraint = x_minus_one * x;
 
             evaluator.gates.push(Gate::Arithmetic(bool_constraint));
