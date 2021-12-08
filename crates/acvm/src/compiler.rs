@@ -1,12 +1,11 @@
 use indexmap::IndexMap;
 
+use crate::Language;
 use acir::{
     circuit::{Circuit, Gate},
     native_types::{Arithmetic, Witness},
     optimiser::{CSatOptimiser, GeneralOptimiser},
 };
-
-use crate::{Language, ProofSystemCompiler};
 
 pub fn compile(acir: Circuit, np_language: Language) -> Circuit {
     // Instantiate the optimiser.
