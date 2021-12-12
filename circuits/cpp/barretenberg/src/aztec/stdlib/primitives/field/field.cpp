@@ -193,6 +193,7 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& other) const
 {
+    other.assert_is_not_zero("field_t::operator/ divisor is 0");
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
@@ -245,7 +246,8 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
         T1 = other.multiplicative_constant * right;
         T1 += other.additive_constant;
 
-        out = T0 * T1.invert();
+        T1 = T1.is_zero() ? 0 : T1.invert();
+        out = T0 * T1;
         result.witness_index = ctx->add_variable(out);
 
         // m2.x2.x3 + a2.x3 = m1.x1 + a1
@@ -278,7 +280,8 @@ field_t<ComposerContext> field_t<ComposerContext>::madd(const field_t& to_mul, c
     ComposerContext* ctx =
         (context == nullptr) ? (to_mul.context == nullptr ? to_add.context : to_mul.context) : context;
 
-    if ((to_mul.witness_index == IS_CONSTANT) && (to_add.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
+    if ((to_mul.witness_index == IS_CONSTANT) && (to_add.witness_index == IS_CONSTANT) &&
+        (witness_index == IS_CONSTANT)) {
         return ((*this) * to_mul + to_add);
     }
 
@@ -321,7 +324,8 @@ field_t<ComposerContext> field_t<ComposerContext>::add_two(const field_t& add_a,
 {
     ComposerContext* ctx = (context == nullptr) ? (add_a.context == nullptr ? add_b.context : add_a.context) : context;
 
-    if ((add_a.witness_index == IS_CONSTANT) && (add_b.witness_index == IS_CONSTANT) && (witness_index == IS_CONSTANT)) {
+    if ((add_a.witness_index == IS_CONSTANT) && (add_b.witness_index == IS_CONSTANT) &&
+        (witness_index == IS_CONSTANT)) {
         return ((*this) + add_a + add_b).normalize();
     }
     barretenberg::fr q_1 = multiplicative_constant;
@@ -395,14 +399,18 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_zer
     context->create_poly_gate(gate_coefficients);
 }
 
-template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero() const
+template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not_zero(const std::string& msg) const
 {
     if (witness_index == IS_CONSTANT) {
         ASSERT(additive_constant != barretenberg::fr(0));
         return;
     }
     ComposerContext* ctx = context;
-    barretenberg::fr inverse_value = get_value().invert();
+    if (get_value() == 0 && ctx) {
+        ctx->failed = true;
+        ctx->err = msg;
+    }
+    barretenberg::fr inverse_value = (get_value() == 0) ? 0 : get_value().invert();
 
     field_t<ComposerContext> inverse(witness_t<ComposerContext>(ctx, inverse_value));
 
@@ -544,9 +552,8 @@ std::array<field_t<ComposerContext>, 4> field_t<ComposerContext>::preprocess_two
     return table;
 }
 
-
-// Given T, stores the coefficients of the multilinear polynomial in t0,t1,t2, that on input a binary string b of length 3,
-// equals T_b
+// Given T, stores the coefficients of the multilinear polynomial in t0,t1,t2, that on input a binary string b of length
+// 3, equals T_b
 template <typename ComposerContext>
 std::array<field_t<ComposerContext>, 8> field_t<ComposerContext>::preprocess_three_bit_table(const field_t& T0,
                                                                                              const field_t& T1,
@@ -580,13 +587,12 @@ field_t<ComposerContext> field_t<ComposerContext>::select_from_two_bit_table(con
     return R2;
 }
 
-
-//we wish to compute the multilinear polynomial stored at point (t0,t1,t2) in a minimal number of gates. 
-//The straightforward thing would be eight multiplications to get the monomials and several additions between them
-//It turns out you can do it in 7 multadd gates using the formula
-// X:= ((t0*a012+a12)*t1+a2)*t2+a_const  - 3 gates
-// Y:= (t0*a01+a1)*t1+X - 2 gates
-// Z:= (t2*a02 + a0)*t0 + Y - 2 gates
+// we wish to compute the multilinear polynomial stored at point (t0,t1,t2) in a minimal number of gates.
+// The straightforward thing would be eight multiplications to get the monomials and several additions between them
+// It turns out you can do it in 7 multadd gates using the formula
+//  X:= ((t0*a012+a12)*t1+a2)*t2+a_const  - 3 gates
+//  Y:= (t0*a01+a1)*t1+X - 2 gates
+//  Z:= (t2*a02 + a0)*t0 + Y - 2 gates
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::select_from_three_bit_table(const std::array<field_t, 8>& table,
                                                                                const bool_t<ComposerContext>& t2,

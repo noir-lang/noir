@@ -18,7 +18,7 @@ point_ct conditionally_hash_and_accumulate(const point_ct& accumulator,
                                            const field_ct& scalar,
                                            const size_t generator_index)
 {
-    point_ct p_1 = group_ct::fixed_base_scalar_mul<num_scalar_mul_bits>(scalar, generator_index);
+    point_ct p_1 = group_ct::fixed_base_scalar_mul<num_scalar_mul_bits>(scalar, generator_index, false);
 
     bool_ct is_zero = scalar.is_zero();
 

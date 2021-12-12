@@ -1,4 +1,5 @@
 #pragma once
+#include <common/throw_or_abort.hpp>
 #include <numeric/bitop/get_msb.hpp>
 #include <numeric/random/engine.hpp>
 #include <type_traits>
@@ -321,50 +322,9 @@ template <class T> constexpr field<T> field<T>::pow(const uint64_t exponent) con
 
 template <class T> constexpr field<T> field<T>::invert() const noexcept
 {
-    /*
     if (*this == zero()) {
-        return zero();
+        throw_or_abort("Trying to invert zero in the field");
     }
-
-    const field pow_two = sqr();
-    const field pow_three = operator*(pow_two);
-    const field pow_four = pow_two.sqr();
-    const field pow_five = operator*(pow_four);
-    const field pow_six = pow_three.sqr();
-    const field pow_seven = operator*(pow_six);
-    const field pow_eight = pow_four.sqr();
-
-    const field lookup_table[15]{ *this,
-                                  pow_two,
-                                  pow_three,
-                                  pow_four,
-                                  pow_five,
-                                  pow_six,
-                                  pow_seven,
-                                  pow_eight,
-                                  operator*(pow_eight),
-                                  pow_five.sqr(),
-                                  pow_five * pow_six,
-                                  pow_six.sqr(),
-                                  pow_six * pow_seven,
-                                  pow_seven.sqr(),
-                                  pow_seven * pow_eight };
-
-    constexpr wnaf_table window = wnaf_table(modulus - uint256_t(2));
-
-    field accumulator = (window.windows[63] > 0) ? lookup_table[window.windows[63] - 1] : one();
-
-    for (size_t i = 62; i < 63; --i) {
-        accumulator.self_sqr();
-        accumulator.self_sqr();
-        accumulator.self_sqr();
-        accumulator.self_sqr();
-        if (window.windows[i] > 0) {
-            accumulator *= lookup_table[window.windows[i] - 1];
-        }
-    }
-    return accumulator;
-    */
     return pow(modulus_minus_two);
 }
 

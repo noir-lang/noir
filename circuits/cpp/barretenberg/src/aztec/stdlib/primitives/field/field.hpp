@@ -208,7 +208,7 @@ template <typename ComposerContext> class field_t {
      **/
     bool_t<ComposerContext> is_zero() const;
 
-    void assert_is_not_zero() const;
+    void assert_is_not_zero(std::string const& msg = "field_t::assert_is_not_zero") const;
     void assert_is_zero() const;
     bool is_constant() const { return witness_index == IS_CONSTANT; }
 

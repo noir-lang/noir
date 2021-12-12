@@ -1,12 +1,6 @@
 #include "./scalar_multiplication.hpp"
 
-#include "../../../groups/wnaf.hpp"
-#include "../fq.hpp"
-#include "../fr.hpp"
-#include "../g1.hpp"
-#include "./process_buckets.hpp"
-#include "./runtime_states.hpp"
-
+#include <common/throw_or_abort.hpp>
 #include <common/mem.hpp>
 #include <common/max_threads.hpp>
 #include <numeric/bitop/get_msb.hpp>
@@ -15,6 +9,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+
+#include "../../../groups/wnaf.hpp"
+#include "../fq.hpp"
+#include "../fr.hpp"
+#include "../g1.hpp"
+#include "./process_buckets.hpp"
+#include "./runtime_states.hpp"
 
 #ifndef NO_MULTITHREADING
 #include <omp.h>
@@ -271,7 +272,7 @@ void organize_buckets(uint64_t* point_schedule, const uint64_t*, const size_t nu
 
 /**
  * adds a bunch of points together using affine addition formulae.
- * Paradoxically, the affine formula is crazy efficient if you have a lot of independent point additiosn to perform.
+ * Paradoxically, the affine formula is crazy efficient if you have a lot of independent point additions to perform.
  * Affine formula:
  *
  * \lambda = (y_2 - y_1) / (x_2 - x_1)
@@ -312,7 +313,12 @@ void add_affine_points(g1::affine_element* points, const size_t num_points, fq* 
         points[i + 1].y *= batch_inversion_accumulator;        // (y2 - y1)*accumulator_old
         batch_inversion_accumulator *= (points[i + 1].x);
     }
-    batch_inversion_accumulator = batch_inversion_accumulator.invert();
+
+    if (batch_inversion_accumulator == 0) {
+        throw_or_abort("attempted to invert zero in add_affine_points");
+    } else {
+        batch_inversion_accumulator = batch_inversion_accumulator.invert();
+    }
 
     for (size_t i = (num_points)-2; i < num_points; i -= 2) {
         // Memory bandwidth is a bit of a bottleneck here.
@@ -363,7 +369,9 @@ void add_affine_points_with_edge_cases(g1::affine_element* points, const size_t 
         points[i + 1].y *= batch_inversion_accumulator;        // (y2 - y1)*accumulator_old
         batch_inversion_accumulator *= (points[i + 1].x);
     }
-    batch_inversion_accumulator = batch_inversion_accumulator.invert();
+    if (!batch_inversion_accumulator.is_zero()) {
+        batch_inversion_accumulator = batch_inversion_accumulator.invert();
+    }
     for (size_t i = (num_points)-2; i < num_points; i -= 2) {
         // Memory bandwidth is a bit of a bottleneck here.
         // There's probably a more elegant way of structuring our data so we don't need to do all of this prefetching

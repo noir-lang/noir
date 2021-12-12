@@ -11,6 +11,20 @@
 #include "./affine_element.hpp"
 #include "./element.hpp"
 namespace barretenberg {
+
+/**
+ * @brief group class. Represents an elliptic curve group element.
+ * Group is parametrised by coordinate_field and subgroup_field
+ *
+ * Note: Currently subgroup checks are NOT IMPLEMENTED
+ * Our current Plonk implementation uses G1 points that have a cofactor of 1.
+ * All G2 points are precomputed (generator [1]_2 and trusted setup point [x]_2).
+ * Explicitly assume precomputed points are valid members of the prime-order subgroup for G2.
+ *
+ * @tparam coordinate_field
+ * @tparam subgroup_field
+ * @tparam GroupParams
+ */
 template <typename coordinate_field, typename subgroup_field, typename GroupParams> class group {
   public:
     typedef group_elements::element<coordinate_field, subgroup_field, GroupParams> element;
@@ -33,7 +47,7 @@ template <typename coordinate_field, typename subgroup_field, typename GroupPara
         while (count < N) {
             ++seed;
             affine_element candidate = affine_element::hash_to_curve(seed);
-            if (candidate.on_curve()) {
+            if (candidate.on_curve() && !candidate.is_point_at_infinity()) {
                 generators[count] = candidate;
                 ++count;
             }

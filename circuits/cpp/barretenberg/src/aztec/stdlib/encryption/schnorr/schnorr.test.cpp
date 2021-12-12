@@ -8,7 +8,6 @@ namespace test_stdlib_schnorr {
 using namespace barretenberg;
 using namespace plonk::stdlib::types::turbo;
 
-
 TEST(stdlib_schnorr, convert_field_into_wnaf)
 {
     Composer composer = Composer();
@@ -49,46 +48,12 @@ TEST(stdlib_schnorr, test_scalar_mul_alternate)
     grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
     expected = expected.normalize();
     point_ct point_input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
-                    witness_ct(&composer, grumpkin::g1::affine_one.y) };
+                          witness_ct(&composer, grumpkin::g1::affine_one.y) };
 
     point_ct output = plonk::stdlib::schnorr::variable_base_mul(point_input, input_lo, input_hi);
 
     EXPECT_EQ(output.x.get_value(), expected.x);
     EXPECT_EQ(output.y.get_value(), expected.y);
-
-    Prover prover = composer.create_prover();
-
-    printf("composer gates = %zu\n", composer.get_num_gates());
-    Verifier verifier = composer.create_verifier();
-
-    waffle::plonk_proof proof = prover.construct_proof();
-
-    bool result = verifier.verify_proof(proof);
-    EXPECT_EQ(result, true);
-}
-
-
-TEST(stdlib_schnorr, test_scalar_mul)
-{
-    Composer composer = Composer();
-
-    grumpkin::fr scalar_mont = grumpkin::fr::random_element();
-    grumpkin::fr scalar = scalar_mont.from_montgomery_form();
-
-    bit_array_ct scalar_bits(&composer, 256);
-    for (size_t i = 0; i < 256; ++i) {
-        scalar_bits[255 - i] = bool_ct(&composer, scalar.get_bit(i));
-    }
-
-    grumpkin::g1::element expected = grumpkin::g1::one * scalar_mont;
-    expected = expected.normalize();
-    point_ct input{ witness_ct(&composer, grumpkin::g1::affine_one.x),
-                    witness_ct(&composer, grumpkin::g1::affine_one.y) };
-
-    point_ct output = plonk::stdlib::schnorr::variable_base_mul(input, scalar_bits);
-
-    EXPECT_EQ((output.x.get_value() == expected.x), true);
-    EXPECT_EQ((output.y.get_value() == expected.y), true);
 
     Prover prover = composer.create_prover();
 

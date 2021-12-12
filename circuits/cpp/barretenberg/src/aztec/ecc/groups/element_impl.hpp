@@ -50,6 +50,13 @@ constexpr element<Fq, Fr, T>& element<Fq, Fr, T>::operator=(element&& other) noe
 
 template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T>::operator affine_element<Fq, Fr, T>() const noexcept
 {
+    if (is_point_at_infinity()) {
+        affine_element<Fq, Fr, T> result;
+        result.x = Fq(0);
+        result.y = Fq(0);
+        result.self_set_infinity();
+        return result;
+    }
     Fq z_inv = z.invert();
     Fq zz_inv = z_inv.sqr();
     Fq zzz_inv = zz_inv * z_inv;
@@ -511,7 +518,7 @@ template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::is_poi
 template <class Fq, class Fr, class T> constexpr bool element<Fq, Fr, T>::on_curve() const noexcept
 {
     if (is_point_at_infinity()) {
-        return false;
+        return true;
     }
     Fq zz = z.sqr();
     Fq zzzz = zz.sqr();
