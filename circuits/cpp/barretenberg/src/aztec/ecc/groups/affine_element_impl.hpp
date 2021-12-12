@@ -96,7 +96,7 @@ template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>:
 template <class Fq, class Fr, class T> constexpr bool affine_element<Fq, Fr, T>::on_curve() const noexcept
 {
     if (is_point_at_infinity()) {
-        return false;
+        return true;
     }
     Fq xxx = x.sqr() * x + T::b;
     Fq yy = y.sqr();

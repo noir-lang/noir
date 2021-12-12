@@ -1,3 +1,4 @@
+#include <common/throw_or_abort.hpp>
 #include <plonk/proof_system/constants.hpp>
 #include "./verifier.hpp"
 #include "../public_inputs/public_inputs.hpp"
@@ -34,18 +35,6 @@ VerifierBase<program_settings>& VerifierBase<program_settings>::operator=(Verifi
     kate_g1_elements.clear();
     kate_fr_elements.clear();
     return *this;
-}
-
-template <typename program_settings> bool VerifierBase<program_settings>::validate_commitments()
-{
-    // TODO
-    return true;
-}
-
-template <typename program_settings> bool VerifierBase<program_settings>::validate_scalars()
-{
-    // TODO
-    return true;
 }
 
 template <typename program_settings> bool VerifierBase<program_settings>::verify_proof(const waffle::plonk_proof& proof)
@@ -145,6 +134,15 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     g1::affine_element PI_Z = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z")[0]);
     g1::affine_element PI_Z_OMEGA = g1::affine_element::serialize_from_buffer(&transcript.get_element("PI_Z_OMEGA")[0]);
 
+    // validate PI_Z, PI_Z_OMEGA are valid ecc points.
+    // N.B. we check that witness commitments are valid points in KateCommitmentScheme<settings>::batch_verify
+    if (!PI_Z.on_curve() || PI_Z.is_point_at_infinity()) {
+        throw_or_abort("opening proof group element PI_Z not a valid point");
+    }
+    if (!PI_Z_OMEGA.on_curve() || PI_Z.is_point_at_infinity()) {
+        throw_or_abort("opening proof group element PI_Z_OMEGA not a valid point");
+    }
+
     // Accumulate pairs of scalars and group elements which would be used in the final pairing check.
     kate_g1_elements.insert({ "PI_Z_OMEGA", PI_Z_OMEGA });
     kate_fr_elements.insert({ "PI_Z_OMEGA", zeta * key->domain.root * separator_challenge });
@@ -152,14 +150,11 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
     kate_g1_elements.insert({ "PI_Z", PI_Z });
     kate_fr_elements.insert({ "PI_Z", zeta });
 
-    validate_commitments();
-    validate_scalars();
-
     std::vector<fr> scalars;
     std::vector<g1::affine_element> elements;
 
     for (const auto& [key, value] : kate_g1_elements) {
-        if (value.on_curve()) {
+        if (value.on_curve() && !value.is_point_at_infinity()) {
             scalars.emplace_back(kate_fr_elements.at(key));
             elements.emplace_back(value);
         }

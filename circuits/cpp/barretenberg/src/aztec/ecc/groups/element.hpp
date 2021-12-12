@@ -13,6 +13,18 @@
 namespace barretenberg {
 namespace group_elements {
 
+/**
+ * @brief element class. Implements ecc group arithmetic using Jacobian coordinates
+ * See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
+ *
+ * Note: Currently subgroup checks are NOT IMPLEMENTED
+ * Our current Plonk implementation uses G1 points that have a cofactor of 1.
+ * All G2 points are precomputed (generator [1]_2 and trusted setup point [x]_2).
+ * Explicitly assume precomputed points are valid members of the prime-order subgroup for G2.
+ * @tparam Fq prime field the curve is defined over
+ * @tparam Fr prime field whose characteristic equals the size of the prime-order elliptic curve subgroup
+ * @tparam Params curve parameters
+ */
 template <class Fq, class Fr, class Params> class alignas(32) element {
   public:
     static constexpr Fq curve_b = Params::b;

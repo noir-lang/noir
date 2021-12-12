@@ -89,7 +89,8 @@ join_split_outputs join_split_circuit_component(Composer& composer, join_split_i
     composer.assert_equal(note1.nonce.witness_index, note2.nonce.witness_index, "input note nonce don't match");
 
     // Verify input notes are owned by account private key and nonce.
-    auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
+    inputs.account_private_key.assert_is_not_zero("join_split_circuit: account private key is zero");
+    auto account_public_key = group_ct::fixed_base_scalar_mul_g1<254>(inputs.account_private_key);
     composer.assert_equal(
         account_public_key.x.witness_index, note1.owner.x.witness_index, "account_private_key incorrect");
     composer.assert_equal(
