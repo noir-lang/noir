@@ -16,7 +16,7 @@ TEST(AffineElement, ReadWriteBuffer)
     g1::affine_element::serialize_to_buffer(P, ptr);
 
     Q = g1::affine_element::serialize_from_buffer(ptr + 1);
-    ASSERT_FALSE(Q.on_curve());
+    ASSERT_FALSE(Q.on_curve() && !Q.is_point_at_infinity());
     R = g1::affine_element::serialize_from_buffer(ptr);
     ASSERT_TRUE(R.on_curve());
 

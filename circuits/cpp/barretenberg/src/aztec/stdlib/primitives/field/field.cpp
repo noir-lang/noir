@@ -196,7 +196,6 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& other) const
 {
-    other.assert_is_not_zero("field_t::operator/ divisor is 0");
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
