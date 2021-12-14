@@ -97,7 +97,6 @@ template <typename WorldState> class JoinSplitTxFactory {
         tx.alias_hash = 0;
         tx.nonce = nonce;
         tx.claim_note = claim_note;
-        tx.propagated_input_index = 0;
         tx.backward_link = fr::zero();
         tx.allow_chain = 0;
 

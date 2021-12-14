@@ -32,9 +32,8 @@ struct join_split_tx {
     merkle_tree::fr_hash_path account_path;
     grumpkin::g1::affine_element signing_pub_key;
 
-    uint32_t propagated_input_index; // 0: none, 1: input_note1, 2: input_note2
-    barretenberg::fr backward_link;  // 0: no link, otherwise: any commitment.
-    uint32_t allow_chain;            // 0: none, 1: output_note1, 2: output_note2
+    barretenberg::fr backward_link; // 0: no link, otherwise: any commitment.
+    uint32_t allow_chain;           // 0: none, 1: output_note1, 2: output_note2
 
     crypto::schnorr::signature signature;
 

@@ -308,7 +308,6 @@ TEST_F(claim_tests, test_claim_2_outputs_full_proof)
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
-    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
     EXPECT_EQ(proof_data.backward_link, fr(0));
     EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 }
@@ -363,7 +362,6 @@ TEST_F(claim_tests, test_claim_1_output_full_proof)
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
-    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
     EXPECT_EQ(proof_data.backward_link, fr(0));
     EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 
@@ -484,7 +482,6 @@ TEST_F(claim_tests, test_claim_refund_full_proof)
     EXPECT_EQ(proof_data.bridge_id, tx.claim_note.bridge_id);
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, defi_tree->root());
-    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
     EXPECT_EQ(proof_data.backward_link, fr(0));
     EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 

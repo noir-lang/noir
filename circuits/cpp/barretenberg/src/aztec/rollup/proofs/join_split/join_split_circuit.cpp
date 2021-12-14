@@ -123,13 +123,12 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     input_note1.commitment.assert_not_equal(input_note2.commitment, "joining same note");
 
     // Transaction chaining.
-    bool_ct note1_propagated = inputs.propagated_input_index == 1;
-    bool_ct note2_propagated = inputs.propagated_input_index == 2;
+    bool_ct note1_propagated = inputs.backward_link == input_note1.commitment;
+    bool_ct note2_propagated = inputs.backward_link == input_note2.commitment;
     {
-        // propagated_input_index must be in {0, 1, 2}
-        bool_ct no_note_propagated = inputs.propagated_input_index == 0;
-        (no_note_propagated || note1_propagated || note2_propagated)
-            .assert_equal(true, "propagated_input_index out of range");
+        // Ensure backward_link isn't some nonzero value which is unrelated to either input:
+        bool_ct backward_link_in_use = inputs.backward_link != 0;
+        backward_link_in_use.must_imply(note1_propagated || note2_propagated, "backward_link unrelated to inputs");
 
         // allow_chain must be in {0, 1, 2, 3}
         bool_ct allow_chain_1_and_2 = inputs.allow_chain == 3;
@@ -138,20 +137,13 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
 
         (inputs.allow_chain == 0 || allow_chain_1 || allow_chain_2).assert_equal(true, "allow_chain out of range");
 
-        // Prevent chaining from a partial claim note.
-        is_defi_deposit.must_imply(!allow_chain_1, "cannot chain from a partial claim note");
-
-        bool_ct note1_linked = inputs.backward_link == input_note1.commitment;
-        bool_ct note2_linked = inputs.backward_link == input_note2.commitment;
-        note1_propagated.must_imply(note1_linked, "inconsistent backward_link & propagated_input_index");
-        note2_propagated.must_imply(note2_linked, "inconsistent backward_link & propagated_input_index");
-        (!note1_linked && !note2_linked)
-            .must_imply(no_note_propagated, "inconsistent backward_link & propagated_input_index");
-
         // When allowing chaining, ensure propagation is to one's self (and not to some other user).
         point_ct self = input_note1.owner;
         allow_chain_1.must_imply(output_note1.owner == self, "inter-user chaining disallowed");
         allow_chain_2.must_imply(output_note2.owner == self, "inter-user chaining disallowed");
+
+        // Prevent chaining from a partial claim note.
+        is_defi_deposit.must_imply(!allow_chain_1, "cannot chain from a partial claim note");
     }
 
     // Derive tx_fee.
@@ -221,7 +213,6 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
                      nullifier1,
                      nullifier2,
                      signer,
-                     inputs.propagated_input_index,
                      inputs.backward_link,
                      inputs.allow_chain,
                      inputs.signature);
@@ -256,7 +247,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
         .account_private_key = witness_ct(&composer, static_cast<fr>(tx.account_private_key)),
         .alias_hash = suint_ct(witness_ct(&composer, tx.alias_hash), ALIAS_HASH_BIT_LENGTH, "alias_hash"),
         .nonce = suint_ct(witness_ct(&composer, tx.nonce), ACCOUNT_NONCE_BIT_LENGTH, "account_nonce"),
-        .propagated_input_index = witness_ct(&composer, tx.propagated_input_index),
         .backward_link = witness_ct(&composer, tx.backward_link),
         .allow_chain = witness_ct(&composer, tx.allow_chain),
     };
@@ -282,7 +272,6 @@ void join_split_circuit(Composer& composer, join_split_tx const& tx)
     outputs.bridge_id.set_public();
     outputs.defi_deposit_value.set_public();
     defi_root.set_public();
-    inputs.propagated_input_index.set_public();
     inputs.backward_link.set_public();
     inputs.allow_chain.set_public();
 }

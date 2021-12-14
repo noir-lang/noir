@@ -126,7 +126,6 @@ class join_split_tests : public ::testing::Test {
         tx.alias_hash = !nonce ? rollup::fixtures::generate_alias_hash("penguin") : user.alias_hash;
         tx.nonce = nonce;
         // default to no chaining:
-        tx.propagated_input_index = 0;
         tx.backward_link = 0;
         tx.allow_chain = 0;
         return tx;
@@ -189,7 +188,6 @@ class join_split_tests : public ::testing::Test {
         tx.account_index = 0;
         tx.account_path = tree->get_hash_path(0);
         tx.signing_pub_key = user.signing_keys[0].public_key;
-        tx.propagated_input_index = 0;
         tx.backward_link = 0;
         tx.allow_chain = 0;
         return tx;
@@ -351,6 +349,15 @@ INSTANTIATE_TEST_SUITE_P(join_split_tests, test_valid_allow_chain_permutations, 
 TEST_F(join_split_tests, test_allow_chain_out_of_range_fails)
 {
     join_split_tx tx = simple_setup();
+    tx.backward_link = fr::random_element(); // choose a value unrelated to the inputs being spent
+    auto result = sign_and_verify_logic(tx, user.owner.private_key);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(result.err, "backward_link unrelated to inputs");
+}
+
+TEST_F(join_split_tests, test_unrelated_backward_link_fails)
+{
+    join_split_tx tx = simple_setup();
     tx.allow_chain = 4;
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_FALSE(result.valid);
@@ -369,17 +376,7 @@ TEST_P(test_allow_chain_to_other_users_fail, )
 }
 INSTANTIATE_TEST_SUITE_P(join_split_tests, test_allow_chain_to_other_users_fail, ::testing::Values(1, 2));
 
-TEST_F(join_split_tests, test_prop_input_index_out_of_range_fails)
-{
-    join_split_tx tx = simple_setup();
-    // sending to self is implied by the fixture's default values
-    tx.propagated_input_index = 3;
-    auto result = sign_and_verify_logic(tx, user.owner.private_key);
-    EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "propagated_input_index out of range");
-}
-
-void assign_backward_link(join_split_tx& tx, int& indicator)
+void assign_backward_link(join_split_tx& tx, size_t& indicator)
 {
     switch (indicator) {
     case 0:
@@ -396,79 +393,19 @@ void assign_backward_link(join_split_tx& tx, int& indicator)
     }
 }
 
-class test_valid_prop_input_index_backward_link_permutations
-    : public join_split_tests,
-      public ::testing::WithParamInterface<std::tuple<uint32_t, int>> {};
-TEST_P(test_valid_prop_input_index_backward_link_permutations, )
-{
-    join_split_tx tx = simple_setup();
-    tx.propagated_input_index = std::get<0>(GetParam());
-    int indicator = std::get<1>(GetParam());
-    assign_backward_link(tx, indicator);
-    auto result = sign_and_verify_logic(tx, user.owner.private_key);
-    EXPECT_TRUE(result.valid);
-    EXPECT_EQ(result.public_inputs[InnerProofFields::PROPAGATED_INPUT_INDEX], std::get<0>(GetParam()));
-}
-INSTANTIATE_TEST_SUITE_P(
-    join_split_tests,
-    test_valid_prop_input_index_backward_link_permutations,
-    ::testing::Values(
-        // tuple is: (propagated_input_index, "an indicator for backward_link")
-        std::make_tuple(0, 0),
-        std::make_tuple(1, 1),
-        std::make_tuple(2, 2),
-        // note: if propagated index is 0, it doesn't matter what backward_link is - chaining still won't happen.
-        std::make_tuple(0, 1),
-        std::make_tuple(0, 2),
-        std::make_tuple(0, 3))); // backward_link = 3 in this test will mean 'random commitment' - so
-                                 // the backward_link won't be pointing to the correct input note
-
-class test_invalid_prop_input_index_backward_link_permutations_fail
-    : public join_split_tests,
-      public ::testing::WithParamInterface<std::tuple<uint32_t, int>> {};
-TEST_P(test_invalid_prop_input_index_backward_link_permutations_fail, )
-{
-    join_split_tx tx = simple_setup();
-    tx.propagated_input_index = std::get<0>(GetParam());
-    int indicator = std::get<1>(GetParam());
-    assign_backward_link(tx, indicator);
-    auto result = sign_and_verify_logic(tx, user.owner.private_key);
-    EXPECT_FALSE(result.valid);
-    EXPECT_EQ(result.err, "inconsistent backward_link & propagated_input_index");
-}
-INSTANTIATE_TEST_SUITE_P(join_split_tests,
-                         test_invalid_prop_input_index_backward_link_permutations_fail,
-                         ::testing::Values(
-                             // tuple is: (propagated_input_index, "an indicator for backward_link"")
-                             // note: if propagated index is 0, it doesn't matter what backward_link is - chaining still
-                             // won't happen.
-                             std::make_tuple(1, 0),
-                             std::make_tuple(1, 2),
-                             std::make_tuple(1, 3), // backward_link = 3 in this test will mean 'random commitment' - so
-                                                    // the backward_link won't be pointing to the correct input note
-                             std::make_tuple(2, 0),
-                             std::make_tuple(2, 1),
-                             std::make_tuple(2, 3)));
-
 class test_propagated_notes_skip_membership_check : public join_split_tests,
-                                                    public ::testing::WithParamInterface<std::tuple<uint32_t, int>> {};
+                                                    public ::testing::WithParamInterface<size_t> {};
 TEST_P(test_propagated_notes_skip_membership_check, )
 {
     join_split_tx tx = simple_setup();
-    tx.propagated_input_index = std::get<0>(GetParam());
-    int indicator = std::get<1>(GetParam());
+    size_t indicator = GetParam();
     assign_backward_link(tx, indicator);
-    tx.input_path[tx.propagated_input_index - 1] =
+    tx.input_path[indicator - 1] =
         tree->get_hash_path(99); // select a clearly incorrect path for the input note being propagated.
     auto result = sign_and_verify_logic(tx, user.owner.private_key);
     EXPECT_TRUE(result.valid);
 }
-INSTANTIATE_TEST_SUITE_P(join_split_tests,
-                         test_propagated_notes_skip_membership_check,
-                         ::testing::Values(
-                             // tuple is: (propagated_input_index, "an indicator for backward_link")
-                             std::make_tuple(1, 1),
-                             std::make_tuple(2, 2)));
+INSTANTIATE_TEST_SUITE_P(join_split_tests, test_propagated_notes_skip_membership_check, ::testing::Values(1, 2));
 
 TEST_F(join_split_tests, test_propagated_input_note1_no_double_spend)
 {
@@ -1161,7 +1098,6 @@ TEST_F(join_split_tests, test_private_send_full_proof)
     EXPECT_EQ(proof_data.bridge_id, uint256_t(0));
     EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
     EXPECT_EQ(proof_data.defi_root, fr(0));
-    EXPECT_EQ(proof_data.propagated_input_index, uint256_t(0));
     EXPECT_EQ(proof_data.backward_link, fr(0));
     EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
 

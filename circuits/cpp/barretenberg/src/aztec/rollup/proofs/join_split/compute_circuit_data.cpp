@@ -45,7 +45,6 @@ join_split_tx noop_tx()
     tx.account_private_key = priv_key;
     tx.alias_hash = 0;
     tx.nonce = 0;
-    tx.propagated_input_index = 0;
     tx.backward_link = fr::zero();
     tx.allow_chain = 0;
 

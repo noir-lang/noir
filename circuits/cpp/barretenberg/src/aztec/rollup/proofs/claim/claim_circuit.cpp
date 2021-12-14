@@ -113,14 +113,12 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     const field_ct public_owner = witness_ct(&composer, 0);
     const field_ct asset_id = witness_ct(&composer, 0);
     const field_ct defi_deposit_value = witness_ct(&composer, 0);
-    const field_ct propagated_input_index = witness_ct(&composer, 0);
     const field_ct backward_link = witness_ct(&composer, 0);
     const field_ct allow_claim = witness_ct(&composer, 0);
     public_value.assert_is_zero();
     public_owner.assert_is_zero();
     asset_id.assert_is_zero();
     defi_deposit_value.assert_is_zero();
-    propagated_input_index.assert_is_zero();
     backward_link.assert_is_zero();
     allow_claim.assert_is_zero();
 
@@ -139,7 +137,6 @@ void claim_circuit(Composer& composer, claim_tx const& tx)
     claim_note.bridge_id.set_public();
     defi_deposit_value.set_public();
     defi_root.set_public();
-    propagated_input_index.set_public();
     backward_link.set_public();
     allow_claim.set_public();
 }

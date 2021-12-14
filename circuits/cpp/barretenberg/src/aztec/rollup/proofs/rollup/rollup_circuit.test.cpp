@@ -549,7 +549,6 @@ TEST_F(rollup_tests, test_chain_off_first_output_note_and_consume_in_first_input
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 70, 50 }, { 120, 0 });
     tx2.input_note[0] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[0].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
@@ -575,7 +574,6 @@ TEST_F(rollup_tests, test_chain_off_first_output_note_and_consume_in_second_inpu
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 1, 0 }, { 50, 70 }, { 120, 0 });
     tx2.input_note[1] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[1].commit();
-    tx2.propagated_input_index = 2;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
@@ -601,7 +599,6 @@ TEST_F(rollup_tests, test_chain_off_second_output_note_and_consume_in_first_inpu
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 0, 1 }, { 30, 50 }, { 80, 0 });
     tx2.input_note[0] = tx1.output_note[1];
     tx2.backward_link = tx2.input_note[0].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
@@ -627,7 +624,6 @@ TEST_F(rollup_tests, test_chain_off_second_output_note_and_consume_in_second_inp
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 1, 0 }, { 50, 30 }, { 80, 0 });
     tx2.input_note[1] = tx1.output_note[1];
     tx2.backward_link = tx2.input_note[1].commit();
-    tx2.propagated_input_index = 2;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
@@ -648,9 +644,9 @@ TEST_F(rollup_tests, test_allow_chain_off_first_output_note_but_dont_consume)
     auto join_split_proof1 = create_js_proof(tx1);
 
     // Allow chaining off the tx1's first note, but don't use it as an input note in tx2.
-    // The tx will be permitted because no propagated_input_index is specified, and no propagation is happening.
+    // The tx will be permitted because no backward_link is specified, and so no propagation is happening.
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 1 }, { 50 }, { 50, 0 });
-    tx2.backward_link = tx1.output_note[0].commit();
+    tx2.backward_link = 0;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
@@ -684,7 +680,6 @@ void rollup_tests::test_chain_off_disallowed_note_fails(uint32_t allow_chain, si
 
     tx2.input_note[0] = tx1.output_note[indicator - 1];
     tx2.backward_link = tx1.output_note[indicator - 1].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof1, join_split_proof2 });
@@ -747,7 +742,6 @@ TEST_F(rollup_tests, test_gap_in_chain_within_rollup)
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 0 }, { 70 }, { 10, 60 });
     tx2.input_note[0] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[0].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     // Second index is set to 0 because num_input_notes is 1.
@@ -783,7 +777,6 @@ TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_without_path_fails)
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 0 }, { 70 }, { 10, 60 });
     tx2.input_note[0] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[0].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state, rollup_size, { join_split_proof2 });
@@ -821,7 +814,6 @@ TEST_F(rollup_tests, test_gap_in_chain_spanning_rollups_with_linked_commitment_p
 
     tx2.input_note[0] = linked_note;
     tx2.backward_link = linked_note.commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto rollup = create_rollup_tx(context.world_state,
@@ -860,13 +852,11 @@ TEST_F(rollup_tests, test_chain_off_both_output_notes_and_consume_in_next_two_tx
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 4, 1 }, { 70, 50 }, { 120, 0 });
     tx2.input_note[0] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[0].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto tx3 = context.js_tx_factory.create_join_split_tx({ 2, 5 }, { 75, 30 }, { 0, 105 });
     tx3.input_note[1] = tx1.output_note[1];
     tx3.backward_link = tx3.input_note[1].commit();
-    tx3.propagated_input_index = 2;
     auto join_split_proof3 = create_js_proof(tx3);
 
     auto rollup =
@@ -906,13 +896,11 @@ TEST_F(rollup_tests, test_chain_off_both_output_notes_and_consume_within_rollup_
     auto tx2 = context.js_tx_factory.create_join_split_tx({ 8, 1 }, { 70, 50 }, { 120, 0 });
     tx2.input_note[0] = tx1.output_note[0];
     tx2.backward_link = tx2.input_note[0].commit();
-    tx2.propagated_input_index = 1;
     auto join_split_proof2 = create_js_proof(tx2);
 
     auto tx3 = context.js_tx_factory.create_join_split_tx({ 2, 9 }, { 75, 30 }, { 0, 105 });
     tx3.input_note[1] = tx1.output_note[1];
     tx3.backward_link = tx3.input_note[1].commit();
-    tx3.propagated_input_index = 2;
     auto join_split_proof3 = create_js_proof(tx3);
 
     auto tx4 = context.js_tx_factory.create_join_split_tx({ 3, 4 }, { 200, 300 }, { 20, 480 });

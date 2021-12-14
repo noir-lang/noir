@@ -30,10 +30,9 @@ barretenberg::fr compute_signing_data(join_split_tx const& tx)
     const auto nullifier1 = compute_nullifier(input_note_1, tx.account_private_key, tx.num_input_notes >= 1);
     const auto nullifier2 = compute_nullifier(input_note_2, tx.account_private_key, tx.num_input_notes >= 2);
 
-    std::vector<grumpkin::fq> to_compress{
-        public_value, tx.public_owner, grumpkin::fq(public_asset_id), output_note_1,    output_note_2,
-        nullifier1,   nullifier2,      tx.propagated_input_index,     tx.backward_link, tx.allow_chain
-    };
+    std::vector<grumpkin::fq> to_compress{ public_value,  tx.public_owner,  grumpkin::fq(public_asset_id),
+                                           output_note_1, output_note_2,    nullifier1,
+                                           nullifier2,    tx.backward_link, tx.allow_chain };
 
     return compress_native(to_compress);
 }

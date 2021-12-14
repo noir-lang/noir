@@ -126,22 +126,17 @@ auto process_claims(std::vector<field_ct>& public_inputs, field_ct const& new_de
  * @param all_tx_public_inputs is required to extract the allow_chain public input from each tx
  * @returns the (possibly zeroed) nullifiers of this tx
  */
-std::pair<field_ct, field_ct> process_chained_txs(size_t const& i,
-                                                  bool_ct const& is_tx_real,
-                                                  std::vector<field_ct> const& public_inputs,
-                                                  std::vector<std::vector<field_ct>> const& all_tx_public_inputs,
-                                                  std::vector<std::vector<field_ct>>& propagated_tx_public_inputs,
-                                                  std::vector<field_ct>& new_data_values,
-                                                  field_ct const& old_data_root,
-                                                  std::vector<merkle_tree::hash_path> const& linked_commitment_paths,
-                                                  std::vector<field_ct> const& linked_commitment_indices)
+void process_chained_txs(size_t const& i,
+                         bool_ct const& is_tx_real,
+                         std::vector<field_ct> const& public_inputs,
+                         std::vector<std::vector<field_ct>> const& all_tx_public_inputs,
+                         field_ct const& old_data_root,
+                         std::vector<merkle_tree::hash_path> const& linked_commitment_paths,
+                         std::vector<field_ct> const& linked_commitment_indices)
 {
-    const field_ct propagated_input_index = field_ct(public_inputs[InnerProofFields::PROPAGATED_INPUT_INDEX]);
     const field_ct backward_link = field_ct(public_inputs[InnerProofFields::BACKWARD_LINK]);
-    field_ct nullifier1 = field_ct(public_inputs[InnerProofFields::NULLIFIER1]);
-    field_ct nullifier2 = field_ct(public_inputs[InnerProofFields::NULLIFIER2]);
 
-    const bool_ct chaining = propagated_input_index != 0; // range check in {1, 2} already done in j-s circuit
+    const bool_ct chaining = backward_link != 0;
 
     // If (chaining), we need to look back at all earlier txs in this rollup, to find a match to this tx's
     // backward_link.
@@ -180,14 +175,7 @@ std::pair<field_ct, field_ct> process_chained_txs(size_t const& i,
             found_link_in_loop, temp_is_propagating_prev_output1, is_propagating_prev_output1));
         is_propagating_prev_output2 = bool_ct(field_ct::conditional_assign(
             found_link_in_loop, temp_is_propagating_prev_output2, is_propagating_prev_output2));
-
-        // Interestingly, we can't just set matched_tx_index = j, since they're incompatible types.
-        // This makes sense, since the loop iterator exists 'outside the circuit', so it can't be accessed
-        // by circuit variables. We need to iterate our own circuit variable:
-        matched_tx_index += !found_link_in_rollup; // increments until a match is found
     }
-    matched_tx_index = field_ct::conditional_assign(
-        found_link_in_rollup, matched_tx_index, -1); // `-1` means "no match found" (since 0 is a valid match value).
 
     // start_of_subchain = "no earlier txs in this tx's chain have been included in this rollup"
     const bool_ct start_of_subchain = chaining && !found_link_in_rollup;
@@ -216,88 +204,6 @@ std::pair<field_ct, field_ct> process_chained_txs(size_t const& i,
                            attempting_to_propagate_output_index,
                            " of the prev tx. prev_allow_chain = ",
                            prev_allow_chain));
-
-    // Zeroing of public inputs:
-    // If some previous tx's note commitment has been propagated by this i-th tx, then 'zero' both it and this
-    // proof's nullifier.
-    {
-        // Flag our intention to zero certain public inputs:
-        const bool_ct zero_prev_output1 = middle_of_chain && is_propagating_prev_output1;
-        const bool_ct zero_prev_output2 = middle_of_chain && is_propagating_prev_output2;
-        const bool_ct zero_nullifier1 = middle_of_chain && propagated_input_index == 1;
-        const bool_ct zero_nullifier2 = middle_of_chain && propagated_input_index == 2;
-
-        // Extra checks to ensure indices match up (if changes are ever made in future). Recommend keeping these checks.
-        // These checks MUST come _before_ the zeroing calcs.
-        nullifier1.assert_equal(propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER1],
-                                format("Unexpected indexing mismatch for index ",
-                                       i,
-                                       " nullifier1: ",
-                                       nullifier1,
-                                       " propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER1]: ",
-                                       propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER1]));
-        nullifier2.assert_equal(propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER2],
-                                format("Unexpected indexing mismatch for index ",
-                                       i,
-                                       " nullifier2: ",
-                                       nullifier2,
-                                       " propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER2]: ",
-                                       propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER2]));
-
-        // Conditionally zero this tx's nullifiers (these variables will ultimately be inserted into the nullifier
-        // tree):
-        nullifier1 *= !zero_nullifier1;
-        nullifier2 *= !zero_nullifier2;
-
-        // Also zero the corresponding nullifiers in the propagated_tx_public_inputs vector, since these will be
-        // submitted on-chain for public_inputs_hash reconciliation.
-        propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER1] = nullifier1;
-        propagated_tx_public_inputs[i][PropagatedInnerProofFields::NULLIFIER2] = nullifier2;
-
-        // In a circuit, we can't dynamically access a previous tx at some unknown-in-advance index.
-        // Instead, we'll need to loop through all previous txs and apply the same operations to each (only actually
-        // editing <=1 of them).
-        field_ct field_j(0);
-        for (size_t j = 0; j < i; j++) {
-            if (j == i - 1) {
-                // Extra checks to ensure indices match up.
-                // Recommend keeping these checks, unless there's a neat test that can be written.
-                // These checks MUST come _before_ the zeroing calcs.
-                // Values of `new_data_values[k]` for k < i - 1 have already been checked (and then mutated) during the
-                // previous call of this function for the (i-1)th tx, so don't need to be (and cannot be) checked again.
-                new_data_values[2 * j].assert_equal(
-                    propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT1],
-                    format("Unexpected indexing mismatch for index ",
-                           j,
-                           " new_data_values[2 * j]: ",
-                           new_data_values[2 * j],
-                           " propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT1]: ",
-                           propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT1]));
-
-                new_data_values[2 * j + 1].assert_equal(
-                    propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT2],
-                    format("Unexpected indexing mismatch for index ",
-                           j,
-                           " new_data_values[2 * j + 1]: ",
-                           new_data_values[2 * j + 1],
-                           " propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT2]: ",
-                           propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT2]));
-            }
-
-            // Conditionally zero certain commitment values in the vector which will be inserted into the data tree:
-            new_data_values[2 * j] *= !(zero_prev_output1 && (field_j == matched_tx_index));
-            new_data_values[2 * j + 1] *= !(zero_prev_output2 && (field_j == matched_tx_index));
-
-            // Also zero the corresponding commitments in the propagated_tx_public_inputs vector, since these will be
-            // submitted on-chain for public_inputs_hash reconciliation.
-            propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT1] = new_data_values[2 * j];
-            propagated_tx_public_inputs[j][PropagatedInnerProofFields::NOTE_COMMITMENT2] = new_data_values[2 * j + 1];
-
-            field_j += 1;
-        }
-    }
-
-    return { nullifier1, nullifier2 };
 }
 
 /**
@@ -439,26 +345,21 @@ recursion_output<bn254> rollup_circuit(Composer& composer,
         // `process_defi_deposit()` & `process_claims()` functions, but before `process_chained_txs`.
         propagated_tx_public_inputs.push_back(slice(public_inputs, 0, PropagatedInnerProofFields::NUM_FIELDS));
 
-        field_ct nullifier1, nullifier2;
-        std::tie(nullifier1, nullifier2) =
-            process_chained_txs(i,
-                                is_real,
-                                public_inputs,
-                                all_tx_public_inputs,
-                                propagated_tx_public_inputs,
-                                new_data_values,
-                                old_data_root,
-                                linked_commitment_paths,
-                                linked_commitment_indices); // this function might 'zero' some elements of
-                                                            // new_data_values and propagated_tx_public_inputs
+        process_chained_txs(i,
+                            is_real,
+                            public_inputs,
+                            all_tx_public_inputs,
+                            old_data_root,
+                            linked_commitment_paths,
+                            linked_commitment_indices);
 
         // Add this proof's data values to the list.
         new_data_values.push_back(public_inputs[InnerProofFields::NOTE_COMMITMENT1]);
         new_data_values.push_back(public_inputs[InnerProofFields::NOTE_COMMITMENT2]);
 
         // Add input note nullifiers to the list.
-        new_null_indicies.push_back(nullifier1);
-        new_null_indicies.push_back(nullifier2);
+        new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER1]);
+        new_null_indicies.push_back(public_inputs[InnerProofFields::NULLIFIER2]);
 
         // Check this proof's data root exists in the data root tree (unless a padding entry).
         auto data_root = public_inputs[InnerProofFields::MERKLE_ROOT];

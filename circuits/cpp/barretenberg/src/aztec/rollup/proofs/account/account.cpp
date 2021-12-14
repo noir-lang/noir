@@ -123,7 +123,7 @@ void account_circuit(Composer& composer, account_tx const& tx)
     bridge_id.set_public();
     defi_deposit_value.set_public();
     defi_root.set_public();
-    add_zero_public_inputs(composer, 3); // 3 chained transaction public inputs
+    add_zero_public_inputs(composer, 2); // 2 chained transaction public inputs
 }
 
 void init_proving_key(std::shared_ptr<waffle::ReferenceStringFactory> const& crs_factory)

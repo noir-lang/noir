@@ -54,7 +54,6 @@ TEST(client_proofs_join_split_tx, test_serialization)
     memset(&tx.signature.e, 1, 32);
     memset(&tx.signature.s, 2, 32);
 
-    tx.propagated_input_index = 1;
     tx.backward_link = fr::random_element();
     tx.allow_chain = 2;
 

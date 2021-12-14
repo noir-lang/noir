@@ -137,16 +137,14 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
     for (size_t i = 0; i < num_txs; ++i) {
         auto tx = inner_proof_data(txs[i]);
 
-        // Chaining - the sole purpose of this 'if statement' is to 'zero' certain commitments and nullifiers in advance
-        // of calculating the data_tree and null_tree roots.
+        // Chaining - identify 'split chains' and push a valid merkle membership path.
         fr_hash_path linked_commitment_path;
-        const bool chaining = tx.propagated_input_index > 0;
+        const bool chaining = tx.backward_link != 0;
         bool is_propagating_prev_output1;
         bool is_propagating_prev_output2;
         if (chaining) {
             bool found_link_in_rollup = false;
             fr prev_allow_chain = 0;
-            size_t matched_tx_index;
             // Loop through all prior txs to find a tx that this tx is chaining from (if it exists in this rollup):
             for (size_t j = 0; j < num_txs; j++) {
                 const auto prev_tx = inner_proof_data(txs[j]);
@@ -155,7 +153,6 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                 found_link_in_rollup = is_propagating_prev_output1 || is_propagating_prev_output2;
                 if (found_link_in_rollup) {
                     prev_allow_chain = prev_tx.allow_chain;
-                    matched_tx_index = j;
                     break;
                 }
             }
@@ -177,25 +174,6 @@ inline rollup_tx create_rollup_tx(WorldState& world_state,
                 // Note: in the circuit, we do a check to ensure the commitment being propagaged (denoted by
                 // `attempting_to_propagate_output_index`) is _allowed_ to be chained from, by comparing against
                 // `prev_allow_chain`. We'll skip that check here, so that the circuit's checks can be tested.
-
-                // Note: If we're in 'the middle' of a chain, and the user is chaining to themselves (always the case in
-                // the current implementation), we can 'zero' the prev_tx's data tree values, and this tx's nullifiers.
-                // Whilst we'll actually be passing the original nonzero values into the circuit, we need to calculate
-                // the data tree root here as though they're zero.
-
-                if (is_propagating_prev_output1) {
-                    data_tree_values[2 * matched_tx_index] = fr(0);
-                }
-                if (is_propagating_prev_output2) {
-                    data_tree_values[2 * matched_tx_index + 1] = fr(0);
-                }
-                if (tx.propagated_input_index == 1) {
-                    tx.nullifier1 = 0;
-                }
-                if (tx.propagated_input_index == 2) {
-                    tx.nullifier2 = 0;
-                }
-                // the data tree's root is calculated in line with these changes, later in this function.
             }
         } else {
             linked_commitment_path = get_random_hash_path(data_tree.depth()); // create an dummy path.

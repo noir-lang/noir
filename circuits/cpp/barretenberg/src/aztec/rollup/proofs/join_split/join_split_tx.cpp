@@ -29,7 +29,6 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.account_path);
     write(buf, tx.signing_pub_key);
 
-    write(buf, tx.propagated_input_index);
     write(buf, tx.backward_link);
     write(buf, tx.allow_chain);
 
@@ -58,7 +57,6 @@ void read(uint8_t const*& it, join_split_tx& tx)
     read(it, tx.account_path);
     read(it, tx.signing_pub_key);
 
-    read(it, tx.propagated_input_index);
     read(it, tx.backward_link);
     read(it, tx.allow_chain);
 
@@ -88,7 +86,6 @@ std::ostream& operator<<(std::ostream& os, join_split_tx const& tx)
               << "account_index: " << tx.account_index << "\n"
               << "account_path: " << tx.account_path << "\n"
               << "signing_pub_key: " << tx.signing_pub_key << "\n"
-              << "propagated_input_index: " << tx.propagated_input_index << "\n"
               << "backward_link: " << tx.backward_link << "\n"
               << "allow_chain: " << tx.allow_chain << "\n"
               << "signature: " << tx.signature << "\n";
