@@ -88,26 +88,6 @@ TEST(stdlib_field, test_add_mul_with_constants)
     EXPECT_EQ(result, true);
 }
 
-TEST(stdlib_field, test_div_safety)
-{
-    {
-        waffle::StandardComposer composer = waffle::StandardComposer();
-
-        field_t a = witness_t(&composer, 0);
-
-        field_t b = witness_t(&composer, 0);
-        field_t out = a / b;
-        EXPECT_EQ(out.get_value(), 0);
-        EXPECT_EQ(composer.failed, true);
-        waffle::Prover prover = composer.preprocess();
-
-        waffle::Verifier verifier = composer.create_verifier();
-        waffle::plonk_proof proof = prover.construct_proof();
-        bool result = verifier.verify_proof(proof);
-        EXPECT_EQ(result, false);
-    }
-}
-
 TEST(stdlib_field, test_div)
 {
     waffle::StandardComposer composer = waffle::StandardComposer();
