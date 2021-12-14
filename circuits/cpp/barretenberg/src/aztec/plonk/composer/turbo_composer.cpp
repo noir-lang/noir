@@ -91,32 +91,6 @@ TurboComposer::TurboComposer(std::shared_ptr<proving_key> const& p_key,
 };
 
 /**
- * Add a dummy gate, where all coefficient values are set to zero.
- * */
-void TurboComposer::create_dummy_gate()
-{
-
-    TURBO_SELECTOR_REFS
-    uint32_t idx = add_variable(fr{ 1, 1, 1, 1 }.to_montgomery_form());
-    w_l.emplace_back(idx);
-    w_r.emplace_back(idx);
-    w_o.emplace_back(idx);
-    w_4.emplace_back(idx);
-    q_arith.emplace_back(fr::zero());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_ecc_1.emplace_back(fr::zero());
-    q_m.emplace_back(fr::zero());
-    q_1.emplace_back(fr::zero());
-    q_2.emplace_back(fr::zero());
-    q_3.emplace_back(fr::zero());
-    q_c.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++n;
-}
-
-/**
  * Create an addition gate.
  * The q_m, q_4, q_5, q_ecc_1, q_range, q_logic are zero.
  * q_artith is one. w_4 is set to 0-variable index.
@@ -908,7 +882,6 @@ std::shared_ptr<proving_key> TurboComposer::compute_proving_key()
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    create_dummy_gate();
 
     ComposerBase::compute_proving_key_base();
     circuit_proving_key->composer_type = type;

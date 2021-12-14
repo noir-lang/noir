@@ -81,33 +81,6 @@ PlookupComposer::PlookupComposer(std::shared_ptr<proving_key> const& p_key,
     tau.insert({ DUMMY_TAG, DUMMY_TAG });
 }
 
-void PlookupComposer::create_dummy_gate()
-{
-
-    PLOOKUP_SELECTOR_REFS
-    uint32_t idx = add_variable(fr(1));
-    w_l.emplace_back(idx);
-    w_r.emplace_back(idx);
-    w_o.emplace_back(idx);
-    w_4.emplace_back(idx);
-    q_arith.emplace_back(0);
-    q_4.emplace_back(0);
-    q_5.emplace_back(0);
-    q_ecc_1.emplace_back(0);
-    q_m.emplace_back(0);
-    q_1.emplace_back(0);
-    q_2.emplace_back(0);
-    q_3.emplace_back(0);
-    q_c.emplace_back(0);
-    q_range.emplace_back(0);
-    q_sort.emplace_back(0);
-    q_logic.emplace_back(0);
-    q_lookup_index.emplace_back(0);
-    q_lookup_type.emplace_back(0);
-    q_elliptic.emplace_back(0);
-    ++n;
-}
-
 void PlookupComposer::create_add_gate(const add_triple& in)
 {
     PLOOKUP_SELECTOR_REFS

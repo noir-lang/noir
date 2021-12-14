@@ -156,9 +156,6 @@ TEST(plookup_composer, test_elliptic_gate)
     gate = waffle::ecc_add_gate{ x1, y1, x2, y2, x3, y3, grumpkin::fq::beta().sqr(), -1 };
     composer.create_ecc_add_gate(gate);
 
-    composer.create_dummy_gate();
-    composer.create_dummy_gate();
-
     auto prover = composer.create_prover();
 
     auto verifier = composer.create_verifier();
@@ -228,7 +225,7 @@ TEST(plookup_composer, non_trivial_tag_permutation_and_cycles)
     composer.assign_tag(c_idx, 1);
     composer.assign_tag(e_idx, 2);
     composer.assign_tag(g_idx, 2);
-    composer.create_dummy_gate();
+
     composer.create_add_gate({ b_idx, a_idx, composer.zero_idx, fr::one(), fr::neg_one(), fr::zero(), fr::zero() });
     composer.create_add_gate({ c_idx, g_idx, composer.zero_idx, fr::one(), -fr::one(), fr::zero(), fr::zero() });
     composer.create_add_gate({ e_idx, f_idx, composer.zero_idx, fr::one(), -fr::one(), fr::zero(), fr::zero() });

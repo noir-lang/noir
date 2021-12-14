@@ -61,7 +61,6 @@ class PlookupComposer : public ComposerBase {
     UnrolledPlookupProver create_unrolled_prover();
     UnrolledPlookupVerifier create_unrolled_verifier();
 
-    void create_dummy_gate();
     void create_add_gate(const add_triple& in) override;
 
     void create_big_add_gate(const add_quad& in);
@@ -92,7 +91,6 @@ class PlookupComposer : public ComposerBase {
 
     uint32_t put_constant_variable(const barretenberg::fr& variable);
 
-    void create_dummy_gates();
     size_t get_num_constant_gates() const override { return 0; }
 
     void assert_equal_constant(const uint32_t a_idx,
