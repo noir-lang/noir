@@ -1,4 +1,4 @@
-
+#include <common/throw_or_abort.hpp>
 #include "kate_commitment_scheme.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
 
@@ -270,17 +270,23 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
         const std::string poly_label(item.polynomial_label);
         switch (item.source) {
         case PolynomialSource::WITNESS: {
-
             // add [a]_1, [b]_1, [c]_1 to the group elements' vector
             const auto element = transcript.get_group_element(label);
-            ASSERT(element.on_curve());
+            // rule out bad points and points at infinity (just to be on the safe side. all-zero witnesses won't be
+            // zero-knowledge!)
+            if (!element.on_curve() || element.is_point_at_infinity()) {
+                throw_or_abort("polynomial commitment to witness is not a valid point.");
+            }
             kate_g1_elements.insert({ label, element });
             break;
         }
         case PolynomialSource::SELECTOR: {
-
             // add [qL]_1, [qR]_1, [qM]_1, [qC]_1, [qO]_1 to the group elements' vector
             const auto element = input_key->constraint_selectors.at(label);
+            // selectors can be all zeros so infinity point is valid
+            if (!element.on_curve()) {
+                throw_or_abort("polynomial commitment to selector is not a valid point.");
+            }
             kate_g1_elements.insert({ label, element });
             break;
         }
@@ -288,6 +294,10 @@ void KateCommitmentScheme<settings>::batch_verify(const transcript::StandardTran
 
             // add [\sigma_1]_1, [\sigma_2]_1, [\sigma_3]_1 to the group elements' vector
             const auto element = input_key->permutation_selectors.at(label);
+            // selectors can be all zeros so infinity point is valid
+            if (!element.on_curve()) {
+                throw_or_abort("polynomial commitment to permutation selector is not a valid point.");
+            }
             kate_g1_elements.insert({ label, element });
             break;
         }

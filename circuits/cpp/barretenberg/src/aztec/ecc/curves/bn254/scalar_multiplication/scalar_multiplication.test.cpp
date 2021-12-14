@@ -235,7 +235,6 @@ TEST(scalar_multiplication, reduce_buckets)
         scalars[i] = fr::random_element();
     }
 
-    // scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
     scalar_multiplication::pippenger_runtime_state state(num_initial_points);
 
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -345,8 +344,6 @@ TEST(scalar_multiplication, DISABLED_reduce_buckets_basic)
     g2::affine_element g2_x;
     io::read_transcript(monomials, g2_x, num_initial_points, BARRETENBERG_SRS_PATH);
 
-    scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
-
     fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
 
     fr source_scalar = fr::random_element();
@@ -446,8 +443,6 @@ TEST(scalar_multiplication, construct_addition_chains)
 
     g2::affine_element g2_x;
     io::read_transcript(monomials, g2_x, num_initial_points, BARRETENBERG_SRS_PATH);
-
-    scalar_multiplication::generate_pippenger_point_table(monomials, monomials, num_initial_points);
 
     fr* scalars = (fr*)(aligned_alloc(64, sizeof(fr) * num_initial_points));
 

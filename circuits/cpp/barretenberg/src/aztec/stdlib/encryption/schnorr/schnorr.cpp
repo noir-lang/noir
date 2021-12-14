@@ -74,20 +74,6 @@ template <typename C> signature_bits<C> convert_signature(C* context, const cryp
     return sig;
 }
 
-template <typename C> bit_array<C> convert_message(C* context, const std::string& message_string)
-{
-    bit_array<C> message(context, message_string.size() * 8);
-    for (size_t i = 0; i < message_string.size(); ++i) {
-        uint8_t msg_byte = static_cast<uint8_t>(message_string[i]);
-        for (size_t j = 7; j < 8; --j) {
-            uint8_t msg_shift = static_cast<uint8_t>(msg_byte >> j);
-            bool msg_bit = (msg_shift & 1U) == 1U;
-            message[(message_string.size() - i - 1) * 8 + j] = witness_t<C>(context, msg_bit);
-        }
-    }
-    return message;
-}
-
 template <typename C>
 point<C> variable_base_mul(const point<C>& pub_key, const field_t<C>& low_bits, const field_t<C>& high_bits)
 {
@@ -171,36 +157,6 @@ point<C> variable_base_mul(const point<C>& pub_key, const point<C>& current_accu
     return accumulator;
 }
 
-template <typename C> point<C> variable_base_mul(const point<C>& pub_key, const bit_array<C>& scalar)
-{
-    point<C> accumulator{ pub_key.x, pub_key.y };
-    bool_t<C> initialized(pub_key.x.context, false);
-    field_t<C> one(pub_key.x.context, barretenberg::fr::one());
-    field_t<C> two(pub_key.x.context, barretenberg::fr{ 2, 0, 0, 0 }.to_montgomery_form());
-    field_t<C> three(pub_key.x.context, barretenberg::fr{ 3, 0, 0, 0 }.to_montgomery_form());
-    for (size_t i = 0; i < 256; ++i) {
-        field_t<C> dbl_lambda = (accumulator.x * accumulator.x * three) / (accumulator.y * two);
-        field_t<C> x_dbl = dbl_lambda.madd(dbl_lambda, -(accumulator.x * two));
-        field_t<C> y_dbl = dbl_lambda.madd(accumulator.x - x_dbl, -accumulator.y);
-
-        accumulator.x = ((x_dbl - accumulator.x).madd(field_t<C>(initialized), accumulator.x));
-        accumulator.y = ((y_dbl - accumulator.y).madd(field_t<C>(initialized), accumulator.y));
-        bool_t<C> was_initialized = initialized;
-        initialized = initialized | scalar[i];
-
-        field_t<C> add_lambda = (accumulator.y - pub_key.y) / (accumulator.x - pub_key.x);
-        field_t<C> x_add = add_lambda.madd(add_lambda, -(accumulator.x + pub_key.x));
-        field_t<C> y_add = add_lambda.madd((pub_key.x - x_add), -pub_key.y);
-
-        bool_t<C> add_predicate = scalar[i] & was_initialized;
-        accumulator.x = ((x_add - accumulator.x).madd(field_t<C>(add_predicate), accumulator.x));
-        accumulator.y = ((y_add - accumulator.y).madd(field_t<C>(add_predicate), accumulator.y));
-    }
-    accumulator.x = accumulator.x.normalize();
-    accumulator.y = accumulator.y.normalize();
-    return accumulator;
-}
-
 template <typename C>
 bool verify_signature(const byte_array<C>& message, const point<C>& pub_key, const signature_bits<C>& sig)
 {
@@ -236,11 +192,6 @@ template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(
     const point<waffle::TurboComposer>&,
     const wnaf_record<waffle::TurboComposer>&);
 
-template point<waffle::TurboComposer> variable_base_mul<waffle::TurboComposer>(const point<waffle::TurboComposer>&,
-                                                                               const bit_array<waffle::TurboComposer>&);
-template point<waffle::PlookupComposer> variable_base_mul<waffle::PlookupComposer>(
-    const point<waffle::PlookupComposer>&, const bit_array<waffle::PlookupComposer>&);
-
 template bool verify_signature<waffle::TurboComposer>(const byte_array<waffle::TurboComposer>&,
                                                       const point<waffle::TurboComposer>&,
                                                       const signature_bits<waffle::TurboComposer>&);
@@ -252,11 +203,6 @@ template signature_bits<waffle::TurboComposer> convert_signature<waffle::TurboCo
     waffle::TurboComposer*, const crypto::schnorr::signature&);
 template signature_bits<waffle::PlookupComposer> convert_signature<waffle::PlookupComposer>(
     waffle::PlookupComposer*, const crypto::schnorr::signature&);
-
-template bit_array<waffle::TurboComposer> convert_message<waffle::TurboComposer>(waffle::TurboComposer*,
-                                                                                 const std::string&);
-template bit_array<waffle::PlookupComposer> convert_message<waffle::PlookupComposer>(waffle::PlookupComposer*,
-                                                                                     const std::string&);
 } // namespace schnorr
 } // namespace stdlib
 } // namespace plonk

@@ -39,7 +39,7 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     {
         Fq::serialize_to_buffer(value.y, buffer);
         Fq::serialize_to_buffer(value.x, buffer + sizeof(Fq));
-        if (!value.on_curve()) {
+        if (value.is_point_at_infinity()) {
             buffer[0] = buffer[0] | (1 << 7);
         }
     }

@@ -164,7 +164,8 @@ join_split_outputs join_split_circuit_component(join_split_inputs const& inputs)
     input_note1.nonce.assert_equal(input_note2.nonce, "input note nonces don't match");
 
     // And thus check both input notes have the correct public key (derived from the private key) and nonce.
-    auto account_public_key = group_ct::fixed_base_scalar_mul<254>(inputs.account_private_key);
+    inputs.account_private_key.assert_is_not_zero("account private key is zero");
+    auto account_public_key = group_ct::fixed_base_scalar_mul_g1<254>(inputs.account_private_key);
     account_public_key.assert_equal(input_note1.owner, "account_private_key incorrect");
     inputs.nonce.assert_equal(input_note1.nonce, "nonce incorrect");
 

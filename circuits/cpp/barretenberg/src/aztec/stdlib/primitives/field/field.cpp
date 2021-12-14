@@ -196,6 +196,7 @@ field_t<ComposerContext> field_t<ComposerContext>::operator*(const field_t& othe
 template <typename ComposerContext>
 field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& other) const
 {
+    other.assert_is_not_zero("field_t::operator/ divisor is 0");
     ComposerContext* ctx = (context == nullptr) ? other.context : context;
     field_t<ComposerContext> result(ctx);
     ASSERT(ctx || (witness_index == IS_CONSTANT && other.witness_index == IS_CONSTANT));
@@ -249,7 +250,8 @@ field_t<ComposerContext> field_t<ComposerContext>::operator/(const field_t& othe
         T1 = other.multiplicative_constant * right;
         T1 += other.additive_constant;
 
-        out = T0 * T1.invert();
+        T1 = T1.is_zero() ? 0 : T1.invert();
+        out = T0 * T1;
         result.witness_index = ctx->add_variable(out);
 
         // m2.x2.x3 + a2.x3 = m1.x1 + a1
@@ -419,7 +421,11 @@ template <typename ComposerContext> void field_t<ComposerContext>::assert_is_not
         return;
     }
     ComposerContext* ctx = context;
-    barretenberg::fr inverse_value = get_value().invert();
+    if (get_value() == 0 && ctx) {
+        ctx->failed = true;
+        ctx->err = msg;
+    }
+    barretenberg::fr inverse_value = (get_value() == 0) ? 0 : get_value().invert();
 
     field_t<ComposerContext> inverse(witness_t<ComposerContext>(ctx, inverse_value));
 

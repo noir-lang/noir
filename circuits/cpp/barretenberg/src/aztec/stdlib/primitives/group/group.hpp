@@ -14,37 +14,42 @@ using namespace crypto::pedersen;
 
 template <typename ComposerContext> class group {
   public:
-    template <size_t num_bits> static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in);
+    template <size_t num_bits> static auto fixed_base_scalar_mul_g1(const field_t<ComposerContext>& in);
     static auto fixed_base_scalar_mul(const field_t<ComposerContext>& lo, const field_t<ComposerContext>& hi);
 
     template <size_t num_bits>
-    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index);
+    static auto fixed_base_scalar_mul(const field_t<ComposerContext>& in,
+                                      const size_t generator_index,
+                                      const bool forbid_zero_input = true);
 
   private:
     template <size_t num_bits>
     static auto fixed_base_scalar_mul_internal(const field_t<ComposerContext>& in,
                                                grumpkin::g1::affine_element const& generator,
-                                               fixed_base_ladder const* ladder);
+                                               fixed_base_ladder const* ladder,
+                                               const bool forbid_zero_input = true);
 };
 
 template <typename ComposerContext>
 template <size_t num_bits>
-auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in)
+auto group<ComposerContext>::fixed_base_scalar_mul_g1(const field_t<ComposerContext>& in)
 {
     const auto ladder = get_g1_ladder(num_bits);
     auto generator = grumpkin::g1::one;
-    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder);
+    return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(in, generator, ladder, true);
 }
 
 template <typename ComposerContext>
 template <size_t num_bits>
-auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in, const size_t generator_index)
+auto group<ComposerContext>::fixed_base_scalar_mul(const field_t<ComposerContext>& in,
+                                                   const size_t generator_index,
+                                                   const bool forbid_zero_input)
 {
     // we assume for fixed_base_scalar_mul we're interested in the gen at subindex 0
     generator_index_t index = { generator_index, 0 };
     auto gen_data = get_generator_data(index);
     return group<ComposerContext>::fixed_base_scalar_mul_internal<num_bits>(
-        in, gen_data.generator, gen_data.get_ladder(num_bits));
+        in, gen_data.generator, gen_data.get_ladder(num_bits), forbid_zero_input);
 }
 
 /**
@@ -83,7 +88,8 @@ template <typename ComposerContext>
 template <size_t num_bits>
 auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<ComposerContext>& in,
                                                             grumpkin::g1::affine_element const& generator,
-                                                            fixed_base_ladder const* ladder)
+                                                            fixed_base_ladder const* ladder,
+                                                            const bool forbid_zero_input)
 {
     auto scalar = in.normalize();
     auto ctx = in.context;
@@ -218,18 +224,27 @@ auto group<ComposerContext>::fixed_base_scalar_mul_internal(const field_t<Compos
     auto constructed_scalar = field_t(ctx);
     constructed_scalar.witness_index = add_quad.d;
 
-    auto is_zero = scalar.is_zero();
-    // If k = 0, our scalar multiplier is going to be nonsense.
-    // We need to conditionally validate that, if k != 0, the constructed scalar multiplier matches our input scalar.
-    auto lhs = constructed_scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
-    auto rhs = scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
-    lhs.assert_equal(rhs, "scalars unequal");
-
     point<ComposerContext> result;
     result.x = field_t(ctx);
     result.x.witness_index = add_quad.a;
     result.y = field_t(ctx);
     result.y.witness_index = add_quad.b;
+
+    auto lhs = constructed_scalar;
+    auto rhs = scalar;
+    if (!forbid_zero_input) {
+        // if forbid_zero_input == false, it is up to the calling function to correctly handle the case where the input
+        // = 0
+        auto is_zero = scalar.is_zero();
+        // If k = 0, our scalar multiplier is going to be nonsense.
+        // We need to conditionally validate that, if k != 0, the constructed scalar multiplier matches our input
+        // scalar.
+        lhs = constructed_scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
+        rhs = scalar * (field_t<ComposerContext>(1) - field_t<ComposerContext>(is_zero));
+    }
+    lhs.normalize();
+    rhs.normalize();
+    ctx->assert_equal(lhs.witness_index, rhs.witness_index, "scalars unequal");
 
     return result;
 }
