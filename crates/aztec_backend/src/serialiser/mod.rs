@@ -408,7 +408,6 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     let mut ql: FieldElement = 0.into();
     let mut qr: FieldElement = 0.into();
     let mut qo: FieldElement = 0.into();
-    let mut qc: FieldElement = 0.into();
 
     // check mul gate
     if !gate.mul_terms.is_empty() {
@@ -473,7 +472,7 @@ fn serialise_arithmetic_gates(gate: &Arithmetic) -> Constraint {
     }
 
     // Add the qc term
-    qc = gate.q_c;
+    let qc = gate.q_c;
 
     Constraint {
         a,
